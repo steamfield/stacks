@@ -1,0 +1,71 @@
+[
+  {
+    "id": "semgrep",
+    "languages": [],
+    "binary": "semgrep",
+    "versionArgv": ["--version"],
+    "sarifArgv": ["scan", "--sarif", "--config", "auto", "--metrics", "off", "{target}"],
+    "timeoutMs": 120000,
+    "verified": false,
+    "note": "Confirm --sarif writes SARIF 2.1.0 to stdout against the installed semgrep binary; the {target} placeholder is substituted with the absolute target path. The first run needs network to fetch the auto ruleset; results are cached afterwards, so subsequent runs are offline. Telemetry is disabled with --metrics off. The digest and metrics are unaffected either way: semgrep writes its SARIF to stdout and does not create a cache or log directory inside the target."
+  },
+  {
+    "id": "ruff",
+    "languages": ["python"],
+    "binary": "ruff",
+    "versionArgv": ["--version"],
+    "sarifArgv": ["check", "--no-cache", "--output-format", "sarif", "{target}"],
+    "timeoutMs": 60000,
+    "verified": true,
+    "note": "Confirmed against ruff 0.15.10: --output-format sarif emits SARIF 2.1.0 on stdout. --no-cache prevents ruff from creating .ruff_cache/ inside the target; verified empirically that no cache directory appears."
+  },
+  {
+    "id": "eslint",
+    "languages": ["javascript", "typescript"],
+    "binary": "eslint",
+    "versionArgv": ["--version"],
+    "sarifArgv": ["-f", "@microsoft/eslint-formatter-sarif", "{target}"],
+    "timeoutMs": 120000,
+    "verified": false,
+    "note": "Requires @microsoft/eslint-formatter-sarif to be installed in the target; confirm the formatter emits SARIF 2.1.0. Verify the formatter package name and flag against the installed ESLint. Read-only: ESLint only writes .eslintcache when --cache is passed, which this adapter never does."
+  },
+  {
+    "id": "golangci-lint",
+    "languages": ["go"],
+    "binary": "golangci-lint",
+    "versionArgv": ["--version"],
+    "sarifArgv": ["run", "--out-format", "sarif", "{target}"],
+    "timeoutMs": 180000,
+    "verified": false,
+    "note": "Confirm --out-format sarif writes SARIF 2.1.0 to stdout with the installed golangci-lint; the {target} path may need to be a Go package path. Read-only audit: golangci-lint may write to a cache under HOME; it does not create a cache directory inside the target. Confirm against the installed binary."
+  },
+  {
+    "id": "trivy",
+    "languages": [],
+    "binary": "trivy",
+    "versionArgv": ["--version"],
+    "sarifArgv": ["fs", "--format", "sarif", "--scanners", "vuln", "{target}"],
+    "timeoutMs": 120000,
+    "verified": false,
+    "note": "Confirm trivy fs --format sarif writes SARIF 2.1.0 to stdout against the installed trivy; verify --scanners spelling. Read-only audit: trivy stores its DB under HOME/.cache, not inside the target; confirm it does not write into the target."
+  },
+  {
+    "id": "gitleaks",
+    "languages": [],
+    "binary": "gitleaks",
+    "versionArgv": ["version"],
+    "sarifArgv": [
+      "dir",
+      "{target}",
+      "--report-path",
+      "-",
+      "--report-format",
+      "sarif",
+      "--no-banner",
+      "--redact"
+    ],
+    "timeoutMs": 120000,
+    "verified": false,
+    "note": "Flags read from gitleaks cmd/root.go upstream source, not confirmed on a machine: -r/--report-path is documented as \"report file (use \\\"-\\\" for stdout)\" and -f/--report-format accepts sarif. --no-banner keeps the banner out of stdout so the SARIF parses; --redact (default 100%) keeps secrets out of the stored record — a finding needs the rule, path and line, not the secret. The subcommand is dir, not a bare target path. Read-only: with --report-path - gitleaks writes to stdout; if a file path were used it must be outside the target."
+  }
+]

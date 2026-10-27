@@ -138,6 +138,7 @@ reruns is phase 5 (5.1).
 | [2.0c Run ledger](phases/phase-2.0c-run-ledger.md) | The ledger of `LedgerRecord`s wrapping 1.3b's `RunRecord`, imported 1.6b runs, `quickstacks runs`, and `lastRun` in `list --json` | "None of these are collected today"; success rows 1 and 2 | 2.0a, 1.6b, 1.3b, 0.3b | Not started |
 | [2.0b Bench](phases/phase-2.0b-bench.md) | A local script that drives the user's own agent headlessly through `new --sandbox` to `verify`, with token auth (D24) and an `## Asked` intervention count | Success rows 1 and 2; assumption 1 | 2.0c, 2.0a, 0.2, 0.3b, 1.4 | Not started |
 | [2.2 Deterministic rot checks](phases/phase-2.2-deterministic-rot-checks.md) | `validate` checks shipped files against the composition, flags dated prose, version-sensitive files and pinned versions, adds the per-composition and dead-branch checks, and reports "changed since last green" | Assumption 2 ("version-less prose rots much more slowly"); assumption 3 | 2.0a, 2.0c, 1.5 | Not started |
+| [2.3 Code-analysis records](phases/phase-2.3-code-analysis-records.md) | `packages/tools/analyze` runs the analyzers already on the machine over any directory and writes one SARIF 2.1.0 log per run — measured facts, a tool ledger and quickstacks attribution — as the metadata a stack carries | "None of these are collected today"; every existing measure is about the run, none about the code the run produced | Nothing in the repo; optionally reads the project manifest when it is present | Not started |
 
 ### Phase 3: existing repos and authors
 
@@ -372,6 +373,10 @@ flowchart LR
   p40e --> p52
   p40d --> p52
   p41e -.-> p52
+  p23[2.3 analysis records]
+  p23 -.-> p41b
+  p23 -.-> p42a
+  p23 -.-> p43
 ```
 
 The dashed edge into 3.2a is a demand gate: 3.2a starts only when someone outside the
@@ -396,6 +401,7 @@ What can run in parallel, given one agent per sub-phase:
 | Phase 4 | 4.0b and 4.1a after 4.0a; 4.0d after 4.0c | `packages/format` is additive only once 4.0a lands: 4.0c adds the index schema and keys, 4.0e the names schema, 4.1a the event schema, 4.2a the stats schema; nobody changes an existing export |
 | Phase 4, telemetry | 4.1d after 4.1c, then 4.1e; 4.2c and 4.2d in parallel after 4.2b and 4.1e; 4.2e after 4.2d | `packages/api/src/maintenance/maintain.ts` and the scheduled entry (4.1d adds a step before archive, 4.2a the hourly rollup under the same lease); `packages/api/src/stats/rollup.ts` (4.2c adds co-occurrence, 4.2e the dependency dimensions, both additive); `packages/cli/scripts/site/` and the index build (4.2c pages, 4.2d the allowlist); `packages/api/wrangler.jsonc` routes and the `STATS_ENABLED` (4.2c) and `DEPS_ENABLED` (4.2e) vars |
 | Phase 5 | 5.0 any time after 1.6c; 5.1 and 5.2 after 5.0 | `.github/workflows/` |
+| Any phase | 2.3 alongside everything above; it has no dependency in the repo and nothing depends on it | none while it lives in its own package; `bun.lock` is the only shared file |
 
 Two orderings, decided here:
 
@@ -588,6 +594,7 @@ Names to use: `EntryInvalid` (not `InvalidEntry`), `ComposeConflict` (not
 | Telemetry from maintainer runs | The bench (2.0b) sets `DO_NOT_TRACK=1` in the agent's child environment, so every `quickstacks` the agent runs sends nothing; the canary (5.1) runs through the bench and asserts it. Smoke events use the excluded smoke install id | 2.0b, 5.1, 4.1e |
 | Run evidence | Gate and bench run notes in [plans/runs/](runs/README.md) `<date>-<stack>.md`, each with the repo commit; 1.6b's notes are also the evidence for D5; the ledger (above) | 1.6b, 2.0c |
 | New dependencies | `yaml` (1.0). Any other new runtime dependency needs a line in that sub-phase's design saying why the standard library and Effect aren't enough. Known ones: `wrangler` and `@cloudflare/vitest-pool-workers` as dev dependencies (4.0b), the D1 driver for `effect/sql` (4.1b), `smol-toml` for reading TOML, added once to the root catalog by 3.0 and reused by 4.2d for `Cargo.toml` and `pyproject.toml`. Scripts in `scripts/` use Effect and `Processes`; GitHub is called with `gh` (5.1) | each owner |
+| Analysis record | One SARIF 2.1.0 log per run, produced by 2.3 and stored as the stack's metadata. `runs[0]` is the envelope and carries `properties.quickstacks`; `attribution` reuses 2.0c's ledger key; `target.digest` is a sha256 over the sorted tree with symlinks skipped and generated directories excluded; artifact URIs are relative with the base in `originalUriBaseIds`; `runId` is unique per invocation; findings never change an exit code | 2.3 |
 
 ## Repository and stack
 

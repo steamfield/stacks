@@ -434,7 +434,7 @@ test("every schema field has a documented consumer and legacy flags never serial
   fields.add("deps");
   expect(Object.keys(consumers).sort()).toEqual([...fields].sort());
   for (const reader of Object.values(consumers)) expect(reader.trim().length).toBeGreaterThan(0);
-  const docs = readFileSync(join(import.meta.dirname, "../README.md"), "utf8");
+  const docs = readFileSync(join(import.meta.dirname, "../docs/reference/telemetry.md"), "utf8");
   const rows = docs.split("\n").filter((line) => line.startsWith("|"));
   for (const [field, reader] of Object.entries(consumers)) {
     expect(

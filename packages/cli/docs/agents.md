@@ -81,6 +81,7 @@ When a command fails, the agent gets an exit code that tells it what to do next:
 | 0 | Continue. For `verify`, check the outcome: only `green` is done |
 | 2 | Fix the input: a typo'd id, a bad flag, a non-empty target directory |
 | 3 | Fix the configuration or the manifest |
+| 4 | Retry later: an upstream service, such as the npm registry for `update`, was unavailable |
 | 5 | Read the verify report on stdout and fix what it names |
 | 6 | Ask you: something needs a person's permission |
 | 130 | Nothing; the run was interrupted |

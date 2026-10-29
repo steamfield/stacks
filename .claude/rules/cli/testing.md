@@ -39,7 +39,7 @@ Replace a service with a test layer only at a real boundary: the process and ter
 
 ## Realistic edge cases
 
-Tests written next to the code tend to confirm the path the author had in mind. In phase 1, review found bugs in every sub-phase that full line coverage had missed, and they all came from the same few places. Before calling a feature done, ask what real users, real machines and real entries will throw at it, and write a test for each case that applies. Realistic means it happens without an attacker: a dotfiles repo, a Docker volume, a macOS laptop, an agent's shell, a half-finished earlier run.
+Tests written next to the code tend to confirm the path the author had in mind. Review here has found bugs in feature after feature that full line coverage had missed, and they came from the same few places. Before calling a feature done, ask what real users, real machines and real entries will throw at it, and write a test for each case that applies. Realistic means it happens without an attacker: a dotfiles repo, a Docker volume, a macOS laptop, an agent's shell, a half-finished earlier run.
 
 - The filesystem as it is. Symlinks anywhere on a path (inside an entry, as a root, as an intermediate directory, pointing at `/` or in a loop), case-insensitive volumes (`.GIT` is `.git` on APFS, `README.md` and `readme.md` collide), paths with spaces, leading dashes and non-ASCII names, and real paths that differ from the given one (`/var` and `/private/var`).
 - State that was already there. A target holding a broken `.git`, a partial scaffold from an interrupted run, a parent repository, a directory that is its own repository, an unreadable file or directory, a file where a directory is expected.
@@ -59,14 +59,13 @@ Check findings, not just the happy result. When a command reports problems (`val
 
 ## Manual QA as the user
 
-Agents are this CLI's main user, so the agent building a command is also its first user. Before a sub-phase is called done, run the changed command for real, as `rules/cli/cli.md` "Verifying UX" describes: through `bun run dev` or the installed Node package, in human and `--json` modes, on success and on the realistic failures above.
+Agents are this CLI's main user, so the agent building a command is also its first user. Before a change is called done, run the changed command for real, as `rules/cli/cli.md` "Verifying UX" describes: through `bun run dev` or the installed Node package, in human and `--json` modes, on success and on the realistic failures above.
 
-Then judge it as the agent that will depend on it. Could I pick the next step from this output alone? Is anything missing, noisy, ambiguous or surprising? Would I want a different flag, default, message or exit code? Does the JSON give me what I need to branch without parsing prose? Fix what fails that judgement, or record it with a reason in the plan's "What this plan may get wrong". The implementer's report ends with a short QA note: the commands run, what it judged, and what it changed.
+Then judge it as the agent that will depend on it. Could I pick the next step from this output alone? Is anything missing, noisy, ambiguous or surprising? Would I want a different flag, default, message or exit code? Does the JSON give me what I need to branch without parsing prose? Fix what fails that judgement, or report it with a reason to whoever gave the task. The implementer's report ends with a short QA note: the commands run, what it judged, and what it changed.
 
 ## Process and gate
 
-- Each new sub-phase, starting with 1.3a, is test-first. A test author, a different agent from the implementer, writes the plan's numbered acceptance tests and its realistic edge cases as tagged, failing tests. The implementer makes them pass without editing their assertions. A change to a test's intent goes back to the plan, and a test the implementer believes is wrong is reported, not quietly rewritten.
-- Tag each acceptance test in its name with the plan's sub-phase and number, `[1.3a#4]` or `[1.0#12a]`, one tag per number it covers. For a plan carrying the line `Acceptance tests: traced`, the root `tests/acceptance/trace.test.ts` fails on any number with no tagged test under any package's `tests/` or `e2e/` (`packages/cli/tests`, `packages/format/tests`), and on any tag naming a number its plan doesn't list.
+- A feature whose design lists acceptance behaviors is test-first. A test author, a different agent from the implementer, writes those behaviors and the realistic edge cases as failing tests. The implementer makes them pass without editing their assertions. A change to a test's intent goes back to whoever gave the design, and a test the implementer believes is wrong is reported, not quietly rewritten.
 - A bug fix starts with a failing test that reproduces it through the narrowest real interface (`runCli` if possible).
 - Never weaken, skip or delete an existing assertion to get green. If a contract changes on purpose, change its test in the same commit and say why.
 - Name tests after behavior ("--json after -- belongs to the command"), not after functions.

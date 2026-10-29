@@ -5,7 +5,7 @@
  * 2026-10-28 for its home-route-test step and stub-free uv init (proven in R3's bench run).
  * The 0.4.1 version in the brief changed all six digests on 2026-10-29, and the registry
  * metadata pass (fragment names and descriptions in the brief) changed them again that day;
- * those briefs await a bench run (plans/HANDOFF.md, "Registry metadata pass").
+ * those briefs await a bench run.
  * These digests changed on 2026-10-29 for the stack audit fixes and await a bench run.
  * The 0.5.0 version in the brief changed all six again on 2026-10-29.
  * After proving an intentional brief change, regenerate each

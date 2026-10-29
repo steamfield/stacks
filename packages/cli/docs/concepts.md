@@ -91,7 +91,7 @@ flowchart LR
 
 `--without ci-github` drops CI. `--with bun-release` adds release tooling. A required fragment can't be removed, because the stack depends on it.
 
-Fragments also describe how they fit with others. `requires` pulls in another fragment automatically: `claude-harness` requires `agent-ops` and `effect` requires `effect-schema`, so `stacks new typescript-cli my-cli` gets six fragments, `agent-ops`, `ci-github`, `claude-harness`, `effect-schema`, `effect` and `git-hooks`, though the stack names only four. `conflicts` names fragments it can't coexist with. `applies_to` says which stacks or tags it works with, so `postgres` (which says `applies_to: [python-react]`) doesn't get offered for an Astro blog.
+Fragments also describe how they fit with others. `requires` pulls in another fragment automatically: `claude-harness` requires `agent-ops` and `effect` requires `effect-schema`, so `stacks new typescript-cli my-cli` gets six fragments, `agent-ops`, `ci-github`, `claude-harness`, `effect-schema`, `effect` and `git-hooks`, though the stack names only four. `conflicts` names fragments it can't coexist with. `applies_to` says which stacks or tags it works with, so `postgres` (which says `applies_to: [python-react, python-api]`) doesn't get offered for an Astro blog.
 
 Picking the fragments and putting the result together is called composition. Composition is the same every time for the same inputs, and `stacks validate` composes every stack with every fragment that fits it to catch combinations that don't work.
 
@@ -194,6 +194,8 @@ stacks reads entries from three places, called roots, and the first one that has
 | `project` | `.stacks/stacks/` and `.stacks/fragments/` in the current directory | No |
 | `user` | `~/.config/stacks/` (or `$XDG_CONFIG_HOME/stacks/`) | Yes |
 | `bundled` | The registry shipped with the CLI | Yes |
+
+A fourth origin, `index`, sits between user and bundled when you point `STACKS_INDEX_URL` at a remote registry index. It is off by default, and its entries are untrusted; [Configuration](reference/configuration.md#remote-registry-cache) has the details.
 
 ```mermaid
 flowchart LR

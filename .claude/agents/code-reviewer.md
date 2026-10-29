@@ -26,8 +26,8 @@ work merged into the base after the branch started would read as reverted. Read 
 in full where the diff alone hides how a function is used.
 
 Standards: `AGENTS.md` (especially "Code structure", "Conventions", "Testing" and "Error
-handling"), `.claude/rules/` (the files whose scope covers the diff), and the plan the work
-implements, if any, including its "What this plan may get wrong".
+handling"), `.claude/rules/` (the files whose scope covers the diff), and the design or task description the
+work implements, if the caller gave one.
 
 ## What a passing gate misses here
 
@@ -44,10 +44,10 @@ Check every item. Each was a real defect that reached review in this repo.
    not placement.
 3. Boundaries: Node or Bun APIs, `process.env`, `import.meta` paths or stdout writes outside the
    files AGENTS.md "Conventions" allows; a module importing another package's `src/`; a
-   cross-phase type, tag or schema redefined instead of cited from the roadmap's contracts table.
+   shared type or schema redefined in the CLI instead of imported from `@steamfield/stacks-format`.
 4. Audiences and errors: output rendered by anything other than `Output.audience`; agent text that
-   carries what an agent doesn't need; a new error tag without its class, `errorTable` row and
-   roadmap line; arbitrary values in a message or `details` that should be CLI-produced.
+   carries what an agent doesn't need; a new error tag without its `errorClasses` entry and
+   `errorTable` row; arbitrary values in a message or `details` that should be CLI-produced.
 5. Tests, against the writing-tests skill and `.claude/rules/cli/testing.md`: assertions on
    internals or mocks instead of the real interfaces; a regression test that would still pass with
    the fix reverted; and these traps, each of which has stalled or flaked a run here: comparing
@@ -68,8 +68,8 @@ Check every item. Each was a real defect that reached review in this repo.
    that changes only that input and expects the result to change. A digest or before/after
    comparison over fixed inputs doesn't cover it: an integrity cursor that ignored a released-
    versions change passed both here.
-8. Plans and docs: a plan claim the code contradicts without a note in that plan's "What this plan
-   may get wrong"; AGENTS.md's architecture map or command table out of date with the diff.
+8. Design and docs: a design claim the code contradicts without the hand-off saying so;
+   AGENTS.md's architecture map or command table out of date with the diff.
 9. Safety, on any change to a guard, a hook, its wiring, a trust rule, or a write that could
    replace something. Each of these reached production review here after a clean first review.
    - Fail closed. If the guard, hook script or config it depends on is missing, unreadable or

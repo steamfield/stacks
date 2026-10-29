@@ -62,7 +62,7 @@ The [live directory](https://stacks.steamfield.io/) connects the promise to spec
 
 The [Python + React page](https://stacks.steamfield.io/stacks/python-react/) exposes outcomes, time to green, failure categories, and composition breakdowns. Its ledger panel displayed “No ledger run recorded” during the October 28 inspection. Aggregate outcomes and current-recipe bench evidence are different signals.
 
-**Data qualification:** the current [handoff](../plans/HANDOFF.md) says production serves seeded history. Treat displayed counts, rates, and timings as sample analytics until deployed provenance is confirmed. The site's four-hour self-setup baseline is illustrative, not a measured control run.
+**Data qualification:** as of the October 28 inspection, production serves seeded history. Treat displayed counts, rates, and timings as sample analytics until deployed provenance is confirmed. The site's four-hour self-setup baseline is illustrative, not a measured control run.
 
 Keep the time window, sample, uncertainty interval, and dataset label visible. Time to green is conditional on projects that reached green; it is not a completion promise.
 

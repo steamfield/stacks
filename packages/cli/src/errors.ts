@@ -169,7 +169,7 @@ export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyCh
   override readonly message = "Verify steps changed since they were recorded.";
 }
 /**
- * `reason` is a closed set later sub-phases extend; `path` is the file or directory involved.
+ * `reason` is a closed set; `path` is the file or directory involved.
  * `escape`: a write would land outside the project (its real path isn't under the project's).
  * `blocked`: a live file or directory blocks a planned add path; `path` is the blocker.
  * `unwritable`: the project directory or a file in it couldn't be created or written.

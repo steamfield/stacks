@@ -22,7 +22,7 @@ import { remoteRegistry } from "./remote";
  * the one shipped with the CLI, whose entries are untrusted.
  */
 export type RegistryRoot = { origin: Origin; path: string; overridden?: boolean; remote?: boolean };
-/** Registry roots, highest precedence first (roadmap, Contracts: Registry view). */
+/** Registry roots, highest precedence first. */
 export type RegistryRoots = ReadonlyArray<RegistryRoot>;
 type Reason = "decode" | "symlink" | "id_mismatch" | "missing" | "unreadable";
 /** A rejected entry plus what `get` needs to report it. */
@@ -127,9 +127,9 @@ const kinds = [
 ] as const satisfies ReadonlyArray<{ kind: Kind; dir: string }>;
 
 /**
- * Whether an entry is trusted. By origin and root in 1.0: project entries never are, nor are
- * entries from a bundled root set by STACKS_REGISTRY_DIR; user entries and the shipped
- * bundled ones are (Trust model, point 2; D19). 3.2a adds the trust store's digests.
+ * Whether an entry is trusted, by origin and root: project entries never are, nor are entries
+ * from a bundled root set by STACKS_REGISTRY_DIR; user entries and the shipped bundled ones are
+ * (Trust model, point 2).
  */
 export function trustOf(entry: Pick<Entry, "origin">, root: RegistryRoot): boolean {
   return entry.origin !== "project" && !root.overridden;

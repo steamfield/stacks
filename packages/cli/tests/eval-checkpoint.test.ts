@@ -161,10 +161,7 @@ test.each([
 test("rejects the saved Terra report even when its runner exits zero", () => {
   const value = fixture("supplied");
   const evidence = readFileSync(
-    join(
-      import.meta.dirname,
-      "../../../plans/runs/2026-10-28-qa-followup/web-app-evidence/eval-dry-run.txt",
-    ),
+    join(import.meta.dirname, "fixtures/eval-dry-run-terra.txt"),
     "utf8",
   );
   const last = evidence.trim().split("\n").at(-1);

@@ -3,8 +3,7 @@ import { Effect, Exit, FileSystem, Path, type PlatformError, type Scope } from "
 import { PermissionDenied, TargetNotEmpty } from "../../errors";
 
 /**
- * The one way `new` (and later `add`) writes into a project (roadmap, Types and schemas: Safe
- * writer). Every file is created exclusively (never over an existing file or through a final
+ * The one way `new` and `add` write into a project. Every file is created exclusively (never over an existing file or through a final
  * symlink). On the way down, every symlinked directory is resolved and every directory created is
  * checked before anything is made beneath it, so nothing is created outside the project root's
  * real path. After each file is written its parent's real path is checked again, and a file whose

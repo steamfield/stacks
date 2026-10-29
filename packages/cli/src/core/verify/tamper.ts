@@ -48,11 +48,11 @@ function itemize(manifest: Manifest, state: ProjectState) {
 const NOT_ITEMIZED = { removed: [], added: [], edited: [], settings: false };
 
 /**
- * D14, before any step runs (Trust model, point 5). The manifest's steps are digested again and
- * compared with its own `verifyDigest`, then with the state record for its `projectId`; with no
- * record for that id, a record holding this manifest's real path is looked for, and finding one is
- * a change (`reason: "project-id"`). No record at all is `manifest-only`. A record a newer
- * stacks wrote fails `InvalidConfig`. What changed is named from the record's per-step
+ * The tamper check, before any step runs (Trust model, point 5). The manifest's steps are
+ * digested again and compared with its own `verifyDigest`, then with the state record for its
+ * `projectId`; with no record for that id, a record holding this manifest's real path is looked
+ * for, and finding one is a change (`reason: "project-id"`). No record at all is `manifest-only`.
+ * A record a newer stacks wrote fails `InvalidConfig`. What changed is named from the record's per-step
  * digests whenever there is a record, whichever copy disagreed.
  */
 export const checkTamper = (

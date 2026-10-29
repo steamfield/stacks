@@ -10,8 +10,9 @@ New here? Start with the [quick start](quickstart.md). It gets a project running
 | [How stacks works](architecture.md) | See the pipeline, the design rules and the source layout |
 | [Authoring a stack or fragment](authoring.md) | Write your own entry and prove it |
 | [Command reference](reference/commands.md) | Look up every command and flag |
+| [Search](reference/search.md) | See how `search` ranks entries and what its result holds |
 | [Output and errors](reference/output.md) | Script against `--json`, exit codes and the error envelope |
-| [Configuration](reference/configuration.md) | Set defaults in `config.json` or the environment |
+| [Configuration](reference/configuration.md) | Set defaults in `config.json` or the environment, and configure a remote index |
 | [Telemetry](reference/telemetry.md) | See collection, consent, state and privacy controls |
 | [Validation](reference/validation.md) | Learn what `validate` checks and the word budgets |
 | [Maintaining the bundled registry](maintaining.md) | Run the bench, update the ledger, publish the plugin |

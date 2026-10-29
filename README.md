@@ -2,6 +2,63 @@
 
 stacks starts projects for coding agents: it writes starter files and a build brief, then runs the project's declared checks. Browse the catalog at [stacks.steamfield.io](https://stacks.steamfield.io), or follow the [quick start](packages/cli/docs/quickstart.md); the [docs index](packages/cli/docs/README.md) has everything else.
 
+## Submission: architecture, demo, and data
+
+Public repo: [steamfield/stacks](https://github.com/steamfield/stacks). The CLI uses TypeScript and Effect 4, bundled by Bun for Node 22+. Recipes are Markdown; your existing coding agent builds the application. The FastAPI + React example uses uv, pytest, Vite, and a generated OpenAPI client.
+
+```mermaid
+flowchart LR
+  R["Markdown stacks + fragments"] --> C["CLI composes starter files and brief"]
+  C --> A["Your coding agent builds"]
+  A --> V{"verify --all"}
+  V -- "fix failures" --> A
+  V -- "checks pass" --> P["Working project foundation"]
+```
+
+### Reproduce the local FastAPI + React demo
+
+Install Node 22+, git, Bun, uv, make, jq, and lefthook, and authenticate your coding agent. From a fresh directory, use the published CLI version checked for this submission:
+
+```sh
+npx --yes @steamfield/stacks@0.5.0 show python-react
+npx --yes @steamfield/stacks@0.5.0 new python-react stacks-demo --sandbox --no-launch
+cd stacks-demo
+cp .env.example .env
+```
+
+Open `stacks-demo` in your coding agent and ask: **“Read .stacks/BRIEF.md and implement it without weakening the checks; finish by running npx --yes @steamfield/stacks@0.5.0 verify --all.”** Then inspect the result:
+
+```sh
+npx --yes @steamfield/stacks@0.5.0 verify --all
+npx --yes @steamfield/stacks@0.5.0 runs
+make dev
+```
+
+Open `http://localhost:5173`; the API health endpoint is `http://localhost:8000/health`. Check that all required verification steps passed, since a partial run can also exit 0. Generation and timing vary with the agent and dependencies; this reproduces the workflow, not a historical timed run.
+
+The CLI calls no model and needs no API keys or `.env`. Your agent needs its own provider login or credentials. The generated app includes a [sample `.env.example`](packages/cli/registry/stacks/python-react/files/.env.example) with local defaults:
+
+```dotenv
+PORT_API=8000
+PORT_WEB=5173
+ENVIRONMENT=development
+LOG_LEVEL=INFO
+CORS_ORIGINS=["http://localhost:5173"]
+VITE_API_BASE_URL=
+```
+
+No Rho, database, or analytics key is needed for this local starter. Optional integrations need separate credentials. Keep secrets out of Git and browser-exposed `VITE_` variables. The CLI does not autoload `.env`; the generated app reads its own configuration.
+
+### Data and provenance
+
+No external dataset is required for the local starter. Recipes and starter assets are in the [maintainer-controlled registry](packages/cli/registry); inspect their Git history for provenance. The public [run ledger](packages/cli/registry/runs.json) records historical agent sessions, versions, fingerprints, outcomes, and steps. At this revision it contains 8 records: 7 labeled pass and 1 fail. Five records skip the production build. Full run narratives referenced under `plans/runs/` are not public; these summaries do not establish a current success rate or an 8.8-minute reproduction.
+
+The directory's [stats API](https://stacks.steamfield.io/v1/stats) identified its population as **seeded development data** on October 29, 2026. Its synthetic usage and outcome metrics illustrate the analytics interface, not community adoption. The hosted implementation and seed generator are private, so this repo reproduces the CLI workflow rather than the site's synthetic dataset. Arrange judge access separately if evaluating the hosted code. Record your own session metrics with `stacks runs`; illustrative homepage timings are not controlled benchmarks.
+
+### Limitations and next steps
+
+The CLI supports macOS and Linux on Node 22+; recipes need their own tools and agent access. Verification proves only the declared checks, not application quality or production readiness. Hosted search can fall back to local ranking. The catalog and historical evidence are limited, directory metrics are synthetic, and the [MCP server](packages/mcp/README.md) is a placeholder. Next steps are broader recipe coverage, public reproducible run artifacts, real outcome data with appropriate disclosure, and MCP support.
+
 ## Install
 
 stacks needs Node 22 or newer, on macOS or Linux. The npm package is `@steamfield/stacks`; run it with `npx`, no install step:
@@ -23,7 +80,7 @@ Or install it globally. The package is `@steamfield/stacks`, but the command it 
 npm install -g @steamfield/stacks@latest
 ```
 
-This repository is a bun workspace. Product planning is in [plans/](plans/README.md) and [product/](product/PROBLEM_STATEMENT.md).
+This repository is a bun workspace. The [product statement](product/PROBLEM_STATEMENT.md) describes its goals; internal plans are not included in the public checkout.
 
 | Path | What it is |
 | --- | --- |

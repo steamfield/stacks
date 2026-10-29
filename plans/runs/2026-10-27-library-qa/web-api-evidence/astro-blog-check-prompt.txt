@@ -1,6 +1,0 @@
-$ make check
-bunx astro check
-To continue, Astro requires the following dependency to be installed: @astrojs/check.
-Astro will run: bun add @astrojs/check typescript
-Continue? Yes / No
-exit=0

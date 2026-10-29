@@ -1,6 +1,0 @@
-/ 200 text/html
-/hello 200 text/html
-/unlisted 200 text/html
-/draft 404 text/html
-/rss.xml 200 text/xml
-/sitemap-0.xml 200 text/xml

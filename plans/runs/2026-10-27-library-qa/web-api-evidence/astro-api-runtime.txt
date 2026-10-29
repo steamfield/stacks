@@ -1,4 +1,0 @@
-/ 200 text/html
-/healthz 200 application/json
-/missing 404 text/html
-/v1/missing 404 application/json

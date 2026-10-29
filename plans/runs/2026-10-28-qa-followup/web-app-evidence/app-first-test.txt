@@ -1,9 +1,0 @@
-
- RUN  v5.0.5 <qa-root>/project
-
-
- Test Files  1 passed (1)
-      Tests  3 passed (3)
-   Start at  00:16:42
-   Duration  362ms (import 68%, tests 20%, transform 11%, worker 1%)
-

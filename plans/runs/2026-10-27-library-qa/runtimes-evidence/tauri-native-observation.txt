@@ -1,9 +1,0 @@
-Accessibility observations from the packaged macOS application, launched with an isolated home:
-
-Window: "tauri-react", App: tauri-react.
-HTML content URL: tauri://localhost
-heading Desktop status
-text tauri-react 0.1.0 (macos) Tick 1 at 1793160888
-
-Subsequent observation of the same window:
-text tauri-react 0.1.0 (macos) Tick 3 at 1793160890

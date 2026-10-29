@@ -1,9 +1,0 @@
-
- RUN  v5.0.5 <qa-root>/project
-
-
- Test Files  1 skipped (1)
-      Tests  4 skipped (4)
-   Start at  00:34:26
-   Duration  340ms (import 71%, transform 28%, worker 1%)
-

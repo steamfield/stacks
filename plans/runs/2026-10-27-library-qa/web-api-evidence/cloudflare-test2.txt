@@ -1,7 +1,0 @@
-RUN  v5.0.5 <qa-root>/cloudflare-react-router
-
-
- Test Files  2 passed (2)
-      Tests  4 passed (4)
-   Start at  23:06:16
-   Duration  658ms (transform 38%, tests 33%, import 16%, worker 13%)

@@ -55,7 +55,7 @@ No Rho, database, or analytics key is needed for this local starter. Optional in
 
 No external dataset is required for the local starter. Recipes and starter assets are in the [maintainer-controlled registry](packages/cli/registry); inspect their Git history for provenance. The public [run ledger](packages/cli/registry/runs.json) records historical agent sessions, versions, fingerprints, outcomes, and steps. At this revision it contains 8 records: 7 labeled pass and 1 fail. Five records skip the production build. Full run narratives referenced under `plans/runs/` are not public; these summaries do not establish a current success rate or an 8.8-minute reproduction.
 
-The directory's [stats API](https://stacks.steamfield.io/v1/stats) identified its population as **seeded development data** on October 29, 2026. Its synthetic usage and outcome metrics illustrate the analytics interface, not community adoption. The hosted implementation and seed generator are private, so this repo reproduces the CLI workflow rather than the site's synthetic dataset. Arrange judge access separately if evaluating the hosted code. Record your own session metrics with `stacks runs`; illustrative homepage timings are not controlled benchmarks.
+The directory's [stats API](https://stacks.steamfield.io/v1/stats) identified its population as **seeded development data** on October 29, 2026. Its synthetic usage and outcome metrics illustrate the analytics interface, not community adoption. This repo documents reproduction of the CLI workflow rather than the hosted site's synthetic dataset. Record your own session metrics with `stacks runs`; illustrative homepage timings are not controlled benchmarks.
 
 ### Limitations and next steps
 

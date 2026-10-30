@@ -300,7 +300,8 @@ export function compareSearchHits(a: SearchHit, b: SearchHit): number {
     a.id.localeCompare(b.id)
   );
 }
-function selectHits(hits: ReadonlyArray<SearchHit>, limit: number): SearchHit[] {
+/** Rounds, drops unmatched hits and keeps at most two weak hits once anything fits better. */
+export function limitHits(hits: ReadonlyArray<SearchHit>, limit: number): SearchHit[] {
   const matched = hits
     .map((hit) => ({
       ...hit,
@@ -327,14 +328,14 @@ export function rank(input: RankInput): SearchResult {
   const stacks =
     input.kind === "fragment"
       ? []
-      : selectHits(
+      : limitHits(
           hits.filter((hit) => hit.kind === "stack"),
           input.limit ?? 5,
         );
   const fragments =
     input.kind === "stack"
       ? []
-      : selectHits(
+      : limitHits(
           hits.filter((hit) => hit.kind === "fragment"),
           input.limit ?? 5,
         );

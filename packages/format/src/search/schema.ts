@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { DetectedAgent } from "../agent.js";
 import { Columnar } from "../columnar.js";
 import { Kebab, Kind } from "../entry.js";
+import { StatsPopulation } from "../stats.js";
 
 const Origin = Schema.Literals(["project", "user", "index", "bundled"]);
 const LastRun = Schema.Struct({
@@ -159,6 +160,7 @@ export const SearchResult = Schema.Struct({
     Schema.Literals(["local_flag", "offline", "do_not_track", "backoff", "no_endpoint"]),
   ),
   method: Schema.optionalKey(Schema.Literals(["lexical", "hybrid"])),
+  statsPopulation: Schema.optionalKey(StatsPopulation),
   understood: Schema.Struct({
     platforms: Words,
     productKinds: Words,
@@ -180,10 +182,14 @@ const ResponseEvidence = Schema.Struct({
   lastRun: Schema.NullOr(LastRun),
 });
 
-/** The API ranks official entries and returns no copy of the request text. */
+/**
+ * The API ranks official entries and returns no copy of the request text. New fields go at the
+ * top level: a column added inside `stacks` or `fragments` fails every older decoder.
+ */
 export const SearchResponse = Schema.Struct({
   method: Schema.Literals(["lexical", "hybrid"]),
   indexGeneratedAt: Schema.String,
+  statsPopulation: Schema.optionalKey(StatsPopulation),
   understood: SearchResult.fields.understood,
   noStrongMatch: SearchResult.fields.noStrongMatch,
   stacks: Columnar(

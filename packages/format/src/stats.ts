@@ -120,10 +120,13 @@ const SummaryMetrics = Schema.Struct({
 export const StatsSummaryItem = Schema.Struct({ ...Identity.fields, ...SummaryMetrics.fields });
 export type StatsSummaryItem = typeof StatsSummaryItem.Type;
 
+export const StatsPopulation = Schema.Literals(["stacks projects", "seeded development data"]);
+export type StatsPopulation = typeof StatsPopulation.Type;
+
 const Header = Schema.Struct({
   generatedAt: Schema.String,
   through: StatsDay,
-  population: Schema.Literals(["stacks projects", "seeded development data"]),
+  population: StatsPopulation,
   window: StatsWindow,
 });
 

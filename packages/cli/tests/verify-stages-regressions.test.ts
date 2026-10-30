@@ -89,9 +89,12 @@ test.each(["base", "app"] as const)(
         '  if (done || !existsSync("release-cleanup")) return;',
         "  done = true;",
         "  watcher.close();",
+        "  clearInterval(poll);",
         '  appendFileSync("order.log", process.argv[2] + "\\n");',
         "};",
         'const watcher = watch(".", finish);',
+        // A loaded macOS host can drop the watch event; polling keeps the release observable.
+        "const poll = setInterval(finish, 50);",
         'writeFileSync("cleanup-started", "");',
         "finish();",
       ].join("\n"),

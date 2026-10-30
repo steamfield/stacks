@@ -1,6 +1,6 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
-import type { Kind, SearchHit } from "@steamfield/stacks-format";
+import type { Kind, SearchHit, StatsPopulation } from "@steamfield/stacks-format";
 import { SearchMetadata, SearchVocabulary } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { expect } from "vitest";
@@ -51,6 +51,7 @@ export type Hit = {
 export type SearchView = {
   readonly request: string;
   readonly ranking: "local";
+  readonly statsPopulation?: StatsPopulation;
   readonly understood: {
     readonly platforms: ReadonlyArray<string>;
     readonly productKinds: ReadonlyArray<string>;

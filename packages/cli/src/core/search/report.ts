@@ -11,7 +11,8 @@ const localReasons = {
 
 function reasons(hit: SearchHit): string {
   const phrases = new Map<string, string[]>();
-  for (const reason of hit.why) {
+  const hasOtherField = hit.why.some((reason) => reason.field !== "body");
+  for (const reason of hit.why.filter((reason) => !hasOtherField || reason.field !== "body")) {
     const fields = phrases.get(reason.matched) ?? [];
     fields.push(reason.field);
     phrases.set(reason.matched, fields);
@@ -20,12 +21,16 @@ function reasons(hit: SearchHit): string {
     .map(([phrase, fields]) => `${printable(phrase)} (${fields.map(printable).join(", ")})`)
     .join("; ");
 }
-function hitBlock(hit: SearchHit, human: boolean): string {
+function hitBlock(
+  hit: SearchHit,
+  human: boolean,
+  statsPopulation: SearchResult["statsPopulation"],
+): string {
   const stats = hit.evidence.stats;
   const lastRun = hit.evidence.lastRun;
   const evidence = [
     stats
-      ? `green lower ${stats.greenRateLower}, sample ${stats.sample}, ${stats.projects} projects / ${stats.window} days`
+      ? `green lower ${stats.greenRateLower}, sample ${stats.sample}${statsPopulation === "seeded development data" ? ", seeded" : ""}, ${stats.projects} projects / ${stats.window} days`
       : "",
     lastRun ? `last run ${lastRun.date}: ${lastRun.result}` : "",
   ]
@@ -35,6 +40,9 @@ function hitBlock(hit: SearchHit, human: boolean): string {
     `${hit.kind} ${hit.id}${human ? ` · ${printable(hit.name)}` : ""} (${hit.tier}${hit.trusted ? "" : ", untrusted"})`,
     printable(hit.summary),
     ...(hit.why.length ? [`Why: ${reasons(hit)}`] : []),
+    ...(hit.kind === "fragment" && hit.appliesTo?.length
+      ? [`Applies to: ${hit.appliesTo.map(printable).join(", ")}`]
+      : []),
     ...(hit.penalties.length
       ? [
           `Penalties: ${hit.penalties
@@ -90,7 +98,7 @@ export function renderSearch(
       ? []
       : [
           [...result.stacks, ...result.fragments]
-            .map((hit) => hitBlock(hit, options.human))
+            .map((hit) => hitBlock(hit, options.human, result.statsPopulation))
             .join("\n\n"),
           "",
         ]),

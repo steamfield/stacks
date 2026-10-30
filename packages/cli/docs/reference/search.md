@@ -35,6 +35,12 @@ Scores and coverage are rounded to three decimal places after sorting; hits whos
 to zero are omitted. `remote` is `used`, `off` or `unavailable`; when off, `remoteReason` is
 `local_flag`, `offline`, `do_not_track`, `backoff` or `no_endpoint`. API results also include
 `method` (`lexical` or `hybrid`). Text output says when ranking ran locally.
+When shown hits include statistics, `statsPopulation` identifies the source population when
+available: `"stacks projects"` or `"seeded development data"`. API statistics use the API's
+population; locally cached statistics use the cached summary's. If both sources supply shown
+statistics and either is seeded, the result is seeded. The field is absent when no shown hit has
+statistics, or when its source has no population. Text evidence adds `seeded` after the sample
+when the result is seeded.
 Run `stacks schema search` for the JSON Schema.
 
 `understood.unmatched` lists request words no entry's strong metadata fields matched. A word
@@ -44,6 +50,8 @@ Each hit includes its origin and trust, absolute `score` from 0 to 1, strong-fie
 `tier` (`strong`, `partial`, `weak`), matching fields and words under `why`, `penalties`, optional
 caveats and cached evidence. Fragments also carry `appliesTo`. Evidence settles near-ties
 within a tier; project counts never raise a score. Untrusted entries cannot be strong.
+Text output prints nonempty fragment targets as `Applies to: <ids>` after `Why:`. It omits
+body-only `Why:` reasons when other fields explain the same hit.
 Each penalty is `{ kind, request, entry }`: `kind` is `platform`, `language`, `productKind`,
 `notFor` or `untrusted`; `request` names the triggering phrase (with its normalized vocabulary
 value for facet mismatches), and `entry` lists the conflicting facets or the matched `notFor`

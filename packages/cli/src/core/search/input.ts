@@ -53,5 +53,12 @@ export const searchInput = Effect.fn("search.input")(function* (
         };
       }),
   );
-  return { request, entries, vocabulary, overrides, ...options };
+  return {
+    request,
+    entries,
+    vocabulary,
+    overrides,
+    ...(stats?.published ? { statsPopulation: stats.population } : {}),
+    ...options,
+  };
 });

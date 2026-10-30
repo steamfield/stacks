@@ -62,13 +62,17 @@ test("search reads published cached stats and omits absent or unpublished summar
     projects: 215,
     window: 28,
   });
-  const stripStats = (value: typeof before) => ({
-    ...value,
-    stacks: value.stacks.map(({ evidence, ...row }) => {
-      const { stats: _stats, ...rest } = evidence;
-      return { ...row, evidence: rest };
-    }),
-  });
+  expect(published.statsPopulation).toBe("seeded development data");
+  const stripStats = (value: typeof before) => {
+    const { statsPopulation: _population, ...result } = value;
+    return {
+      ...result,
+      stacks: value.stacks.map(({ evidence, ...row }) => {
+        const { stats: _stats, ...rest } = evidence;
+        return { ...row, evidence: rest };
+      }),
+    };
+  };
   expect(stripStats(published)).toEqual(stripStats(before));
   put(cached, JSON.stringify(summary));
   expect((await searched(request, { ...opts, env })).value).toEqual(before);

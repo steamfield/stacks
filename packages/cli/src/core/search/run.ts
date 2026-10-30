@@ -26,6 +26,7 @@ export const search = Effect.fn("search.run")(function* (
         limit: input.entries.length,
       }),
       overrides: input.overrides,
+      statsPopulation: input.statsPopulation,
     };
   });
   const [localRanking, remote] = yield* Effect.all(
@@ -35,5 +36,6 @@ export const search = Effect.fn("search.run")(function* (
   return mergeSearch(localRanking.result, remote, {
     ...options,
     overrides: localRanking.overrides,
+    localPopulation: localRanking.statsPopulation,
   });
 });

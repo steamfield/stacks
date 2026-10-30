@@ -63,7 +63,7 @@ Ranked locally: API unavailable.
 
 stack typescript-cli (strong)
 A compiled command-line tool with subcommands, JSON results, lazy configuration and structured logs.
-Why: cli (platforms); cli-tool (productKinds); typescript (languages); TypeScript (id, name, tags); TypeScript command (description); TypeScript command line (body); command line (summary); command (synonyms, goodFor)
+Why: cli (platforms); cli-tool (productKinds); typescript (languages); TypeScript (id, name, tags); TypeScript command (description); command line (summary); command (synonyms, goodFor)
 Evidence: last run 2026-10-27: pass
 ```
 

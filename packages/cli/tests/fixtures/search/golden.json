@@ -1095,6 +1095,30 @@
       ]
     },
     {
+      "id": "nomatch-machine-learning",
+      "pool": "no-match",
+      "split": "tune",
+      "query": "machine learning pipeline",
+      "noMatch": true,
+      "relevant": []
+    },
+    {
+      "id": "nomatch-chrome-extension",
+      "pool": "no-match",
+      "split": "tune",
+      "query": "a chrome extension",
+      "noMatch": true,
+      "relevant": []
+    },
+    {
+      "id": "nomatch-typescript-npm-library",
+      "pool": "no-match",
+      "split": "tune",
+      "query": "typescript library published to npm",
+      "noMatch": true,
+      "relevant": []
+    },
+    {
       "id": "nomatch-firmware",
       "pool": "no-match",
       "split": "holdout",

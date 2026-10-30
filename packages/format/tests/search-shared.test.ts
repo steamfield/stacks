@@ -1,4 +1,5 @@
 import {
+  compareSearchHits,
   FragmentMeta,
   type Kind,
   type RankInput,
@@ -391,4 +392,28 @@ test("API hit rows require evidence.lastRun even when no run exists", () => {
     fragments: [],
   };
   expect(() => Schema.encodeUnknownSync(SearchResponse)(body)).toThrow();
+});
+
+test("confident quality breaks lexical ties and a tiny sample cannot hurt", () => {
+  const input = selectionInput();
+  const records = ["a", "b", "c"].map((id) => selectionRecord("stack", id, true));
+  const ranked = rank({ ...input, entries: records });
+  expect(ranked.stacks.map((hit) => hit.id)).toEqual(["a", "b", "c"]);
+  const withStats = rank({
+    ...input,
+    entries: records.map((record) => {
+      let evidence = {};
+      if (record.entry.id === "b")
+        evidence = { stats: { greenRateLower: 0.9, sample: 200, projects: 100, window: 28 } };
+      else if (record.entry.id === "a")
+        evidence = { stats: { greenRateLower: 0.1, sample: 3, projects: 0, window: 28 } };
+      return { ...record, evidence };
+    }),
+  });
+  expect(withStats.stacks.map((hit) => hit.id)).toEqual(["b", "a", "c"]);
+  const [a, b, c] = withStats.stacks;
+  if (!a || !b || !c) throw new Error("Missing quality fixtures");
+  expect(compareSearchHits(a, b)).toBeLessThanOrEqual(0);
+  expect(compareSearchHits(b, c)).toBeLessThanOrEqual(0);
+  expect(compareSearchHits(a, c)).toBeLessThanOrEqual(0);
 });

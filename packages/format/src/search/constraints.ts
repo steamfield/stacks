@@ -3,6 +3,95 @@ import { phraseIn, words } from "./tokens.js";
 
 type FacetConstraint = SearchWhy & { field: "languages" | "platforms"; exclusive: boolean };
 type Span = { start: number; end: number };
+type Stack = { entry: { id: string; meta: { name: string } } };
+export type StackMention = Span & { id: string; text: string; negated: boolean };
+const NEGATOR = /\b(?:no|without|not)\s+(?:(?:a|an|any|the)\s+){0,2}$/i;
+
+/** Single-word vocabulary values and aliases: an id built only from these describes, not names. */
+function vocabularyWords(vocabulary: SearchVocabulary): ReadonlySet<string> {
+  const groups = [
+    vocabulary.platforms,
+    vocabulary.productKinds,
+    vocabulary.languages,
+    vocabulary.capabilities,
+  ];
+  return new Set(
+    groups
+      .flatMap((group) => Object.entries(group).flatMap(([value, aliases]) => [value, ...aliases]))
+      .map((term) => term.toLowerCase()),
+  );
+}
+
+function mentionAt(
+  request: string,
+  options: {
+    source: ReadonlyArray<RegExpMatchArray>;
+    at: number;
+    length: number;
+    id: string;
+    names: ReadonlySet<string>;
+    descriptive: boolean;
+  },
+): StackMention | undefined {
+  const { source, at, length, id, names, descriptive } = options;
+  const slice = source.slice(at, at + length);
+  if (slice.length !== length) return undefined;
+  const start = slice[0]?.index;
+  const last = slice.at(-1);
+  if (start === undefined || !last || last.index === undefined) return undefined;
+  const end = last.index + last[0].length;
+  const text = request.slice(start, end);
+  if (descriptive && text.toLowerCase() !== id) return undefined;
+  if (!names.has(slice.map((word) => word[0].toLowerCase()).join(""))) return undefined;
+  const negative = request.slice(0, start).match(NEGATOR);
+  return {
+    id,
+    text,
+    start: negative ? start - negative[0].length : start,
+    end,
+    negated: !!negative,
+  };
+}
+
+/** Match distinctive stack ids or their leading name words across punctuation variants. */
+export function stackMentions(
+  request: string,
+  stacks: ReadonlyArray<Stack>,
+  vocabulary: SearchVocabulary,
+): StackMention[] {
+  const source = [...request.matchAll(/[\p{L}\p{N}]+/gu)];
+  const terms = vocabularyWords(vocabulary);
+  const mentions: StackMention[] = [];
+  for (const stack of stacks) {
+    const id = stack.entry.id;
+    const parts = id.split("-");
+    const descriptive = parts.length > 1 && parts.every((part) => terms.has(part));
+    const nameWords = words(stack.entry.meta.name).slice(0, 3);
+    const names = new Set([
+      id.replaceAll("-", ""),
+      ...nameWords.slice(1).map((_, index) => nameWords.slice(0, index + 2).join("")),
+    ]);
+    for (let at = 0; at < source.length; at++) {
+      for (let length = 3; length >= 1; length--) {
+        const mention = mentionAt(request, { source, at, length, id, names, descriptive });
+        if (mention) {
+          mentions.push(mention);
+          break;
+        }
+      }
+    }
+  }
+  return mentions;
+}
+
+export function removeSpans(request: string, spans: ReadonlyArray<Span>): string {
+  return request
+    .split("")
+    .map((char, index) =>
+      spans.some((span) => index >= span.start && index < span.end) ? " " : char,
+    )
+    .join("");
+}
 
 function occurrences(request: string, aliases: ReadonlyArray<string>) {
   const pattern = [...new Set(aliases)]
@@ -18,7 +107,7 @@ function constraintAt(request: string, occurrence: RegExpMatchArray) {
   if (index === undefined) return undefined;
   const before = request.slice(0, index);
   const after = request.slice(index + occurrence[0].length);
-  const negative = before.match(/\b(?:no|without|not)\s+$/i)?.[0];
+  const negative = before.match(NEGATOR)?.[0];
   const free = after.match(/^-free\b/i)?.[0];
   const only = /\bonly\s+$/i.test(before) || /^\s+only\b/i.test(after);
   const exclusive = !negative && !free;
@@ -61,12 +150,7 @@ export function requestConstraints(request: string, vocabulary: SearchVocabulary
       }
     }
   }
-  const positive = request
-    .split("")
-    .map((char, index) =>
-      removed.some((span) => index >= span.start && index < span.end) ? " " : char,
-    )
-    .join("");
+  const positive = removeSpans(request, removed);
   return { positive, facets };
 }
 
@@ -94,8 +178,9 @@ export function facetConflicts(
 export function existingRepository(request: string): boolean {
   const software = "(?:repo|repository|app|application|project|codebase)";
   const target = `(?:[\\w-]+\\s+){0,3}${software}\\b`;
-  // Bind existing/addition intent to a software noun, allowing short modifiers such as React.
+  // Opening "add" and noun-bound clauses both signal work in an existing repository.
   return [
+    "^\\s*(?:(?:please|i want to|i'd like to)\\s+)?add\\b",
     `\\bexisting\\s+${target}`,
     "\\b(?:my|our)\\s+(?:repo|repository)\\b",
     `\\badd\\b[^.!?;]*\\bto\\s+${target}`,
@@ -105,7 +190,7 @@ export function existingRepository(request: string): boolean {
 /** Destination clauses exclude migration sources and trailing qualifications. */
 export function hostingTarget(request: string): string | undefined {
   const clause = request.match(
-    /\b(?:deploy|deployment|host|hosting|publish|migrate)\b([^;!?]*)/i,
+    /\b(?:deploy|deployment|host|hosting|publish|published|migrate)\b([^;!?]*)/i,
   )?.[1];
   const destination = clause
     ?.match(

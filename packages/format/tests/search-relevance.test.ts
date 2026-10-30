@@ -1,6 +1,112 @@
 import { rank } from "@steamfield/stacks-format";
 import { expect, test } from "vitest";
+import { existingRepository, requestConstraints, stackMentions } from "../src/search/constraints";
 import { hostingInput, relevanceInput } from "./helpers/search-relevance";
+
+test("negators may have determiners before a facet", () => {
+  const base = relevanceInput("").vocabulary;
+  const vocabulary = {
+    ...base,
+    platforms: { ...base.platforms, server: ["api", "server", "backend"] },
+  };
+  const first = requestConstraints("an app, not an API", vocabulary);
+  expect(first.positive).not.toMatch(/\bapi\b/i);
+  expect(first.facets).toContainEqual(
+    expect.objectContaining({ field: "platforms", matched: "server", from: "not an API" }),
+  );
+  const second = requestConstraints("without the backend in Python", vocabulary);
+  expect(second.positive).not.toMatch(/\bbackend\b/i);
+  expect(second.positive).toMatch(/Python/);
+  expect(second.facets).toContainEqual(
+    expect.objectContaining({ field: "platforms", matched: "server", from: "without the backend" }),
+  );
+});
+
+const mentionVocabulary = {
+  ...relevanceInput("").vocabulary,
+  languages: { typescript: ["ts"] },
+  platforms: { server: ["api", "backend"] },
+};
+
+test("stack mentions fold punctuation while vocabulary-word ids need exact id spelling", () => {
+  const stacks = [
+    { entry: { id: "nextjs", meta: { name: "Next.js starter" } } },
+    { entry: { id: "sveltekit", meta: { name: "SvelteKit starter" } } },
+    { entry: { id: "typescript-api", meta: { name: "TypeScript API" } } },
+    { entry: { id: "astro-fullstack", meta: { name: "Astro Fullstack" } } },
+  ];
+  const mentions = (request: string) => stackMentions(request, stacks, mentionVocabulary);
+  for (const spelling of ["next.js", "next js", "nextjs"])
+    expect(mentions(`not ${spelling}`)).toContainEqual(
+      expect.objectContaining({ id: "nextjs", negated: true }),
+    );
+  expect(mentions("svelte kit")).toContainEqual(
+    expect.objectContaining({ id: "sveltekit", negated: false }),
+  );
+  expect(mentions("typescript api").some((mention) => mention.id === "typescript-api")).toBe(false);
+  expect(mentions("typescript-api")).toContainEqual(
+    expect.objectContaining({ id: "typescript-api" }),
+  );
+  // "astro" is no vocabulary word, so the plain words name the stack.
+  expect(mentions("astro fullstack")).toContainEqual(
+    expect.objectContaining({ id: "astro-fullstack" }),
+  );
+});
+
+test("a leading prefix of a longer stack name is a mention", () => {
+  const stacks = [{ entry: { id: "tauri-react", meta: { name: "Tauri desktop app with React" } } }];
+  expect(stackMentions("Tauri desktop", stacks, mentionVocabulary)).toContainEqual(
+    expect.objectContaining({ id: "tauri-react" }),
+  );
+});
+
+test("one generic leading name word does not name a stack", () => {
+  const stacks = [
+    {
+      entry: {
+        id: "cloudflare-react-router",
+        meta: { name: "React Router on Cloudflare Workers" },
+      },
+    },
+    { entry: { id: "nextjs", meta: { name: "Next.js starter" } } },
+  ];
+  expect(stackMentions("react app", stacks, mentionVocabulary)).toEqual([]);
+  expect(stackMentions("next stage", stacks, mentionVocabulary)).toEqual([]);
+});
+
+test("a negated stack does not trigger a fragment exclusion", () => {
+  const input = relevanceInput("not typed-api, deploy to Cloudflare Pages");
+  const entries = input.entries.map((record) =>
+    record.entry.id === "pages" && record.search?.kind === "fragment"
+      ? { ...record, search: { ...record.search, notFor: ["typed-api"] } }
+      : record,
+  );
+  const result = rank({ ...input, entries });
+  expect(result.fragments.find((hit) => hit.id === "pages")?.penalties).not.toContainEqual(
+    expect.objectContaining({ kind: "notFor", entry: "typed-api" }),
+  );
+});
+
+test("untrusted provenance does not dilute the first score penalty", () => {
+  const input = relevanceInput("add TypeScript API");
+  const entries = input.entries.filter((record) => record.entry.id === "typed-api");
+  const trusted = rank({ ...input, entries }).stacks[0];
+  const untrusted = rank({
+    ...input,
+    entries: entries.map((record) => ({ ...record, entry: { ...record.entry, trusted: false } })),
+  }).stacks[0];
+  expect(trusted?.score).toBeDefined();
+  expect(untrusted?.score).toBe(trusted?.score);
+});
+
+test.each([
+  "add authentication",
+  "please add authentication",
+  "i want to add authentication",
+  "i'd like to add authentication",
+])("an opening add request targets an existing project: %s", (request) =>
+  expect(existingRepository(request)).toBe(true),
+);
 
 test.each(["ts api", "typescript api"])(
   "cached quality preserves a clear lexical lead for %s",

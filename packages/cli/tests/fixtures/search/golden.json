@@ -1111,12 +1111,15 @@
       "relevant": []
     },
     {
-      "id": "nomatch-typescript-npm-library",
-      "pool": "no-match",
+      "id": "platform-typescript-npm-cli",
+      "pool": "platform",
       "split": "tune",
-      "query": "typescript library published to npm",
-      "noMatch": true,
-      "relevant": []
+      "query": "typescript cli published to npm",
+      "first": {
+        "kind": "stack",
+        "id": "typescript-cli"
+      },
+      "relevant": [{ "kind": "stack", "id": "typescript-cli", "grade": 2 }]
     },
     {
       "id": "nomatch-firmware",

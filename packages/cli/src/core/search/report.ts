@@ -57,19 +57,31 @@ function hitBlock(
     ...(evidence ? [`Evidence: ${printable(evidence)}`] : []),
   ].join("\n");
 }
+const TIER_ORDER = { strong: 0, partial: 1, weak: 2 } as const;
+/** The trusted fragment to add first: no stack is strong and the fragment fits at least as well. */
+function fragmentFirst(result: SearchResult): SearchResult["fragments"][number] | undefined {
+  const fragment = result.fragments.find((hit) => hit.trusted);
+  if (!fragment || result.stacks.some((hit) => hit.tier === "strong")) return undefined;
+  if (fragment.tier === "strong") return fragment;
+  const top = result.stacks[0];
+  if (!top) return fragment.tier === "partial" ? fragment : undefined;
+  return top.penalties.length > 0 && TIER_ORDER[fragment.tier] <= TIER_ORDER[top.tier]
+    ? fragment
+    : undefined;
+}
 function next(result: SearchResult, invocation: string): string {
   const recovery = [
     `Next: ${invocation} list stacks`,
     `Next: ${invocation} search "<fewer, broader words>"`,
   ];
   if (!result.stacks.length && !result.fragments.length) return recovery.join("\n");
-  const fragment = result.fragments.find((hit) => hit.trusted && hit.tier === "strong");
-  if (fragment && !result.stacks.some((hit) => hit.tier === "strong"))
-    return `Next: ${invocation} show ${fragment.id}, then ${invocation} add ${fragment.id}.`;
-  const trusted = result.stacks.find((hit) => hit.trusted);
+  const fragment = fragmentFirst(result);
   const confirmation = result.noStrongMatch
     ? "confirm with the user before using a weak match; then "
     : "";
+  if (fragment)
+    return `Next: ${confirmation}${invocation} show ${fragment.id}, then ${invocation} add ${fragment.id}.`;
+  const trusted = result.stacks.find((hit) => hit.trusted);
   return [
     trusted
       ? `Next: ${confirmation}${invocation} show ${trusted.id}, then ${invocation} new ${trusted.id} <dir>.`

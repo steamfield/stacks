@@ -48,6 +48,56 @@ test.each([undefined, "stack", "fragment"] as const)(
   },
 );
 
+test("a partial fragment wins Next when the best stack is penalized", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(
+    response(
+      [
+        officialHit("scaffold", {
+          tier: "partial",
+          score: 0.4,
+          penalties: [{ kind: "notFor", request: "add auth", entry: "existing repository" }],
+        }),
+      ],
+      [
+        officialHit("clerk", {
+          kind: "fragment",
+          tier: "partial",
+          score: 0.3,
+          appliesTo: [],
+        }),
+      ],
+    ),
+  );
+  const text = await runCli(["search", "add authentication"], opts);
+  expect(text.status, text.stderr).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain(
+    "Next: confirm with the user before using a weak match; then stacks show clerk, then stacks add clerk.",
+  );
+});
+
+test("a weak-only fragment keeps broader-search recovery guidance", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(
+    response(
+      [],
+      [
+        officialHit("maybe", {
+          kind: "fragment",
+          tier: "weak",
+          score: 0.1,
+          appliesTo: [],
+        }),
+      ],
+    ),
+  );
+  const text = await runCli(["search", "auth"], opts);
+  expect(text.status, text.stderr).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain('Next: stacks search "<fewer, broader words>"');
+});
+
 test.each([false, true])(
   "local fragment success has consistent text and JSON (human %s)",
   async (human) => {
@@ -246,6 +296,63 @@ test("cached seeded stats label local-only evidence", async () => {
   expect(text.status).toBe(0);
   expect(text.stderr).toBe("");
   expect(text.stdout).toMatch(/Evidence: green lower 0\.86, sample \d+, seeded,/);
+});
+
+test("a user override keeps its local stats population over an API copy", async () => {
+  const home = space.dir();
+  cachedEvidence(home);
+  put(
+    join(home, "config/stacks/stacks/go-cli/STACK.md"),
+    `---
+schema_version: 1
+id: go-cli
+kind: stack
+name: Local Go CLI
+description: A Go command line tool.
+---
+
+# Local Go CLI
+
+A Go command line tool.
+`,
+  );
+  const opts = apiOptions(home, server.url);
+  server.answer(
+    response(
+      [
+        officialHit("go-cli", {
+          evidence: { stats: { greenRateLower: 0.8, sample: 300, projects: 100, window: 28 } },
+        }),
+      ],
+      [],
+      "stacks projects",
+    ),
+  );
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks.find((hit) => hit.id === "go-cli")?.name).toBe("Local Go CLI");
+  expect(json.statsPopulation).toBe("seeded development data");
+});
+
+test("an unknown API population makes a mixed shown result unknown", async () => {
+  const home = space.dir();
+  const wire = readFileSync(
+    join(import.meta.dirname, "../../format/tests/fixtures/stats/summary.json"),
+    "utf8",
+  );
+  const summary = JSON.parse(wire);
+  summary.population = "stacks projects";
+  put(join(home, "cache/stacks/stats/summary.json"), JSON.stringify(summary));
+  const opts = apiOptions(home, server.url);
+  server.answer(
+    response([
+      officialHit("api-first", {
+        evidence: { stats: { greenRateLower: 0.8, sample: 300, projects: 100, window: 28 } },
+      }),
+    ]),
+  );
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks.some((hit) => hit.id === "go-cli" && hit.evidence.stats)).toBe(true);
+  expect(json.statsPopulation).toBeUndefined();
 });
 
 test("seeded local fallback labels evidence when API stats are unseeded", async () => {

@@ -1,11 +1,13 @@
 import type { SearchMetadata, SearchVocabulary, SearchWhy } from "./schema.js";
-import { phraseIn, words } from "./tokens.js";
+import { phraseIn, STOP, words } from "./tokens.js";
 
 type FacetConstraint = SearchWhy & { field: "languages" | "platforms"; exclusive: boolean };
 type Span = { start: number; end: number };
 type Stack = { entry: { id: string; meta: { name: string } } };
 export type StackMention = Span & { id: string; text: string; negated: boolean };
-const NEGATOR = /\b(?:no|without|not)\s+(?:(?:a|an|any|the)\s+){0,2}$/i;
+const NEGATOR =
+  /\b(?:no|without|not(?:\s+using)?|don['’]t|do\s+not|doesn['’]t|won['’]t|avoid|instead\s+of|other\s+than|except|rather\s+than)\s+(?:(?:want|use|need)\s+)?(?:(?:a|an|any|the)\s+){0,2}$/i;
+const GENERIC = new Set([...STOP, "site", "starter"]);
 
 /** Single-word vocabulary values and aliases: an id built only from these describes, not names. */
 function vocabularyWords(vocabulary: SearchVocabulary): ReadonlySet<string> {
@@ -31,9 +33,10 @@ function mentionAt(
     id: string;
     names: ReadonlySet<string>;
     descriptive: boolean;
+    generic: ReadonlySet<string>;
   },
 ): StackMention | undefined {
-  const { source, at, length, id, names, descriptive } = options;
+  const { source, at, length, id, names, descriptive, generic } = options;
   const slice = source.slice(at, at + length);
   if (slice.length !== length) return undefined;
   const start = slice[0]?.index;
@@ -41,8 +44,11 @@ function mentionAt(
   if (start === undefined || !last || last.index === undefined) return undefined;
   const end = last.index + last[0].length;
   const text = request.slice(start, end);
-  if (descriptive && text.toLowerCase() !== id) return undefined;
-  if (!names.has(slice.map((word) => word[0].toLowerCase()).join(""))) return undefined;
+  const matchedWords = slice.map((word) => word[0].toLowerCase());
+  if (descriptive && (length === 1 || text.toLowerCase() !== id)) return undefined;
+  if (!names.has(matchedWords.join(""))) return undefined;
+  if (text.toLowerCase() !== id && matchedWords.every((word) => generic.has(word)))
+    return undefined;
   const negative = request.slice(0, start).match(NEGATOR);
   return {
     id,
@@ -61,11 +67,21 @@ export function stackMentions(
 ): StackMention[] {
   const source = [...request.matchAll(/[\p{L}\p{N}]+/gu)];
   const terms = vocabularyWords(vocabulary);
+  const leading = stacks
+    .map((stack) => words(stack.entry.meta.name)[0])
+    .filter((word) => word !== undefined);
+  const counts = new Map<string, number>();
+  for (const word of leading) counts.set(word, (counts.get(word) ?? 0) + 1);
+  const generic = new Set([
+    ...terms,
+    ...GENERIC,
+    ...leading.filter((word) => (counts.get(word) ?? 0) > 1),
+  ]);
   const mentions: StackMention[] = [];
   for (const stack of stacks) {
     const id = stack.entry.id;
     const parts = id.split("-");
-    const descriptive = parts.length > 1 && parts.every((part) => terms.has(part));
+    const descriptive = parts.every((part) => terms.has(part));
     const nameWords = words(stack.entry.meta.name).slice(0, 3);
     const names = new Set([
       id.replaceAll("-", ""),
@@ -73,9 +89,18 @@ export function stackMentions(
     ]);
     for (let at = 0; at < source.length; at++) {
       for (let length = 3; length >= 1; length--) {
-        const mention = mentionAt(request, { source, at, length, id, names, descriptive });
+        const mention = mentionAt(request, {
+          source,
+          at,
+          length,
+          id,
+          names,
+          descriptive,
+          generic,
+        });
         if (mention) {
           mentions.push(mention);
+          at += length - 1;
           break;
         }
       }
@@ -190,7 +215,7 @@ export function existingRepository(request: string): boolean {
 /** Destination clauses exclude migration sources and trailing qualifications. */
 export function hostingTarget(request: string): string | undefined {
   const clause = request.match(
-    /\b(?:deploy|deployment|host|hosting|publish|published|migrate)\b([^;!?]*)/i,
+    /\b(?:deploy|deployment|host|hosting|publish|migrate)\b([^;!?]*)/i,
   )?.[1];
   const destination = clause
     ?.match(

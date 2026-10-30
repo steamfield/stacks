@@ -51,7 +51,10 @@ type Candidate = {
   constraints: SearchWhy[];
 };
 type RankContext = {
-  input: RankInput;
+  stacks: ReadonlyArray<RankRecord>;
+  targets: ReadonlyArray<RankRecord>;
+  mentionText: string;
+  strongStacks: ReadonlySet<string>;
   matches: SearchWhy[];
   denominator: number;
   mentions: ReadonlyArray<StackMention>;
@@ -204,9 +207,8 @@ function penaltyRequest(matches: ReadonlyArray<SearchWhy>): string {
     .join(", ");
 }
 function penaltiesFor(candidate: Candidate, context: RankContext): SearchHit["penalties"] {
-  const { input, matches, mentions, positive } = context;
+  const { stacks, targets, mentionText, strongStacks, matches, mentions, positive } = context;
   const penalties: SearchHit["penalties"][number][] = [];
-  const stacks = input.entries.filter((record) => record.entry.kind === "stack");
   for (const [category, penalty] of [
     ["platforms", "platform"],
     ["languages", "language"],
@@ -251,18 +253,17 @@ function penaltiesFor(candidate: Candidate, context: RankContext): SearchHit["pe
       request: negated.text,
       entry: "excluded by name in the request",
     });
-  const targets = stacks.filter((stack) =>
-    mentions.some((mention) => !mention.negated && mention.id === stack.entry.id),
-  );
   const applies =
     candidate.record.entry.meta.kind === "fragment" ? candidate.record.entry.meta.appliesTo : [];
-  if (targets.length > 0 && applies.length > 0 && !targets.some((stack) => fits(stack, applies)))
+  if (
+    targets.length > 0 &&
+    applies.length > 0 &&
+    !targets.some((stack) => fits(stack, applies)) &&
+    !stacks.some((stack) => strongStacks.has(stack.entry.id) && fits(stack, applies))
+  )
     penalties.push({
       kind: "notFor",
-      request: mentions
-        .filter((mention) => !mention.negated)
-        .map((mention) => mention.text)
-        .join(", "),
+      request: mentionText,
       entry: `applies to ${applies.join(", ")}`,
     });
   if (!candidate.record.entry.trusted)
@@ -288,8 +289,7 @@ function penaltyFactor(penalty: SearchHit["penalties"][number]): number {
 function penalizedScore(raw: number, scale: number, penalties: SearchHit["penalties"]): number {
   let score = raw / (raw + scale);
   let applied = 0;
-  for (const penalty of penalties) {
-    const factor = penaltyFactor(penalty);
+  for (const factor of penalties.map(penaltyFactor).sort((a, b) => a - b)) {
     if (factor === 1) continue;
     score *= applied === 0 ? factor : Math.sqrt(factor);
     applied++;
@@ -341,10 +341,9 @@ function quality(hit: SearchHit): number {
   if (hit.evidence.stats) {
     const { greenRateLower, sample, projects } = hit.evidence.stats;
     const confidence = Math.min(1, sample / 200);
-    return Math.max(
-      0,
+    return (
       confidence *
-        (0.03 * (greenRateLower - 0.6) + 0.01 * Math.min(1, Math.log10(1 + projects) / 4)),
+      (0.03 * (greenRateLower - 0.6) + 0.01 * Math.min(1, Math.log10(1 + projects) / 4))
     );
   }
   if (hit.evidence.lastRun?.result === "pass") return 0.002;
@@ -361,6 +360,10 @@ export function compareSearchHits(a: SearchHit, b: SearchHit): number {
     a.id.localeCompare(b.id)
   );
 }
+/** A reason that can list a hit: a request constraint or the intent verb "add" alone can't. */
+function listedReason(reason: SearchWhy): boolean {
+  return reason.field !== "constraint" && reason.matched.toLowerCase() !== "add";
+}
 /** Rounds, drops unmatched hits and keeps at most two weak hits once anything fits better. */
 export function limitHits(hits: ReadonlyArray<SearchHit>, limit: number): SearchHit[] {
   const matched = hits
@@ -369,7 +372,7 @@ export function limitHits(hits: ReadonlyArray<SearchHit>, limit: number): Search
       score: Number(hit.score.toFixed(3)),
       coverage: Number(hit.coverage.toFixed(3)),
     }))
-    .filter((hit) => hit.score > 0 && hit.why.length > 0);
+    .filter((hit) => hit.score > 0 && hit.why.some(listedReason));
   const weakLimit = matched.some((hit) => hit.tier !== "weak") ? 2 : limit;
   let weakCount = 0;
   return matched.filter((hit) => hit.tier !== "weak" || weakCount++ < weakLimit).slice(0, limit);
@@ -379,6 +382,15 @@ export function rank(input: RankInput): SearchResult {
   const request = input.request.trim();
   const stackRecords = input.entries.filter((record) => record.entry.kind === "stack");
   const mentions = stackMentions(request, stackRecords, input.vocabulary);
+  const targetIds = new Set(
+    mentions.filter((mention) => !mention.negated).map((mention) => mention.id),
+  );
+  const targets = stackRecords.filter((stack) => targetIds.has(stack.entry.id));
+  const mentionTexts = new Map<string, string>();
+  for (const mention of mentions.filter((mention) => !mention.negated))
+    if (!mentionTexts.has(mention.text.toLowerCase()))
+      mentionTexts.set(mention.text.toLowerCase(), mention.text);
+  const mentionText = [...mentionTexts.values()].join(", ");
   const constraints = requestConstraints(
     removeSpans(
       request,
@@ -391,17 +403,33 @@ export function rank(input: RankInput): SearchResult {
   const candidates = prepare(input, query, matches, constraints);
   const strongWords = new Set(candidates.flatMap((candidate) => [...candidate.covered]));
   scoreFields(candidates, query, matches);
-  const hits = candidates
-    .map((candidate) =>
-      hitFor(candidate, {
-        input,
-        matches,
-        denominator: strongWords.size,
-        mentions,
-        positive: constraints.positive,
-      }),
-    )
-    .sort(compareSearchHits);
+  const context: RankContext = {
+    stacks: stackRecords,
+    targets,
+    mentionText,
+    strongStacks: new Set(),
+    matches,
+    denominator: strongWords.size,
+    mentions,
+    positive: constraints.positive,
+  };
+  const eligibleStackHits = candidates
+    .filter((candidate) => candidate.record.entry.kind === "stack")
+    .map((candidate) => hitFor(candidate, context));
+  const strongStacks = new Set(
+    eligibleStackHits.filter((hit) => hit.tier === "strong").map((hit) => hit.id),
+  );
+  const stackHits = eligibleStackHits.map((hit) =>
+    hit.tier === "strong" && targets.length > 0 && !targetIds.has(hit.id)
+      ? { ...hit, tier: "partial" as const }
+      : hit,
+  );
+  const hits = [
+    ...stackHits,
+    ...candidates
+      .filter((candidate) => candidate.record.entry.kind === "fragment")
+      .map((candidate) => hitFor(candidate, { ...context, strongStacks })),
+  ].sort(compareSearchHits);
   const stacks =
     input.kind === "fragment"
       ? []

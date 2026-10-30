@@ -58,6 +58,31 @@ test.each([
   },
 );
 
+test("an API stack does not hide a local fragment with the same id", async () => {
+  const home = space.dir();
+  put(
+    join(home, "config/stacks/fragments/go-cli/FRAGMENT.md"),
+    `---
+schema_version: 1
+id: go-cli
+kind: fragment
+category: tooling
+name: Go CLI helper
+description: Add Go CLI support.
+---
+
+# Go CLI helper
+
+Add Go CLI support.
+`,
+  );
+  const opts = apiOptions(home, server.url);
+  server.answer(response([officialHit("go-cli")]));
+  const value = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(value.stacks.find((hit) => hit.id === "go-cli")).toBeDefined();
+  expect(value.fragments.find((hit) => hit.id === "go-cli")).toBeDefined();
+});
+
 test.each([
   { kind: "stack", id: "go-cli; echo injected" },
   { kind: "fragment", id: "go-cli; echo injected" },

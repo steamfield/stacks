@@ -394,7 +394,7 @@ test("API hit rows require evidence.lastRun even when no run exists", () => {
   expect(() => Schema.encodeUnknownSync(SearchResponse)(body)).toThrow();
 });
 
-test("confident quality breaks lexical ties and a tiny sample cannot hurt", () => {
+test("confident quality breaks lexical ties, stays transitive, and can lower a poor hit", () => {
   const input = selectionInput();
   const records = ["a", "b", "c"].map((id) => selectionRecord("stack", id, true));
   const ranked = rank({ ...input, entries: records });
@@ -410,10 +410,51 @@ test("confident quality breaks lexical ties and a tiny sample cannot hurt", () =
       return { ...record, evidence };
     }),
   });
-  expect(withStats.stacks.map((hit) => hit.id)).toEqual(["b", "a", "c"]);
-  const [a, b, c] = withStats.stacks;
-  if (!a || !b || !c) throw new Error("Missing quality fixtures");
-  expect(compareSearchHits(a, b)).toBeLessThanOrEqual(0);
-  expect(compareSearchHits(b, c)).toBeLessThanOrEqual(0);
-  expect(compareSearchHits(a, c)).toBeLessThanOrEqual(0);
+  expect(withStats.stacks.map((hit) => hit.id)).toEqual(["b", "c", "a"]);
+  const description = (id: string) => {
+    if (id === "b") return selectionRequest;
+    if (id === "c") return "quasar nebula";
+    return "quasar";
+  };
+  const varied = rank({
+    ...input,
+    entries: records.map((record) => ({
+      ...record,
+      evidence: withStats.stacks.find((hit) => hit.id === record.entry.id)?.evidence ?? {},
+      entry: {
+        ...record.entry,
+        meta: {
+          ...record.entry.meta,
+          description: description(record.entry.id),
+        },
+      },
+    })),
+  });
+  const high = varied.stacks.find((hit) => hit.id === "b");
+  const middle = varied.stacks.find((hit) => hit.id === "c");
+  const low = varied.stacks.find((hit) => hit.id === "a");
+  if (!high || !middle || !low) throw new Error("Missing varied quality fixtures");
+  expect(new Set([high.score, middle.score, low.score]).size).toBe(3);
+  expect(compareSearchHits(high, middle)).toBeLessThan(0);
+  expect(compareSearchHits(middle, low)).toBeLessThan(0);
+  expect(compareSearchHits(high, low)).toBeLessThan(0);
+  const poor = rank({
+    ...input,
+    entries: records.map((record) => ({
+      ...record,
+      evidence:
+        record.entry.id === "a"
+          ? { stats: { greenRateLower: 0.05, sample: 500, projects: 0, window: 28 } }
+          : {},
+    })),
+  });
+  expect(poor.stacks.findIndex((hit) => hit.id === "a")).toBeGreaterThan(
+    poor.stacks.findIndex((hit) => hit.id === "c"),
+  );
+});
+
+test("a constraint alone never makes a search hit", () => {
+  const input = selectionInput();
+  const result = rank({ ...input, request: "add authentication" });
+  expect(result.stacks).toEqual([]);
 });

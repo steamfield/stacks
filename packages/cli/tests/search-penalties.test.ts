@@ -27,6 +27,19 @@ test("SaaS with Postgres and auth ranks a web app ahead of the mobile stack", as
   });
 });
 
+test("an add request does not show stacks matched only by its constraint", async () => {
+  const opts = options(space.dir());
+  const { value } = await searched("add authentication", opts, ["--local"]);
+  for (const id of ["python-react", "mobile-expo"])
+    expect(value.stacks.map((hit) => hit.id)).not.toContain(id);
+  const text = await runCli(["search", "add authentication", "--local"], opts);
+  expect(text.status, text.stderr).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toMatch(
+    /Next: confirm with the user before using a weak match; then stacks show clerk, then stacks add clerk\./,
+  );
+});
+
 test("TUI exclusions name the matched rule in JSON, agent and human output", async () => {
   const opts = options(space.dir());
   const request = "a cli with a good TUI experience";

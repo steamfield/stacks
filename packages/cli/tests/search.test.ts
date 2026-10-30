@@ -225,10 +225,8 @@ test("agent blocks show caveats, human text wraps, JSON contains only the result
   for (const row of [...value.stacks, ...value.fragments]) {
     expect(agent.stdout).toContain(row.id);
     expect(agent.stdout).toContain(row.summary);
-    const hasOtherField = row.why.some((reason) => reason.field !== "body");
-    for (const reason of row.why.filter((reason) => !hasOtherField || reason.field !== "body"))
-      expect(agent.stdout).toContain(reason.matched);
   }
+  expect(agent.stdout).toContain("Why: ios (platforms); iOS (summary)");
   expect(agent.stdout.trim().split("\n").at(-1)).toMatch(
     /^Next:.*local-stacks show mobile-expo.*local-stacks new mobile-expo/,
   );

@@ -60,6 +60,55 @@ test("a leading prefix of a longer stack name is a mention", () => {
   );
 });
 
+test("generic name prefixes and single-word vocabulary ids do not name stacks", () => {
+  const stacks = [
+    { entry: { id: "python-react", meta: { name: "Python API + React SPA" } } },
+    { entry: { id: "astro-fullstack", meta: { name: "Astro site + Effect API" } } },
+    { entry: { id: "astro-blog", meta: { name: "Astro blog" } } },
+    { entry: { id: "cli", meta: { name: "CLI starter" } } },
+    { entry: { id: "go", meta: { name: "Go starter" } } },
+    { entry: { id: "api", meta: { name: "API starter" } } },
+  ];
+  const vocabulary = {
+    ...mentionVocabulary,
+    languages: { ...mentionVocabulary.languages, python: ["python"], go: ["go"] },
+    platforms: { ...mentionVocabulary.platforms, cli: ["cli"] },
+  };
+  expect(stackMentions("python api", stacks, vocabulary)).toEqual([]);
+  expect(stackMentions("astro site with comments", stacks, vocabulary)).toEqual([]);
+  expect(stackMentions("go cli api", stacks, vocabulary)).toEqual([]);
+  expect(stackMentions("astro fullstack", stacks, vocabulary)).toContainEqual(
+    expect.objectContaining({ id: "astro-fullstack" }),
+  );
+  const unique = [{ entry: { id: "acme-web", meta: { name: "Acme app" } } }];
+  expect(stackMentions("Acme app", unique, vocabulary)).toContainEqual(
+    expect.objectContaining({ id: "acme-web" }),
+  );
+});
+
+test.each([
+  "don't want",
+  "do not use",
+  "doesn't need",
+  "won't use",
+  "avoid",
+  "instead of",
+  "other than",
+  "except",
+  "rather than",
+  "not using",
+])("%s negates a named stack and a facet", (cue) => {
+  const stacks = [{ entry: { id: "nextjs", meta: { name: "Next.js starter" } } }];
+  const request = `${cue} next.js and ${cue} Python`;
+  const vocabulary = { ...mentionVocabulary, languages: { python: ["python"] } };
+  expect(stackMentions(request, stacks, vocabulary)).toContainEqual(
+    expect.objectContaining({ id: "nextjs", negated: true }),
+  );
+  expect(requestConstraints(request, vocabulary).facets).toContainEqual(
+    expect.objectContaining({ matched: "python", exclusive: false }),
+  );
+});
+
 test("one generic leading name word does not name a stack", () => {
   const stacks = [
     {
@@ -84,6 +133,24 @@ test("a negated stack does not trigger a fragment exclusion", () => {
   const result = rank({ ...input, entries });
   expect(result.fragments.find((hit) => hit.id === "pages")?.penalties).not.toContainEqual(
     expect.objectContaining({ kind: "notFor", entry: "typed-api" }),
+  );
+});
+
+test("a fragment fitting an otherwise strong unnamed stack avoids a fit penalty", () => {
+  const input = relevanceInput("typed-api React dashboard deploy");
+  const entries = input.entries.map((record) =>
+    record.entry.id === "pages" && record.entry.meta.kind === "fragment"
+      ? {
+          ...record,
+          entry: { ...record.entry, meta: { ...record.entry.meta, appliesTo: ["typed-web"] } },
+        }
+      : record,
+  );
+  const result = rank({ ...input, entries });
+  expect(result.stacks.find((hit) => hit.id === "typed-api")?.tier).toBe("strong");
+  expect(result.stacks.find((hit) => hit.id === "typed-web")?.tier).toBe("partial");
+  expect(result.fragments.find((hit) => hit.id === "pages")?.penalties).not.toContainEqual(
+    expect.objectContaining({ entry: "applies to typed-web" }),
   );
 });
 

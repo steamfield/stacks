@@ -72,10 +72,13 @@ export {
   TelemetryErrorEvent,
   TelemetryEvent,
   TelemetryEventV2,
+  TelemetryEventV3,
   TelemetryNewEvent,
   TelemetryShowEvent,
   TelemetryVerifyEvent,
   TelemetryVerifyEventV2,
+  TelemetryVerifyEventV3,
   telemetryEventJsonSchema,
   telemetryEventV2JsonSchema,
+  telemetryEventV3JsonSchema,
 } from "./telemetry.js";

@@ -5,7 +5,11 @@
   "plugins": ["./biome-plugins/no-platform-imports.grit"],
   "overrides": [
     {
-      "includes": ["schemas/telemetry-event.v1.json", "schemas/telemetry-event.v2.json"],
+      "includes": [
+        "schemas/telemetry-event.v1.json",
+        "schemas/telemetry-event.v2.json",
+        "schemas/telemetry-event.v3.json"
+      ],
       "formatter": { "enabled": false }
     }
   ]

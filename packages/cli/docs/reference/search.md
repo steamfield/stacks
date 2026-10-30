@@ -28,8 +28,8 @@ each prevent the API call.
 
 `--json` returns `SearchResult`: `ranking: "api" | "local"`, the request, recognized vocabulary and
 unmatched content words under `understood`, `noStrongMatch`, and separate `stacks` and
-`fragments` lists. Each list contains only hits with a positive score and a non-constraint `why`,
-and may be shorter than `--limit` or empty. A list with strong or partial hits includes at most
+`fragments` lists. Each list contains only hits with a positive score and a `why` reason other
+than a request constraint or the bare word `add`, and may be shorter than `--limit` or empty. A list with strong or partial hits includes at most
 two weak hits after them; a list with only weak hits keeps up to `--limit` candidates.
 Scores and coverage are rounded to three decimal places after sorting; hits whose scores round
 to zero are omitted. `remote` is `used`, `off` or `unavailable`; when off, `remoteReason` is
@@ -39,8 +39,8 @@ When shown hits include statistics, `statsPopulation` identifies the source popu
 available: `"stacks projects"` or `"seeded development data"`. API statistics use the API's
 population; locally cached statistics use the cached summary's. If both sources supply shown
 statistics and either is seeded, the result is seeded. The field is absent when no shown hit has
-statistics, or when any shown source has no population and none is seeded. Text evidence adds `seeded` after the sample
-when the result is seeded.
+statistics, or when any shown source has no population and none is seeded. Text evidence adds
+`seeded` after the sample when the result is seeded.
 Run `stacks schema search` for the JSON Schema.
 
 `understood.unmatched` lists request words no entry's strong metadata fields matched. A word
@@ -66,8 +66,8 @@ array per hit, including in the API's single `penalties` column.
 Penalties apply after lexical score squashing. The strongest factor applies in full; each
 additional factor applies at its square root. Named exclusions use `notFor` with `entry:
 "excluded by name in the request"`; fragment fit uses `notFor` with `entry: "applies to <ids>"`.
-A leading `add` signals work in an existing repository, so stack scaffolds receive an
-existing-repository constraint reason and penalty.
+A request about an existing repository (a leading `add`, "existing … app", "my repo", or
+"add … to my app") gives stack scaffolds an existing-repository constraint reason and penalty.
 
 Compare strong matches using `why` and `evidence`, and read caveats before choosing. When
 `noStrongMatch` is true, tell the user nothing fits well and confirm before using a weak match.

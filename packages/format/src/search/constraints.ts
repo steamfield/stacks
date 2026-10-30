@@ -6,7 +6,7 @@ type Span = { start: number; end: number };
 type Stack = { entry: { id: string; meta: { name: string } } };
 export type StackMention = Span & { id: string; text: string; negated: boolean };
 const NEGATOR =
-  /\b(?:no|without|not(?:\s+using)?|don['’]t|do\s+not|doesn['’]t|won['’]t|avoid|instead\s+of|other\s+than|except|rather\s+than)\s+(?:(?:want|use|need)\s+)?(?:(?:a|an|any|the)\s+){0,2}$/i;
+  /\b(?:no|without|not|don['’]t|do\s+not|doesn['’]t|won['’]t|avoid|instead\s+of|other\s+than|except|rather\s+than|anything\s+but)\s+(?:(?:to\s+)?(?:want|use|using|need|with|for)\s+)?(?:(?:a|an|any|the)\s+){0,2}$/i;
 const GENERIC = new Set([...STOP, "site", "starter"]);
 
 /** Single-word vocabulary values and aliases: an id built only from these describes, not names. */

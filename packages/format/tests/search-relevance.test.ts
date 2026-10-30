@@ -97,6 +97,12 @@ test.each([
   "except",
   "rather than",
   "not using",
+  "instead of using",
+  "avoid using",
+  "but not with",
+  "anything but",
+  "except for",
+  "rather than using",
 ])("%s negates a named stack and a facet", (cue) => {
   const stacks = [{ entry: { id: "nextjs", meta: { name: "Next.js starter" } } }];
   const request = `${cue} next.js and ${cue} Python`;
@@ -136,7 +142,7 @@ test("a negated stack does not trigger a fragment exclusion", () => {
   );
 });
 
-test("a fragment fitting an otherwise strong unnamed stack avoids a fit penalty", () => {
+test("a fragment that fits only an unnamed stack carries a fit penalty", () => {
   const input = relevanceInput("typed-api React dashboard deploy");
   const entries = input.entries.map((record) =>
     record.entry.id === "pages" && record.entry.meta.kind === "fragment"
@@ -149,8 +155,8 @@ test("a fragment fitting an otherwise strong unnamed stack avoids a fit penalty"
   const result = rank({ ...input, entries });
   expect(result.stacks.find((hit) => hit.id === "typed-api")?.tier).toBe("strong");
   expect(result.stacks.find((hit) => hit.id === "typed-web")?.tier).toBe("partial");
-  expect(result.fragments.find((hit) => hit.id === "pages")?.penalties).not.toContainEqual(
-    expect.objectContaining({ entry: "applies to typed-web" }),
+  expect(result.fragments.find((hit) => hit.id === "pages")?.penalties).toContainEqual(
+    expect.objectContaining({ kind: "notFor", entry: "applies to typed-web" }),
   );
 });
 

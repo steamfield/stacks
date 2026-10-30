@@ -20,7 +20,7 @@ function mergeHits(
     .filter((hit) => !overrides.has(`${hit.kind}:${hit.id}`))
     .map((hit) => {
       const key = `${hit.kind}:${hit.id}`;
-      const fallback = localById.get(`${hit.kind}:${hit.id}`)?.evidence;
+      const fallback = localById.get(key)?.evidence;
       const stats = hit.evidence.stats ?? fallback?.stats;
       if (stats) statsSources.set(key, hit.evidence.stats ? "api" : "local");
       const lastRun = hit.evidence.lastRun ?? fallback?.lastRun;
@@ -42,10 +42,13 @@ function mergeHits(
 /** The population behind the stats a result shows: seeded when any shown value's source is. */
 function shownPopulation(
   shown: ReadonlyArray<SearchHit>,
-  sources: ReadonlyMap<string, "api" | "local">,
-  api: StatsPopulation | undefined,
-  local: StatsPopulation | undefined,
+  options: {
+    sources: ReadonlyMap<string, "api" | "local">;
+    api: StatsPopulation | undefined;
+    local: StatsPopulation | undefined;
+  },
 ): StatsPopulation | undefined {
+  const { sources, api, local } = options;
   const populations = shown
     .filter((hit) => hit.evidence.stats)
     .map((hit) => (sources.get(`${hit.kind}:${hit.id}`) === "api" ? api : local));
@@ -80,12 +83,11 @@ export function mergeSearch(
     options.kind === "fragment" ? [] : limitHits(mergedStacks.hits, options.limit ?? 5);
   const fragments =
     options.kind === "stack" ? [] : limitHits(mergedFragments.hits, options.limit ?? 5);
-  const statsPopulation = shownPopulation(
-    [...stacks, ...fragments],
-    new Map([...mergedStacks.statsSources, ...mergedFragments.statsSources]),
-    remote.remote === "used" ? remote.response.statsPopulation : undefined,
-    options.localPopulation,
-  );
+  const statsPopulation = shownPopulation([...stacks, ...fragments], {
+    sources: new Map([...mergedStacks.statsSources, ...mergedFragments.statsSources]),
+    api: remote.remote === "used" ? remote.response.statsPopulation : undefined,
+    local: options.localPopulation,
+  });
   const ranking =
     remote.remote === "used"
       ? ({ ranking: "api", method: remote.response.method } as const)

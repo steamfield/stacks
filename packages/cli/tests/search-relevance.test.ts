@@ -72,6 +72,35 @@ test("a negated named stack stays out of the strong matches", async () => {
   expect(result.stacks.find((hit) => hit.id === "nextjs")?.tier).not.toBe("strong");
 });
 
+test.each([
+  "a react spa instead of using next.js",
+  "react web app, avoid using next.js",
+  "react web app but not with next.js",
+  "react web app, anything but next.js",
+  "react web app except for next.js",
+])("an excluded stack is never the strong match: %s", async (request) => {
+  const result = rank({ request, entries: await records(), vocabulary: vocabulary(), limit: 20 });
+  const nextjs = result.stacks.find((hit) => hit.id === "nextjs");
+  expect(nextjs?.tier).not.toBe("strong");
+  expect(nextjs?.penalties).toContainEqual(
+    expect.objectContaining({ entry: "excluded by name in the request" }),
+  );
+});
+
+test("a fragment that doesn't apply to the named stack carries a fit penalty", async () => {
+  const result = rank({
+    request: "next.js web app with posthog analytics",
+    entries: await records(),
+    vocabulary: vocabulary(),
+    limit: 20,
+  });
+  const posthog = result.fragments.find((hit) => hit.id === "posthog");
+  expect(posthog?.penalties).toContainEqual(
+    expect.objectContaining({ kind: "notFor", request: "next.js" }),
+  );
+  expect(posthog?.tier).not.toBe("strong");
+});
+
 test("only explicitly named stacks can be strong", async () => {
   const result = rank({
     request: "next.js saas with auth and stripe payments",

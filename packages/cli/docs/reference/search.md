@@ -29,8 +29,9 @@ each prevent the API call.
 `--json` returns `SearchResult`: `ranking: "api" | "local"`, the request, recognized vocabulary and
 unmatched content words under `understood`, `noStrongMatch`, and separate `stacks` and
 `fragments` lists. Each list contains only hits with a positive score and a `why` reason other
-than a request constraint or the bare word `add`, and may be shorter than `--limit` or empty. A list with strong or partial hits includes at most
-two weak hits after them; a list with only weak hits keeps up to `--limit` candidates.
+than a request constraint or the bare word `add`, and may be shorter than `--limit` or empty.
+A list with strong or partial hits includes at most two weak hits after them; a list with only
+weak hits keeps up to `--limit` candidates.
 Scores and coverage are rounded to three decimal places after sorting; hits whose scores round
 to zero are omitted. `remote` is `used`, `off` or `unavailable`; when off, `remoteReason` is
 `local_flag`, `offline`, `do_not_track`, `backoff` or `no_endpoint`. API results also include

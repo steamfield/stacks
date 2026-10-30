@@ -84,6 +84,7 @@ const exits: Record<string, ReadonlyArray<number>> = {
   "create stack": [0, 2, 6, 130],
   doctor: [0, 2, 130],
   guide: [0, 2, 130],
+  "guide author": [0, 2, 6, 130],
   list: [0, 2, 6, 130],
   new: [0, 2, 3, 6, 130],
   runs: [0, 2, 3, 6, 130],
@@ -102,9 +103,13 @@ const exits: Record<string, ReadonlyArray<number>> = {
 };
 
 test("every command's description states exactly the exits it can reach, naming real tags", () => {
-  expect(leaves.map((node) => node.path.join(" ")).sort()).toEqual(Object.keys(exits).sort());
+  // Leaves, plus a command that runs a handler of its own beside its subcommands (`guide`).
+  const runnable = nodes.filter(
+    (node) => leaves.includes(node) || /\bExits /.test(node.command.description ?? ""),
+  );
+  expect(runnable.map((node) => node.path.join(" ")).sort()).toEqual(Object.keys(exits).sort());
   const tags = new Set(Object.keys(errorTable));
-  for (const { path, command } of leaves) {
+  for (const { path, command } of runnable) {
     const name = path.join(" ");
     const sentence = /Exits (.*)$/.exec(command.description ?? "")?.[1];
     expect(sentence, `${name} states its exit codes`).toBeDefined();

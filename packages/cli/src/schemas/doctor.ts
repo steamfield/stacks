@@ -16,7 +16,7 @@ export const DoctorReport = Schema.Struct({
   }),
   /** The bundled registry root, and whether it exists. */
   registry: Schema.Struct({ path: Schema.String, found: Schema.Boolean }),
-  /** The bundled skill directory, and whether SKILL.md exists. */
+  /** The bundled skills root, and whether stacks/SKILL.md exists in it. */
   skill: Schema.Struct({ path: Schema.String, found: Schema.Boolean }),
   remoteIndex: RemoteStatus,
   configErrors: Schema.Array(Schema.String),

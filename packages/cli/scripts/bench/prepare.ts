@@ -225,7 +225,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
       );
       yield* fs.chmod(cli, 0o755);
       yield* fs.copy(registry, path.join(prefix, "registry"));
-      yield* fs.copy(path.join(packageRoot, "skill"), path.join(prefix, "skill"));
+      yield* fs.copy(path.join(packageRoot, "skills"), path.join(prefix, "skills"));
       yield* fs.makeDirectory(path.join(prefix, "docs"), { recursive: true });
       yield* fs.copyFile(
         path.join(packageRoot, "docs/authoring.md"),

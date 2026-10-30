@@ -85,7 +85,7 @@ describe("installed Node package", () => {
       version,
       configErrors: [],
       registry: { path: `${packageRoot}/registry`, found: true },
-      skill: { path: `${packageRoot}/skill/`, found: true },
+      skill: { path: `${packageRoot}/skills/`, found: true },
     });
     expect(result.stderr).toBe("");
   });

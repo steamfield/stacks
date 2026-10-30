@@ -23,7 +23,14 @@ With a global install (`npm install -g @steamfield/stacks`), the command is `sta
 
 Running it again is safe: an identical file is left alone, and a file you've edited is kept unless you pass `--force`.
 
-For Claude Code there's also a plugin that carries the same skill; it will be listed in the stacks marketplace once that's published.
+For writing a stack or fragment of your own and submitting it to the registry, there's a second skill, `stacks-author`. Install it the same way with `skill install stacks-author`, or let the agent read it without installing through `stacks guide author`.
+
+For Claude Code there's also a plugin that carries both skills. Its marketplace lives in the stacks repository and pins the plugin to the latest release:
+
+```sh
+claude plugin marketplace add steamfield/stacks
+claude plugin install stacks@stacks
+```
 
 Other agents (Codex, OpenCode, Cursor) have their own places for instructions. Print the skill and put it where your agent reads skills or rules:
 
@@ -68,7 +75,7 @@ sequenceDiagram
 
 For an existing repository, step 2 is `stacks add <fragment...> --json` instead, and the agent also merges the files `add` parked under `.stacks/incoming/`.
 
-The rules the agent follows are in [the skill](../skill/SKILL.md) and in the guide `stacks` prints with no arguments. The two that matter to you: the agent may never edit the verify steps or the manifest, and if verify reports `VerifyChanged`, it stops and asks you. Only you can accept changed steps, by running `stacks verify --accept-changes` at your own terminal.
+The rules the agent follows are in [the skill](../skills/stacks/SKILL.md) and in the guide `stacks` prints with no arguments. The two that matter to you: the agent may never edit the verify steps or the manifest, and if verify reports `VerifyChanged`, it stops and asks you. Only you can accept changed steps, by running `stacks verify --accept-changes` at your own terminal.
 
 ## What the agent sees
 

@@ -16,7 +16,7 @@ import { historyExec, requireFullHistory } from "./index/history";
 import { indexNames } from "./index/index-names";
 import { mergeNames } from "./index/names";
 import { currentIndex } from "./index/proof";
-import { carryForward, publish } from "./index/publish";
+import { carryForward, publish, readAuthors, withAuthors } from "./index/publish";
 import { releaseNames } from "./index/release-names";
 import {
   checkHost,
@@ -113,7 +113,7 @@ const program = Effect.gen(function* () {
       minCli: VERSION,
       generatedAt,
       commit: checkoutCommit,
-      entries: selected.entries,
+      entries: withAuthors(selected.entries, yield* readAuthors(root)),
     },
   });
   for (const line of selected.lines) yield* Console.log(line);
@@ -136,7 +136,7 @@ const layer = Processes.layer.pipe(
       stringWidth,
       registry: root,
       packageRoot,
-      skill: fileURLToPath(new URL("../skill", import.meta.url)),
+      skill: fileURLToPath(new URL("../skills", import.meta.url)),
       authoring: fileURLToPath(new URL("../docs/authoring.md", import.meta.url)),
       invocation: "stacks",
     }),

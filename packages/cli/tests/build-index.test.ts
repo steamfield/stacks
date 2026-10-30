@@ -566,3 +566,11 @@ test("unrelated cwd and inherited git selectors do not change the registry or co
     await digestOf(rawBundle(f.registry, "stack", "sample")),
   );
 }, 30_000);
+
+test("the index credits each entry authors.json names, and no other", async () => {
+  const f = await setup();
+  writeFileSync(join(f.registry, "authors.json"), JSON.stringify({ "stack/sample": "octo-cat" }));
+  const { index } = await build(f);
+  expect(named(index.entries, "stack", "sample").author).toBe("octo-cat");
+  expect(named(index.entries, "fragment", "tools")).not.toHaveProperty("author");
+}, 30_000);

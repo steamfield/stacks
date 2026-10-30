@@ -18,8 +18,9 @@ Every command accepts `--no-telemetry` to skip telemetry for this invocation. `n
 | [`validate`](#validate) | Check entries, or preview a composed brief |
 | [`create`](#create) | Create or copy a stack or fragment for editing |
 | [`update`](#update) | Check for a newer release, or upgrade a global npm install |
-| [`skill install`](#skill-install) | Install the agent skill |
+| [`skill install`](#skill-install) | Install an agent skill |
 | [`guide`](#guide) | Print the guide for coding agents |
+| [`guide author`](#guide-author) | Print the guide to writing and submitting an entry |
 | [`doctor`](#doctor) | Inspect the runtime, paths and configuration |
 | [`schema`](#schema) | Print the JSON Schema of a `--json` result |
 | [`telemetry status\|enable\|disable\|reset\|flush`](telemetry.md) | Inspect consent, turn collection off, rotate identity or send pending events |
@@ -253,18 +254,31 @@ When a newer version exists, `update` detects npx from the running package's pat
 
 ```sh
 stacks skill install                   # $HOME/.claude/skills/stacks/SKILL.md
+stacks skill install stacks-author     # $HOME/.claude/skills/stacks-author/, every file
 stacks skill install --project         # git toplevel, or cwd outside a repo
-stacks skill install --force           # replace an edited copy
-stacks skill install --print           # copy the skill to another location yourself
-stacks skill install --json            # { path, action: "written" | "unchanged" }
-stacks skill install --print --json    # { path: null, action: "printed", text }
+stacks skill install --force           # replace edited copies
+stacks skill install --print           # print SKILL.md to copy elsewhere yourself
+stacks skill install --json            # { name, path, action: "written" | "unchanged", files }
+stacks skill install --print --json    # { name, path: null, action: "printed", files, text }
 ```
 
-An identical installed file is unchanged. A differing file is preserved with `TargetNotEmpty` (exit 2) unless `--force` is set; a directory occupying `SKILL.md` is always preserved. Writes refuse symlinks escaping the skills root and final `SKILL.md` symlinks; a dotfiles symlink above the skills root is supported. Installation is allowed under an agent. A missing `HOME` or an unwritable target exits 6; `--print` skips all target lookup and writes nothing. A missing bundled skill exits 2 and appears as `skill.found: false` in `doctor --json`.
+The name is `stacks` (the default) or `stacks-author`, the skill for writing and submitting a stack or fragment, which ships a `references/` folder beside its `SKILL.md`. Every file of the skill is installed under `.claude/skills/<name>/`, and `files` lists each one's relative path and action; `path` is the installed `SKILL.md`. An unknown name is `Usage` (exit 2) with the closest name suggested.
+
+Identical installed files are unchanged. Differing files are preserved with `TargetNotEmpty` (exit 2) unless `--force` is set, and nothing is written; a directory occupying a skill file is always preserved. Writes refuse symlinks escaping the skills root and final file symlinks; a dotfiles symlink above the skills root is supported. A failed write restores the files already replaced. Installation is allowed under an agent. A missing `HOME` or an unwritable target exits 6. `--print` prints only `SKILL.md`, skips all target lookup and writes nothing; a skill with references is better installed. A missing bundled skill exits 2 and appears as `skill.found: false` in `doctor --json`.
 
 ## guide
 
 `stacks` with no arguments, or `stacks guide`, prints a short guide written for agents: `search` in plain words, `show <id>` to review a candidate and explain the pick, `new <stack> <dir>`, then `verify` and `verify --all` before calling it done. `list` browses entries and helps recover when nothing fits. `--json` returns `{ guide, commands }`. `stacks --help` keeps the full help and ends with a "Start here (agents)" footer.
+
+## guide author
+
+```sh
+stacks guide author                    # how to write and submit a stack or fragment
+stacks guide author from-repo          # one reference: turning an existing repo into a stack
+stacks guide author --json             # { topic, text, topics }
+```
+
+Prints the `stacks-author` skill without installing it, so an agent can follow it from any project. With no topic it prints the skill's `SKILL.md`; a topic prints that reference: `anatomy`, `fragment`, `from-repo`, `interview`, `search-card` or `submit`. Links between the files become the `guide author <topic>` command that prints the target. An unknown topic is `Usage` (exit 2) with the closest topic suggested; a missing bundled file exits 2 (`NotFound`) and an unreadable one exits 6.
 
 ## doctor
 

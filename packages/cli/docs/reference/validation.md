@@ -50,7 +50,9 @@ Budgets count every conditional branch in a body and, for a composed brief, the 
 
 Findings are errors, warnings or notes. Exit 0 when there are no errors; exit 2 (`ValidationFailed`) with the full report still on stdout and `Validation failed.` (with `--json`, the error envelope, whose `details` carry the counts) as the last stderr line. A path that is neither a registry root nor an entry under `stacks/` or `fragments/` is `NotFound` (2); an unreadable root is exit 6. Warnings don't change the exit, but the bundled registry is held to zero.
 
-Search sidecars report malformed `plain` copy as `search-invalid`, excess length as `search-size`, and version-specific copy as `plain-versioned`. A bundled registry with `allowlist.json` also checks `deps/<ecosystem>.json`: `deps-invalid` and `deps-ambiguous` are errors; `deps-missing` and `deps-unreviewed` are warnings; `deps-review-due` is a note.
+Search sidecars report malformed `plain` copy as `search-invalid`, excess length as `search-size`, and version-specific copy as `plain-versioned`. A bundled registry with `allowlist.json` also checks `deps/<ecosystem>.json`: `deps-invalid` and `deps-ambiguous` are errors; `deps-missing` and `deps-unreviewed` are warnings; `deps-review-due` is a note. A registry root with `authors.json` (the bundled one has it) checks that it decodes (`authors-invalid`) and that every key names an entry in that root (`authors-orphan`); both are errors.
+
+A search card stamped with a different source digest than the entry's current text is `search-stale`, a warning. An unreviewed author draft (`by: "author"` with `reviewedAt: null`) has no reviewed baseline to go stale against, so for one it is a note.
 
 ## Previewing a brief
 

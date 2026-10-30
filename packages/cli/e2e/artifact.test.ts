@@ -50,7 +50,7 @@ function run(argv: string[], cwd: string) {
 }
 
 test("the tarball contains exactly the allowlisted files, preserving every asset byte and its digest", () => {
-  const assets = ["registry", "skill"].flatMap((dir) =>
+  const assets = ["registry", "skills"].flatMap((dir) =>
     files(join(source, dir)).map((file) => `${dir}/${file}`),
   );
   const packedPath = (file: string) => (file.endsWith("/.gitignore") ? `${file}.stacks` : file);

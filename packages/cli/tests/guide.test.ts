@@ -1,9 +1,13 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { cli } from "../src/cli";
 import { countWords } from "../src/core/brief/words";
-import { guideCommands } from "../src/core/guide";
-import { GuideResult } from "../src/schemas/guide";
+import { AUTHOR_TOPICS, guideCommands } from "../src/core/guide";
+import { splitFrontmatter } from "../src/core/registry/entry";
+import { GuideAuthorResult, GuideResult } from "../src/schemas/guide";
 import { runCli } from "./helpers/cli";
 
 const decode = (stdout: string) => Schema.decodeUnknownSync(GuideResult)(JSON.parse(stdout));
@@ -116,3 +120,123 @@ test.each(["stacks", "npx -y stacks@1.2.3"])(
     expect(footer).toContain("Explain your pick and one tradeoff");
   },
 );
+
+describe("guide author", () => {
+  const shipped = fileURLToPath(new URL("../skills/", import.meta.url));
+  const fixture = fileURLToPath(new URL("./fixtures/skills/", import.meta.url));
+  const decodeAuthor = (stdout: string) =>
+    Schema.decodeUnknownSync(GuideAuthorResult, { onExcessProperty: "error" })(JSON.parse(stdout));
+  const ok = (run: Awaited<ReturnType<typeof runCli>>) => {
+    expect(run.stderr).toBe("");
+    expect(run.status).toBe(0);
+    return run.stdout;
+  };
+
+  test("prints the shipped authoring skill without frontmatter, and --json lists every topic", async () => {
+    const text = ok(await runCli(["guide", "author"], { host: { skill: shipped } }));
+    const skill = splitFrontmatter(readFileSync(join(shipped, "stacks-author/SKILL.md"), "utf8"));
+    expect(text.trim().length).toBeGreaterThan(0);
+    expect(text).not.toContain("name: stacks-author");
+    expect(text.trim().split("\n")[0]).toBe(skill?.body.trim().split("\n")[0]);
+    const json = decodeAuthor(
+      ok(await runCli(["guide", "author", "--json"], { host: { skill: shipped } })),
+    );
+    expect(json.topic).toBeNull();
+    expect(json.topics).toEqual([...AUTHOR_TOPICS]);
+    expect(`${json.text.replace(/\n$/, "")}\n`).toBe(text);
+  });
+
+  test.each([...AUTHOR_TOPICS])(
+    "prints the shipped %s reference with no links left to the skill's own files",
+    async (topic) => {
+      const json = decodeAuthor(
+        ok(await runCli(["guide", "author", topic, "--json"], { host: { skill: shipped } })),
+      );
+      expect(json.topic).toBe(topic);
+      expect(json.text.trim().length).toBeGreaterThan(0);
+      expect(json.text).not.toMatch(/\]\((?:\.\.?\/)?(?:references\/)?[a-z-]+\.md/);
+      expect(json.text).not.toMatch(/references\/[a-z-]+\.md/);
+    },
+  );
+
+  test("the shipped skill text names no reference file path, only guide author commands", async () => {
+    const json = decodeAuthor(
+      ok(await runCli(["guide", "author", "--json"], { host: { skill: shipped } })),
+    );
+    expect(json.text).not.toMatch(/references\/[a-z-]+\.md/);
+  });
+
+  test("links to the skill's own files become the command that prints them", async () => {
+    const host = { skill: fixture, invocation: "npx -y @steamfield/stacks@latest" };
+    const cli = host.invocation;
+    const skill = decodeAuthor(ok(await runCli(["guide", "author", "--json"], { host })));
+    expect(skill.text).toBe(
+      [
+        "# Fixture authoring skill",
+        "",
+        `Read \`${cli} guide author anatomy\` first. For an existing repo, read the repo route (\`${cli} guide author from-repo\`).`,
+        `Bare mention: ${cli} guide author submit. Unknown link stays: [notes](references/notes.md). External: [docs](https://example.com/x.md).`,
+        "",
+      ].join("\n"),
+    );
+    const anatomy = decodeAuthor(
+      ok(await runCli(["guide", "author", "anatomy", "--json"], { host })),
+    );
+    expect(anatomy.text).toBe(
+      [
+        "# Fixture anatomy",
+        "",
+        `Back to the skill (\`${cli} guide author\`). Next, \`${cli} guide author fragment\` and search cards (\`${cli} guide author search-card\`).`,
+        "",
+      ].join("\n"),
+    );
+  });
+
+  test("an unknown topic is a usage error naming the closest topics", async () => {
+    const run = await runCli(["guide", "author", "from-rep", "--json"], {
+      host: { skill: shipped },
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(JSON.parse(run.stderr)).toMatchObject({
+      error: {
+        tag: "Usage",
+        details: {
+          flag: "topic",
+          command: "guide author",
+          value: "from-rep",
+          expected: AUTHOR_TOPICS.join(" | "),
+          suggestions: ["from-repo"],
+        },
+      },
+    });
+    const text = await runCli(["guide", "author", "from-rep"], { host: { skill: shipped } });
+    expect(text.status).toBe(2);
+    expect(text.stdout).toBe("");
+    expect(text.stderr).toContain("from-repo");
+    expect(text.stderr).toContain("Next:");
+  });
+
+  test("a missing bundled reference is NotFound with its path", async () => {
+    const run = await runCli(["guide", "author", "submit", "--json"], {
+      host: { skill: fixture },
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(JSON.parse(run.stderr)).toMatchObject({
+      error: {
+        tag: "NotFound",
+        details: { path: join(fixture, "stacks-author", "references", "submit.md") },
+      },
+    });
+  });
+
+  test("schema guide-author describes the result", async () => {
+    const run = await runCli(["schema", "guide-author", "--json"]);
+    expect(run.status).toBe(0);
+    const schema = Schema.decodeUnknownSync(
+      Schema.Struct({ required: Schema.Array(Schema.String) }),
+    )(JSON.parse(run.stdout));
+    expect(schema.required).toEqual(["topic", "text", "topics"]);
+  });
+});

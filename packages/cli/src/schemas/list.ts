@@ -1,4 +1,4 @@
-import { Category, Kind, StatsDay, StatsWindow } from "@steamfield/stacks-format";
+import { Category, GitHubLogin, Kind, StatsDay, StatsWindow } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { LastRun } from "./ledger";
 import { NoticeFields } from "./notice";
@@ -17,6 +17,8 @@ export const ListRow = Schema.Struct({
   origin: Origin,
   trusted: Schema.Boolean,
   shadows: Schema.Array(Origin),
+  /** The creator's GitHub login, for bundled and index entries submitted by one. */
+  author: Schema.optionalKey(GitHubLogin),
   /** Latest bundled default-composition run, over every preset and agent. */
   lastRun: Schema.NullOr(LastRun),
   stats: Schema.optionalKey(

@@ -46,6 +46,14 @@ To let your agent drive from the start, install the agent skill once and ask the
 stacks skill install            # for Claude Code, under ~/.claude/skills
 stacks skill install --project  # only for the current repository
 stacks skill install --print    # print it to copy into another agent
+stacks skill install stacks-author  # the skill for writing and submitting your own stack
+```
+
+In Claude Code, the plugin carries both skills and tracks the latest release:
+
+```sh
+claude plugin marketplace add steamfield/stacks
+claude plugin install stacks@stacks
 ```
 
 Agents can also read `stacks guide`, which is what `stacks` prints with no arguments. [Using stacks with an agent](docs/agents.md) covers detection, the adapter files written for Claude Code, Codex, OpenCode and Cursor (`--agents`), and launch behavior.

@@ -1,5 +1,10 @@
 import type { Kind } from "@steamfield/stacks-format";
-import { DependencyCardFile, SearchMetadata, SearchVocabulary } from "@steamfield/stacks-format";
+import {
+  AuthorsFile,
+  DependencyCardFile,
+  SearchMetadata,
+  SearchVocabulary,
+} from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { PermissionDenied } from "../../errors";
 import { SEARCH_DIRECTORY } from "../../project-layout";
@@ -43,6 +48,12 @@ export const decodeVocabulary = (bytes: Uint8Array) =>
     new TextDecoder().decode(bytes).replace(/^\uFEFF/, ""),
     { onExcessProperty: "error" },
   );
+/** The registry's `authors.json`. */
+export const decodeAuthors = (bytes: Uint8Array) =>
+  Schema.decodeUnknownEffect(Schema.fromJsonString(AuthorsFile))(
+    new TextDecoder().decode(bytes).replace(/^﻿/, ""),
+  );
+
 export const decodeDependencyCards = (bytes: Uint8Array) =>
   Schema.decodeUnknownEffect(Schema.fromJsonString(DependencyCardFile))(
     new TextDecoder().decode(bytes).replace(/^\uFEFF/, ""),

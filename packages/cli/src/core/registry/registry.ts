@@ -1,10 +1,10 @@
-import { Ecosystem, type Kind } from "@steamfield/stacks-format";
+import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Path, type PlatformError } from "effect";
 import { AppConfig } from "../../config";
 import { EntryInvalid, NotFound, PermissionDenied } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
 import { Host } from "../../services/host";
-import { readSearchFile, sidecarPath } from "../search/sidecar";
+import { decodeAuthors, readSearchFile, sidecarPath } from "../search/sidecar";
 import { printable } from "../text";
 import {
   type CatalogEntry,
@@ -197,6 +197,11 @@ export class Registry extends Context.Service<
     readonly vocabulary: Effect.Effect<Uint8Array | undefined, PermissionDenied>;
     /** Dependency files from the bundled root only, each read once per invocation. */
     readonly dependencyCards: Effect.Effect<ReadonlyMap<Ecosystem, Uint8Array>, PermissionDenied>;
+    /**
+     * The bundled root's `authors.json`, read once per invocation; empty when it is absent or
+     * invalid (`validate` reports an invalid one).
+     */
+    readonly authors: Effect.Effect<AuthorsFile, PermissionDenied>;
     /** Raw sidecar of this entry's own origin, never a higher or lower root's card. */
     readonly search: (entry: Entry) => Effect.Effect<Uint8Array | undefined, PermissionDenied>;
     /** `files/` and `adapters/` of an entry, sorted by `source`. */
@@ -494,9 +499,18 @@ export class Registry extends Context.Service<
             return cards;
           }),
         );
+        const authors = yield* Effect.cached(
+          Effect.gen(function* () {
+            if (vocabularyRoot === undefined) return {};
+            const bytes = yield* readSearch(vocabularyRoot.path, "authors.json");
+            if (bytes === undefined) return {};
+            return yield* decodeAuthors(bytes).pipe(Effect.orElseSucceed(() => ({})));
+          }),
+        );
         return {
           vocabulary,
           dependencyCards,
+          authors,
           search: (entry) => readSearch(path.dirname(path.dirname(entry.dir)), sidecarPath(entry)),
           all: view.pipe(Effect.flatMap((registry) => registry.all)),
           catalog: view.pipe(Effect.map((registry) => registry.catalog)),

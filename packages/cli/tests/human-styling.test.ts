@@ -112,7 +112,7 @@ test.each(handlerCases)(
           program,
           env: { ...env, CLAUDECODE: "1" },
           http: registryResponse({ body: { version: VERSION } }).http,
-          host: { registry, ...terminal, skill: join(import.meta.dirname, "..", "skill") },
+          host: { registry, ...terminal, skill: join(import.meta.dirname, "..", "skills") },
         });
       const off = await run({ ...quiet, NO_COLOR: "1" });
       const on = await run(forced);

@@ -202,17 +202,36 @@ const inspectCard = Effect.fn("validate.searchCard")(function* (options: {
   const examples = yield* exampleProblems(card, view);
   return [
     ...(examples.length ? [issue("search-invalid", "error", examples.join("; "))] : []),
-    ...cardWarnings(card, entry).map(([check, message]) => issue(check, "warning", message)),
+    ...staleFindings(card, entry, issue),
+    ...cardWarnings(card).map(([check, message]) => issue(check, "warning", message)),
   ];
 });
 
-function cardWarnings(card: SearchMetadata, entry: Entry): Array<[string, string]> {
+const staleFindings = (
+  card: SearchMetadata,
+  entry: Entry,
+  issue: (check: string, severity: Finding["severity"], message: string) => Finding,
+): Finding[] =>
+  card.source.digest === searchSourceDigest(entry) ? [] : [staleFinding(card, issue)];
+
+/**
+ * A card stamped against other entry text. An unreviewed author draft has no reviewed baseline to
+ * go stale against (submission restamps it), so for one this is only a note.
+ */
+function staleFinding(
+  card: SearchMetadata,
+  issue: (check: string, severity: Finding["severity"], message: string) => Finding,
+): Finding {
+  const draft = card.source.by === "author" && card.source.reviewedAt === null;
+  return issue(
+    "search-stale",
+    draft ? "note" : "warning",
+    "Entry text changed; draft again or review and restamp this card.",
+  );
+}
+
+function cardWarnings(card: SearchMetadata): Array<[string, string]> {
   const warnings: Array<[string, string]> = [];
-  if (card.source.digest !== searchSourceDigest(entry))
-    warnings.push([
-      "search-stale",
-      "Entry text changed; draft again or review and restamp this card.",
-    ]);
   if (card.source.reviewedAt === null)
     warnings.push(["search-unreviewed", "Read this draft and approve it before publishing."]);
   const size = sizeProblems(card);

@@ -1,4 +1,99 @@
+import { Effect, FileSystem, Path } from "effect";
+import { NotFound, PermissionDenied, Usage } from "../errors";
 import { BRIEF_PATH, MANIFEST_PATH } from "../project-layout";
+import type { GuideAuthorResult } from "../schemas/guide";
+import { Host } from "../services/host";
+import { splitFrontmatter } from "./registry/entry";
+import { closest } from "./suggest";
+
+/** The authoring skill's reference files, `references/<topic>.md` under `stacks-author/`. */
+export const AUTHOR_TOPICS = [
+  "anatomy",
+  "fragment",
+  "from-repo",
+  "interview",
+  "search-card",
+  "submit",
+] as const;
+type AuthorTopic = (typeof AUTHOR_TOPICS)[number];
+const isAuthorTopic = (name: string): name is AuthorTopic =>
+  (AUTHOR_TOPICS as ReadonlyArray<string>).includes(name);
+
+/** The topic a link target names (`references/x.md`, `./x.md`, `x.md`), `""` for SKILL.md. */
+function linkedTopic(target: string): AuthorTopic | "" | undefined {
+  if (/^(?:\.\/|\.\.\/)?SKILL\.md$/.test(target)) return "";
+  const topic = /^(?:\.\/|\.\.\/)?(?:references\/)?([a-z-]+)\.md(?:#\S*)?$/.exec(target)?.[1];
+  return topic !== undefined && isAuthorTopic(topic) ? topic : undefined;
+}
+
+/**
+ * The authoring skill's links to its own files, rewritten to the command that prints each one, so
+ * an agent reading through `guide author` can follow them without the files. A Markdown link
+ * becomes its label and the command (only the command when the label is the file name), and a
+ * bare `references/x.md` becomes the command.
+ */
+export function rewriteAuthorLinks(text: string, cli: string): string {
+  const command = (topic: AuthorTopic | "") =>
+    topic === "" ? `${cli} guide author` : `${cli} guide author ${topic}`;
+  const linked = text.replace(
+    /\[([^\]\n]*)\]\(([^)\s]+)\)/g,
+    (link, label: string, target: string) => {
+      const topic = linkedTopic(target);
+      if (topic === undefined) return link;
+      const plain = label.replace(/`/g, "").trim();
+      return plain === topic || linkedTopic(plain) === topic
+        ? `\`${command(topic)}\``
+        : `${label} (\`${command(topic)}\`)`;
+    },
+  );
+  return linked.replace(
+    /(?<![\w/.-])(?:\.\/)?references\/([a-z-]+)\.md\b/g,
+    (mention, topic: string) => (isAuthorTopic(topic) ? command(topic) : mention),
+  );
+}
+
+/**
+ * `guide author [topic]`: the authoring skill's SKILL.md without its frontmatter, or one of its
+ * references, read from the bundled skills root with links rewritten. An unknown topic is a
+ * Usage error with the closest topics.
+ */
+export const authorGuide = (topic: string | undefined) =>
+  Effect.gen(function* () {
+    if (topic !== undefined && !isAuthorTopic(topic))
+      return yield* new Usage({
+        details: {
+          flag: "topic",
+          command: "guide author",
+          value: topic,
+          expected: AUTHOR_TOPICS.join(" | "),
+          suggestions: closest(topic, AUTHOR_TOPICS),
+        },
+      });
+    const host = yield* Host;
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const dir = path.join(host.skill, "stacks-author");
+    const file =
+      topic === undefined
+        ? path.join(dir, "SKILL.md")
+        : path.join(dir, "references", `${topic}.md`);
+    const raw = yield* fs
+      .readFileString(file)
+      .pipe(
+        Effect.mapError((error) =>
+          error.reason._tag === "NotFound" || error.reason._tag === "BadResource"
+            ? new NotFound({ details: { path: file, suggestions: [] } })
+            : new PermissionDenied({ details: { reason: "read", path: file } }),
+        ),
+      );
+    const text = topic === undefined ? (splitFrontmatter(raw)?.body ?? raw) : raw;
+    return {
+      topic: topic ?? null,
+      text: rewriteAuthorLinks(text, host.invocation),
+      topics: [...AUTHOR_TOPICS],
+    } satisfies GuideAuthorResult;
+  });
+
 /**
  * The agent guide: what `stacks` with no arguments and `stacks guide` print, and the
  * footer on the root's `--help`. One text, reached three ways; it reads neither a project nor a
@@ -18,6 +113,7 @@ export const guideText = (cli: string) =>
     `4. In <dir>, ${cli} verify until green; run ${cli} verify --all before calling it done.`,
     "",
     `Existing repo: ${cli} add <fragment...> --json; follow the brief, merge incoming files and verify.`,
+    `Writing or submitting a stack or fragment: ${cli} guide author.`,
     "",
     "Rules:",
     "- Never pick an entry list --json marks untrusted unless the user named it.",

@@ -57,7 +57,7 @@
     "dist/stacks",
     "dist/cli.mjs",
     "registry",
-    "skill",
+    "skills",
     "docs/authoring.md",
     "LICENSE"
   ],

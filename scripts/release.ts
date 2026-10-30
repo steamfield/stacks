@@ -57,6 +57,23 @@ function manifest(dir: (typeof PACKAGES)[number]) {
 const packages = PACKAGES.map(manifest);
 const tag = `v${packages[1]?.version}`;
 
+/**
+ * The tag the Claude Code marketplace pins the plugin to. Users read marketplace.json from the
+ * default branch and install the plugin from this tag, so the release commit sets it to the tag
+ * this run creates; the CLI's native-agent-plugin test keeps it equal to package.json.
+ */
+function marketplaceRef() {
+  const parsed = JSON.parse(
+    readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"),
+  ) as unknown;
+  const plugins =
+    typeof parsed === "object" && parsed !== null && "plugins" in parsed ? parsed.plugins : [];
+  const entry: unknown = Array.isArray(plugins) ? plugins[0] : undefined;
+  const source =
+    typeof entry === "object" && entry !== null && "source" in entry ? entry.source : undefined;
+  return typeof source === "object" && source !== null && "ref" in source ? source.ref : undefined;
+}
+
 function preflight() {
   if (!dryRun && read("npm", ["whoami"]).status !== 0) fail("not logged in to npm; run npm login");
   if (read("git", ["status", "--porcelain"]).stdout !== "") fail("the working tree has changes");
@@ -67,6 +84,8 @@ function preflight() {
     fail("HEAD is not origin/main; push the release commit first");
   if (read("git", ["rev-parse", "--quiet", "--verify", `refs/tags/${tag}`]).status === 0)
     fail(`tag ${tag} already exists`);
+  if (marketplaceRef() !== tag)
+    fail(`.claude-plugin/marketplace.json must pin the plugin to ${tag} in the release commit`);
 }
 
 function alreadyPublished(pkg: (typeof packages)[number], cwd: string) {

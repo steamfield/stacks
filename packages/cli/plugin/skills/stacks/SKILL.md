@@ -7,9 +7,11 @@ description: Start a new project from a stack or add fragments to an existing re
 
 ## When to use it
 
-Use stacks for a new project from nothing, or when the user asks for a project set up properly. For an existing repo, use `<cli> add <fragment...> --json` to apply fragments without restructuring it. Use `<cli> list --json` to choose fragments; inside a stacks project, `project.addable` lists those that fit.
+Use stacks for a new project, or when the user wants one set up properly. For an existing repo, use `<cli> add <fragment...> --json` to apply fragments without restructuring it. Use `<cli> list --json` to choose fragments; inside a stacks project, `project.addable` lists those that fit.
 
 A stack is a recipe: dependencies by role, starter files, agent guidance and a definition of done. A fragment is one capability a stack can include, such as CI or a database. The CLI writes the brief; you build the project with current versions.
+
+To write or submit a stack or fragment, run `<cli> guide author`.
 
 ## How to run it
 
@@ -25,7 +27,7 @@ Run `<cli> search "<their words>" --json`. Use `--local` for local ranking; `--o
 
 ## Start it
 
-Run `<cli> new <stack> <dir> --json`; use `<cli> new <stack> <dir> --sandbox --json` when the user wants the fastest path to something running locally. Add `--dry-run` to preview the files and brief size without writing anything.
+Run `<cli> new <stack> <dir> --json`; use `<cli> new <stack> <dir> --sandbox --json` when the user wants the fastest path to something running locally. Add `--dry-run` to preview without writing.
 
 After `add`, read the same brief, merge the contributions parked in `.stacks/incoming/` while keeping the project's choices, then delete incoming files once merged. Verify checks the whole manifest.
 

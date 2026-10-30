@@ -92,7 +92,7 @@ const platform = Layer.mergeAll(
     stringWidth,
     registry,
     packageRoot: fileURLToPath(new URL("../", import.meta.url)),
-    skill: fileURLToPath(new URL("../skill/", import.meta.url)),
+    skill: fileURLToPath(new URL("../skills/", import.meta.url)),
     authoring: fileURLToPath(new URL("../docs/authoring.md", import.meta.url)),
     invocation: invocationFor(process.argv[1] ?? ""),
   }),

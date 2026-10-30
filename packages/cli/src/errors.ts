@@ -921,20 +921,19 @@ function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"
 }
 
 function targetNext(details: typeof TargetNotEmptyDetails.Type, invocation: string): FailureGuide {
+  // `skill install`'s target is `.claude/skills/<name>`; the default skill needs no name.
+  const skill = /[/\\]\.claude[/\\]skills[/\\](stacks(?:-author)?)$/.exec(details.path)?.[1];
+  const install = `${invocation} skill install${skill === "stacks-author" ? " stacks-author" : ""}`;
   if (details.blocker === "non-file")
     return guide(
       [],
-      `move the item named SKILL.md out of the target directory, or run ${invocation} skill install --print to copy the skill elsewhere.`,
+      `move the item named ${details.entries[0] ?? "SKILL.md"} out of the target directory, or run ${install} --print to copy the skill elsewhere.`,
     );
-  // `skill install`'s differing target; its details are only path and entries.
-  if (
-    details.entries.length === 1 &&
-    details.entries[0] === "SKILL.md" &&
-    /[/\\]\.claude[/\\]skills[/\\]stacks$/.test(details.path)
-  )
+  // `skill install`'s differing files; its details are only path and entries.
+  if (skill !== undefined && details.entries.length > 0)
     return guide(
       [],
-      `rerun ${invocation} skill install with --force to replace it, or --print to copy it elsewhere.`,
+      `rerun ${install} with --force to replace ${details.entries.length > 1 ? "them" : "it"}, or --print to copy it elsewhere.`,
     );
   if (details.scaffold === "unfinished")
     return guide(

@@ -2,6 +2,7 @@ import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
 import { type Entry, isRejected, type RejectedEntry } from "../registry/entry";
 import { defaultRoots, Registry, type RegistryRoots } from "../registry/registry";
+import { authorChecks } from "./authors";
 import { commandChecks } from "./commands";
 import { composeEachChecks } from "./compose-each";
 import { composedFiles, renderedFileChecks } from "./composed";
@@ -31,6 +32,7 @@ export const checks: ReadonlyArray<Check> = [
   loadChecks,
   searchChecks,
   dependencyChecks,
+  authorChecks,
   metadataChecks,
   referenceChecks,
   conditionalChecks,

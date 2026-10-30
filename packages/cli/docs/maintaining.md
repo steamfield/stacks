@@ -167,27 +167,20 @@ leave the proven bundles unchanged.
 
 ## Publishing the Claude Code plugin
 
-`plugin/` is a Claude Code plugin carrying the agent skill, published by hand after a CLI release to a marketplace repository the maintainers own (not created yet; see [marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) and the [manifest reference](https://code.claude.com/docs/en/plugins-reference)). `skill/SKILL.md` is the source; `plugin/skills/stacks/SKILL.md` is a committed copy, because a plugin's paths can't leave its directory. `tests/native-agent-plugin.test.ts` fails when the copy or the manifest's `version` drifts from the skill and `package.json`.
+`plugin/` is a Claude Code plugin carrying both agent skills, `stacks` and `stacks-author`. The repository root holds its marketplace, `.claude-plugin/marketplace.json` (see [marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) and the [manifest reference](https://code.claude.com/docs/en/plugins-reference)), so users add it with `claude plugin marketplace add steamfield/stacks` and install it with `claude plugin install stacks@stacks`.
 
-1. On the release revision, from `packages/cli/`, refresh the copy and check the plugin loads (`/stacks:stacks` should appear in the session):
+The marketplace lists the plugin with a `git-subdir` source: this repository, the path `packages/cli/plugin` and a `ref` naming the release tag `v<version>`. Claude Code reads `marketplace.json` from the default branch but fetches the plugin from that tag, so unreleased skill edits on `main` never reach users. `skills/` is the source of both skills; `plugin/skills/` holds committed copies, because a plugin's paths can't leave its directory. `tests/native-agent-plugin.test.ts` fails when a copy drifts from its source file by file, when the manifest's `version` drifts from `package.json`, or when the marketplace's `ref` isn't `v<package.json version>`.
+
+1. In the release commit (the one that bumps the versions), from `packages/cli/`, refresh the copies, set `ref` in `.claude-plugin/marketplace.json` to the new tag, and check the plugin loads (`/stacks:stacks` and `/stacks:stacks-author` should appear in the session):
 
    ```sh
-   cp skill/SKILL.md plugin/skills/stacks/SKILL.md
+   rm -r plugin/skills && cp -R skills plugin/skills
    bun run test:unit tests/native-agent-plugin.test.ts
    claude plugin validate ./plugin
+   claude plugin validate ..
    claude --plugin-dir ./plugin
    ```
 
-2. In the marketplace checkout, replace `plugins/stacks/` with `plugin/` (including `.claude-plugin/`). On first publication, create `.claude-plugin/marketplace.json` with the marketplace `name`, an `owner` and a `plugins` array holding:
+2. `bun run release` refuses to tag unless the marketplace pins the tag it is about to create. Once the tag is pushed, `claude plugin marketplace add steamfield/stacks` and `claude plugin install stacks@stacks` in a scratch session should install the released plugin.
 
-   ```json
-   {
-     "name": "stacks",
-     "source": "./plugins/stacks",
-     "description": "Choose a stack with the stacks CLI and follow its brief until verify is green."
-   }
-   ```
-
-   The version stays in the plugin manifest only.
-3. Run `claude plugin validate <marketplace-checkout>`, `claude plugin marketplace add <marketplace-checkout>` and `claude plugin install stacks@<marketplace-name>`, and confirm the skill appears in a new session.
-4. Push the marketplace, and note the CLI version and marketplace revision it carries in the release's pull request or commit message.
+Between pushing the release commit and pushing its tag, the marketplace names a tag that doesn't exist yet, and an install in that window fails. Run the release right after the commit lands.

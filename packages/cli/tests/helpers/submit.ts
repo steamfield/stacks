@@ -23,6 +23,7 @@ case "$1 $2" in
     if [ -n "$FAKE_GH_PR" ]; then printf '%s\\n' "$FAKE_GH_PR"; exit 0; fi
     printf 'no pull requests found for branch\\n' >&2; exit 1 ;;
   "api repos/"*)
+    if [ -n "$FAKE_GH_COMPARE_FAIL" ]; then printf '%s\\n' "$FAKE_GH_COMPARE_FAIL" >&2; exit 1; fi
     # The compare API's status for <base>...main, answered from the clone (gh's working directory).
     base=\${2##*/compare/}; base=\${base%...main}
     if [ "$base" = "$("${REAL_GIT}" rev-parse main)" ]; then echo identical

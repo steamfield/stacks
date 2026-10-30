@@ -1073,3 +1073,44 @@ test("an unknown id hints at ./<name> when the working directory has a folder by
   );
   expect(github.calls()).toEqual([]);
 });
+
+test("a branch base GitHub can't compare with main is refused as not submit's own", async () => {
+  for (const message of [
+    "gh: Not Found (HTTP 404)",
+    "gh: No common ancestor between main and abc. (HTTP 422)",
+    "gh: No commit found for SHA: abc",
+  ]) {
+    const { github, home, user } = setup();
+    entry(user, "stack", "demo-app");
+    const run = await runCli(["submit", "demo-app", "--json"], {
+      home,
+      env: { ...github.env, FAKE_REMOTE_TIP: "submit", FAKE_GH_COMPARE_FAIL: message },
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(envelope(run.stderr)).toMatchObject({
+      tag: "BadInput",
+      details: { flag: "branch_taken", branch: "entry/stack-demo-app" },
+      next: BRANCH_TAKEN_NEXT,
+    });
+    expect(github.calls().some((call) => gitSubcommand(call) === "push")).toBe(false);
+  }
+});
+
+test("a compare request that fails for another reason is retryable", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  const run = await runCli(["submit", "demo-app", "--json"], {
+    home,
+    env: {
+      ...github.env,
+      FAKE_REMOTE_TIP: "submit",
+      FAKE_GH_COMPARE_FAIL: "error connecting to api.github.com",
+    },
+  });
+  expect(run.status).toBe(4);
+  expect(envelope(run.stderr)).toMatchObject({
+    tag: "UpstreamUnavailable",
+    details: { service: "github", step: "push" },
+  });
+});

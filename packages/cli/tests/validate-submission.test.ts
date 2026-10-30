@@ -319,6 +319,8 @@ test("generic container and CI homes and format strings aren't home paths; a per
   write("files/docs/container.md", "In the image:\n\n    WORKDIR /home/node/app\n");
   write("files/docs/ci.md", "The runner caches /home/runner/.cache between jobs.\n");
   write("files/src/log.c", "printf('%s:\\n', name);\n");
+  write("files/docs/brew.md", `eval "${DOLLAR}(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n`);
+  write("files/docs/shared.md", "Fixtures live in /Users/Shared/fixtures/ on the build Mac.\n");
   write("files/docs/setup.md", "Clone it into /home/alice/code/demo first.\n");
   write("files/.vscode/settings.json", '{ "cwd": "C:\\\\Users\\\\bob\\\\proj" }\n');
   const { findings } = await validateSubmission(home, dir);

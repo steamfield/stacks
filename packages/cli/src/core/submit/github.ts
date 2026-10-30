@@ -246,10 +246,15 @@ const onMain = Effect.fn("submit.onMain")(function* (
     [tools.gh, "api", `repos/${options.repo}/compare/${options.parent}...main`, "--jq", ".status"],
     { cwd: options.cwd, timeout: QUICK, step: "push" },
   );
+  // GitHub can't compare a base it doesn't know or that shares no history with main: not ours.
+  if (!(ok(compared) || compared.timedOut) && NOT_COMPARABLE.test(compared.stderr)) return false;
   if (!ok(compared)) return yield* failed(compared, "push");
   const status = compared.stdout.trim();
   return status === "ahead" || status === "identical";
 });
+
+/** gh's failure when the compare API knows no such base, or no history links it to main. */
+const NOT_COMPARABLE = /HTTP 404|HTTP 422|No commit found/;
 
 /** git's message when a lease no longer matches the remote branch. */
 const LEASE_REJECTED = /stale info|\[rejected\]/;

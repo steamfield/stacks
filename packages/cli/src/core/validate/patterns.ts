@@ -54,16 +54,25 @@ const GENERIC_HOMES = [
   "app",
   "user",
   "ec2-user",
+  "linuxbrew",
+  "bun",
+  "pwuser",
+  "nonroot",
+  "jovyan",
+  "vagrant",
+  "jenkins",
+  "gitlab-runner",
 ];
 
 /**
- * An absolute path that names one person's machine: a macOS home (`/Users/<name>/`), a Linux home
- * (`/home/<name>/`) other than the generic ones above, or a Windows drive path, also as escaped
- * in JSON (`C:\\Users`), but not a `%s:\n` format string.
+ * An absolute path that names one person's machine: a macOS home (`/Users/<name>/`, not the
+ * machine-wide `/Users/Shared/`), a Linux home (`/home/<name>/`) other than the generic ones
+ * above, or a Windows drive path, also as escaped in JSON (`C:\\Users`), but not a `%s:\n`
+ * format string.
  */
 export const ABSOLUTE_PATH = new RegExp(
   [
-    "(?:^|[^\\w])/Users/[A-Za-z0-9._-]+/",
+    "(?:^|[^\\w])/Users/(?!Shared/)[A-Za-z0-9._-]+/",
     `(?:^|[^\\w])/home/(?!(?:${GENERIC_HOMES.map(escapeRegExp).join("|")})/)[A-Za-z0-9._-]+/`,
     "(?<![\\w%])[A-Za-z]:(?:\\\\\\\\|\\\\)[A-Za-z0-9_.-]",
   ].join("|"),

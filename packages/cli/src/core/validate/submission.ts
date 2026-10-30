@@ -1,10 +1,11 @@
 import { Effect, Result } from "effect";
+import { AppConfig } from "../../config";
 import type { Finding } from "../../schemas/validate";
-import { type Entry, markdownFile } from "../registry/entry";
+import { type Entry, markdownFile, outputPath } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
 import { unreadable } from "./files";
-import { ABSOLUTE_PATH, FILL_MARKER, isEnvFile, secretIn } from "./patterns";
+import { absolutePathPattern, escapeRegExp, FILL_MARKER, isEnvFile, secretIn } from "./patterns";
 import { type Check, finding, type View } from "./view";
 
 /**
@@ -23,18 +24,42 @@ type Area = "markdown" | "shipped" | "card" | "other";
 export const submissionChecks: Check = (view) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
-    for (const entry of view.entries) findings.push(...(yield* entryFindings(view, entry)));
+    const homePath = absolutePathPattern((yield* (yield* AppConfig).paths).home);
+    for (const entry of view.entries)
+      findings.push(...(yield* entryFindings(view, entry, homePath)));
     return { findings };
   });
 
-const entryFindings = (view: View, entry: Entry) =>
+/** A shipped file's path in the project: without `files/` or `adapters/<agent>/`. */
+function projectPath(source: string): string | undefined {
+  return /^(?:files|adapters\/[^/]+)\/(.+)$/.exec(source)?.[1];
+}
+
+/** Whether `run` names `file` as a whole path, not as the tail of a longer one. */
+function names(run: string, file: string): boolean {
+  return new RegExp(`(?:^|[\\s'"\`=(]|\\./)${escapeRegExp(file)}(?![\\w./-])`).test(run);
+}
+
+/**
+ * A shipped marker is the project's agent's to fill when a verify step checks the project for
+ * markers in that file: the step's `run` mentions `stacks:fill` and the file's project path, as
+ * shipped or with `.tmpl` dropped.
+ */
+function fillChecked(entry: Entry, source: string): boolean {
+  const shipped = projectPath(source);
+  if (shipped === undefined) return false;
+  const paths = new Set([shipped, outputPath({ path: shipped })]);
+  return entry.meta.verify.some(
+    (step) => step.run.includes(FILL_MARKER) && [...paths].some((file) => names(step.run, file)),
+  );
+}
+
+const entryFindings = (view: View, entry: Entry, homePath: RegExp) =>
   Effect.gen(function* () {
     const registry = yield* Registry;
     const findings: Finding[] = [];
     const tree = yield* Effect.result(registry.tree(entry));
     if (Result.isFailure(tree)) return [unreadable(view, entry, tree.failure)];
-    // A shipped marker is the project's agent's to fill when the entry checks the project for it.
-    const fillsChecked = entry.meta.verify.some((step) => step.run.includes(FILL_MARKER));
     for (const { source } of tree.success.files) {
       const file = view.file(entry, source);
       if (isEnvFile(source.slice(source.lastIndexOf("/") + 1)))
@@ -54,14 +79,21 @@ const entryFindings = (view: View, entry: Entry) =>
       // Binary files hold no text to scan.
       if (text.success.includes("\0")) continue;
       findings.push(
-        ...scan({ entry, file, text: text.success, area: areaOf(entry, source), fillsChecked }),
+        ...scan({
+          entry,
+          file,
+          text: text.success,
+          area: areaOf(entry, source),
+          fillsChecked: fillChecked(entry, source),
+          homePath,
+        }),
       );
     }
-    findings.push(...(yield* cardFindings(entry)));
+    findings.push(...(yield* cardFindings(entry, homePath)));
     return findings;
   });
 
-const cardFindings = (entry: Entry) =>
+const cardFindings = (entry: Entry, homePath: RegExp) =>
   Effect.gen(function* () {
     const loaded = yield* Effect.result((yield* Registry).search(entry));
     // An unreadable card is the search checks' `search-invalid` error already.
@@ -78,7 +110,7 @@ const cardFindings = (entry: Entry) =>
         }),
       ];
     const text = new TextDecoder().decode(loaded.success);
-    return scan({ entry, file, text, area: "card", fillsChecked: false });
+    return scan({ entry, file, text, area: "card", fillsChecked: false, homePath });
   });
 
 function areaOf(entry: Entry, source: string): Area {
@@ -129,8 +161,9 @@ function scan(options: {
   text: string;
   area: Area;
   fillsChecked: boolean;
+  homePath: RegExp;
 }): Finding[] {
-  const { entry, file, text, area, fillsChecked } = options;
+  const { entry, file, text, area, fillsChecked, homePath } = options;
   const findings: Finding[] = [];
   const issue = (check: string, severity: Finding["severity"], line: number, message: string) =>
     findings.push(finding(entry, { check, severity, file, line, message }));
@@ -149,7 +182,7 @@ function scan(options: {
         number,
         `This line looks like ${secret}; remove it and have the project read it from the environment.`,
       );
-    if (area !== "other" && ABSOLUTE_PATH.test(line))
+    if (area !== "other" && homePath.test(line))
       issue(
         "absolute-path",
         "warning",

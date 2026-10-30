@@ -55,7 +55,10 @@ export class Usage extends Schema.TaggedError<Usage>()("Usage", {
  * give to this login (`owner` when it names another); `unchanged`, entries identical upstream;
  * `git_identity`, a commit git refused because no author name or email is configured.
  * `submit_entry` (with `id`) is an id both a stack and a fragment use in the user registry, or a
- * directory that holds no single entry.
+ * directory that holds no single entry; `submit_id` is an id, given or a directory's name, that
+ * isn't kebab-case.
+ * `branch_taken`: the fork's pull request `branch` has a commit `submit` didn't make, so it isn't
+ * replaced.
  */
 export const SubmissionBlocker = Schema.Struct({
   kind: Kind,
@@ -87,6 +90,7 @@ export const BadInputDetails = Schema.Union([
     owner: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
+  Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
   Schema.Struct({
     id: Schema.String,
     flag: Schema.Literals([
@@ -109,6 +113,7 @@ export const BadInputDetails = Schema.Union([
       "from",
       "confirmation",
       "submit_entry",
+      "submit_id",
     ]),
     known: Schema.optionalKey(Schema.Array(Schema.String)),
     alreadyApplied: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -846,6 +851,11 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
         [`Entry: ${id}`],
         "pass one entry directory (<root>/stacks/<id> or <root>/fragments/<id>) instead.",
       );
+    case "submit_id":
+      return guide(
+        [`Id: ${id}`],
+        "pass a lowercase kebab-case entry id from your user registry, or an entry directory as a path containing a / (./<id> in the current directory).",
+      );
   }
 }
 const SUBMIT_FLAGS = [
@@ -855,6 +865,7 @@ const SUBMIT_FLAGS = [
   "collision",
   "unchanged",
   "git_identity",
+  "branch_taken",
 ] as const;
 type SubmitDetails = Extract<typeof BadInputDetails.Type, { flag: (typeof SUBMIT_FLAGS)[number] }>;
 function isSubmitDetails(details: typeof BadInputDetails.Type): details is SubmitDetails {
@@ -917,6 +928,14 @@ function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
       return guide(
         ["git refused the commit because no author name or email is set."],
         `run git config --global user.name and git config --global user.email, then run ${invocation} submit again.`,
+      );
+    case "branch_taken":
+      return guide(
+        [
+          `Branch: ${printable(details.branch)}`,
+          "The pull request branch on your fork has commits from someone else.",
+        ],
+        `update that pull request by hand, or ask a registry maintainer to; ${invocation} submit only replaces a branch it pushed itself.`,
       );
   }
 }

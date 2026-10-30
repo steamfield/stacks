@@ -4,6 +4,7 @@ import { NotFound, PermissionDenied, TargetNotEmpty } from "../errors";
 import type { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";
 import { Processes } from "../services/processes";
+import { rewriteAuthorLinks } from "./guide";
 import { openProject, type ProjectWriter, within } from "./scaffold/write";
 
 // A skill's SKILL.md loads whole whenever it triggers, so it pays for itself only when it is
@@ -67,13 +68,22 @@ const readSkillFiles = (dir: string) =>
     return files;
   });
 
-/** `--print`: only SKILL.md, without looking up or writing an install target. */
+/**
+ * `--print`: only SKILL.md, without looking up or writing an install target. The authoring
+ * skill's links to its references become the `guide author` command that prints each one, since
+ * the printed copy travels without them.
+ */
 const printSkill = (dir: string, name: SkillName) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    const cli = (yield* Host).invocation;
     const file = path.join(dir, "SKILL.md");
-    const text = yield* fs.readFileString(file).pipe(Effect.mapError(sourceError(dir, file)));
+    const raw = yield* fs.readFileString(file).pipe(Effect.mapError(sourceError(dir, file)));
+    const text =
+      name === "stacks-author"
+        ? `${rewriteAuthorLinks(raw, cli).replace(/\n*$/, "\n")}\nThe references this skill links to are printed by ${cli} guide author <topic>.\n`
+        : raw;
     return {
       name,
       path: null,

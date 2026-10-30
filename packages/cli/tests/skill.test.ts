@@ -523,15 +523,33 @@ describe("skill install stacks-author", () => {
     expect(existsSync(join(authorDir(home), "SKILL.md"))).toBe(false);
   });
 
-  test("--print prints SKILL.md only", async () => {
+  test("--print prints SKILL.md with its reference links pointing at guide author", async () => {
     const home = workspace();
+    const text = [
+      "---",
+      "name: stacks-author",
+      "description: Write a stack with stacks.",
+      "---",
+      "",
+      "# Fixture authoring skill",
+      "",
+      "Read `stacks guide author anatomy` first. For an existing repo, read the repo route (`stacks guide author from-repo`).",
+      "Bare mention: stacks guide author submit. Unknown link stays: [notes](references/notes.md). External: [docs](https://example.com/x.md).",
+      "",
+      "The references this skill links to are printed by stacks guide author <topic>.",
+      "",
+    ].join("\n");
     expect(result(await install(home, ["stacks-author", "--print", "--json"]))).toEqual({
       name: "stacks-author",
       path: null,
       action: "printed",
       files: [{ path: "SKILL.md", action: "printed" }],
-      text: source("SKILL.md"),
+      text,
     });
+    const plain = await install(home, ["stacks-author", "--print"]);
+    expect(plain.status).toBe(0);
+    expect(plain.stderr).toBe("");
+    expect(plain.stdout).toBe(text);
     expect(readdirSync(home)).toEqual([]);
   });
 

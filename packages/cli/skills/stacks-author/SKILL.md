@@ -34,7 +34,7 @@ Full format: `references/anatomy.md`.
 3. **Pick the route.** Converting a repo the user has: `references/from-repo.md`. Designing from scratch: `references/interview.md`. Both end with a summary the user approves before you write anything.
 4. **Create the skeleton.** `<cli> create stack <id> --json` or `<cli> create fragment <id> --category <category> --json`. The result's `path` is the entry directory in the user registry. Choose the id with care: see the hard rules.
 5. **Fill it in** per `references/anatomy.md`. Replace every `stacks:fill` marker. Write the search card per `references/search-card.md`.
-6. **Validate.** Run `<cli> validate <path> --json` and fix every error and warning at its source. Preview the brief with `<cli> validate <registry-root> --brief <stack> --sandbox`.
+6. **Validate.** Run `<cli> validate <path> --json` and fix every error at its source, and every warning except the ones maintainers clear (listed in `references/submit.md`). Preview the brief with `<cli> validate <registry-root> --brief <stack> --sandbox`.
 7. **Prove it.** `<cli> new <id> <empty-tmp-dir> --sandbox --json`, then build the project yourself from `.stacks/BRIEF.md` and run `<cli> verify` until the outcome is `green`. Fix the entry wherever the brief misled you (see `.stacks/NOTES.md`), then prove it again in a fresh directory.
 8. **Submit, if the user wants it public.** `references/submit.md`. Run `<cli> validate <path> --submission` and `<cli> submit <path> --dry-run` first, and get the user's yes before the real `submit`.
 

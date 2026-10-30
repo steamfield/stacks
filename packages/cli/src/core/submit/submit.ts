@@ -5,14 +5,16 @@ import type { SubmitResult } from "../../schemas/submit";
 import type { Finding } from "../../schemas/validate";
 import { VERSION } from "../../version";
 import { Registry } from "../registry/registry";
+import { sidecarPath } from "../search/sidecar";
 import { validate } from "../validate/index";
-import { assemble, type PlannedEntry, REGISTRY_PATH } from "./assemble";
+import { AUTHORS_FILE, assemble, type PlannedEntry, REGISTRY_PATH } from "./assemble";
 import { pullRequestBody, title } from "./body";
-import { resolveEntries } from "./entries";
+import { kindDir, resolveEntries } from "./entries";
 import {
   cloneUpstream,
   commit,
   createPullRequest,
+  editPullRequest,
   fork,
   gitLocal,
   localOk,
@@ -83,6 +85,12 @@ const checkEntries = Effect.fn("submit.checkEntries")(function* (
   return findings;
 });
 
+/** Stacks first, then by id: the branch, title and result don't depend on argument order. */
+const inOrder = (entries: ReadonlyArray<PlannedEntry>) => {
+  const rank = (entry: PlannedEntry) => (entry.kind === "stack" ? 0 : 1);
+  return [...entries].sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1));
+};
+
 /** Each entry's description, read from the assembled clone, for the pull request body. */
 const describe = (registry: string, entries: ReadonlyArray<PlannedEntry>) =>
   Effect.gen(function* () {
@@ -98,10 +106,41 @@ const describe = (registry: string, entries: ReadonlyArray<PlannedEntry>) =>
     return described;
   }).pipe(Effect.provide(Registry.layer([{ origin: "bundled", path: registry }])));
 
-/** Stages the registry and lists what changed; nothing changed is refused. */
-const stage = Effect.fn("submit.stage")(function* (tools: Tools, clone: string, branch: string) {
-  yield* localOk(yield* gitLocal(tools, clone, ["checkout", "--quiet", "-b", branch]));
-  yield* localOk(yield* gitLocal(tools, clone, ["add", "--all", "--", REGISTRY_PATH]));
+/**
+ * What a submission touches in the clone, repository-relative: each entry directory, each card
+ * that exists, and `authors.json`.
+ */
+const submittedPaths = Effect.fn("submit.submittedPaths")(function* (
+  clone: string,
+  entries: ReadonlyArray<PlannedEntry>,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const paths: string[] = [];
+  for (const entry of entries) paths.push(`${REGISTRY_PATH}/${kindDir(entry.kind)}/${entry.id}`);
+  for (const entry of entries) {
+    const card = `${REGISTRY_PATH}/${sidecarPath(entry)}`;
+    if (yield* fs.exists(path.join(clone, card)).pipe(Effect.orElseSucceed(() => false)))
+      paths.push(card);
+  }
+  paths.push(`${REGISTRY_PATH}/${AUTHORS_FILE}`);
+  return paths;
+});
+
+/**
+ * Stages exactly the submitted paths, including files the upstream `.gitignore` would skip (an
+ * entry ships `.vscode/` or `dist/` on purpose), and lists what changed; nothing changed is
+ * refused.
+ */
+const stage = Effect.fn("submit.stage")(function* (
+  tools: Tools,
+  clone: string,
+  options: { branch: string; paths: ReadonlyArray<string> },
+) {
+  yield* localOk(yield* gitLocal(tools, clone, ["checkout", "--quiet", "-b", options.branch]));
+  yield* localOk(
+    yield* gitLocal(tools, clone, ["add", "--all", "--force", "--", ...options.paths]),
+  );
   const staged = yield* gitLocal(tools, clone, ["diff", "--cached", "--name-only", "-z"]);
   yield* localOk(staged);
   const files = staged.stdout
@@ -121,7 +160,10 @@ const publish = Effect.fn("submit.publish")(function* (
   yield* commit(tools, options.clone, options.title);
   yield* push(tools, { cwd: options.clone, fork: forked, branch: options.branch });
   const open = yield* openPullRequest(tools, { ...options, cwd: options.clone });
-  if (open !== undefined) return { prUrl: open, reused: true };
+  if (open !== undefined) {
+    yield* editPullRequest(tools, { ...options, url: open, cwd: options.clone });
+    return { prUrl: open, reused: true };
+  }
   const prUrl = yield* createPullRequest(tools, { ...options, cwd: options.clone });
   return { prUrl, reused: false };
 });
@@ -148,11 +190,12 @@ export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptio
       const clone = path.join(temp, "upstream");
       yield* cloneUpstream(tools, { repo: options.repo, cwd: temp, dest: clone });
       const registry = path.join(clone, REGISTRY_PATH);
-      const entries = yield* assemble({ registry, entries: sources, login: tools.login });
+      const entries = inOrder(yield* assemble({ registry, entries: sources, login: tools.login }));
       const findings = yield* checkEntries(registry, entries);
       const first = entries[0];
       const branch = first === undefined ? "entry" : `entry/${first.kind}-${first.id}`;
-      const files = yield* stage(tools, clone, branch);
+      const paths = yield* submittedPaths(clone, entries);
+      const files = yield* stage(tools, clone, { branch, paths });
       const body = pullRequestBody({
         entries: yield* describe(registry, entries),
         findings,

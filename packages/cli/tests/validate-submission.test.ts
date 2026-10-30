@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
@@ -134,8 +134,16 @@ test("fill markers left in the frontmatter, body, shipped files and card are err
 });
 
 test("a shipped marker is the project's to fill when a verify step checks for it", async () => {
-  const { home, dir, write } = setup();
+  const { home, dir, write, markdown } = setup();
   // The scaffold's readme step runs `grep -n 'stacks:fill' README.md`; that line isn't a marker.
+  // A second step checks the Claude adapter's CLAUDE.md the same way.
+  writeFileSync(
+    markdown,
+    readFileSync(markdown, "utf8").replace(
+      "merge: []",
+      "  - { name: claude-md, phase: check, layer: docs, run: \"! grep -n 'stacks:fill' CLAUDE.md\" }\nmerge: []",
+    ),
+  );
   write("files/README.md", "<!-- stacks:fill: describe the project -->\n");
   write("adapters/claude/CLAUDE.md", "<!-- stacks:fill: the project's commands -->\n");
   const { findings } = await validateSubmission(home, dir);
@@ -261,4 +269,82 @@ test("--submission takes one entry directory and no --brief", async () => {
       },
     });
   }
+});
+
+/** Shell and Actions references are written with this, so they aren't JavaScript templates. */
+const DOLLAR = "$";
+
+test("template and environment references assigned to secret-looking names aren't secrets", async () => {
+  const { home, dir, write } = setup();
+  write(
+    "files/docs/database.md.tmpl",
+    [
+      "services:",
+      "  db:",
+      "    environment:",
+      '      POSTGRES_PASSWORD: "{{project_slug}}-local"',
+      "",
+    ].join("\n"),
+  );
+  write(
+    "files/docs/release.md",
+    [
+      "      - run: npm publish",
+      "        env:",
+      `          token: "${DOLLAR}{{secrets.NPM_TOKEN}}"`,
+      "",
+    ].join("\n"),
+  );
+  write("files/.npmrc.md", `NODE_AUTH_TOKEN: "${DOLLAR}{NPM_TOKEN_FROM_THE_ENV}"\n`);
+  write("files/src/config.json", '{ "apiKey": "process.env.OPENAI_KEY_VALUE" }\n');
+  const { findings } = await validateSubmission(home, dir);
+  expect(findings).toEqual([missingCard]);
+});
+
+test("a placeholder word elsewhere on the line doesn't excuse a real-shaped key", async () => {
+  const { home, dir, write } = setup();
+  const key = ["sk", "ant", "api03", "Q7vR2mXk9LpT4wZs8NdY3bHc"].join("-");
+  write("files/.env.example", `ANTHROPIC_API_KEY=${key} # replace before use\n`);
+  const { run, findings } = await validateSubmission(home, dir);
+  expect(run.status).toBe(2);
+  expect(findings).toEqual([
+    ["secret", "error", "stacks/demo-app/files/.env.example", 1],
+    missingCard,
+  ]);
+  expect(run.stdout).not.toContain(key);
+});
+
+test("generic container and CI paths and format strings aren't home paths; the submitter's own home is", async () => {
+  const { home, dir, write } = setup();
+  write("files/docs/container.md", "In the image:\n\n    WORKDIR /home/node/app\n");
+  write("files/docs/ci.md", "The runner caches /home/runner/.cache between jobs.\n");
+  write("files/src/log.c", "printf('%s:\\n', name);\n");
+  write("files/docs/setup.md", `Clone it into ${home}/code/demo first.\n`);
+  const { findings } = await validateSubmission(home, dir);
+  expect(findings).toEqual([
+    missingCard,
+    ["absolute-path", "warning", "stacks/demo-app/files/docs/setup.md", 1],
+  ]);
+});
+
+test(".env.sample and .env.template ship like .env.example", async () => {
+  const { home, dir, write } = setup();
+  write("files/.env.sample", "DEBUG=\n");
+  write("files/.env.template", "DEBUG=\n");
+  write("files/api/.env.sample.tmpl", "DEBUG=\n");
+  const { findings } = await validateSubmission(home, dir);
+  expect(findings).toEqual([missingCard]);
+});
+
+test("a shipped marker passes only in a file a fill-checking verify step names", async () => {
+  const { home, dir, write } = setup();
+  // The scaffold's readme step checks README.md, so its marker is the project's to fill.
+  write("files/README.md", "<!-- stacks:fill: describe the project -->\n");
+  write("files/src/config.ts.tmpl", "// stacks:fill: the project's settings\n");
+  const { run, findings } = await validateSubmission(home, dir);
+  expect(run.status).toBe(2);
+  expect(findings).toEqual([
+    ["fill-marker", "error", "stacks/demo-app/files/src/config.ts.tmpl", 1],
+    missingCard,
+  ]);
 });

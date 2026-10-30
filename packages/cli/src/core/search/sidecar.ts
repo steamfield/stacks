@@ -51,7 +51,7 @@ export const decodeVocabulary = (bytes: Uint8Array) =>
 /** The registry's `authors.json`. */
 export const decodeAuthors = (bytes: Uint8Array) =>
   Schema.decodeUnknownEffect(Schema.fromJsonString(AuthorsFile))(
-    new TextDecoder().decode(bytes).replace(/^﻿/, ""),
+    new TextDecoder().decode(bytes).replace(/^\uFEFF/, ""),
   );
 
 export const decodeDependencyCards = (bytes: Uint8Array) =>

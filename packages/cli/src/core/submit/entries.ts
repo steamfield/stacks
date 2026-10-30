@@ -1,8 +1,7 @@
-import type { Kind } from "@steamfield/stacks-format";
-import { Effect, FileSystem, Path } from "effect";
+import { Kebab, type Kind } from "@steamfield/stacks-format";
+import { Effect, FileSystem, Path, Schema } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, NotFound } from "../../errors";
-import { Host } from "../../services/host";
 import { closest } from "../suggest";
 import { resolveTarget, type Target } from "../validate/target";
 
@@ -22,8 +21,21 @@ const isDirectory = (fs: FileSystem.FileSystem, at: string) =>
     Effect.orElseSucceed(() => false),
   );
 
+/** An entry id is kebab-case; anything else (`../x`, `Demo_App`) is refused before any lookup. */
+const checkId = (id: string) =>
+  Schema.is(Kebab)(id)
+    ? Effect.void
+    : Effect.fail(new BadInput({ details: { id, flag: "submit_id" } }));
+
+/**
+ * An argument is a path when it has a path separator or starts with `.` or `~`; anything else is
+ * a user registry id, even when the working directory has a folder by that name.
+ */
+const isPath = (value: string) => /[/\\]/.test(value) || /^[.~]/.test(value);
+
 /** An id in the user registry: the one kind that has it, or a did-you-mean over both. */
 const userEntry = Effect.fn("submit.userEntry")(function* (id: string) {
+  yield* checkId(id);
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const root = (yield* (yield* AppConfig).paths).user;
@@ -45,32 +57,35 @@ const userEntry = Effect.fn("submit.userEntry")(function* (id: string) {
 
 /**
  * The entries `submit` was given: each an entry directory (`<root>/stacks/<id>`), or an id in
- * the user registry. A path that names a whole registry, or an id both kinds use, is refused;
- * the same entry given twice is submitted once.
+ * the user registry (see `isPath`). A path that names a whole registry, an id both kinds use, or
+ * an id that isn't kebab-case is refused; the same entry given twice is submitted once.
  */
 export const resolveEntries = Effect.fn("submit.resolveEntries")(function* (
   given: ReadonlyArray<string>,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const host = yield* Host;
   const entries: SubmittedEntry[] = [];
   for (const value of given) {
-    const entry = (yield* isDirectory(fs, path.resolve(host.cwd, value)))
-      ? yield* directoryEntry(value)
-      : yield* userEntry(value);
+    const entry = isPath(value) ? yield* directoryEntry(value) : yield* userEntry(value);
     if (!entries.some((seen) => seen.kind === entry.kind && seen.id === entry.id))
       entries.push(entry);
   }
   return entries;
 });
 
+/** `~` and `~/...` name the home directory, for a caller that passed the path unexpanded. */
+const expandHome = Effect.fn("submit.expandHome")(function* (value: string) {
+  if (value !== "~" && !value.startsWith("~/")) return value;
+  const path = yield* Path.Path;
+  return path.join((yield* (yield* AppConfig).paths).home, value.slice(1));
+});
+
 const directoryEntry = Effect.fn("submit.directoryEntry")(function* (value: string) {
   const path = yield* Path.Path;
-  const target: Target = yield* resolveTarget(value);
+  const target: Target = yield* resolveTarget(yield* expandHome(value));
   if (target.only === undefined)
     return yield* new BadInput({ details: { id: value, flag: "submit_entry" } });
   const { kind, id } = target.only;
+  yield* checkId(id);
   return {
     kind,
     id,

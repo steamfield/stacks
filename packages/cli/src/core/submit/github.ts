@@ -89,14 +89,28 @@ export const preflight = Effect.fn("submit.preflight")(function* (cwd: string) {
   return { gh, git, login } satisfies Tools;
 });
 
+/** No hook the user configured runs in the CLI's own temporary checkout. */
+const NO_HOOKS = ["-c", "core.hooksPath=/dev/null"] as const;
+
+/** git's credentials come from `gh` alone, never a helper the user configured. */
+const credentials = (tools: Tools) => [
+  "-c",
+  "credential.helper=",
+  "-c",
+  `credential.helper=!${shellArg(tools.gh)} auth git-credential`,
+];
+
+/** A git command that talks to GitHub: no hooks, and `gh`'s credentials. */
+const remoteGit = (tools: Tools, args: ReadonlyArray<string>) =>
+  [tools.git, ...NO_HOOKS, ...credentials(tools), ...args] as const;
+
 /** A partial, shallow clone of `repo`'s `main` into `dest`. */
 export const cloneUpstream = Effect.fn("submit.clone")(function* (
   tools: Tools,
   options: { repo: string; cwd: string; dest: string },
 ) {
   const cloned = yield* exec(
-    [
-      tools.git,
+    remoteGit(tools, [
       "clone",
       "--quiet",
       "--filter=blob:none",
@@ -107,7 +121,7 @@ export const cloneUpstream = Effect.fn("submit.clone")(function* (
       "--single-branch",
       `https://github.com/${options.repo}.git`,
       options.dest,
-    ],
+    ]),
     { cwd: options.cwd, timeout: NETWORK, step: "clone" },
   );
   if (ok(cloned)) return;
@@ -125,7 +139,7 @@ export const gitLocal = Effect.fn("submit.gitLocal")(function* (
   cwd: string,
   args: ReadonlyArray<string>,
 ) {
-  return yield* exec([tools.git, "-c", "core.hooksPath=/dev/null", ...args], {
+  return yield* exec([tools.git, ...NO_HOOKS, ...args], {
     cwd,
     timeout: LOCAL,
     step: "clone",
@@ -136,13 +150,23 @@ export const gitLocal = Effect.fn("submit.gitLocal")(function* (
 export const localOk = (run: Captured) =>
   ok(run) ? Effect.void : Effect.die(new Error("A git command in the submission clone failed."));
 
-/** Commits the staged registry; a missing author identity is the user's to set. */
+/**
+ * Commits the staged registry, unsigned whatever the user's git config says (a signing setup can
+ * prompt or fail in a non-interactive run); a missing author identity is the user's to set.
+ */
 export const commit = Effect.fn("submit.commit")(function* (
   tools: Tools,
   cwd: string,
   message: string,
 ) {
-  const committed = yield* gitLocal(tools, cwd, ["commit", "--quiet", "-m", message]);
+  const committed = yield* gitLocal(tools, cwd, [
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "--quiet",
+    "-m",
+    message,
+  ]);
   if (ok(committed)) return;
   if (/tell me who you are|user\.email|user\.name|empty ident/i.test(committed.stderr))
     return yield* new BadInput({ details: { flag: "git_identity" } });
@@ -164,17 +188,62 @@ export const fork = Effect.fn("submit.fork")(function* (tools: Tools, repo: stri
   return `${tools.login}/${named?.[1]?.replace(/\.git$/, "") ?? repo.slice(repo.indexOf("/") + 1)}`;
 });
 
-/** git's credentials come from `gh` alone, never a helper the user configured. */
-const credentials = (tools: Tools) => [
-  "-c",
-  "credential.helper=",
-  "-c",
-  `credential.helper=!${shellArg(tools.gh)} auth git-credential`,
-];
+/** The subject `submit` gives its commits (`body.ts::title`). */
+const SUBMIT_SUBJECT = /^feat\(registry\): (?:add|update) /;
+
+/** `Name <email>` from `git var GIT_AUTHOR_IDENT`, without its timestamp. */
+const ident = (text: string) => text.trim().replace(/ \d+ [+-]\d{4}$/, "");
 
 /**
- * Pushes HEAD to the fork's `branch`, leased on the commit the fork has there now (none for a
- * new branch), so a rerun replaces only its own earlier push.
+ * Refuses the fork's branch (`branch_taken`) unless its tip `tip` is one commit `submit` made:
+ * its subject, this user's git author identity, and a single parent on the upstream `main`.
+ * Anything else (a commit pushed by hand, a maintainer's fixup, a rebase onto another base) is
+ * someone else's work, and replacing the branch would lose it.
+ */
+const ownBranch = Effect.fn("submit.ownBranch")(function* (
+  tools: Tools,
+  options: { cwd: string; url: string; ref: string; branch: string; tip: string },
+) {
+  const { cwd } = options;
+  const fetched = yield* exec(
+    remoteGit(tools, [
+      "fetch",
+      "--quiet",
+      "--filter=tree:0",
+      "--depth=2",
+      options.url,
+      options.ref,
+    ]),
+    { cwd, timeout: NETWORK, step: "push" },
+  );
+  if (!ok(fetched)) return yield* failed(fetched, "push");
+  const shown = yield* gitLocal(tools, cwd, [
+    "log",
+    "-1",
+    "--format=%P%x00%an <%ae>%x00%s",
+    options.tip,
+  ]);
+  const me = yield* gitLocal(tools, cwd, ["var", "GIT_AUTHOR_IDENT"]);
+  yield* localOk(me);
+  const [parents = "", author = "", subject = ""] = shown.stdout.trim().split("\0");
+  const taken = new BadInput({ details: { flag: "branch_taken", branch: options.branch } });
+  if (!ok(shown) || !/^[0-9a-f]+$/.test(parents) || author !== ident(me.stdout))
+    return yield* taken;
+  if (!SUBMIT_SUBJECT.test(subject)) return yield* taken;
+  // The clone holds one commit of main; its whole history, commits only, settles the parent.
+  const deepened = yield* exec(
+    remoteGit(tools, ["fetch", "--quiet", "--filter=tree:0", "--unshallow", "origin", "main"]),
+    { cwd, timeout: NETWORK, step: "push" },
+  );
+  if (!ok(deepened)) return yield* failed(deepened, "push");
+  const onMain = yield* gitLocal(tools, cwd, ["merge-base", "--is-ancestor", parents, "main"]);
+  if (!ok(onMain)) return yield* taken;
+});
+
+/**
+ * Pushes HEAD to the fork's `branch`. A new branch is pushed only while it is still absent. An
+ * existing one is fetched and replaced only when its tip is `submit`'s own earlier push
+ * (`ownBranch`), leased on that commit so a push someone makes meanwhile isn't lost.
  */
 export const push = Effect.fn("submit.push")(function* (
   tools: Tools,
@@ -183,22 +252,22 @@ export const push = Effect.fn("submit.push")(function* (
   const url = `https://github.com/${options.fork}.git`;
   const ref = `refs/heads/${options.branch}`;
   for (let attempt = 1; ; attempt++) {
-    const remote = yield* exec([tools.git, ...credentials(tools), "ls-remote", url, ref], {
+    const remote = yield* exec(remoteGit(tools, ["ls-remote", url, ref]), {
       cwd: options.cwd,
       timeout: QUICK,
       step: "push",
     });
+    const tip = remote.stdout.split(/\s/)[0] ?? "";
+    if (ok(remote) && tip !== "") yield* ownBranch(tools, { ...options, url, ref, tip });
     const pushed = ok(remote)
       ? yield* exec(
-          [
-            tools.git,
-            ...credentials(tools),
+          remoteGit(tools, [
             "push",
             "--quiet",
-            `--force-with-lease=${ref}:${remote.stdout.split(/\s/)[0] ?? ""}`,
+            `--force-with-lease=${ref}:${tip}`,
             url,
             `HEAD:${ref}`,
-          ],
+          ]),
           { cwd: options.cwd, timeout: NETWORK, step: "push" },
         )
       : remote;
@@ -264,4 +333,25 @@ export const createPullRequest = Effect.fn("submit.createPullRequest")(function*
     .findLast((line) => line.startsWith("https://"));
   if (!ok(created) || url === undefined) return yield* failed(created, "pr");
   return url;
+});
+
+/** Rewrites a reused pull request's title and body to match this submission. */
+export const editPullRequest = Effect.fn("submit.editPullRequest")(function* (
+  tools: Tools,
+  options: { url: string; title: string; bodyFile: string; cwd: string },
+) {
+  const edited = yield* exec(
+    [
+      tools.gh,
+      "pr",
+      "edit",
+      options.url,
+      "--title",
+      options.title,
+      "--body-file",
+      options.bodyFile,
+    ],
+    { cwd: options.cwd, timeout: QUICK, step: "pr" },
+  );
+  if (!ok(edited)) return yield* failed(edited, "pr");
 });

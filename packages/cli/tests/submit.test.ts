@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Schema } from "effect";
@@ -134,7 +135,7 @@ test("submit runs preflight, clone, checks, fork, commit, leased push and a draf
   const fork = "https://github.com/octo-author/stacks.git";
   const local = ["git", "-c", "core.hooksPath=/dev/null"];
   const credentials = [
-    "git",
+    ...local,
     "-c",
     "credential.helper=",
     "-c",
@@ -144,7 +145,7 @@ test("submit runs preflight, clone, checks, fork, commit, leased push and a draf
     ["gh", "auth", "status"],
     ["gh", "api", "user", "--jq", ".login"],
     [
-      "git",
+      ...credentials,
       "clone",
       "--quiet",
       "--filter=blob:none",
@@ -157,10 +158,27 @@ test("submit runs preflight, clone, checks, fork, commit, leased push and a draf
       join(temp, "upstream"),
     ],
     [...local, "checkout", "--quiet", "-b", branch],
-    [...local, "add", "--all", "--", "packages/cli/registry"],
+    [
+      ...local,
+      "add",
+      "--all",
+      "--force",
+      "--",
+      "packages/cli/registry/stacks/demo-app",
+      "packages/cli/registry/search/stacks/demo-app.json",
+      "packages/cli/registry/authors.json",
+    ],
     [...local, "diff", "--cached", "--name-only", "-z"],
     ["gh", "repo", "fork", "steamfield/stacks", "--clone=false"],
-    [...local, "commit", "--quiet", "-m", "feat(registry): add demo-app stack"],
+    [
+      ...local,
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      "feat(registry): add demo-app stack",
+    ],
     [...credentials, "ls-remote", fork, `refs/heads/${branch}`],
     [
       ...credentials,
@@ -510,23 +528,66 @@ test("the author named in authors.json submits an update to their entry", async 
   );
 });
 
-test("a rerun leases the push on the fork's branch and reuses the open pull request", async () => {
+test("a rerun leases the push on submit's own commit and updates the open pull request", async () => {
   const { github, home, user } = setup();
   entry(user, "stack", "demo-app");
   const url = "https://github.com/steamfield/stacks/pull/7";
-  const run = await runCli(["submit", "demo-app", "--json"], {
+  const run = await runCli(["submit", "demo-app", "--query", "a demo app", "--json"], {
     home,
-    env: { ...github.env, FAKE_GH_PR: url, FAKE_REMOTE_SHA: "abc123" },
+    env: { ...github.env, FAKE_GH_PR: url, FAKE_REMOTE_TIP: "submit" },
   });
+  expect(run.stderr).toBe("");
   expect(run.status).toBe(0);
   const result = json(run.stdout);
   expect(result.prUrl).toBe(url);
   expect(result.reused).toBe(true);
   const calls = github.calls();
-  expect(calls.find((call) => gitSubcommand(call) === "push")).toContain(
-    "--force-with-lease=refs/heads/entry/stack-demo-app:abc123",
+  // The fork's branch tip, fetched and checked before the push replaces it.
+  const fetched = calls.find(
+    (call) => gitSubcommand(call) === "fetch" && call.includes("refs/heads/entry/stack-demo-app"),
   );
-  expect(calls.some((call) => call[0] === "gh" && call[2] === "create")).toBe(false);
+  expect(fetched).toBeDefined();
+  const push = calls.find((call) => gitSubcommand(call) === "push") ?? [];
+  const lease = push.find((arg) => arg.startsWith("--force-with-lease=")) ?? "";
+  expect(lease).toMatch(/^--force-with-lease=refs\/heads\/entry\/stack-demo-app:[0-9a-f]{40}$/);
+  // The title and body reflect this submission, not the first one.
+  const temp = dirname(cloneDir(calls));
+  expect(
+    calls.filter((call) => call[0] === "gh" && call[1] === "pr" && call[2] !== "view"),
+  ).toEqual([
+    [
+      "gh",
+      "pr",
+      "edit",
+      url,
+      "--title",
+      "feat(registry): add demo-app stack",
+      "--body-file",
+      join(temp, "body.md"),
+    ],
+  ]);
+  expect(github.editedBody()).toContain("- a demo app");
+});
+
+test("a fork branch holding someone else's commit is refused, and nothing is pushed", async () => {
+  for (const tip of ["other", "off-main"]) {
+    const { github, home, user } = setup();
+    entry(user, "stack", "demo-app");
+    const run = await runCli(["submit", "demo-app", "--json"], {
+      home,
+      env: { ...github.env, FAKE_REMOTE_TIP: tip, FAKE_GH_PR: "https://github.com/x/y/pull/1" },
+    });
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(envelope(run.stderr)).toMatchObject({
+      tag: "BadInput",
+      details: { flag: "branch_taken", branch: "entry/stack-demo-app" },
+      next: "update that pull request by hand, or ask a registry maintainer to; stacks submit only replaces a branch it pushed itself.",
+    });
+    const calls = github.calls();
+    expect(calls.some((call) => gitSubcommand(call) === "push")).toBe(false);
+    expect(calls.some((call) => call[0] === "gh" && call[1] === "pr")).toBe(false);
+  }
 });
 
 test("submit refuses offline mode before running anything", async () => {
@@ -675,4 +736,232 @@ test("an id both kinds use in the user registry, or a registry root, needs one e
     details: { id: "twinn", suggestions: ["twin"] },
   });
   expect(github.calls()).toEqual([]);
+});
+
+const pushedCard = (github: ReturnType<typeof fakeGitHub>, id = "demo-app") =>
+  JSON.parse(
+    readFileSync(
+      join(github.pushed, "packages", "cli", "registry", "search", "stacks", `${id}.json`),
+      "utf8",
+    ),
+  );
+/** Marks a card file reviewed, keeping everything else. */
+function review(file: string, digest?: string) {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  card.source = { ...card.source, by: "drafted", reviewedAt: "2026-09-01" };
+  if (digest !== undefined) card.source.digest = digest;
+  writeFileSync(file, `${JSON.stringify(card, null, 2)}\n`);
+  return readFileSync(file, "utf8");
+}
+
+test("an edited entry with a reviewed card submits it restamped as an unreviewed author card", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  review(card(user, "stack", "demo-app"));
+  const run = await runCli(["submit", "demo-app", "--json"], { home, env: github.env });
+  expect(run.stderr).toBe("");
+  expect(run.status).toBe(0);
+  const checks = json(run.stdout).findings.map((finding) => finding.check);
+  expect(checks).toContain("search-unreviewed");
+  expect(checks).not.toContain("search-stale");
+  const pushed = pushedCard(github);
+  expect(pushed.source).toEqual({
+    digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+    by: "author",
+    reviewedAt: null,
+  });
+  expect(pushed.source.digest).not.toBe(STALE);
+
+  // A reviewed card whose digest still matches the entry is submitted untouched.
+  const again = setup();
+  entry(again.user, "stack", "demo-app");
+  const file = card(again.user, "stack", "demo-app");
+  const reviewed = review(file, pushed.source.digest);
+  const rerun = await runCli(["submit", "demo-app", "--json"], {
+    home: again.home,
+    env: again.github.env,
+  });
+  expect(rerun.status).toBe(0);
+  expect(
+    readFileSync(
+      join(again.github.pushed, "packages/cli/registry/search/stacks/demo-app.json"),
+      "utf8",
+    ),
+  ).toBe(reviewed);
+});
+
+test("an update without a local card turns the upstream reviewed card into an unreviewed draft", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app", (text) =>
+    text.replace("Describe the test strategy.", "Run the unit tests first."),
+  );
+  entry(github.registry, "stack", "demo-app");
+  review(card(github.registry, "stack", "demo-app"));
+  writeFileSync(
+    join(github.registry, "authors.json"),
+    `${JSON.stringify({ "stack/demo-app": "octo-author" })}\n`,
+  );
+  const run = await runCli(["submit", "demo-app", "--json"], { home, env: github.env });
+  expect(run.stderr).toBe("");
+  expect(run.status).toBe(0);
+  const result = json(run.stdout);
+  expect(result.entries).toEqual([{ kind: "stack", id: "demo-app", update: true }]);
+  expect(result.files).toContain("packages/cli/registry/search/stacks/demo-app.json");
+  expect(result.findings.map((finding) => finding.check)).not.toContain("search-stale");
+  expect(pushedCard(github).source).toEqual({
+    digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+    by: "author",
+    reviewedAt: null,
+  });
+});
+
+test("a removed id is refused even for the author authors.json names", async () => {
+  const { github, home, user } = setup();
+  writeFileSync(
+    join(github.registry, "removed.json"),
+    JSON.stringify({
+      schemaVersion: 1,
+      entries: { "old-api": { kind: "stack", removedAt: "2026-10-01", reason: "Renamed." } },
+    }),
+  );
+  writeFileSync(
+    join(github.registry, "authors.json"),
+    `${JSON.stringify({ "stack/old-api": "octo-author" })}\n`,
+  );
+  entry(user, "stack", "old-api");
+  const run = await runCli(["submit", "old-api", "--json"], { home, env: github.env });
+  expect(run.status).toBe(2);
+  expect(run.stdout).toBe("");
+  expect(envelope(run.stderr).details).toEqual({
+    flag: "collision",
+    kind: "stack",
+    id: "old-api",
+    removed: true,
+    owner: "octo-author",
+  });
+});
+
+test("an id that isn't kebab-case is refused before anything is read or cloned", async () => {
+  const { github, home, user } = setup();
+  // `../../x` from the user registry's stacks/ would be <config>/x, outside the registry.
+  const outside = join(dirname(user), "x");
+  mkdirSync(outside, { recursive: true });
+  writeFileSync(join(outside, "STACK.md"), "not an entry\n");
+  const escaped = await runCli(["submit", "../../x", "--json"], { home, env: github.env });
+  expect(escaped.status).toBe(2);
+  expect(escaped.stdout).toBe("");
+  expect(github.calls()).toEqual([]);
+
+  const bare = await runCli(["submit", "Demo_App", "--json"], { home, env: github.env });
+  expect(bare.status).toBe(2);
+  expect(bare.stdout).toBe("");
+  expect(envelope(bare.stderr)).toMatchObject({
+    tag: "BadInput",
+    details: { id: "Demo_App", flag: "submit_id" },
+  });
+  const badDir = entry(user, "stack", "Demo_App");
+  const directory = await runCli(["submit", badDir, "--json"], { home, env: github.env });
+  expect(directory.status).toBe(2);
+  expect(envelope(directory.stderr)).toMatchObject({
+    tag: "BadInput",
+    details: { id: "Demo_App", flag: "submit_id" },
+  });
+  expect(github.calls()).toEqual([]);
+});
+
+test("a bare name is a user registry id even when the working directory has a folder by that name", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  const work = tempDir();
+  cleanups.push(work.cleanup);
+  mkdirSync(join(work.path, "demo-app", "src"), { recursive: true });
+  const run = await runCli(["submit", "demo-app", "--dry-run", "--json"], {
+    home,
+    env: github.env,
+    host: { cwd: work.path },
+  });
+  expect(run.stderr).toBe("");
+  expect(run.status).toBe(0);
+  expect(json(run.stdout).entries).toEqual([{ kind: "stack", id: "demo-app", update: false }]);
+  // `./demo-app` is a path, and that folder holds no entry.
+  const path = await runCli(["submit", "./demo-app", "--dry-run", "--json"], {
+    home,
+    env: github.env,
+    host: { cwd: work.path },
+  });
+  expect(path.status).toBe(2);
+  expect(path.stdout).toBe("");
+});
+
+test("files the upstream .gitignore would skip are still committed and listed", async () => {
+  const { github, home, user } = setup();
+  writeFileSync(join(github.upstream, ".gitignore"), "dist/\n.vscode/\n");
+  const dir = entry(user, "stack", "demo-app");
+  mkdirSync(join(dir, "files", ".vscode"), { recursive: true });
+  writeFileSync(join(dir, "files", ".vscode", "tasks.json"), '{ "version": "2.0.0" }\n');
+  mkdirSync(join(dir, "files", "dist"), { recursive: true });
+  writeFileSync(join(dir, "files", "dist", "x"), "kept\n");
+  const shipped = [
+    "packages/cli/registry/stacks/demo-app/files/.vscode/tasks.json",
+    "packages/cli/registry/stacks/demo-app/files/dist/x",
+  ];
+  const dry = await runCli(["submit", "demo-app", "--dry-run", "--json"], {
+    home,
+    env: github.env,
+  });
+  expect(dry.status).toBe(0);
+  for (const file of shipped) expect(json(dry.stdout).files).toContain(file);
+
+  const run = await runCli(["submit", "demo-app", "--json"], { home, env: github.env });
+  expect(run.status).toBe(0);
+  const committed = spawnSync("git", ["ls-tree", "-r", "--name-only", "HEAD"], {
+    cwd: github.pushed,
+    encoding: "utf8",
+  }).stdout.split("\n");
+  for (const file of shipped) expect(committed).toContain(file);
+});
+
+test("the user's commit signing config doesn't apply to the submission commit", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  const config = join(home, "gitconfig");
+  writeFileSync(config, "[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = false\n");
+  const run = await runCli(["submit", "demo-app", "--json"], {
+    home,
+    env: { ...github.env, GIT_CONFIG_GLOBAL: config },
+  });
+  expect(run.stderr).toBe("");
+  expect(run.status).toBe(0);
+});
+
+test("the branch and title don't depend on the order the entries were given in", async () => {
+  const results = [];
+  for (const order of [
+    ["demo-lint", "demo-app"],
+    ["demo-app", "demo-lint"],
+  ]) {
+    const { github, home, user } = setup();
+    entry(user, "fragment", "demo-lint");
+    entry(user, "stack", "demo-app", (text) =>
+      text.replace("required: []", "required: [demo-lint]"),
+    );
+    const run = await runCli(["submit", ...order, "--json"], { home, env: github.env });
+    expect(run.status).toBe(0);
+    const result = json(run.stdout);
+    const create = github.calls().find((call) => call[0] === "gh" && call[2] === "create") ?? [];
+    results.push({
+      branch: result.branch,
+      entries: result.entries,
+      title: create[create.indexOf("--title") + 1],
+    });
+  }
+  expect(results[0]).toEqual({
+    branch: "entry/stack-demo-app",
+    entries: [
+      { kind: "stack", id: "demo-app", update: false },
+      { kind: "fragment", id: "demo-lint", update: false },
+    ],
+    title: "feat(registry): add demo-app stack, add demo-lint fragment",
+  });
+  expect(results[1]).toEqual(results[0]);
 });

@@ -59,7 +59,7 @@ export const submitCommand = Command.make(
   {
     entries: Argument.String("entry").pipe(
       Argument.withDescription(
-        "An entry directory (<root>/stacks/<id> or <root>/fragments/<id>), or the id of an entry in your user registry. Give several to submit a stack and the fragments it needs in one pull request.",
+        "An entry directory (<root>/stacks/<id> or <root>/fragments/<id>; any argument with a / or starting with . or ~ is a path), or the kebab-case id of an entry in your user registry. Give several to submit a stack and the fragments it needs in one pull request.",
       ),
       Argument.atLeast(1),
     ),
@@ -97,7 +97,7 @@ export const submitCommand = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    "Open a draft pull request adding your entries to the public registry, using the GitHub CLI (gh) and git; the CLI holds no credentials. Checks a partial clone of the upstream main branch first: references must resolve there, validate --submission must find no errors and no warnings beyond those maintainers clear (search-unreviewed, search-missing, missing-card, deps-missing, deps-unreviewed), and an existing or removed id is refused unless authors.json gives it to your login, which makes the pull request an update. Pushes branch entry/<kind>-<id> to your fork; a rerun updates the same branch and pull request. The temporary clone is always removed. Show the user the --dry-run output before submitting. Exits 0 when submitted or dry-run; 2 for offline mode, gh or git missing, gh not logged in, a bad --repo, an entry that isn't found or fails the checks (BadInput, with the blocking findings in details), an id collision, or nothing changed; 4 when GitHub or git can't be reached (UpstreamUnavailable); 6 when GitHub refuses the fork or push for your login, or an entry can't be read (PermissionDenied); 130 when interrupted.",
+    "Open a draft pull request adding your entries to the public registry, using the GitHub CLI (gh) and git; the CLI holds no credentials. Checks a partial clone of the upstream main branch first: references must resolve there, validate --submission must find no errors and no warnings beyond those maintainers clear (search-unreviewed, search-missing, missing-card, deps-missing, deps-unreviewed), and an existing or removed id is refused unless authors.json gives it to your login, which makes the pull request an update. Pushes branch entry/<kind>-<id> to your fork; a rerun updates the same branch and the pull request's title and body, and refuses a branch holding commits submit didn't make. The temporary clone is always removed. Show the user the --dry-run output before submitting. Exits 0 when submitted or dry-run; 2 for offline mode, gh or git missing, gh not logged in, a bad --repo, an entry that isn't found or fails the checks (BadInput, with the blocking findings in details), an id collision, a pull request branch with someone else's commits, or nothing changed; 4 when GitHub or git can't be reached (UpstreamUnavailable); 6 when GitHub refuses the fork or push for your login, or an entry can't be read (PermissionDenied); 130 when interrupted.",
   ),
   Command.withShortDescription("Open a draft pull request adding entries to the public registry."),
   Command.withExamples(({ commandPath }) => [

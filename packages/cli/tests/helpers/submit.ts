@@ -22,6 +22,10 @@ case "$1 $2" in
   "pr view")
     if [ -n "$FAKE_GH_PR" ]; then printf '%s\\n' "$FAKE_GH_PR"; exit 0; fi
     printf 'no pull requests found for branch\\n' >&2; exit 1 ;;
+  "pr edit")
+    prev=""
+    for a in "$@"; do [ "$prev" = "--body-file" ] && cp "$a" "$FAKE_LOG.edit-body"; prev="$a"; done
+    exit 0 ;;
   "pr create")
     prev=""
     for a in "$@"; do [ "$prev" = "--body-file" ] && cp "$a" "$FAKE_LOG.body"; prev="$a"; done
@@ -44,11 +48,23 @@ case "$sub" in
     for a in "$@"; do dest="$a"; done
     cp -R "$FAKE_UPSTREAM" "$dest" && cd "$dest" &&
       "${REAL_GIT}" init -q -b main && "${REAL_GIT}" add -A &&
-      "${REAL_GIT}" -c user.name=upstream -c user.email=upstream@example.invalid commit -q -m upstream
+      "${REAL_GIT}" -c user.name=upstream -c user.email=upstream@example.invalid -c commit.gpgsign=false commit -q -m upstream
     exit $? ;;
   ls-remote)
-    if [ -n "$FAKE_REMOTE_SHA" ]; then printf '%s\\trefs/heads/branch\\n' "$FAKE_REMOTE_SHA"; fi
+    # FAKE_REMOTE_TIP puts a commit on the fork's branch: one submit made on top of main, someone
+    # else's on top of main, or submit's on top of a commit main doesn't have.
+    case "$FAKE_REMOTE_TIP" in
+      submit) tip=$("${REAL_GIT}" commit-tree "main^{tree}" -p main -m "feat(registry): add demo-app stack") ;;
+      other) tip=$(GIT_AUTHOR_NAME=Someone GIT_AUTHOR_EMAIL=someone@example.invalid \\
+        "${REAL_GIT}" commit-tree "main^{tree}" -p main -m "Fix a typo in the README") ;;
+      off-main)
+        base=$("${REAL_GIT}" commit-tree "main^{tree}" -m "Someone's base")
+        tip=$("${REAL_GIT}" commit-tree "main^{tree}" -p "$base" -m "feat(registry): add demo-app stack") ;;
+      *) tip="$FAKE_REMOTE_SHA" ;;
+    esac
+    if [ -n "$tip" ]; then printf '%s\\trefs/heads/branch\\n' "$tip"; fi
     exit 0 ;;
+  fetch) exit 0 ;;
   push)
     if [ -n "$FAKE_PUSH_FAIL" ]; then printf '%s\\n' "$FAKE_PUSH_FAIL" >&2; exit 1; fi
     [ -d "$FAKE_LOG.pushed" ] || cp -R . "$FAKE_LOG.pushed"
@@ -61,7 +77,9 @@ exec "${REAL_GIT}" "$@"
  * Fake `gh` and `git` on a PATH of their own: each logs its argv, `gh` answers as a logged-in
  * user with no open pull request, and `git clone` copies `upstream` (a plain directory holding
  * `packages/cli/registry`, the small fixture registry) into a fresh repository. Every other git
- * command runs the real git, except `ls-remote` and `push`, which touch no network.
+ * command runs the real git, except `ls-remote`, `fetch` and `push`, which touch no network:
+ * `ls-remote` makes the fork branch's commit (`FAKE_REMOTE_TIP`) in the clone itself, so `fetch`
+ * has nothing to do.
  */
 export function fakeGitHub() {
   const temp = tempDir();
@@ -104,6 +122,8 @@ export function fakeGitHub() {
         : [],
     /** The body file `gh pr create` was given. */
     body: () => readFileSync(`${log}.body`, "utf8"),
+    /** The body file `gh pr edit` was given. */
+    editedBody: () => readFileSync(`${log}.edit-body`, "utf8"),
     /** The clone's working tree as the first push saw it. */
     pushed: join(temp.path, "calls.log.pushed"),
     cleanup: temp.cleanup,

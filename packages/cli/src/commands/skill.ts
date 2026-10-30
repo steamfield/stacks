@@ -54,7 +54,7 @@ const install = Command.make(
     print: Flag.Boolean("print").pipe(
       Flag.withDefault(false),
       Flag.withDescription(
-        "Print the skill's SKILL.md only, without looking up or writing an install target.",
+        "Print the skill's SKILL.md only, without looking up or writing an install target. For stacks-author, links to its references become the stacks guide author command that prints each one.",
       ),
     ),
   },

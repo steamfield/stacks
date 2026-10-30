@@ -1,6 +1,6 @@
 # Writing a search card
 
-The search card is a JSON file beside the entry directories that tells `<cli> search` and the hosted directory which requests the entry answers. For a user entry it lives at `~/.config/stacks/search/stacks/<id>.json` or `search/fragments/<id>.json`. `create` writes no card; you write it. A personal card is optional, but a submission needs one.
+The search card is a JSON file beside the entry directories that tells `<cli> search` and the hosted directory which requests the entry answers. For a user entry it lives at `~/.config/stacks/search/stacks/<id>.json` or `search/fragments/<id>.json`. `create` writes no card; you write it. A personal card is optional. A submission should include one; without it, a maintainer drafts the card.
 
 ## The card
 

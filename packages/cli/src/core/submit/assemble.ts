@@ -1,4 +1,4 @@
-import { AuthorsFile, authorKey, Kind } from "@steamfield/stacks-format";
+import { AuthorsFile, authorKey, Kind, type SearchMetadata } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Result, Schema } from "effect";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { Registry } from "../registry/registry";
@@ -30,8 +30,9 @@ const readUpstream = <A>(file: string, schema: Schema.Codec<A, string>, fallback
   });
 
 /**
- * Whether each entry is new or an update. An id the upstream registry has, or has removed, is
- * refused unless `authors.json` gives it to this login, which makes the submission an update.
+ * Whether each entry is new or an update. An id the upstream registry removed is always refused,
+ * since ids are never reused. An id it has is refused unless `authors.json` gives it to this
+ * login, which makes the submission an update.
  */
 const planEntries = Effect.fn("submit.planEntries")(function* (options: {
   registry: string;
@@ -52,7 +53,7 @@ const planEntries = Effect.fn("submit.planEntries")(function* (options: {
       Object.hasOwn(removed.entries, entry.id) && removed.entries[entry.id]?.kind === entry.kind;
     const key = authorKey(entry.kind, entry.id);
     const owner = Object.hasOwn(options.authors, key) ? options.authors[key] : undefined;
-    if ((exists || gone) && owner !== options.login)
+    if (gone || (exists && owner !== options.login))
       return yield* new BadInput({
         details: {
           flag: "collision",
@@ -82,36 +83,49 @@ const copyEntry = Effect.fn("submit.copyEntry")(function* (registry: string, ent
 });
 
 /**
- * Copies the entry's search card, with `source.digest` stamped from the entry as submitted, so
- * the card reads as current. A card that doesn't decode is copied as it is; the checks report it.
+ * The card as it should go upstream for an entry whose current digest is `digest`. An author's
+ * unreviewed draft is restamped as it is. A reviewed (or maintainer-drafted) card that still
+ * matches is left alone; one that no longer matches is restamped and becomes the author's
+ * unreviewed draft, which maintainers review again (`search-unreviewed`) instead of a
+ * `search-stale` that would block the submission. `undefined` means leave the card unchanged.
+ */
+function freshCard(raw: Record<string, unknown>, card: SearchMetadata, digest: string) {
+  const source = isRecord(raw.source) ? raw.source : {};
+  if (card.source.by === "author" && card.source.reviewedAt === null)
+    return { ...raw, source: { ...source, digest } };
+  if (card.source.digest === digest) return undefined;
+  return { ...raw, source: { ...source, digest, by: "author", reviewedAt: null } };
+}
+
+/**
+ * The search card that goes upstream with the entry: the author's own card, or, for an update
+ * that brings none, the card upstream already has. Its `source` is brought up to date with the
+ * entry as submitted (`freshCard`). A card that doesn't decode is copied as it is; the checks
+ * report it.
  */
 const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry: PlannedEntry) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const card = sidecarPath(entry);
-  const bytes = yield* readSearchFile(entry.root, card);
-  if (bytes === undefined) return false;
   const target = path.join(registry, card);
+  const own = yield* readSearchFile(entry.root, card);
+  const bytes =
+    own ?? (yield* readSearchFile(registry, card).pipe(Effect.orElseSucceed(() => undefined)));
+  if (bytes === undefined) return;
   yield* fs.makeDirectory(path.dirname(target), { recursive: true }).pipe(Effect.orDie);
   const loaded = yield* Effect.result((yield* Registry).get(entry.kind, entry.id));
   const decoded = yield* Effect.result(decodeSidecar(bytes));
   const raw = Result.try(() => JSON.parse(new TextDecoder().decode(bytes)) as unknown);
-  if (
-    Result.isFailure(loaded) ||
-    Result.isFailure(decoded) ||
-    Result.isFailure(raw) ||
-    !isRecord(raw.success) ||
-    !isRecord(raw.success.source)
-  ) {
-    yield* fs.writeFile(target, bytes).pipe(Effect.orDie);
-    return true;
-  }
-  const stamped = {
-    ...raw.success,
-    source: { ...raw.success.source, digest: searchSourceDigest(loaded.success) },
-  };
-  yield* fs.writeFileString(target, `${JSON.stringify(stamped, null, 2)}\n`).pipe(Effect.orDie);
-  return true;
+  const fresh =
+    Result.isSuccess(loaded) &&
+    Result.isSuccess(decoded) &&
+    Result.isSuccess(raw) &&
+    isRecord(raw.success)
+      ? freshCard(raw.success, decoded.success, searchSourceDigest(loaded.success))
+      : undefined;
+  if (fresh !== undefined)
+    yield* fs.writeFileString(target, `${JSON.stringify(fresh, null, 2)}\n`).pipe(Effect.orDie);
+  else if (own !== undefined) yield* fs.writeFile(target, own).pipe(Effect.orDie);
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

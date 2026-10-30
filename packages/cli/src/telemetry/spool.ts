@@ -1,8 +1,8 @@
-import { TelemetryEvent, TelemetryEventV2 } from "@steamfield/stacks-format";
+import { TelemetryEvent, TelemetryEventV2, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
 import { DAY, directory, names, read, remove, type Storage, uuid, write } from "./storage";
 
-const Event = Schema.Union([TelemetryEvent, TelemetryEventV2]);
+const Event = Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3]);
 const EventJson = Schema.fromJsonString(Event);
 export type Pending = { file: string; event: typeof Event.Type };
 export const pending = Effect.fn("telemetry.pending")(function* (store: Storage) {

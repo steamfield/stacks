@@ -18,7 +18,7 @@ import {
   TelemetryNewEvent,
   TelemetryShowEvent,
   TelemetryVerifyEvent,
-  TelemetryVerifyEventV2,
+  TelemetryVerifyEventV3,
   telemetryEventJsonSchema,
 } from "@steamfield/stacks-format";
 import { Clock, Effect, Schema } from "effect";
@@ -35,7 +35,6 @@ import {
   files,
   notified,
   ok,
-  queue,
   spooled,
   type TelemetryServer,
   telemetryCli,
@@ -47,10 +46,10 @@ import {
 } from "./helpers/telemetry";
 import { readManifestAt } from "./helpers/verify";
 
-const NewV2 = Schema.Struct({ ...TelemetryNewEvent.fields, schemaVersion: Schema.Literal(2) });
-const AddV2 = Schema.Struct({ ...TelemetryAddEvent.fields, schemaVersion: Schema.Literal(2) });
-const ShowV2 = Schema.Struct({ ...TelemetryShowEvent.fields, schemaVersion: Schema.Literal(2) });
-const ErrorV2 = Schema.Struct({ ...TelemetryErrorEvent.fields, schemaVersion: Schema.Literal(2) });
+const NewV3 = Schema.Struct({ ...TelemetryNewEvent.fields, schemaVersion: Schema.Literal(3) });
+const AddV3 = Schema.Struct({ ...TelemetryAddEvent.fields, schemaVersion: Schema.Literal(3) });
+const ShowV3 = Schema.Struct({ ...TelemetryShowEvent.fields, schemaVersion: Schema.Literal(3) });
+const ErrorV3 = Schema.Struct({ ...TelemetryErrorEvent.fields, schemaVersion: Schema.Literal(3) });
 
 let space: ReturnType<typeof workspace>;
 let home: string;
@@ -260,7 +259,7 @@ test("hand-added verify steps are custom, with no command text [4.1a#9]", async 
   expect(ndjson(result.stderr).length).toBeGreaterThan(0);
   const event = server.events().find((e) => e.type === "verify");
   expect(event).toBeDefined();
-  const decoded = Schema.decodeUnknownSync(TelemetryVerifyEventV2, { onExcessProperty: "error" })(
+  const decoded = Schema.decodeUnknownSync(TelemetryVerifyEventV3, { onExcessProperty: "error" })(
     event,
   );
   expect(decoded.stepsChanged).toBe(1);
@@ -274,15 +273,15 @@ test("hand-added verify steps are custom, with no command text [4.1a#9]", async 
   ]);
 });
 
-test("show queues exactly one project-free event and TargetNotEmpty queues a closed error [4.1a#10]", async () => {
+test("show delivers exactly one project-free event and TargetNotEmpty queues a closed error [4.1a#10]", async () => {
   await notified(home, server.url);
-  await queue(home, server.url);
-  expect(Schema.decodeUnknownSync(ShowV2)(spooled(home)[0])).toMatchObject({
+  ok(await telemetryCli(["show", "go-cli", "--json"], { home, env: env() }));
+  expect(Schema.decodeUnknownSync(ShowV3)(server.events()[0])).toMatchObject({
     type: "show",
     kind: "stack",
     id: "go-cli",
   });
-  expect(spooled(home)[0]).not.toHaveProperty("projectId");
+  expect(server.events()[0]).not.toHaveProperty("projectId");
   mkdirSync(join(home, "occupied"));
   writeFileSync(join(home, "occupied", "secret.txt"), "private content");
   const result = await telemetryCli(["new", "go-cli", "occupied", "--json"], { home, env: env() });
@@ -294,7 +293,7 @@ test("show queues exactly one project-free event and TargetNotEmpty queues a clo
   await flush();
   const errors = server.events().filter((e) => e.type === "error");
   expect(errors).toHaveLength(1);
-  expect(Schema.decodeUnknownSync(ErrorV2, { onExcessProperty: "error" })(errors[0])).toMatchObject(
+  expect(Schema.decodeUnknownSync(ErrorV3, { onExcessProperty: "error" })(errors[0])).toMatchObject(
     { command: "new", code: "TargetNotEmpty", stack: "go-cli" },
   );
   expect(errors[0]).not.toHaveProperty("message");
@@ -337,7 +336,7 @@ test("one user fragment is counted and redacted beside an official fragment [4.1
     frontmatter: minimal("fragment", "private-tools"),
   });
   await scaffold("project", ["--with", "private-tools"]);
-  const event = Schema.decodeUnknownSync(NewV2)(server.events()[0]);
+  const event = Schema.decodeUnknownSync(NewV3)(server.events()[0]);
   expect(event).toMatchObject({
     stack: "go-cli",
     fragments: ["tools", "custom"],
@@ -351,7 +350,7 @@ test("one user fragment is counted and redacted beside an official fragment [4.1
 test.each([undefined, "skill"])("new source is opt-in metadata (%s) [4.1a#12]", async (source) => {
   await notified(home, server.url);
   await scaffold("project", source ? ["--source", source] : []);
-  const event = Schema.decodeUnknownSync(NewV2)(server.events()[0]);
+  const event = Schema.decodeUnknownSync(NewV3)(server.events()[0]);
   if (source) expect(event.source).toBe(source);
   else expect(event).not.toHaveProperty("source");
 });
@@ -386,7 +385,7 @@ test.each([undefined, "web", "docs", "skill", "cli", "other"])(
     ok(result);
     const events = server.events().filter((event) => event.type === "add");
     expect(events).toHaveLength(1);
-    const event = Schema.decodeUnknownSync(AddV2, { onExcessProperty: "error" })(events[0]);
+    const event = Schema.decodeUnknownSync(AddV3, { onExcessProperty: "error" })(events[0]);
     expect(event).toMatchObject({
       stack: "go-cli",
       fragments: ["tools", "extra"],
@@ -432,6 +431,7 @@ test("every schema field has a documented consumer and legacy flags never serial
   ];
   const fields = new Set(schemas.flatMap((schema) => Object.keys(schema.fields)));
   fields.add("deps");
+  fields.add("asked");
   expect(Object.keys(consumers).sort()).toEqual([...fields].sort());
   for (const reader of Object.values(consumers)) expect(reader.trim().length).toBeGreaterThan(0);
   const docs = readFileSync(join(import.meta.dirname, "../docs/reference/telemetry.md"), "utf8");
@@ -560,7 +560,7 @@ test("cloned verifies have no link; known projects use a separate id and buckete
   await notified(home, server.url);
   const { root } = await scaffold();
   const manifest = readManifestAt(root);
-  const created = Schema.decodeUnknownSync(NewV2)(server.events()[0]);
+  const created = Schema.decodeUnknownSync(NewV3)(server.events()[0]);
   expect(created.projectId).toBeDefined();
   expect(created.projectId).not.toBe(manifest.projectId);
   const known = await telemetryCli(["verify", "--json"], {
@@ -571,7 +571,7 @@ test("cloned verifies have no link; known projects use a separate id and buckete
   expect(known.status).toBe(0);
   expect(JSON.parse(known.stdout)).toMatchObject({ outcome: "green" });
   expect(ndjson(known.stderr).length).toBeGreaterThan(0);
-  const event = Schema.decodeUnknownSync(TelemetryVerifyEventV2)(
+  const event = Schema.decodeUnknownSync(TelemetryVerifyEventV3)(
     server.events().find((e) => e.type === "verify"),
   );
   expect(event).toMatchObject({
@@ -597,7 +597,7 @@ test("cloned verifies have no link; known projects use a separate id and buckete
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ outcome: "green" });
     expect(ndjson(result.stderr).length).toBeGreaterThan(0);
-    const cloned = Schema.decodeUnknownSync(TelemetryVerifyEventV2)(
+    const cloned = Schema.decodeUnknownSync(TelemetryVerifyEventV3)(
       server
         .events()
         .filter((e) => e.type === "verify")
@@ -644,7 +644,7 @@ test("green base and failing app send the whole run's failed outcome [4.1a#30]",
     stages: { base: "green", app: "failed" },
   });
   expect(ndjson(result.stderr).at(-1)).toMatchObject({ error: { tag: "VerifyFailed" } });
-  const event = Schema.decodeUnknownSync(TelemetryVerifyEventV2, { onExcessProperty: "error" })(
+  const event = Schema.decodeUnknownSync(TelemetryVerifyEventV3, { onExcessProperty: "error" })(
     server.events().find((e) => e.type === "verify"),
   );
   expect(event.outcome).toBe("failed");
@@ -709,7 +709,7 @@ test.each([
   await Effect.runPromise(program);
   const events = server.events().filter((event) => event.type === "verify");
   expect(events).toHaveLength(1);
-  const event = Schema.decodeUnknownSync(TelemetryVerifyEventV2, { onExcessProperty: "error" })(
+  const event = Schema.decodeUnknownSync(TelemetryVerifyEventV3, { onExcessProperty: "error" })(
     events[0],
   );
   expect(event.steps.find((step) => step.name === "test")?.duration).toBe(bucket);

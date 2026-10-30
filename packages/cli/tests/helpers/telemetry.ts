@@ -17,6 +17,7 @@ import {
   TelemetryBatch,
   TelemetryEvent,
   TelemetryEventV2,
+  TelemetryEventV3,
 } from "@steamfield/stacks-format";
 import { type Clock, Effect, type FileSystem, Layer, type Path, Schema } from "effect";
 import type { HttpClient } from "effect/http";
@@ -32,7 +33,7 @@ import { environment } from "./remote-index";
 export const telemetryModule = join(import.meta.dirname, "../../src/telemetry/index.ts");
 export const registry = join(import.meta.dirname, "../fixtures/telemetry/registry");
 export const decodeEvent = Schema.decodeUnknownSync(
-  Schema.Union([TelemetryEvent, TelemetryEventV2]),
+  Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3]),
   { onExcessProperty: "error" },
 );
 export const telemetryRoot = (home: string) => join(home, "state/stacks/telemetry");
@@ -147,11 +148,20 @@ export async function notified(home: string, url: string) {
 }
 export async function queue(home: string, url: string, count = 1) {
   for (let i = 0; i < count; i++) {
-    ok(
-      await telemetryCli(["show", "go-cli", "--json"], {
-        home,
-        env: { STACKS_TELEMETRY_URL: url },
-      }),
+    const { Telemetry } = await import(telemetryModule);
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* (yield* Telemetry).recordShow({
+          kind: "stack",
+          id: "go-cli",
+          origin: "bundled",
+          trusted: true,
+        });
+      }).pipe(
+        Effect.provide(
+          await telemetryLayer({ home, cwd: home, env: { STACKS_TELEMETRY_URL: url } }),
+        ),
+      ),
     );
   }
   expect(spooled(home)).toHaveLength(count);

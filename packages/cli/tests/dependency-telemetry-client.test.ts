@@ -7,7 +7,7 @@ import {
   DependencyAllowlist,
   SignedIndex,
   TelemetryBatch,
-  TelemetryEventV2,
+  TelemetryEventV3,
 } from "@steamfield/stacks-format";
 import { Clock, Effect, Schema } from "effect";
 import { TestClock } from "effect/testing";
@@ -22,7 +22,7 @@ const allowlist = Schema.decodeUnknownSync(DependencyAllowlist)({
   generatedAt: "2026-10-28T00:00:00Z",
   names: { npm: ["react"], pypi: [], go: ["github.com/a/b"], crates: [] },
 });
-const decodeV2 = Schema.decodeUnknownSync(TelemetryEventV2, { onExcessProperty: "error" });
+const decodeV3 = Schema.decodeUnknownSync(TelemetryEventV3, { onExcessProperty: "error" });
 const decodeBatch = Schema.decodeUnknownSync(TelemetryBatch, { onExcessProperty: "error" });
 function signed(payload: DependencyAllowlist, valid = true) {
   const bytes = JSON.stringify(payload);
@@ -157,7 +157,7 @@ function verifies() {
       (event) =>
         typeof event === "object" && event !== null && "type" in event && event.type === "verify",
     )
-    .map((event) => decodeV2(event));
+    .map((event) => decodeV3(event));
 }
 
 let propertyProject = 0;
@@ -273,7 +273,7 @@ it.effect("green reports repeat after seven days; failed verify sends no deps [4
     expect(verifies()).toHaveLength(1);
     expect(verifies().at(-1)).toMatchObject({
       type: "verify",
-      schemaVersion: 2,
+      schemaVersion: 3,
       deps: [{ ecosystem: "go", name: "github.com/a/b", major: "2" }],
     });
     yield* TestClock.adjust("1 day");

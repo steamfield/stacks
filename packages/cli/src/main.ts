@@ -193,6 +193,7 @@ export function main(
       yield* logging.flush(settings, quiet);
       const written = yield* settleOutput(observed.error, invocation);
       if (written.closed) return 0;
+      yield* (yield* Telemetry).flushAfterOutput;
       const { error, unwritten } = written;
       const defect = written.defect ?? observed.defect;
       // A command's own status (a launched agent's) applies only when the command succeeded.

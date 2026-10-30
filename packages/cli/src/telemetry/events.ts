@@ -3,9 +3,9 @@ import type {
   Manifest,
   RunRecord,
   TelemetryErrorEvent,
-  TelemetryEventV2,
+  TelemetryEventV3,
   TelemetryNewEvent,
-  TelemetryVerifyEvent,
+  TelemetryVerifyEventV3,
 } from "@steamfield/stacks-format";
 import type { Entry } from "../core/registry/entry";
 import type { Project } from "./storage";
@@ -24,7 +24,7 @@ export type ErrorFacts = {
   stack?: Pick<Entry, "id" | "origin" | "trusted">;
 };
 export type Envelope = Pick<
-  TelemetryEventV2,
+  TelemetryEventV3,
   "schemaVersion" | "eventId" | "installId" | "cliVersion" | "os" | "nodeMajor" | "agent" | "sentAt"
 >;
 export const official = (entry: { origin: string; trusted?: boolean }) =>
@@ -80,14 +80,19 @@ export const errorEvent = (input: ErrorFacts) => ({
   code: errorCode(input.code),
   ...(input.stack && official(input.stack) ? { stack: input.stack.id } : {}),
 });
-function duration(ms: number): TelemetryVerifyEvent["steps"][number]["duration"] {
+function duration(ms: number): TelemetryVerifyEventV3["steps"][number]["duration"] {
   if (ms <= 5000) return "5s";
   if (ms <= 30000) return "30s";
   if (ms <= 120000) return "2m";
   if (ms <= 600000) return "10m";
   return "longer";
 }
-export function verifyEvent(record: RunRecord, project: Project | undefined, now: number) {
+export function verifyEvent(
+  record: RunRecord,
+  project: Project | undefined,
+  now: number,
+  asked?: number,
+) {
   const known = new Set(project?.steps ?? []);
   return {
     type: "verify" as const,
@@ -105,6 +110,7 @@ export function verifyEvent(record: RunRecord, project: Project | undefined, now
     stepsChanged: project
       ? record.steps.filter((step) => !known.has(step.name)).length
       : record.steps.length,
+    ...(asked === undefined ? {} : { asked }),
     secondsSinceScaffold: project
       ? Math.max(0, (now - Date.parse(project.scaffoldedAt)) / 1000)
       : record.secondsSinceCreated,
@@ -153,5 +159,6 @@ export const TELEMETRY_FIELD_CONSUMERS = {
   stepsChanged: "changed-step share",
   secondsSinceScaffold: "Time to green",
   secondsToFirstTestPass: "Time to the first successful test command",
+  asked: "Counts agent questions before verify",
   deps: "dependency trends",
 } as const;

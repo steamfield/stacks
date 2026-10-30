@@ -4,7 +4,7 @@ Every command, its flags and what it does. `stacks <command> --help` prints the 
 
 Every command also accepts `--offline` to disable remote registry requests while using verified cached entries. `STACKS_OFFLINE=1` has the same effect. See [the cache and trust rules](configuration.md#remote-registry-cache).
 
-Every command accepts `--no-telemetry` to skip telemetry for this invocation. `new` and `add` accept optional `--source web|docs|skill|cli|other` attribution. [Telemetry](telemetry.md) describes what is collected and the off switches; no official endpoint is configured yet.
+Every command accepts `--no-telemetry` to skip telemetry for this invocation. `new` and `add` accept optional `--source web|docs|skill|cli|other` attribution. Published releases collect anonymous usage after a first-run notice; source builds and local packs have no official endpoint. [Telemetry](telemetry.md) describes the off switches, and the [privacy page](https://stacks.steamfield.io/telemetry) explains the policy.
 
 | Command | Does |
 | --- | --- |

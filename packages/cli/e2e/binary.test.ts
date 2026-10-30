@@ -51,7 +51,7 @@ async function invoke(
         NO_COLOR: "1",
         PATH: scratchPath,
         // The package names the hosted API; keep these runs off the network.
-        STACKS_OFFLINE: "1",
+        ...(args[0] === "telemetry" && args[1] === "status" ? {} : { STACKS_OFFLINE: "1" }),
         ...extra,
       },
       stdout: "pipe",
@@ -68,6 +68,12 @@ async function invoke(
   }
 }
 describe("installed Node package", () => {
+  test("a local pack has no official telemetry endpoint", async () => {
+    const result = await invoke(["telemetry", "status", "--json"]);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).reason).toBe("no_endpoint");
+    expect(result.stderr).toBe("");
+  });
   test("reports bundled version and machine version", async () => {
     expect(await invoke(["--version"])).toEqual({ stdout: `${version}\n`, stderr: "", status: 0 });
     expect(JSON.parse((await invoke(["-v", "--json"])).stdout)).toEqual({ version });

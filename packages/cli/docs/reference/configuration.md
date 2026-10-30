@@ -42,7 +42,7 @@ Your own stacks and fragments live beside this file, in `stacks/<id>/` and `frag
 | `STACKS_OFFLINE` | `1` disables remote registry requests; the shared `--offline` flag does the same. Verified cached entries remain available |
 | `STACKS_DEV_API_URL` | Source builds only: loopback API base URL for search, using HTTP or HTTPS on `localhost`, `127.0.0.1` or `[::1]`, without credentials, query or fragment. Release builds ignore it and use the hosted API, `https://stacks.steamfield.io` |
 | `DO_NOT_TRACK`, `STACKS_TELEMETRY_DISABLED` | Any value except empty, `0` or `false` disables telemetry |
-| `STACKS_TELEMETRY_URL` | Optional telemetry server URL; no official URL is configured. Source builds never collect |
+| `STACKS_TELEMETRY_URL` | Optional custom telemetry server URL. Published releases use the official endpoint after a first-run notice; source builds never collect, and local packs have no official endpoint. Run `stacks telemetry disable` to turn collection off; see the [privacy page](https://stacks.steamfield.io/telemetry) |
 | `STACKS_TELEMETRY_DEBUG` | `1` prints schema-valid events to stderr instead of queuing or sending; consent still applies |
 | `CI` | Any set value, including empty, disables telemetry and selects agent output even at a terminal |
 | `NO_COLOR` | Any nonempty value turns off color and the live progress line, so human output carries no ANSI escapes; it wins over `FORCE_COLOR`. JSON and agent output never carry them |

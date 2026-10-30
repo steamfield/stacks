@@ -40,6 +40,7 @@ const result = await Bun.build({
   packages: "bundle",
   define: {
     STACKS_RELEASE_BUILD: "true",
+    STACKS_PUBLISHED_TELEMETRY: process.env.STACKS_PUBLISH_TELEMETRY === "1" ? "true" : "false",
     PACKAGED_GITIGNORES: JSON.stringify(
       readdirSync("registry", { recursive: true, encoding: "utf8" })
         .filter((file) => file.endsWith("/.gitignore"))

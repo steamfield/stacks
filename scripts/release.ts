@@ -3,6 +3,7 @@
 // A person runs it (`bun run release`, or `bun run release -- --dry-run` to pack and check
 // without publishing or tagging); packages/format/README.md, "Publishing", has the steps it wraps.
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,9 +20,9 @@ function fail(message: string): never {
 }
 
 /** Runs a command with the terminal attached and stops the release when it fails. */
-function run(command: string, args: ReadonlyArray<string>, cwd = root) {
+function run(command: string, args: ReadonlyArray<string>, cwd = root, env = process.env) {
   console.error(`$ ${[command, ...args].join(" ")}`);
-  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+  const result = spawnSync(command, args, { cwd, env, stdio: "inherit" });
   if (result.status !== 0)
     fail(`${command} ${args[0] ?? ""} exited ${result.status ?? "on a signal"}`);
 }
@@ -29,7 +30,11 @@ function run(command: string, args: ReadonlyArray<string>, cwd = root) {
 /** Runs a command quietly and returns its exit status and trimmed stdout. */
 function read(command: string, args: ReadonlyArray<string>) {
   const result = spawnSync(command, args, { cwd: root, encoding: "utf8" });
-  return { status: result.status, stdout: (result.stdout ?? "").trim() };
+  return {
+    status: result.status,
+    stdout: (result.stdout ?? "").trim(),
+    stderr: (result.stderr ?? "").trim(),
+  };
 }
 
 function manifest(dir: (typeof PACKAGES)[number]) {
@@ -60,24 +65,51 @@ function preflight() {
     read("git", ["rev-parse", "HEAD"]).stdout !== read("git", ["rev-parse", "origin/main"]).stdout
   )
     fail("HEAD is not origin/main; push the release commit first");
-  for (const pkg of packages)
-    if (read("npm", ["view", `${pkg.name}@${pkg.version}`, "version"]).stdout !== "")
-      fail(`${pkg.name}@${pkg.version} is already on npm; bump its version`);
   if (read("git", ["rev-parse", "--quiet", "--verify", `refs/tags/${tag}`]).status === 0)
     fail(`tag ${tag} already exists`);
 }
 
+function alreadyPublished(pkg: (typeof packages)[number], cwd: string) {
+  const spec = `${pkg.name}@${pkg.version}`;
+  const version = read("npm", ["view", spec, "version", "--prefer-online"]);
+  if (version.status !== 0) {
+    if (version.stderr.includes("E404")) return false;
+    fail(`could not look up ${spec} on npm: ${version.stderr || "npm view failed"}`);
+  }
+  if (version.stdout !== pkg.version) fail(`npm returned an unexpected version for ${spec}`);
+  const published = read("npm", ["view", spec, "dist.integrity", "--prefer-online"]);
+  if (published.status !== 0 || !published.stdout.startsWith("sha512-"))
+    fail(`could not read dist.integrity for ${spec}: ${published.stderr || "invalid response"}`);
+  const bytes = readFileSync(join(cwd, pkg.tarball));
+  const local = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
+  if (published.stdout !== local)
+    fail(`${spec} is already on npm, but its tarball integrity differs`);
+  return true;
+}
+
 function publish(checkout: string) {
   run("bun", ["install", "--frozen-lockfile"], checkout);
-  for (const pkg of packages) {
+  const prepared = packages.map((pkg) => {
     const cwd = join(checkout, "packages", pkg.dir);
-    run("bun", ["run", "pack"], cwd);
-    run("tar", ["-tzf", pkg.tarball], cwd);
     run(
-      "npm",
-      ["publish", pkg.tarball, "--access", "public", ...(dryRun ? ["--dry-run"] : [])],
+      "bun",
+      ["run", "pack"],
       cwd,
+      pkg.dir === "cli" ? { ...process.env, STACKS_PUBLISH_TELEMETRY: "1" } : process.env,
     );
+    run("tar", ["-tzf", pkg.tarball], cwd);
+    if (pkg.dir === "cli") console.error("release: telemetry endpoint embedded in CLI pack");
+    return { pkg, cwd, skip: alreadyPublished(pkg, cwd) };
+  });
+  for (const { pkg, cwd, skip } of prepared) {
+    if (skip) {
+      console.error(
+        `release: ${dryRun ? "would skip" : "skipping"} ${pkg.name}@${pkg.version} (matching integrity)`,
+      );
+      continue;
+    }
+    if (dryRun) console.error(`release: would publish ${pkg.name}@${pkg.version}`);
+    else run("npm", ["publish", pkg.tarball, "--access", "public"], cwd);
   }
 }
 

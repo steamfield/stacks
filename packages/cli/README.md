@@ -95,7 +95,7 @@ A stack pulls in default fragments (CI, git hooks, agent guardrails and so on); 
 
 Commands work offline against the bundled registry. With a network, `search` asks the hosted API at stacks.steamfield.io first and falls back to local ranking; `list` and `show` add published usage stats for bundled and index entries when they're available; `list`, `show` and `new` refresh a small signed allowlist of dependency names that telemetry may report; `update` makes one request to the npm registry. The search, stats and allowlist requests are best-effort: a slow or missing response never fails the command or changes its exit code. `--offline` or `STACKS_OFFLINE=1` makes no requests at all.
 
-Usage telemetry is off in this release: no endpoint is configured, so nothing is collected or sent. When an endpoint is set, a first-run notice comes before anything is recorded, `stacks telemetry disable` turns it off, and `DO_NOT_TRACK`, `STACKS_TELEMETRY_DISABLED` or any `CI` value also disable it. [Telemetry](docs/reference/telemetry.md) lists every field and what is never sent.
+Published releases collect anonymous usage after a first-run notice. Source builds and local packs have no official telemetry endpoint. Run `stacks telemetry disable` to turn collection off; `DO_NOT_TRACK`, `STACKS_TELEMETRY_DISABLED` or any `CI` value also disable it. [Telemetry](docs/reference/telemetry.md) lists every field and what is never sent; the [privacy page](https://stacks.steamfield.io/telemetry) explains the policy.
 
 [Configuration](docs/reference/configuration.md) covers settings, environment variables, the cache locations and the optional remote registry index (`STACKS_INDEX_URL`).
 

@@ -92,6 +92,7 @@ const exits: Record<string, ReadonlyArray<number>> = {
   search: [0, 2, 6, 130],
   show: [0, 2, 3, 6, 130],
   "skill install": [0, 2, 6, 130],
+  submit: [0, 2, 4, 6, 130],
   "telemetry disable": [0, 2, 3, 6, 130],
   "telemetry enable": [0, 2, 3, 6, 130],
   "telemetry flush": [0, 2, 130],

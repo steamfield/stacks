@@ -10,7 +10,7 @@ import {
   renderReport,
 } from "../core/validate/report";
 import { resolveTarget, type Target } from "../core/validate/target";
-import { BadInput, ValidationFailed } from "../errors";
+import { BadInput, Usage, ValidationFailed } from "../errors";
 import { BriefPreview, type Severity, ValidateReport } from "../schemas/validate";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
@@ -48,6 +48,31 @@ const printPreview = (target: Target, options: Parameters<typeof previewBrief>[1
     }
   });
 
+/** The flags checked against each other, then the target they apply to. */
+const checkedTarget = (
+  flags: Parameters<typeof compositionFlag>[0] & { submission: boolean },
+  given: { path: string | undefined; stack: string | undefined },
+) =>
+  Effect.gen(function* () {
+    // The composition flags shape a --brief preview; alone they would be silently ignored.
+    const stray = compositionFlag(flags);
+    if (given.stack === undefined && stray !== undefined)
+      return yield* new BadInput({ details: { id: stray, flag: "brief" } });
+    if (flags.submission && given.stack !== undefined)
+      return yield* new Usage({ details: { flags: ["--submission", "--brief"] } });
+    const target: Target = yield* resolveTarget(given.path);
+    // Readiness is per entry: a submission is one entry directory.
+    if (flags.submission && target.only === undefined)
+      return yield* new Usage({
+        details: {
+          flag: "--submission",
+          value: given.path ?? "",
+          expected: "one entry directory, such as <root>/stacks/<id>",
+        },
+      });
+    return target;
+  });
+
 export const validateCommand = Command.make(
   "validate",
   {
@@ -79,6 +104,12 @@ export const validateCommand = Command.make(
       Flag.withDescription("With --brief: render the sandbox preset."),
       Flag.withDefault(false),
     ),
+    submission: Flag.Boolean("submission").pipe(
+      Flag.withDescription(
+        "Also check one entry directory is ready for the public registry: no stacks:fill markers left (fill-marker), no credential-shaped strings (secret) and no .env files besides .env.example (env-file) are errors; absolute home paths (absolute-path) and no search card (missing-card) are warnings. Not with --brief.",
+      ),
+      Flag.withDefault(false),
+    ),
   },
   (flags) =>
     Effect.gen(function* () {
@@ -86,11 +117,7 @@ export const validateCommand = Command.make(
       const output = yield* Output;
       const path = Option.getOrUndefined(flags.path);
       const stack = Option.getOrUndefined(flags.brief);
-      // The composition flags shape a --brief preview; alone they would be silently ignored.
-      const stray = compositionFlag(flags);
-      if (stack === undefined && stray !== undefined)
-        return yield* new BadInput({ details: { id: stray, flag: "brief" } });
-      const target = yield* resolveTarget(path);
+      const target = yield* checkedTarget(flags, { path, stack });
       if (stack !== undefined) {
         yield* printPreview(target, {
           stack,
@@ -100,7 +127,7 @@ export const validateCommand = Command.make(
         });
         return;
       }
-      const report = yield* validate(target);
+      const report = yield* validate(target, { submission: flags.submission });
       const firstStack = report.findings.some((finding) => finding.severity === "error")
         ? undefined
         : report.sizes.find((row) => row.kind === "composed")?.entry;
@@ -111,6 +138,7 @@ export const validateCommand = Command.make(
           path,
           firstStack,
           audience: output.audience,
+          submission: flags.submission,
           root: output.audience === "agent" ? yield* shownPath(host.cwd, report.root) : report.root,
         }),
       );
@@ -123,7 +151,7 @@ export const validateCommand = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    "Check stacks and fragments before an agent builds from them: frontmatter, references, conditional prose, compositions, verify layers (install, lint, typecheck, test) and word budgets. Reads files only. Exits 0 when there are no errors (warnings and notes don't fail), 2 on errors (ValidationFailed, with the report still on stdout), a path that is neither a registry nor an entry, --with, --without or --sandbox without --brief, or a --brief composition that is unknown or conflicts, 3 on a broken config.json with --brief, 6 when the root can't be read, 130 when interrupted.",
+    "Check stacks and fragments before an agent builds from them: frontmatter, references, conditional prose, compositions, verify layers (install, lint, typecheck, test) and word budgets. Reads files only. Exits 0 when there are no errors (warnings and notes don't fail), 2 on errors (ValidationFailed, with the report still on stdout), a path that is neither a registry nor an entry, --with, --without or --sandbox without --brief, --submission with --brief or without one entry directory, or a --brief composition that is unknown or conflicts, 3 on a broken config.json with --brief, 6 when the root can't be read, 130 when interrupted.",
   ),
   Command.withShortDescription("Check stacks and fragments, or preview a composed brief."),
   Command.withExamples(({ commandPath }) => [
@@ -131,6 +159,10 @@ export const validateCommand = Command.make(
     {
       command: `${commandPath.join(" ")} ~/.config/stacks/stacks/my-api --json`,
       description: "Check one entry and get the ValidateReport",
+    },
+    {
+      command: `${commandPath.join(" ")} ~/.config/stacks/stacks/my-api --submission`,
+      description: "Check one entry is ready to submit to the public registry",
     },
     {
       command: `${commandPath.join(" ")} --brief typescript-cli --sandbox`,

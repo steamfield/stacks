@@ -17,6 +17,7 @@ Every command accepts `--no-telemetry` to skip telemetry for this invocation. `n
 | [`runs`](#runs) | Show a project's verify history |
 | [`validate`](#validate) | Check entries, or preview a composed brief |
 | [`create`](#create) | Create or copy a stack or fragment for editing |
+| [`submit`](#submit) | Open a draft pull request adding entries to the public registry |
 | [`update`](#update) | Check for a newer release, or upgrade a global npm install |
 | [`skill install`](#skill-install) | Install an agent skill |
 | [`guide`](#guide) | Print the guide for coding agents |
@@ -218,9 +219,44 @@ stacks validate ~/my-registry                     # a registry root (holds stack
 stacks validate ~/my-registry/stacks/web          # one entry
 stacks validate --json                            # the ValidateReport
 stacks validate --brief web --with docs --sandbox # the brief a composition renders to
+stacks validate ~/my-registry/stacks/web --submission # ready for the public registry?
 ```
 
 `validate` reads files only; it runs nothing from an entry. A relative path resolves against the directory you ran it from. Exit 0 when there are no errors; exit 2 (`ValidationFailed`) with the full report still on stdout. [Validation](validation.md) lists every check, the word budgets and `--brief`.
+
+`--submission` takes one entry directory and adds the checks that keep an entry out of the public registry:
+
+| Check | Severity | Finds |
+| --- | --- | --- |
+| `fill-marker` | error | A `stacks:fill` marker left in the frontmatter, the body, the search card, or a file under `files/` or `adapters/`. A shipped marker is allowed when one of the entry's verify steps checks the project for markers, as the scaffold's `readme` step does, because the project's agent fills it. |
+| `secret` | error | A credential-shaped string anywhere in the entry or its card: cloud, GitHub, Slack and AI provider keys, private keys, and long literals assigned to names such as `password` or `token`. The report names the kind, never the value. |
+| `env-file` | error | A `.env` file other than `.env.example` |
+| `absolute-path` | warning | A home directory path (`/Users/<name>/`, `/home/<name>/`) or a Windows drive path in shipped text |
+| `missing-card` | warning | No search card |
+
+The scan uses patterns, so it misses things: read the files yourself before submitting. `--submission` with `--brief`, or with a path that isn't one entry, is `Usage` (exit 2).
+
+## submit
+
+```sh
+stacks submit ~/.config/stacks/stacks/my-api --dry-run        # check and print, open nothing
+stacks submit my-api my-lint --query "a REST API in Go"        # one pull request for both
+stacks submit my-api --repo my-org/stacks --json               # another upstream; SubmitResult
+```
+
+`submit` opens a draft pull request that adds your entries to the public registry, `steamfield/stacks` unless `--repo` names another. Each argument is an entry directory or the id of an entry in your user registry; give a stack and the fragments it needs together and they travel in one pull request. It runs the GitHub CLI (`gh`) and `git` with fixed arguments and holds no credentials: `gh` must be on `PATH` and logged in (`gh auth login`).
+
+It works in this order, and stops at the first step that fails:
+
+1. Preflight: refuses offline mode, then reads your login with `gh api user`.
+2. A partial, shallow clone of the upstream `main` into a temporary directory.
+3. Each entry is copied to `packages/cli/registry/stacks/<id>/` or `fragments/<id>/`, its search card to `search/`, with the card's `source.digest` stamped from the entry as submitted, and `authors.json` maps `<kind>/<id>` to your login.
+4. The checks run against the clone's registry, not your installed one, so every reference must resolve upstream or among the submitted entries. `validate --submission` must find no errors and no warnings beyond the ones maintainers clear after the pull request: `search-unreviewed`, `search-missing`, `missing-card`, `deps-missing` and `deps-unreviewed`. An id the registry already has, or has removed, is refused unless `authors.json` gives it to your login, which makes the pull request an update.
+5. Unless `--dry-run`: forks the repository (an existing fork is reused), commits on branch `entry/<kind>-<id>` named after the first entry, pushes to your fork with a lease on the branch's current commit, and opens a draft pull request. Its body lists the entries, the validation summary and the warnings left, your `--query` proposals, the CLI version and the maintainer checklist.
+
+A rerun pushes to the same branch and reports the open pull request instead of opening another. `--dry-run` clones and checks the same way, then prints the files and the pull request body; show it to the user and get a yes before the real run. The temporary clone is removed however the command ends.
+
+`--json` returns `SubmitResult`: `{ repo, entries: [{ kind, id, update }], author, branch, prUrl, reused, dryRun, findings, files }`, plus `body` for `--dry-run`. Exits: 0 submitted or dry-run; 2 (`BadInput`) for offline mode, a missing or logged-out `gh`, a bad `--repo`, an entry that fails the checks (each blocking finding's check, file and line in `details.blockers`), an id collision, or nothing changed; 4 (`UpstreamUnavailable`) when GitHub or git can't be reached; 6 (`PermissionDenied`) when GitHub refuses the fork or push for your login; 130 when interrupted.
 
 ## create
 

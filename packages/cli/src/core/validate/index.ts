@@ -22,6 +22,7 @@ import { searchChecks } from "./search";
 import { shippedReferenceChecks } from "./shipped-refs";
 import { snapshotRegistry } from "./snapshot";
 import { readSources } from "./sources";
+import { submissionChecks } from "./submission";
 import type { Target } from "./target";
 import { templateChecks } from "./templates";
 import { versionSensitiveChecks } from "./version-sensitive";
@@ -92,8 +93,9 @@ const sizeRank = { body: 0, composed: 1, shipped: 2 } as const;
 /**
  * Validates the entries under `target.root` (or the one entry `target.only` names). Never stops
  * at the first bad entry: every problem is a finding. Fails only when a root can't be read.
+ * `submission` adds the readiness checks for the public registry (`validate --submission`).
  */
-export const validate = (target: Target) =>
+export const validate = (target: Target, options: { submission?: boolean } = {}) =>
   Effect.gen(function* () {
     const path = yield* Path.Path;
     const roots = yield* validationRoots(target);
@@ -123,7 +125,7 @@ export const validate = (target: Target) =>
         };
         const findings: Finding[] = [];
         const sizes: SizeRow[] = [];
-        for (const check of checks) {
+        for (const check of options.submission ? [...checks, submissionChecks] : checks) {
           const result = yield* check(view);
           findings.push(...result.findings);
           sizes.push(...(result.sizes ?? []));

@@ -12,6 +12,7 @@ import { schemaCommand } from "./commands/schema";
 import { searchCommand } from "./commands/search";
 import { showCommand } from "./commands/show";
 import { skillCommand } from "./commands/skill";
+import { submitCommand } from "./commands/submit";
 import { telemetryCommand } from "./commands/telemetry";
 import { updateCommand } from "./commands/update";
 import { validateCommand } from "./commands/validate";
@@ -54,6 +55,7 @@ export const cli = root.pipe(
     searchCommand.pipe(notify),
     showCommand.pipe(notify),
     skillCommand.pipe(notify),
+    submitCommand.pipe(notify),
     telemetryCommand,
     updateCommand.pipe(notify),
     validateCommand.pipe(notify),

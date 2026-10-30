@@ -68,6 +68,8 @@ export function renderReport(
     firstStack: string | undefined;
     audience: Audience;
     root: string;
+    /** `validate --submission`: the next step is the same check, or a dry-run submit. */
+    submission?: boolean;
   },
 ): string {
   const { stacks, fragments } = report.entries;
@@ -94,8 +96,12 @@ export function renderReport(
     `${counted}: ${plural(errors, "error")}, ${plural(tally("warning"), "warning")}, ${plural(tally("note"), "note")}`,
   );
   const target = options.path === undefined ? "" : ` ${shellWord(printable(options.path))}`;
+  const submission = options.submission ? " --submission" : "";
   if (errors)
-    out.push(`Next: fix the errors above, then run ${options.invocation} validate${target}`);
+    out.push(
+      `Next: fix the errors above, then run ${options.invocation} validate${target}${submission}`,
+    );
+  else if (options.submission) out.push(`Next: ${options.invocation} submit${target} --dry-run`);
   else if (options.firstStack !== undefined)
     out.push(
       `Next: ${options.invocation} validate${target} --brief ${shellWord(options.firstStack)} --sandbox`,

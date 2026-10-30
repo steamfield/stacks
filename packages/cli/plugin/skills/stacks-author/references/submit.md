@@ -19,7 +19,7 @@ It runs the normal checks plus these:
 | `fill-marker` | error | A `stacks:fill` marker left anywhere in the entry or card |
 | `secret` | error | A credential-shaped string |
 | `env-file` | error | A `.env*` file other than `.env.example`, `.env.sample` or `.env.template` |
-| `absolute-path` | warning | `/Users/<name>/`, your own home directory or username, or a drive path such as `C:\work` in shipped files |
+| `absolute-path` | warning | `/Users/<name>/`, `/home/<name>/` (not generic ones like `/home/node`) or a drive path such as `C:\work` in shipped files |
 | `missing-card` | warning | No search card |
 
 The bar `submit` holds you to: zero errors, and no warnings except the ones maintainers clear after the PR.
@@ -53,7 +53,7 @@ Always run a dry run and show the user what it would send:
 - Pass one or more entries. An argument with a `/` in it, or one that starts with `.` or `~`, is an entry directory; anything else is an id from the user registry, so use `./<id>` for an entry directory in the current folder. A stack and the new fragments it needs go in one PR together.
 - Pass two `--query` values: requests the entry should rank first for, phrased differently from the card's `requests`. Maintainers use them as search test cases.
 
-The dry run checks the entries against the registry's current `main`, not the installed CLI's copy, and prints the PR body and file list without pushing anything. Show the user the PR body and the files, and ask for a yes. Then run the same command without `--dry-run`. If a PR for the branch already exists, `submit` updates the branch, rewrites the PR's title and body to match this submission, and reports that PR instead of opening another. It replaces the branch only when its last commit is the one `submit` pushed. If anyone else has pushed to it, `submit` refuses (exit 2): update that PR by hand, or ask a maintainer.
+The dry run checks the entries against the registry's current `main`, not the installed CLI's copy, and prints the PR body and file list without pushing anything. Show the user the PR body and the files, and ask for a yes. Then run the same command without `--dry-run`. If a PR for the branch already exists, `submit` updates the branch, rewrites the PR's title and body to match this submission, and reports that PR instead of opening another. It replaces the branch only when its last commit is the one `submit` pushed. If the branch has commits `submit` didn't make, `submit` refuses (exit 2): update that PR by hand, ask a maintainer, or delete the branch on the user's fork to start over.
 
 Exit codes: 2 for bad input, a failed readiness bar or an id collision (read the error's `next`); 4 when GitHub or git is unreachable (retry later); 6 when `gh` lacks permission to fork or push (ask the user).
 

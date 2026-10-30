@@ -1,11 +1,10 @@
 import { Effect, Result } from "effect";
-import { AppConfig } from "../../config";
 import type { Finding } from "../../schemas/validate";
 import { type Entry, markdownFile, outputPath } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
 import { unreadable } from "./files";
-import { absolutePathPattern, escapeRegExp, FILL_MARKER, isEnvFile, secretIn } from "./patterns";
+import { ABSOLUTE_PATH, escapeRegExp, FILL_MARKER, isEnvFile, secretIn } from "./patterns";
 import { type Check, finding, type View } from "./view";
 
 /**
@@ -24,9 +23,7 @@ type Area = "markdown" | "shipped" | "card" | "other";
 export const submissionChecks: Check = (view) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
-    const homePath = absolutePathPattern((yield* (yield* AppConfig).paths).home);
-    for (const entry of view.entries)
-      findings.push(...(yield* entryFindings(view, entry, homePath)));
+    for (const entry of view.entries) findings.push(...(yield* entryFindings(view, entry)));
     return { findings };
   });
 
@@ -54,7 +51,7 @@ function fillChecked(entry: Entry, source: string): boolean {
   );
 }
 
-const entryFindings = (view: View, entry: Entry, homePath: RegExp) =>
+const entryFindings = (view: View, entry: Entry) =>
   Effect.gen(function* () {
     const registry = yield* Registry;
     const findings: Finding[] = [];
@@ -85,15 +82,14 @@ const entryFindings = (view: View, entry: Entry, homePath: RegExp) =>
           text: text.success,
           area: areaOf(entry, source),
           fillsChecked: fillChecked(entry, source),
-          homePath,
         }),
       );
     }
-    findings.push(...(yield* cardFindings(entry, homePath)));
+    findings.push(...(yield* cardFindings(entry)));
     return findings;
   });
 
-const cardFindings = (entry: Entry, homePath: RegExp) =>
+const cardFindings = (entry: Entry) =>
   Effect.gen(function* () {
     const loaded = yield* Effect.result((yield* Registry).search(entry));
     // An unreadable card is the search checks' `search-invalid` error already.
@@ -110,7 +106,7 @@ const cardFindings = (entry: Entry, homePath: RegExp) =>
         }),
       ];
     const text = new TextDecoder().decode(loaded.success);
-    return scan({ entry, file, text, area: "card", fillsChecked: false, homePath });
+    return scan({ entry, file, text, area: "card", fillsChecked: false });
   });
 
 function areaOf(entry: Entry, source: string): Area {
@@ -161,9 +157,8 @@ function scan(options: {
   text: string;
   area: Area;
   fillsChecked: boolean;
-  homePath: RegExp;
 }): Finding[] {
-  const { entry, file, text, area, fillsChecked, homePath } = options;
+  const { entry, file, text, area, fillsChecked } = options;
   const findings: Finding[] = [];
   const issue = (check: string, severity: Finding["severity"], line: number, message: string) =>
     findings.push(finding(entry, { check, severity, file, line, message }));
@@ -182,7 +177,7 @@ function scan(options: {
         number,
         `This line looks like ${secret}; remove it and have the project read it from the environment.`,
       );
-    if (area !== "other" && homePath.test(line))
+    if (area !== "other" && ABSOLUTE_PATH.test(line))
       issue(
         "absolute-path",
         "warning",

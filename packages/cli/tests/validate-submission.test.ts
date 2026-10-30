@@ -314,15 +314,17 @@ test("a placeholder word elsewhere on the line doesn't excuse a real-shaped key"
   expect(run.stdout).not.toContain(key);
 });
 
-test("generic container and CI paths and format strings aren't home paths; the submitter's own home is", async () => {
+test("generic container and CI homes and format strings aren't home paths; a person's home is", async () => {
   const { home, dir, write } = setup();
   write("files/docs/container.md", "In the image:\n\n    WORKDIR /home/node/app\n");
   write("files/docs/ci.md", "The runner caches /home/runner/.cache between jobs.\n");
   write("files/src/log.c", "printf('%s:\\n', name);\n");
-  write("files/docs/setup.md", `Clone it into ${home}/code/demo first.\n`);
+  write("files/docs/setup.md", "Clone it into /home/alice/code/demo first.\n");
+  write("files/.vscode/settings.json", '{ "cwd": "C:\\\\Users\\\\bob\\\\proj" }\n');
   const { findings } = await validateSubmission(home, dir);
   expect(findings).toEqual([
     missingCard,
+    ["absolute-path", "warning", "stacks/demo-app/files/.vscode/settings.json", 1],
     ["absolute-path", "warning", "stacks/demo-app/files/docs/setup.md", 1],
   ]);
 });

@@ -158,7 +158,12 @@ const publish = Effect.fn("submit.publish")(function* (
 ) {
   const forked = yield* fork(tools, options.repo, options.clone);
   yield* commit(tools, options.clone, options.title);
-  yield* push(tools, { cwd: options.clone, fork: forked, branch: options.branch });
+  yield* push(tools, {
+    cwd: options.clone,
+    repo: options.repo,
+    fork: forked,
+    branch: options.branch,
+  });
   const open = yield* openPullRequest(tools, { ...options, cwd: options.clone });
   if (open !== undefined) {
     yield* editPullRequest(tools, { ...options, url: open, cwd: options.clone });

@@ -51,14 +51,16 @@ export class Usage extends Schema.TaggedError<Usage>()("Usage", {
  * `submit`'s own cases: `repo`, a `--repo` that isn't `owner/name` or that GitHub doesn't have;
  * `tool`, `gh` or `git` missing from PATH, or `gh` not logged in; `submission`, the entries that
  * didn't meet the readiness bar, as the blocking findings' locations (never their text);
- * `collision`, an id the upstream registry already has or removed, which `authors.json` doesn't
- * give to this login (`owner` when it names another); `unchanged`, entries identical upstream;
+ * `collision`, an id the submission can't take: with `removed: true`, an id the upstream registry
+ * removed, refused for everyone since ids are never reused (`owner` when `authors.json` still
+ * names one); with `removed: false`, an id the registry has that `authors.json` doesn't give to
+ * this login (`owner` when it names another). `unchanged`, entries identical upstream;
  * `git_identity`, a commit git refused because no author name or email is configured.
  * `submit_entry` (with `id`) is an id both a stack and a fragment use in the user registry, or a
  * directory that holds no single entry; `submit_id` is an id, given or a directory's name, that
  * isn't kebab-case.
- * `branch_taken`: the fork's pull request `branch` has a commit `submit` didn't make, so it isn't
- * replaced.
+ * `branch_taken`: the fork's pull request `branch` has commits `submit` didn't make (found before
+ * the push, or by the push's lease), so it isn't replaced.
  */
 export const SubmissionBlocker = Schema.Struct({
   kind: Kind,
@@ -143,6 +145,11 @@ export const NotFoundDetails = Schema.Struct({
   root: Schema.optionalKey(Schema.String),
   /** A missing bundled asset directory (skill install). */
   path: Schema.optionalKey(Schema.String),
+  /**
+   * `submit`: an id not in the user registry while the working directory has a folder by that
+   * name, as the `./<name>` path that would submit it.
+   */
+  directory: Schema.optionalKey(Schema.String),
 });
 export class NotFound extends Schema.TaggedError<NotFound>()("NotFound", {
   details: Schema.optionalKey(NotFoundDetails),
@@ -933,9 +940,9 @@ function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
       return guide(
         [
           `Branch: ${printable(details.branch)}`,
-          "The pull request branch on your fork has commits from someone else.",
+          `The pull request branch on your fork has commits ${invocation} submit didn't make.`,
         ],
-        `update that pull request by hand, or ask a registry maintainer to; ${invocation} submit only replaces a branch it pushed itself.`,
+        `update that pull request by hand, ask a registry maintainer to, or delete the branch on your fork to start over; ${invocation} submit only replaces a branch it pushed itself.`,
       );
   }
 }
@@ -1105,6 +1112,8 @@ function entryKindLabel(kind: (typeof NotFoundDetails.Type)["kind"]): string {
   return "Id";
 }
 function notFoundNext(details: typeof NotFoundDetails.Type, invocation: string): string {
+  if (details.directory)
+    return `pass ${printable(details.directory)} to submit that directory, or run ${invocation} list to see every stack and fragment id.`;
   if (details.looked)
     return "pass a registry root (a directory holding stacks/ or fragments/) or an entry directory inside one.";
   if (details.root)

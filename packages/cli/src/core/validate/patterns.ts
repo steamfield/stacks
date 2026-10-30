@@ -41,25 +41,33 @@ export function secretIn(line: string): string | undefined {
 /** `text` as a literal inside a regular expression. */
 export const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** Home directories that belong to an image, a CI runner or a dev container, not a person. */
+const GENERIC_HOMES = [
+  "node",
+  "runner",
+  "vscode",
+  "ubuntu",
+  "codespace",
+  "gitpod",
+  "coder",
+  "circleci",
+  "app",
+  "user",
+  "ec2-user",
+];
+
 /**
- * Absolute paths that name one machine: any macOS home (`/Users/<name>/`), the submitter's own
- * home directory and username, and a Windows drive path (not a `%s:\n` format string). Generic
- * homes such as `/home/node` or `/home/runner` in container and CI files are left alone. `home`
- * is the submitter's `HOME`; one with fewer than two segments (`/root`) is too generic to match
- * on its own.
+ * An absolute path that names one person's machine: a macOS home (`/Users/<name>/`), a Linux home
+ * (`/home/<name>/`) other than the generic ones above, or a Windows drive path, also as escaped
+ * in JSON (`C:\\Users`), but not a `%s:\n` format string.
  */
-export function absolutePathPattern(home: string): RegExp {
-  const parts = home.split(/[/\\]/).filter(Boolean);
-  const user = parts.at(-1);
-  const alternatives = [
+export const ABSOLUTE_PATH = new RegExp(
+  [
     "(?:^|[^\\w])/Users/[A-Za-z0-9._-]+/",
-    "(?<![\\w%])[A-Za-z]:\\\\[A-Za-z0-9_.-]",
-  ];
-  if (parts.length >= 2)
-    alternatives.push(`${escapeRegExp(home.replace(/[/\\]+$/, ""))}(?![\\w.-])`);
-  if (user !== undefined) alternatives.push(`/home/${escapeRegExp(user)}(?![\\w.-])`);
-  return new RegExp(alternatives.join("|"));
-}
+    `(?:^|[^\\w])/home/(?!(?:${GENERIC_HOMES.map(escapeRegExp).join("|")})/)[A-Za-z0-9._-]+/`,
+    "(?<![\\w%])[A-Za-z]:(?:\\\\\\\\|\\\\)[A-Za-z0-9_.-]",
+  ].join("|"),
+);
 
 /** Environment files that hold placeholders and may ship, each with or without `.tmpl`. */
 const ENV_TEMPLATES = [".env.example", ".env.sample", ".env.template"];

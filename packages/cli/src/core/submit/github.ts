@@ -202,7 +202,7 @@ const ident = (text: string) => text.trim().replace(/ \d+ [+-]\d{4}$/, "");
  */
 const ownBranch = Effect.fn("submit.ownBranch")(function* (
   tools: Tools,
-  options: { cwd: string; url: string; ref: string; branch: string; tip: string },
+  options: { cwd: string; repo: string; url: string; ref: string; branch: string; tip: string },
 ) {
   const { cwd } = options;
   const fetched = yield* exec(
@@ -225,57 +225,75 @@ const ownBranch = Effect.fn("submit.ownBranch")(function* (
   ]);
   const me = yield* gitLocal(tools, cwd, ["var", "GIT_AUTHOR_IDENT"]);
   yield* localOk(me);
-  const [parents = "", author = "", subject = ""] = shown.stdout.trim().split("\0");
-  const taken = new BadInput({ details: { flag: "branch_taken", branch: options.branch } });
-  if (!ok(shown) || !/^[0-9a-f]+$/.test(parents) || author !== ident(me.stdout))
-    return yield* taken;
+  const [parent = "", author = "", subject = ""] = shown.stdout.trim().split("\0");
+  const taken = branchTaken(options.branch);
+  if (!ok(shown) || !/^[0-9a-f]+$/.test(parent) || author !== ident(me.stdout)) return yield* taken;
   if (!SUBMIT_SUBJECT.test(subject)) return yield* taken;
-  // The clone holds one commit of main; its whole history, commits only, settles the parent.
-  const deepened = yield* exec(
-    remoteGit(tools, ["fetch", "--quiet", "--filter=tree:0", "--unshallow", "origin", "main"]),
-    { cwd, timeout: NETWORK, step: "push" },
-  );
-  if (!ok(deepened)) return yield* failed(deepened, "push");
-  const onMain = yield* gitLocal(tools, cwd, ["merge-base", "--is-ancestor", parents, "main"]);
-  if (!ok(onMain)) return yield* taken;
+  if (!(yield* onMain(tools, { cwd, repo: options.repo, parent }))) return yield* taken;
 });
+
+const branchTaken = (branch: string) => new BadInput({ details: { flag: "branch_taken", branch } });
+
+/**
+ * Whether `parent` is on the upstream `main`, from GitHub's compare API: `main` is `ahead` of it
+ * or `identical`. The shallow clone can't say, and deepening it would fetch all of main's history.
+ */
+const onMain = Effect.fn("submit.onMain")(function* (
+  tools: Tools,
+  options: { cwd: string; repo: string; parent: string },
+) {
+  const compared = yield* exec(
+    [tools.gh, "api", `repos/${options.repo}/compare/${options.parent}...main`, "--jq", ".status"],
+    { cwd: options.cwd, timeout: QUICK, step: "push" },
+  );
+  if (!ok(compared)) return yield* failed(compared, "push");
+  const status = compared.stdout.trim();
+  return status === "ahead" || status === "identical";
+});
+
+/** git's message when a lease no longer matches the remote branch. */
+const LEASE_REJECTED = /stale info|\[rejected\]/;
+
+/** Runs a fork request again while a fresh fork still answers "not found". */
+const untilForkReady = <E, R>(request: Effect.Effect<Captured, E, R>) =>
+  Effect.gen(function* () {
+    for (let attempt = 1; ; attempt++) {
+      const run = yield* request;
+      if (ok(run) || attempt >= PUSH_ATTEMPTS || run.timedOut || !MISSING.test(run.stderr))
+        return run;
+      yield* Effect.sleep(FORK_WAIT);
+    }
+  });
 
 /**
  * Pushes HEAD to the fork's `branch`. A new branch is pushed only while it is still absent. An
  * existing one is fetched and replaced only when its tip is `submit`'s own earlier push
- * (`ownBranch`), leased on that commit so a push someone makes meanwhile isn't lost.
+ * (`ownBranch`, checked once), leased on that commit: a push someone makes meanwhile makes the
+ * lease fail, which is `branch_taken` too.
  */
 export const push = Effect.fn("submit.push")(function* (
   tools: Tools,
-  options: { cwd: string; fork: string; branch: string },
+  options: { cwd: string; repo: string; fork: string; branch: string },
 ) {
   const url = `https://github.com/${options.fork}.git`;
   const ref = `refs/heads/${options.branch}`;
-  for (let attempt = 1; ; attempt++) {
-    const remote = yield* exec(remoteGit(tools, ["ls-remote", url, ref]), {
-      cwd: options.cwd,
-      timeout: QUICK,
-      step: "push",
-    });
-    const tip = remote.stdout.split(/\s/)[0] ?? "";
-    if (ok(remote) && tip !== "") yield* ownBranch(tools, { ...options, url, ref, tip });
-    const pushed = ok(remote)
-      ? yield* exec(
-          remoteGit(tools, [
-            "push",
-            "--quiet",
-            `--force-with-lease=${ref}:${tip}`,
-            url,
-            `HEAD:${ref}`,
-          ]),
-          { cwd: options.cwd, timeout: NETWORK, step: "push" },
-        )
-      : remote;
-    if (ok(pushed)) return;
-    if (attempt >= PUSH_ATTEMPTS || pushed.timedOut || !MISSING.test(pushed.stderr))
-      return yield* failed(pushed, "push");
-    yield* Effect.sleep(FORK_WAIT);
-  }
+  const network = { cwd: options.cwd, step: "push" } as const;
+  const remote = yield* untilForkReady(
+    exec(remoteGit(tools, ["ls-remote", url, ref]), { ...network, timeout: QUICK }),
+  );
+  if (!ok(remote)) return yield* failed(remote, "push");
+  const tip = remote.stdout.split(/\s/)[0] ?? "";
+  if (tip !== "") yield* ownBranch(tools, { ...options, url, ref, tip });
+  const pushed = yield* untilForkReady(
+    exec(
+      remoteGit(tools, ["push", "--quiet", `--force-with-lease=${ref}:${tip}`, url, `HEAD:${ref}`]),
+      { ...network, timeout: NETWORK },
+    ),
+  );
+  if (ok(pushed)) return;
+  if (!pushed.timedOut && LEASE_REJECTED.test(pushed.stderr))
+    return yield* branchTaken(options.branch);
+  return yield* failed(pushed, "push");
 });
 
 /** The open pull request from the fork's branch, if there is one. */

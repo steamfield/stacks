@@ -22,6 +22,14 @@ case "$1 $2" in
   "pr view")
     if [ -n "$FAKE_GH_PR" ]; then printf '%s\\n' "$FAKE_GH_PR"; exit 0; fi
     printf 'no pull requests found for branch\\n' >&2; exit 1 ;;
+  "api repos/"*)
+    # The compare API's status for <base>...main, answered from the clone (gh's working directory).
+    base=\${2##*/compare/}; base=\${base%...main}
+    if [ "$base" = "$("${REAL_GIT}" rev-parse main)" ]; then echo identical
+    elif "${REAL_GIT}" merge-base --is-ancestor "$base" main; then echo ahead
+    elif "${REAL_GIT}" merge-base --is-ancestor main "$base"; then echo behind
+    else echo diverged; fi
+    exit 0 ;;
   "pr edit")
     prev=""
     for a in "$@"; do [ "$prev" = "--body-file" ] && cp "$a" "$FAKE_LOG.edit-body"; prev="$a"; done
@@ -60,13 +68,19 @@ case "$sub" in
       off-main)
         base=$("${REAL_GIT}" commit-tree "main^{tree}" -m "Someone's base")
         tip=$("${REAL_GIT}" commit-tree "main^{tree}" -p "$base" -m "feat(registry): add demo-app stack") ;;
+      behind)
+        tip=$("${REAL_GIT}" commit-tree "main^{tree}" -p main -m "feat(registry): add demo-app stack")
+        "${REAL_GIT}" update-ref refs/heads/main "$("${REAL_GIT}" commit-tree "main^{tree}" -p main -m "Upstream moves on")" ;;
       *) tip="$FAKE_REMOTE_SHA" ;;
     esac
-    if [ -n "$tip" ]; then printf '%s\\trefs/heads/branch\\n' "$tip"; fi
+    if [ -n "$tip" ]; then printf '%s\\trefs/heads/branch\\n' "$tip"; printf '%s\\n' "$tip" > "$FAKE_LOG.tip"; fi
     exit 0 ;;
   fetch) exit 0 ;;
   push)
     if [ -n "$FAKE_PUSH_FAIL" ]; then printf '%s\\n' "$FAKE_PUSH_FAIL" >&2; exit 1; fi
+    if [ -n "$FAKE_PUSH_FAIL_ONCE" ] && [ ! -e "$FAKE_LOG.push-failed" ]; then
+      : > "$FAKE_LOG.push-failed"; printf '%s\\n' "$FAKE_PUSH_FAIL_ONCE" >&2; exit 1
+    fi
     [ -d "$FAKE_LOG.pushed" ] || cp -R . "$FAKE_LOG.pushed"
     exit 0 ;;
 esac
@@ -79,7 +93,7 @@ exec "${REAL_GIT}" "$@"
  * `packages/cli/registry`, the small fixture registry) into a fresh repository. Every other git
  * command runs the real git, except `ls-remote`, `fetch` and `push`, which touch no network:
  * `ls-remote` makes the fork branch's commit (`FAKE_REMOTE_TIP`) in the clone itself, so `fetch`
- * has nothing to do.
+ * has nothing to do, and `gh api .../compare/<base>...main` answers from the clone's `main`.
  */
 export function fakeGitHub() {
   const temp = tempDir();
@@ -124,6 +138,8 @@ export function fakeGitHub() {
     body: () => readFileSync(`${log}.body`, "utf8"),
     /** The body file `gh pr edit` was given. */
     editedBody: () => readFileSync(`${log}.edit-body`, "utf8"),
+    /** The calls log; `<log>.tip` holds the fork branch tip `ls-remote` last reported. */
+    log,
     /** The clone's working tree as the first push saw it. */
     pushed: join(temp.path, "calls.log.pushed"),
     cleanup: temp.cleanup,

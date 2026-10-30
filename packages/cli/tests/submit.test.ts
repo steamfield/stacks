@@ -547,6 +547,20 @@ test("a rerun leases the push on submit's own commit and updates the open pull r
     (call) => gitSubcommand(call) === "fetch" && call.includes("refs/heads/entry/stack-demo-app"),
   );
   expect(fetched).toBeDefined();
+  // Whether the tip's parent is on upstream main is GitHub's answer, without deepening the clone.
+  const compare = calls.filter(
+    (call) => call[0] === "gh" && call[1] === "api" && call[2] !== "user",
+  );
+  expect(compare).toEqual([
+    [
+      "gh",
+      "api",
+      expect.stringMatching(/^repos\/steamfield\/stacks\/compare\/[0-9a-f]{40}\.\.\.main$/),
+      "--jq",
+      ".status",
+    ],
+  ]);
+  expect(calls.some((call) => call.includes("--unshallow"))).toBe(false);
   const push = calls.find((call) => gitSubcommand(call) === "push") ?? [];
   const lease = push.find((arg) => arg.startsWith("--force-with-lease=")) ?? "";
   expect(lease).toMatch(/^--force-with-lease=refs\/heads\/entry\/stack-demo-app:[0-9a-f]{40}$/);
@@ -569,6 +583,9 @@ test("a rerun leases the push on submit's own commit and updates the open pull r
   expect(github.editedBody()).toContain("- a demo app");
 });
 
+const BRANCH_TAKEN_NEXT =
+  "update that pull request by hand, ask a registry maintainer to, or delete the branch on your fork to start over; stacks submit only replaces a branch it pushed itself.";
+
 test("a fork branch holding someone else's commit is refused, and nothing is pushed", async () => {
   for (const tip of ["other", "off-main"]) {
     const { github, home, user } = setup();
@@ -582,7 +599,7 @@ test("a fork branch holding someone else's commit is refused, and nothing is pus
     expect(envelope(run.stderr)).toMatchObject({
       tag: "BadInput",
       details: { flag: "branch_taken", branch: "entry/stack-demo-app" },
-      next: "update that pull request by hand, or ask a registry maintainer to; stacks submit only replaces a branch it pushed itself.",
+      next: BRANCH_TAKEN_NEXT,
     });
     const calls = github.calls();
     expect(calls.some((call) => gitSubcommand(call) === "push")).toBe(false);
@@ -964,4 +981,95 @@ test("the branch and title don't depend on the order the entries were given in",
     title: "feat(registry): add demo-app stack, add demo-lint fragment",
   });
   expect(results[1]).toEqual(results[0]);
+});
+
+test("a fork branch whose base main has since moved on is still submit's own, and is replaced", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  const run = await runCli(["submit", "demo-app", "--json"], {
+    home,
+    env: { ...github.env, FAKE_REMOTE_TIP: "behind" },
+  });
+  expect(run.stderr).toBe("");
+  expect(run.status).toBe(0);
+  const calls = github.calls();
+  const push = calls.find((call) => gitSubcommand(call) === "push") ?? [];
+  const lease = push.find((arg) => arg.startsWith("--force-with-lease=")) ?? "";
+  // The lease names the tip ls-remote reported, the commit submit pushed before main moved.
+  expect(lease).toBe(
+    `--force-with-lease=refs/heads/entry/stack-demo-app:${readFileSync(`${github.log}.tip`, "utf8").trim()}`,
+  );
+});
+
+test("a push the lease rejects means someone pushed to the branch meanwhile", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  const run = await runCli(["submit", "demo-app", "--json"], {
+    home,
+    env: {
+      ...github.env,
+      FAKE_REMOTE_TIP: "submit",
+      FAKE_PUSH_FAIL: " ! [rejected]        HEAD -> entry/stack-demo-app (stale info)",
+    },
+  });
+  expect(run.status).toBe(2);
+  expect(run.stdout).toBe("");
+  expect(envelope(run.stderr)).toMatchObject({
+    tag: "BadInput",
+    retryable: false,
+    details: { flag: "branch_taken", branch: "entry/stack-demo-app" },
+    next: BRANCH_TAKEN_NEXT,
+  });
+});
+
+test("a fresh fork that isn't ready retries the push but checks the branch once", async () => {
+  const { github, home, user } = setup();
+  entry(user, "stack", "demo-app");
+  const run = await runCli(["submit", "demo-app", "--json"], {
+    home,
+    env: {
+      ...github.env,
+      FAKE_REMOTE_TIP: "submit",
+      FAKE_PUSH_FAIL_ONCE: "remote: Repository not found.",
+    },
+  });
+  expect(run.stderr).toBe("");
+  expect(run.status).toBe(0);
+  const calls = github.calls();
+  const count = (subcommand: string) =>
+    calls.filter((call) => gitSubcommand(call) === subcommand).length;
+  expect(count("push")).toBe(2);
+  expect(count("ls-remote")).toBe(1);
+  expect(count("fetch")).toBe(1);
+  expect(
+    calls.filter((call) => call[0] === "gh" && call[1] === "api" && call[2] !== "user"),
+  ).toHaveLength(1);
+});
+
+test("an unknown id hints at ./<name> when the working directory has a folder by that name", async () => {
+  const { github, home } = setup();
+  const work = tempDir();
+  cleanups.push(work.cleanup);
+  mkdirSync(join(work.path, "my-api", "stacks"), { recursive: true });
+  const run = await runCli(["submit", "my-api", "--json"], {
+    home,
+    env: github.env,
+    host: { cwd: work.path },
+  });
+  expect(run.status).toBe(2);
+  expect(run.stdout).toBe("");
+  expect(envelope(run.stderr)).toMatchObject({
+    tag: "NotFound",
+    details: { id: "my-api", directory: "./my-api" },
+    next: "pass ./my-api to submit that directory, or run stacks list to see every stack and fragment id.",
+  });
+  const text = await runCli(["submit", "my-api"], {
+    home,
+    env: { ...github.env, CLAUDECODE: "1" },
+    host: { cwd: work.path },
+  });
+  expect(text.stderr).toContain(
+    "Next: pass ./my-api to submit that directory, or run stacks list to see every stack and fragment id.",
+  );
+  expect(github.calls()).toEqual([]);
 });

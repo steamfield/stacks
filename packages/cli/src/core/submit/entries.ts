@@ -2,6 +2,7 @@ import { Kebab, type Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, NotFound } from "../../errors";
+import { Host } from "../../services/host";
 import { closest } from "../suggest";
 import { resolveTarget, type Target } from "../validate/target";
 
@@ -49,8 +50,17 @@ const userEntry = Effect.fn("submit.userEntry")(function* (id: string) {
     );
   }
   const [only, ...more] = found;
-  if (only === undefined)
-    return yield* new NotFound({ details: { id, suggestions: closest(id, [...new Set(known)]) } });
+  if (only === undefined) {
+    // A folder by that name in the working directory was probably meant as a path.
+    const local = yield* isDirectory(fs, path.resolve((yield* Host).cwd, id));
+    return yield* new NotFound({
+      details: {
+        id,
+        suggestions: closest(id, [...new Set(known)]),
+        ...(local ? { directory: `./${id}` } : {}),
+      },
+    });
+  }
   if (more.length) return yield* new BadInput({ details: { id, flag: "submit_entry" } });
   return only;
 });

@@ -16,7 +16,7 @@ const marketplaceSchema = Schema.toType(
 const Manifest = Schema.Struct({
   name: Schema.String,
   version: Schema.String,
-  skills: Schema.Union([Schema.String, Schema.Array(Schema.String)]),
+  skills: Schema.optionalKey(Schema.Union([Schema.String, Schema.Array(Schema.String)])),
 });
 const digest = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
@@ -47,8 +47,9 @@ test("the Claude marketplace manifest decodes and names a contained shipped copy
   );
   expect(manifest.name).toBe("stacks");
   expect(manifest.version).toBe(pkg.version);
-  const paths = typeof manifest.skills === "string" ? [manifest.skills] : manifest.skills;
-  expect(paths.length).toBeGreaterThan(0);
+  // Claude Code always scans the default skills/ directory; a `skills` field only adds to it.
+  const extra = manifest.skills ?? [];
+  const paths = ["./skills", ...(typeof extra === "string" ? [extra] : extra)];
   const discovered: string[] = [];
   for (const path of paths) {
     expect(path.split(/[\\/]/)).not.toContain("..");

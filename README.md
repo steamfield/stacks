@@ -22,17 +22,17 @@ flowchart LR
 Install Node 22+, git, Bun, uv, make, jq, and lefthook, and authenticate your coding agent. From a fresh directory, use the published CLI version checked for this submission:
 
 ```sh
-npx --yes @steamfield/stacks@0.5.0 show python-react
-npx --yes @steamfield/stacks@0.5.0 new python-react stacks-demo --sandbox --no-launch
+npx --yes @steamfield/stacks@0.6.0 show python-react
+npx --yes @steamfield/stacks@0.6.0 new python-react stacks-demo --sandbox --no-launch
 cd stacks-demo
 cp .env.example .env
 ```
 
-Open `stacks-demo` in your coding agent and ask: **“Read .stacks/BRIEF.md and implement it without weakening the checks; finish by running npx --yes @steamfield/stacks@0.5.0 verify --all.”** Then inspect the result:
+Open `stacks-demo` in your coding agent and ask: **“Read .stacks/BRIEF.md and implement it without weakening the checks; finish by running npx --yes @steamfield/stacks@0.6.0 verify --all.”** Then inspect the result:
 
 ```sh
-npx --yes @steamfield/stacks@0.5.0 verify --all
-npx --yes @steamfield/stacks@0.5.0 runs
+npx --yes @steamfield/stacks@0.6.0 verify --all
+npx --yes @steamfield/stacks@0.6.0 runs
 make dev
 ```
 

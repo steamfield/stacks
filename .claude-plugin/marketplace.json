@@ -13,7 +13,7 @@
         "source": "git-subdir",
         "url": "steamfield/stacks",
         "path": "packages/cli/plugin",
-        "ref": "v0.5.0"
+        "ref": "v0.6.0"
       }
     }
   ]

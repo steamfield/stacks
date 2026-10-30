@@ -4,6 +4,23 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-30
+
+### Added
+
+- `stacks submit <entry...>` opens a draft pull request that adds your stacks and fragments to the public registry at `steamfield/stacks`, using `gh` and `git`. `--dry-run` shows the pull request body and file list without pushing; `--query` proposes searches the entry should rank first for. A rerun updates the same pull request.
+- `stacks validate <dir> --submission` adds readiness checks for a submission: leftover `stacks:fill` markers, credential-shaped strings and `.env` files (errors), and personal absolute paths and a missing search card (warnings).
+- `stacks guide author [topic]` prints the `stacks-author` agent skill and its references: the entry format, converting an existing repository, designing a new stack with the user, fragments, search cards and submitting.
+- `stacks skill install [stacks|stacks-author]` installs either skill with all its files.
+- A Claude Code plugin marketplace in this repository: `/plugin marketplace add steamfield/stacks`, then `/plugin install stacks@stacks`, installs both skills.
+- Registry entries can name the GitHub login that submitted them. `show`, `list --json` and `doctor` report it as `author`.
+- Published builds report anonymous usage telemetry after the first-run notice, as described in `docs/reference/telemetry.md`. Events use schema version 3 and count the questions the agent asked in `NOTES.md`; `DO_NOT_TRACK`, `--no-telemetry` and `stacks telemetry disable` turn it off.
+
+### Changed
+
+- `search` ranks by evidence in an entry's strongest fields, keeps stacks you name strong, honors more ways of saying "no X", judges fragment fit only against the stacks you name, caps merged results, shows each fragment's target stacks and labels statistics that come from seeded data.
+- The bundled agent skill moved from `skill/` to `skills/stacks/`.
+
 ## [0.5.0] - 2026-10-29
 
 ### Added
@@ -105,6 +122,7 @@ First release, as the npm package `@steamfield/stacks` installed as `stacks` (No
 - Commands: `list`, `show`, `new`, `add`, `create`, `validate`, `verify`, `runs`, `schema`, `guide`, `skill` and `doctor`, each with `--json` output, fixed exit codes and error envelopes with a next action.
 - Bundled stacks: `astro-blog`, `cloudflare-react-router`, `go-cli`, `mobile-expo`, `python-react`, `react-router`, `tauri-react` and `typescript-cli`, with 19 fragments.
 
+[0.6.0]: https://github.com/steamfield/stacks/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/steamfield/stacks/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/steamfield/stacks/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/steamfield/stacks/compare/v0.3.0...v0.3.1

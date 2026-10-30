@@ -43,8 +43,8 @@ test("one invocation finalizes scoped resources on failure", async () => {
 test("fresh invocations do not share Output buffers", async () => {
   const a = await runCli(["--version"]);
   const b = await runCli(["doctor", "--json"]);
-  expect(a.stdout.trim()).toBe("0.5.0");
-  expect(JSON.parse(b.stdout).version).toBe("0.5.0");
+  expect(a.stdout.trim()).toBe("0.6.0");
+  expect(JSON.parse(b.stdout).version).toBe("0.6.0");
 });
 test("BrokenPipe is a quiet successful interruption", async () => {
   const result = await runCli([], { program: Effect.fail(new BrokenPipe()) });

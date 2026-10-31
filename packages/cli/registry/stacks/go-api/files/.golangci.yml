@@ -1,0 +1,78 @@
+version: "2"
+
+run:
+  build-tags: [integration]
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - bodyclose
+    - gocritic
+    - gocyclo
+    - misspell
+    - unconvert
+    - unparam
+    - gosec
+    - revive
+    - nolintlint
+  settings:
+    gocritic:
+      enabled-tags: [diagnostic, performance]
+      disabled-checks: [hugeParam, appendCombine, ifElseChain, wrapperFunc]
+    gocyclo:
+      min-complexity: 30
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - os.Setenv
+        - os.Unsetenv
+    # All gosec rules remain enabled; there are no global security exclusions.
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: var-naming
+          disabled: true # internal/errors intentionally has the standard library's name.
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: strict
+    presets: []
+    rules:
+      - path: _test\.go$
+        linters: [gocyclo, gosec, errcheck, unparam]
+
+formatters:
+  enable: [gofmt, goimports]
+  exclusions:
+    generated: strict

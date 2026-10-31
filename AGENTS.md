@@ -46,7 +46,7 @@ Root commands run from the repo root and fan out to every workspace package (`bu
 | `bun run dev verify [--only ..] [--skip-tag ..] [--all] [--accept-changes]` | Run the nearest project's manifest steps from the directory you ran it in. Exit 0 green or partial, 5 on a failed step (`VerifyFailed`) or changed steps (`VerifyChanged`, nothing run), both with the result kept on stdout, 2 outside a project, 3 bad manifest or a newer state record, 6 `--accept-changes` under an agent or without a TTY on stdin, 130 interrupted (teardown still ran) |
 | `bun run build` | Build every package (the CLI bundles `packages/cli/dist/cli.mjs` with the `dist/stacks` Node entry) |
 | `bun run typecheck` | Root harness tsc, then each package's |
-| `bun run lint` | Biome over the whole repo, with each package's nested plugins |
+| `bun run lint` | Biome over the whole repo, with each package's nested plugins (formatting is off for the Prettier-formatted stack trees `packages/cli/biome.json` lists) |
 | `bun run format` | Safe fixes and formatting |
 | `bun run test` | Root tests (hooks and the delegate runner), then each package's tests |
 | `bun run test:hooks` | Root tests only: `tests/hooks/` and `tests/scripts/` (Vitest on Node) |
@@ -195,7 +195,7 @@ Install lefthook on PATH (e.g. brew install lefthook), then bun install. Pre-com
 
 ## Build workarounds
 
-No patches, pinned prereleases or disabled rules. Every shared dependency version lives once, in the root `workspaces.catalog`; packages depend on `catalog:`. Effect packages resolve together at stable 4.0.6 with compatible 4.x ranges, Vitest/coverage 5.x. The generated type config targets current TypeScript 7. Bun builds one minified Node ESM bundle without a sourcemap. The entry refuses Bun and Node below 22 before importing it. Packing escapes registry `.gitignore` assets as `.gitignore.stacks` because packers and npm installers drop the literal name; bin's filesystem layer restores the logical name only inside the bundled registry.
+No patches, pinned prereleases or disabled rules. Every shared dependency version lives once, in the root `workspaces.catalog`; packages depend on `catalog:`. Effect packages resolve together at stable 4.0.6 with compatible 4.x ranges, Vitest/coverage 5.x. The generated type config targets current TypeScript 7. Bun builds one minified Node ESM bundle without a sourcemap. The entry refuses Bun and Node below 22 before importing it. Packing escapes registry `.gitignore` and `bunfig.toml` assets as `<name>.stacks` because packers and npm installers drop the literal names (the list is `packages/cli/scripts/packaging.ts::DROPPED`); bin's filesystem layer restores the logical name only inside the bundled registry.
 
 The shipped dev wrapper was adapted to forward directly delivered SIGINT/SIGTERM/SIGHUP, with a reproducing subprocess test. Reassess/remove local adaptation when upstream provides equivalent signal forwarding. Biome stdin suppresses useful plugin diagnostics, so boundary tests use actual temporary files; no Grit rule was removed.
 
@@ -209,7 +209,7 @@ Claude Code orchestrates; Codex takes the coding tasks Claude delegates (`script
 
 ## Pending user actions
 
-Telemetry launch, in order: publish `@steamfield/stacks-format` 0.6.0 (packages/format/README.md, "Publishing"); deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; `bun run release` (format is skipped as already published); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
+Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; `bun run release` (format is skipped as already published); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
 
 ## Deeper context
 

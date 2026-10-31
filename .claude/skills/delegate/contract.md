@@ -114,7 +114,7 @@ body() { awk 'NR==1&&/^---$/{f=1;next} f&&/^---$/{f=0;next} !f' "$1"; }  # witho
   echo "already ran the checks. The task's contract:"
   cat "{THIS CONTRACT'S PATH}"
 } > "$review/prompt.md"
-codex exec --ephemeral --sandbox read-only -m gpt-6-sol -c 'model_reasoning_effort="high"' \
+codex exec --ephemeral --sandbox read-only -m gpt-6.1-sol -c 'model_reasoning_effort="high"' \
   -c 'service_tier="priority"' -o "$review/review.md" - < "$review/prompt.md"
 ```
 

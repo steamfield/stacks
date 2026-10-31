@@ -73,92 +73,59 @@ commands:
 
 # Expo app + Hono API
 
-Three bun workspaces: `apps/api` (Bun + Hono with `@hono/zod-openapi`, Drizzle on Postgres), `apps/mobile` (Expo Router, NativeWind, TanStack Query), and `packages/schemas` (zod schemas both import). Workspace packages are named `@<scope>/api`, `@<scope>/mobile`, `@<scope>/schemas` with the project's package scope (drop a leading `@` from the scope), and ship raw TypeScript with no build step.
+## What stacks wrote
+
+A Bun workspace with an Expo Router screen calling the Hono health route through TanStack Query and a typed client, shared zod schemas, a database-backed `GET /items?limit=1`, readiness, JSON errors and request logs, Drizzle's schema and initial migration, API and mobile tests, configs, dev scripts and reference docs. Clerk, CI and agent instructions belong to their fragments. Read the code before extending it.
 
 ## Layout
 
-```
-package.json        workspaces apps/*, packages/*; root scripts; bunfig.toml; biome.json; tsconfig.base.json
-compose.yaml        postgres for dev and tests
-scripts/            dev.sh, dev.ts, dev-logs.sh, sim-shot.sh, prepare.ts (shipped)
-docs/               api.md, mobile.md, testing.md (shipped; the conventions in detail)
-apps/api/
-  src/index.ts      boot checks, Bun server export
-  src/app.ts        OpenAPIHono app: error handlers, global middleware, /openapi.json, /docs
-  src/env.ts        Hono context types only (no runtime imports)
-  src/client.ts     types-only entry (`@<scope>/api/client`) re-exporting AppType
-  src/routes/       one OpenAPIHono group per domain, composed in routes/index.ts (exports AppType)
-  src/services/     business logic and queries; the only Drizzle users
-  src/db/           index.ts (lazy connection, the one `bun` import), schema.ts
-  drizzle/          generated migrations, never hand-edited
-  test/             setup.ts harness, *.test.ts
-packages/schemas/src/  one file per domain, re-exported from index.ts
-apps/mobile/
-  src/app/          Expo Router routes (_layout.tsx mounts providers)
-  src/components/   UI, styled.ts (the one place `styled` is called)
-  src/lib/          api.ts (hc client), api-url.ts, query-client.ts, cn.ts, queries/
-  src/global.css    Tailwind theme tokens
-  test/             render.tsx, router-mock.ts, setup.ts, *.test.tsx
-```
+`apps/api/src/routes/` holds literal OpenAPI routes; `services/` owns queries; `db/` owns connections and tables. `packages/schemas/src/` is the shared wire contract. `apps/mobile/src/app/` holds screens; `lib/queries/` owns data access. Workspace packages use the project slug followed by `-api`, `-mobile` and `-schemas`, so an unset package scope still produces valid names. They export raw TypeScript.
 
 ## Setup
 
-1. Root `package.json` with workspaces and the scripts in Commands, and `packageManager` set by hand to `bun@<bun --version>` (`bun install` doesn't write it; CI reads it). `bunfig.toml`: hoisted linker, and test root `apps/api` so a bare `bun test` never runs jest files.
-2. `compose.yaml`: one `postgres` service from the image decision, credentials from env (dev default `app`/`app`/`app`), host port `${PORT_DB:-5432}`, a named volume at the data path the image's docs give for the chosen major, a top-level compose `name:` from the project slug so two checkouts don't share containers, `pg_isready` healthcheck. `db:up` is `docker compose up -d --wait postgres`; `db:down` is `docker compose stop postgres`.
-3. `packages/schemas`: zod, `HealthResponse` and `ReadyResponse` first, plus the schemas for the first table's route.
-4. `apps/api`: `bun init` non-interactively in that directory, keeping only its `package.json` and `tsconfig.json`, then the API deps. `package.json` exports `./client` as `./src/client.ts`. `drizzle.config.ts` reads `DATABASE_URL`, schema `src/db/schema.ts`, out `drizzle/`, strict; drizzle-kit runs on Node and needs `pg` even though the app uses bun's SQL client. Confirm `DATABASE_URL` reaches drizzle-kit (it runs as a Node child, so load the env file into the process that launches it) by running `db:migrate` once against an empty database. Start the schema with one minimal table and one route over it that takes a validated query parameter, so the error-envelope test has a real 400 to hit. Build the Conventions below with `GET /health` (process only) and `GET /health/ready` (`select 1`, 503 when the database doesn't answer). The server listens on `PORT_API` (default 3000). Scripts load the root `.env` with bun's env-file flag.
-5. `apps/mobile`: the official Expo app generator non-interactively into a temp directory, merged into `apps/mobile` keeping only the app itself: discard its git, lint, README, LICENSE, agent instruction files (`AGENTS.md`, `CLAUDE.md`, `.claude/`, `.cursor/`), reset script, and demo screens and assets. Move routes under `src/app`. Install with Expo's own install command (`expo` itself first, then the rest) so versions come from the SDK's ranges, never `latest`; when a peer demands something else, pin it and record the pin and its removal condition under Build workarounds. Depend on `@<scope>/api` and `@<scope>/schemas` as `workspace:*`. Add NativeWind on the release line that supports Tailwind's CSS-first theme, from its prerelease channel if that line isn't stable yet, with Tailwind through PostCSS and the NativeWind Metro wrapper, per that line's docs (docs describing a `tailwind.config.js` and a Babel preset are for the older line).
-6. The proving slice: `useHealth` in `src/lib/queries/` calls `api.health.$get()`, and the home screen renders the API's status, or an error state when it can't reach it. One real app-to-API round trip, typed end to end from `packages/schemas`.
-7. Tests from Testing, `scripts/` wired to Commands, `.env.example` adapted, README and AGENTS.md filled.
-8. `stacks verify` until green.
+1. Add the declared deps in their workspaces and root-dev at the root. Add the schemas workspace to API and mobile, and the API workspace to mobile, using `workspace:*`. Install Expo first, then let `expo install` choose SDK-compatible mobile packages, including jest, jest-expo, React types and TypeScript. For NativeWind's CSS-first release line, read its current installation guide and install the matching NativeWind/CSS-engine pair from its prerelease channel when necessary. Keep Tailwind and its PostCSS plugin aligned. If the engine requires a compatible transitive compiler override, use the release's documented supported compiler and record its removal condition under Build workarounds.
+2. Run `bun run setup`. Fill `POSTGRES_IMAGE` in `.env` with the current official Postgres alpine image. Confirm the image's documented volume layout matches `compose.yaml`. Move `PORT_DB` and `DATABASE_URL` together when that port is busy. Set `EXPO_PUBLIC_API_URL` when the API moves off its default port. Start Docker, then `bun run db:up` and `bun run db:migrate`. The migration is already shipped; generate a new one only after changing the schema.
+3. Run the checks. Update shipped code/config rejected by the installed releases without dropping a rule, test or check. Use the installed Expo CLI's headless route-type generation command before mobile's tsc if the CLI changes it. Native directories remain generated and ignored; run the installed CLI's prebuild command only for a native simulator/device build, preserving the shipped app.
+4. Apply each selected fragment. Extend `Providers` and `test/render.tsx` together so the root layout and tests mount the same providers. Clerk owns auth modules, sign-in, API verification and `test/auth-provider.test.tsx`; its offline matrix uses real hooks/hc and SDK-boundary stubs. When Clerk is excluded, add that test for the anonymous seam: request succeeds without Authorization and no Clerk import. CI owns the workflow; `tests/ci-contract.test.ts` parses it with Bun's YAML parser. Keep the API/mobile/bundle filters and command checks green. If CI is excluded, the test requires an absent workflow.
+5. Record Node in `.node-version` and the installed Bun version as `packageManager` in root `package.json` (CI reads them). Fill README and AGENTS.md with the real commands, scoped test instructions and pending account/device/hosted-CI work. Run `stacks verify` until green.
 
 ## Conventions
 
-Read `docs/api.md` before changing routes, services, or schemas, and `docs/mobile.md` before changing screens. In short:
+Read `docs/api.md`, `docs/mobile.md` and `docs/testing.md` for the boundaries the slice enforces.
 
-- **Schemas** live in `packages/schemas`, named for OpenAPI with zod's own `.meta({ id })`, exporting the inferred type under the schema's name.
-- **Routes** are `createRoute` objects mounted with `.openapi(route, handler)` on per-domain `OpenAPIHono<AppEnv>` groups. Route objects stay literal (no wrapping factory) so `hc` keeps per-route types. `/openapi.json` and a Scalar reference at `/docs` come from the app.
-- **AppType stays free of middleware; runtime imports are confined.** `routes/index.ts` and everything it imports are what the mobile typecheck sees, so middleware is mounted in `app.ts`, never in route modules. `bun` is imported by `db/index.ts` alone and Drizzle only by services and `db/`; both are reachable through `routes -> services -> db`, which is expected.
-- **One error shape**: `{ "message": string }` as JSON, owned by `app.ts` in `onError`, `notFound`, and the zod `defaultHook` (issues joined as `path: message`). An `HTTPException` passes through at its status; anything else is logged with the request and answered as a bare 500. Services throw `HTTPException`; a service another service composes returns a discriminated result and exports its status mapping with `satisfies`.
-- **Config**: `index.ts` exits with a fix-it message when `DATABASE_URL` is missing. `db()` is lazy and cached per connection string, so importing never connects.
-- **Mobile data access** goes through hooks in `src/lib/queries/` only. `lib/api.ts` (the `hc` client) is imported by nothing else. Hooks own query keys (from one `keys.ts`), `staleTime`, and error mapping; failed responses become an `ApiError` carrying the server's message. One `QueryClient`: one query retry, no mutation retries, no refetch on focus.
-- **API URL**: `EXPO_PUBLIC_API_URL` when set, otherwise the Metro host from Expo's `hostUri` on port 3000 (the bundle can't read `PORT_API`; set the URL when the port moves), so simulators, emulators, and devices all reach the dev API. A release build throws when the URL is unset or still the `https://api.example.com` placeholder EAS profiles start with.
-- **Styling**: follow `docs/mobile.md`'s NativeWind tokens and `components/styled.ts` boundary; never `StyleSheet.create`.
-
-## Tool configuration
-
-- **Biome** at the root: recommended rules plus `useImportType`, `useExportType`, `noUnusedImports`, `useConst`, `noParameterAssign`; two spaces, single quotes, semicolons, trailing commas, width 100; organized imports; VCS ignore file; Tailwind directives in the CSS parser. Ignore `drizzle/`, `.expo/`, `ios/`, `android/`, `dist/`, and generated assets (Expo's route types).
-- **TypeScript**: `tsconfig.base.json` strict with `noUncheckedIndexedAccess`, `noImplicitOverride`, unused locals/parameters, `verbatimModuleSyntax`, `isolatedModules`, bundler resolution, `noEmit`, `skipLibCheck`. The API adds bun types; mobile extends Expo's base too, adds jest types, an `@/*` alias to `src/`, and Expo's generated route types.
-- **jest** (mobile): the `jest-expo` preset, `setupFilesAfterEnv` `test/setup.ts`, `testMatch` under `test/`, `TZ=UTC` set in the config, `testTimeout` raised well above the default (the API suite shares the cores), and `transformIgnorePatterns` built from the preset's own list, extended with the workspace scope and bun's package store rather than replaced.
+- Keep schemas in the shared package, named with zod's own `.meta({ id })`; mobile never loads zod-openapi's runtime augmentation.
+- Keep `client.ts` types-only and middleware in `app.ts`. Routes reach Drizzle through services; only `db/index.ts` imports Bun's SQL client. The transitive import-graph tests cover these boundaries.
+- Preserve `{ message: string }` for all errors, including zod failures, 404, readiness 503 and unexpected 500. Log unexpected failures once, with request correlation and no headers, tokens or payloads.
+- Connections are lazy and keyed by URL. `createApp(url)` binds each test's database to its own app, even when another file changes process env. Validate boot config before listening.
+- Screens import query hooks, never the client. Hooks own keys, stale times, response validation and error mapping. Keep one production QueryClient with one query retry, no mutation retry and no focus refetch.
+- API URL uses the explicit public env value or Metro's hostname on the default API port. A release must reject missing/placeholder URLs. Styling uses semantic NativeWind tokens in `src/global.css`; third-party components register in `components/styled.ts`.
 
 ## Testing
 
-Read `docs/testing.md`; use real integration tests, never own-code mocks.
+API tests use real Postgres and `setupApiTest(label)`: one migrated template per process under an advisory lock, a clone per file, dynamic app import after env setup, exact ownership cleanup. `harness-contract` checks migration reuse and failed-fixture cleanup and starts two actual API test files in parallel. Add route cases to these harnesses instead of mocking services.
 
-Implement `docs/acceptance/mobile-expo.md`: verify separately checks database isolation/import graphs, offline auth integration and CI filters. Real accounts, devices and hosted CI remain Pending user actions.
-
-- **API** (bun:test): use `setupApiTest(label)` from `test/setup.ts`, exactly as `docs/testing.md` prescribes (template migrations, per-file database, dynamic app import, cleanup). Dispatch with `t.app.request(...)`. Cover health/readiness with real Postgres, 404/zod-400 envelopes, and the transitive client import graph.
-- **Mobile** (jest-expo, Testing Library): use `renderScreen` from the documented harness with real providers/hooks/hc, a fresh QueryClient, no retries and no lingering GC timer. Stub only fetch/native boundaries through shared factories. Cover home success/error and the auth-provider matrix.
-- The bundle checks Metro/Babel/NativeWind compilation; simulator E2E remains external.
+Mobile tests render the real providers, query hook and hc client, with a fresh QueryClient and no retries or GC timer. Only fetch, native bindings and the fragment's external Clerk SDK may be stubbed. Await Testing Library's render, events and unmount. Bundle checks both native targets; neither Jest nor Metro certifies native layout or an account login. `docs/acceptance/mobile-expo.md` names the extra fragment acceptance cases.
 
 ## Commands
 
-Root scripts call workspace scripts with `bun run --filter`. `setup` is idempotent: install, copy `.env.example` to `.env` if missing, symlink `apps/mobile/.env` to the root one (Expo only reads env from its project directory; skip the link while `apps/mobile` doesn't exist yet). `dev.sh` records output and runs `scripts/dev.ts`, which starts the API workspace's `dev` and mobile's `dev` (`expo start`) or `ios` (`expo run:ios`). Keep those names and include scripts in typechecking. It refuses busy ports and stops only its owned process groups on failure, signal or either app's exit. Postgres stays up; `db:down` stops it without deleting data. Set `PORT_API` and `PORT_METRO` (default 8081) to move dev ports; also update `EXPO_PUBLIC_API_URL` when the API moves. `prepare` runs `scripts/prepare.ts`; `bundle` writes `dist/`. `typecheck` in mobile generates Expo's route types first, with the installed CLI's headless command. Mirror Commands and scoped tests from `docs/testing.md` in AGENTS.md. `PORT_DB` and `DATABASE_URL` move together; verify teardown stops Postgres.
+The root scripts are shipped and delegate to workspace scripts. `setup` installs dependencies, copies missing env and links mobile's env. `dev` runs the preserved owner-scoped supervisor, with output in `.logs/dev.log`; `dev:logs` and `sim:shot` aid simulator debugging. API/mobile scripts keep `dev` and `ios` names for the supervisor. Typechecking includes scripts and every workspace.
+
+`db:up` waits for Postgres; `db:down` stops it without deleting data. `db:check` validates migration metadata and generates against a temporary copy to detect uncommitted schema changes. `test` runs API, mobile and CI contracts; `check` adds lint, typecheck, migration checks, bundle and Expo dependency checks. Keep the names in Commands and AGENTS.md.
 <!-- stacks:when with=git-hooks -->
 
-pre-push runs `bun run db:up` before the tests, since the API suite needs Postgres; say so in the Git hooks section.
+Write lefthook config before the first install. Pre-push starts Postgres before tests; document that it leaves Postgres running.
 <!-- stacks:end -->
-
 <!-- stacks:when with=ci-github -->
-**CI.** Jobs for lint, typecheck, mobile tests, API tests, and the bundle. The stack declares no coverage command, so CI runs `test:api` and `test:mobile`; take the coverage decision as no. Mobile tests and the bundle also set up Node from `.node-version`. API tests run against a Postgres service container with `DATABASE_URL` set, and run `db:check` first. The bundle job runs `bundle` and Expo's doctor in `apps/mobile`.
+
+CI jobs cover lint, typecheck, mobile, API and bundle. Use `test:api`/`test:mobile` (no coverage command is declared). API runs migrations and `db:check` against a Postgres service; mobile and bundle set up Node from `.node-version`. The bundle job also runs `expo:check`. Use `changes` outputs named `api`, `mobile`, `bundle`, from a paths-filter step named `filter`. Every filter covers shared config, lockfile and workflow paths; mobile and bundle also cover API/schema changes. Always-running `ci-ok` rejects failed/cancelled jobs and accepts intentional skips.
 <!-- stacks:end -->
 
 ## Gotchas
 
-- jest-expo and Expo's CLI run on Node, not bun's runtime. Never run mobile tests with `bun test`.
-- Expo reads `.env` only from `apps/mobile`; without the symlink, `EXPO_PUBLIC_*` values are silently missing. They're inlined at build time, so per-environment values belong in EAS build profiles, and changing one needs Metro's cache cleared.
-- `@hono/zod-openapi` adds `.openapi()` to zod schemas when it loads, and the mobile app never loads it, so `.openapi()` in `packages/schemas` passes typecheck and throws at runtime in the app. Use zod's own `.meta({ id })`.
-- bun:test shares the module cache across files: read env per call (connections, keys), never at import.
-- `CREATE DATABASE ... TEMPLATE` fails while anything is connected to the template; close it before cloning.
-- Await every `render` and `fireEvent` from Testing Library for React Native (awaiting a synchronous one is harmless); a floating one lets assertions run before React flushes.
-- `className` on a component NativeWind doesn't know is dropped silently. A blank screen is usually a styling failure or a `return null` gate, not a crash; `docs/mobile.md` has the triage.- An Expo config plugin can add an entitlement (Apple sign-in, associated domains) that makes `expo run:ios` demand a signing certificate for a simulator build. Gate such entitlements to EAS builds and record it under Build workarounds.
+- Expo and jest-expo run on Node. Never run mobile tests with `bun test`. Keep jest-expo's own transform allowlist when extending it for workspace and NativeWind source.
+- Expo reads env from `apps/mobile`; public values are inlined. Keep the root-env symlink, put environment-specific release values in EAS profiles, and clear Metro after changes.
+- bun:test shares modules across files. Read env per call and bind a database per app. Close template connections before cloning; never delete databases inferred from a prefix.
+- `.openapi()` on a shared zod schema can typecheck and crash in mobile. Use `.meta()`.
+- NativeWind's CSS engine and its compiler must agree. Follow its installation guide's compiler compatibility instructions when export reports a deserialization error; remove an override once a current compiler works.
+- A blank screen may be an unstyled third-party component or a loading gate. Read dev logs and the simulator debugging guide. Jest computes no native layout.
+- Expo config plugins can add signing entitlements that break simulator builds. Gate them to EAS builds and record any workaround.

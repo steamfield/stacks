@@ -1,0 +1,41 @@
+import type { Tick } from "./generated/bindings";
+import type { InfoResult, TickObserver, Transport } from "./transport";
+
+export class MockTransport implements Transport {
+  readonly windowLabel: string;
+  readonly observers = new Set<TickObserver>();
+  readonly scenario: string;
+  readonly autoTicks: boolean;
+
+  constructor(params = new URLSearchParams()) {
+    this.windowLabel = params.get("window") ?? "main";
+    this.scenario = params.get("scenario") ?? "ok";
+    this.autoTicks = params.get("ticks") !== "off";
+  }
+
+  async appInfo(): Promise<InfoResult> {
+    if (this.scenario === "offline") throw new Error("Desktop connection unavailable");
+    if (this.scenario === "error") return { status: "error", error: { kind: "invalid_metadata" } };
+    return { status: "ok", data: { name: "{{project_name}}", version: "dev", os: "browser" } };
+  }
+
+  subscribeTicks(observer: TickObserver) {
+    this.observers.add(observer);
+    let counter = 0;
+    const timer = this.autoTicks
+      ? setInterval(() => observer.next({ counter: ++counter, elapsed_ms: counter * 1000 }), 1000)
+      : undefined;
+    return () => {
+      clearInterval(timer);
+      this.observers.delete(observer);
+    };
+  }
+
+  push(tick: Tick) {
+    for (const observer of this.observers) observer.next(tick);
+  }
+
+  end(error?: unknown) {
+    for (const observer of [...this.observers]) observer.end(error);
+  }
+}

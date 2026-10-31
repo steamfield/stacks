@@ -1,0 +1,101 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type errorRow struct {
+	status    int
+	message   string
+	retryable bool
+}
+
+var errorTable = map[string]errorRow{
+	apperrors.BadInput:             {400, "Invalid request.", false},
+	apperrors.NotFound:             {404, "Resource not found.", false},
+	apperrors.MethodNotAllowed:     {405, "Method not allowed.", false},
+	apperrors.PayloadTooLarge:      {413, "Request body is too large.", false},
+	apperrors.UnsupportedMediaType: {415, "Expected a JSON body.", false},
+	apperrors.Internal:             {500, "Internal server error.", false},
+	apperrors.Unavailable:          {503, "Service unavailable.", true},
+}
+
+type publicError struct {
+	Tag       string `json:"tag"`
+	Message   string `json:"message"`
+	Retryable bool   `json:"retryable"`
+}
+
+type errorEnvelope struct {
+	Error publicError `json:"error"`
+}
+
+func envelope(tag string) errorEnvelope {
+	row := errorTable[tag]
+	return errorEnvelope{Error: publicError{tag, row.message, row.retryable}}
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any, logger *slog.Logger) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		writeError(w, apperrors.Wrap(apperrors.Internal, "encode response", err), logger)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if w.Header().Get("Cache-Control") == "" {
+		w.Header().Set("Cache-Control", "no-store")
+	}
+	w.WriteHeader(status)
+	if _, err := w.Write(append(data, '\n')); err != nil {
+		logger.Error("write response", "error", err)
+	}
+}
+
+func writeError(w http.ResponseWriter, err error, logger *slog.Logger) {
+	tag := apperrors.Internal
+	var failure *apperrors.Error
+	if errors.As(err, &failure) {
+		tag = failure.Code
+	}
+	row, ok := errorTable[tag]
+	if !ok {
+		tag, row = apperrors.Internal, errorTable[apperrors.Internal]
+	}
+	if row.status >= 500 {
+		logger.Error("request failed", "tag", tag, "error", err)
+	}
+	writeJSON(w, row.status, envelope(tag), logger)
+}
+
+// Keep ServeMux's 404/405 decision and Allow header, replacing its text body only.
+type missWriter struct {
+	http.ResponseWriter
+	logger   *slog.Logger
+	replaced bool
+}
+
+func (w *missWriter) WriteHeader(status int) {
+	if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
+		w.replaced = true
+		tag := apperrors.NotFound
+		if status == http.StatusMethodNotAllowed {
+			tag = apperrors.MethodNotAllowed
+		}
+		w.Header().Del("Content-Length")
+		writeError(w.ResponseWriter, apperrors.New(tag, "mux miss"), w.logger)
+		return
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *missWriter) Write(data []byte) (int, error) {
+	if w.replaced {
+		return len(data), nil
+	}
+	return w.ResponseWriter.Write(data)
+}

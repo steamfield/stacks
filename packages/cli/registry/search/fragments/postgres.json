@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "postgres",
   "source": {
-    "digest": "sha256:ff385c05756094c78fa69ffde599ab9d0d041c40e342baf7f08335d14a5aee1e",
+    "digest": "sha256:11a26bd6929a9ec58c26dce336818c5e745b3132afcede65bbfc95de53a35e91",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Add local PostgreSQL services, explicit schema migrations and a private database for each test file cloned from a migrated template.",
   "description": "Add local Postgres development and test services, SQLAlchemy/Alembic integration for the FastAPI stacks (python-react and python-api), and explicit migration commands. The test harness clones a migrated template so each test file has a private database. Readiness checks distinguish API health from database availability. Product tables, queries and access rules are your work. Production hosting is separate, and migrations run as a release step rather than at application startup.",

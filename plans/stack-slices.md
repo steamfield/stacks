@@ -1,6 +1,6 @@
 # Ship a proving slice in every bundled stack
 
-Status: EXECUTING 2026-10-31
+Status: PARTIALLY EXECUTED 2026-10-31 (eleven stacks merged, each proven green from a fresh scaffold; `cloudflare-react-router` is converted and proven on `delegate/slices-cf` but waits for a maintainer to review the `@vitest/coverage-istanbul` dependency card, since Workers can't run the v8 coverage provider)
 
 ## Goal
 

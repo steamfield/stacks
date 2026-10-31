@@ -1,0 +1,33 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "bun install && bun scripts/setup.ts",
+    "prepare": "bun scripts/prepare.ts",
+    "dev": "bash scripts/dev.sh",
+    "dev:api": "bun run --filter './apps/api' dev",
+    "dev:mobile": "bun run --filter './apps/mobile' dev",
+    "dev:logs": "bash scripts/dev-logs.sh",
+    "sim:shot": "bash scripts/sim-shot.sh",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit -p tsconfig.tools.json && bun run --filter '*' typecheck",
+    "test": "bun run test:api && bun run test:mobile --runInBand && bun run test:ci",
+    "test:api": "bun run --filter './apps/api' test",
+    "test:mobile": "bun run --filter './apps/mobile' test",
+    "test:ci": "bun test ./tests/ci-contract.test.ts",
+    "bundle": "bun run --filter './apps/mobile' bundle",
+    "expo:check": "bun run --filter './apps/mobile' expo:check",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose stop postgres",
+    "db:generate": "bun run --filter './apps/api' db:generate",
+    "db:migrate": "bun run --filter './apps/api' db:migrate",
+    "db:check": "bun run --filter './apps/api' db:check",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run db:check && bun run bundle && bun run expo:check"
+  }
+}

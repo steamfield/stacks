@@ -42,8 +42,8 @@
         "registry/stacks/python-react/files/frontend/**"
       ],
       "formatter": { "enabled": false },
-      "linter": { "enabled": false },
-      "assist": { "enabled": false }
+      "assist": { "enabled": false },
+      "linter": { "rules": { "complexity": { "noImportantStyles": "off" } } }
     }
   ]
 }

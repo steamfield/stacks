@@ -1,0 +1,49 @@
+[project]
+name = "{{project_slug}}"
+version = "0.1"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TC", "PTH", "ERA", "PL", "RUF", "ASYNC", "S", "T20"]
+ignore = ["E501", "PLR0913"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "pydantic_settings.BaseSettings"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/api/*.py" = ["TC"] # FastAPI resolves dependency annotations at runtime.
+"tests/*.py" = ["S101", "PLR2004", "ARG", "TC"]
+"app/**/test_*.py" = ["S101", "PLR2004", "ARG", "TC"]
+
+[tool.mypy]
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+testpaths = ["app", "tests"]
+addopts = "--strict-markers --strict-config -ra"
+markers = ["slow: slower checks", "integration: HTTP boundary checks"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+parallel = true
+omit = ["app/**/test_*.py"]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_also = ["if TYPE_CHECKING:", "^\\s*\\.\\.\\.$"]

@@ -8,6 +8,7 @@ import {
   rmSync,
 } from "node:fs";
 import { join } from "node:path";
+import { escapedRegistryFiles } from "./packaging";
 
 function dependencyNotices(metafile: Bun.BuildMetafile): string {
   const roots = Object.keys(metafile.inputs).flatMap((input) => {
@@ -41,11 +42,7 @@ const result = await Bun.build({
   define: {
     STACKS_RELEASE_BUILD: "true",
     STACKS_PUBLISHED_TELEMETRY: process.env.STACKS_PUBLISH_TELEMETRY === "1" ? "true" : "false",
-    PACKAGED_GITIGNORES: JSON.stringify(
-      readdirSync("registry", { recursive: true, encoding: "utf8" })
-        .filter((file) => file.endsWith("/.gitignore"))
-        .sort(),
-    ),
+    PACKAGED_ESCAPES: JSON.stringify(escapedRegistryFiles()),
   },
   minify: true,
   sourcemap: "none",

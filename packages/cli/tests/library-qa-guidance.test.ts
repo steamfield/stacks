@@ -93,8 +93,12 @@ test("Python's error model and acceptance require camelCase wire requestId", asy
     stack: "python-react",
     agents: ["codex"],
   });
-  const brief = readFileSync(join(project, ".stacks/BRIEF.md"), "utf8");
-  expect(brief.includes("requestId on the wire")).toBe(true);
-  expect(brief.includes("404, 422 and 500")).toBe(true);
-  expect(brief.includes("snake_case on the wire")).toBe(false);
+  const handlers = readFileSync(join(project, "backend/app/error_handlers.py"), "utf8");
+  const tests = readFileSync(join(project, "backend/tests/test_http.py"), "utf8");
+  expect(handlers).toContain('request_id: str = Field(serialization_alias="requestId")');
+  expect(tests).toContain('"requestId": response.headers["x-request-id"]');
+  expect(tests).toContain('("/missing", 404, "NOT_FOUND")');
+  expect(tests).toContain('422, "VALIDATION_FAILED"');
+  expect(tests).toContain('assert_error(response, 500, "INTERNAL_ERROR")');
+  expect(tests).not.toContain('"request_id": response.headers');
 });

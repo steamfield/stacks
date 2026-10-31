@@ -53,7 +53,8 @@ test("the tarball contains exactly the allowlisted files, preserving every asset
   const assets = ["registry", "skills"].flatMap((dir) =>
     files(join(source, dir)).map((file) => `${dir}/${file}`),
   );
-  const packedPath = (file: string) => (file.endsWith("/.gitignore") ? `${file}.stacks` : file);
+  const packedPath = (file: string) =>
+    file.endsWith("/.gitignore") || file.endsWith("/bunfig.toml") ? `${file}.stacks` : file;
   const expected = [
     "package.json",
     "README.md",
@@ -189,6 +190,11 @@ test("the installed catalog scaffolds a project and create finds the shipped aut
     expect(report.project).toBe(project);
     expect(readFileSync(join(project, ".stacks/BRIEF.md"), "utf8")).toContain("# Build");
     expect(existsSync(join(project, ".gitignore"))).toBe(true);
+    // bunfig.toml ships escaped like .gitignore and must reach the project under its own name.
+    expect(readFileSync(join(project, "bunfig.toml"), "utf8")).toBe(
+      readFileSync(join(source, "registry/stacks/typescript-cli/files/bunfig.toml"), "utf8"),
+    );
+    expect(existsSync(join(project, "bunfig.toml.stacks"))).toBe(false);
     const skeleton = run([binary, "create", "stack", "my-stack", "--json"], root);
     expect(skeleton.status).toBe(0);
     expect(skeleton.stderr).toBe("");

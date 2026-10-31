@@ -36,3 +36,5 @@ logs/
 *.swp
 .DS_Store
 Thumbs.db
+
+.claude/worktrees/

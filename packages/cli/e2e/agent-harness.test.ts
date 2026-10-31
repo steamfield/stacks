@@ -105,6 +105,13 @@ test("the compiled binary ships a runnable hook suite and a harness-owned check 
       ".PHONY: install test\ninstall:\n\ttest -x node_modules/.bin/vitest && test -x node_modules/.bin/tsc\ntest:\n\tvitest run tests/hooks\n",
     );
     const reportPath = join(root, "hooks-report.json");
+    // The stack's own Vitest and TypeScript configs load framework packages this fixture doesn't
+    // install; the hook suite needs neither.
+    writeFileSync(join(project, "tsconfig.json"), "{}\n");
+    writeFileSync(
+      join(project, "vitest.config.ts"),
+      'export default { test: { environment: "node", include: ["tests/hooks/**/*.test.ts"] } };\n',
+    );
     const suite = await run(
       ["node", vitest, "run", "tests/hooks", "--reporter=json", `--outputFile=${reportPath}`],
       project,

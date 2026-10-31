@@ -25,7 +25,9 @@ export function AddItemForm({
           {error}
         </p>
       )}
-      <button disabled={pending}>{pending ? "Adding…" : "Add item"}</button>
+      <button type="submit" disabled={pending}>
+        {pending ? "Adding…" : "Add item"}
+      </button>
       {state.status === "success" && <p role="status">Item added.</p>}
     </form>
   );

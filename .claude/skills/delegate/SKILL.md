@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Hand a coding task to a Codex delegate (gpt-6-sol, high effort, fast mode) in its own worktree, then review its diff, refactor it to this repo's standard, run the gate and commit it yourself. The default for implementation, tests and refactors whose contract you can write down. Not for design or harness changes.
+description: Hand a coding task to a Codex delegate (gpt-6.1-sol, the newest sol model, high effort, fast mode) in its own worktree, then review its diff, refactor it to this repo's standard, run the gate and commit it yourself. The default for implementation, tests and refactors whose contract you can write down. Not for design or harness changes.
 ---
 
 # Delegating to Codex

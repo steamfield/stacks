@@ -18,5 +18,7 @@
     ],
     "allowImportingTsExtensions": true
   },
-  "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"]
+  "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
+  // This SPA imports React, browser globals and tools installed only in the scaffold.
+  "exclude": ["registry/stacks/python-react/files/frontend/**"]
 }

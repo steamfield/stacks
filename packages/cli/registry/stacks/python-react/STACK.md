@@ -77,102 +77,63 @@ commands:
   clean: Remove caches and build output
 ---
 
-# Python API + React SPA
+## What stacks wrote
 
-`backend/` is FastAPI on uv; `frontend/` is React Router with SSR off. orval generates the frontend's types, hooks, and MSW handlers from the backend's committed OpenAPI spec. The root `Makefile` is the entry point for everything.
+`backend/` contains the FastAPI app factory, settings, request logging, error handlers, health route, in-memory notes payload and tests reused from the Python API slice. `frontend/` contains a React Router SPA, a QueryClient provider, the health screen, its MSW tests, a typed fetch boundary validated with generated zod schemas, and Playwright tests against both real servers. The Makefile, tool configs and reference docs are shipped too; read the code before extending it.
 
 ## Layout
 
-```
-Makefile, .env.example
-backend/
-  pyproject.toml, uv.lock, .python-version
-  app/main.py            create_app() factory + module-level app
-  app/config.py          Settings (pydantic-settings) + cached get_settings()
-  app/lifespan.py        long-lived resources on app.state
-  app/errors.py          AppError hierarchy + handlers
-  app/logging.py         structlog + request-id binding
-  app/routers.py         register_routers(app), the one place routers mount
-  app/api/               one module per area exporting `router` (health.py first)
-  app/schemas/ services/ pydantic API models / plain business logic (no FastAPI imports)
-  scripts/dump_openapi.py
-  tests/
-frontend/
-  react-router.config.ts (ssr: false), vite.config.ts, vitest.config.ts,
-  playwright.config.ts, orval.config.ts, components.json, openapi.json (generated)
-  app/root.tsx, routes.ts, routes/, components/ui/ (shadcn), lib/ (api fetcher, query client, utils)
-  app/api/generated/     orval output, never hand-edited
-  tests/setup.ts, tests/mocks/generated/, tests/e2e/
-```
+Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep business logic in `app/services/` and wire models in `app/schemas.py`. Feature components belong in `frontend/app/components/<feature>/`; owned shadcn-style primitives live in `components/ui/`. See `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md`.
 
 ## Setup
 
-Every generator runs in its subdirectory, never the populated root.
-
-1. **Backend.** `uv init` non-interactively in `backend/` as an unpackaged application (no `src/` layout, no build backend) that writes no stub script (check `uv init --help`; the command guard refuses deleting one afterwards), so `app/` sits directly in `backend/`, with the Python version from Decisions. Make `.python-version` and `requires-python` match that version (uv may default to an older interpreter it finds). `uv add` the backend deps, `uv add --dev` the backend-dev deps, create `app/`.
-2. **Backend code** per Conventions: `GET /health` returns `{"status": "ok"}` with no dependencies. Add `scripts/dump_openapi.py`, run from `backend/` as `uv run python -m scripts.dump_openapi` so it can import `app`. Configure ruff, mypy, pytest, coverage in `pyproject.toml`; get `uv run pytest` green.
-3. **Frontend.** The official React Router generator, non-interactively, into `frontend/`, without git or install. `bun install`; set `packageManager` in `frontend/package.json` to the installed bun version (CI's bun setup reads it). SSR off; remove what only serves an SSR server (a server Dockerfile, the serve package and its `start` script). Keep one font setup; if the template and shadcn's init both add one, keep shadcn's. Add Tailwind through its Vite plugin if the template didn't.
-4. **shadcn/ui.** Run its init non-interactively in `frontend/` (check `--help`: current versions also need a style/preset and base-library flag to skip every prompt), and let it add its own utility deps; it infers aliases from tsconfig. Check that `components.json` points at `~/components`, `~/components/ui`, `~/lib`, `~/lib/utils`, `~/hooks` (`~` is `app/`) and fix only what's wrong, rather than writing it by hand. Make sure `button` exists (init may add it).
-5. **Data layer.** One `QueryClient` in `app/lib/query-client.ts`, provided in `root.tsx`; the Vite dev proxy.
-6. **Typed client.** `make generate-api`. The home route calls `/health` through a generated hook and renders it: one real UI-to-API round trip.
-7. **Frontend tooling** per Tool configuration, a component test for the home route in `app/routes/home.test.tsx` (against MSW; the `home-route-test` verify step runs it), one Playwright smoke spec. Fill the README's `stacks:fill` markers.
-8. Run `stacks verify` until it passes.
+1. No project generator. In `backend/`, select the newest stable CPython supported by the declared packages with `uv python pin`, set matching `requires-python` in the shipped `pyproject.toml`, then `uv add` every backend dependency and `uv add --dev` every backend-dev dependency from deps. In `frontend/`, `bun add` every frontend dependency and `bun add --dev` every frontend-dev dependency. Install required peers too, including React's types, Node's types and Testing Library's DOM peer if the package manager leaves them out.
+2. Read `bun pm view typescript-eslint peerDependencies` and install `typescript` at the newest release within its declared peer range. Resolve that range from the registry rather than choosing a version from memory. Run `make generate-api`: this writes `frontend/openapi.json`, orval's client/hooks/MSW handlers and zod schemas in `frontend/app/api/generated/`. These outputs depend on installed releases and are intentionally generated during Setup. Commit them with both lockfiles.
+3. Apply the selected fragments, including their edits to shipped entry points, then run `make install lint typecheck test build e2e check-api coverage`. Update shipped code or config the installed releases reject without dropping a rule, reducing coverage or weakening a check. The home test must use the real query provider and fetch boundary; Playwright must call the real backend.
+4. Record Python in `backend/.python-version` and `requires-python`, Bun in `frontend/package.json`'s `packageManager`, and Node in `.node-version`. Set ruff's target to that Python version. Copy `.env.example` to `.env` only when changing defaults.
+5. Fill the README's `stacks:fill` marker, then `stacks verify` until green. Fill the agent-ops instructions from the project as built.
 
 ## Conventions
 
-**Backend**
-
-- **Factory.** `create_app(settings: Settings | None = None)` configures logging, lifespan, middleware (request id, CORS from settings), exception handlers, and `register_routers(app)`. `main.py` ends with `app = create_app()`. Importing `app.main` has no side effects (no network, DB, or file writes), so `dump_openapi.py` and tests can import it.
-- **Config.** One `Settings(BaseSettings)` with working dev defaults, reading env and the repo-root `.env` (resolvable from `backend/`), `SecretStr` for secrets, `__` nested delimiter. `get_settings()` is `lru_cache`d and injected with `Depends` so tests override it.
-- **Lifespan** owns every long-lived resource on `app.state`; no module-level singletons that connect at import.
-- **Routers.** Each `api/<area>.py` exports `router = APIRouter(prefix=..., tags=[...])`, mounted only in `routers.py`. App routes under `/api` (`/api/v1` for external consumers); `/health` at the root. Dependencies use `Annotated[T, Depends(fn)]`.
-- **Errors.** Raise `AppError` subclasses rather than `HTTPException`. `AppError` (`code` UPPER_SNAKE, `message`, `status_code`, `details`) with `NotFoundError`, `ConflictError`, `ValidationFailed`, `Unauthorized`, `Forbidden`. Handlers render everything, including validation errors and `HTTPException`, as `{"error": {"code", "message", "details", "requestId"}}`: camelCase requestId on the wire, matching the shared model convention. Python may use `request_id` internally with a serialization alias. Declare that same envelope model in `responses=` and test actual JSON and OpenAPI for 404, 422 and 500; the catch-all logs and returns `INTERNAL_ERROR` (detail only in development).
-- **Logging.** structlog, JSON outside development. Middleware accepts or generates `X-Request-ID`, binds it, and echoes it.
-- **OpenAPI is the contract.** Every route has a `response_model`; `generate_unique_id_function` yields `<tag>_<function_name>` so client names don't churn. `dump_openapi.py` writes sorted keys and a trailing newline.
-
-**Frontend**
-
-- **SPA mode**: no server `loader`/`action`. Data comes from generated hooks (or `clientLoader` when a route must block).
-- **API access**: relative `/api/...` URLs. Vite proxies `/api` and `/health` to `http://localhost:${PORT_API}` (from env, default 8000). Set Vite's `envDir` to the repo root so the root `.env` reaches the frontend. One fetcher in `app/lib/api.ts` (orval's mutator) prefixes `VITE_API_BASE_URL` when set, throws a typed `ApiError` (`code`, `message`, `status`) parsed from the envelope on non-2xx, and exports that error type for the generated hooks.
-- **Generated code is read-only**: `app/api/generated/` and `tests/mocks/generated/` come from `make generate-api`. Exclude them from ESLint and coverage, not from Prettier (see orval).
-- shadcn components in `components/ui/` are owned source; feature components in `components/<feature>/`. Use theme tokens (the CSS variables shadcn's init defines) over raw colors, `cn()` for conditional classes, `cva` for variants, and utility classes over inline styles. Extend shadcn components in place; give interactive elements accessible names. Route analytics through the analytics module. Invalidate with orval's query keys. `VITE_` vars are public and baked in at build.
-
-## Tool configuration
-
-- **ruff**: target the project's Python, line length 100. Select E, W, F, I, B, C4, UP, ARG, SIM, TC, PTH, ERA, PL, RUF, ASYNC, S, T20; ignore E501, PLR0913; tests may ignore S101, PLR2004, ARG. `app` is first-party. `ruff format` formats.
-- **mypy**: strict, `warn_unused_ignores`, `warn_redundant_casts`, pydantic plugin; relax `disallow_untyped_defs` for `tests.*`; per-module `ignore_missing_imports` only for untyped libraries.
-- **pytest**: asyncio auto mode, function-scoped loops, `testpaths = ["tests"]`, `--strict-markers --strict-config -ra`, markers `slow` and `integration`, `filterwarnings = ["error"]` with commented targeted ignores.
-- **coverage**: source `app`, branch, parallel, `fail_under = 80`, exclude `if TYPE_CHECKING:`.
-- **ESLint** flat config: `@eslint/js`, typescript-eslint, react-hooks, jsx-a11y recommended (browser globals from `globals`); unused vars error except `^_`. Ignore `build/`, `.react-router/`, generated dirs, `playwright-report/`, `test-results/`.
-- **Prettier**: defaults. `.prettierignore` covers build output, `.stacks/`, `.claude/` and `openapi.json` (written by `dump_openapi.py`, not Prettier) but not the orval output dirs, which orval's Prettier hook formats. `lint` runs ESLint + `prettier --check`; `format` writes.
-- **TypeScript**: strict; `~/*` -> `app/*`; include React Router's generated route types.
-- **Vitest**: own `vitest.config.ts` with `@vitejs/plugin-react` (not the React Router plugin), `happy-dom`, `globals`, `setupFiles: ["./tests/setup.ts"]`, include `app/**/*.test.{ts,tsx}`, exclude `tests/e2e/**`, tsconfig's aliases, and vendor keys (`VITE_PUBLIC_POSTHOG_KEY`) set to `""` in `test.env`. v8 coverage (text + lcov) over `app/**` minus generated code and route entries; thresholds 80 lines/statements, 70 branches, 75 functions.
-- **tests/setup.ts**: jest-dom matchers, MSW server set to fail on any unhandled request (find the installed MSW's option for it; reset per test), Testing Library cleanup.
-- **orval**: from `./openapi.json`, (1) TanStack Query hooks + zod schemas in `app/api/generated/` using `app/lib/api.ts` as the custom mutator, with the fetch client configured so hooks return the success body itself rather than a `{data, status, headers}` wrapper (the fetcher throws on non-2xx; check orval's docs for the current option names, more than one may be involved); (2) MSW handlers in `tests/mocks/generated/`. Its post-generation Prettier hook respects `.prettierignore`, which is why generated dirs stay out of it. MSW handlers use `@faker-js/faker`. Default to camelCase on the wire via a shared `ApiModel` pydantic base model with camelCase aliases (serialize by alias, accept both on input); keep Python code snake_case.
-- **Playwright**: chromium, CI retries and `forbidOnly`, HTML report with `open: "never"`; `webServer` runs `make dev-api PORT_API=18000` and `make dev-web PORT_WEB=15173 PORT_API=18000` from the project root with `reuseExistingServer: false`. Set the browser base URL to port 15173. These test ports differ from verify's later serve probes; Playwright stops both owned servers when the run ends and never stops a user's servers.
+- `backend/app/main.py` owns startup and lifespan resources. Keep imports free of network connections and file writes. `Settings` reads the root `.env` even when commands run in `backend/`; env overrides it.
+- Routers use `ApiModel` and a `response_model`. Python uses snake_case, wire fields use camelCase. Keep stable tag/function operation ids; renaming a route function renames its client.
+- Raise `AppError` through the error table. `app/error_handlers.py` owns the public code/message/details/requestId envelope and the same OpenAPI response model for 404, 422 and 500. Never expose exception text or request bodies. Extend the HTTP tests with each new failure.
+- `app/middleware.py` validates or generates request ids, echoes them and logs one sanitized request record with the route pattern. `/health` stays dependency-free. The notes store is ephemeral; accounts and persistence remain application work.
+- React Router stays in SPA mode, with no server loaders or actions. `app/lib/api.ts` owns transport/errors and the public `VITE_API_BASE_URL`; `app/lib/health.ts` demonstrates decoding generated results before UI use. Use generated query keys for invalidation.
+- The Vite config reads the root env and proxies `/api` and `/health` to PORT_API. A separate API origin must explicitly allow the web origin in CORS settings.
+- Generated files are read-only; run `make generate-api` after backend changes. ESLint ignores them; Prettier formats them through orval's post-generation hook. `make check-api` compares the committed spec as parsed JSON with a fresh backend dump, without rewriting it.
+- Keep the configured lint rules, strict mypy/TypeScript and coverage floors when adapting releases. `frontend/.prettierignore` excludes `.stacks/`, `.claude/` and the Python-formatted spec, but not generated TypeScript.
+- Extend the owned UI primitives in place, use theme tokens and cva variants, and give interactive elements accessible names. Adding a shadcn component may require its current utility dependencies; keep the `~` aliases from tsconfig.
 
 ## Testing
 
-- **Backend**: shared fixtures in `tests/conftest.py`; the real app via `httpx.AsyncClient` + `ASGITransport(app=create_app(test_settings))`, entering the lifespan. Assert status codes, the envelope for 404/422/500, bodies. Test services directly. Stub external HTTP at the transport (respx or `httpx.MockTransport`), never your own code.
-- **Frontend**: Testing Library by role/label, `user-event`, a fresh `QueryClient` with retries off per test, MSW via generated handlers (override inline for error and empty states). Build on `tests/render.tsx` and `tests/mocks/server.ts`. The test DOM enforces CORS on requests to another origin (a test of `VITE_API_BASE_URL`): give those handlers CORS headers, and answer `OPTIONS` if it preflights.
-- **E2E**: a few Playwright smoke paths; verify runs `make e2e`.
-- `make coverage` enforces both halves' thresholds; `make test` stays fast.
+Backend service and config tests sit next to code; `backend/tests/test_http.py` exercises the real ASGI app with httpx inside its native lifespan context. It checks notes, error bodies, request ids, logs and OpenAPI. Mock external boundaries, never your own modules.
+
+Frontend tests render the real home route with a fresh QueryClient and generated MSW handlers. `tests/setup.ts` rejects unhandled requests and resets handlers between tests. Add success, failure and malformed-response cases with each client boundary. Cross-origin handlers need CORS headers and OPTIONS if the test DOM preflights. Playwright owns two servers on separate test ports and shuts them down; never reuse a user's server. `make coverage` enforces both halves' floors.
 
 ## Commands
 
-The shipped root Makefile (`make help`) has `backend-*` and `frontend-*` sub-targets (install, lint, format, typecheck, test, coverage; plus `frontend-build`) that the combined targets call: install, lint, format, typecheck, test, coverage, build, dev, dev-api, dev-web, generate-api, check-api (a verify step: fails when `openapi.json` no longer matches the spec the backend dumps, compared as parsed JSON so formatting doesn't matter; it checks the spec only, not the generated client, which `generate-api` rebuilds from it and `typecheck` catches drifting), e2e, clean. `frontend/package.json` scripts back the frontend half: `dev`, `build`, `typecheck` (`react-router typegen && tsc`), `lint`, `format`, `test` (`vitest run`), `test:e2e`, `generate:api`. Mirror both in AGENTS.md.
+`make help` lists combined install, lint, format, typecheck, test, coverage, build, dev, e2e, generate-api, check-api and clean targets, plus the backend/frontend sub-targets. Mirror those and a single-test command in AGENTS.md. `frontend/package.json` owns the frontend scripts.
+<!-- stacks:when with=git-hooks -->
+
+The install target already guards lefthook on its config's existence and skips it in CI. Staged frontend ESLint must use `--no-warn-ignored` for generated files; run it from `frontend/` so it reads that config.
+<!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-**CI.** Two jobs behind the `changes` filter. Backend: uv's setup action (cache on, `.python-version`), then `make backend-install backend-lint backend-typecheck backend-coverage`. Frontend: bun's setup action, which reads `packageManager` from `frontend/package.json`, then `make frontend-install frontend-lint frontend-typecheck frontend-coverage frontend-build check-api`; `check-api` dumps the backend's spec, so this job also sets up uv and runs `make backend-install` first. Use the `-test` targets instead of `-coverage` if the coverage decision is no. The Playwright job runs `make e2e` and is required by the CI aggregate.
+CI has filtered backend/frontend jobs. Backend runs `make backend-install backend-lint backend-typecheck backend-coverage`; frontend sets up both runtimes, then `make backend-install frontend-install frontend-lint frontend-typecheck frontend-coverage frontend-build check-api`. A required Playwright job runs `make e2e`. Bun setup reads `frontend/package.json`'s packageManager; Python setup reads `backend/.python-version`. Generated-code CI regenerates and checks the diff.
+<!-- stacks:end -->
+<!-- stacks:when with=postgres -->
+
+Replace the shipped MemoryNotes behind NoteStore with a SQLAlchemy store created in the lifespan and a notes migration. Keep the HTTP contract, test it on the fragment's private per-file database, and keep `/health` DB-free.
 <!-- stacks:end -->
 
 ## Gotchas
 
-- Bare `vitest` is watch mode in a TTY; scripts use `vitest run`.
-- `tsc` fails on missing `./+types/...` until React Router typegen runs; `.react-router/` is gitignored.
-- If ruff's TC rules are on, they move annotation-only imports under `if TYPE_CHECKING:`, but FastAPI and pydantic evaluate annotations at runtime, so a moved import breaks startup. Set ruff's runtime-evaluated base classes (`pydantic.BaseModel`, `pydantic_settings.BaseSettings`) and ignore TC in `app/api/` and `tests/`: ruff matches decorators by qualified name, while `@router.get` is an attribute of a router instance, so the decorator setting does not apply.
-- If orval fails under bun with `Cannot find module 'ajv/dist/core'`, add the current `ajv` major as a frontend dev dependency and record it under Build workarounds.
-- Regenerate after any route or schema change and commit spec and client together.
-- `filterwarnings = error` turns upstream deprecations into failures; add targeted ignores, don't drop the rule.
-- ruff renames rule prefixes across releases; switch to the new code when it warns.
-- A static SPA host must fall back to `index.html`, or deep links 404.
+- Bare `vitest` watches in a TTY; scripts use `vitest run`.
+- React Router typegen must precede tsc; `.react-router/` is generated.
+- typescript-eslint needs a supported compiler API. Resolve TypeScript within its peer range until that range accepts the newest TypeScript release; then use the newest release directly.
+- Ruff TC can move annotations FastAPI evaluates at runtime. Keep runtime-evaluated bases and API/test exceptions; dependencies elsewhere need the same care.
+- If orval fails under Bun with `Cannot find module 'ajv/dist/core'`, install the current ajv as a frontend dev dependency and record it under Build workarounds.
+- Keep fetch clients returning the success body rather than an HTTP wrapper; confirm the installed orval's options in `orval.config.ts` before adapting them.
+- Warnings are errors in pytest. Fix deprecations or document targeted ignores; keep the rule. Ruff sometimes renames rule prefixes.
+- A static SPA host must fall back to `index.html` for deep links.

@@ -1,11 +1,11 @@
-import { Duration, Effect, FileSystem, Option, Path, type PlatformError, Random } from "effect";
+import { Duration, Effect, FileSystem, Option, Path, type PlatformError } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../config";
 import { NotFound, PermissionDenied, TargetNotEmpty } from "../errors";
 import type { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";
 import { Processes } from "../services/processes";
 import { rewriteAuthorLinks } from "./guide";
-import { openProject, type ProjectWriter, within } from "./scaffold/write";
+import { openProject, type ProjectWriter } from "./scaffold/write";
 
 // A skill's SKILL.md loads whole whenever it triggers, so it pays for itself only when it is
 // short. References under a skill load only when the skill sends the agent to them.
@@ -106,7 +106,7 @@ const skillsRoot = (project: boolean) =>
     return path.join(base, ".claude", "skills");
   });
 
-/** The installed skill's checks and replacement, bound to one writer and skill directory. */
+/** The installed skill's checks, bound to one writer and skill directory. */
 const installedFiles = (options: {
   writer: ProjectWriter;
   name: SkillName;
@@ -147,28 +147,7 @@ const installedFiles = (options: {
       return (same ? "same" : "differs") satisfies FileState;
     });
 
-  // Stage through the safe writer, then rename: a failed write keeps the user's copy.
-  const replace = (file: SkillFile) =>
-    Effect.gen(function* () {
-      const at = real(file.rel);
-      const suffix = (yield* Random.nextIntBetween(0, 0xffffff)).toString(16);
-      const base = file.rel.slice(file.rel.lastIndexOf("/") + 1);
-      const temporary = `${parentOf(`${name}/${file.rel}`)}/.${base}.${suffix}.tmp`;
-      yield* writer.write(temporary, file.bytes);
-      const parentInside = yield* fs.realPath(path.dirname(at)).pipe(
-        Effect.map((resolved) => within(writer.root, resolved, path.sep)),
-        Effect.mapError(denied(file.rel)),
-      );
-      if (!parentInside) return yield* escaped(file.rel);
-      const latest = yield* fs.lstat(at).pipe(Effect.mapError(denied(file.rel)));
-      if (latest.type === "SymbolicLink") return yield* escaped(file.rel);
-      if (latest.type !== "File") return yield* occupied([file.rel], "non-file");
-      yield* fs
-        .rename(path.join(writer.root, ...temporary.split("/")), at)
-        .pipe(Effect.mapError(denied(file.rel)));
-    });
-
-  return { inspect, replace, occupied };
+  return { inspect, occupied };
 };
 
 /**
@@ -198,7 +177,7 @@ const writeSkill = (options: {
 
     for (const file of planned) {
       if (file.state === "absent") yield* writer.write(`${name}/${file.rel}`, file.bytes);
-      if (file.state === "differs") yield* installed.replace(file);
+      if (file.state === "differs") yield* writer.rewrite(`${name}/${file.rel}`, file.bytes);
     }
     return installResult(name, path.join(dir, "SKILL.md"), planned);
   });

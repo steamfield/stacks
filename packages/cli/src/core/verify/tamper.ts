@@ -1,9 +1,10 @@
 import type { Manifest, TamperCheck } from "@steamfield/stacks-format";
-import { Clock, Effect, FileSystem, type Path } from "effect";
+import { Clock, Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
 import { type InvalidConfig, PermissionDenied } from "../../errors";
+import { MANIFEST_PATH } from "../../project-layout";
 import type { VerifyChange, VerifyResult } from "../../schemas/verify";
-import { digestSettings, digestStep, digestSteps, writeManifest } from "../manifest";
+import { digestSettings, digestStep, digestSteps, encodeManifest } from "../manifest";
 import {
   type FoundState,
   findProjectState,
@@ -11,8 +12,9 @@ import {
   type ProjectState,
   projectStateFor,
   projectStatePath,
-  saveProjectState,
+  replaceProjectState,
 } from "../project-state";
+import { openProject } from "../scaffold/write";
 import type { VerifyPlan } from "./plan";
 
 /**
@@ -109,11 +111,9 @@ export const checkTamper = (
  * `--accept-changes`, once the caller has checked that a person at a terminal asked: records the
  * manifest's steps as they are now. The state record for the manifest's `projectId` is written
  * first (created when there is none), keeping `createdAt` and the timing fields of whichever
- * record was found; then the manifest's `verifyDigest`. A record that can't be written fails
- * `PermissionDenied` (`state-unwritable`) before the manifest is touched; a manifest that can't be
- * written puts the old record back, so the two copies never disagree because of a half-done
- * accept. A record found only by path, under another id, is removed last. The writes and the
- * rollback can't be interrupted part way; an interrupt takes effect once they are done.
+ * record was found; then the manifest's `verifyDigest`. The scope restores both files on failure.
+ * A record found only by path, under another id, is removed last. The writes and rollback can't
+ * be interrupted part way; an interrupt takes effect once they are done.
  */
 export const acceptChanges = (
   manifest: Manifest,
@@ -126,6 +126,7 @@ export const acceptChanges = (
 > =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
     const accepted = { ...manifest, verifyDigest: digestSteps(manifest) };
     const target = yield* projectStatePath(manifest.projectId);
     if (target === undefined)
@@ -139,23 +140,24 @@ export const acceptChanges = (
     };
     // One uninterruptible region: an interrupt between the two writes would leave them disagreeing.
     yield* Effect.uninterruptible(
-      Effect.gen(function* () {
-        yield* saveProjectState(state, target).pipe(
-          Effect.mapError(
-            () => new PermissionDenied({ details: { reason: "state-unwritable", path: target } }),
-          ),
-        );
-        if (accepted.verifyDigest !== manifest.verifyDigest)
-          yield* writeManifest(manifestFile, accepted).pipe(
-            Effect.tapError(() =>
-              tamper.record
-                ? Effect.ignore(saveProjectState(tamper.record.state, tamper.record.path))
-                : Effect.ignore(fs.remove(target)),
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* replaceProjectState(state, target).pipe(
+            Effect.mapError(
+              () => new PermissionDenied({ details: { reason: "state-unwritable", path: target } }),
             ),
           );
-        if (tamper.stale && tamper.stale.path !== target)
-          yield* Effect.ignore(fs.remove(tamper.stale.path));
-      }),
+          if (accepted.verifyDigest !== manifest.verifyDigest) {
+            const writer = yield* openProject(path.dirname(path.dirname(manifestFile)));
+            yield* writer.rewrite(
+              MANIFEST_PATH,
+              new TextEncoder().encode(encodeManifest(accepted)),
+            );
+          }
+          if (tamper.stale && tamper.stale.path !== target)
+            yield* Effect.ignore(fs.remove(tamper.stale.path));
+        }),
+      ),
     );
     return {
       manifest: accepted,

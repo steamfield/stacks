@@ -64,7 +64,7 @@ Two directions raised by Eric (2026-10-27) that belong after the MVP, not in it:
 is clean (9 stacks, 19 fragments: 0 errors, 0 warnings, 0 notes), the registry tests pass (42), and a
 project scaffolded from it reached `verify: green` (6 steps, 45 unit tests, the stdio handshake against
 the built server). That build run then reported twelve findings about the brief (DF-15 to DF-26 in
-`plans/dogfooding-log.md`); nine were the stack body asserting things the library does not support, and
+`plans/archive/dogfooding-log-2026-10-27.md`); nine were the stack body asserting things the library does not support, and
 all nine are fixed in the entry. The frontmatter below is current; the body is authoritative in
 `STACK.md`, not in this plan.
 
@@ -365,7 +365,7 @@ Part 2, against the built server:
 | `packages/mcp/package.json`, `tsconfig.json`, `biome.json`, `scripts/` | Filled in by the stack, then adjusted to the monorepo's script names |
 | `packages/mcp/src/`, `tests/`, `e2e/` | New |
 | `plans/phases/phase-4.3-mcp-server.md` | This file |
-| `plans/dogfooding-log.md` | New: the pitfalls found using the tool on itself |
+| `plans/archive/dogfooding-log-2026-10-27.md` | New: the pitfalls found using the tool on itself, archived because it predates the port |
 | `plans/runs/<date>-mcp-client.md` | New: the registered-client run |
 | `AGENTS.md`, `README.md` | The new package and stack, once it exists |
 

@@ -19,7 +19,7 @@ const DATED = [
   ),
   new RegExp(`\\b(?:${MONTHS})\\s+\\d{4}\\b`),
 ];
-const PINNED = /(?<![\d.])\d+\.\d+\.\d+(?![\d.])/;
+export const PINNED = /(?<![\d.])\d+\.\d+\.\d+(?![\d.])/;
 
 /** Prose only: bodies, decision strings and shipped Markdown, including unselected adapters. */
 export const datedChecks: Check = (view) =>

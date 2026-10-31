@@ -137,6 +137,56 @@ const layerMessage = "Core and services cannot import platform or commands";
 const builtinMessage = "Core and services use Effect services for Node APIs";
 const packageMessage = "Workspace packages expose public package imports";
 
+const projectBoundarySource = [
+  'import "bun";',
+  'import "zod";',
+  'import "@effect/platform-node";',
+  'import "node:fs";',
+  'import "../platform/net";',
+  'import "../../platform/net";',
+  "console.log(process.env.X);",
+  "process.exit(1);",
+  "export const stdout = process.stdout;",
+  "export const stderr = process.stderr;",
+  "export const bunVersion = Bun.version;",
+  "export const moduleUrl = import.meta.url;",
+].join("\n");
+const projectBoundaryMessages = [
+  "Platform code belongs",
+  "Use Schema from effect",
+  "Node process APIs belong",
+  builtinMessage,
+  layerMessage,
+  "Results use Output",
+  "Read environment",
+  "Only bin.ts",
+  "Use Output.note",
+  "The Bun global",
+  moduleLocationMessage,
+];
+
+test.each([
+  "packages/cli/registry/stacks/example/files/src/core/app.ts",
+  "packages/cli/registry/stacks/example/adapters/codex/src/core/app.ts",
+])("Grit lets shipped project source use its own boundaries in %s", (path) => {
+  const result = lintWorkspace(path, projectBoundarySource);
+  for (const message of projectBoundaryMessages) {
+    expect(result.stdout + result.stderr).not.toContain(message);
+  }
+  expect(result.status).toBe(0);
+});
+
+test.each(["packages/cli/src/core/app.ts", "packages/cli/src/core/registry/app.ts"])(
+  "Grit still enforces CLI boundaries in %s",
+  (path) => {
+    const result = lintWorkspace(path, projectBoundarySource);
+    for (const message of projectBoundaryMessages) {
+      expect(result.stdout + result.stderr).toContain(message);
+    }
+    expect(result.status).not.toBe(0);
+  },
+);
+
 test.each([
   [
     "static import",

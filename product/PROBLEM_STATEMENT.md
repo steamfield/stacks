@@ -80,7 +80,7 @@ The first assumption is the one to test next. It's a one-way door in practice: o
 
 ## What this is not
 
-- Not a template engine. `files/` holds only what is the same across versions; everything else is prose.  
+- Not a template engine. `files/` ships as much of a working project as it can (source, tests, configs), but never a version: the agent installs current releases and brings the shipped files up to them, and verify fails when a shipped file has gone stale. A template's stale files become the user's migration; a stack's become one fix loop for the agent at setup.  
 - Not an agent. The CLI never calls an LLM and never runs a command from a stack. The agent the user already has does the work.  
 - Not a package manager or version resolver. Versions are the agent's problem on purpose.  
 - Not a way to retrofit an existing project onto a stack. `add` applies fragments; it does not restructure what's there.

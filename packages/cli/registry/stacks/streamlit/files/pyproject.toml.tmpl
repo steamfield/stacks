@@ -1,0 +1,39 @@
+[project]
+name = "{{project_slug}}"
+version = "0.1"
+description = "{{project_name}}, a Streamlit data app."
+readme = "README.md"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TC", "PTH", "ERA", "PL", "RUF", "S", "T20"]
+ignore = ["E501", "PLR0913"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "pydantic_settings.BaseSettings"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S603", "PLR2004", "ARG", "TC"]
+
+[tool.mypy]
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config --import-mode=importlib -ra"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+fail_under = 85
+exclude_also = ["if TYPE_CHECKING:"]

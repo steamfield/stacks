@@ -2,6 +2,7 @@ import { type Manifest, ProjectId } from "@steamfield/stacks-format";
 import { Effect, Exit, FileSystem, Path, type PlatformError, Schema } from "effect";
 import { AppConfig } from "../config";
 import { InvalidConfig, PermissionDenied } from "../errors";
+import { Invocation } from "../services/invocation";
 import { digestSettings, digestStep } from "./manifest";
 import { replaceFile } from "./replace-file";
 import { printable } from "./text";
@@ -124,6 +125,7 @@ export const saveProjectState = (
 export const replaceProjectState = (state: ProjectState, target: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const invocation = yield* Effect.serviceOption(Invocation);
     yield* Effect.acquireRelease(
       Effect.gen(function* () {
         const old = yield* fs
@@ -137,9 +139,13 @@ export const replaceProjectState = (state: ProjectState, target: string) =>
         return old;
       }),
       (old, exit) =>
-        Exit.isSuccess(exit)
-          ? Effect.void
-          : Effect.ignore(old ? fs.writeFile(target, old) : fs.remove(target)),
+        Effect.gen(function* () {
+          if (Exit.isSuccess(exit)) return;
+          const restore = old ? replaceFile(target, old) : fs.remove(target);
+          const result = yield* Effect.exit(restore);
+          if (Exit.isFailure(result) && invocation._tag === "Some")
+            yield* invocation.value.rollbackIncomplete(target);
+        }),
     );
   });
 

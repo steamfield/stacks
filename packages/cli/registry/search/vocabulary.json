@@ -37,7 +37,8 @@
       "go releases",
       "go library",
       "go package",
-      "go module"
+      "go module",
+      "go mcp"
     ],
     "rust": ["rust", "rustlang", "cargo", "axum"],
     "swift": ["swift", "swiftui"],

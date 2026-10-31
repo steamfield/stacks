@@ -1,0 +1,108 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/spf13/cobra"
+
+	"{{project_slug}}/internal/config"
+	apperrors "{{project_slug}}/internal/errors"
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/output"
+)
+
+func newRootCmd(version, commit, date string) *cobra.Command {
+	var showVersion bool
+	root := &cobra.Command{
+		Use:           config.Binary,
+		Short:         "A command-line tool with typed configuration",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          noArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if showVersion {
+				return renderVersion(cmd, version, commit, date)
+			}
+			return cmd.Help()
+		},
+	}
+	root.CompletionOptions.DisableDefaultCmd = true
+	flags := root.PersistentFlags()
+	flags.String("config", "", "YAML config file (overrides the default file search)")
+	flags.Bool("json", false, "Write JSON output")
+	flags.Bool("verbose", false, "Enable debug logging")
+	flags.Bool("no-color", false, "Disable color")
+	root.Flags().BoolVar(&showVersion, "version", false, "Show version information")
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
+		return apperrors.Wrap(apperrors.InvalidInput, "invalid flags", "Run "+config.Binary+" --help for supported flags.", err)
+	})
+	defaultHelp := root.HelpFunc()
+	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		if !outputOptions(cmd).JSON {
+			defaultHelp(cmd, args)
+			return
+		}
+		out := cmd.OutOrStdout()
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		defaultHelp(cmd, args)
+		cmd.SetOut(out)
+		// execute reports write failures through its output.Writer after Cobra returns.
+		_ = output.Render(out, outputOptions(cmd), map[string]string{"help": buf.String()}, "")
+	})
+	root.AddCommand(newConfigCmd())
+	return root
+}
+
+func noArgs(cmd *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return apperrors.New(apperrors.InvalidInput, fmt.Sprintf("unexpected argument %q for %s", args[0], cmd.CommandPath()), "Run "+cmd.CommandPath()+" --help for supported commands.")
+	}
+	return nil
+}
+
+func outputOptions(cmd *cobra.Command) output.Options {
+	json, _ := cmd.Flags().GetBool("json")
+	noColor, _ := cmd.Flags().GetBool("no-color")
+	return output.Options{JSON: json, NoColor: noColor}
+}
+
+func execute(ctx context.Context, args []string, stdout, stderr io.Writer, version, commit, date string) int {
+	root := newRootCmd(version, commit, date)
+	writer := &output.Writer{Writer: stdout}
+	root.SetOut(writer)
+	root.SetErr(stderr)
+	root.SetArgs(args)
+	err := root.ExecuteContext(ctx)
+	if err == nil {
+		err = writer.Err()
+	}
+	if err != nil {
+		output.RenderError(stderr, outputOptions(root), err)
+	}
+	return apperrors.ExitCode(err)
+}
+
+func Execute(version, commit, date string) {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := execute(ctx, os.Args[1:], os.Stdout, os.Stderr, version, commit, date)
+	stop()
+	os.Exit(code)
+}
+
+// The command loads configuration once, then passes typed data and its logger onward.
+func commandConfig(cmd *cobra.Command) (config.Config, *slog.Logger, error) {
+	cfg, err := config.Load(cmd.Root().PersistentFlags())
+	if err != nil {
+		return config.Config{}, nil, err
+	}
+	logger := applog.New(cmd.ErrOrStderr(), cfg.Verbose, cfg.JSON)
+	return cfg, logger, nil
+}

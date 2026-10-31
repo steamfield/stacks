@@ -1,0 +1,128 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func isolate(t *testing.T) {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	t.Chdir(t.TempDir())
+	for _, key := range []string{"GREETING", "JSON", "VERBOSE", "NO_COLOR", "DEBUG"} {
+		t.Setenv(config.EnvPrefix+"_"+key, "")
+	}
+}
+
+func TestHelpWriteFailure(t *testing.T) {
+	for _, jsonOutput := range []bool{false, true} {
+		t.Run(map[bool]string{false: "human", true: "JSON"}[jsonOutput], func(t *testing.T) {
+			file, err := os.CreateTemp(t.TempDir(), "closed")
+			require.NoError(t, err)
+			require.NoError(t, file.Close())
+			var stderr bytes.Buffer
+			args := []string{"--help"}
+			if jsonOutput {
+				args = append(args, "--json")
+			}
+			code := execute(context.Background(), args, file, &stderr, "dev", "none", "unknown")
+			assert.Equal(t, 1, code)
+			if jsonOutput {
+				var document struct {
+					Error struct{ Code, Message, Suggestion string }
+				}
+				require.NoError(t, json.Unmarshal(stderr.Bytes(), &document))
+				assert.Equal(t, apperrors.IO, document.Error.Code)
+				assert.NotEmpty(t, document.Error.Suggestion)
+			} else {
+				assert.Contains(t, stderr.String(), "IO: ")
+				assert.Equal(t, 1, bytes.Count(stderr.Bytes(), []byte("Suggestion:")))
+			}
+		})
+	}
+}
+
+func TestRoot(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "root"},
+		{name: "help", args: []string{"--help"}},
+		{name: "JSON help", args: []string{"--json", "--help"}},
+		{name: "config help", args: []string{"config", "--help"}},
+		{name: "config", args: []string{"config"}},
+		{name: "show help", args: []string{"config", "show", "--help"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolate(t)
+			root := newRootCmd("dev", "none", "unknown")
+			var out, stderr bytes.Buffer
+			root.SetOut(&out)
+			root.SetErr(&stderr)
+			root.SetArgs(tt.args)
+			require.NoError(t, root.ExecuteContext(context.Background()))
+			assert.Contains(t, out.String(), "Usage:")
+			assert.Empty(t, stderr.String())
+			if tt.name == "JSON help" {
+				assert.True(t, json.Valid(out.Bytes()))
+			}
+		})
+	}
+}
+
+func TestUsageErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "unknown command", args: []string{"unknown"}},
+		{name: "unknown config command", args: []string{"config", "unknown"}},
+		{name: "extra argument", args: []string{"config", "show", "extra"}},
+		{name: "unknown flag", args: []string{"--unknown"}},
+		{name: "invalid flag value", args: []string{"--json=invalid"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolate(t)
+			root := newRootCmd("dev", "none", "unknown")
+			var out, stderr bytes.Buffer
+			root.SetOut(&out)
+			root.SetErr(&stderr)
+			root.SetArgs(tt.args)
+			err := root.Execute()
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, apperrors.InvalidInput, failure.Code)
+			assert.NotEmpty(t, failure.Suggestion)
+			assert.Empty(t, out.String())
+			assert.Empty(t, stderr.String(), "Execute owns error printing")
+		})
+	}
+}
+
+func TestExecute(t *testing.T) {
+	isolate(t)
+	var out, stderr bytes.Buffer
+	code := execute(context.Background(), []string{"--json", "unknown"}, &out, &stderr, "dev", "none", "unknown")
+	assert.Equal(t, 2, code)
+	assert.Empty(t, out.String())
+	var document struct {
+		Error struct {
+			Code, Message, Suggestion string
+		}
+	}
+	require.NoError(t, json.Unmarshal(stderr.Bytes(), &document))
+	assert.Equal(t, apperrors.InvalidInput, document.Error.Code)
+	assert.NotEmpty(t, document.Error.Suggestion)
+}

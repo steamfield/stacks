@@ -5,7 +5,7 @@
 # should call the same targets (golangci-lint's own action is the one exception).
 
 BIN      := {{project_slug}}
-PKG      := ./cmd/$(BIN)
+PKG      := .
 MODULE   := $(shell go list -m 2>/dev/null)
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)

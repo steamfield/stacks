@@ -1,0 +1,84 @@
+package output
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+
+	"golang.org/x/term"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type Options struct {
+	JSON, NoColor bool
+}
+
+// Writer retains failures from Cobra's help renderer, whose callback cannot return errors.
+type Writer struct {
+	io.Writer
+	err error
+}
+
+func (w *Writer) Write(p []byte) (int, error) {
+	n, err := w.Writer.Write(p)
+	if err == nil && n < len(p) {
+		err = io.ErrShortWrite
+	}
+	if err != nil && w.err == nil {
+		w.err = apperrors.Wrap(apperrors.IO, "write output", "Check the output destination and retry.", err)
+	}
+	return n, err
+}
+
+func (w *Writer) Err() error { return w.err }
+
+func ColorEnabled(w io.Writer, noColor bool) bool {
+	if _, set := os.LookupEnv("NO_COLOR"); set || noColor {
+		return false
+	}
+	f, ok := w.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
+}
+
+func Render(w io.Writer, opts Options, value any, human string) error {
+	var err error
+	if opts.JSON {
+		err = json.NewEncoder(w).Encode(value)
+	} else {
+		_, err = fmt.Fprintln(w, human)
+	}
+	if err != nil {
+		return apperrors.Wrap(apperrors.IO, "write output", "Check the output destination and retry.", err)
+	}
+	return nil
+}
+
+func RenderError(w io.Writer, opts Options, err error) {
+	var failure *apperrors.Error
+	if !errors.As(err, &failure) {
+		failure = apperrors.Wrap(apperrors.Internal, "command failed", "Retry with --verbose and check the diagnostic details.", err)
+	}
+	if opts.JSON {
+		document := struct {
+			Error struct {
+				Code       string `json:"code"`
+				Message    string `json:"message"`
+				Suggestion string `json:"suggestion"`
+			} `json:"error"`
+		}{}
+		document.Error.Code = failure.Code
+		document.Error.Message = failure.Error()
+		document.Error.Suggestion = failure.Suggestion
+		// The error destination may itself be closed; there is no further stream to report to.
+		_ = json.NewEncoder(w).Encode(document)
+		return
+	}
+	label := failure.Code
+	if ColorEnabled(w, opts.NoColor) {
+		label = "\x1b[31m" + label + "\x1b[0m"
+	}
+	fmt.Fprintf(w, "%s: %s\nSuggestion: %s\n", label, failure.Error(), failure.Suggestion)
+}

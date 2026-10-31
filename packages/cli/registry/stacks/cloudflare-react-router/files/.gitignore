@@ -1,0 +1,11 @@
+node_modules/
+build/
+.react-router/
+.wrangler/
+worker-configuration.d.ts
+*.tsbuildinfo
+coverage/
+.dev.vars*
+.env*
+!.env.example
+.claude/worktrees/

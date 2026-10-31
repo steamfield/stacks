@@ -209,7 +209,7 @@ Claude Code orchestrates; Codex takes the coding tasks Claude delegates (`script
 
 ## Pending user actions
 
-Telemetry launch, in order: publish `@steamfield/stacks-format` 0.6.0 (packages/format/README.md, "Publishing"); deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; `bun run release` (format is skipped as already published); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
+Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; `bun run release` (format is skipped as already published); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
 
 ## Deeper context
 

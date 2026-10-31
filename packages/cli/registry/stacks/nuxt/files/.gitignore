@@ -1,0 +1,39 @@
+# Nuxt generated types and configs, build output and caches
+.nuxt/
+.output/
+.data/
+.nitro/
+.cache/
+dist/
+
+# Dependencies
+node_modules/
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Agent worktrees
+.claude/worktrees/
+
+# Logs
+logs/
+*.log
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+*.swp
+.DS_Store
+Thumbs.db

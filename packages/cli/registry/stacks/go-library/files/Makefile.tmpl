@@ -1,0 +1,112 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes, but keep the target names.
+# `stacks verify` calls install, fmt-check, vet, lint, tidy-check, test, fuzz, consumer and
+# api-check, and CI should call the same targets (golangci-lint's own action is the one exception).
+# This module is a library: there is no binary, and nothing here builds one.
+
+MODULE       := $(shell go list -m 2>/dev/null)
+COVERAGE_MIN ?= 80
+# How long make fuzz runs each fuzz target, on top of its seed corpus.
+FUZZTIME     ?= 10s
+# The exported API of the last release, compared by make api-check.
+API_BASELINE := api/baseline.export
+# Dev tools tracked in tools.mod, so they never enter go.mod and the build lists of
+# modules that depend on this one.
+APIDIFF      := go tool -modfile=tools.mod apidiff
+
+# Dev tools installed with `go install` land here; it may not be on PATH.
+GOBIN_DIR := $(shell go env GOBIN)
+ifeq ($(strip $(GOBIN_DIR)),)
+GOBIN_DIR := $(shell go env GOPATH | cut -d: -f1)/bin
+endif
+GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo $(GOBIN_DIR)/golangci-lint)
+GOIMPORTS     := $(shell command -v goimports 2>/dev/null || echo $(GOBIN_DIR)/goimports)
+
+.DEFAULT_GOAL := help
+.PHONY: help install vet lint lint-fix fmt fmt-check tidy-check test fuzz consumer api-check api-baseline coverage doc vuln ci clean
+
+# Fails when golangci-lint is missing; warns when it differs from .golangci-lint-version.
+define require_golangci_lint
+@[ -x "$(GOLANGCI_LINT)" ] || { echo "golangci-lint not found. Install it: https://golangci-lint.run/welcome/install/"; exit 1; }
+@if [ -f .golangci-lint-version ]; then want="$$(sed 's/^v//' .golangci-lint-version | tr -d '[:space:]')"; \
+	"$(GOLANGCI_LINT)" --version | grep -q "$$want" || echo "warning: golangci-lint differs from .golangci-lint-version ($$want); CI uses that version" >&2; fi
+endef
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
+
+install: ## Download modules and dev tools, and install goimports when missing
+	go mod download
+	@test -f tools.mod || { echo "tools.mod is missing; create it as docs/DEVELOPMENT.md says"; exit 1; }
+	go mod download -modfile=tools.mod
+	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+
+vet: ## Type-check every package, tests and examples included (go vet)
+	go vet ./...
+
+lint: ## Run golangci-lint (doc comments on every exported name, no printing in library code)
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run
+
+lint-fix: ## Run golangci-lint with --fix
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run --fix
+
+fmt: ## Format code
+	gofmt -w .
+	"$(GOIMPORTS)" -local "$(MODULE)" -w .
+
+fmt-check: ## Fail if gofmt or goimports would change any file
+	@out="$$(gofmt -l .)" || exit $$?; imports="$$("$(GOIMPORTS)" -local "$(MODULE)" -l .)" || exit $$?; \
+	if [ -n "$$out$$imports" ]; then echo "Unformatted files:"; printf '%s\n%s\n' "$$out" "$$imports" | sort -u; exit 1; fi
+
+tidy-check: ## Fail if go mod tidy would change go.mod or go.sum
+	@go mod tidy -diff || { echo "go.mod or go.sum is out of date. Run: go mod tidy"; exit 1; }
+
+test: ## Unit tests, examples and fuzz seeds with the race detector
+	go test -race ./...
+
+fuzz: ## Run every fuzz target for FUZZTIME (default 10s) each; a failing input lands in testdata/fuzz/
+	@found=0; for pkg in $$(go list ./...); do \
+		for target in $$(go test -list '^Fuzz' "$$pkg" | grep '^Fuzz'); do \
+			found=1; echo "go test -run '^$$' -fuzz '^$$target$$' -fuzztime $(FUZZTIME) $$pkg"; \
+			go test -run '^$$' -fuzz "^$$target\$$" -fuzztime $(FUZZTIME) "$$pkg" || exit 1; \
+		done; \
+	done; [ "$$found" = 1 ] || { echo "fuzz: no fuzz targets found"; exit 1; }
+
+consumer: ## Test tests/consumer from a separate module that requires this one, as a user's code would
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	cp tests/consumer/*_test.go "$$tmp"/ && cd "$$tmp" && \
+	GOWORK=off go mod init example.com/consumer >/dev/null 2>&1 && \
+	go mod edit -require="$(MODULE)@v0.0.0" -replace="$(MODULE)=$(CURDIR)" && \
+	GOWORK=off GOFLAGS=-mod=mod go test -race ./...
+
+api-check: ## Fail on an incompatible change to the exported API since $(API_BASELINE)
+	@test -f $(API_BASELINE) || { echo "No API baseline. Record one with make api-baseline (docs/releasing.md)."; exit 1; }
+	@out="$$(GOFLAGS=-trimpath $(APIDIFF) -m -incompatible $(API_BASELINE) $(MODULE))" || exit $$?; \
+	if [ -n "$$out" ]; then echo "Incompatible API changes since $(API_BASELINE):"; echo "$$out"; \
+		echo "Keep the old API, or agree a breaking release with the user (docs/releasing.md)."; exit 1; fi; \
+	echo "No incompatible API changes since $(API_BASELINE)."
+
+api-baseline: ## Record the current exported API as the baseline (a release step: docs/releasing.md)
+	@mkdir -p api
+	GOFLAGS=-trimpath $(APIDIFF) -m -w $(API_BASELINE) $(MODULE)
+
+coverage: ## Race-enabled tests with a coverage floor
+	go test -race -covermode=atomic -coverprofile=coverage.out -coverpkg="$$(go list ./... | grep -v '/tests/' | paste -sd, -)" ./...
+	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
+	echo "Total coverage: $$total% (minimum $(COVERAGE_MIN)%)"; \
+	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) }' || { echo "Coverage below $(COVERAGE_MIN)%"; exit 1; }
+
+doc: ## Print the package documentation as pkg.go.dev shows it
+	go doc -all .
+
+vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+ci: fmt-check tidy-check vet lint coverage fuzz consumer api-check vuln ## Everything CI runs
+
+clean: ## Remove coverage output
+	rm -f coverage.out coverage.html

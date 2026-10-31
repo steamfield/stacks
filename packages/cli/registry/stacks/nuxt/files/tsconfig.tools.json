@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "*.config.ts",
+    "scripts/**/*.ts",
+    "e2e/**/*.ts",
+    "tests/**/*.ts",
+    ".claude/hooks/**/*.ts"
+  ],
+  "exclude": ["node_modules", "nuxt.config.ts", ".claude/worktrees"]
+}

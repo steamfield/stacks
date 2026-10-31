@@ -91,11 +91,13 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `go-grpc` | Go RPC service on Connect from a protobuf contract: buf lint, breaking and generation checks through `go tool`, gRPC health and reflection, loopback tests over gRPC, gRPC-Web and Connect | |
 | `go-htmx` | Server-rendered Go web app: templ components generated through `go tool`, a vendored htmx, forms validated on the server with inline errors, HTML and htmx-header tests | |
 | `go-cli` | Go CLI: cobra, viper config, structured errors, human and JSON output, golangci-lint | |
+| `go-library` | Go library module with no binary: sentinel and typed errors for `errors.Is` and `errors.As`, runnable Example tests, fuzz tests, a consumer module test and an apidiff check against the last release | |
 | `go-mcp` | Go MCP server on the official Go SDK over stdio: typed tools with schemas from Go structs, tool errors the model can read, a lint rule keeping stdout for the protocol, in-memory and stdio protocol tests | |
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
 | `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
+| `nuxt` | Nuxt on Node: server API routes loaded with `useFetch`, a zod-validated form with field errors, runtime config, Vitest in Nuxt's test environment and Playwright against the built server | |
 | `python-api` | FastAPI service managed with uv: in-process pytest, structured request logs, one error envelope, an OpenAPI drift check | |
 | `python-cli` | Python CLI on Typer packaged as a wheel: TOML, env and flag settings, text or JSON output, an exit-code table, a smoke run of the built wheel | |
 | `python-library` | Typed Python library for PyPI: a src layout with `py.typed`, an exception hierarchy, a public-API test, Hypothesis properties, tests on the oldest supported Python, and the built wheel installed and type-checked in a clean environment | |

@@ -1,0 +1,44 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this library does and who imports it. -->
+
+## Install
+
+```sh
+go get {{project_slug}}
+```
+
+## Use
+
+```go
+d, err := libname.Parse("1d12h") // 36h0m0s
+if errors.Is(err, libname.ErrSyntax) {
+	// not a duration
+}
+fmt.Println(libname.Format(d)) // 1d12h
+```
+
+The package documentation and runnable examples are on pkg.go.dev, or run `make doc`.
+
+## Compatibility
+
+The module follows semantic versioning. [docs/public-api.md](docs/public-api.md) lists the exported API and what counts as a breaking change; `make api-check` enforces it against the last release.
+
+## Development
+
+Requires Go, make, a C compiler (for the race detector) and [golangci-lint](https://golangci-lint.run/).
+
+| Command | What it does |
+|---|---|
+| `make test` | Unit tests, examples and fuzz seeds with the race detector |
+| `make fuzz` | Fuzz each target for FUZZTIME (10s by default) |
+| `make consumer` | Use the library from a separate module, as a dependent would |
+| `make api-check` | Fail on an incompatible change to the exported API |
+| `make lint` | golangci-lint, including doc comments on every exported name |
+| `make ci` | Everything CI runs |
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [docs/releasing.md](docs/releasing.md).
+
+## License
+
+Copyright (c) {{year}} {{author}}

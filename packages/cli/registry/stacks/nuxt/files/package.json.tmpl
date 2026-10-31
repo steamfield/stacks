@@ -1,0 +1,23 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#nuxt-eslint": "./.nuxt/eslint.config.mjs"
+  },
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "start": "node .output/server/index.mjs",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint . --max-warnings 0 && prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "e2e": "bun run build && playwright test",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
+    "clean": "rm -rf .nuxt .output .data coverage test-results playwright-report",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

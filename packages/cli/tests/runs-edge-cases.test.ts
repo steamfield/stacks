@@ -120,25 +120,26 @@ test.each(["{ truncated", "{}", '{"schemaVersion":1,"unexpected":true}'])(
 );
 
 test.skipIf(process.getuid?.() === 0)(
-  "unreadable notes and history are unknown and empty without losing trusted state",
+  // Unreadable history is PermissionDenied (tests/discovery-access.test.ts); unreadable notes stay unknown.
+  "unreadable notes are unknown without losing history or trusted state",
   async () => {
     const p = project();
     writeFileSync(p.notes, "## Asked\n- Private question\n");
     writeFileSync(p.history, JSON.stringify(runRecord()));
-    for (const file of [p.notes, p.history]) chmodSync(file, 0o000);
+    chmodSync(p.notes, 0o000);
     try {
       const result = await p.invoke();
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
       expect(Schema.decodeUnknownSync(ProjectRuns)(JSON.parse(result.stdout))).toMatchObject({
         interventions: null,
-        verifyRuns: 0,
-        lastOutcome: null,
+        verifyRuns: 1,
+        lastOutcome: "green",
         skippedLines: 0,
         stateRecord: true,
       });
     } finally {
-      for (const file of [p.notes, p.history]) chmodSync(file, 0o600);
+      chmodSync(p.notes, 0o600);
     }
     expect(readFileSync(p.notes, "utf8")).toContain("Private question");
     expect(JSON.parse(readFileSync(p.history, "utf8"))).toEqual(runRecord());

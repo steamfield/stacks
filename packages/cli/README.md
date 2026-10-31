@@ -90,6 +90,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
 | `python-api` | FastAPI service managed with uv: in-process pytest, structured request logs, one error envelope, an OpenAPI drift check | |
+| `python-cli` | Python CLI on Typer packaged as a wheel: TOML, env and flag settings, text or JSON output, an exit-code table, a smoke run of the built wheel | |
 | `python-react` | FastAPI backend and a React SPA talking through a client generated from the OpenAPI spec | |
 | `react-router` | React Router framework mode with SSR, Effect services, typed HTTP errors, Tailwind and shadcn | `openrouter-chat` |
 | `sveltekit` | SvelteKit on the Node adapter: server load functions, zod-validated form actions, svelte-check, Vitest and Playwright | |

@@ -1,0 +1,43 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this tool does and who it's for. -->
+
+## Install
+
+```bash
+uv tool install {{project_slug}}    # or: pipx install {{project_slug}}
+```
+
+From a checkout, `make build` writes the wheel to `dist/`, and `uv tool install dist/*.whl` installs it.
+
+## Usage
+
+```bash
+{{project_slug}} --help
+{{project_slug}} --version
+{{project_slug}} --json config show
+```
+
+<!-- stacks:fill The two or three commands people run most, with one line each on what they do. -->
+
+Global options (`--json`, `--config`, `--verbose`, `--no-color`) go before the command. See [docs/configuration.md](docs/configuration.md) for the config file, environment variables and exit codes.
+
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) and make.
+
+| Command | What it does |
+|---|---|
+| `make install` | Create `.venv` and install the project and its dev tools |
+| `make lint` / `make format` | Check / fix lint and formatting (ruff) |
+| `make typecheck` | mypy strict |
+| `make test` | pytest, including tests that run the installed command |
+| `make coverage` | Tests with the coverage floor |
+| `make build` | Build the wheel and sdist and check their metadata |
+| `make smoke` | Install the wheel in a throwaway environment and run it |
+
+Run `make help` for the full list. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the modules.
+
+## License
+
+Copyright (c) {{year}} {{author}}

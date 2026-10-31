@@ -255,6 +255,32 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "twine": {
+      "whatItIs": "Checks that a built Python package's description and details will display correctly on PyPI, and uploads it there.",
+      "homepage": "https://twine.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "typer": {
+      "whatItIs": "Typer, a Python library for building command-line programs, where each command is a plain function and its options come from the function's parameters.",
+      "goodAt": [
+        "Building a terminal command with subcommands, options and help text",
+        "Rejecting a mistyped option before the program does any work"
+      ],
+      "notGoodAt": ["Full-screen terminal interfaces; use Textual for those."],
+      "example": "When someone types the wrong option, the tool stops, names the option it didn't recognize and points to the help text.",
+      "homepage": "https://typer.tiangolo.com/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "uvicorn": {
       "whatItIs": "uvicorn, a server program that runs a Python web app so it can receive requests from browsers and phone apps.",
       "goodAt": [

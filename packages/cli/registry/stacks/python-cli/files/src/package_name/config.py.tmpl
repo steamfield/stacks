@@ -1,0 +1,89 @@
+"""Settings: defaults, then the TOML config file, then environment variables, then flags."""
+
+from __future__ import annotations
+
+import os
+import tomllib
+from pathlib import Path
+from typing import TYPE_CHECKING, Annotated, Any, Literal
+
+from pydantic import StringConstraints, ValidationError
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
+
+from package_name.errors import CliError, ErrorCode
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+APP_NAME = "{{project_slug}}"
+ENV_PREFIX = "{{env_prefix}}_"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, extra="forbid", frozen=True)
+
+    greeting: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = (
+        "Hello, world!"
+    )
+    output: Literal["text", "json"] = "text"
+    verbose: bool = False
+    color: bool = True
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        del dotenv_settings, file_secret_settings  # A CLI reads no .env file or secrets dir.
+        # Earlier sources win: flags (passed as init values), then env, then the file.
+        return (init_settings, env_settings, TomlConfigSettingsSource(settings_cls))
+
+
+def default_config_file() -> Path:
+    base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+    return Path(base) / APP_NAME / "config.toml"
+
+
+def load_settings(config_file: Path | None, flags: Mapping[str, Any]) -> Settings:
+    """Load settings. An explicit config file must exist; the default one is optional."""
+    path = config_file or default_config_file()
+    if config_file is not None and not config_file.is_file():
+        raise CliError(
+            ErrorCode.CONFIG,
+            f"config file not found: {config_file}",
+            "Check the --config path, or omit it to use the default file.",
+        )
+
+    # pydantic-settings takes the TOML path from model_config, so each load sets it on a subclass.
+    class FileSettings(Settings):
+        model_config = SettingsConfigDict(toml_file=path)
+
+    try:
+        return FileSettings(**flags)
+    except tomllib.TOMLDecodeError as error:
+        raise CliError(
+            ErrorCode.CONFIG, f"cannot parse {path}", "Fix the TOML syntax in the file."
+        ) from error
+    except OSError as error:
+        raise CliError(
+            ErrorCode.CONFIG, f"cannot read {path}", "Check the file's permissions."
+        ) from error
+    except ValidationError as error:
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in issue['loc'])}: {issue['msg']}"
+            for issue in error.errors()
+        )
+        raise CliError(
+            ErrorCode.CONFIG,
+            f"invalid configuration: {problems}",
+            f"Fix the value in {path} or the {ENV_PREFIX}* environment variable.",
+        ) from error

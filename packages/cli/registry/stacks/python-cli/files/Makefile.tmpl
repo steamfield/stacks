@@ -1,0 +1,50 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes to the project, but keep the target
+# names. `stacks verify` calls install, lint, typecheck, coverage, build and
+# smoke, and CI should call the same targets.
+
+BIN := {{project_slug}}
+TEST_WORKERS ?= auto
+
+.DEFAULT_GOAL := help
+.PHONY: help install lint format typecheck test coverage build smoke clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
+
+install: ## uv sync (--locked when CI is set), then git hooks outside CI
+	uv sync $(if $(CI),--locked)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
+
+lint: ## ruff check + ruff format --check
+	uv run ruff check . && uv run ruff format --check .
+
+format: ## ruff format + ruff check --fix
+	uv run ruff format . && uv run ruff check --fix .
+
+typecheck: ## mypy strict over src and tests
+	uv run mypy src tests
+
+test: ## pytest (parallel), including the console-script tests
+	uv run pytest -n $(TEST_WORKERS)
+
+coverage: ## pytest with the coverage floor
+	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
+
+build: ## Build the wheel and sdist into dist/ and check their metadata
+	rm -rf dist
+	uv build
+	uv run twine check --strict dist/*
+
+smoke: build ## Install the wheel in a throwaway environment and run the command
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	uv venv --quiet "$$tmp/venv" && \
+	uv pip install --quiet --python "$$tmp/venv/bin/python" dist/*.whl && \
+	HOME="$$tmp" "$$tmp/venv/bin/$(BIN)" --version && \
+	HOME="$$tmp" "$$tmp/venv/bin/$(BIN)" --help >/dev/null && \
+	HOME="$$tmp" "$$tmp/venv/bin/$(BIN)" --json config show \
+		| "$$tmp/venv/bin/python" -c 'import json, sys; json.load(sys.stdin)'
+
+clean: ## Remove caches, build and coverage output
+	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage .coverage.* dist

@@ -140,6 +140,8 @@
       "ruff",
       "sqlalchemy",
       "structlog",
+      "twine",
+      "typer",
       "uvicorn"
     ],
     "go": [

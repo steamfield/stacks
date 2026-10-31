@@ -14,7 +14,7 @@ decisions:
   - "Worker name (default: project slug)."
 fragments:
   default: [agent-ops, ci-github]
-  optional: [cloudflare-d1, git-hooks, ce-plugin]
+  optional: [cloudflare-d1, git-hooks, ce-plugin, posthog]
 env:
   PORT_WEB: "5173"
 verify:

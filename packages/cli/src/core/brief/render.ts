@@ -420,6 +420,7 @@ function renderAddBrief(
     T.ground.heading,
     "",
     T.add.git,
+    T.add.ignore,
     T.ground.agentsMd,
     T.ground.telemetry,
     ...T.ground.notes,

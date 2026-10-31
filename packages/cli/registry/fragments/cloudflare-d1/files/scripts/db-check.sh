@@ -18,8 +18,8 @@ copy=$(mktemp -d .db-check.XXXXXX)
 trap 'rm -rf "$copy"' EXIT
 trap 'exit 130' INT TERM
 cp -R drizzle "$copy/drizzle"
-printf 'import config from "%s/drizzle.config.ts";\nexport default { ...config, out: "./%s/drizzle" };\n' \
-  "$PWD" "$copy" >"$copy/drizzle.config.ts"
+printf 'import config from "../drizzle.config.ts";\nexport default { ...config, out: "./%s/drizzle" };\n' \
+  "$copy" >"$copy/drizzle.config.ts"
 drizzle-kit generate --config "$copy/drizzle.config.ts" </dev/null >"$copy/generate.log" 2>&1 || true
 
 # drizzle-kit exits 0 even when generate fails (a rename it can't ask about

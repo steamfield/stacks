@@ -78,7 +78,7 @@ findings=""
 add() { findings="${findings}- $1"$'\n'; }
 
 has 'AKIA[0-9A-Z]{16}' && add "AWS access key ID"
-has '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9/+=]{40}' && add "AWS secret access key"
+has '(aws_secret_access_key|AWS_SECRET_ACCESS_KEY)["'\'']?[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9/+=]{40}' && add "AWS secret access key"
 has '(ghp|gho|ghs|ghu|ghr)_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}' && add "GitHub token"
 has 'glpat-[A-Za-z0-9_-]{20,}' && add "GitLab token"
 has 'xox[baprs]-[A-Za-z0-9-]{10,}|hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+' && add "Slack token or webhook"

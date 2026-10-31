@@ -22,9 +22,8 @@ Run these from the repo root. They are the only supported way to build, test, an
 
 ## Agent harness
 
-<!-- stacks:fill Document the selected agents' actual harness: where hooks, rules and skills live and which config wires each agent's hooks. Include a table mapping each rule to the paths it covers. Link any harness docs. Keep this section for Codex-only and multiple-agent projects too. Before writing it, when both Claude Code and Codex are targets, make one skill tree: move each `.agents/skills/*` directory into `.claude/skills/` without overwriting an existing skill, then replace `.agents/skills` with a tracked symlink to `../.claude/skills`, and write new skills under `.claude/skills/`. With Codex alone, skills live in `.agents/skills/`; with Claude alone, in `.claude/skills/`. -->
+<!-- stacks:fill Document the selected agents' actual harness: where hooks, rules and skills live and which config wires each agent's hooks. Include a table mapping each rule to the paths it covers. Link any harness docs. Keep this section for Codex-only and multiple-agent projects too. Before writing it, when both Claude Code and Codex are targets, make one skill tree: move each `.agents/skills/*` directory into `.claude/skills/` without overwriting an existing skill, then replace `.agents/skills` with a tracked symlink to `../.claude/skills`, and write new skills under `.claude/skills/`. With Codex alone, skills live in `.agents/skills/`; with Claude alone, in `.claude/skills/`. When the project has `.claude/rules/` and Codex is a target, add: "Codex does not load `.claude/rules/` automatically: it reads the rules covering the files it changes before editing them." -->
 
-Codex does not load `.claude/rules/` automatically: it reads the rules covering the files it changes before editing them. Claude Code loads its path-scoped rules automatically.
 
 ## Conventions
 

@@ -1,6 +1,6 @@
 # Releasing {{project_name}}
 
-Releases are built by GoReleaser from `.goreleaser.yaml` and published by `.github/workflows/release.yml` when a `v*` tag is pushed. Never upload release files by hand.
+Releases are built by GoReleaser from `.goreleaser.yaml` and published by the release workflow, `.github/workflows/release.yml`, when a `v*` tag is pushed. Until that workflow exists (a sandbox build leaves it out and lists it under Pending user actions in `AGENTS.md`), there is no way to publish: build locally with the targets below. Never upload release files by hand.
 
 ## Cut a release
 

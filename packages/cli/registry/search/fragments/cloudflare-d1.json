@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "cloudflare-d1",
   "source": {
-    "digest": "sha256:946b97a886c08463d29185af589fe8e49e84018b81ede21be8627be296ea69cf",
+    "digest": "sha256:be9d127dfa93ea2542e720281c14b99534d1c7d359908a372d14aca4f8e0ae69",
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,

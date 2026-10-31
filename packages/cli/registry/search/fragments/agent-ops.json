@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "agent-ops",
   "source": {
-    "digest": "sha256:d9d37bff2d7413f407933c2d9c9a8fac7634976b5f11b566366663b443241589",
+    "digest": "sha256:b09f5ca3b9bb9652c3443831064d70e9e874c36bed3add2c2ff8310fe19e1a1a",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,

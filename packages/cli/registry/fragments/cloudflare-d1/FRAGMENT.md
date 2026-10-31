@@ -43,7 +43,7 @@ Keep `items` as the proving table and add no product features.
 ## Tool configuration
 
 - `drizzle.config.ts` only generates SQL. Don't add `dbCredentials` or the `d1-http` driver: that would need an account token, and Wrangler applies migrations.
-- `scripts/db-check.sh` runs `drizzle-kit check`, then generates into a throwaway copy of `drizzle/`. It passes only when drizzle-kit reports no schema changes and the copy still equals `drizzle/`. drizzle-kit exits 0 when generate fails, so keep the message check. If an upgrade rewords the message, update the script, don't loosen it.
+- `scripts/db-check.sh` runs `drizzle-kit check`, then generates into a throwaway copy of `drizzle/`. It passes only when drizzle-kit reports no schema changes and the copy still equals `drizzle/`. drizzle-kit exits 0 when generate fails, so keep the message check. If an upgrade rewords the message, update the script, don't loosen it. The copy is a `.db-check.*` directory in the project root, left behind if the check is killed: add `.db-check.*` to `.gitignore` and Biome's ignored files.
 - Without a terminal, drizzle-kit can't ask whether a change is a rename. Ask the person to run `bun run db:generate`, or split the change into steps it can generate without asking.
 - Migrations are append-only once applied remotely. Review generated SQL for drops and SQLite table rebuilds before any remote apply.
 - Worker code builds `database(env.DB)` per request from `context.get(cloudflareContext).env`, never opens a filesystem SQLite file and logs database failures with fixed fields only.

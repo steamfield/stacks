@@ -3,14 +3,14 @@
   "kind": "fragment",
   "id": "posthog",
   "source": {
-    "digest": "sha256:00887a21cebe76b7fcd934b06e1544af29d59826da71739ebf5e56b9bb3acd15",
+    "digest": "sha256:c5374baa6ff59a6ea1cfd1cf7848d500eb612c2998d610333e0fd8fec4a16243",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Track browser pageviews and typed product events through PostHog, with buffered initialization and analytics disabled when no key is configured.",
-  "description": "Collect browser pageviews and explicitly named product events through one typed analytics module. Events can queue while PostHog initializes, and an empty key makes analytics silent in development and tests. Session recording and autocapture are off by default; consent and persistence are explicit choices. The guidance excludes user-entered text, email addresses and tokens. It does not establish legal compliance or provide server-side analytics.",
+  "description": "Collect browser pageviews and explicitly named product events through one typed analytics module. Events can queue while PostHog initializes, and an empty key makes analytics silent in development and tests. Session recording and autocapture are off by default; consent and cookie use are explicit choices. The guidance excludes user-entered text, email addresses and tokens. It does not establish legal compliance or provide server-side analytics.",
   "seoDescription": "PostHog browser analytics with typed events, buffered initialization and a silent no-key state for development and tests.",
   "projectExamples": [
     {
@@ -52,7 +52,8 @@
     "PostHog",
     "event catalog",
     "pageviews",
-    "pre-init buffer"
+    "product analytics",
+    "event tracking"
   ],
   "goodFor": [
     "one typed tracking module",

@@ -12,32 +12,16 @@ merge: [.claude/settings.json, .codex/hooks.json]
 verify:
   - name: agents-md-filled
     layer: check
-    run: "test -s AGENTS.md && ! grep -n 'stacks:fill' AGENTS.md"
+    run: "test -s AGENTS.md && grep -q '^## Commands' AGENTS.md && ! grep -n 'stacks:fill' AGENTS.md"
+  - name: claude-md-imports-agents
+    layer: check
+    run: "test ! -f CLAUDE.md || grep -qx '@AGENTS.md' CLAUDE.md"
   - name: claude-readme-filled
     layer: check
     run: "test ! -f .claude/README.md || ! grep -n 'stacks:fill' .claude/README.md"
   - name: hooks-smoke
     layer: check
-    run: |
-      set -e
-      h=.claude/hooks
-      out() { printf '%s' "$1" | bash "$2"; }
-      denies() { out "$1" "$2" | grep -q '"permission\(Decision\)\{0,1\}":"deny"'; }
-      allows() { test -z "$(out "$1" "$2")"; }
-      f='git push --'force
-      denies "{\"tool_input\":{\"command\":\"$f origin main\"}}" $h/block-destructive.sh
-      allows "{\"tool_input\":{\"command\":\"git commit -m 'docs: never $f'\"}}" $h/block-destructive.sh
-      denies '{"tool_input":{"file_path":".env","content":"A=1"}}' $h/detect-secrets.sh
-      k=AKIA; k="${k}QQQQABCDEFGHIJKL"
-      denies "{\"tool_input\":{\"file_path\":\"src/k.ts\",\"content\":\"const k = '$k';\"}}" $h/detect-secrets.sh
-      allows '{"tool_input":{"file_path":"src/k.ts","content":"export const k = 1;"}}' $h/detect-secrets.sh
-      test ! -f .codex/hooks/check-patch.sh || denies "{\"tool_input\":{\"command\":\"*** Begin Patch\\n*** Add File: src/k.ts\\n+const k = '$k';\\n*** End Patch\"}}" .codex/hooks/check-patch.sh
-      test ! -f .cursor/hooks/guard.sh || denies "{\"tool_name\":\"Shell\",\"tool_input\":{\"command\":\"$f\"}}" .cursor/hooks/guard.sh
-      j() { if command -v node >/dev/null 2>&1; then node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$1"; elif command -v python3 >/dev/null 2>&1; then python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$1"; fi; }
-      for c in .claude/settings.json .codex/hooks.json .cursor/hooks.json opencode.json; do test ! -f "$c" || j "$c"; done
-      test ! -f .claude/settings.json || grep -q 'hooks/block-destructive.sh' .claude/settings.json
-      test ! -f .codex/hooks.json || grep -q 'hooks/check-patch.sh' .codex/hooks.json
-      test ! -f .cursor/hooks.json || grep -q 'hooks/guard.sh' .cursor/hooks.json
+    run: bash .claude/hooks/smoke.sh
 ---
 
 # Agent operations
@@ -54,7 +38,7 @@ One canonical instruction file for every coding agent, `AGENTS.md`, plus a Claud
 - Under about 200 lines. Other fragments' sections go under their own `##` near related ones (database after Architecture map, CI and deploy before Deferred).
 
 <!-- stacks:when mode=add -->
-When the repo already has an `AGENTS.md`, the skeleton isn't copied (it's listed as "merge needed"). Keep the existing file and add the skeleton's missing sections (Commands, Build workarounds, Deferred, Pending user actions). An existing `CLAUDE.md` must import `AGENTS.md` (`@AGENTS.md`) instead of duplicating it; move shared content into `AGENTS.md`.
+When the repo already has an `AGENTS.md`, the skeleton isn't copied (it's listed as "merge needed"). Keep the existing file and add the skeleton's missing sections (Commands, Build workarounds, Deferred, Pending user actions). An existing `CLAUDE.md` must import `AGENTS.md` (`@AGENTS.md` on its own line, which verify checks) instead of duplicating it; move shared content into `AGENTS.md`.
 <!-- stacks:end -->
 
 **Claude Code adapter** (when Claude is a target): `CLAUDE.md` imports `AGENTS.md` via `@AGENTS.md` (Claude Code ignores `AGENTS.md` otherwise; never remove the line). `.claude/settings.json` wires the hooks; other fragments deep-merge into it. The hooks stop destructive commands, secret-shaped writes and `.env` writes before they happen: a block means ask the user, never work around it. `.claude/README.md` documents the hooks; replace its `stacks:fill` row with one row per hook other entries ship (`claude-readme-filled` checks).
@@ -71,7 +55,7 @@ The stack's `.claude/settings.json` merges in allow rules for its non-destructiv
 
 **Other agents** run the shell guards from `.claude/hooks/`, so keep it whatever the targets. Codex runs project hooks only after the user trusts the project and approves each hook in `/hooks`: list that under Pending user actions. Cursor's guards fail closed, so without `bash` every Shell, Write and Delete call is refused.
 
-`hooks-smoke` feeds the guards a deny and a near miss each, and checks every hook config still parses and wires them. If it fails, fix the hook or the wiring, never the step.
+`hooks-smoke` runs `.claude/hooks/smoke.sh`, which feeds the guards a deny and a near miss each, and checks every hook config still parses and wires them. If it fails, fix the hook or the wiring, never the script or the step.
 
 Claude Code asks the user before any edit under `.claude/` or to `lefthook.yml`; if denied, finish the rest, then ask once for all of them, with exact content.
 
@@ -79,4 +63,6 @@ If the project has a linter (a formatter alone doesn't count), confirm `lint-on-
 <!-- stacks:when with=claude-harness -->
 
 The shared harness supplies Bun TypeScript hook helpers. Write project-specific guards against those helpers and test them in `tests/hooks/`. The agent-ops hooks above stay bash.
+
+Document `guard-commands.ts` in `.claude/README.md`: with Bun, `block-destructive.sh` hands it the payload, and it denies if it can't run.
 <!-- stacks:end -->

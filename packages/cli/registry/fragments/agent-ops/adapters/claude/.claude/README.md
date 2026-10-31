@@ -4,7 +4,6 @@
 settings.json        shared config: hooks wiring, read-only allow rules, destructive-command deny rules
 settings.local.json  your machine-only overrides (gitignored, create as needed)
 hooks/               hooks, described below
-rules/               path-scoped guidance, loaded when a rule's `paths:` globs match
 ```
 
 Project instructions live in `AGENTS.md` at the repo root, which every coding agent reads. The root `CLAUDE.md` imports it and adds only Claude-specific notes, so edit `AGENTS.md` for anything that isn't Claude-specific.
@@ -19,15 +18,14 @@ Project instructions live in `AGENTS.md` at the repo root, which every coding ag
 | `lint-on-write.sh` | PostToolUse `Edit\|Write` | Runs the project's linter on the file just written (ruff, biome or eslint, golangci-lint or gofmt, shellcheck) and hands diagnostics back to the agent, one line each. Formatting isn't reported, since `format-changed.sh` fixes it. Also records the path for `format-changed.sh`. |
 | `format-changed.sh` | Stop | Formats the files this session wrote with the formatters the project has configured (ruff, biome or prettier, gofmt), then forgets them. Ruff's safe fixes run too, except removing unused imports (one written this turn may be used next turn). `lint-on-write.sh` records each path written through Edit/Write in a per-session list under `$TMPDIR/stacks-hooks/`, keyed by the session id. Files you or other agents in the same checkout are editing aren't touched; no session id means nothing is formatted. |
 | `_destructive-patterns.sh` | (sourced) | The pattern list behind `block-destructive.sh`. Reuse it from any hook that approves or rewrites Bash commands. |
+| `smoke.sh` | (not wired) | The `hooks-smoke` verify step: feeds each guard a deny and a near miss, and checks every hook config present parses and wires its guard. Add a case here when you add a guard. |
 | `_lib.sh` | (sourced) | Shared helpers: the payload reader, the deny and context responses, project root, `find_up`, a portable `with_timeout`, the per-session file list. |
 | <!-- stacks:fill One row per other file in hooks/ (harness, stack, and app hooks such as TypeScript guards): name, event and matcher from settings.json, what it does. Delete this row if there are none. --> | | |
-
-When `claude-harness` and Bun are installed, `block-destructive.sh` passes its saved payload to `guard-commands.ts`. The TypeScript guard covers the command families in the table using lexed words, so quoted examples and heredoc text stay allowed, and allows a hard reset only to `HEAD` on a clean tree. It also checks recursive deletion outside the project, history rewrites and package-manager rules; see `docs/harness.md`. Keep only the shell guard wired. A TypeScript guard that fails to run denies the call; without the TypeScript guard or Bun, the raw shell patterns remain the fallback.
 
 How they behave:
 
 - **A block means ask the user.** A guard's deny tells the agent why; the agent asks you instead of rephrasing the command, splitting it up, or writing the file another way. Never work around a deny.
-- **Accidents, not adversaries.** The shell fallback guards match regexes against the command or file text, not a shell parse. Quoting, `eval`, aliases and scripts that run a command indirectly get past them, and so does a machine without `grep`, `sed` or `awk`.
+- **Accidents, not adversaries.** The shell guards match regexes against the command or file text, not a shell parse. Quoting, `eval`, aliases and scripts that run a command indirectly get past them, and so does a machine without `grep`, `sed` or `awk`.
 - **Quiet when there's nothing to do.** A hook whose tool isn't installed exits 0 with no output. The hooks read their input with jq when it's on PATH and with a small awk reader otherwise, so they decide the same way on a machine without jq.
 - **Guards deny; everything else advises.** Only guards block anything: `block-destructive.sh`, `detect-secrets.sh`, and any guard listed above. Lint results arrive as context and never block a write.
 - **Nothing is downloaded.** Linters and formatters run only from the project's own install (`.venv`, `node_modules/.bin`) or from PATH. The hooks never call `npx`, `bunx`, or `uv run`, which could fetch packages or sync environments mid-session.
@@ -46,7 +44,7 @@ echo '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' | bash .
 
 ### Changing them
 
-- For the shell fallback, add a destructive pattern to `_destructive-patterns.sh`, not to `block-destructive.sh`.
+- Add a shell destructive pattern to `_destructive-patterns.sh`, not to `block-destructive.sh`.
 - Project-specific checks (generated files that must not be hand-edited, a missing symlink at session start) go in the relevant hook or a new one wired in `settings.json`. A hook that fires on every tool call should cost milliseconds.
 - If the project has hook tests, add a case for each new pattern: one command that must be denied and one near miss that must pass.
 

@@ -1,0 +1,11 @@
+# Keep dependencies, build output, caches and tests out of the build context.
+node_modules
+build
+.react-router
+coverage
+playwright-report
+test-results
+tests
+**/*.test.ts
+**/*.test.tsx
+.env*

@@ -7,7 +7,7 @@ description: "Build, install, test and update Bun binary releases with checksums
 
 `scripts/build.ts --all`, `install.sh`, `update` and the release workflow agree on `{{project_slug}}-<os>-<arch>[-musl]` and `SHA256SUMS`. Change one, change all four. Compiled binaries keep dotenv and bunfig autoload off.
 
-Replacing a binary: download into a temporary file in the destination directory, verify the checksum, chmod 0755, rename over the old one. Never write the running binary in place. Checksum, network and permission failures keep the installed binary and remove the temporary file. A source run refuses to update. Release settings (`{{env_prefix}}_RELEASES_REPO`, `{{env_prefix}}_RELEASES_URL`, `{{env_prefix}}_INSTALL_DIR`) are read apart from application config, so a broken config file never blocks `update`.
+Replacing a binary: download into a temporary file in the destination directory, verify the checksum, chmod 0755, rename over the old one. Never write the running binary in place. Checksum, network and permission failures keep the installed binary and remove the temporary file. A source run refuses to update. Release settings (`{{env_prefix}}_RELEASES_REPO`, `{{env_prefix}}_RELEASES_URL`) are read apart from application config, so a broken config file never blocks `update`; `{{env_prefix}}_INSTALL_DIR` is read only by `install.sh`.
 
 Tests use `startStubReleases` from `tests/helpers/releases.ts` and never the network. `bun run test:unit tests/install.test.ts` and `tests/update.test.ts` must pass after any change here; a read-only install directory exits 6.
 

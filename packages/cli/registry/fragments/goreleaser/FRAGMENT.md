@@ -60,7 +60,7 @@ Pushing `vX.Y.Z` builds every target, attaches archives and `checksums.txt` to a
 
 ## Verify
 
-`release-check` fails while `.goreleaser.yaml` or `docs/releasing.md` still holds a `stacks:fill` line, and when the config is invalid. `release-build` builds this platform's binary through GoReleaser and runs `--version --json`. Both work without a remote or a commit. `release-snapshot` builds all six targets and is tagged `prod`; under `--sandbox` it's skipped. Under `--sandbox`, also skip the release workflow, Homebrew and provenance.
+`release-check` fails while `.goreleaser.yaml` or `docs/releasing.md` still holds a `stacks:fill` line, and when the config is invalid. `release-build` builds this platform's binary through GoReleaser and runs `--version --json`. Both work without a remote or a commit. `release-snapshot` builds all six targets and is tagged `prod`; under `--sandbox` it's skipped. Under `--sandbox`, also skip the release workflow, Homebrew and provenance, and list the release workflow under Pending user actions (`docs/releasing.md` points there).
 
 ## AGENTS.md
 

@@ -124,7 +124,7 @@ CI has filtered backend/frontend jobs. Backend runs `make backend-install backen
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
 
-Replace the shipped MemoryNotes behind NoteStore with a SQLAlchemy store created in the lifespan and a notes migration. Keep the HTTP contract, test it on the fragment's private per-file database, and keep `/health` DB-free.
+The postgres fragment ships SqlNotes under `backend/`, the notes migration and readiness at `/health/ready`; the lifespan uses SqlNotes when a database URL is configured and keeps MemoryNotes for the Docker-free suite. Keep the HTTP contract and keep `/health` DB-free.
 <!-- stacks:end -->
 
 ## Gotchas

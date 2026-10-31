@@ -8,13 +8,15 @@
 # checksum doesn't match. Settings (env):
 #   {{env_prefix}}_INSTALL_DIR    where to put {{project_slug}} (default ~/.local/bin)
 #   {{env_prefix}}_VERSION        a tag like v0.2.0 (default: the latest release)
-#   {{env_prefix}}_RELEASES_REPO  owner/repo (default {{package_scope}}/{{project_slug}})
+#   {{env_prefix}}_RELEASES_REPO  owner/repo (default: default_repo below)
 #   {{env_prefix}}_RELEASES_URL   the releases base URL (default https://github.com/<repo>/releases;
 #                         tests point it at a local stub)
 # It downloads through GitHub's release download URLs, so it needs no API call and no JSON parsing.
 set -euo pipefail
 
-repo="${{{env_prefix}}_RELEASES_REPO:-{{package_scope}}/{{project_slug}}}"
+default_repo="{{package_scope}}/{{project_slug}}"
+# stacks:fill Confirm default_repo's owner (the GitHub owner the user names when it's empty) and the curl line above, then delete this line.
+repo="${{{env_prefix}}_RELEASES_REPO:-$default_repo}"
 base="${{{env_prefix}}_RELEASES_URL:-}"
 dir="${{{env_prefix}}_INSTALL_DIR:-$HOME/.local/bin}"
 version="${{{env_prefix}}_VERSION:-}"
@@ -90,5 +92,12 @@ mv -f "$staged" "$dir/{{project_slug}}"
 echo "Installed {{project_slug}} to $dir/{{project_slug}}"
 case ":$PATH:" in
   *":$dir:"*) ;;
-  *) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.zshrc" ;;
+  *)
+    case "${SHELL:-}" in
+      */fish) echo "Add $dir to your PATH, e.g.: fish_add_path '$dir'" ;;
+      */zsh) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.zshrc" ;;
+      */bash) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.bashrc" ;;
+      *) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.profile" ;;
+    esac
+    ;;
 esac

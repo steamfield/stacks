@@ -30,7 +30,7 @@ Stacks wrote:
 - `apps/api/src/routes/me.ts`: `GET /me`, the authenticated half of the proving slice.
 - `apps/api/test/auth.ts` (`setupTestAuth()`, `createSigner()`) and `test/auth.test.ts`, which the `auth-api` step runs: valid, missing, foreign-key and expired tokens, keyless, bypass and no-network cases on the chain, then the real API booted from `src/index.ts` (so it fails until `app.ts` and `config.ts` are wired).
 - `apps/mobile/src/lib/clerk.ts` (`clerkConfig()`) and `src/lib/auth.tsx` (`AuthProvider`, `useSessionToken`, `authHeaders`).
-- `apps/mobile/test/clerk-mock.ts` (the SDK stub, `setClerkSession`) and `test/clerk-auth.test.tsx`, which the `auth-mobile` step runs.
+- `apps/mobile/test/clerk-mock.ts` (the SDK stub, `setClerkSession`) and `test/clerk-auth.test.tsx`, which the `auth-mobile` step runs. It passes before any wiring; the stack's `auth-provider` step proves the wiring.
 
 Read them before wiring them in. Lint and typecheck fail until the edits below are made.
 
@@ -69,7 +69,7 @@ A project made without Clerk already has `test/auth-provider.test.tsx` for the a
 ## Gotchas
 
 - The test keypair is 2048 bits; Clerk's PEM loader rejects 3072 and 4096.
-- If you add `@clerk/expo` to `app.json` `plugins`, use `["@clerk/expo", { "appleSignIn": false }]`: the plugin adds the Sign in with Apple entitlement by default, which makes simulator builds demand a signing certificate. Email-code sign-in doesn't need the plugin.
+- `expo install @clerk/expo` adds the plugin to `app.json` with Sign in with Apple on, so simulator builds demand a signing certificate. Replace it with `["@clerk/expo", { "appleSignIn": false }]` unless the sign-in decision chose Apple.
 - `authorizedParties` stays unset in `clerkAuth()` because it rejects tokens without an `azp` claim. Set it when a web client joins.
 
 ## Environment and AGENTS.md

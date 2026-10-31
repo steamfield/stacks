@@ -53,7 +53,7 @@ test.each(["default", "sandbox"] as const)(
     for (const without of [[], ["todo-app"]]) {
       const brief = renderBrief(await composed({ preset, without }), context()).text;
       expect(section(brief, "## Ground rules")).toContain(
-        "- Keep `.stacks/NOTES.md` here as you work; git worktrees lack it and the brief (both git-ignored):",
+        "- Keep `.stacks/NOTES.md` here as you work. It and the brief are git-ignored, so git worktrees lack them:",
       );
     }
   },

@@ -26,6 +26,16 @@ describe("real config and emitted logging", () => {
     ]);
   });
   it.each([
+    { args: ["doctor", "--json"], command: "doctor" },
+    { args: ["--help", "--json"], command: "framework" },
+    { args: ["absent", "--json"], command: null },
+  ])("names the command that ran as $command in its record", async ({ args, command }) => {
+    const result = await runCli(args);
+    expect(ndjson(result.stderr)).toContainEqual(
+      expect.objectContaining({ msg: "command", command }),
+    );
+  });
+  it.each([
     { file: "{}", env: {}, levels: ["warn"], greeting: "Hello, world!" },
     {
       file: '{"logLevel":"debug","greeting":"file"}',

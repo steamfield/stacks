@@ -1,0 +1,124 @@
+// Run-owned databases on the db-test server. A run creates names only it knows and drops only
+// those names: nothing is listed or dropped by prefix, so a concurrent run keeps its databases.
+// Leftovers from a crashed run are for a person to remove.
+import { randomBytes } from "node:crypto";
+import { PgClient } from "@effect/sql-pg";
+import { Effect, Redacted } from "effect";
+import { Migrator, SqlClient } from "effect/sql";
+import { loader } from "../../src/migrations/index.ts";
+import { pgLayer } from "../../src/platform/database.ts";
+
+// Postgres truncates identifiers at 63 bytes; prefix, run id, label and suffix stay well under.
+const PREFIX = "{{env_prefix}}".toLowerCase().slice(0, 20);
+
+export function adminUrl(): string {
+  return (
+    process.env.TEST_DATABASE_URL ??
+    `postgres://app:app@localhost:${process.env.PORT_DB_TEST ?? "5433"}/postgres`
+  );
+}
+
+export function databaseUrl(name: string): string {
+  const url = new URL(adminUrl());
+  url.pathname = `/${name}`;
+  return url.toString();
+}
+
+export const newRunId = () => randomBytes(4).toString("hex");
+export const templateName = (run: string) => `${PREFIX}_tpl_${run}`;
+export const cloneName = (run: string, label: string) =>
+  `${PREFIX}_${run}_${label}_${randomBytes(2).toString("hex")}`;
+
+/** One maintenance session: an advisory lock and the statements under it share a connection. */
+function withAdmin<A, E>(task: Effect.Effect<A, E, SqlClient.SqlClient>): Promise<A> {
+  const client = PgClient.layerFrom(
+    PgClient.makeClient({ url: Redacted.make(adminUrl()), connectTimeout: "5 seconds" }),
+  );
+  return Effect.runPromise(task.pipe(Effect.provide(client))).catch((error: unknown) => {
+    throw new Error("db-test failed or is unreachable at TEST_DATABASE_URL; run bun run db:up.", {
+      cause: error,
+    });
+  });
+}
+
+const locked = <A, E>(key: string, task: Effect.Effect<A, E, SqlClient.SqlClient>) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`SELECT pg_advisory_lock(hashtext(${key}))`;
+    return yield* task.pipe(
+      Effect.ensuring(Effect.ignore(sql`SELECT pg_advisory_unlock(hashtext(${key}))`)),
+    );
+  });
+
+/** Runs the committed migrations, as db:migrate does, and closes the pool. */
+export const migrateWithMigrator = (url: string) =>
+  Effect.runPromise(
+    Migrator.make({})({ loader }).pipe(Effect.provide(pgLayer(Redacted.make(url))), Effect.asVoid),
+  );
+
+/** Creates and migrates a database (a run's template); a failed migration drops it again. */
+export function createMigrated(
+  name: string,
+  migrateTo: (url: string) => Promise<void> = migrateWithMigrator,
+) {
+  return withAdmin(
+    locked(
+      name,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`CREATE DATABASE ${sql(name)}`;
+        yield* Effect.tryPromise(() => migrateTo(databaseUrl(name))).pipe(
+          Effect.tapError(() => sql`DROP DATABASE IF EXISTS ${sql(name)} WITH (FORCE)`),
+        );
+      }),
+    ),
+  );
+}
+
+/** Clones a template. Cloning needs a template nobody is connected to, so clones queue. */
+export function cloneDatabase(template: string, name: string) {
+  return withAdmin(
+    locked(
+      template,
+      Effect.flatMap(
+        SqlClient.SqlClient,
+        (sql) => sql`CREATE DATABASE ${sql(name)} TEMPLATE ${sql(template)}`,
+      ),
+    ),
+  );
+}
+
+export function createEmpty(name: string) {
+  return withAdmin(Effect.flatMap(SqlClient.SqlClient, (sql) => sql`CREATE DATABASE ${sql(name)}`));
+}
+
+export function dropDatabase(name: string) {
+  return withAdmin(
+    Effect.flatMap(
+      SqlClient.SqlClient,
+      (sql) => sql`DROP DATABASE IF EXISTS ${sql(name)} WITH (FORCE)`,
+    ),
+  );
+}
+
+export function databaseExists(name: string): Promise<boolean> {
+  return withAdmin(
+    Effect.flatMap(
+      SqlClient.SqlClient,
+      (sql) => sql`SELECT 1 FROM pg_database WHERE datname = ${name}`,
+    ).pipe(Effect.map((rows) => rows.length === 1)),
+  );
+}
+
+/** Open sessions named after a test database (each test client sets application_name). */
+export function sessionsNamed(applicationName: string): Promise<number> {
+  return withAdmin(
+    Effect.flatMap(
+      SqlClient.SqlClient,
+      (sql) =>
+        sql<{ count: number }>`
+          SELECT count(*)::int AS count FROM pg_stat_activity WHERE application_name = ${applicationName}
+        `,
+    ).pipe(Effect.map((rows) => rows[0]?.count ?? 0)),
+  );
+}

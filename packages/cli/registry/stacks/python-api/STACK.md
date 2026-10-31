@@ -90,13 +90,13 @@ If `make install` already runs `lefthook install`, don't add another install ste
 CI uses uv's setup action (cache on, Python read from .python-version), then `make install lint typecheck coverage check-openapi` with CI set.
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
-Replace MemoryNotes with a SQLAlchemy store behind NoteStore, created from the lifespan's engine, and add the notes table in the first migration. Run its round-trip tests on the harness's per-file database. The 503 test still overrides get_note_store. `/healthz` stays DB-free; add `/health/ready` for readiness.
+The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free.
 <!-- stacks:end -->
 <!-- stacks:when with=rest-api -->
 The notes slice already follows the REST rule. Record /v1, the tag/message/retryable envelope, cursor limits (20 default, 100 maximum), 400 validation and 405 with Allow in AGENTS.md. Keep those contracts when adding resources.
 <!-- stacks:end -->
 <!-- stacks:when with=docker-deploy -->
-The root image's healthcheck fetches `/healthz`. Set API_HOST=0.0.0.0 for containers.
+If the root `Dockerfile` runs uvicorn directly, it binds 0.0.0.0:8000 and its healthcheck fetches `/healthz`; keep `/healthz` free of dependencies so the container stays healthy without a database.
 <!-- stacks:end -->
 
 ## Gotchas

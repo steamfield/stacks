@@ -14,7 +14,9 @@ decisions:
   - "What pre-push runs: the project's test target (default), or only the fast tests if the suite takes minutes."
 verify:
   - { name: git-hooks-install, phase: setup, layer: install, run: lefthook install }
-  - { name: git-hooks-validate, layer: check, run: "lefthook validate && ! grep -n 'stacks:fill' lefthook.yml" }
+  - name: git-hooks-validate
+    layer: check
+    run: "if grep -n 'stacks:fill' lefthook.yml; then echo 'lefthook.yml: fill stacks:fill' >&2; exit 1; fi; lefthook validate"
   - name: git-hooks-jobs
     layer: check
     run: "lefthook dump | awk '/^pre-commit:/{h=1;next} /^pre-push:/{h=2;next} /^[^ ]/{h=0} h&&/^ +(- )?(run|script):/{ok[h]=1} END{exit !(ok[1]&&ok[2])}'"
@@ -33,7 +35,7 @@ stacks wrote `lefthook.yml` with a commit-msg job running `.lefthook/commit-msg/
 
 ## Install
 
-If the install step doesn't already run `lefthook install`, add this line (skipping CI, a missing lefthook or config) to `make install` (with `$$CI`) or, without a Makefile, a `prepare` script:
+If the install step doesn't already run `lefthook install`, add this line (skipping CI, a missing lefthook or config) to the Makefile's setup target, not a `go install` one (with `$$CI`), or, without a Makefile, a `prepare` script:
 
 ```sh
 test -n "$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || lefthook install

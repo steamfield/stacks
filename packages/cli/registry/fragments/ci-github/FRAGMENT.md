@@ -16,7 +16,7 @@ decisions:
 verify:
   - name: ci-workflow
     layer: check
-    run: "test -f .github/workflows/ci.yml && grep -q '^jobs:' .github/workflows/ci.yml && grep -Eq '^[[:space:]]+ci-ok:' .github/workflows/ci.yml && ! grep -n 'stacks:fill' .github/workflows/ci.yml"
+    run: "f=.github/workflows/ci.yml; test -f $f && grep -q '^jobs:' $f && grep -Eq '^[[:space:]]+ci-ok:' $f && ! grep -n 'stacks:fill' $f || { echo \"$f needs jobs:, a ci-ok job and no stacks:fill\" >&2; exit 1; }"
 ---
 
 # GitHub Actions CI
@@ -53,7 +53,7 @@ Sandbox: a minimal workflow with `timeout-minutes` per job. Major-tag action ref
 One sequential `ci-ok` job, unless the stack's CI notes split the work behind a final `ci-ok` (`needs:` all, `if: always()`).
 <!-- stacks:end -->
 <!-- stacks:when tag=make -->
-Call the Makefile's check, coverage and build targets; a setup action may install a binary, but the targets stay the contract.
+Call the Makefile's existing aggregate target, or its lint, test (coverage when chosen) and build targets; a setup action may install a binary, but the targets stay the contract.
 <!-- stacks:end -->
 <!-- stacks:when tag=scripts -->
 Call the package scripts: frozen install, lint, typecheck, coverage or test, then the remaining check and build steps.

@@ -71,7 +71,7 @@ export const ground = {
     "- Files stacks wrote are starting points: adapt them, don't delete them. Update any that fail against what you installed; never pin older versions.",
   agentsMd: "- Keep `AGENTS.md` accurate: real commands, implemented behavior.",
   notes: [
-    `- Keep \`${NOTES_PATH}\` here as you work; git worktrees lack it and the brief (both git-ignored):`,
+    `- Keep \`${NOTES_PATH}\` here as you work. It and the brief are git-ignored, so git worktrees lack them:`,
     "  - Under `## Findings`, add a line whenever this brief is ambiguous, wrong, names something that doesn't exist or made you guess, and whenever an instruction stopped you making a mistake.",
     "  - Under `## Asked`, add a line with the time whenever you ask the user something or the user tells you something unprompted. An empty `## Asked` means no interventions.",
   ],
@@ -235,6 +235,7 @@ export const add = {
   accept: (cli: string) =>
     `The new steps have not been accepted. Stop and ask the user to run ${code(`${cli} verify --accept-changes`)} in their own terminal after reviewing them. Do not run it yourself.`,
   git: "- This repository already exists. Preserve its layout and history; don't commit without the user's permission.",
+  ignore: `- Exclude \`${METADATA_DIR}/\` from the repository's formatter and linter (Biome \`"!${METADATA_DIR}"\` in \`files.includes\`, \`.prettierignore\`, ruff \`extend-exclude\`), then format the files this brief added.`,
   done: (cli: string) =>
     `Run ${verify(cli)} over the whole manifest, keeping all existing checks green.`,
 };

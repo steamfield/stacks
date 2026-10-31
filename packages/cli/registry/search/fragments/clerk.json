@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "clerk",
   "source": {
-    "digest": "sha256:7d9b93c3b557d81bacdf41bfd5d0a40e08611630c0fa910a0ad68d67fbfbf807",
+    "digest": "sha256:283aba53e5c4bf0283e96f1f3e2990f42b6429c8bd74f278fbe25a0f7ba33a22",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,

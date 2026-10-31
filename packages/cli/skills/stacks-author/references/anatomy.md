@@ -151,7 +151,7 @@ Without a known recorded stack, add infers conditional tags from repository data
 
 ## files/, adapters/ and stack overlays
 
-A fragment may ship `stacks/<stack-id>/<path>` alongside `files/` and `adapters/`. Only that host stack gets `<path>`, including in add mode. Stack entries cannot have overlays. The stack must exist and fit the fragment's `applies_to` by id or tags (empty admits all). An overlay cannot duplicate a `files/` output path; use separate paths for separate hosts. Templates, merge rules and security checks apply to overlays too.
+A fragment may ship `stacks/<stack-id>/<path>` alongside `files/` and `adapters/`. Only that host stack gets `<path>`, including in add mode. Stack entries cannot have overlays. The stack must exist and fit the fragment's `applies_to` by id or tags (empty admits all). An overlay cannot duplicate a `files/` output path; use separate paths for separate hosts. An overlay may import its host stack's shipped files (a relative import of `src/errors.ts`, say); files under `files/` may import only the fragment's own files and its `requires` closure. Templates, merge rules and security checks apply to overlays too.
 
 Conditional markers resolve only in entry bodies. Shipped files may hold `stacks:fill`, but `stacks:when` and `stacks:end` are errors there.
 

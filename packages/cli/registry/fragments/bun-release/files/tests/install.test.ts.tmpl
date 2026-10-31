@@ -70,6 +70,10 @@ function install(env: Record<string, string> = {}, path = process.env.PATH ?? ""
 const installed = () => readFile(join(installDir, name), "utf8");
 
 describe("install.sh", () => {
+  it("names a confirmed releases repository", async () => {
+    expect(await readFile(script, "utf8")).not.toContain("stacks:fill");
+  });
+
   it("installs the latest release into a directory with spaces and $", async () => {
     const result = await install();
     expect(result.stderr).toBe("");

@@ -261,13 +261,15 @@ is_destructive() {
     hit "gh repo/release delete is unrecoverable." "Ask the user first."
     return 0
   fi
-  if { c "(npm|pnpm|yarn|bun|uv|cargo|poetry|gem)[[:space:]]+(.*[[:space:]])?publish${end}" ||
-    c "twine[[:space:]]+upload" ||
-    c "goreleaser[[:space:]]+release"; } &&
-    ! m "(--dry-run|--snapshot)"; then
+  # --dry-run or --snapshot excuses only the publishing command it belongs to,
+  # so `echo --dry-run; npm publish` is still denied.
+  local publish="${start}((npm|pnpm|yarn|bun|uv|cargo|poetry|gem)[[:space:]]+(.*[[:space:]])?publish${end}|twine[[:space:]]+upload|goreleaser[[:space:]]+release)"
+  while IFS= read -r seg; do
+    grep -qE -e "$publish" <<<"$seg" || continue
+    grep -qE -e "[[:space:]][\"']?(--dry-run|--snapshot)(=[^[:space:]]*)?[\"']?${end}" <<<"$seg" && continue
     hit "Publishing a release is irreversible." "Releases are user-initiated. Ask the user first."
     return 0
-  fi
+  done <<<"$quiet"
   if c "(terraform|tofu)[[:space:]]+(.*[[:space:]])?(destroy|apply[[:space:]](.*[[:space:]])?-destroy)${end}" ||
     c "pulumi[[:space:]]+(.*[[:space:]])?destroy${end}" ||
     c "kubectl[[:space:]]+(.*[[:space:]])?delete${end}" ||

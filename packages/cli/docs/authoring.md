@@ -187,7 +187,8 @@ ignores personal always-fragments and the preset setting.
 Fix findings at their source: replace pinned versions and dated phrases with discovery
 instructions; drop version literals from shipped configs; use ATX headings; repair unknown
 references, unreachable conditionals and template variables. Imports must belong to the
-entry or its required dependencies. Declare commands and cover fragment deliverables
+entry or its required dependencies; a fragment's stack overlay may also import its host
+stack's files. Declare commands and cover fragment deliverables
 with verify. Repair shipped hook/editor command references and stale run fingerprints.
 Review warnings as well as errors.
 

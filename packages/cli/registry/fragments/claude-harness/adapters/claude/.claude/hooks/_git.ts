@@ -53,7 +53,8 @@ function commitSkipsHooks(args: string[]): boolean {
   return false;
 }
 
-function discardReason(operation: string | undefined, rest: string[]): string | undefined {
+/** Checkout, restore and switch forms that throw away working-tree changes. */
+function worktreeReason(operation: string | undefined, rest: string[]): string | undefined {
   if (operation === "checkout" && rest.some((arg) => arg === "." || arg === ":/"))
     return message(
       "git checkout . discards every unstaged change.",
@@ -70,6 +71,19 @@ function discardReason(operation: string | undefined, rest: string[]): string | 
       "git restore . discards every unstaged change.",
       "Revert specific files: git restore <file>",
     );
+  if (
+    (operation === "checkout" || operation === "switch") &&
+    (rest.includes("--force") || rest.includes("--discard-changes") || shortFlag(rest, "f"))
+  )
+    return message(
+      "A forced checkout or switch discards every local change.",
+      "Commit or stash the work first. Ask the user first.",
+    );
+  return undefined;
+}
+
+/** Clean, stash and branch forms that delete untracked files, stashes or unmerged branches. */
+function deleteReason(operation: string | undefined, rest: string[]): string | undefined {
   if (
     operation === "clean" &&
     (rest.includes("--force") || shortFlag(rest, "f")) &&
@@ -89,14 +103,6 @@ function discardReason(operation: string | undefined, rest: string[]): string | 
     return message(
       "git branch -D deletes a branch even when its commits are merged nowhere.",
       "Use git branch -d, which refuses unmerged work. Ask the user first.",
-    );
-  if (
-    (operation === "checkout" || operation === "switch") &&
-    (rest.includes("--force") || rest.includes("--discard-changes") || shortFlag(rest, "f"))
-  )
-    return message(
-      "A forced checkout or switch discards every local change.",
-      "Commit or stash the work first. Ask the user first.",
     );
   return undefined;
 }
@@ -179,7 +185,10 @@ export function gitReason(cmd: Command, cwd: string): string | undefined {
       "--no-verify skips the project's git hooks.",
       "Fix what the hook reports instead. Ask the user first.",
     );
-  const reason = discardReason(operation, rest) ?? historyReason(operation, rest);
+  const reason =
+    worktreeReason(operation, rest) ??
+    deleteReason(operation, rest) ??
+    historyReason(operation, rest);
   if (reason) return reason;
   if (operation === "reset" && rest.some((arg) => arg === "--hard" || arg.startsWith("--hard=")))
     return resetReason(cmd, { cwd, global, rest });

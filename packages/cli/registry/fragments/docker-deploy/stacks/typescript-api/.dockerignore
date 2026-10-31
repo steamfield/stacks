@@ -1,0 +1,6 @@
+# An allowlist: send only what the build reads.
+*
+!package.json
+!bun.lock
+!tsconfig.json
+!src/

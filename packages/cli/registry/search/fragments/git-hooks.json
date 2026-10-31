@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "git-hooks",
   "source": {
-    "digest": "sha256:f3de3afcb1fe714bd4432de885c8b40b96851d6315a07da338a1c26c92125c93",
+    "digest": "sha256:0bae80810fe6c77682b386649d980cd64aed9ca8bc8207049c2734e8db5c0571",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,

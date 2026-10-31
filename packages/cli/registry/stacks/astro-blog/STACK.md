@@ -89,7 +89,7 @@ CI reads Bun from `packageManager` and Node from `.node-version`, then runs `mak
 <!-- stacks:end -->
 <!-- stacks:when with=posthog -->
 
-Add the analytics module and its one head initialization to the shipped `BaseLayout.astro`; keep vendor keys empty in the test config. The reading island needs no analytics to work.
+The fragment ships `src/lib/analytics.ts`; initialize it once from a module script in `BaseLayout.astro`'s head. If `vitest.config.ts` sets `PUBLIC_POSTHOG_KEY: ""`, keep it. The reading island needs no analytics to work.
 <!-- stacks:end -->
 <!-- stacks:when with=cloudflare-pages -->
 

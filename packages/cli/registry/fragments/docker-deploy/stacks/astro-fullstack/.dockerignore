@@ -1,0 +1,14 @@
+# An allowlist: send only what the build reads.
+*
+!package.json
+!bun.lock
+!tsconfig.base.json
+!apps/
+!packages/
+**/node_modules
+**/dist
+**/.astro
+**/coverage
+**/*.test.ts
+**/*.test.tsx
+apps/*/tests

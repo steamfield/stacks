@@ -1196,6 +1196,21 @@ test.each([
   },
 );
 
+test("an add brief tells the agent to keep .stacks out of the repository's formatter and linter", async () => {
+  const project = addProject();
+  writeEntry({
+    root: project.registry,
+    kind: "fragment",
+    dir: "plain",
+    frontmatter: minimal("fragment", "plain"),
+    body: "Plain guidance.",
+  });
+  await added(await addCli(project, ["add", "plain", "--json"]));
+  expect(read(project.root, ".stacks/BRIEF.md")).toContain(
+    '- Exclude `.stacks/` from the repository\'s formatter and linter (Biome `"!.stacks"` in `files.includes`, `.prettierignore`, ruff `extend-exclude`), then format the files this brief added.',
+  );
+});
+
 test("add into a recorded sandbox takes decision defaults without the flag", async () => {
   const project = addProject();
   expect(

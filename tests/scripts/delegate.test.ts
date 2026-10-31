@@ -231,15 +231,20 @@ describe("delegate.sh", () => {
       expect(stderr).not.toContain("models_cache.json");
     });
 
-    it("says so when a cache it can't use sends it to the pinned model", () => {
-      for (const unusable of ["not json", "{}", JSON.stringify({ models: "x" })]) {
-        cache(unusable);
-        const { exported, stderr } = chosen();
-        expect(exported).toBe("gpt-6.1-sol");
-        expect(stderr).toContain("no listed sol model read from");
-      }
-      cache([model("gpt-7-terra")]);
-      expect(chosen().stderr).toContain("using gpt-6.1-sol");
+    // One script run per case: each spawns the script and a fake codex, which a busy gate host
+    // makes slow enough that several in one test can pass the per-test timeout.
+    it.each([
+      ["not JSON", "not json"],
+      ["no model list", "{}"],
+      ["a model list that isn't one", JSON.stringify({ models: "x" })],
+      ["no sol model", JSON.stringify({ models: [model("gpt-7-terra")] })],
+    ])("says so when a cache with %s sends it to the pinned model", (_, contents) => {
+      cache(contents);
+      const { exported, stderr } = chosen();
+      expect(exported).toBe("gpt-6.1-sol");
+      expect(stderr).toContain(
+        `no listed sol model read from ${join(root, ".codex", "models_cache.json")}; using gpt-6.1-sol`,
+      );
     });
 
     it("reads the cache under CODEX_HOME when it is set", () => {

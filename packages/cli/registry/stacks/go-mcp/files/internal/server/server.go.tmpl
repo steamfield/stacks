@@ -1,0 +1,57 @@
+// Package server builds the MCP server: its identity, request logging and
+// every tool. It is transport-free; main runs it on stdio and tests run it on
+// in-memory transports.
+package server
+
+import (
+	"context"
+	"log/slog"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"{{project_slug}}/internal/config"
+	applog "{{project_slug}}/internal/log"
+)
+
+// New returns the server with every tool registered. version is the build's
+// version, which clients see in the server's identity.
+func New(logger *slog.Logger, version string) *mcp.Server {
+	s := mcp.NewServer(&mcp.Implementation{Name: config.Binary, Version: version}, &mcp.ServerOptions{
+		Logger: applog.Floor(logger, slog.LevelWarn).With("component", "mcp-sdk"),
+		// Advertise only what is registered. The SDK's default adds the
+		// logging capability, which the protocol has deprecated; tools are
+		// inferred from AddTool.
+		Capabilities: &mcp.ServerCapabilities{},
+	})
+	s.AddReceivingMiddleware(logRequests(logger))
+	addConvert(s, logger)
+	return s
+}
+
+// logRequests writes one record per request: tool calls at info, everything
+// else (list, ping, discovery) at debug. Arguments and results stay out of
+// the log.
+func logRequests(logger *slog.Logger) mcp.Middleware {
+	return func(next mcp.MethodHandler) mcp.MethodHandler {
+		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+			start := time.Now()
+			result, err := next(ctx, method, req)
+			level := slog.LevelDebug
+			attrs := []slog.Attr{slog.String("method", method), slog.Duration("duration", time.Since(start))}
+			if call, ok := req.(*mcp.CallToolRequest); ok && call.Params != nil {
+				level = slog.LevelInfo
+				attrs = append(attrs, slog.String("tool", call.Params.Name))
+				if res, ok := result.(*mcp.CallToolResult); ok && res != nil {
+					attrs = append(attrs, slog.Bool("tool_error", res.IsError))
+				}
+			}
+			if err != nil {
+				level = slog.LevelWarn
+				attrs = append(attrs, slog.String("error", err.Error()))
+			}
+			logger.LogAttrs(ctx, level, "request", attrs...)
+			return result, err
+		}
+	}
+}

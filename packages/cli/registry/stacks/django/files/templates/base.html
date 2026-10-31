@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>
+            {% block title %}{% endblock %}
+        </title>
+        <link rel="stylesheet" href="{% static 'css/site.css' %}">
+    </head>
+    <body>
+        <header>
+            <a href="{% url 'notes:index' %}">Home</a>
+        </header>
+        <main>
+            {% if messages %}
+                <ul class="messages">
+                    {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </body>
+</html>

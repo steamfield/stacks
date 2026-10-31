@@ -1,0 +1,52 @@
+package server
+
+import (
+	"context"
+	"log/slog"
+	"strconv"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"{{project_slug}}/internal/convert"
+)
+
+// ConvertInput is the tool's arguments. The json tags name the properties;
+// fields without omitempty are required; each jsonschema tag becomes the
+// property's description, which is all the model knows about the field.
+type ConvertInput struct {
+	Value float64 `json:"value" jsonschema:"the number to convert, for example 12.5"`
+	From  string  `json:"from" jsonschema:"the unit value is in: mm, cm, m, km, in, ft, yd, mi, g, kg, oz or lb"`
+	To    string  `json:"to" jsonschema:"the unit to convert to; it must measure the same thing as from (length or mass)"`
+}
+
+// ConvertOutput is the structured result; its schema is the tool's output schema.
+type ConvertOutput struct {
+	Value float64 `json:"value" jsonschema:"the converted number"`
+	Unit  string  `json:"unit" jsonschema:"the unit of value, the same as the to argument"`
+	Text  string  `json:"text" jsonschema:"the conversion as one line, for example 5 km = 3.10686 mi"`
+}
+
+// The description is a prompt for the model choosing tools: say when to call
+// it, what it needs and what comes back, with an example call.
+const convertDescription = `Convert a length or a mass from one unit to another.
+Call it whenever a measurement must be expressed in a different unit, instead of converting by hand.
+Lengths: mm, cm, m, km, in, ft, yd, mi. Masses: g, kg, oz, lb.
+Example: {"value": 5, "from": "km", "to": "mi"} returns 3.10686 mi.`
+
+func addConvert(s *mcp.Server, logger *slog.Logger) {
+	addTool(s, logger, &mcp.Tool{
+		Name:        "convert_units",
+		Title:       "Convert units",
+		Description: convertDescription,
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: new(false)},
+	}, convertUnits)
+}
+
+func convertUnits(_ context.Context, in ConvertInput) (ConvertOutput, error) {
+	value, err := convert.Convert(in.Value, in.From, in.To)
+	if err != nil {
+		return ConvertOutput{}, err
+	}
+	text := strconv.FormatFloat(in.Value, 'g', 6, 64) + " " + in.From + " = " + strconv.FormatFloat(value, 'g', 6, 64) + " " + in.To
+	return ConvertOutput{Value: value, Unit: in.To, Text: text}, nil
+}

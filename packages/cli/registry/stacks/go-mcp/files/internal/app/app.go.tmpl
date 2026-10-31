@@ -1,0 +1,80 @@
+// Package app wires config, logging and the server to a transport. main runs
+// it on stdio; tests run it on pipes.
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"{{project_slug}}/internal/config"
+	apperrors "{{project_slug}}/internal/errors"
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/server"
+)
+
+// Env is the process boundary. While the server runs, Transport owns stdin
+// and stdout, so Stdout is written only for --help and --version.
+type Env struct {
+	Stdout    io.Writer
+	Stderr    io.Writer
+	Getenv    func(string) string
+	Transport mcp.Transport
+}
+
+// Std is the real process: the stdio transport over os.Stdin and os.Stdout.
+func Std() Env {
+	return Env{
+		Stdout:    os.Stdout, //nolint:forbidigo // Only --help and --version write here, before the transport starts.
+		Stderr:    os.Stderr,
+		Getenv:    os.Getenv,
+		Transport: &mcp.StdioTransport{},
+	}
+}
+
+// Build is the version information the Makefile sets with ldflags.
+type Build struct{ Version, Commit, Date string }
+
+// Main runs the server and returns the exit status. Startup errors are
+// reported here, on stderr, and nowhere else.
+func Main(ctx context.Context, args []string, env Env, build Build) int {
+	err := Run(ctx, args, env, build)
+	if err != nil {
+		fmt.Fprintf(env.Stderr, "%s: %s\n", config.Binary, err)
+	}
+	return apperrors.ExitCode(err)
+}
+
+// Run serves until the client closes the connection (stdin reaches EOF) or
+// ctx is cancelled by SIGINT or SIGTERM. Both are a clean exit.
+func Run(ctx context.Context, args []string, env Env, build Build) error {
+	cfg, err := config.Load(args, env.Getenv)
+	if err != nil {
+		return err
+	}
+	if cfg.Help {
+		_, err := io.WriteString(env.Stdout, config.Usage(env.Getenv))
+		return err
+	}
+	if cfg.Version {
+		_, err := fmt.Fprintf(env.Stdout, "%s version %s (commit %s, built %s)\n", config.Binary, build.Version, build.Commit, build.Date)
+		return err
+	}
+	logger := applog.New(env.Stderr, cfg.LogLevel)
+	logger.Info("serving", "transport", "stdio", "version", build.Version)
+	err = server.New(logger, build.Version).Run(ctx, env.Transport)
+	switch {
+	case ctx.Err() != nil:
+		logger.Info("stopped", "reason", "signal")
+		return nil
+	case err == nil, errors.Is(err, mcp.ErrConnectionClosed), errors.Is(err, io.EOF):
+		logger.Info("stopped", "reason", "client closed the connection")
+		return nil
+	default:
+		return apperrors.Wrap(apperrors.Internal, "serve", err)
+	}
+}

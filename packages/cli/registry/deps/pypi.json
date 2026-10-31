@@ -51,6 +51,60 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "django": {
+      "whatItIs": "Django, a Python framework for building websites whose pages are made on the server, with a database layer, a ready-made admin area, forms and page templates included.",
+      "goodAt": [
+        "Building a website where people sign in, fill in forms and see saved records",
+        "Giving staff an admin area to browse and edit the stored data"
+      ],
+      "notGoodAt": [
+        "Pages that update live without reloading; pair it with htmx or a JavaScript framework."
+      ],
+      "example": "When someone submits a sign-up form with a missing email, the page comes back with the form still filled in and a note next to the empty field.",
+      "homepage": "https://www.djangoproject.com/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "django-stubs": {
+      "whatItIs": "Type descriptions for Django and a plugin that lets mypy, a type checker, understand Django's models, settings and querysets.",
+      "homepage": "https://github.com/typeddjango/django-stubs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "django-stubs-ext": {
+      "whatItIs": "A small runtime helper from django-stubs that lets code write Django's generic classes with a type in brackets, such as a form for one model.",
+      "homepage": "https://github.com/typeddjango/django-stubs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "djlint": {
+      "whatItIs": "djLint, a tool that checks and tidies the HTML page templates of Django and similar frameworks.",
+      "goodAt": [
+        "Keeping page templates consistently indented and formatted",
+        "Flagging template mistakes such as missing attributes or unclosed tags"
+      ],
+      "notGoodAt": ["Checking Python code; use Ruff for that."],
+      "example": "When someone saves a template with uneven indentation, the check fails and the format command lines it up again.",
+      "homepage": "https://djlint.com/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "fastapi": {
       "whatItIs": "FastAPI, a Python toolkit for building the server side of a website or phone app, the part that answers each request it receives.",
       "goodAt": [
@@ -81,6 +135,24 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "gunicorn": {
+      "whatItIs": "Gunicorn, a program that runs a Python website on a server and hands each incoming request to one of several copies of the app.",
+      "goodAt": [
+        "Running a Django or Flask site in production",
+        "Restarting a crashed copy of the app while the others keep answering"
+      ],
+      "notGoodAt": [
+        "Serving secure HTTPS connections itself; put a proxy or load balancer in front."
+      ],
+      "example": "When several visitors load pages at the same moment, each request goes to a free copy of the app, so nobody waits behind a slow page.",
+      "homepage": "https://gunicorn.org/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "httpx": {
@@ -201,6 +273,16 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "pytest-django": {
+      "whatItIs": "A pytest plugin that sets up Django for tests and gives each test that asks for it a fresh test database.",
+      "homepage": "https://pytest-django.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "pytest-randomly": {
       "whatItIs": "Runs pytest tests in a shuffled order to catch tests that only pass in one order, and fixes random choices so failures can be repeated.",
       "homepage": "https://github.com/pytest-dev/pytest-randomly",
@@ -313,6 +395,22 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "whitenoise": {
+      "whatItIs": "WhiteNoise, a Python library that lets a web app send its own stylesheets, scripts and images, compressed and cached, without a separate file server.",
+      "goodAt": [
+        "Serving a Django site's stylesheets and images from the app itself",
+        "Letting browsers keep those files cached until they change"
+      ],
+      "notGoodAt": ["Files people upload to the site; store those with a file storage service."],
+      "example": "When a visitor opens a second page, the browser reuses the stylesheet it already downloaded instead of fetching it again.",
+      "homepage": "https://whitenoise.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     }
   }

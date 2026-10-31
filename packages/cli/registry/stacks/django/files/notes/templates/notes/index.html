@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Notes{% endblock %}
+{% block content %}
+    <h1>Notes</h1>
+    <form method="post" class="card" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <div class="field">
+                {{ field.label_tag }}
+                {{ field }}
+                {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
+            </div>
+        {% endfor %}
+        <button type="submit">Add note</button>
+    </form>
+    <ul class="notes">
+        {% for note in notes %}
+            <li>
+                <h2>{{ note.title }}</h2>
+                {% if note.body %}<p>{{ note.body|linebreaksbr }}</p>{% endif %}
+                <time datetime="{{ note.created_at|date:'c' }}">{{ note.created_at|date:"N j, Y, H:i" }}</time>
+            </li>
+        {% empty %}
+            <li class="empty">No notes yet.</li>
+        {% endfor %}
+    </ul>
+{% endblock content %}

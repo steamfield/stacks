@@ -100,6 +100,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `react-vite` | Browser-only React app on Vite, built to static files: React Router, TanStack Query over a zod-checked fetch client, Vitest with MSW and Playwright | |
 | `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |
 | `rust-cli` | Rust CLI: clap, layered TOML config, coded errors with exit statuses, human and JSON output, strict clippy, binary tests | |
+| `rust-library` | Rust library crate: documented public API, thiserror errors, doctests on every item, proptest, optional serde feature, rustdoc and cargo package checks | |
 | `sveltekit` | SvelteKit on the Node adapter: server load functions, zod-validated form actions, svelte-check, Vitest and Playwright | |
 | `tauri-react` | Tauri desktop app: Rust crates behind a thin shell, typed IPC, a React frontend with a mock transport | |
 | `typescript-api` | Node HTTP API on Effect's HttpApi: REST resource conventions, one error-status table, request logs, a core that also runs as a fetch handler | |

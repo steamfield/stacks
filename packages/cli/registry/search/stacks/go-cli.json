@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "go-cli",
   "source": {
-    "digest": "sha256:d1ef8838bd0fc61d606e86783e509804ea6e31a77026ca53d4cf2cffc9f02a51",
+    "digest": "sha256:af0f9e211db1596d93854c3f6108caa8e5e1f52ee96d007aeb0cc2c7db356351",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,

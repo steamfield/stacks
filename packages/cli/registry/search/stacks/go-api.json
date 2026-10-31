@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "go-api",
   "source": {
-    "digest": "sha256:2060bd5d8d65c20d545943ece71d6c0383e9422d9c427a7341bcd03280858401",
+    "digest": "sha256:cc8c1a538c7a6c9189526f8226641724d09e94be3e951ed58ee40aaa2c028a25",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

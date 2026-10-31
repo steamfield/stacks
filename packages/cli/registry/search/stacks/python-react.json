@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "python-react",
   "source": {
-    "digest": "sha256:9ae5f9139db4a42893b0276068d322f012dae90e3f4d6980bdd4f1add0de2673",
+    "digest": "sha256:6fc5132fd1227e367d72acb867b4fdaf62245c2b64ece3a06ff56438d1aff945",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

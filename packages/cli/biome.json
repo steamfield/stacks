@@ -3,6 +3,7 @@
   "root": false,
   "extends": "//",
   "plugins": ["./biome-plugins/boundaries.grit"],
+  "javascript": { "parser": { "unsafeParameterDecoratorsEnabled": true } },
   "overrides": [
     {
       "includes": ["registry/stacks/mobile-expo/**"],
@@ -35,8 +36,13 @@
       }
     },
     {
+      "includes": ["registry/stacks/nestjs-api/files/**"],
+      "linter": { "rules": { "style": { "useImportType": "off" } } }
+    },
+    {
       "includes": [
         "registry/stacks/astro-blog/files/**",
+        "registry/stacks/nestjs-api/files/**",
         "registry/stacks/nextjs/files/**",
         "registry/stacks/nuxt/files/**",
         "registry/stacks/sveltekit/files/**"

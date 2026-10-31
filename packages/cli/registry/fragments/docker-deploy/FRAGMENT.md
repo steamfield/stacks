@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, nestjs-api]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -58,6 +58,9 @@ Run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when stack=hono-api -->
 **Node API**: one root `Dockerfile`. The build stage installs frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only `package.json` (its `"type": "module"` marks the bundle as ESM) and `dist/main.js` (the bundle includes its dependencies, so no `node_modules`), running `node dist/main.js` with `PORT_API` set and exposed. The health check fetches `/healthz` with Node's own `fetch`. Logs are JSON on stdout.
+<!-- stacks:end -->
+<!-- stacks:when stack=nestjs-api -->
+**NestJS API**: one root `Dockerfile`. `nest build` doesn't bundle, so a Bun deps stage runs `bun install --frozen-lockfile --production`; the build stage installs frozen and runs `bun run build`; both pass `--ignore-scripts` (`prepare` needs `scripts/`). The runtime stage is the official slim Node image matching `.node-version` with `package.json`, those `node_modules` and `dist/`, running `node dist/main.js` with `PORT_API` set and exposed.
 <!-- stacks:end -->
 <!-- stacks:when stack=astro-fullstack -->
 **API and site**: one root `Dockerfile`, one image. The build stage installs the workspace frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only the API bundle and `apps/web/dist`, `STATIC_DIR` pointing at the copied site and `NODE_ENV=production`. The health check fetches `/healthz` with Node's own `fetch`.

@@ -1,0 +1,32 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what data this project processes and who reads the results. -->
+
+## Usage
+
+Put raw CSV files in `data/raw/`, then:
+
+```bash
+make pipeline                    # data/raw/*.csv -> data/processed/*.parquet
+uv run {{project_slug}} run --json        # the same, with a JSON summary on stdout
+uv run marimo edit notebooks/explore.py   # explore the data in marimo's editor
+```
+
+<!-- stacks:fill Where the raw data comes from and what each output is used for. -->
+
+Settings come from flags, `{{env_prefix}}_*` environment variables or a `.env` file (see `.env.example`). [docs/data-contract.md](docs/data-contract.md) lists the input columns, the cleaning rules, the outputs and the exit codes.
+
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) and make.
+
+| Command | What it does |
+|---|---|
+| `make install` | Create `.venv` and install the project and its dev tools |
+| `make lint` / `make format` | Check / fix lint and formatting (ruff, marimo check) |
+| `make typecheck` | mypy strict over the package, tests and notebooks |
+| `make coverage` | Tests with the coverage floor |
+| `make pipeline-check` | Run the pipeline on the fixture and compare with the expected output |
+| `make notebooks` | Run every notebook headlessly |
+
+Run `make help` for the full list. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the modules.

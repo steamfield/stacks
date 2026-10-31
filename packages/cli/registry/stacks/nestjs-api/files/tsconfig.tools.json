@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "*.ts",
+    "scripts/**/*.ts",
+    ".claude/hooks/**/*.ts",
+    "tests/hooks/**/*.ts",
+    "tests/helpers/hooks.ts"
+  ],
+  "exclude": [".claude/worktrees"]
+}

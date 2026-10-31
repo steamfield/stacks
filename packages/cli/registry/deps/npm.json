@@ -1812,6 +1812,216 @@
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
       }
+    },
+    "@nestjs/core": {
+      "whatItIs": "The heart of NestJS, a framework for building servers in TypeScript that splits the code into modules and hands each part what it needs.",
+      "goodAt": [
+        "Larger backends that several developers work on at once",
+        "Servers where every feature follows the same layout"
+      ],
+      "notGoodAt": [
+        "Tiny services with a couple of routes; a lighter toolkit such as Hono is simpler."
+      ],
+      "example": "When a team adds an invoices feature, it gets its own module with the same parts as every other feature.",
+      "homepage": "https://nestjs.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/common": {
+      "whatItIs": "The shared building blocks of NestJS, such as the markers that turn a class into a route handler or a service.",
+      "homepage": "https://docs.nestjs.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/platform-express": {
+      "whatItIs": "Lets a NestJS server answer web requests through Express, the long-standing web server library for Node.",
+      "homepage": "https://docs.nestjs.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/config": {
+      "whatItIs": "Reads a NestJS server's settings, such as its port, from the environment and a local .env file, and checks them at startup.",
+      "goodAt": [
+        "Stopping a server at startup when a setting is wrong",
+        "Giving every part of the server the same settings"
+      ],
+      "notGoodAt": ["Keeping secrets safe on its own; use the host's secret storage for that."],
+      "example": "When someone sets the port to a word instead of a number, the server refuses to start and names the setting.",
+      "homepage": "https://docs.nestjs.com/techniques/configuration",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/swagger": {
+      "whatItIs": "Describes a NestJS server's endpoints in an OpenAPI document, a standard description of an API, and serves a page to try them.",
+      "goodAt": [
+        "Showing other developers every endpoint and the data it takes",
+        "Producing a file that tools turn into ready-made client code"
+      ],
+      "notGoodAt": ["Checking requests by itself; the server's validation does that."],
+      "example": "When a mobile developer needs to know what creating a note takes, they open the docs page and try it there.",
+      "homepage": "https://docs.nestjs.com/openapi/introduction",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/cli": {
+      "whatItIs": "The NestJS command line tool, which builds the server and writes new modules, controllers and services in the framework's layout.",
+      "homepage": "https://docs.nestjs.com/cli/overview",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/schematics": {
+      "whatItIs": "The templates the NestJS command line tool uses when it writes new modules, controllers and services.",
+      "homepage": "https://github.com/nestjs/schematics",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/testing": {
+      "whatItIs": "Helpers for testing NestJS code, which build a small copy of the server's modules so a test can use or replace their parts.",
+      "homepage": "https://docs.nestjs.com/fundamentals/testing",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "reflect-metadata": {
+      "whatItIs": "Lets code record notes about its own classes, which NestJS reads to work out what each part needs.",
+      "homepage": "https://github.com/microsoft/reflect-metadata",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "rxjs": {
+      "whatItIs": "A library for handling values that arrive over time, such as events, which NestJS uses inside its request handling.",
+      "homepage": "https://rxjs.dev",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "class-validator": {
+      "whatItIs": "Checks the data a request sends against rules written on a TypeScript class, such as a required title of at most 200 characters.",
+      "goodAt": [
+        "Rejecting bad input before it reaches the server's logic",
+        "Telling a caller which field was wrong and why"
+      ],
+      "notGoodAt": [
+        "Checking data with no class behind it; a schema library such as zod fits better."
+      ],
+      "example": "When an app sends a note with an empty title, the server answers with an error naming the title field.",
+      "homepage": "https://github.com/typestack/class-validator",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "class-transformer": {
+      "whatItIs": "Turns plain request data into instances of TypeScript classes, so their checking rules and default values apply.",
+      "homepage": "https://github.com/typestack/class-transformer",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@types/express": {
+      "whatItIs": "Type definitions for Express, so TypeScript can check code that uses its requests and responses.",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "supertest": {
+      "whatItIs": "Sends real web requests to a server inside a test and checks the answers, without starting it by hand.",
+      "goodAt": [
+        "Checking each endpoint's status codes, headers and data",
+        "Testing the whole server path from request to response"
+      ],
+      "notGoodAt": ["Testing pages in a browser; use a browser testing tool for that."],
+      "example": "When a developer changes how notes are created, a test posts a note and checks the server answers with the new note.",
+      "homepage": "https://github.com/ladjs/supertest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@types/supertest": {
+      "whatItIs": "Type definitions for supertest, so TypeScript can check tests that use it.",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/supertest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "oxlint": {
+      "whatItIs": "A fast checker for JavaScript and TypeScript that points out likely bugs, such as a forgotten await, before the code runs.",
+      "goodAt": [
+        "Catching common mistakes in seconds, even in large projects",
+        "Running on every save or commit without slowing work down"
+      ],
+      "notGoodAt": ["Tidying spacing and line breaks; use a formatter such as Prettier."],
+      "example": "When a developer forgets to wait for a save to finish, the checker flags the line before the change is merged.",
+      "homepage": "https://oxc.rs/docs/guide/usage/linter",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "oxlint-tsgolint": {
+      "whatItIs": "Adds checks to oxlint that need TypeScript's understanding of the code, such as finding an unawaited promise.",
+      "homepage": "https://github.com/oxc-project/tsgolint",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
     }
   }
 }

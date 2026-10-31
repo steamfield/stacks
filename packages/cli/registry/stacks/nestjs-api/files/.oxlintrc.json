@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "vitest"],
+  "categories": { "correctness": "error" },
+  "env": { "node": true },
+  "ignorePatterns": ["dist/**", "coverage/**", ".stacks/**"],
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-explicit-any": "error",
+    "import/no-cycle": "error",
+    "no-console": "error",
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expectEnvelope"] }],
+    "vitest/valid-expect": ["error", { "maxArgs": 2 }]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**", ".claude/hooks/**", "tests/hooks/**"],
+      "rules": { "no-console": "off" }
+    },
+    {
+      "files": [".claude/hooks/_lib.ts"],
+      "rules": { "typescript/no-misused-spread": "off" }
+    }
+  ]
+}

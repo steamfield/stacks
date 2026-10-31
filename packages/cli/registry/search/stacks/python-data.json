@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "python-data",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Python data pipeline on Polars and DuckDB that turns raw CSV into clean Parquet, with tested transforms and marimo notebooks.",
+  "description": "Start a Python data project where raw CSV files become clean Parquet. Polars transforms read every column with an explicit schema, reject bad rows with a reason and drop duplicates, and DuckDB runs SQL over the output. A small fixture with dirty rows runs end to end and is compared with expected frames. marimo notebooks, stored as Python, are linted, typechecked and executed by the checks. uv and make run everything; scheduling, cloud storage and dashboards are left for you to add.",
+  "seoDescription": "A Python data pipeline recipe: Polars transforms from CSV to Parquet, DuckDB SQL, expected-output tests and marimo notebooks that run in checks.",
+  "projectExamples": [
+    {
+      "title": "Monthly sales cleanup",
+      "description": "Drop each month's order exports into the raw folder, reject rows with bad dates or prices with a reason, and publish revenue per region as Parquet for the finance team."
+    },
+    {
+      "title": "Survey results analysis",
+      "description": "Swap the order columns for survey answers, add cleaning rules for blank and out-of-range scores, and explore the totals in a marimo notebook with charts."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a Python project that cleans messy spreadsheet-style files, saves tidy copies and lets you explore them in notebooks.",
+    "goodAt": [
+      "Cleaning CSV exports with clear rules for broken rows",
+      "Totals and rankings over data files with SQL",
+      "Notebooks that rerun on every check, so they stay working"
+    ],
+    "notGoodAt": [
+      "Interactive dashboards for other people; choose a dashboard stack.",
+      "Data across many machines; use a warehouse or Spark."
+    ]
+  },
+  "platforms": [],
+  "productKinds": [],
+  "languages": [
+    "python"
+  ],
+  "requests": [
+    "set up a python ETL pipeline that cleans CSV files into Parquet",
+    "analyze data with polars and duckdb sql",
+    "a data analysis project with notebooks I can test and version",
+    "clean messy spreadsheet exports and reject rows that don't parse"
+  ],
+  "useCases": [
+    "data cleaning",
+    "ETL pipeline",
+    "data analysis",
+    "notebook exploration",
+    "reporting tables"
+  ],
+  "synonyms": [
+    "polars",
+    "duckdb",
+    "marimo",
+    "jupyter alternative",
+    "pandas alternative",
+    "parquet",
+    "dataframe",
+    "data engineering",
+    "data science",
+    "extract transform load",
+    "SQL analytics",
+    "notebook"
+  ],
+  "goodFor": [
+    "explicit schemas",
+    "rejected rows with reasons",
+    "expected-output tests",
+    "reproducible notebooks"
+  ],
+  "notFor": [
+    "dashboard",
+    "streamlit",
+    "machine learning",
+    "train a model"
+  ]
+}

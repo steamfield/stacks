@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "django-api",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A JSON API on Django and DRF with Django's ORM, migrations and admin, one error envelope and a committed OpenAPI schema.",
+  "description": "Start a Python JSON API on Django and Django REST Framework with no server-rendered pages. Settings come from environment variables with validated defaults. One notes resource proves the shape: a model and its migration, an admin page, a serializer that refuses unknown fields, and list, create and read endpoints under /v1 with cursor pages. Every failure, from validation errors to unknown paths, answers in one error envelope. Each request is logged with an id, drf-spectacular writes the OpenAPI schema and a check fails when it drifts, and pytest-django drives the API client against a real database. Data lives in SQLite; authentication and Postgres are left to the project.",
+  "seoDescription": "A Django REST Framework API recipe: ORM, admin, migrations, an OpenAPI drift check, one error envelope and pytest-django tests, managed with uv.",
+  "projectExamples": [
+    {
+      "title": "Backend for a mobile app with staff admin",
+      "description": "Illustrative: replace notes with the app's own records, let the phone app read and write them over JSON, and let staff edit them in Django's admin. Sign-in for app users is still to add."
+    },
+    {
+      "title": "Containerised internal records API",
+      "description": "Illustrative: a few resources other internal services call, shipped as one container image with migrations as a release step. docker-deploy builds and publishes the image; Postgres is a separate step.",
+      "withFragments": [
+        "docker-deploy"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter Python service built with Django REST Framework that stores records in a database and lets apps or other programs read and save them as data.",
+    "goodAt": [
+      "Backends for phone apps or separate websites that need stored records",
+      "Teams that want a ready-made admin area beside the service",
+      "Keeping a published description of every endpoint up to date"
+    ],
+    "notGoodAt": [
+      "Websites whose pages are made on the server; choose django.",
+      "Small services with no database; python-api (FastAPI) is lighter.",
+      "Busy services with many servers sharing data; move to Postgres first."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "python"
+  ],
+  "requests": [
+    "django rest framework api",
+    "json api with the django orm, migrations and admin",
+    "drf backend for a mobile app",
+    "django api with an openapi schema from drf-spectacular",
+    "endpoints on django with serializers and viewsets"
+  ],
+  "useCases": [
+    "JSON APIs on Django",
+    "backends for separate browser or mobile clients",
+    "APIs with an admin for staff"
+  ],
+  "synonyms": [
+    "DRF",
+    "djangorestframework",
+    "drf-spectacular",
+    "django api",
+    "serializers",
+    "viewsets",
+    "Django Ninja alternative"
+  ],
+  "goodFor": [
+    "serializer validation",
+    "model migrations",
+    "admin for staff",
+    "OpenAPI contract checks"
+  ],
+  "notFor": [
+    "FastAPI",
+    "html templates"
+  ],
+  "caveats": [
+    "SQLite suits one server; several servers sharing data need Postgres, which the stack doesn't set up.",
+    "No sign-in is configured; set DRF's auth and permission classes before exposing private data."
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node --enable-source-maps dist/main.js",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tools.json",
+    "lint": "oxlint --type-aware --deny-warnings && prettier --check src tests scripts \"*.{ts,json}\"",
+    "format": "prettier --write src tests scripts \"*.{ts,json}\"",
+    "test": "vitest run --project unit",
+    "test:e2e": "vitest run --project e2e",
+    "test:watch": "vitest --project unit",
+    "coverage": "vitest run --coverage",
+    "check": "bun run lint && bun run typecheck && bun run coverage && bun run build",
+    "clean": "rm -rf dist coverage",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

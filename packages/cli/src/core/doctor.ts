@@ -12,7 +12,7 @@ export const doctor = Effect.gen(function* () {
   const registry = yield* bundledRoot;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const skillFound = yield* fs.stat(path.join(host.skill, "SKILL.md")).pipe(
+  const skillFound = yield* fs.stat(path.join(host.skill, "stacks", "SKILL.md")).pipe(
     Effect.map((info) => info.type === "File"),
     Effect.orElseSucceed(() => false),
   );

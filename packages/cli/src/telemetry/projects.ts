@@ -2,6 +2,8 @@ import type { DependencyAllowlist, RunRecord } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
 import { readDependencies } from "../core/deps";
 import { locateManifest, readManifest } from "../core/manifest";
+import { countAsked } from "../core/runs";
+import { NOTES_PATH } from "../project-layout";
 import { type ScaffoldFacts, scaffoldEvent, verifyEvent } from "./events";
 import { DAY, Project, read, remove, type Storage, uuid, write } from "./storage";
 
@@ -29,8 +31,11 @@ export const scaffold = Effect.fn("telemetry.scaffold")(function* (
   });
   return { ...event, projectId: project.telemetryProjectId };
 });
-const linkedProject = Effect.fn("telemetry.linkedProject")(function* (store: Storage, cwd: string) {
-  const located = yield* locateManifest(cwd).pipe(Effect.option);
+const located = (cwd: string) => locateManifest(cwd).pipe(Effect.option);
+const linkedProject = Effect.fn("telemetry.linkedProject")(function* (
+  store: Storage,
+  located: Option.Option<{ path: string; root: string }>,
+) {
   if (Option.isNone(located)) return undefined;
   const manifest = yield* readManifest(located.value.path);
   const file = store.path.join("projects", `${manifest.projectId}.json`);
@@ -50,7 +55,8 @@ export const verify = Effect.fn("telemetry.verify")(function* (input: {
   cachedAllowlist: Effect.Effect<Option.Option<DependencyAllowlist>>;
 }) {
   const { store, record } = input;
-  const link = yield* linkedProject(store, input.cwd);
+  const manifest = yield* located(input.cwd);
+  const link = yield* linkedProject(store, manifest);
   let project = link?.project;
   const now = yield* Clock.currentTimeMillis;
   const testPassed =
@@ -60,7 +66,17 @@ export const verify = Effect.fn("telemetry.verify")(function* (input: {
     project = { ...project, firstTestPassAt: new Date(now).toISOString() };
     yield* write(store, link.file, project);
   }
-  const event = verifyEvent(record, project, now);
+  const notes = Option.isSome(manifest)
+    ? yield* store.fs
+        .readFileString(store.path.join(manifest.value.root, NOTES_PATH))
+        .pipe(Effect.option)
+    : Option.none<string>();
+  const event = verifyEvent(
+    record,
+    project,
+    now,
+    Option.isSome(notes) ? countAsked(notes.value) : undefined,
+  );
   if (!link || record.outcome !== "green" || !project) return event;
   const previous = project.depsSentAt === undefined ? Number.NaN : Date.parse(project.depsSentAt);
   if (Number.isFinite(previous) && now - previous < 7 * DAY) return event;
@@ -75,6 +91,6 @@ export const markDepsSent = Effect.fn("telemetry.markDepsSent")(function* (
   cwd: string,
   sentAt: string,
 ) {
-  const link = yield* linkedProject(store, cwd);
+  const link = yield* linkedProject(store, yield* located(cwd));
   if (link) yield* write(store, link.file, { ...link.project, depsSentAt: sentAt });
 });

@@ -46,12 +46,53 @@ export class Usage extends Schema.TaggedError<Usage>()("Usage", {
  * `agents` and `sandbox` are add flags that disagree with the manifest.
  * `create_shadows` names an existing id, with its winning and shadowed origins in `origins`.
  * Search's `request` carries only its trimmed `length`; `limit` carries the rejected `value`.
- * `offline` is `update` under `--offline` or `STACKS_OFFLINE=1`, refused before any request.
+ * `offline` is `update` (or the `command` named) under `--offline` or `STACKS_OFFLINE=1`, refused
+ * before any request.
+ * `submit`'s own cases: `repo`, a `--repo` that isn't `owner/name` or that GitHub doesn't have;
+ * `tool`, `gh` or `git` missing from PATH, or `gh` not logged in; `submission`, the entries that
+ * didn't meet the readiness bar, as the blocking findings' locations (never their text);
+ * `collision`, an id the submission can't take: with `removed: true`, an id the upstream registry
+ * removed, refused for everyone since ids are never reused (`owner` when `authors.json` still
+ * names one); with `removed: false`, an id the registry has that `authors.json` doesn't give to
+ * this login (`owner` when it names another). `unchanged`, entries identical upstream;
+ * `git_identity`, a commit git refused because no author name or email is configured.
+ * `submit_entry` (with `id`) is an id both a stack and a fragment use in the user registry, or a
+ * directory that holds no single entry; `submit_id` is an id, given or a directory's name, that
+ * isn't kebab-case.
+ * `branch_taken`: the fork's pull request `branch` has commits `submit` didn't make (found before
+ * the push, or by the push's lease), so it isn't replaced.
  */
+export const SubmissionBlocker = Schema.Struct({
+  kind: Kind,
+  id: Schema.String,
+  check: Schema.String,
+  severity: Schema.Literals(["error", "warning"]),
+  file: Schema.optionalKey(Schema.String),
+  line: Schema.optionalKey(Schema.Number),
+});
 export const BadInputDetails = Schema.Union([
   Schema.Struct({ flag: Schema.Literal("request"), length: Schema.Int }),
   Schema.Struct({ flag: Schema.Literal("limit"), value: Schema.String }),
-  Schema.Struct({ flag: Schema.Literal("offline") }),
+  Schema.Struct({
+    flag: Schema.Literal("offline"),
+    command: Schema.optionalKey(Schema.Literals(["submit"])),
+  }),
+  Schema.Struct({ flag: Schema.Literal("repo"), value: Schema.String }),
+  Schema.Struct({
+    flag: Schema.Literal("tool"),
+    tool: Schema.Literals(["gh", "git"]),
+    reason: Schema.Literals(["missing", "unauthenticated"]),
+  }),
+  Schema.Struct({ flag: Schema.Literal("submission"), blockers: Schema.Array(SubmissionBlocker) }),
+  Schema.Struct({
+    flag: Schema.Literal("collision"),
+    kind: Kind,
+    id: Schema.String,
+    removed: Schema.Boolean,
+    owner: Schema.optionalKey(Schema.String),
+  }),
+  Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
+  Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
   Schema.Struct({
     id: Schema.String,
     flag: Schema.Literals([
@@ -73,6 +114,8 @@ export const BadInputDetails = Schema.Union([
       "create_shadows",
       "from",
       "confirmation",
+      "submit_entry",
+      "submit_id",
     ]),
     known: Schema.optionalKey(Schema.Array(Schema.String)),
     alreadyApplied: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -102,6 +145,11 @@ export const NotFoundDetails = Schema.Struct({
   root: Schema.optionalKey(Schema.String),
   /** A missing bundled asset directory (skill install). */
   path: Schema.optionalKey(Schema.String),
+  /**
+   * `submit`: an id not in the user registry while the working directory has a folder by that
+   * name, as the `./<name>` path that would submit it.
+   */
+  directory: Schema.optionalKey(Schema.String),
 });
 export class NotFound extends Schema.TaggedError<NotFound>()("NotFound", {
   details: Schema.optionalKey(NotFoundDetails),
@@ -124,9 +172,11 @@ export class InvalidConfig extends Schema.TaggedError<InvalidConfig>()("InvalidC
 }) {
   override readonly message = "Configuration is invalid.";
 }
+/** `step`: for GitHub, which of submit's requests failed. */
 export const UpstreamUnavailableDetails = Schema.Struct({
-  service: Schema.Literals(["npm-registry"]),
+  service: Schema.Literals(["npm-registry", "github"]),
   status: Schema.optionalKey(Schema.Number),
+  step: Schema.optionalKey(Schema.Literals(["auth", "clone", "fork", "push", "pr"])),
 });
 export const UpdateFailedDetails = Schema.Struct({
   command: Schema.String,
@@ -169,7 +219,7 @@ export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyCh
   override readonly message = "Verify steps changed since they were recorded.";
 }
 /**
- * `reason` is a closed set later sub-phases extend; `path` is the file or directory involved.
+ * `reason` is a closed set; `path` is the file or directory involved.
  * `escape`: a write would land outside the project (its real path isn't under the project's).
  * `blocked`: a live file or directory blocks a planned add path; `path` is the blocker.
  * `unwritable`: the project directory or a file in it couldn't be created or written.
@@ -177,6 +227,7 @@ export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyCh
  * `no-tty`: a confirmation was requested without a terminal on stdin (Trust model, point 4).
  * `state-unwritable`: the state record (`path`) couldn't be written, so nothing was confirmed.
  * `launch`: the agent CLI `new` hands off to (`path`) was found but couldn't be executed (1.4).
+ * `github`: GitHub refused `submit`'s fork or push for the login `gh` uses.
  */
 export const PermissionDeniedDetails = Schema.Struct({
   reason: Schema.Literals([
@@ -189,6 +240,7 @@ export const PermissionDeniedDetails = Schema.Struct({
     "no-tty",
     "state-unwritable",
     "launch",
+    "github",
   ]),
   path: Schema.optionalKey(Schema.String),
 });
@@ -449,10 +501,7 @@ export function failureGuide(error: AppError, invocation: string): FailureGuide 
       return guide([], `run ${invocation} doctor to see the configuration it reads.`);
     case "UpstreamUnavailable":
       return guide(
-        [
-          ...(error.details ? ["Service: npm registry"] : []),
-          ...(error.details?.status === undefined ? [] : [`Status: ${error.details.status}`]),
-        ],
+        error.details ? upstreamLines(error.details) : [],
         "wait a moment, then run the same command again.",
       );
     case "UpdateFailed":
@@ -473,6 +522,13 @@ export function failureGuide(error: AppError, invocation: string): FailureGuide 
     case "BrokenPipe":
       return guide([]);
   }
+}
+function upstreamLines(details: typeof UpstreamUnavailableDetails.Type): string[] {
+  return [
+    `Service: ${details.service === "github" ? "GitHub" : "npm registry"}`,
+    ...(details.step === undefined ? [] : [`Step: ${details.step}`]),
+    ...(details.status === undefined ? [] : [`Status: ${details.status}`]),
+  ];
 }
 function usageGuide(error: Usage, invocation: string): FailureGuide {
   const details = error.details;
@@ -701,10 +757,16 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
       `run ${invocation} search with --limit from 1 to 20.`,
     );
   if (details.flag === "offline")
-    return guide(
-      ["update needs the npm registry, and offline mode makes no network requests."],
-      `run ${invocation} update without --offline and with STACKS_OFFLINE unset.`,
-    );
+    return details.command === "submit"
+      ? guide(
+          ["submit needs GitHub, and offline mode makes no network requests."],
+          `run ${invocation} submit without --offline and with STACKS_OFFLINE unset.`,
+        )
+      : guide(
+          ["update needs the npm registry, and offline mode makes no network requests."],
+          `run ${invocation} update without --offline and with STACKS_OFFLINE unset.`,
+        );
+  if (isSubmitDetails(details)) return submitGuide(details, invocation);
   const id = printable(details.id);
   switch (details.flag) {
     case "create_id":
@@ -790,6 +852,97 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
             : ["This project has no check or serve steps."]),
         ],
         "pass --only names from that list; setup and teardown steps always run.",
+      );
+    case "submit_entry":
+      return guide(
+        [`Entry: ${id}`],
+        "pass one entry directory (<root>/stacks/<id> or <root>/fragments/<id>) instead.",
+      );
+    case "submit_id":
+      return guide(
+        [`Id: ${id}`],
+        "pass a lowercase kebab-case entry id from your user registry, or an entry directory as a path containing a / (./<id> in the current directory).",
+      );
+  }
+}
+const SUBMIT_FLAGS = [
+  "repo",
+  "tool",
+  "submission",
+  "collision",
+  "unchanged",
+  "git_identity",
+  "branch_taken",
+] as const;
+type SubmitDetails = Extract<typeof BadInputDetails.Type, { flag: (typeof SUBMIT_FLAGS)[number] }>;
+function isSubmitDetails(details: typeof BadInputDetails.Type): details is SubmitDetails {
+  return (SUBMIT_FLAGS as ReadonlyArray<string>).includes(details.flag);
+}
+/** Blocking findings shown in text modes; the envelope's details keep every one. */
+const SHOWN_BLOCKERS = 10;
+
+function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
+  switch (details.flag) {
+    case "repo":
+      return guide(
+        [`Flag: --repo ${printable(details.value)}`],
+        "pass --repo as owner/name of a GitHub repository you can read, or leave it out for steamfield/stacks.",
+      );
+    case "tool":
+      return details.reason === "missing"
+        ? guide(
+            [`${details.tool} is not on PATH; submit opens the pull request with gh and git.`],
+            `install ${details.tool === "gh" ? "the GitHub CLI (https://cli.github.com) and run gh auth login" : "git"}, then run ${invocation} submit again.`,
+          )
+        : guide(
+            ["gh is not logged in to GitHub."],
+            `run gh auth login, then run ${invocation} submit again.`,
+          );
+    case "submission":
+      return guide(
+        [
+          ...details.blockers
+            .slice(0, SHOWN_BLOCKERS)
+            .map(
+              (blocker) =>
+                `Blocked: ${blocker.kind} ${printable(blocker.id)}: ${blocker.check} (${blocker.severity})${blocker.file === undefined ? "" : ` at ${printable(blocker.file)}${blocker.line === undefined ? "" : `:${blocker.line}`}`}`,
+            ),
+          ...(details.blockers.length > SHOWN_BLOCKERS
+            ? [`And ${details.blockers.length - SHOWN_BLOCKERS} more.`]
+            : []),
+        ],
+        `run ${invocation} validate <entry dir> --submission for each finding's message, fix them, then run ${invocation} submit again.`,
+      );
+    case "collision":
+      return guide(
+        [
+          `${details.kind === "stack" ? "Stack" : "Fragment"}: ${printable(details.id)}`,
+          details.removed
+            ? "The registry removed this id, and ids are never reused."
+            : "The registry already has this id.",
+          ...(details.owner === undefined
+            ? []
+            : [`authors.json gives it to @${printable(details.owner)}.`]),
+        ],
+        "pick another id for your entry (ids are permanent), or ask its author to submit the change.",
+      );
+    case "unchanged":
+      return guide(
+        ["The upstream registry already holds these entries exactly as submitted."],
+        "change the entry first, or leave it out of the submission.",
+      );
+    case "git_identity":
+      return guide(
+        ["git refused the commit because no author name or email is set."],
+        `run git config --global user.name and git config --global user.email, then run ${invocation} submit again.`,
+      );
+    case "branch_taken":
+      return guide(
+        [
+          `Branch: ${printable(details.branch)}`,
+          `The pull request branch on your fork has commits ${invocation} submit didn't make.`,
+        ],
+        `update that pull request by hand, ask a registry maintainer to, or delete the branch on your fork to start over; ${invocation} submit only replaces a branch it pushed itself.`,
       );
   }
 }
@@ -914,6 +1067,11 @@ function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"
         ["The agent CLI was found on PATH but can't be run by you. The project was written."],
         "fix the binary's permissions, or start your agent in the project yourself.",
       );
+    case "github":
+      return guide(
+        ["GitHub refused to fork the repository or push the branch for the account gh uses."],
+        "run gh auth status to see that account, log in with one that can fork the repository (gh auth login), then run submit again.",
+      );
     // A write to stdout or stderr failed, so nothing can be shown anyway.
     case "write":
       return guide([]);
@@ -921,20 +1079,19 @@ function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"
 }
 
 function targetNext(details: typeof TargetNotEmptyDetails.Type, invocation: string): FailureGuide {
+  // `skill install`'s target is `.claude/skills/<name>`; the default skill needs no name.
+  const skill = /[/\\]\.claude[/\\]skills[/\\](stacks(?:-author)?)$/.exec(details.path)?.[1];
+  const install = `${invocation} skill install${skill === "stacks-author" ? " stacks-author" : ""}`;
   if (details.blocker === "non-file")
     return guide(
       [],
-      `move the item named SKILL.md out of the target directory, or run ${invocation} skill install --print to copy the skill elsewhere.`,
+      `move the item named ${details.entries[0] ?? "SKILL.md"} out of the target directory, or run ${install} --print to copy the skill elsewhere.`,
     );
-  // `skill install`'s differing target; its details are only path and entries.
-  if (
-    details.entries.length === 1 &&
-    details.entries[0] === "SKILL.md" &&
-    /[/\\]\.claude[/\\]skills[/\\]stacks$/.test(details.path)
-  )
+  // `skill install`'s differing files; its details are only path and entries.
+  if (skill !== undefined && details.entries.length > 0)
     return guide(
       [],
-      `rerun ${invocation} skill install with --force to replace it, or --print to copy it elsewhere.`,
+      `rerun ${install} with --force to replace ${details.entries.length > 1 ? "them" : "it"}, or --print to copy it elsewhere.`,
     );
   if (details.scaffold === "unfinished")
     return guide(
@@ -955,6 +1112,8 @@ function entryKindLabel(kind: (typeof NotFoundDetails.Type)["kind"]): string {
   return "Id";
 }
 function notFoundNext(details: typeof NotFoundDetails.Type, invocation: string): string {
+  if (details.directory)
+    return `pass ${printable(details.directory)} to submit that directory, or run ${invocation} list to see every stack and fragment id.`;
   if (details.looked)
     return "pass a registry root (a directory holding stacks/ or fragments/) or an entry directory inside one.";
   if (details.root)

@@ -1,4 +1,9 @@
-import type { Manifest, StatsSummary } from "@steamfield/stacks-format";
+import {
+  type AuthorsFile,
+  authorKey,
+  type Manifest,
+  type StatsSummary,
+} from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { LastRun, type LedgerRecord } from "../schemas/ledger";
 import type { ListResult, ListRow } from "../schemas/list";
@@ -10,9 +15,17 @@ import { statsFields } from "./stats-text";
 export const groups = ["stacks", "fragments", "apps"] as const;
 export type Group = (typeof groups)[number];
 
-/** `records` is the bundled ledger, so only bundled stacks get a `lastRun` from it. */
-export function toRow(entry: Entry, records: ReadonlyArray<LedgerRecord> = []): ListRow {
+/**
+ * `records` is the bundled ledger, so only bundled stacks get a `lastRun` from it; `authors` is
+ * the bundled `authors.json`, which names creators only for bundled entries.
+ */
+export function toRow(
+  entry: Entry,
+  records: ReadonlyArray<LedgerRecord> = [],
+  authors: AuthorsFile = {},
+): ListRow {
   const { meta } = entry;
+  const author = rowAuthor(entry, authors);
   return {
     id: entry.id,
     kind: entry.kind,
@@ -23,8 +36,15 @@ export function toRow(entry: Entry, records: ReadonlyArray<LedgerRecord> = []): 
     origin: entry.origin,
     trusted: entry.trusted,
     shadows: entry.shadows,
+    ...(author === undefined ? {} : { author }),
     lastRun: rowLastRun(entry, records),
   };
+}
+
+function rowAuthor(entry: Entry, authors: AuthorsFile): string | undefined {
+  if (entry.indexEntry?.author !== undefined) return entry.indexEntry.author;
+  const key = authorKey(entry.kind, entry.id);
+  return entry.origin === "bundled" && Object.hasOwn(authors, key) ? authors[key] : undefined;
 }
 
 function rowLastRun(entry: Entry, records: ReadonlyArray<LedgerRecord>) {
@@ -57,13 +77,14 @@ export function listResult(
   items: ReadonlyArray<Entry | RejectedEntry>,
   group: Group | undefined,
   records: ReadonlyArray<LedgerRecord> = [],
+  authors: AuthorsFile = {},
 ): ListResult {
   let kind: "stack" | "fragment" | undefined;
   if (group !== undefined) kind = group === "stacks" ? "stack" : "fragment";
   return {
     entries: items
       .filter((item): item is Entry => !isRejected(item))
-      .map((entry) => toRow(entry, records))
+      .map((entry) => toRow(entry, records, authors))
       .filter((row) => inGroup(row, group)),
     rejected: items
       .filter(isRejected)

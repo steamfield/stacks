@@ -1,5 +1,5 @@
 /**
- * Conditional prose in entry bodies (roadmap, Other shared facts: Prose markers):
+ * Conditional prose in entry bodies:
  *
  *   <!-- stacks:when stack=go-cli,python-react preset=default -->
  *   ...

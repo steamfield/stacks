@@ -4,6 +4,11 @@ Start with a project you trust and can build from an empty directory. A stack de
 its structure and definition of done. A fragment adds a reusable capability; prefer one
 over a near-copy when only CI, deployment or a tool differs.
 
+A coding agent can do most of this for you. `stacks skill install stacks-author` installs
+the authoring skill for Claude Code (the stacks Claude Code plugin includes it too), and
+`stacks guide author [topic]` prints the same guidance for any agent. Ask it to turn a repo
+into a stack or to design one with you.
+
 ```sh
 stacks create stack my-api --json
 stacks create fragment my-ci --category ci
@@ -56,8 +61,8 @@ verify:
 ```
 
 File checks are short shell commands in v1: the skeleton's README check requires a
-nonempty file without `stacks:fill`. Replace every fill marker yourself; validation
-currently does not flag them.
+nonempty file without `stacks:fill`. Replace every fill marker yourself; plain `validate`
+doesn't flag them, but `validate --submission` does.
 
 A `.tmpl` file can use only `{{project_name}}`, `{{project_slug}}`, `{{env_prefix}}`,
 `{{package_scope}}`, `{{author}}` and `{{year}}`. Use `{{package_scope}}` for scoped
@@ -184,3 +189,22 @@ An explicit preset flag wins over that setting, then the fallback is `default`.
 Use `stacks new my-api /tmp/my-api-default --preset default --json` to override it.
 The sandbox alias is compatible with an explicit sandbox preset, but conflicts with an
 explicit default preset. Add always uses the project's recorded preset.
+
+## Submit it to the public registry
+
+When the entry is proven, check it against the submission bar, preview the pull request,
+then open it:
+
+```sh
+stacks validate ~/.config/stacks/stacks/my-api --submission
+stacks submit my-api --dry-run --query "<a request it should win>" --query "<another>"
+stacks submit my-api --query "<a request it should win>" --query "<another>"
+```
+
+`--submission` adds checks for leftover fill markers, credential-shaped strings, `.env`
+files, absolute paths and a missing search card. `submit` needs the GitHub CLI (`gh`)
+signed in; it forks `steamfield/stacks` and opens a draft pull request. Maintainers then
+review the card, the dependencies and the shipped files, prove the entry with a bench run
+and sign it into the next index. The
+[contributing guide](https://github.com/steamfield/stacks/blob/main/CONTRIBUTING.md) covers
+the review steps, updates and licensing.

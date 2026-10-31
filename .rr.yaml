@@ -124,7 +124,7 @@ tasks:
     run: bun install --frozen-lockfile && cd packages/cli && bun run test:unit {args}
 
   test-hooks:
-    description: Root tests only (hooks, delegate runner, acceptance trace)
+    description: Root tests only (hooks and delegate runner)
     run: bun install --frozen-lockfile && bun run test:hooks {args}
 
   e2e:

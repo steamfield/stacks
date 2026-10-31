@@ -174,18 +174,22 @@ function make(
   const terminal = makeLive(stderr, color.live, color.layout);
   const style = makeStyle(color.stdout);
   const errorStyle = makeStyle(color.stderr);
-  const flush = Effect.suspend(() => {
-    if (!results.length) return Effect.void;
-    const text = `${results.join("\n")}\n`;
-    results.length = 0;
-    return terminal.around(write(stdout, text)).pipe(
-      Effect.tap(() =>
-        Effect.sync(() => {
-          if (json && notice !== undefined) noticeDelivered = true;
-        }),
-      ),
-    );
-  });
+  // Uninterruptible: results leave the buffer only to be written, so an interrupt waits for the
+  // write rather than reporting before it lands. A stalled stdout still yields to a second signal.
+  const flush = Effect.uninterruptible(
+    Effect.suspend(() => {
+      if (!results.length) return Effect.void;
+      const text = `${results.join("\n")}\n`;
+      results.length = 0;
+      return terminal.around(write(stdout, text)).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            if (json && notice !== undefined) noticeDelivered = true;
+          }),
+        ),
+      );
+    }),
+  );
   return {
     audience,
     notice: (text) =>

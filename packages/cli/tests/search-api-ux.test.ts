@@ -14,6 +14,7 @@ import {
   type SearchServer,
   searchServer,
 } from "./helpers/search-api";
+import { fixtureRecord } from "./helpers/search-command";
 import { put } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
@@ -46,6 +47,56 @@ test.each([undefined, "stack", "fragment"] as const)(
     }
   },
 );
+
+test("a partial fragment wins Next when the best stack is penalized", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(
+    response(
+      [
+        officialHit("scaffold", {
+          tier: "partial",
+          score: 0.4,
+          penalties: [{ kind: "notFor", request: "add auth", entry: "existing repository" }],
+        }),
+      ],
+      [
+        officialHit("clerk", {
+          kind: "fragment",
+          tier: "partial",
+          score: 0.3,
+          appliesTo: [],
+        }),
+      ],
+    ),
+  );
+  const text = await runCli(["search", "add authentication"], opts);
+  expect(text.status, text.stderr).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain(
+    "Next: confirm with the user before using a weak match; then stacks show clerk, then stacks add clerk.",
+  );
+});
+
+test("a weak-only fragment keeps broader-search recovery guidance", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(
+    response(
+      [],
+      [
+        officialHit("maybe", {
+          kind: "fragment",
+          tier: "weak",
+          score: 0.1,
+          appliesTo: [],
+        }),
+      ],
+    ),
+  );
+  const text = await runCli(["search", "auth"], opts);
+  expect(text.status, text.stderr).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain('Next: stacks search "<fewer, broader words>"');
+});
 
 test.each([false, true])(
   "local fragment success has consistent text and JSON (human %s)",
@@ -158,6 +209,196 @@ test("API fragments retain local cached stats when their evidence is empty", asy
     stats: clerk?.evidence.stats,
   });
   expect(server.requests).toHaveLength(1);
+});
+
+test("merged search keeps at most two weak stacks alongside a strong match", async () => {
+  const opts = apiOptions(space.dir(), server.url);
+  server.answer(
+    response([
+      officialHit("mobile-expo"),
+      officialHit("api-weak-one", { tier: "weak", score: 0.2 }),
+      officialHit("api-weak-two", { tier: "weak", score: 0.1 }),
+    ]),
+  );
+  const args = ["search", "an iOS health app"];
+  const json = decoded(await runCli([...args, "--json"], opts));
+  expect(json.stacks).toHaveLength(3);
+  expect(json.stacks.filter((hit) => hit.tier === "weak")).toHaveLength(2);
+  const text = await runCli(args, opts);
+  expect(text.status).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout.match(/^stack /gm)).toHaveLength(3);
+});
+
+test("a strong local entry absent from the API remains visible", async () => {
+  const home = space.dir();
+  const opts = apiOptions(home, server.url);
+  opts.host = { ...opts.host, registry: emptyRegistry };
+  await fixtureRecord(join(home, "config/stacks"), "local-go", {
+    search: { platforms: ["cli"], languages: ["go"], requests: ["go cli"] },
+  });
+  server.answer(response([officialHit("api-go")]));
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks.find((hit) => hit.id === "local-go")).toMatchObject({
+    origin: "user",
+    tier: "strong",
+  });
+});
+
+test("fragment fit appears in text only when the fragment names targets", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(
+    response(
+      [],
+      [
+        officialHit("clerk", { kind: "fragment", appliesTo: ["mobile-expo"] }),
+        officialHit("shared-auth", { kind: "fragment", appliesTo: [] }),
+      ],
+    ),
+  );
+  const text = await runCli(["search", "auth"], opts);
+  expect(text.status).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain("Applies to: mobile-expo");
+  expect(text.stdout.match(/^Applies to:/gm)).toHaveLength(1);
+});
+
+test.each(["seeded development data", "stacks projects"] as const)(
+  "API stats population %s labels shown evidence",
+  async (statsPopulation) => {
+    const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+    server.answer({
+      ...response([
+        officialHit("go-cli", {
+          evidence: { stats: { greenRateLower: 0.78, sample: 10235, projects: 11695, window: 28 } },
+        }),
+      ]),
+      statsPopulation,
+    });
+    const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+    expect(json.statsPopulation).toBe(statsPopulation);
+    const text = await runCli(["search", "go cli"], opts);
+    expect(text.status).toBe(0);
+    expect(text.stderr).toBe("");
+    expect(text.stdout).toContain(
+      `Evidence: green lower 0.78, sample 10235${statsPopulation === "seeded development data" ? ", seeded" : ""}, 11695 projects / 28 days`,
+    );
+  },
+);
+
+test("cached seeded stats label local-only evidence", async () => {
+  const home = space.dir();
+  cachedEvidence(home);
+  const opts = apiOptions(home, server.url);
+  const json = decoded(await runCli(["search", "go cli", "--local", "--json"], opts));
+  expect(json.statsPopulation).toBe("seeded development data");
+  const text = await runCli(["search", "go cli", "--local"], opts);
+  expect(text.status).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toMatch(/Evidence: green lower 0\.86, sample \d+, seeded,/);
+});
+
+test("a user override keeps its local stats population over an API copy", async () => {
+  const home = space.dir();
+  cachedEvidence(home);
+  put(
+    join(home, "config/stacks/stacks/go-cli/STACK.md"),
+    `---
+schema_version: 1
+id: go-cli
+kind: stack
+name: Local Go CLI
+description: A Go command line tool.
+---
+
+# Local Go CLI
+
+A Go command line tool.
+`,
+  );
+  const opts = apiOptions(home, server.url);
+  server.answer(
+    response(
+      [
+        officialHit("go-cli", {
+          evidence: { stats: { greenRateLower: 0.8, sample: 300, projects: 100, window: 28 } },
+        }),
+      ],
+      [],
+      "stacks projects",
+    ),
+  );
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks.find((hit) => hit.id === "go-cli")?.name).toBe("Local Go CLI");
+  expect(json.statsPopulation).toBe("seeded development data");
+});
+
+test("an unknown API population makes a mixed shown result unknown", async () => {
+  const home = space.dir();
+  const wire = readFileSync(
+    join(import.meta.dirname, "../../format/tests/fixtures/stats/summary.json"),
+    "utf8",
+  );
+  const summary = JSON.parse(wire);
+  summary.population = "stacks projects";
+  put(join(home, "cache/stacks/stats/summary.json"), JSON.stringify(summary));
+  const opts = apiOptions(home, server.url);
+  server.answer(
+    response([
+      officialHit("api-first", {
+        evidence: { stats: { greenRateLower: 0.8, sample: 300, projects: 100, window: 28 } },
+      }),
+    ]),
+  );
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks.some((hit) => hit.id === "go-cli" && hit.evidence.stats)).toBe(true);
+  expect(json.statsPopulation).toBeUndefined();
+});
+
+test("seeded local fallback labels evidence when API stats are unseeded", async () => {
+  const home = space.dir();
+  cachedEvidence(home);
+  const opts = apiOptions(home, server.url);
+  server.answer(response([officialHit("go-cli")], [], "stacks projects"));
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks.find((hit) => hit.id === "go-cli")?.evidence.stats).toBeDefined();
+  expect(json.statsPopulation).toBe("seeded development data");
+  const text = await runCli(["search", "go cli"], opts);
+  expect(text.status).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toMatch(/Evidence: green lower 0\.86, sample \d+, seeded,/);
+});
+
+test("a population is absent when no shown hit has stats", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(response([officialHit("go-cli")], [], "seeded development data"));
+  const json = decoded(await runCli(["search", "go cli", "--json"], opts));
+  expect(json.stacks).toHaveLength(1);
+  expect(json.statsPopulation).toBeUndefined();
+});
+
+test("Why omits body matches when another field explains the hit", async () => {
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
+  server.answer(
+    response([
+      officialHit("other-reason", {
+        why: [
+          { field: "body", matched: "body-only", from: "body-only" },
+          { field: "summary", matched: "summary-match", from: "summary-match" },
+        ],
+      }),
+      officialHit("body-only", {
+        tier: "partial",
+        why: [{ field: "body", matched: "only-body", from: "only-body" }],
+      }),
+    ]),
+  );
+  const text = await runCli(["search", "go cli"], opts);
+  expect(text.status).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain("Why: summary-match (summary)");
+  expect(text.stdout).not.toContain("body-only (body)");
+  expect(text.stdout).toContain("Why: only-body (body)");
 });
 
 test("empty search lists end with browse and broader-search recovery in both text audiences", async () => {

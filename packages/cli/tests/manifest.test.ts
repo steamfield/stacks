@@ -3,15 +3,14 @@ import { join } from "node:path";
 import type { ManifestStep } from "@steamfield/stacks-format";
 import { Effect, Exit, Random } from "effect";
 import { afterEach, expect, test } from "vitest";
+import { canonicalJson } from "../src/core/canonical-json";
 import {
   buildManifest,
-  canonicalJson,
   type DigestInput,
   digestSteps,
   encodeManifest,
   MANIFEST_PATH,
   readManifest,
-  writeManifest,
 } from "../src/core/manifest";
 import { InvalidConfig, NotFound, PermissionDenied } from "../src/errors";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";
@@ -236,17 +235,6 @@ test.skipIf(asRoot)("an unreadable manifest is PermissionDenied read", async () 
   chmodSync(path, 0o000);
   expect(await runWith(readManifest(path))).toEqual(
     Exit.fail(new PermissionDenied({ details: { reason: "read", path } })),
-  );
-});
-
-test("writeManifest round-trips, and a write that fails is PermissionDenied write with the path", async () => {
-  const manifest = await manifestOf();
-  const path = join(temp(), "manifest.json");
-  await succeed(runWith(writeManifest(path, manifest)));
-  expect(await succeed(runWith(readManifest(path)))).toEqual(manifest);
-  const nowhere = join(temp(), "missing", "manifest.json");
-  expect(await runWith(writeManifest(nowhere, manifest))).toEqual(
-    Exit.fail(new PermissionDenied({ details: { reason: "write", path: nowhere } })),
   );
 });
 

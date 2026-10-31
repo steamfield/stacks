@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { canonicalJson } from "../manifest";
+import { canonicalJson } from "../canonical-json";
 import type { Entry } from "../registry/entry";
 
 /** The framed per-entry inputs used by fingerprint, without files or adapter selection. */

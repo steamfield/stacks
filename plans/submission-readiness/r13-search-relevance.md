@@ -13,7 +13,7 @@ ranking over the same index.
 
 ## Read first
 
-- Phases `plans/phases/phase-4.5a-search-evaluation-set.md` (golden set, tune and holdout
+- Phases `plans/archive/phases/phase-4.5a-search-evaluation-set-2026-10-30.md` (golden set, tune and holdout
   split, the rule against leaking holdout queries into metadata), `phase-4.5b-search-metadata.md`
   (what each sidecar field does, how cards are reviewed), `phase-4.5c-search-command-and-local-ranking.md`
   (ranking, tiers, penalties), and `plans/runs/2026-10-28-search-lexical.md` (the last eval run).

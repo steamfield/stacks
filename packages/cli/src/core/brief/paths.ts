@@ -4,8 +4,8 @@ type Line = { path: string; files: number; dir: boolean };
 /**
  * Written paths for a person or an agent to read: a directory holding more than three of the
  * listed lines is shown once as `dir/ (N files)`, deepest directories first, so a collapsed
- * subdirectory counts as one line of its parent. Sorted by path. The one implementation
- * (roadmap, Shared helpers); `new --json` keeps every path.
+ * subdirectory counts as one line of its parent. Sorted by path. The one implementation;
+ * `new --json` keeps every path.
  */
 export function collapsePaths(paths: ReadonlyArray<string>): string[] {
   let lines: Line[] = [...new Set(paths)].map((path) => ({ path, files: 1, dir: false }));

@@ -6,7 +6,7 @@ hypothesis until they record brief size next to time to green.
 
 Each gate or bench run gets a file named `<date>-<stack>.md` (add `-<n>` for a second run
 the same day). The ledger (`packages/cli/registry/runs.json`, from
-[2.0c](../phases/phase-2.0c-run-ledger.md)) is the machine-readable copy;
+[2.0c](../archive/phases/phase-2.0c-run-ledger-2026-10-30.md)) is the machine-readable copy;
 these notes are what a person reads.
 
 The [2026-10-27 library QA report](2026-10-27-library-qa/REPORT.md) covers all ten

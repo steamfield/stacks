@@ -49,7 +49,7 @@ When the answers come back, build from them. If an answer still leaves a choice 
 3. Read the two closest bundled entries in full as models for structure; their search cards predate the skills, so don't copy their `notFor` or facets.
 4. Ask your questions (above) and wait for the answers.
 5. Pick the id with the skill's tests. Write down the ids you considered and why the chosen one wins.
-6. Write the entry, then check it against the skill's "What a complete stack/fragment has" section and reread every claim against `files/`, `adapters/` and `verify`.
+6. Write the entry, then check it against the public `stacks-author` references the skills point to (`references/anatomy.md`, `references/fragment.md`) and reread every claim against `files/`, `adapters/` and `verify`.
 7. Check tag compatibility and compose the brief with each fragment involved, as the skill says.
 8. Write the search card as a draft, then run the search requests and adjust the card until the entry ranks where it should. Don't change another entry's card to make yours win; report the conflict instead.
 9. Run the skill's checks. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.

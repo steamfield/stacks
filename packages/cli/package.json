@@ -1,6 +1,6 @@
 {
   "name": "@steamfield/stacks",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@effect/platform-bun": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
     "@types/bun": "catalog:",
@@ -57,7 +56,7 @@
     "dist/stacks",
     "dist/cli.mjs",
     "registry",
-    "skill",
+    "skills",
     "docs/authoring.md",
     "LICENSE"
   ],

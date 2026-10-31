@@ -16,7 +16,7 @@ const marketplaceSchema = Schema.toType(
 const Manifest = Schema.Struct({
   name: Schema.String,
   version: Schema.String,
-  skills: Schema.Union([Schema.String, Schema.Array(Schema.String)]),
+  skills: Schema.optionalKey(Schema.Union([Schema.String, Schema.Array(Schema.String)])),
 });
 const digest = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
@@ -47,8 +47,9 @@ test("the Claude marketplace manifest decodes and names a contained shipped copy
   );
   expect(manifest.name).toBe("stacks");
   expect(manifest.version).toBe(pkg.version);
-  const paths = typeof manifest.skills === "string" ? [manifest.skills] : manifest.skills;
-  expect(paths.length).toBeGreaterThan(0);
+  // Claude Code always scans the default skills/ directory; a `skills` field only adds to it.
+  const extra = manifest.skills ?? [];
+  const paths = ["./skills", ...(typeof extra === "string" ? [extra] : extra)];
   const discovered: string[] = [];
   for (const path of paths) {
     expect(path.split(/[\\/]/)).not.toContain("..");
@@ -61,7 +62,64 @@ test("the Claude marketplace manifest decodes and names a contained shipped copy
       discovered.push(skill);
     }
   }
-  expect(discovered.some((file) => digest(file) === digest(join(cli, "skill/SKILL.md")))).toBe(
-    true,
+  for (const name of ["stacks", "stacks-author"])
+    expect(discovered).toContain(realpathSync(join(root, "skills", name, "SKILL.md")));
+});
+
+/** Every file under `dir`, relative and sorted. */
+function tree(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(dir, join(entry.parentPath, entry.name)))
+    .sort();
+}
+
+test("the plugin carries a byte-identical copy of every file of both shipped skills", () => {
+  const cli = join(bundled, "..");
+  const shipped = join(cli, "skills");
+  const copy = join(cli, "plugin", "skills");
+  for (const name of ["stacks", "stacks-author"]) {
+    const files = tree(join(shipped, name));
+    expect(files, name).toContain("SKILL.md");
+    expect(tree(join(copy, name)), name).toEqual(files);
+    for (const file of files)
+      expect(digest(join(copy, name, file)), `${name}/${file}`).toBe(
+        digest(join(shipped, name, file)),
+      );
+  }
+  expect(readdirSync(copy).sort()).toEqual(readdirSync(shipped).sort());
+});
+
+const PluginSource = Schema.Struct({
+  source: Schema.Literal("git-subdir"),
+  url: Schema.Literal("steamfield/stacks"),
+  path: Schema.Literal("packages/cli/plugin"),
+  ref: Schema.String,
+});
+const Marketplace = Schema.Struct({
+  name: Schema.String,
+  description: Schema.String,
+  owner: Schema.Struct({ name: Schema.String, url: Schema.optionalKey(Schema.String) }),
+  plugins: Schema.Tuple([
+    Schema.Struct({ name: Schema.String, description: Schema.String, source: PluginSource }),
+  ]),
+});
+
+test("the marketplace lists the plugin by its manifest name, pinned to the tag of the current release", () => {
+  const cli = join(bundled, "..");
+  const marketplace = Schema.decodeUnknownSync(Marketplace, { onExcessProperty: "error" })(
+    JSON.parse(readFileSync(join(cli, "../../.claude-plugin/marketplace.json"), "utf8")),
   );
+  const manifest = Schema.decodeUnknownSync(Manifest)(
+    JSON.parse(readFileSync(join(cli, "plugin/.claude-plugin/plugin.json"), "utf8")),
+  );
+  const pkg = Schema.decodeUnknownSync(Schema.Struct({ version: Schema.String }))(
+    JSON.parse(readFileSync(join(cli, "package.json"), "utf8")),
+  );
+  const [plugin] = marketplace.plugins;
+  expect(plugin.name).toBe(manifest.name);
+  expect(marketplace.name).toBe(manifest.name);
+  // scripts/release.ts refuses to tag a release whose marketplace pins another ref.
+  expect(plugin.source.ref).toBe(`v${pkg.version}`);
+  expect(existsSync(join(cli, "plugin/.claude-plugin/plugin.json"))).toBe(true);
 });

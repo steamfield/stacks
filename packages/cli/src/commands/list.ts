@@ -73,17 +73,19 @@ export const listCommand = Command.make(
       const bundled = roots.find((root) => root.origin === "bundled");
       const ledger = bundled ? yield* readLedger(bundled.path) : undefined;
       const records = ledger?.records ?? [];
-      const items = yield* Registry.pipe(
-        Effect.flatMap((registry) => registry.all),
+      const { items, authors } = yield* Registry.pipe(
+        Effect.flatMap((registry) =>
+          Effect.all({ items: registry.all, authors: registry.authors }),
+        ),
         Effect.provide(Registry.layer(roots)),
       );
       const summary = Option.getOrUndefined(yield* (yield* Stats).summary);
-      const plain = listResult(items, typed, records);
+      const plain = listResult(items, typed, records, authors);
       const result = { ...plain, entries: withStats(plain.entries, summary) };
       const all = withStats(
         items
           .filter((item): item is Entry => !isRejected(item))
-          .map((entry) => toRow(entry, records)),
+          .map((entry) => toRow(entry, records, authors)),
         summary,
       );
       const { project, addable } = projectChoices(all, manifest);

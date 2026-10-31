@@ -2,6 +2,7 @@ import { AgentId } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Result, Schema } from "effect";
 import { InvalidConfig } from "../errors";
 import { type LastRun, Ledger, LedgerRecord } from "../schemas/ledger";
+import { replaceFile } from "./replace-file";
 
 export type LedgerRead = {
   readonly present: boolean;
@@ -114,7 +115,6 @@ export const appendRecord = (
   record: LedgerRecord,
 ): Effect.Effect<void, InvalidConfig, FileSystem.FileSystem | Path.Path> =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const target = path.join(registryDir, "runs.json");
     const invalid = () => new InvalidConfig({ details: { path: target } });
@@ -124,15 +124,5 @@ export const appendRecord = (
       Effect.mapError(invalid),
     );
     const text = `${JSON.stringify({ schemaVersion: 1, records: [...(ledger?.records ?? []), decoded] }, null, 2)}\n`;
-    yield* Effect.scoped(
-      Effect.gen(function* () {
-        const directory = yield* fs.makeTempDirectoryScoped({
-          directory: registryDir,
-          prefix: ".runs-",
-        });
-        const temporary = path.join(directory, "runs.json");
-        yield* fs.writeFileString(temporary, text, { flag: "wx" });
-        yield* fs.rename(temporary, target);
-      }),
-    ).pipe(Effect.mapError(invalid));
+    yield* replaceFile(target, text).pipe(Effect.mapError(invalid));
   });

@@ -254,10 +254,7 @@ test("rejects empty collections and the retained incomplete Terra report unchang
   expect(validateEvalReport({ ...report(), cases: [] }).report).toBeNull();
   expect(validateEvalReport({ ...report(), models: [] }).report).toBeNull();
   const evidence = readFileSync(
-    join(
-      import.meta.dirname,
-      "../../../plans/runs/2026-10-28-qa-followup/web-app-evidence/eval-dry-run.txt",
-    ),
+    join(import.meta.dirname, "fixtures/eval-dry-run-terra.txt"),
     "utf8",
   );
   const line = evidence.trim().split("\n").at(-1);

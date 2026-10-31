@@ -141,7 +141,7 @@ export function benchFixture(space: ReturnType<typeof workspace>, compiled?: () 
     "scripts/node-entry.mjs",
   ])
     cpSync(join(cli, file), join(packageRoot, file));
-  cpSync(join(cli, "skill"), join(packageRoot, "skill"), { recursive: true });
+  cpSync(join(cli, "skills"), join(packageRoot, "skills"), { recursive: true });
   mkdirSync(join(packageRoot, "docs"));
   cpSync(join(cli, "docs/authoring.md"), join(packageRoot, "docs/authoring.md"));
   symlinkSync(join(cli, "node_modules"), join(packageRoot, "node_modules"), "dir");

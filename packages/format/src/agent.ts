@@ -4,7 +4,7 @@ import { Schema } from "effect";
 export const AgentId = Schema.Literals(["claude", "codex", "opencode", "cursor"]);
 export type AgentId = typeof AgentId.Type;
 
-/** Launch targets; see roadmap contracts, "Agent ids". Adapter ids stay unchanged. */
+/** Launch targets: every `AgentId` plus `copilot` and `codex-app`. Adapter ids stay unchanged. */
 export const Harness = Schema.Literals([...AgentId.literals, "copilot", "codex-app"]);
 export type Harness = typeof Harness.Type;
 /**

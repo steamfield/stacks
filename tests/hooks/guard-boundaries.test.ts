@@ -20,6 +20,14 @@ describe("CLI platform boundaries", () => {
     ["packages/cli/src/core/doctor.ts", 'import { spawn } from "child_process";'],
     ["packages/cli/src/runtime.ts", 'import { NodeServices } from "@effect/platform-node";'],
     ["packages/cli/src/core/doctor.ts", 'import { kill } from "node:process";'],
+    ["packages/cli/src/core/doctor.ts", 'import { NetLayer } from "../platform/net";'],
+    ["packages/cli/src/core/verify/run.ts", 'import type { root } from "../../commands/root";'],
+    ["packages/cli/src/services/host.ts", 'export * from "../platform/width";'],
+    ["packages/cli/src/services/processes.ts", 'export { spawnChild } from "../platform/process";'],
+    ["packages/cli/src/core/doctor.ts", 'import { readFile } from "node:fs";'],
+    ["packages/cli/src/core/doctor.ts", 'import { homedir } from "os";'],
+    ["packages/cli/src/core/fingerprint.ts", 'import { readFile } from "node:fs/promises";'],
+    ["packages/cli/src/core/scaffold/new.ts", 'import { rmdir } from "node:fs/promises";'],
   ])("denies %s: %s", async (path, content) =>
     expect(denyReason(await check(path, content))).toBeDefined(),
   );
@@ -37,6 +45,13 @@ describe("CLI platform boundaries", () => {
     ["packages/api/src/server.ts", "const p = Bun.serve;"],
     ["packages/shared/src/index.ts", "console.log('x');"],
     ["src/core/doctor.ts", "console.log('x');"],
+    ["packages/cli/src/services/processes.ts", 'import { spawnChild } from "../platform/process";'],
+    ["packages/cli/src/core/doctor.ts", 'import { Host } from "../services/host";'],
+    ["packages/cli/src/core/platform/thing.ts", 'import { x } from "./helper";'],
+    ["packages/cli/src/core/manifest.ts", 'import { createHash } from "node:crypto";'],
+    ["packages/cli/src/services/output.ts", 'import { styleText } from "node:util";'],
+    ["packages/cli/src/core/scaffold/write.ts", 'import { rmdir } from "node:fs/promises";'],
+    ["packages/cli/src/commands/verify.ts", 'import { NetLayer } from "../platform/net";'],
   ])("allows %s: %s", async (path, content) =>
     expect(denyReason(await check(path, content))).toBeUndefined(),
   );

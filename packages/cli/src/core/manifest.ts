@@ -13,6 +13,7 @@ import {
 import { InvalidConfig, NotFound, PermissionDenied } from "../errors";
 import { MANIFEST_PATH } from "../project-layout";
 import { VERSION } from "../version";
+import { canonicalJson } from "./canonical-json";
 import type { Composition } from "./compose/compose";
 import type { Entry } from "./registry/entry";
 
@@ -22,23 +23,6 @@ export { MANIFEST_PATH } from "../project-layout";
 /** What the digest reads from a manifest; a later optional field can't reach it by accident. */
 export type DigestInput = Pick<Manifest, "verify" | "env" | "preset">;
 
-/**
- * JSON with object keys sorted at every level and arrays kept in order; `undefined` values are
- * dropped the way `JSON.stringify` drops them.
- */
-export function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value !== null && typeof value === "object") {
-    const entries = Object.entries(value)
-      .filter(([, item]) => item !== undefined)
-      .sort(([a], [b]) => {
-        if (a < b) return -1;
-        return a > b ? 1 : 0;
-      });
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
 const sha256 = (value: unknown) =>
   `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
 
@@ -183,20 +167,4 @@ export const locateManifest = (
       dir = parent;
     }
     return yield* new NotFound({ details: { suggestions: [], kind: "project", looked: from } });
-  });
-
-/**
- * Writes `manifest` to `path` (whose directory must exist), replacing the file. Any write error
- * is `PermissionDenied` (`write`) with the path. `new` writes `encodeManifest`'s text through its
- * own safe writer instead, so its rollback covers the file; this is for later rewrites (1.4, 3.0).
- */
-export const writeManifest = (
-  path: string,
-  manifest: Manifest,
-): Effect.Effect<void, PermissionDenied, FileSystem.FileSystem> =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    yield* fs
-      .writeFileString(path, encodeManifest(manifest))
-      .pipe(Effect.mapError(() => new PermissionDenied({ details: { reason: "write", path } })));
   });

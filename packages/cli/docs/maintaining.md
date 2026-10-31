@@ -12,7 +12,7 @@ bun run bench <stack> --agent claude --keep
 
 It builds the dev binary, installs it with the working registry into a throwaway prefix, scaffolds the stack, runs the agent headlessly and verifies independently. `--cli <binary>` skips the build; `--preset default` uses defaults instead of sandbox, `--with a,b` adds fragments, `--max-minutes 60` sets the time limit, and `--no-record` skips the ledger and run note. `--existing <kept-root>` continues matching content and adds one intervention.
 
-The package must be clean before a run. Read every generated note under `plans/runs/` and its `registry/runs.json` record before committing; a green verify can still need relabeling as `partial` after review. The bench never commits anything.
+The package must be clean before a run. The bench writes its run note under `plans/runs/` at the repository root (creating the directory if needed) and appends to `registry/runs.json`. Read every generated note and its ledger record before committing; a green verify can still need relabeling as `partial` after review. The bench never commits anything.
 
 Auth is `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or `CODEX_ACCESS_TOKEN` as documented by `codex login --with-access-token`. Codex also accepts the invoking user's `codex login`: when no token is set, the bench copies only `$HOME/.codex/auth.json` into the fresh home with mode 0600 and removes it when the agent exits, before verification, even with `--keep` or on interruption. Global Codex settings, instructions and MCP servers are never copied. Only the selected token reaches the agent when token auth is used. The fresh `HOME` and project are not a security boundary: local runs give the agent full permissions. Child processes get `DO_NOT_TRACK=1`. Fake-agent tests need no account or real token.
 
@@ -23,8 +23,8 @@ Use `--model <id>` with either adapter to select a model, for example `--agent c
 The reviewed ledger is `registry/runs.json`. It's what `list` reads for "historical pass <date>". Import reviewed gate notes with:
 
 ```sh
-bun run ledger:import ../../plans/runs/2026-10-27-*.md
-bun run ledger:import ../../plans/runs/2026-10-27-*.md --dry-run
+bun run ledger:import ../../plans/runs/<note>.md
+bun run ledger:import ../../plans/runs/<note>.md --dry-run
 ```
 
 The script discovers the repo from the working directory, archives only the registry at each note's commit into a temporary directory and fingerprints it with the current composition code. A contradictory Outcome row and final verify record are reported and skipped; a maintainer's explicit `partial` stays partial even when verify is green. The driving agent is independent of adapter targets: targets default to `claude`, and notes for an override can include a `Target agents` table row with comma-separated ids such as `codex`, `claude`.
@@ -41,7 +41,7 @@ bun run build:index -- --out <output> --previous <live-index-url|none> --key <pr
 bun run build:index -- --check <base-url>
 ```
 
-The output includes `v1/index.json`, its immutable bundles, `v1/names.json` and `v1/directory.json`. All three JSON files use the `SignedIndex` envelope and the same signing key. `--unsigned` writes them with empty signatures for local inspection; `--check` rejects unsigned files. Directory added dates come from each definition file's first addition in git, using the committer date. Builds require full git history and refuse shallow clones before touching output.
+The output includes `v1/index.json`, its immutable bundles under `v1/entries/`, `v1/names.json`, `v1/allowlist.json` (from the reviewed `registry/allowlist.json`), `v1/deps.json` (the dependency cards), `v1/search.json`, `v1/directory.json` and a `_headers` file with cache rules. Every `v1/*.json` file uses the `SignedIndex` envelope and the same signing key. The build fails when a bundled entry's `deps` names a package missing from `registry/allowlist.json`. `--unsigned` writes them with empty signatures for local inspection; `--check` rejects unsigned files. Directory added dates come from each definition file's first addition in git, using the committer date. Builds require full git history and refuse shallow clones before touching output.
 
 For a development index that also includes stacks without a qualifying ledger pass:
 
@@ -55,7 +55,7 @@ Official names include every release's stack and fragment ids, each stack's defa
 
 With `--previous <url>`, the build also verifies and merges the previous `v1/names.json`, keeping names from earlier published compositions after steps change or entries are withdrawn. A missing names file (HTTP 404) bootstraps from the previous index's pinned bundles, for an index published before names existed. Other fetch failures, invalid payloads and invalid signatures stop the build. `--previous none` starts with release history and the current index only; use the live index URL to retain names from unreleased index publications.
 
-Review `v1/names.json` and `v1/directory.json` alongside the index before deploying. `--check` verifies all three signatures, decodes their payloads and checks the immutable bundles. The deploy host must serve `/v1/names.json` and `/v1/directory.json` with `Cache-Control: public, max-age=300, stale-while-revalidate=3600`; the hosting setup lives in `stacks-api`.
+Review `v1/names.json` and `v1/directory.json` alongside the index before deploying. `--check` verifies every signature, decodes the payloads and checks the immutable bundles. The deploy host must serve `/v1/names.json` and `/v1/directory.json` with `Cache-Control: public, max-age=300, stale-while-revalidate=3600`; the hosting setup lives in `stacks-api`.
 
 When removing a published stack or fragment, add its id to `packages/cli/registry/removed.json` in the same change:
 
@@ -85,12 +85,12 @@ Keep golden queries out of search-sidecar drafting prompts and examples. Holdout
 Run the coverage and metric tests after changing judgments:
 
 ```sh
-bun run test:unit tests/search-golden-coverage.test.ts tests/search-eval.test.ts
+bun run test:unit tests/search-golden.test.ts tests/search-golden-coverage.test.ts tests/search-eval.test.ts
 ```
 
 `evaluate(rank, golden)` reports tune, holdout, and query-weighted total summaries. MRR includes queries with any relevant stack, counting only stack positions through ten. Recall@3 and fragment recall@5 average only queries with grade-2 judgments of that kind; ineligible queries do not dilute the average. Empty eligible groups score zero. First-result and no-match summaries carry passed/total counts. `pairwiseWins` separately counts same-kind competitors above a present `first`; a missing `first` scores zero there but fails the first-result check.
 
-The baseline in `gate` starts at zero. Phase 4.5c adds the real ranking and gate test, sets the first baseline, and requires every first-result and no-match case to pass. Each metric may fall at most 0.02 below its baseline. When an accepted ranking raises a metric, raise that baseline in the same commit; never lower another metric to offset it. Lowering a baseline requires a plan change with the reason recorded in 4.5c's "What this plan may get wrong". Review judgment changes as product decisions, explain their effect on the scores, and record the maintainers' review date in the evaluation-set plan once they agree them.
+The baseline is the `gate` object in `golden.json` (`mrr`, `recallAt3`, `fragmentRecallAt5`). `tests/search-golden.test.ts` runs local ranking against the set, requires every first-result and no-match case to pass in both splits, and lets each metric fall at most 0.02 below its baseline. When an accepted ranking raises a metric, raise that baseline in the same commit; never lower another metric to offset it. Lower a baseline only as a deliberate, reviewed decision, with the reason in the commit message. Review judgment changes as product decisions and explain their effect on the scores.
 
 ## Drafting and reviewing search cards
 
@@ -167,27 +167,20 @@ leave the proven bundles unchanged.
 
 ## Publishing the Claude Code plugin
 
-`plugin/` is a Claude Code plugin carrying the agent skill, published by hand after a CLI release to a marketplace repository the maintainers own (not created yet; see [marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) and the [manifest reference](https://code.claude.com/docs/en/plugins-reference)). `skill/SKILL.md` is the source; `plugin/skills/stacks/SKILL.md` is a committed copy, because a plugin's paths can't leave its directory. `tests/native-agent-plugin.test.ts` fails when the copy or the manifest's `version` drifts from the skill and `package.json`.
+`plugin/` is a Claude Code plugin carrying both agent skills, `stacks` and `stacks-author`. The repository root holds its marketplace, `.claude-plugin/marketplace.json` (see [marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) and the [manifest reference](https://code.claude.com/docs/en/plugins-reference)), so users add it with `claude plugin marketplace add steamfield/stacks` and install it with `claude plugin install stacks@stacks`.
 
-1. On the release revision, from `packages/cli/`, refresh the copy and check the plugin loads (`/stacks:stacks` should appear in the session):
+The marketplace lists the plugin with a `git-subdir` source: this repository, the path `packages/cli/plugin` and a `ref` naming the release tag `v<version>`. Claude Code reads `marketplace.json` from the default branch but fetches the plugin from that tag, so unreleased skill edits on `main` never reach users. `skills/` is the source of both skills; `plugin/skills/` holds committed copies, because a plugin's paths can't leave its directory. `tests/native-agent-plugin.test.ts` fails when a copy drifts from its source file by file, when the manifest's `version` drifts from `package.json`, or when the marketplace's `ref` isn't `v<package.json version>`.
+
+1. In the release commit (the one that bumps the versions), from `packages/cli/`, refresh the copies, set `ref` in `.claude-plugin/marketplace.json` to the new tag, and check the plugin loads (`/stacks:stacks` and `/stacks:stacks-author` should appear in the session):
 
    ```sh
-   cp skill/SKILL.md plugin/skills/stacks/SKILL.md
+   rm -r plugin/skills && cp -R skills plugin/skills
    bun run test:unit tests/native-agent-plugin.test.ts
    claude plugin validate ./plugin
+   claude plugin validate ..
    claude --plugin-dir ./plugin
    ```
 
-2. In the marketplace checkout, replace `plugins/stacks/` with `plugin/` (including `.claude-plugin/`). On first publication, create `.claude-plugin/marketplace.json` with the marketplace `name`, an `owner` and a `plugins` array holding:
+2. `bun run release` refuses to tag unless the marketplace pins the tag it is about to create. Once the tag is pushed, `claude plugin marketplace add steamfield/stacks` and `claude plugin install stacks@stacks` in a scratch session should install the released plugin.
 
-   ```json
-   {
-     "name": "stacks",
-     "source": "./plugins/stacks",
-     "description": "Choose a stack with the stacks CLI and follow its brief until verify is green."
-   }
-   ```
-
-   The version stays in the plugin manifest only.
-3. Run `claude plugin validate <marketplace-checkout>`, `claude plugin marketplace add <marketplace-checkout>` and `claude plugin install stacks@<marketplace-name>`, and confirm the skill appears in a new session.
-4. Push the marketplace, and record the CLI version, marketplace revision and date in `plans/HANDOFF.md`.
+Between pushing the release commit and pushing its tag, the marketplace names a tag that doesn't exist yet, and an install in that window fails. Run the release right after the commit lands.

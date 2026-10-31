@@ -19,7 +19,7 @@ export type HostInfo = {
   registry: string;
   /** The running package root, resolved by bin.ts. */
   packageRoot: string;
-  /** The bundled skill directory, resolved by bin.ts beside the registry. */
+  /** The bundled skills root (one directory per skill), resolved by bin.ts beside the registry. */
   skill: string;
   /** The authoring guide, resolved by bin.ts beside the registry and skill. */
   authoring: string;

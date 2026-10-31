@@ -1,8 +1,9 @@
 import { type Manifest, ProjectId } from "@steamfield/stacks-format";
-import { Effect, Exit, FileSystem, Path, type PlatformError, Random, Schema } from "effect";
+import { Effect, Exit, FileSystem, Path, type PlatformError, Schema } from "effect";
 import { AppConfig } from "../config";
 import { InvalidConfig, PermissionDenied } from "../errors";
 import { digestSettings, digestStep } from "./manifest";
+import { replaceFile } from "./replace-file";
 import { printable } from "./text";
 
 /**
@@ -66,9 +67,9 @@ const reasonOf = (error: PlatformError.PlatformError) => error.reason._tag;
  * The state directory being unwritable is not an error: the result is `{ written: false }` and a
  * warning is logged, since some agent sandboxes allow writes only inside the project.
  *
- * The record is written to a fresh temporary file (exclusive create, so nothing planted there is
- * followed) and renamed over `<projectId>.json`, which replaces a link rather than writing
- * through it. `removeProjectState` undoes it.
+ * The record is written through `replaceFile` (an exclusive create in a fresh temporary
+ * directory, renamed over `<projectId>.json`), which replaces a link rather than writing through
+ * it. `removeProjectState` undoes it.
  */
 export const writeProjectState = (
   manifest: Manifest,
@@ -98,9 +99,9 @@ export const warnUnwritten = (error: PlatformError.PlatformError, target: string
   Effect.logWarning(`Project state record not written (${reasonOf(error)}): ${printable(target)}`);
 
 /**
- * Writes `state` to `target` (a `projectStatePath`), creating its directory: a fresh temporary
- * file (exclusive create, so nothing planted there is followed) renamed over the record, which
- * replaces a link rather than writing through it. Fails with the platform error; callers decide
+ * Writes `state` to `target` (a `projectStatePath`), creating its directory, through
+ * `replaceFile`: nothing planted there is followed, and a link at the record is replaced rather
+ * than written through. Fails with the platform error; callers decide
  * whether that is a warning (`new`, verify's timing fields) or a refusal (`--accept-changes`).
  */
 export const saveProjectState = (
@@ -111,15 +112,8 @@ export const saveProjectState = (
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const text = `${JSON.stringify(Schema.encodeSync(ProjectState)(state), null, 2)}\n`;
-    const suffix = (yield* Random.nextIntBetween(0, 0xffffff)).toString(16);
-    const temporary = `${target}.${suffix}.tmp`;
     yield* fs.makeDirectory(path.dirname(target), { recursive: true });
-    yield* fs
-      .writeFileString(temporary, text, { flag: "wx" })
-      .pipe(Effect.onError(() => Effect.ignore(fs.remove(temporary))));
-    yield* fs
-      .rename(temporary, target)
-      .pipe(Effect.onError(() => Effect.ignore(fs.remove(temporary))));
+    yield* replaceFile(target, text);
   });
 
 /**

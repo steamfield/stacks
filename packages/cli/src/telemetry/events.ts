@@ -3,9 +3,9 @@ import type {
   Manifest,
   RunRecord,
   TelemetryErrorEvent,
-  TelemetryEventV2,
+  TelemetryEventV3,
   TelemetryNewEvent,
-  TelemetryVerifyEvent,
+  TelemetryVerifyEventV3,
 } from "@steamfield/stacks-format";
 import type { Entry } from "../core/registry/entry";
 import type { Project } from "./storage";
@@ -24,7 +24,7 @@ export type ErrorFacts = {
   stack?: Pick<Entry, "id" | "origin" | "trusted">;
 };
 export type Envelope = Pick<
-  TelemetryEventV2,
+  TelemetryEventV3,
   "schemaVersion" | "eventId" | "installId" | "cliVersion" | "os" | "nodeMajor" | "agent" | "sentAt"
 >;
 export const official = (entry: { origin: string; trusted?: boolean }) =>
@@ -80,14 +80,19 @@ export const errorEvent = (input: ErrorFacts) => ({
   code: errorCode(input.code),
   ...(input.stack && official(input.stack) ? { stack: input.stack.id } : {}),
 });
-function duration(ms: number): TelemetryVerifyEvent["steps"][number]["duration"] {
+function duration(ms: number): TelemetryVerifyEventV3["steps"][number]["duration"] {
   if (ms <= 5000) return "5s";
   if (ms <= 30000) return "30s";
   if (ms <= 120000) return "2m";
   if (ms <= 600000) return "10m";
   return "longer";
 }
-export function verifyEvent(record: RunRecord, project: Project | undefined, now: number) {
+export function verifyEvent(
+  record: RunRecord,
+  project: Project | undefined,
+  now: number,
+  asked?: number,
+) {
   const known = new Set(project?.steps ?? []);
   return {
     type: "verify" as const,
@@ -105,6 +110,7 @@ export function verifyEvent(record: RunRecord, project: Project | undefined, now
     stepsChanged: project
       ? record.steps.filter((step) => !known.has(step.name)).length
       : record.steps.length,
+    ...(asked === undefined ? {} : { asked }),
     secondsSinceScaffold: project
       ? Math.max(0, (now - Date.parse(project.scaffoldedAt)) / 1000)
       : record.secondsSinceCreated,
@@ -120,38 +126,39 @@ export function verifyEvent(record: RunRecord, project: Project | undefined, now
   };
 }
 
-/** Each v1 field's downstream reader; the README carries the same table. */
+/** Each field's downstream use; docs/reference/telemetry.md carries the same table. */
 export const TELEMETRY_FIELD_CONSUMERS = {
-  schemaVersion: "Ingest schema selection (4.1b)",
-  eventId: "Ingest idempotency (4.1b)",
-  type: "Event routing (4.1b)",
-  installId: "Distinct installs and per-install caps (4.1b, 4.2a)",
-  projectId: "Distinct projects (4.2a)",
-  cliVersion: "Released-version check and release counts (4.1b, 4.1d)",
-  os: "Platform failure counts (4.1d)",
-  nodeMajor: "Node line failure counts (4.1d)",
-  agent: "Per-agent green rate (4.2a)",
-  sentAt: "Event retention windows (4.1b, 4.2a)",
-  stack: "Stack projects and green rate (4.2a)",
-  fragments: "Fragment attach rate (4.2a)",
-  without: "Without rate (4.2a)",
-  preset: "Per-preset green rate (4.2a)",
-  targetAgents: "Adapter target share (4.1d)",
-  handoff: "Entry-point share (4.2a)",
-  source: "Entry-point share (4.2a)",
-  origin: "Index reach (4.1d)",
-  nonOfficial: "Non-official use counts (4.1d)",
-  fingerprint: "Per-composition green rate (4.2a)",
-  kind: "Show pick rate (4.2a)",
-  id: "Show pick rate (4.2a)",
-  command: "Failed scaffold share (4.2a)",
-  code: "Failure spikes per release (4.1d)",
-  scope: "Verify scope (4.2a)",
-  outcome: "Green rate (4.2a)",
-  tamperCheck: "Verify trust coverage (4.2a)",
-  steps: "Step failures and environment blockage (4.2a)",
-  stepsChanged: "Changed-step share (4.2a)",
-  secondsSinceScaffold: "Time to green (4.2a)",
-  secondsToFirstTestPass: "Time to first test (4.2a)",
-  deps: "Allowlisted dependency trends (4.2e)",
+  schemaVersion: "Selects the ingest schema",
+  eventId: "makes delivery idempotent",
+  type: "routes the event",
+  installId: "counts distinct installs and applies per-install caps",
+  projectId: "counts distinct projects",
+  cliVersion: "Checks for a released version and counts use per release",
+  os: "failure counts per platform",
+  nodeMajor: "Failure counts per Node line",
+  agent: "green rate per agent",
+  sentAt: "retention windows",
+  stack: "Projects and green rate per stack",
+  fragments: "How often each fragment is attached",
+  without: "How often default fragments are left out",
+  preset: "Green rate per preset",
+  targetAgents: "Share of projects per adapter target",
+  handoff: "How the project was handed to an agent",
+  source: "The `--source` attribution",
+  origin: "how far the index reaches",
+  nonOfficial: "Counts of user, project and other non-official entries",
+  fingerprint: "Green rate per composition",
+  kind: "Which entries people review",
+  id: "Which entries people review",
+  command: "Which of `new` or `add` failed",
+  code: "failure spikes per release",
+  scope: "Full or partial verify scope",
+  outcome: "green rate",
+  tamperCheck: "How much of verify's tamper check ran",
+  steps: "step failures and environment blockage",
+  stepsChanged: "changed-step share",
+  secondsSinceScaffold: "Time to green",
+  secondsToFirstTestPass: "Time to the first successful test command",
+  asked: "Counts agent questions before verify",
+  deps: "dependency trends",
 } as const;

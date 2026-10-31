@@ -10,7 +10,7 @@ Use [PITCH.md](PITCH.md) for messaging and [DEMO_OUTLINE.md](DEMO_OUTLINE.md) fo
 
 ## 1. Freeze the release and scope
 
-- [ ] Read [HANDOFF.md](../plans/HANDOFF.md), [product constraints](PROBLEM_STATEMENT.md), and the [quick start](../packages/cli/docs/quickstart.md).
+- [ ] Read [product constraints](PROBLEM_STATEMENT.md) and the [quick start](../packages/cli/docs/quickstart.md).
 - [ ] Record the CLI version, source revision, OS, agent/model, and exact commands.
 - [ ] Confirm Node 22+ and the selected stack's tools. Python + React currently names uv, bun, make, git, and jq.
 - [ ] Choose an installed release or source build deliberately; do not mix their behavior.

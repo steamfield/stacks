@@ -1,6 +1,5 @@
 {
   "name": "stacks",
-  "version": "0.5.0",
-  "description": "Choose a stack with the stacks CLI and follow its brief until verify is green.",
-  "skills": "./skills/stacks"
+  "version": "0.6.0",
+  "description": "Choose a stack with the stacks CLI and follow its brief until verify is green, or write and submit a stack or fragment of your own."
 }

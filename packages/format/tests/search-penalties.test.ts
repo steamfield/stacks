@@ -52,7 +52,7 @@ test("one matching product kind suffices and absent facets or cards stay unknown
   }
 });
 
-test("a product mismatch multiplies raw relevance by 0.3 once for the whole category", () => {
+test("a product mismatch multiplies squashed relevance by 0.3 once for the whole category", () => {
   const base = input();
   const record = base.entries[0];
   if (record?.search.kind !== "stack") throw new Error("Missing stack fixture");
@@ -70,9 +70,7 @@ test("a product mismatch multiplies raw relevance by 0.3 once for the whole cate
   expect(mismatched.penalties).toEqual([
     { kind: "productKind", request: "saas (web-app)", entry: "cli-tool, mobile-app" },
   ]);
-  expect(mismatched.score / (1 - mismatched.score)).toBeCloseTo(
-    (0.3 * unknown.score) / (1 - unknown.score),
-  );
+  expect(mismatched.score).toBeCloseTo(0.3 * unknown.score, 2);
 });
 
 test.each([

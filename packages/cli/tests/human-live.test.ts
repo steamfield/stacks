@@ -185,10 +185,13 @@ function advance() {
   if (stage === 1 && fs.existsSync("release-second")) {
     stage = 2;
     watcher.close();
+    clearInterval(poll);
     process.stdout.write("without-newline");
   }
 }
 const watcher = fs.watch(".", advance);
+// A loaded macOS host can drop watch events; poll for the release files too.
+const poll = setInterval(advance, 50);
 process.stdout.write("ready\\nfirst-");
 fs.writeFileSync("ready", "");
 advance();
@@ -216,7 +219,7 @@ advance();
       }
     },
   });
-  expect(result.status).toBe(0);
+  expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toContain("verify: green");
   expect(liveSeen).toBe(true);
   expect(resumed).toBe(true);

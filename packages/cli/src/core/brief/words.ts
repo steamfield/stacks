@@ -2,7 +2,7 @@ import { isConditionalMarker } from "../compose/conditionals";
 
 /**
  * Words in `text`: runs of non-whitespace, after removing conditional marker lines. Code fences
- * and their content count. The one word counter (roadmap, Types and schemas: Word count).
+ * and their content count. The one word counter.
  */
 export function countWords(text: string): number {
   let count = 0;

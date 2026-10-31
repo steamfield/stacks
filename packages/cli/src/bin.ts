@@ -35,6 +35,7 @@ const registry = fileURLToPath(new URL("../registry/", import.meta.url));
 // Replaced by Bun at build time; source development has no escaped asset paths.
 declare const PACKAGED_GITIGNORES: ReadonlyArray<string>;
 declare const STACKS_RELEASE_BUILD: boolean;
+declare const STACKS_PUBLISHED_TELEMETRY: boolean;
 // npm drops literal .gitignore members even when present in a tarball. Only this installed
 // registry's reads translate the packer's escape; authors and core see the original names.
 const packagedFiles = Layer.effect(
@@ -59,14 +60,17 @@ const packagedFiles = Layer.effect(
       readFile: (file: string) => Effect.flatMap(resolve(file), fs.readFile),
       readFileString: (file: string, encoding?: string) =>
         Effect.flatMap(resolve(file), (at) => fs.readFileString(at, encoding)),
-      readDirectory: (file: string) =>
+      readDirectory: (...args: Parameters<typeof fs.readDirectory>) =>
         fs
-          .readDirectory(file)
+          .readDirectory(...args)
           .pipe(
             Effect.map((names) =>
-              escapedPaths.has(`${file}/.gitignore`)
-                ? names.map((name) => (name === ".gitignore.stacks" ? ".gitignore" : name))
-                : names,
+              names.map((name) =>
+                name.endsWith(".gitignore.stacks") &&
+                escapedPaths.has(`${args[0]}/${name.slice(0, -".stacks".length)}`)
+                  ? name.slice(0, -".stacks".length)
+                  : name,
+              ),
             ),
           ),
     };
@@ -91,7 +95,7 @@ const platform = Layer.mergeAll(
     stringWidth,
     registry,
     packageRoot: fileURLToPath(new URL("../", import.meta.url)),
-    skill: fileURLToPath(new URL("../skill/", import.meta.url)),
+    skill: fileURLToPath(new URL("../skills/", import.meta.url)),
     authoring: fileURLToPath(new URL("../docs/authoring.md", import.meta.url)),
     invocation: invocationFor(process.argv[1] ?? ""),
   }),
@@ -111,7 +115,12 @@ const controller = new AbortController();
 const removeSignalPolicy = installSignalPolicy(holder, () => controller.abort());
 try {
   process.exitCode = await runInvocation(
-    main(args, undefined, { officialUrl: undefined }).pipe(Effect.provide(layer), Effect.scoped),
+    main(args, undefined, {
+      officialUrl:
+        typeof STACKS_PUBLISHED_TELEMETRY !== "undefined" && STACKS_PUBLISHED_TELEMETRY
+          ? DEFAULT_API_URL
+          : undefined,
+    }).pipe(Effect.provide(layer), Effect.scoped),
     controller.signal,
   );
 } finally {

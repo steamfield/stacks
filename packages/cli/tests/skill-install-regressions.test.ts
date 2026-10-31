@@ -7,7 +7,7 @@ import { SkillResult } from "../src/schemas/skill";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";
 import { spawnGit } from "./helpers/git";
 
-const skill = fileURLToPath(new URL("./fixtures/skill/", import.meta.url));
+const skill = fileURLToPath(new URL("./fixtures/skills/", import.meta.url));
 const dirs: ReturnType<typeof tempDir>[] = [];
 const workspace = () => {
   const dir = tempDir();
@@ -35,8 +35,15 @@ test("project install ignores Git tracing on stderr", async () => {
   expect(run.stderr).toBe("");
   expect(
     Schema.decodeUnknownSync(SkillResult, { onExcessProperty: "error" })(JSON.parse(run.stdout)),
-  ).toEqual({ path: target(repo), action: "written" });
-  expect(readFileSync(target(repo), "utf8")).toBe(readFileSync(join(skill, "SKILL.md"), "utf8"));
+  ).toEqual({
+    name: "stacks",
+    path: target(repo),
+    action: "written",
+    files: [{ path: "SKILL.md", action: "written" }],
+  });
+  expect(readFileSync(target(repo), "utf8")).toBe(
+    readFileSync(join(skill, "stacks", "SKILL.md"), "utf8"),
+  );
 });
 
 test.each([false, true])(

@@ -1,4 +1,6 @@
 import {
+  AuthorsFile,
+  authorKey,
   DependencyAllowlist,
   DependencyCards,
   DirectoryData,
@@ -90,6 +92,35 @@ export const carryForward = Effect.fn("index.carryForward")(function* (
   }
   return { entries: sorted, bundles: current.bundles, lines };
 });
+
+/** The registry's `authors.json`; a registry without one credits nobody. */
+export const readAuthors = Effect.fn("index.readAuthors")(function* (root: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const file = path.join(root, "authors.json");
+  if (!(yield* fs.exists(file))) return {};
+  const text = yield* fs
+    .readFileString(file)
+    .pipe(Effect.mapError(() => new Error(`${file}: authors could not be read.`)));
+  return yield* Schema.decodeUnknownEffect(Schema.fromJsonString(AuthorsFile))(text).pipe(
+    Effect.mapError(() => new Error(`${file}: invalid AuthorsFile.`)),
+  );
+});
+
+/**
+ * Each entry with its creator's login from `authors.json`, which is the only source: a
+ * carried-forward entry keeps no author the file no longer names.
+ */
+export function withAuthors(
+  entries: ReadonlyArray<IndexEntry>,
+  authors: AuthorsFile,
+): IndexEntry[] {
+  return entries.map(({ author: _previous, ...entry }) => {
+    const key = authorKey(entry.kind, entry.id);
+    const login = Object.hasOwn(authors, key) ? authors[key] : undefined;
+    return login === undefined ? entry : { ...entry, author: login };
+  });
+}
 
 const replaceOutput = Effect.fn("index.replaceOutput")(function* (options: {
   stage: string;

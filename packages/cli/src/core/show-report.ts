@@ -80,6 +80,7 @@ export function renderShow(
       layout ? wrapWords(line, layout.width, layout.measure).split("\n") : [line],
     ),
     report.description,
+    ...(report.author === undefined ? [] : [`Author: @${report.author}`]),
     `Path: ${report.path}`,
     `Shadows: ${list(report.shadows)}`,
     `Tags: ${list(report.tags)}`,

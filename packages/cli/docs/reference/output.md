@@ -6,7 +6,7 @@ This is the contract every command keeps: who the output is for, what goes to st
 
 On the first enabled telemetry invocation, text audiences receive one privacy notice on stderr and JSON results gain an optional `notice` string. That invocation queues no events. Telemetry failures stay silent; explicit telemetry control commands report incomplete cleanup in their result. See [Telemetry](telemetry.md).
 
-Output has three audiences, picked once per invocation. `--json` is the machine contract below. Without it, the output is for a human only when stdout is a terminal and no coding agent is detected (`CLAUDECODE`, `AI_AGENT` and the other markers in `src/config.ts`); everything else (an agent's shell, a pipe, CI) gets agent output, the default.
+Output has three audiences, picked once per invocation. `--json` is the machine contract below. Without it, the output is for a human only when stdout is a terminal, no coding agent is detected (`CLAUDECODE`, `AI_AGENT` and the other markers in `src/config.ts`) and `CI` is unset; everything else (an agent's shell, a pipe, CI) gets agent output, the default.
 
 ```mermaid
 flowchart TB
@@ -35,9 +35,13 @@ The two text renderings carry the same result with the same exit code and files;
 - `validate`: only the size rows over their limit (a human sees the whole table; `--json` keeps every size).
 - `list`: each description on one line, not wrapped.
 
+## Color and live progress
+
+Only human output is styled. At a human terminal, status words use color, `new` and `verify` redraw one live progress line on stderr, and the guide, guidance and descriptions wrap to the terminal width. Color is decided separately for stdout and stderr: a terminal enables it, and `FORCE_COLOR=1` also colors stderr when it isn't a terminal, as long as stdout is one. Piping stdout switches to agent output, which is never colored. Any nonempty `NO_COLOR` turns off color and the live line, and wins over `FORCE_COLOR`. Agent and JSON output never carry ANSI escapes, even when color is forced.
+
 ## Streams and the error envelope
 
-Stdout contains results only. `--json` emits one result object; JSON version is `{ "version": "0.1.0" }` and JSON help is `{ "help": "..." }`. Failures leave stdout empty, and stderr holds a safe diagnostic, or with `--json` exactly one envelope as the last stderr line:
+Stdout contains results only. `--json` emits one result object; `--version --json` prints `{ "version": "<version>" }` and JSON help is `{ "help": "..." }`. Failures leave stdout empty, and stderr holds a safe diagnostic, or with `--json` exactly one envelope as the last stderr line:
 
 ```json
 { "error": { "tag": "NotFound", "message": "Not found.", "retryable": false, "next": "run this command again from inside a project stacks new created, or create one with stacks new <stack> <dir>.", "details": { "kind": "project", "looked": "/path", "suggestions": [] } } }

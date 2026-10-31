@@ -5,16 +5,16 @@ sections that don't apply, then run scripts/delegate.sh <filled-contract.md> --w
 
 ## Goal
 
-{One paragraph: the behaviour to add or change and why. Name the plan file and section it
-implements, if any.}
+{One paragraph: the behaviour to add or change and why. Quote the design or task description it
+implements, or give the design file's path and section, if there is one.}
 
 ## Read first
 
 - `AGENTS.md` (already loaded): "Conventions", "Testing", "Error handling".
 - `.claude/rules/typescript.md` and `.claude/rules/architecture.md`.
-- For `packages/cli`: `.claude/rules/cli/cli.md`, `.claude/rules/cli/effect.md`,
-  `.claude/rules/cli/testing.md` and `.claude/skills/effect/SKILL.md`.
-- {The plan section, and the existing files whose patterns to follow.}
+- For `packages/cli`: `.claude/rules/cli/cli.md`, `.claude/rules/cli/effect.md` and
+  `.claude/rules/cli/testing.md`.
+- {The design section, and the existing files whose patterns to follow.}
 
 ## Skills to apply
 
@@ -32,11 +32,14 @@ Read each skill and apply it to this task; your hand-off says where it changed w
 - `${ce}skills/architecting-systems/SKILL.md`, with its `references/structure.md`,
   `coupling.md` and `boundaries.md`: before adding or changing a module, service, schema or
   contract. `.claude/rules/architecture.md` adds this repo's constraints on top.
+- `${ce}skills/effect/SKILL.md` (Codex also lists it as `ce:effect`) and the references it routes
+  to: for any Effect code. `.claude/rules/cli/effect.md` is this CLI's policy on top.
 
 ## Interface
 
-{Signatures, types, schema names, error tags, file paths. Cite contracts by the name in the
-roadmap's "Contracts every sub-phase shares" table; never rename or redefine one.}
+{Signatures, types, schema names, error tags, file paths. Cite shared contracts by their symbol
+(exported from `packages/format/src/index.ts`; error tags in `packages/cli/src/errors.ts`);
+never rename or redefine one.}
 
 ## Scope
 
@@ -131,7 +134,7 @@ the orchestrator works from it, so be specific and name files and symbols.
 1. Summary: what you built, in two or three sentences.
 2. Files: each file created or changed, with one line on why.
 3. Decisions: choices the contract left open and why you made them; any deviation from the
-   plan or contract and the reason; where the skills changed your approach. Name every new
+   design or contract and the reason; where the skills changed your approach. Name every new
    mechanism you added (a cache, a parser, a module, a fallback path) and the acceptance test or
    contract line that needed it.
 4. Checks: each command you ran and its result (test counts, not just "passed"), and the QA:
@@ -140,5 +143,5 @@ the orchestrator works from it, so be specific and name files and symbols.
    or why not).
 6. Look closer at: the places most likely to be wrong, such as assumptions you couldn't verify,
    edge cases you didn't cover, code you're least sure of, tests that are weaker than you'd
-   like, and anything in the plan that looked wrong.
+   like, and anything in the design that looked wrong.
 7. Open: what's left undone or blocked, and the questions you'd ask.

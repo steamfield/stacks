@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Hand a coding task to a Codex delegate (gpt-6-sol, high effort, fast mode) in its own worktree, then review its diff, refactor it to this repo's standard, run the gate and commit it yourself. The default for implementation, tests and refactors whose contract you can write down. Not for design, plans or harness changes.
+description: Hand a coding task to a Codex delegate (gpt-6-sol, high effort, fast mode) in its own worktree, then review its diff, refactor it to this repo's standard, run the gate and commit it yourself. The default for implementation, tests and refactors whose contract you can write down. Not for design or harness changes.
 ---
 
 # Delegating to Codex
@@ -8,8 +8,9 @@ description: Hand a coding task to a Codex delegate (gpt-6-sol, high effort, fas
 Claude is the orchestrator. Codex writes the first draft of the code in an isolated worktree;
 Claude writes the contract, reviews the diff, does a refactor pass, runs the gate and commits.
 Codex is trusted like Claude Code: with `--write` it runs unsandboxed, with your environment
-and your own Codex config, so it has the network, `bun add`, git and the whole gate, including
-the compiled-binary e2e and the process-group tests. It leaves its changes uncommitted only
+and your own Codex config, so it has the network, `bun add` and git, and can run the scoped tests
+the contract names, including the process-group tests. It runs no gate: the command guard denies
+a delegate every whole-suite run (AGENTS.md "Test runs"). It leaves its changes uncommitted only
 because the review and refactor come before the commit. Claude
 subagents still go through the Agent tool, never this script.
 
@@ -17,12 +18,13 @@ subagents still go through the Agent tool, never this script.
 
 Delegate coding work you can specify before any code exists: the goal, the interface, the area
 of the tree in scope, the acceptance tests and the command that runs them. That covers feature
-work against a sub-phase plan (the plan is most of the contract: point at it and add the scope
-and the gate), test authoring for existing behaviour, and mechanical refactors. Give a feature
-the room a plan needs: scope a directory or package rather than a file list, let Codex choose
-internal structure, and judge the result in review.
+work against a written design (the design is most of the contract: quote it or give its path,
+and add the scope and the checks), test authoring for existing behaviour, and mechanical
+refactors. Give a feature the room a design needs: scope a directory or package rather than a
+file list, let Codex choose internal structure, and judge the result in review.
 
-Keep it yourself when the task is design (an RFC, a plan, a contract in the roadmap table), when
+Keep it yourself when the task is design (a design document, or a shared contract in
+`packages/format/src` or `errors.ts`), when
 it changes the harness (`.claude/`, lefthook, CI), when it is a few lines you would finish
 faster than you could write the contract, or when you can't yet say what done looks like.
 
@@ -41,7 +43,7 @@ faster than you could write the contract, or when you can't yet say what done lo
    one worktree (`EnterWorktree`) may not be able to run git in another.
 
 2. Contract. Copy `contract.md` beside this file into the scratchpad and fill it in
-   (`contract-tests.md` for a test-first sub-phase's test author). Codex
+   (`contract-tests.md` for a test-first feature's test author). Codex
    reads `AGENTS.md` on its own but never sees `.claude/rules/` or this conversation, so the
    contract names the rule and skill files that apply and carries every constraint itself.
    Scope it for what the change touches, not only the file it's about: a unit that adds a
@@ -80,7 +82,7 @@ faster than you could write the contract, or when you can't yet say what done lo
    tool so the lint, typecheck and boundary hooks see every change (none of them ran for
    Codex). Match the surrounding code's naming, comment density and idiom; cut abstractions,
    options and defensive branches the task didn't ask for; replace custom code with the
-   project's existing helpers and Effect idioms (`.claude/skills/effect/SKILL.md`); make tests
+   project's existing helpers and Effect idioms (`ce:effect`, `.claude/rules/cli/effect.md`); make tests
    assert behaviour through the real interfaces `AGENTS.md` "Testing" describes, with no mocks;
    check errors follow `AGENTS.md` "Error handling". Keep the diff surgical: anything Codex
    touched outside the task gets reverted.
@@ -101,4 +103,4 @@ faster than you could write the contract, or when you can't yet say what done lo
    worth keeping. Remove only worktrees you created; other sessions keep theirs under the same
    directory. The run logs under `$TMPDIR/stacks-delegate/` can stay.
 
-`/execute:codex <plan>` runs this loop over a whole plan.
+`/execute:codex <design>` runs this loop over a whole design.

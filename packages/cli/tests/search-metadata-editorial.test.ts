@@ -13,7 +13,7 @@ import { EXAMPLE_CARDS, PROMPT_VERSION } from "../scripts/decorate/prompt";
 import { indexSearch } from "../scripts/index/search";
 import { decodeSidecar } from "../src/core/search/sidecar";
 import { quiet, runCli } from "./helpers/cli";
-import { copyEntry, minimal, writeEntry } from "./helpers/registry";
+import { copyEntry, emptyRegistry, minimal, writeEntry } from "./helpers/registry";
 import {
   card,
   cardPath,
@@ -81,7 +81,8 @@ async function setup() {
   const root = join(home, "registry");
   seed(root, stack);
   const value = await stamp(root, stack);
-  return { home, root, value };
+  // These fixtures are self-contained; only the canonical vocabulary comes from bundled data.
+  return { home, root, value, registry: emptyRegistry };
 }
 
 test.each([stack, fragment])(
@@ -335,8 +336,7 @@ test("examples preserve default selections and reject a second app alongside the
       message: expect.stringMatching(/projectExamples\[1\].*app_count.*first-app, second-app/),
     }),
   ]);
-  // Two validations that resolve through the bundled registry exceed 5 s under CI coverage.
-}, 30_000);
+});
 
 test("editorial selectors accept metadata-compatible entries whose source files collide [4.5b#21]", async () => {
   const f = await setup();
@@ -446,10 +446,10 @@ test.each(["legacy", "enriched"])(
     expect(result.status, result.stderr).toBe(0);
     const copied = join(f.home, "config/stacks");
     expect(readFileSync(cardPath(copied, stack), "utf8")).toBe(bytes);
-    expect(searchFindings(await validateSearch(copied, { home: f.home }))).toEqual([]);
+    expect(searchFindings(await validateSearch(copied, f))).toEqual([]);
     const file = join(copied, "stacks/sample/STACK.md");
     put(file, `${readFileSync(file, "utf8")}\nChanged guidance.\n`);
-    expect(searchFindings(await validateSearch(copied, { home: f.home }))).toEqual([
+    expect(searchFindings(await validateSearch(copied, f))).toEqual([
       expect.objectContaining({ check: "search-stale", severity: "warning" }),
     ]);
     expect(readJson(cardPath(copied, stack))).toEqual(rich);

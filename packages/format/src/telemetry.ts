@@ -170,9 +170,27 @@ export const TelemetryEventV2 = Schema.Union([
 ]);
 export type TelemetryEventV2 = typeof TelemetryEventV2.Type;
 
+export const TelemetryVerifyEventV3 = Schema.Struct({
+  ...TelemetryVerifyEventV2.fields,
+  schemaVersion: Schema.Literal(3),
+  // Nonempty items under `## Asked` in the project's NOTES.md: questions the agent asked.
+  asked: Schema.optionalKey(Count),
+});
+export type TelemetryVerifyEventV3 = typeof TelemetryVerifyEventV3.Type;
+
+/** Version 3 preserves every v2 field and adds the agent's question count to verify. */
+export const TelemetryEventV3 = Schema.Union([
+  Schema.Struct({ ...TelemetryNewEvent.fields, schemaVersion: Schema.Literal(3) }),
+  Schema.Struct({ ...TelemetryAddEvent.fields, schemaVersion: Schema.Literal(3) }),
+  TelemetryVerifyEventV3,
+  Schema.Struct({ ...TelemetryShowEvent.fields, schemaVersion: Schema.Literal(3) }),
+  Schema.Struct({ ...TelemetryErrorEvent.fields, schemaVersion: Schema.Literal(3) }),
+]);
+export type TelemetryEventV3 = typeof TelemetryEventV3.Type;
+
 /** POST /v1/events request body. */
 export const TelemetryBatch = Schema.Struct({
-  events: Schema.Array(Schema.Union([TelemetryEvent, TelemetryEventV2])).check(
+  events: Schema.Array(Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3])).check(
     Schema.isMinLength(1),
     Schema.isMaxLength(50),
   ),
@@ -201,4 +219,9 @@ export function telemetryEventJsonSchema(): Record<string, unknown> {
 /** Standalone draft 2020-12 document; released v2 is frozen in schemas/telemetry-event.v2.json. */
 export function telemetryEventV2JsonSchema(): Record<string, unknown> {
   return standaloneJsonSchema(TelemetryEventV2);
+}
+
+/** Standalone draft 2020-12 document; released v3 is frozen in schemas/telemetry-event.v3.json. */
+export function telemetryEventV3JsonSchema(): Record<string, unknown> {
+  return standaloneJsonSchema(TelemetryEventV3);
 }

@@ -507,16 +507,16 @@ describe("--accept-changes", () => {
     const program = Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const reached = yield* Deferred.make<void>();
-      // The real filesystem, with the manifest write held long enough to interrupt during it.
+      // The real filesystem, with the manifest replacement held long enough to interrupt during it.
       const held: FileSystem.FileSystem = {
         ...fs,
-        writeFileString: (target, data, options) =>
-          target === path
+        rename: (source, target) =>
+          target === realpathSync(path)
             ? Deferred.succeed(reached, undefined).pipe(
                 Effect.andThen(Effect.sleep("100 millis")),
-                Effect.andThen(fs.writeFileString(target, data, options)),
+                Effect.andThen(fs.rename(source, target)),
               )
-            : fs.writeFileString(target, data, options),
+            : fs.rename(source, target),
       };
       const manifest = yield* readManifest(path);
       const tamper = yield* checkTamper(manifest, path);

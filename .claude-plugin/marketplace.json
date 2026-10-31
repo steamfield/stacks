@@ -1,0 +1,20 @@
+{
+  "name": "stacks",
+  "description": "The stacks plugin for Claude Code: start projects from verified stacks, and write and submit stacks of your own.",
+  "owner": {
+    "name": "steamfield",
+    "url": "https://github.com/steamfield"
+  },
+  "plugins": [
+    {
+      "name": "stacks",
+      "description": "Choose a stack with the stacks CLI and follow its brief until verify is green, or write and submit a stack or fragment of your own.",
+      "source": {
+        "source": "git-subdir",
+        "url": "steamfield/stacks",
+        "path": "packages/cli/plugin",
+        "ref": "v0.6.0"
+      }
+    }
+  ]
+}

@@ -2,7 +2,12 @@ import { execFile } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
-import { SearchHit, SearchResponse, SearchResult } from "@steamfield/stacks-format";
+import {
+  SearchHit,
+  SearchResponse,
+  SearchResult,
+  type StatsPopulation,
+} from "@steamfield/stacks-format";
 import { Clock, Effect, Schema } from "effect";
 import { Command } from "effect/cli";
 import { expect } from "vitest";
@@ -32,6 +37,7 @@ export function officialHit(id: string, overrides: Partial<SearchHit> = {}): Sea
 export function response(
   stacks: ReadonlyArray<SearchHit> = [officialHit("go-cli")],
   fragments: ReadonlyArray<SearchHit> = [],
+  statsPopulation?: StatsPopulation,
 ) {
   return {
     method: "lexical",
@@ -44,6 +50,7 @@ export function response(
       unmatched: [],
     },
     noStrongMatch: false,
+    ...(statsPopulation ? { statsPopulation } : {}),
     stacks,
     fragments,
   };

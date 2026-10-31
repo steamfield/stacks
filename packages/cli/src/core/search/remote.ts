@@ -2,6 +2,7 @@ import { type RankInput, SearchResponse, type SearchResult } from "@steamfield/s
 import { Clock, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../../config";
+import { replaceFile } from "../replace-file";
 
 type Request = Pick<RankInput, "request" | "limit" | "kind"> & {
   local: boolean;
@@ -26,18 +27,13 @@ const saveBackoff = Effect.fn("search.saveBackoff")(function* (
   cache: Cache,
   backoffs: typeof Backoffs.Type,
 ) {
-  yield* Effect.scoped(
-    Effect.gen(function* () {
-      yield* cache.fs.makeDirectory(cache.root, { recursive: true });
-      const staging = yield* cache.fs.makeTempDirectoryScoped({
-        directory: cache.root,
-        prefix: ".write-",
-      });
-      const file = cache.path.join(staging, "value");
-      yield* cache.fs.writeFileString(file, JSON.stringify(backoffs), { flag: "wx" });
-      yield* cache.fs.rename(file, cache.path.join(cache.root, "backoff.json"));
-    }),
-  ).pipe(Effect.ignoreCause);
+  yield* Effect.gen(function* () {
+    yield* cache.fs.makeDirectory(cache.root, { recursive: true });
+    yield* replaceFile(cache.path.join(cache.root, "backoff.json"), JSON.stringify(backoffs)).pipe(
+      Effect.provideService(FileSystem.FileSystem, cache.fs),
+      Effect.provideService(Path.Path, cache.path),
+    );
+  }).pipe(Effect.ignoreCause);
 });
 
 const fetchSearch = Effect.fn("search.fetch")(function* (base: string, input: Request) {

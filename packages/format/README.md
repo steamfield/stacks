@@ -14,12 +14,14 @@ Maintainers with publish rights on the `@steamfield` npm organization publish by
 every command from the repository root unless it says otherwise.
 
 `bun run release` does steps 3 to 6 for this package and then `@steamfield/stacks`, once the
-version commit is on `main`. It refuses a dirty tree, a HEAD other than `origin/main`, a version
-already on npm or an existing tag. It packs both packages in a temporary detached worktree of
-`origin/main`, publishes this package first, waits up to 10 minutes for the registry to serve both versions,
-then tags `v<cli version>` and pushes the tag.
-`bun run release:dry-run` packs both packages and runs `npm publish --dry-run`, without
-logging in, publishing or tagging. The steps below are what it runs.
+version commit is on `main`. It refuses a dirty tree, a HEAD other than `origin/main`, or an
+existing tag. It packs both packages in a temporary detached worktree of `origin/main`, publishes
+this package first, waits up to 10 minutes for the registry to serve both versions, then tags
+`v<cli version>` and pushes the tag. If you publish format alone first so the hosted API can use
+it, `release` skips that exact version when the published tarball integrity matches its fresh pack;
+a mismatch or lookup failure stops the release. `bun run release:dry-run` packs both and shows
+which it would skip or publish, including the CLI's embedded telemetry endpoint, without logging
+in, publishing or tagging. The steps below are what it runs.
 
 1. Log in once per machine, and check the account:
 

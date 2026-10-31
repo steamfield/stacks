@@ -47,13 +47,13 @@ than improvising.
 
 | ID | Task | Depends on | Owner | State | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| [R0](r0-baseline.md) | Baseline, in-flight work, demo scope | none | Claude | Done | `baseline.md` |
-| [R1](r1-search-contracts.md) | Search and guidance an agent can follow | R0 | Claude + Codex | Done | `contracts.md` |
-| [R2](r2-seed.md) | Seed data that looks right on the site | R0 | Claude + Codex | Done | `seed-quality.md` |
-| [R3](r3-recipe-proof.md) | Fresh proof for the demo recipe | R0; S5, S8 | Claude + Codex | Done | `recipe-proof.md` |
-| [R4](r4-website.md) | Website demo polish | R0; R2 sample for the walkthrough | Claude + Codex | Done (production walkthrough in R5) | `web.md` |
+| [R0](../archive/submission-readiness/r0-baseline-2026-10-30.md) | Baseline, in-flight work, demo scope | none | Claude | Done | `baseline.md` |
+| [R1](../archive/submission-readiness/r1-search-contracts-2026-10-30.md) | Search and guidance an agent can follow | R0 | Claude + Codex | Done | `contracts.md` |
+| [R2](../archive/submission-readiness/r2-seed-2026-10-30.md) | Seed data that looks right on the site | R0 | Claude + Codex | Done | `seed-quality.md` |
+| [R3](../archive/submission-readiness/r3-recipe-proof-2026-10-30.md) | Fresh proof for the demo recipe | R0; S5, S8 | Claude + Codex | Done | `recipe-proof.md` |
+| [R4](../archive/submission-readiness/r4-website-2026-10-30.md) | Website demo polish | R0; R2 sample for the walkthrough | Claude + Codex | Done (production walkthrough in R5) | `web.md` |
 | [R10](r10-judge-access.md) | Judge-facing docs and source access | R0; S6 | Claude + Codex | Done except S6 (user's) | `judge-access.md` |
-| [R12](r12-web-search.md) | Website search page | R0; R13 for the final walkthrough | Claude + Codex | Done | `web-search.md` |
+| [R12](../archive/submission-readiness/r12-web-search-2026-10-30.md) | Website search page | R0; R13 for the final walkthrough | Claude + Codex | Done | `web-search.md` |
 | [R13](r13-search-relevance.md) | Search relevance tuning from manual QA | R0 | Claude + Codex | Done (4 queries need `rank.ts`) | `search-relevance.md` |
 | [R5](r5-release.md) | Release and deploy | R1, R2, R3, R4, R10, R12, R13 | Claude; npm publish user | In progress | `release.md` |
 | [R6](r6-submission.md) | Record the demo and submit | R5 | | Open | `submission.md` |

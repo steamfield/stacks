@@ -15,16 +15,16 @@ import { Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
 import { parseDocument } from "yaml";
 import { countWords } from "../src/core/brief/words";
-import { guideText } from "../src/core/guide";
+import { AUTHOR_TOPICS, guideText } from "../src/core/guide";
 import { splitFrontmatter } from "../src/core/registry/entry";
 import { DoctorReport } from "../src/schemas/doctor";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";
 import { spawnGit } from "./helpers/git";
 import { declaredFlags } from "./helpers/help";
 
-const shipped = fileURLToPath(new URL("../skill/", import.meta.url));
-const fixture = fileURLToPath(new URL("./fixtures/skill/", import.meta.url));
-const fixtureText = readFileSync(join(fixture, "SKILL.md"), "utf8");
+const shipped = fileURLToPath(new URL("../skills/", import.meta.url));
+const fixture = fileURLToPath(new URL("./fixtures/skills/", import.meta.url));
+const fixtureText = readFileSync(join(fixture, "stacks", "SKILL.md"), "utf8");
 const dirs: ReturnType<typeof tempDir>[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) dir.cleanup();
@@ -63,11 +63,28 @@ function install(
   });
 }
 // The plan names the result shape, but does not yet name a production result schema.
+const Action = Schema.Literals(["written", "unchanged", "printed"]);
 const InstallResult = Schema.Struct({
+  name: Schema.Literals(["stacks", "stacks-author"]),
   path: Schema.NullOr(Schema.String),
-  action: Schema.Literals(["written", "unchanged", "printed"]),
+  action: Action,
+  files: Schema.Array(Schema.Struct({ path: Schema.String, action: Action })),
   text: Schema.optionalKey(Schema.String),
 });
+/** The result of installing the one-file fixture `stacks` skill at `path`. */
+const one = (path: string, action: "written" | "unchanged") => ({
+  name: "stacks",
+  path,
+  action,
+  files: [{ path: "SKILL.md", action }],
+});
+const printed = {
+  name: "stacks",
+  path: null,
+  action: "printed",
+  files: [{ path: "SKILL.md", action: "printed" }],
+  text: fixtureText,
+};
 function result(run: Awaited<ReturnType<typeof runCli>>) {
   expect(run.status).toBe(0);
   expect(run.stderr).toBe("");
@@ -92,8 +109,8 @@ function failure(run: Awaited<ReturnType<typeof runCli>>, status: number, tag: s
   expect(decoded.error).toMatchObject({ tag, retryable: false });
   return decoded.error;
 }
-function skill() {
-  const parts = splitFrontmatter(readFileSync(join(shipped, "SKILL.md"), "utf8"));
+function skill(name: "stacks" | "stacks-author" = "stacks") {
+  const parts = splitFrontmatter(readFileSync(join(shipped, name, "SKILL.md"), "utf8"));
   expect(parts).toBeDefined();
   if (!parts) throw new Error("Skill needs YAML frontmatter");
   return parts;
@@ -126,11 +143,32 @@ describe("shipped agent skill", () => {
     expect(meta.description.length).toBeLessThan(1024);
   });
 
-  test("the skill body fits the fixed 600-word loading budget [3.4c#2]", async () => {
+  test("each skill body fits its fixed loading budget: 600 words for stacks, 800 for stacks-author [3.4c#2]", async () => {
     const { SKILL_WORDS } = await import("../src/core/skill");
-    expect(SKILL_WORDS).toBe(600);
-    expect(countWords(skill().body)).toBeGreaterThan(0);
-    expect(countWords(skill().body)).toBeLessThanOrEqual(SKILL_WORDS);
+    expect(SKILL_WORDS).toEqual({ stacks: 600, "stacks-author": 800 });
+    for (const name of ["stacks", "stacks-author"] as const) {
+      expect(countWords(skill(name).body), name).toBeGreaterThan(0);
+      expect(countWords(skill(name).body), name).toBeLessThanOrEqual(SKILL_WORDS[name]);
+    }
+  });
+
+  test("the authoring skill has closed frontmatter and exactly the six references guide author serves", () => {
+    const doc = parseDocument(skill("stacks-author").frontmatter, { logLevel: "silent" });
+    expect(doc.errors).toEqual([]);
+    const meta = Schema.decodeUnknownSync(
+      Schema.Struct({ name: Schema.Literal("stacks-author"), description: Schema.String }),
+      { onExcessProperty: "error" },
+    )(doc.toJS());
+    expect(meta.description.trim().length).toBeGreaterThan(0);
+    expect(meta.description.length).toBeLessThan(1024);
+    expect(readdirSync(join(shipped, "stacks-author")).sort()).toEqual(["SKILL.md", "references"]);
+    expect(readdirSync(join(shipped, "stacks-author", "references")).sort()).toEqual(
+      [...AUTHOR_TOPICS].map((topic) => `${topic}.md`).sort(),
+    );
+  });
+
+  test("the stacks skill points authors at guide author", () => {
+    expect(skill().body).toContain("`<cli> guide author`");
   });
 
   test("every documented command and flag exists in the real command tree [3.4c#3]", async () => {
@@ -196,9 +234,9 @@ describe("skill install", () => {
   test("install, repeat, refusal and forced replacement preserve the user's bytes [3.4c#5]", async () => {
     const home = workspace();
     const path = target(home);
-    expect(result(await install(home, ["--json"]))).toEqual({ path, action: "written" });
+    expect(result(await install(home, ["--json"]))).toEqual(one(path, "written"));
     expect(readFileSync(path, "utf8")).toBe(fixtureText);
-    expect(result(await install(home, ["--json"]))).toEqual({ path, action: "unchanged" });
+    expect(result(await install(home, ["--json"]))).toEqual(one(path, "unchanged"));
     const edit = "My edited skill\n";
     writeFileSync(path, edit);
     const refused = failure(await install(home, ["--json"]), 2, "TargetNotEmpty");
@@ -210,7 +248,7 @@ describe("skill install", () => {
     expect(human.stderr).toContain("--force");
     expect(human.stderr).toContain("--print");
     expect(readFileSync(path, "utf8")).toBe(edit);
-    expect(result(await install(home, ["--force", "--json"]))).toEqual({ path, action: "written" });
+    expect(result(await install(home, ["--force", "--json"]))).toEqual(one(path, "written"));
     expect(readFileSync(path, "utf8")).toBe(fixtureText);
   });
 
@@ -220,17 +258,15 @@ describe("skill install", () => {
     init(repo);
     const cwd = join(repo, "nested", "work");
     mkdirSync(cwd, { recursive: true });
-    expect(result(await install(home, ["--project", "--json"], { cwd }))).toEqual({
-      path: target(repo),
-      action: "written",
-    });
+    expect(result(await install(home, ["--project", "--json"], { cwd }))).toEqual(
+      one(target(repo), "written"),
+    );
     expect(readFileSync(target(repo), "utf8")).toBe(fixtureText);
     expect(existsSync(target(cwd))).toBe(false);
     const outside = workspace();
-    expect(result(await install(home, ["--project", "--json"], { cwd: outside }))).toEqual({
-      path: target(outside),
-      action: "written",
-    });
+    expect(result(await install(home, ["--project", "--json"], { cwd: outside }))).toEqual(
+      one(target(outside), "written"),
+    );
     expect(readFileSync(target(outside), "utf8")).toBe(fixtureText);
     expect(existsSync(join(home, ".claude"))).toBe(false);
   });
@@ -242,11 +278,7 @@ describe("skill install", () => {
       stdout: fixtureText,
       stderr: "",
     });
-    expect(result(await install(home, ["--print", "--json"]))).toEqual({
-      path: null,
-      action: "printed",
-      text: fixtureText,
-    });
+    expect(result(await install(home, ["--print", "--json"]))).toEqual(printed);
     expect(readdirSync(home)).toEqual([]);
   });
 
@@ -292,7 +324,7 @@ describe("skill install", () => {
     const missing = join(workspace(), "absent");
     expect(
       failure(await install(home, ["--json"], { skill: missing }), 2, "NotFound").details,
-    ).toMatchObject({ path: missing });
+    ).toMatchObject({ path: join(missing, "stacks") });
     expect(readdirSync(home)).toEqual([]);
     const host = { cwd: home, skill: missing };
     const doctor = await runCli(["doctor", "--json"], { home, host, env: quiet });
@@ -335,10 +367,9 @@ describe("skill install", () => {
     mkdirSync(cwd);
     const link = join(workspace(), "linked cwd");
     symlinkSync(cwd, link);
-    expect(result(await install(home, ["--project", "--json"], { cwd: link }))).toEqual({
-      path: target(repo),
-      action: "written",
-    });
+    expect(result(await install(home, ["--project", "--json"], { cwd: link }))).toEqual(
+      one(target(repo), "written"),
+    );
     expect(readFileSync(target(repo), "utf8")).toBe(fixtureText);
     expect(existsSync(target(cwd))).toBe(false);
   });
@@ -384,7 +415,7 @@ describe("skill install", () => {
       cwd: repo,
       env: { GIT_DIR: join(other, ".git"), GIT_WORK_TREE: other },
     });
-    expect(result(run)).toEqual({ path: target(repo), action: "written" });
+    expect(result(run)).toEqual(one(target(repo), "written"));
     expect(readFileSync(target(repo), "utf8")).toBe(fixtureText);
     expect(existsSync(join(other, ".claude"))).toBe(false);
   });
@@ -401,7 +432,7 @@ describe("skill install", () => {
     const run = await install(home, ["--print", "--project", "--force", "--json"], {
       env: { HOME: undefined },
     });
-    expect(result(run)).toEqual({ path: null, action: "printed", text: fixtureText });
+    expect(result(run)).toEqual(printed);
     expect(readdirSync(home)).toEqual([".claude"]);
     expect(readFileSync(join(home, ".claude"), "utf8")).toBe("a file, not a directory\n");
   });
@@ -411,12 +442,127 @@ describe("skill install", () => {
     mkdirSync(dirname(target(home)), { recursive: true });
     const keep = join(dirname(target(home)), "personal-notes.md");
     writeFileSync(keep, "keep\n");
-    expect(result(await install(home, ["--json"]))).toEqual({
-      path: target(home),
-      action: "written",
-    });
+    expect(result(await install(home, ["--json"]))).toEqual(one(target(home), "written"));
     expect(readFileSync(target(home), "utf8")).toBe(fixtureText);
     expect(readFileSync(keep, "utf8")).toBe("keep\n");
     expect(readdirSync(dirname(target(home))).sort()).toEqual(["SKILL.md", "personal-notes.md"]);
+  });
+});
+
+describe("skill install stacks-author", () => {
+  const authorDir = (root: string) => join(root, ".claude", "skills", "stacks-author");
+  const sourceFiles = ["SKILL.md", "references/anatomy.md"];
+  const source = (rel: string) => readFileSync(join(fixture, "stacks-author", rel), "utf8");
+  const authorResult = (root: string, actions: ReadonlyArray<"written" | "unchanged">) => ({
+    name: "stacks-author",
+    path: join(authorDir(root), "SKILL.md"),
+    action: actions.includes("written") ? "written" : "unchanged",
+    files: sourceFiles.map((path, i) => ({ path, action: actions[i] })),
+  });
+
+  test("writes every file of the skill, then reports each unchanged on a rerun", async () => {
+    const home = workspace();
+    expect(result(await install(home, ["stacks-author", "--json"]))).toEqual(
+      authorResult(home, ["written", "written"]),
+    );
+    for (const rel of sourceFiles)
+      expect(readFileSync(join(authorDir(home), rel), "utf8")).toBe(source(rel));
+    expect(existsSync(target(home))).toBe(false);
+    expect(result(await install(home, ["stacks-author", "--json"]))).toEqual(
+      authorResult(home, ["unchanged", "unchanged"]),
+    );
+    const text = await install(home, ["stacks-author"]);
+    expect(text.status).toBe(0);
+    expect(text.stderr).toBe("");
+    expect(text.stdout).toContain("(2 files)");
+  });
+
+  test("a differing reference refuses the whole install without --force, naming its own command", async () => {
+    const home = workspace();
+    const reference = join(authorDir(home), "references", "anatomy.md");
+    mkdirSync(dirname(reference), { recursive: true });
+    writeFileSync(reference, "my notes\n");
+    const run = await install(home, ["stacks-author", "--json"]);
+    const refused = failure(run, 2, "TargetNotEmpty");
+    expect(refused.details).toEqual({
+      path: authorDir(home),
+      entries: ["references/anatomy.md"],
+    });
+    expect(JSON.parse(run.stderr)).toMatchObject({
+      error: {
+        next: "rerun stacks skill install stacks-author with --force to replace it, or --print to copy it elsewhere.",
+      },
+    });
+    // Checked before writing: SKILL.md was absent and stays absent.
+    expect(readdirSync(authorDir(home))).toEqual(["references"]);
+    expect(readFileSync(reference, "utf8")).toBe("my notes\n");
+    expect(result(await install(home, ["stacks-author", "--force", "--json"]))).toEqual(
+      authorResult(home, ["written", "written"]),
+    );
+    expect(readFileSync(reference, "utf8")).toBe(source("references/anatomy.md"));
+    expect(readdirSync(dirname(reference))).toEqual(["anatomy.md"]);
+  });
+
+  test("a file where the references directory belongs is refused and kept", async () => {
+    const home = workspace();
+    mkdirSync(authorDir(home), { recursive: true });
+    writeFileSync(join(authorDir(home), "references"), "a file\n");
+    const run = await install(home, ["stacks-author", "--force", "--json"]);
+    failure(run, 2, "TargetNotEmpty");
+    expect(readdirSync(authorDir(home))).toEqual(["references"]);
+    expect(readFileSync(join(authorDir(home), "references"), "utf8")).toBe("a file\n");
+  });
+
+  test("an escaping references symlink is refused and nothing is written through it", async () => {
+    const home = workspace();
+    const outside = workspace();
+    mkdirSync(authorDir(home), { recursive: true });
+    symlinkSync(outside, join(authorDir(home), "references"));
+    failure(await install(home, ["stacks-author", "--json"]), 6, "PermissionDenied");
+    expect(readdirSync(outside)).toEqual([]);
+    expect(existsSync(join(authorDir(home), "SKILL.md"))).toBe(false);
+  });
+
+  test("--print prints SKILL.md with its reference links pointing at guide author", async () => {
+    const home = workspace();
+    const text = [
+      "---",
+      "name: stacks-author",
+      "description: Write a stack with stacks.",
+      "---",
+      "",
+      "# Fixture authoring skill",
+      "",
+      "Read `stacks guide author anatomy` first. For an existing repo, read the repo route (`stacks guide author from-repo`).",
+      "Bare mention: stacks guide author submit. Unknown link stays: [notes](references/notes.md). External: [docs](https://example.com/x.md).",
+      "",
+      "The references this skill links to are printed by stacks guide author <topic>.",
+      "",
+    ].join("\n");
+    expect(result(await install(home, ["stacks-author", "--print", "--json"]))).toEqual({
+      name: "stacks-author",
+      path: null,
+      action: "printed",
+      files: [{ path: "SKILL.md", action: "printed" }],
+      text,
+    });
+    const plain = await install(home, ["stacks-author", "--print"]);
+    expect(plain.status).toBe(0);
+    expect(plain.stderr).toBe("");
+    expect(plain.stdout).toBe(text);
+    expect(readdirSync(home)).toEqual([]);
+  });
+
+  test("an unknown name is a usage error with the closest names", async () => {
+    const home = workspace();
+    const error = failure(await install(home, ["stacks-autor", "--json"]), 2, "Usage");
+    expect(error.details).toEqual({
+      flag: "name",
+      command: "skill install",
+      value: "stacks-autor",
+      expected: "stacks | stacks-author",
+      suggestions: ["stacks-author"],
+    });
+    expect(readdirSync(home)).toEqual([]);
   });
 });

@@ -8,8 +8,14 @@ import { workspace } from "./helpers/verify";
 
 const space = workspace();
 afterEach(() => space.release());
-const skill = join(import.meta.dirname, "fixtures/skill");
-const text = readFileSync(join(skill, "SKILL.md"), "utf8");
+const skill = join(import.meta.dirname, "fixtures/skills");
+const text = readFileSync(join(skill, "stacks", "SKILL.md"), "utf8");
+const one = (path: string, action: "written" | "unchanged") => ({
+  name: "stacks",
+  path,
+  action,
+  files: [{ path: "SKILL.md", action }],
+});
 const target = (root: string) => join(root, ".claude/skills/stacks/SKILL.md");
 
 test.each(["no git", "broken git"])(
@@ -26,10 +32,9 @@ test.each(["no git", "broken git"])(
     });
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    expect(Schema.decodeUnknownSync(SkillResult)(JSON.parse(result.stdout))).toEqual({
-      path: target(cwd),
-      action: "written",
-    });
+    expect(Schema.decodeUnknownSync(SkillResult)(JSON.parse(result.stdout))).toEqual(
+      one(target(cwd), "written"),
+    );
     expect(readFileSync(target(cwd), "utf8")).toBe(text);
     expect(readdirSync(home)).toEqual([]);
   },
@@ -40,7 +45,8 @@ test.skipIf(process.getuid?.() === 0).each(["json", "agent", "human"])(
   async (audience) => {
     const home = space.dir();
     const source = space.dir();
-    const file = join(source, "SKILL.md");
+    mkdirSync(join(source, "stacks"));
+    const file = join(source, "stacks", "SKILL.md");
     writeFileSync(file, "unreadable source\n", { mode: 0o000 });
     try {
       const result = await runCli(
@@ -113,14 +119,40 @@ test.skipIf(process.getuid?.() === 0)(
       });
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
-      expect(Schema.decodeUnknownSync(SkillResult)(JSON.parse(result.stdout))).toEqual({
-        path: file,
-        action: "unchanged",
-      });
+      expect(Schema.decodeUnknownSync(SkillResult)(JSON.parse(result.stdout))).toEqual(
+        one(file, "unchanged"),
+      );
       expect(readFileSync(file, "utf8")).toBe(text);
       expect(readdirSync(dirname(file))).toEqual(["SKILL.md"]);
     } finally {
       chmodSync(dirname(file), 0o755);
     }
+  },
+);
+
+test.skipIf(process.getuid?.() === 0)(
+  "a failed forced replacement of one stacks-author file rolls back the files written before it",
+  async () => {
+    const home = space.dir();
+    const dir = join(home, ".claude/skills/stacks-author");
+    const references = join(dir, "references");
+    mkdirSync(references, { recursive: true });
+    writeFileSync(join(references, "anatomy.md"), "my notes\n");
+    chmodSync(references, 0o555);
+    try {
+      const result = await runCli(["skill", "install", "stacks-author", "--force", "--json"], {
+        home,
+        env: quiet,
+        host: { skill },
+      });
+      expect(result.status).toBe(6);
+      expect(result.stdout).toBe("");
+      expect(JSON.parse(result.stderr)).toMatchObject({ error: { tag: "PermissionDenied" } });
+    } finally {
+      chmodSync(references, 0o755);
+    }
+    expect(readdirSync(dir)).toEqual(["references"]);
+    expect(readdirSync(references)).toEqual(["anatomy.md"]);
+    expect(readFileSync(join(references, "anatomy.md"), "utf8")).toBe("my notes\n");
   },
 );

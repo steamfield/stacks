@@ -1095,6 +1095,33 @@
       ]
     },
     {
+      "id": "nomatch-machine-learning",
+      "pool": "no-match",
+      "split": "tune",
+      "query": "machine learning pipeline",
+      "noMatch": true,
+      "relevant": []
+    },
+    {
+      "id": "nomatch-chrome-extension",
+      "pool": "no-match",
+      "split": "tune",
+      "query": "a chrome extension",
+      "noMatch": true,
+      "relevant": []
+    },
+    {
+      "id": "platform-typescript-npm-cli",
+      "pool": "platform",
+      "split": "tune",
+      "query": "typescript cli published to npm",
+      "first": {
+        "kind": "stack",
+        "id": "typescript-cli"
+      },
+      "relevant": [{ "kind": "stack", "id": "typescript-cli", "grade": 2 }]
+    },
+    {
       "id": "nomatch-firmware",
       "pool": "no-match",
       "split": "holdout",

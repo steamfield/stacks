@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { DetectedAgent } from "./agent.js";
+import { GitHubLogin } from "./authors.js";
 import { Kebab, Kind } from "./entry.js";
 
 export const Digest = Schema.String.check(Schema.isPattern(/^sha256:[a-f0-9]{64}$/));
@@ -32,6 +33,8 @@ export const IndexEntry = Schema.Struct({
     ),
   ),
   lastRun: Schema.optionalKey(LastRun),
+  /** The creator's GitHub login, from the registry's `authors.json`. */
+  author: Schema.optionalKey(GitHubLogin),
 }).check(
   Schema.makeFilter((entry) =>
     entry.kind === "stack"

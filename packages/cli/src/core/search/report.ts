@@ -11,7 +11,8 @@ const localReasons = {
 
 function reasons(hit: SearchHit): string {
   const phrases = new Map<string, string[]>();
-  for (const reason of hit.why) {
+  const hasOtherField = hit.why.some((reason) => reason.field !== "body");
+  for (const reason of hit.why.filter((reason) => !hasOtherField || reason.field !== "body")) {
     const fields = phrases.get(reason.matched) ?? [];
     fields.push(reason.field);
     phrases.set(reason.matched, fields);
@@ -20,12 +21,16 @@ function reasons(hit: SearchHit): string {
     .map(([phrase, fields]) => `${printable(phrase)} (${fields.map(printable).join(", ")})`)
     .join("; ");
 }
-function hitBlock(hit: SearchHit, human: boolean): string {
+function hitBlock(
+  hit: SearchHit,
+  human: boolean,
+  statsPopulation: SearchResult["statsPopulation"],
+): string {
   const stats = hit.evidence.stats;
   const lastRun = hit.evidence.lastRun;
   const evidence = [
     stats
-      ? `green lower ${stats.greenRateLower}, sample ${stats.sample}, ${stats.projects} projects / ${stats.window} days`
+      ? `green lower ${stats.greenRateLower}, sample ${stats.sample}${statsPopulation === "seeded development data" ? ", seeded" : ""}, ${stats.projects} projects / ${stats.window} days`
       : "",
     lastRun ? `last run ${lastRun.date}: ${lastRun.result}` : "",
   ]
@@ -35,6 +40,9 @@ function hitBlock(hit: SearchHit, human: boolean): string {
     `${hit.kind} ${hit.id}${human ? ` · ${printable(hit.name)}` : ""} (${hit.tier}${hit.trusted ? "" : ", untrusted"})`,
     printable(hit.summary),
     ...(hit.why.length ? [`Why: ${reasons(hit)}`] : []),
+    ...(hit.kind === "fragment" && hit.appliesTo?.length
+      ? [`Applies to: ${hit.appliesTo.map(printable).join(", ")}`]
+      : []),
     ...(hit.penalties.length
       ? [
           `Penalties: ${hit.penalties
@@ -49,19 +57,31 @@ function hitBlock(hit: SearchHit, human: boolean): string {
     ...(evidence ? [`Evidence: ${printable(evidence)}`] : []),
   ].join("\n");
 }
+const TIER_ORDER = { strong: 0, partial: 1, weak: 2 } as const;
+/** The trusted fragment to add first: no stack is strong and the fragment fits at least as well. */
+function fragmentFirst(result: SearchResult): SearchResult["fragments"][number] | undefined {
+  const fragment = result.fragments.find((hit) => hit.trusted);
+  if (!fragment || result.stacks.some((hit) => hit.tier === "strong")) return undefined;
+  if (fragment.tier === "strong") return fragment;
+  const top = result.stacks[0];
+  if (!top) return fragment.tier === "partial" ? fragment : undefined;
+  return top.penalties.length > 0 && TIER_ORDER[fragment.tier] <= TIER_ORDER[top.tier]
+    ? fragment
+    : undefined;
+}
 function next(result: SearchResult, invocation: string): string {
   const recovery = [
     `Next: ${invocation} list stacks`,
     `Next: ${invocation} search "<fewer, broader words>"`,
   ];
   if (!result.stacks.length && !result.fragments.length) return recovery.join("\n");
-  const fragment = result.fragments.find((hit) => hit.trusted && hit.tier === "strong");
-  if (fragment && !result.stacks.some((hit) => hit.tier === "strong"))
-    return `Next: ${invocation} show ${fragment.id}, then ${invocation} add ${fragment.id}.`;
-  const trusted = result.stacks.find((hit) => hit.trusted);
+  const fragment = fragmentFirst(result);
   const confirmation = result.noStrongMatch
     ? "confirm with the user before using a weak match; then "
     : "";
+  if (fragment)
+    return `Next: ${confirmation}${invocation} show ${fragment.id}, then ${invocation} add ${fragment.id}.`;
+  const trusted = result.stacks.find((hit) => hit.trusted);
   return [
     trusted
       ? `Next: ${confirmation}${invocation} show ${trusted.id}, then ${invocation} new ${trusted.id} <dir>.`
@@ -90,7 +110,7 @@ export function renderSearch(
       ? []
       : [
           [...result.stacks, ...result.fragments]
-            .map((hit) => hitBlock(hit, options.human))
+            .map((hit) => hitBlock(hit, options.human, result.statsPopulation))
             .join("\n\n"),
           "",
         ]),

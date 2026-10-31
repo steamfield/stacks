@@ -1,6 +1,6 @@
 /** Punctuation folds before phrase matching; Unicode letters remain searchable. */
 export const words = (text: string): string[] => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-const STOP = new Set(
+export const STOP = new Set(
   "a an the and or for of to in on with from by at as my our your their its it is are be i we you they me can that this have has do how use using app apps project tool thing something build make want".split(
     " ",
   ),

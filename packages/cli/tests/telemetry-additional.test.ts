@@ -53,7 +53,7 @@ test("a registry override never exposes its entry or step names as official", as
   await notified(home, server.url);
   const env = { STACKS_TELEMETRY_URL: server.url, STACKS_REGISTRY_DIR: registry };
   ok(await checkedCli(["show", "go-cli", "--json"], { home, env }));
-  expect(spooled(home)).toMatchObject([{ type: "show", id: "custom" }]);
+  expect(server.events()).toMatchObject([{ type: "show", id: "custom" }]);
   ok(await checkedCli(["new", "go-cli", "project", "--json"], { home, env }));
   const event = server.events().find((event) => event.type === "new");
   expect(event).toMatchObject({

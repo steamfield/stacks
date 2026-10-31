@@ -43,9 +43,13 @@ export const addCommand = Command.make(
       const roots = (yield* remoteRoots).map((entry) =>
         entry.origin === "project" ? { ...entry, path: path.join(project, METADATA_DIR) } : entry,
       );
+      // One registry for the picker, the add and its telemetry, so all three see the --dir project.
+      const registry = yield* Effect.gen(function* () {
+        return yield* Registry;
+      }).pipe(Effect.provide(Registry.layer(roots)));
       const fragments = flags.fragments.length
         ? flags.fragments
-        : yield* pickAdd(project).pipe(Effect.provide(Registry.layer(roots)));
+        : yield* pickAdd(project).pipe(Effect.provideService(Registry, registry));
       if (!fragments.length) return;
       if (!flags.fragments.length)
         yield* runningCommand([
@@ -67,7 +71,7 @@ export const addCommand = Command.make(
         yes: flags.yes,
         agents: flags.agents.length ? flags.agents : undefined,
         handoff,
-      }).pipe(Effect.provide(Registry.layer(roots)));
+      }).pipe(Effect.provideService(Registry, registry));
       const telemetry = yield* Telemetry;
       yield* completeHandoff({
         project: result.project,
@@ -76,13 +80,16 @@ export const addCommand = Command.make(
         decision,
         beforeHandoff: (settled) =>
           telemetry
-            .recordScaffold({
-              type: "add",
-              manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
-              without: [],
-              source,
-              steps: officialSteps(composition),
-            })
+            .recordScaffold(
+              {
+                type: "add",
+                manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
+                without: [],
+                source,
+                steps: officialSteps(composition),
+              },
+              registry,
+            )
             .pipe(Effect.andThen(telemetry.flush)),
         render: (context) =>
           renderAdd(

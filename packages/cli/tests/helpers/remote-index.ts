@@ -242,7 +242,7 @@ export type RemoteFixture = Awaited<ReturnType<typeof buildRemoteFixture>>;
 export async function installRemotePackage(f: RemoteFixture) {
   const repoCli = join(import.meta.dirname, "../..");
   cpSync(join(repoCli, "../../bun.lock"), join(f.root, "bun.lock"));
-  for (const path of ["skill", "docs/authoring.md", "LICENSE"])
+  for (const path of ["skills", "docs/authoring.md", "LICENSE"])
     cpSync(join(repoCli, path), join(f.cli, path), { recursive: true });
   // The package must obtain sample from the server rather than its bundled registry.
   rmSync(join(f.cli, "registry"), { recursive: true });

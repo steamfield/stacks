@@ -54,15 +54,15 @@ Hand off decides what happens next, by the first rule that matches. Inside an ag
 
 ## The rules the design keeps
 
-These come from the product plans, and most of the structure exists to enforce them.
+Most of the structure exists to enforce these.
 
-stacks executes nothing it reads. `list`, `show`, `new`, `add`, `validate` and `create` read, compose and write. Only `verify` runs commands, and only the steps in the project's own manifest. A stack can't run a generator, an install script or a hook at scaffold time, however convenient that would be. This is what makes it safe to try a stack: `new` on an entry you've never seen writes files and does nothing else.
+stacks executes nothing it reads. `list`, `show`, `new`, `add`, `validate` and `create` read, compose and write. Only `verify` runs commands, and only the steps in the project's own manifest. The CLI's own programs are fixed: git (`new` runs `git init` in a fresh target, and `new` and `add` read the repository root and author name), the agent you chose at handoff, which an untrusted entry never launches, and npm from `update`, with fixed arguments and a checked version, only when you run that command. None of them take a command from an entry. A stack can't run a generator, an install script or a hook at scaffold time, however convenient that would be. This is what makes it safe to try a stack: `new` on an entry you've never seen writes files, runs `git init` and launches nothing.
 
 People own what lasts and agents own what ages. Layout, enforcement and the definition of done live in stacks. Versions, generator flags and config formats belong to the agent, which looks them up when it builds. `validate` warns when an entry pins a version or ships a version-sensitive config file, because the CLI would otherwise drift into being a template engine whose templates go stale.
 
 The definition of done is tamper-evident. The verify steps are digested into the manifest and into a state record outside the project, and verify refuses to run steps that don't match. Only a person can accept a change. [Concepts](concepts.md#why-verify-checks-its-own-steps) explains the mechanism.
 
-Trust follows origin. Entries from the project root are untrusted: they still compose, but they never auto-launch an agent and an agent is told to ask first.
+Trust follows origin. Entries from the project root, from a configured `STACKS_INDEX_URL` and from a `STACKS_REGISTRY_DIR` override are untrusted: they still compose, but they never auto-launch an agent and an agent is told to ask first.
 
 ## Three audiences, one result
 
@@ -71,7 +71,7 @@ The CLI's main reader is a coding agent, and its fallback reader is a person at 
 | Audience | When | What it gets |
 | --- | --- | --- |
 | `json` | `--json` | One result object on stdout; one error envelope as the last stderr line on failure |
-| `human` | stdout is a terminal and no agent is detected | Full text, progress lines, logs on stderr |
+| `human` | stdout is a terminal, no agent is detected and `CI` is unset | Full text, progress lines, logs on stderr |
 | `agent` | everything else: an agent's shell, a pipe, CI | The human text with the noise removed |
 
 Agent text is the human text minus what an agent doesn't need (passed verify rows, file listings the brief already has, logs). The audiences never behave differently: exit codes, files written and side effects are the same in all three. [Output and errors](reference/output.md) has the details.

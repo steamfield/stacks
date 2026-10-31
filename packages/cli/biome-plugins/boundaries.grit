@@ -59,5 +59,42 @@ or {
     $filename <: r".*/src/.*",
     $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
     register_diagnostic(span=$b, message="The Bun global belongs to the explicit platform boundary.")
+  },
+  or {
+    JsModuleSource() as $src,
+    `import($src)`
+  } where {
+    $filename <: r".*/src/(?:core|services)/.*",
+    $src <: r"[\"']\.[^\"']*[\"']",
+    $path = trim(string=$src, trim_chars="\"'"),
+    $resolved = resolve(path=$path),
+    $resolved <: r".*/src/(?:platform|commands)/.*",
+    not {
+      $filename <: r".*/src/services/processes\.ts$",
+      $resolved <: r".*/src/platform/process(?:\.ts)?$",
+      $src <: within `import $bindings from $src`
+    },
+    register_diagnostic(span=$src, message="Core and services cannot import platform or commands; use an injected service or move orchestration to commands.")
+  },
+  or {
+    JsModuleSource() as $src,
+    `import($src)`
+  } where {
+    $filename <: r".*/src/(?:core|services)/.*",
+    $src <: r"[\"'](?:node:[^\"']*|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|sea|sqlite|stream|string_decoder|sys|test|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/[^\"']*)?)[\"']",
+    not {
+      or {
+        and {
+          $filename <: r".*/src/core/(?:manifest|fingerprint|search/digest)\.ts$",
+          $src <: r"[\"']node:crypto[\"']"
+        },
+        and { $filename <: r".*/src/services/output\.ts$", $src <: r"[\"']node:util[\"']" },
+        and {
+          $filename <: r".*/src/core/scaffold/write\.ts$",
+          $src <: r"[\"']node:fs/promises[\"']"
+        }
+      }
+    },
+    register_diagnostic(span=$src, message="Core and services use Effect services for Node APIs; use the named utility allowance only in its owning file.")
   }
 }

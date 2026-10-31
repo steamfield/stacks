@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { expect, test } from "vitest";
 import { tempDir } from "./helpers/cli";
 
@@ -53,6 +53,42 @@ function lint(path: string, source: string) {
     dir.cleanup();
   }
 }
+function lintWorkspace(path: string, source: string) {
+  const dir = tempDir();
+  try {
+    const configs = [
+      ["../../.gitignore", ".gitignore"],
+      ["../../biome.json", "biome.json"],
+      [
+        "../../biome-plugins/no-cross-package-imports.grit",
+        "biome-plugins/no-cross-package-imports.grit",
+      ],
+      ["biome.json", "packages/cli/biome.json"],
+      ["biome-plugins/boundaries.grit", "packages/cli/biome-plugins/boundaries.grit"],
+      ["../format/biome.json", "packages/format/biome.json"],
+      [
+        "../format/biome-plugins/no-platform-imports.grit",
+        "packages/format/biome-plugins/no-platform-imports.grit",
+      ],
+    ] as const;
+    for (const [source, target] of configs) {
+      mkdirSync(join(dir.path, target, ".."), { recursive: true });
+      copyFileSync(join(pkg, source), join(dir.path, target));
+    }
+    mkdirSync(join(dir.path, path, ".."), { recursive: true });
+    const file = join(dir.path, path);
+    writeFileSync(file, `${source}\n`);
+    let configRoot = dir.path;
+    if (path.startsWith("packages/cli/")) configRoot = join(dir.path, "packages/cli");
+    if (path.startsWith("packages/format/")) configRoot = join(dir.path, "packages/format");
+    return spawnSync(join(pkg, "node_modules/.bin/biome"), ["lint", relative(configRoot, file)], {
+      cwd: configRoot,
+      encoding: "utf8",
+    });
+  } finally {
+    dir.cleanup();
+  }
+}
 test.each(probes)("Grit enforces %s", (source, message) => {
   const result = lint("src/core/probe.ts", source);
   expect(result.stdout + result.stderr).toContain(message);
@@ -94,5 +130,139 @@ test.each(moduleLocations)("Grit rejects import.meta.%s in a service", (property
 test.each(moduleLocations)("Grit allows import.meta.%s in bin.ts", (property) => {
   const result = lint("src/bin.ts", `export const value = import.meta.${property};`);
   expect(result.stdout + result.stderr).not.toContain(moduleLocationMessage);
+  expect(result.status).toBe(0);
+});
+
+const layerMessage = "Core and services cannot import platform or commands";
+const builtinMessage = "Core and services use Effect services for Node APIs";
+const packageMessage = "Workspace packages expose public package imports";
+
+test.each([
+  [
+    "static import",
+    "packages/cli/src/core/check.ts",
+    'import { x } from "../platform/net"; export { x };',
+  ],
+  [
+    "import type",
+    "packages/cli/src/core/check.ts",
+    'import type { X } from "../commands/root"; export type Y = X;',
+  ],
+  ["export star", "packages/cli/src/core/check.ts", 'export * from "../platform/net";'],
+  [
+    "named re-export",
+    "packages/cli/src/services/check.ts",
+    'export { x } from "../commands/root";',
+  ],
+  ["literal import", "packages/cli/src/core/search/check.ts", 'void import("../../platform/net");'],
+])("Grit rejects %s across the core layer", (_name, path, source) => {
+  const result = lintWorkspace(path, source);
+  expect(result.stdout + result.stderr).toContain(layerMessage);
+  expect(result.status).not.toBe(0);
+});
+
+test.each([
+  ["packages/cli/src/core/check.ts", 'export * from "./platform/net";'],
+  ["packages/cli/src/core/search/check.ts", 'export * from "../platform/net";'],
+  ["packages/cli/src/commands/check.ts", 'export * from "../platform/net";'],
+  [
+    "packages/cli/src/services/processes.ts",
+    'import { spawnChild } from "../platform/process"; export { spawnChild };',
+  ],
+])("Grit allows the local or exempt layer import from %s", (path, source) => {
+  const result = lintWorkspace(path, source);
+  expect(result.stdout + result.stderr).not.toContain(layerMessage);
+  expect(result.status).toBe(0);
+});
+
+test("Grit rejects re-exporting the platform adapter from processes.ts", () => {
+  const result = lintWorkspace(
+    "packages/cli/src/services/processes.ts",
+    'export * from "../platform/process";',
+  );
+  expect(result.stdout + result.stderr).toContain(layerMessage);
+  expect(result.status).not.toBe(0);
+});
+
+test("Grit rejects another service importing the process adapter", () => {
+  const result = lintWorkspace(
+    "packages/cli/src/services/check.ts",
+    'import { spawnChild } from "../platform/process"; export { spawnChild };',
+  );
+  expect(result.stdout + result.stderr).toContain(layerMessage);
+  expect(result.status).not.toBe(0);
+});
+
+test.each([
+  ["packages/cli/src/core/check.ts", 'export * from "node:fs";'],
+  ["packages/cli/src/services/check.ts", 'export * from "fs/promises";'],
+  ["packages/cli/src/core/check.ts", 'void import("node:os");'],
+  ["packages/cli/src/core/check.ts", 'export * from "crypto";'],
+  ["packages/cli/src/core/check.ts", 'export * from "inspector";'],
+  ["packages/cli/src/services/check.ts", 'export * from "inspector/promises";'],
+])("Grit rejects Node builtin in %s: %s", (path, source) => {
+  const result = lintWorkspace(path, source);
+  expect(result.stdout + result.stderr).toContain(builtinMessage);
+  expect(result.status).not.toBe(0);
+});
+
+test.each([
+  ["packages/cli/src/core/manifest.ts", "node:crypto"],
+  ["packages/cli/src/core/fingerprint.ts", "node:crypto"],
+  ["packages/cli/src/core/search/digest.ts", "node:crypto"],
+  ["packages/cli/src/services/output.ts", "node:util"],
+  ["packages/cli/src/core/scaffold/write.ts", "node:fs/promises"],
+])("Grit allows %s in %s and rejects its sibling", (owner, builtin) => {
+  const allowed = lintWorkspace(owner, `export * from "${builtin}";`);
+  expect(allowed.stdout + allowed.stderr).not.toContain(builtinMessage);
+  expect(allowed.status).toBe(0);
+  const sibling = owner.replace(/\.ts$/, "-sibling.ts");
+  const denied = lintWorkspace(sibling, `export * from "${builtin}";`);
+  expect(denied.stdout + denied.stderr).toContain(builtinMessage);
+  expect(denied.status).not.toBe(0);
+});
+
+test.each([
+  [
+    "packages/format/src/check.ts",
+    'import { x } from "../../cli/src/core/manifest"; export { x };',
+  ],
+  [
+    "packages/cli/tests/check.ts",
+    'import type { X } from "../../format/src/index"; export type Y = X;',
+  ],
+  ["packages/format/src/check.ts", 'export * from "../../cli/src/core/manifest";'],
+  ["packages/cli/tests/check.ts", 'export { x } from "../../format/src/index";'],
+  ["packages/cli/tests/check.ts", 'export * from "../../format/src/index";'],
+  ["packages/cli/tests/check.ts", 'export * from "../../format/scripts/pack";'],
+  ["tests/check.ts", 'export * from "../packages/format/src/index";'],
+  ["scripts/check.ts", 'void import("../packages/cli/src/bin");'],
+  ["packages/cli/src/check.ts", 'export * from "@steamfield/stacks-format/src/index";'],
+])("Grit rejects cross-package import in %s: %s", (path, source) => {
+  const result = lintWorkspace(path, source);
+  expect(result.stdout + result.stderr).toContain(packageMessage);
+  expect(result.status).not.toBe(0);
+});
+
+test.each([
+  [
+    "packages/cli/registry/stacks/example/files/src/index.ts",
+    'export * from "../../../../../../format/src/index";',
+  ],
+  ["packages/cli/tests/check.ts", 'export * from "@steamfield/stacks-format";'],
+  ["packages/cli/src/check.ts", 'export * from "./core/manifest";'],
+  ["tests/check.ts", 'export { default } from "../packages/cli/package.json";'],
+])("Grit allows the public, local or registry import in %s", (path, source) => {
+  const result = lintWorkspace(path, source);
+  expect(result.stdout + result.stderr).not.toContain(packageMessage);
+  expect(result.status).toBe(0);
+});
+
+test("computed import() is an allowed known gap", () => {
+  const result = lintWorkspace(
+    "packages/cli/tests/check.ts",
+    'const target = "../../format/src/index"; void import(target);',
+  );
+  expect(result.stdout + result.stderr).not.toContain(packageMessage);
   expect(result.status).toBe(0);
 });

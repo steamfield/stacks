@@ -1,6 +1,6 @@
 # Problem statement
 
-What stacks is for, who it is for, and what has to be true for it to be worth building. Written from the product side so that technical decisions (the format, the CLI, the registry) can be checked against it. The roadmap and plans in `plans/` should trace back to a line here.
+What stacks is for, who it is for, and what has to be true for it to be worth building. Written from the product side so that technical decisions (the format, the CLI, the registry) can be checked against it. Designs should trace back to a line here.
 
 ## The problem in one sentence
 
@@ -88,6 +88,6 @@ The first assumption is the one to test next. It's a one-way door in practice: o
 ## Open questions
 
 - **Who is the bundled registry for?** Some candidate entries are ones a stranger would want (a Python and React app, a Go CLI, GitHub CI, Postgres); others encode one team's personal tooling. If the product is "write your stack down once", the personal ones belong in `~/.stacks` or a personal source. If it's a community catalog, every bundled entry needs to earn its place. The registry's origin layering supports either; the bundled content should pick one.  
-- **What is the brief budget?** Without a limit, stacks absorb entire projects. A per-stack cap on brief size, enforced by `validate`, would force the fragment split the roadmap already anticipates.  
+- **What is the brief budget?** Without a limit, stacks absorb entire projects. A per-stack cap on brief size, enforced by `validate`, would force large stacks to split into fragments.  
 - **How does a stack prove it still works?** Manual end-to-end runs don't scale past a handful of stacks. A scheduled canary is the product's CI; until one exists, someone has to run the bench by hand.  
-- **Is the npm name available?** `npx stacks new ...`, the README's first line, only works if `stacks` is free on npm or is published by the maintainers before anyone else takes it. The name needs resolving before anything else in the roadmap matters.
+- **Is the npm name available?** `npx stacks new ...`, the README's first line, only works if `stacks` is free on npm or is published by the maintainers before anyone else takes it. The name needs resolving before anything else here matters.

@@ -14,13 +14,12 @@
     },
     "packages/cli": {
       "name": "@steamfield/stacks",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "bin": {
         "stacks": "dist/stacks",
       },
       "devDependencies": {
         "@biomejs/biome": "catalog:",
-        "@effect/platform-bun": "catalog:",
         "@effect/platform-node": "catalog:",
         "@effect/vitest": "catalog:",
         "@steamfield/stacks-format": "workspace:*",
@@ -36,7 +35,7 @@
     },
     "packages/format": {
       "name": "@steamfield/stacks-format",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "dependencies": {
         "effect": "catalog:",
       },
@@ -70,7 +69,6 @@
   },
   "catalog": {
     "@biomejs/biome": "^2.6.3",
-    "@effect/platform-bun": "^4.0.6",
     "@effect/platform-node": "^4.0.6",
     "@effect/vitest": "^4.0.6",
     "@types/bun": "^1.4.3",
@@ -114,8 +112,6 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.6.3", "", { "os": "win32", "cpu": "arm64" }, "sha512-00SthDxBPwNiT7IL/mOneif6fiEU1PXK875zhr+InpeZjovY1mF5tCuDhXo1Hh0GYyiKHKzLbItzn58SAyLhJQ=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.6.3", "", { "os": "win32", "cpu": "x64" }, "sha512-GhtOPphBWlnCepqpNk/w5eGN5oGRCzL20EbAkL1XCIpyboeVC9R642noyT43l8LSenGS4qz9IL8sKPfwY37V/Q=="],
-
-    "@effect/platform-bun": ["@effect/platform-bun@4.0.6", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.6" }, "peerDependencies": { "effect": "^4.0.6" } }, "sha512-RAsGcIVcqhV4aBiM07VnMeNWDyewp8WDwTdIUtiklUDBRtddDllYzPsTlsn+0gLdpdz2lGnMEOFzoNaNrcMfSA=="],
 
     "@effect/platform-node": ["@effect/platform-node@4.0.6", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.6", "undici": "^8.12.2" }, "peerDependencies": { "effect": "^4.0.6", "redis": ">=5.0.0 <7.0.0" } }, "sha512-gXvGHAy0/8PZbWvMMguloDUyeSP+rzYEo3FSEqUuGduxo9ORcGioDxPI+GOLCIFfam7VuNkmSUxBOiRMIrMrBw=="],
 

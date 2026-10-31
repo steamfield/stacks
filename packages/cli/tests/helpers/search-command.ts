@@ -1,11 +1,16 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
-import type { Kind, SearchHit } from "@steamfield/stacks-format";
-import { SearchMetadata, SearchVocabulary } from "@steamfield/stacks-format";
+import type { RankRecord as FormatRankRecord, Kind } from "@steamfield/stacks-format";
+import {
+  rank,
+  SearchHit,
+  SearchMetadata,
+  SearchResult,
+  SearchVocabulary,
+} from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { expect } from "vitest";
 import type { Entry } from "../../src/core/registry/entry";
-import type { LastRun } from "../../src/schemas/ledger";
 import { quiet, runCli } from "./cli";
 import {
   bundled,
@@ -18,74 +23,19 @@ import {
   sourceDigest,
 } from "./search-metadata";
 
-// Consumer contracts for exports that do not exist yet. No production test-only hooks.
-export type Evidence = {
-  readonly stats?: {
-    readonly greenRateLower: number;
-    readonly sample: number;
-    readonly projects: number;
-    readonly window: 7 | 28;
-  };
-  readonly lastRun?: LastRun | null;
-};
-export type Hit = {
-  readonly kind: Kind;
-  readonly id: string;
-  readonly name: string;
-  readonly summary: string;
-  readonly origin: Entry["origin"];
-  readonly trusted: boolean;
-  readonly tier: "strong" | "partial" | "weak";
-  readonly score: number;
-  readonly coverage: number;
-  readonly why: ReadonlyArray<{
-    readonly field: string;
-    readonly matched: string;
-    readonly from: string;
-  }>;
-  readonly penalties: SearchHit["penalties"];
-  readonly caveats?: ReadonlyArray<string>;
-  readonly appliesTo?: ReadonlyArray<string>;
-  readonly evidence: Evidence;
-};
-export type SearchView = {
-  readonly request: string;
-  readonly ranking: "local";
-  readonly understood: {
-    readonly platforms: ReadonlyArray<string>;
-    readonly productKinds: ReadonlyArray<string>;
-    readonly languages: ReadonlyArray<string>;
-    readonly capabilities: ReadonlyArray<string>;
-    readonly unmatched: ReadonlyArray<string>;
-  };
-  readonly noStrongMatch: boolean;
-  readonly stacks: ReadonlyArray<Hit>;
-  readonly fragments: ReadonlyArray<Hit>;
-};
-export type RankRecord = {
-  readonly entry: Entry;
-  readonly search?: SearchMetadata;
-  readonly evidence?: Evidence;
-};
-export type Rank = (input: {
-  readonly request: string;
-  readonly entries: ReadonlyArray<RankRecord>;
-  readonly vocabulary: SearchVocabulary;
-  readonly limit?: number;
-  readonly kind?: Kind;
-}) => SearchView;
+export type Hit = typeof SearchHit.Type;
+export type SearchView = typeof SearchResult.Type;
+export type RankRecord = FormatRankRecord;
+export type Rank = typeof rank;
 
 export async function loadRank(): Promise<Rank> {
-  const modulePath = join(import.meta.dirname, "../../../format/src/search/rank.ts");
-  return (await import(modulePath)).rank;
+  return rank;
 }
 export async function searchSchema(): Promise<Schema.Codec<SearchView>> {
-  const modulePath = join(import.meta.dirname, "../../../format/src/search/schema.ts");
-  return (await import(modulePath)).SearchResult;
+  return SearchResult;
 }
 export async function hitSchema(): Promise<Schema.Codec<Hit>> {
-  const modulePath = join(import.meta.dirname, "../../../format/src/search/schema.ts");
-  return (await import(modulePath)).SearchHit;
+  return SearchHit;
 }
 export const vocabulary = () =>
   Schema.decodeUnknownSync(SearchVocabulary)(readJson(join(bundled, "search/vocabulary.json")));

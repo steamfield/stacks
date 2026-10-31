@@ -11,7 +11,7 @@ the live site shows the final seed and catalog.
 ## Read first
 
 - `stacks-api/docs/operations.md` ("Production", "How a deploy works", "Rolling back").
-- `plans/phases/phase-1.6c-first-release.md` "Before publishing", "Publishing",
+- `plans/archive/phases/phase-1.6c-first-release-2026-10-30.md` "Before publishing", "Publishing",
   "After publishing" (use the name `@steamfield/stacks`).
 
 ## Steps

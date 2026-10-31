@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-cli",
   "source": {
-    "digest": "sha256:d641abe6ad5bb787c34968ec6428138c149bd87a4289c270af37dd1a3be2cb56",
+    "digest": "sha256:d1ef8838bd0fc61d606e86783e509804ea6e31a77026ca53d4cf2cffc9f02a51",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A Go command-line tool with subcommands, configurable settings, actionable errors and human or JSON output.",
   "description": "Write a Go utility with Cobra subcommands and Viper settings layered from defaults, files, environment and flags. Results have human and JSON forms, while structured failures explain the next action. The first command exercises those boundaries, and the Makefile covers building, tests and checks. Add your utility's behavior; select goreleaser separately for tag-driven distribution.",

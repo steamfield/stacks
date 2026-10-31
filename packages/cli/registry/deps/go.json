@@ -96,7 +96,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 2,
-        "reviewedAt": null
+        "reviewedAt": "2026-10-31"
       }
     },
     "golang.org/x/term": {
@@ -112,7 +112,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 2,
-        "reviewedAt": null
+        "reviewedAt": "2026-10-31"
       }
     }
   }

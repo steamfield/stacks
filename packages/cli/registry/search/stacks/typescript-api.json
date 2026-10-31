@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "typescript-api",
   "source": {
-    "digest": "sha256:1c98e79046a36b56dfbfe0a4f95ce4d13d62fcfe1ecc84d91d9de9dc4a8f16cb",
+    "digest": "sha256:c431a94d690862d83dd809d231efe63e4526f31889d853ec33a9af9efc9527d6",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A TypeScript HTTP API with validated requests, documented endpoints, consistent errors and structured request logs.",
   "description": "Create a Node HTTP API whose Effect contract owns endpoint schemas, routing and documented errors. Thin handlers call services, and one request boundary produces safe responses and structured logs. The recipe proves startup and HTTP behavior with a health endpoint, then packages the server as one Node bundle. It does not select a database, identity provider or browser interface.",

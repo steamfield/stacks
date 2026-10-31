@@ -39,7 +39,7 @@ commands:
   dev:bg: Start or reuse this checkout's background server
   dev:stop: Stop this checkout's background server
   build: Build the SSR application
-  start: Serve the production build with optional .env loading
+  start: Serve the production build with PORT_WEB or PORT
   typecheck: Generate route types and run tsc
   lint: Run Biome checks
   format: Apply Biome formatting and safe fixes
@@ -52,54 +52,59 @@ commands:
   prepare: Install project hooks and local browser dependencies outside CI
 ---
 
-# React Router with Effect
+## What stacks wrote
 
-One SSR application in framework mode. React components use loaders/actions and resource routes; server programs run on one Effect runtime. Package scripts are the entry points. The base proving slice is `/healthz` through config, logging, a service, and the runtime, plus a minimal page. No vendor account or reference application is needed.
-
-Read `docs/guidance/react-router/index.md` for the shared conventions and link it from AGENTS.md.
+A Node-served React Router framework app: root layout, Tailwind, a native shadcn-style button, a greeting page whose loader and form action run through the shared Effect runtime, and a database-free `/healthz`. The slice includes validated config, typed HTTP errors, structured logging, route/component tests and a Playwright test against the production build, plus configs, scripts and guidance under `docs/guidance/react-router/`; read the code before extending it.
 
 ## Layout
 
-`app/root.tsx`, `routes.ts`, `app.css`; explicit modules under `app/routes/`; generated shadcn components under `app/components/ui/`; shared boundary schemas under `app/schemas/`; server-only `app/.server/{config,logging,errors,runtime,http}.ts` and `services/`. Tests live under `tests/`, browser smoke under `e2e/`. Shipped `scripts/dev.ts`, `dev-bg.ts`, `dev-pid.ts`, and `prepare.ts` own development process management. Logs live in ignored `logs/`.
+Explicit routes live in `app/routes.ts`, route modules in `app/routes/`, server programs and services in `app/.server/`, shared schemas in `app/schemas/`, and UI in `app/components/`. Tests sit beside server code and routes; `tests/helpers/` owns runtime setup. Browser tests live in `e2e/`. Link `docs/guidance/react-router/index.md` from AGENTS.md.
 
 ## Setup
 
-Run the official React Router generator non-interactively in a temporary directory, without installing dependencies or initializing git. Merge its files into the scaffold, preserving owned files; discard generator README, Docker assets, competing lint/format config, and agent files. Set the project name, current Bun `packageManager`, Node LTS in `.node-version`/engines, and retain SSR. Install compatible dependencies, checking peer ranges, then delete the temporary generator directory.
+1. Add every declared app and dev dependency at its current release with Bun. Check peer compatibility, including Effect and the selected testing fragment. No generator is needed: preserve the shipped source, tests and configs.
+2. Run `bun run lint`, `bun run typecheck`, `bun run test` and `bun run e2e`. Update shipped code or config where an installed release rejects it, keeping every check and lint rule. Use `bun run format` for formatting. `prepare` installs Chromium outside CI; install it explicitly in CI before e2e.
+3. Record the current Node LTS in `.node-version` and `engines.node`, and the installed Bun in `packageManager`. Node runs React Router, Vite and Vitest; Bun installs and invokes scripts.
+4. Fill the README markers, AGENTS.md and the selected fragments' documentation. Implement the selected fragments after the base checks pass. Run `stacks verify` until green.
 
-Configure Tailwind through its Vite plugin. Initialize shadcn with `bunx shadcn@latest init -y --no-monorepo -b radix -p <preset>`: `-y` alone still prompts for a preset (an unknown one lists the valid names), and there are no alias flags because init reads the tsconfig `~/*` alias. Then `bunx shadcn@latest add button`, adding only the UI primitives the proving slice uses. Init adds its own runtime dependencies, which that rule can't prevent, plus a Geist font package and its `@import` in `app.css`; remove the font unless the design chose Geist. Implement a Health service and `/healthz` returning `{"status":"ok"}` through `runRoute`, so invalid runtime config fails visibly. The route must touch no external service. Add a minimal index page and a Playwright smoke that loads the page and checks health. Fill README and AGENTS for this base before adding optional app behavior.
+## Conventions
 
-## Runtime and boundaries
+The shipped files are the reference; read `effect-server.md`, `routes.md` and `typescript.md` in the guidance directory before extending them.
 
-Services are namespaced `Context.Service` classes with static production and fresh-memory layers. Compose one AppLayer and ManagedRuntime in `runtime.ts`. Tests can swap the runtime through an explicit helper and dispose it. In development, dispose the previous runtime on hot reload before replacing it; retain intentional in-memory service state on `globalThis`. Never construct a runtime per request.
+- Loaders and actions stay thin. `programs.ts` decodes input and calls services; `http.ts` owns execution, safe errors, request ids and the completed-request log. Resource routes use `runRoute`; page data uses `runData` and throws error Responses to the root boundary.
+- Only `config.ts` reads application environment through Effect Config. Add new settings there, test defaults and invalid values, and document them in `.env.example`. Runtime config failure returns a safe 500, never a successful health response.
+- Add expected errors and their fixed safe status/message/retryability to `errors.ts`. Error bodies are `{ message, retryable }`; defects remain defects and their messages stay out of responses and logs.
+- Services are namespaced `Context.Service` classes with static layers. Capture dependencies in the layer constructor. `runtime.ts` owns one lazy ManagedRuntime and disposes it on hot reload; no per-request runtime. The slice is stateless; when adding memory state, retain it on `globalThis` during development and allocate fresh state in tests.
+- Components never import Effect or server code. A route may use server imports only inside its loader/action. Shared schemas remain platform-free; components import their types only. The server-import hook and production build enforce the boundary.
+- Use `Effect.log*` with annotations. `logging.ts` owns safe application records, readable terminal output and the development file sink; production application records are JSON on stdout. Never log bodies, credentials or arbitrary SDK error objects. Request ids are returned in `x-request-id`; health logs at debug.
+- Keep strict TypeScript, unchecked indexing, verbatim imports, erasable syntax, no emit and bundler resolution. Typecheck includes scripts, tests and available adapter hooks after generating route types. Preserve Biome's recommended rules, type imports/exports, unused imports, const enforcement, organized imports and Tailwind directives when adapting config.
+- Biome's Playwright domain belongs to browser tests in `e2e/`. The override for Vitest files keeps their valid describe options from being checked as Playwright calls; retain the ordinary test rules there.
+- `app/components/ui/button.tsx` is a native-button adaptation of the shadcn/ui variant pattern. Add only primitives a feature needs, using the current shadcn tooling and its installed dependencies; don't regenerate the foundation.
 
-Read environment only in `config.ts` through Effect Config; empty strings count as absent, which Effect's env provider already does, so test it rather than code it. Define tagged errors with fixed safe messages and exhaustive `statusFor` and `retryableFor` mappings. Every HTTP error body is `{ message, retryable }` (an `ErrorBody` schema in `app/schemas/`); causes remain log-only. Include bad input (400), not found (404), unsupported media (415), cancellation (503, retryable), and unexpected defects (generic 500, retryable). Add domain-specific errors only when needed.
+## Testing
 
-`runRoute(request, program)` executes on the current runtime and returns a Response for success, typed failure, runtime construction failure, cancellation, and defects. `runData` applies the same mapping for page loaders, throwing an error Response to the boundary when appropriate. Share JSON-content-type validation and schema decoding. Loaders/actions stay thin; programs delegate to pure or service-backed functions. Components never import Effect or `.server/`; client schemas remain platform-free. The server-import hook and production build enforce this boundary.
+`app/.server/*.test.ts` exercises real config, service and runtime layers, loaders/actions, decoding, error mapping, cancellation, disposal, ids, logs and file-sink recovery. `home.test.tsx` uses happy-dom and Testing Library to submit through the real action. `tests/helpers/runtime.ts` swaps and disposes test runtimes; never mock the project's own modules.
 
-## Logging and development
-
-Install a custom Effect logger: convert inputs to a plain LogEntry for testing, then format. JSON records have UTC `time`, lowercase `level`, `msg`, top-level annotations, `detail`, and an allowlisted `error` containing name/message/status/stack. Rename annotation collisions with reserved fields. Never serialize arbitrary third-party error objects or secrets.
-
-Development writes readable terminal lines and compact JSONL to `logs/server.jsonl`; production writes JSON to stdout without files. Respect `NO_COLOR` and `LOG_LEVEL`, read case-insensitively (`.env.example` says `info`; Effect's own log-level config accepts only `Info`). A file sink recreates a deleted log directory, warns once on failure, and never fails requests. Each completed request logs method/path/status/duration/requestId plus safe error fields; log a defect once at that boundary. Return `x-request-id`; health probes log at debug.
-
-The shipped dev wrapper copies terminal output to `logs/dev.log`, rotates prior logs, owns `logs/dev.pid`, and refuses duplicate checkout servers or occupied ports. Background start waits for health, reports failures in `logs/dev-bg.err`, and stop targets only that process group. Agents use `dev:bg`/`dev:stop`, never broad process killing. `dev:server` is `react-router dev`; verify calls it directly so it does not rotate the user's logs.
-
-## Tool configuration and tests
-
-Use Biome's current generated config, recommended rules plus import/export types, unused imports, and const enforcement; two spaces, double quotes, width 100, organized imports, VCS ignores, Tailwind CSS directives. Keep the generated config's shapes: recommended rules as `"rules": { "preset": "recommended" }`, folder ignores without a trailing glob (`"!dir"`, not `"!dir/**"`), Tailwind as `css.parser.tailwindDirectives: true`. Lint owned components/scripts/hooks. TypeScript is strict with unchecked-index checks, verbatim module syntax, erasable syntax, no emit, bundler resolution, explicit Node/Vite types, and a `~/*` app alias without baseUrl. Include generated route types, scripts, and available adapter hooks. Typecheck runs framework typegen first; the stack's before-typecheck hook does the same for edited routes.
-
-Vitest uses its own React plugin configuration, Node by default, happy-dom for components, Testing Library cleanup and jest-dom. Cover `app/` except generated UI primitives; exclude e2e. Test each runtime layer with real local dependencies: health response and config failure, decoding/error statuses and retryability, runtime isolation/disposal, request ids, defect logging once, and the resilient file sink. Hook tests run with the Claude adapter. Playwright uses Chromium, one worker, CI forbidOnly, and retained failure traces; serve the production build on a separate test port. Tests need no `.env` or credentials.
+Add observable behavior tests beside new code. Use Node for server tests and happy-dom per component file; router links/forms need a routes stub. Test timers directly with TestClock when the Effect fragment is selected. E2e builds first, then serves Node on a separate port with Chromium, one worker, forbidOnly in CI and retained failure traces. It checks SSR, hydration, a form action and health without credentials.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, runs lint/typecheck/coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure. No external credentials are needed.
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, runs lint/typecheck/coverage, installs Chromium with system dependencies, and runs e2e. Upload Playwright reports and test results on failure.
 <!-- stacks:end -->
 
-## Commands and gotchas
+## Commands
 
-Wire the declared scripts to framework, Biome, Vitest, Playwright, and shipped helpers. `prepare` invokes `scripts/prepare.ts`, which outside CI also runs `playwright install chromium` on every install (slow the first time, not hung); `dev:bg`/`dev:stop` invoke `scripts/dev-bg.ts start`/`stop`. `start` serves the build with Node's optional env-file support and sets the framework's `PORT` from PORT_WEB, else an existing `PORT`, else 3000. `clean` removes only generated project outputs. Document command names, logs, and hook ownership in AGENTS.
+The shipped package scripts wire every declared command. `dev` preserves terminal output in `logs/dev.log`; `dev:bg` starts or reuses this checkout's server and `dev:stop` stops its process group. `dev:server` is the direct framework server used by verify. `start` runs `react-router-serve build/server/index.js`, with PORT_WEB taking precedence over PORT, then 3000. The framework serves the build's assets and `public/` files. `clean` removes generated outputs only. Mirror commands, logs and hook ownership in AGENTS.md.
 
 <!-- stacks:when with=git-hooks -->
-The shipped `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install` (skipped when `CI` is set, lefthook is missing, or `lefthook.yml` doesn't exist yet, and non-fatal when it fails, for example outside a git checkout), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
+`scripts/prepare.ts` already installs lefthook outside CI when the binary and config exist, non-fatally outside a git checkout. Don't duplicate it. pre-push runs typecheck and tests in parallel.
 <!-- stacks:end -->
 
-Vitest/Vite/React Router run on Node: never force `--bun`, and never substitute `bun test` for Vitest. Route types must exist before tsc. Bun does not automatically pass its loaded `.env` into a child Node process. Check current TypeScript/compiler and Biome configuration requirements; adapt generated config and record necessary workarounds. The architecture remains Effect-based even when the optional Effect testing fragment is excluded; use the installed Effect service/runtime APIs.
+## Gotchas
+
+- Never force Node tooling onto Bun with `--bun` or substitute `bun test` for Vitest.
+- Generate route types before tsc, including after a route rename. The before-typecheck hook does this for edited routes.
+- Resource routes export only loader/action; extra server-dependent exports can pass tests and fail the client build.
+- Bun doesn't automatically pass its loaded .env into child Node processes. Supply the production environment explicitly; e2e supplies its own config and needs no .env.
+- `@react-router/serve` also emits a plain-text access log that includes query strings. Keep the app's Effect request logs as the structured record. A project that puts sensitive values in URLs switches to the Node adapter behind its own server, where it controls access logging.
+- `prepare` downloads Chromium on first install; this can take a while. It also runs after subsequent installs.
+- The architecture stays Effect-based when the optional testing fragment is excluded. Use installed declarations for APIs, then update the project's Effect skill when selected.

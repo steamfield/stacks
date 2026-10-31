@@ -19,6 +19,14 @@
     "allowImportingTsExtensions": true
   },
   "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
-  // Only the Bun entry imports @effect/platform-bun (not installed in this checkout).
-  "exclude": ["registry/stacks/typescript-cli/files/src/bin.ts"]
+  "exclude": [
+    // Only the Bun entry imports @effect/platform-bun (not installed in this checkout).
+    "registry/stacks/typescript-cli/files/src/bin.ts",
+    // React Router/React/Vite and DOM types belong to the scaffold's dependencies.
+    // Keep its scripts/ and adapter hooks checked by this project.
+    "registry/stacks/react-router/files/*.ts",
+    "registry/stacks/react-router/files/app",
+    "registry/stacks/react-router/files/tests",
+    "registry/stacks/react-router/files/e2e"
+  ]
 }

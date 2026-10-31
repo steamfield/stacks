@@ -1,0 +1,23 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "dev:server": "react-router dev",
+    "dev:bg": "bun scripts/dev-bg.ts start",
+    "dev:stop": "bun scripts/dev-bg.ts stop",
+    "build": "react-router build",
+    "start": "PORT=${PORT_WEB:-${PORT:-3000}} react-router-serve build/server/index.js",
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "e2e": "bun run build && playwright test",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
+    "clean": "rm -rf build .react-router coverage playwright-report test-results logs",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

@@ -334,6 +334,26 @@
         "reviewedAt": null
       }
     },
+    "@nuxt/eslint": {
+      "whatItIs": "A Nuxt add-on that sets up ESLint, a tool that flags likely mistakes in code, with rules that match the project's Nuxt folders.",
+      "homepage": "https://eslint.nuxt.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nuxt/test-utils": {
+      "whatItIs": "Helpers for testing a Nuxt app, which run page parts inside a small copy of the app so its built-in features work in tests.",
+      "homepage": "https://nuxt.com/docs/getting-started/testing",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "@openrouter/ai-sdk-provider": {
       "whatItIs": "Lets the AI SDK, a JavaScript toolkit for AI features, use models from OpenRouter.",
       "goodAt": [
@@ -761,6 +781,16 @@
         "model": "codex/gpt-6-sol",
         "promptVersion": 1,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "@vue/test-utils": {
+      "whatItIs": "The official helpers for testing Vue components: put one on a test page, click and type in it, and check what it shows.",
+      "homepage": "https://test-utils.vuejs.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "@xterm/headless": {
@@ -1202,6 +1232,25 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "nuxt": {
+      "whatItIs": "Nuxt, a framework for building websites and web apps with Vue, including the server code that answers page and data requests.",
+      "goodAt": [
+        "Building a web app with several pages, forms and its own data routes",
+        "Showing a page the server has already filled with data, so it appears quickly"
+      ],
+      "notGoodAt": [
+        "Storing data by itself; connect a database for records that must last.",
+        "Phone apps; use Expo, a toolkit for building phone apps."
+      ],
+      "example": "When a visitor opens the booking page, the server fills in the open time slots before the page reaches the browser.",
+      "homepage": "https://nuxt.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "orval": {
@@ -1660,6 +1709,42 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "vue": {
+      "whatItIs": "Vue, a tool for building the parts of a web page that respond to users, written as components that keep their layout, behavior and style together.",
+      "goodAt": [
+        "Building forms, lists and menus that update when a user acts",
+        "Splitting a page into small parts that can be reused and tested"
+      ],
+      "notGoodAt": ["Serving pages or storing data by itself; add Nuxt and a database for that."],
+      "example": "When a shopper types in the search box, the list of products below narrows at once, without a reload.",
+      "homepage": "https://vuejs.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "vue-router": {
+      "whatItIs": "The official page-address handling for Vue apps, which shows the right page for each address; Nuxt uses it under the hood.",
+      "homepage": "https://router.vuejs.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "vue-tsc": {
+      "whatItIs": "A command-line checker that reports TypeScript errors in Vue components and the code around them.",
+      "homepage": "https://github.com/vuejs/language-tools/tree/master/packages/tsc",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "wrangler": {

@@ -10,6 +10,7 @@
       "registry/fragments/openrouter-chat-cli/adapters/claude",
       "registry/stacks/hono-api/adapters/claude",
       "registry/stacks/nextjs/adapters/claude",
+      "registry/stacks/nuxt/adapters/claude",
       "registry/stacks/react-router/adapters/claude",
       "registry/stacks/react-vite/adapters/claude",
       "registry/stacks/sveltekit/adapters/claude",
@@ -66,6 +67,13 @@
     "registry/stacks/nextjs/files/src",
     "registry/stacks/nextjs/files/tests",
     "registry/stacks/nextjs/files/e2e",
+    // Nuxt auto-imports, Vue, zod and test-utils resolve only in the scaffold; keep scripts and hooks checked.
+    "registry/stacks/nuxt/files/*.ts",
+    "registry/stacks/nuxt/files/app",
+    "registry/stacks/nuxt/files/server",
+    "registry/stacks/nuxt/files/shared",
+    "registry/stacks/nuxt/files/tests",
+    "registry/stacks/nuxt/files/e2e",
     // SvelteKit's $app/*, ./$types and browser dependencies resolve only in the scaffold.
     // Keep prepare/e2e scripts and adapter hook tests checked here.
     "registry/stacks/sveltekit/files/*.ts",

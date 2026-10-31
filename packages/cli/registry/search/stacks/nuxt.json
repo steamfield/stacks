@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "nuxt",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A full-stack Nuxt app for Vue on Node, with server API routes, useFetch pages and a zod-validated form.",
+  "description": "Start a Nuxt project in the app directory layout, built into a Node server you run with node. A page loads data from the app's own server routes with useFetch while rendering on the server, and a form posts to a route that validates with zod and returns field errors the form shows. Runtime config is validated on the server, and requests are logged as JSON lines. Vitest covers schemas and server code in Node and components in Nuxt's test environment; Playwright drives the built server. There is no database, sign-in or hosting setup; add those for a real product.",
+  "seoDescription": "A Nuxt starter for Vue on Node with server API routes, useFetch, zod-validated forms, ESLint, vue-tsc, Vitest and Playwright against the built server.",
+  "projectExamples": [
+    {
+      "title": "Club event signup site",
+      "description": "Illustrative: server-rendered event pages and a signup form posting to a Nuxt server route, starting from the notes slice. Add storage and email before using it for real signups."
+    },
+    {
+      "title": "Internal request tracker",
+      "description": "Illustrative: a Vue app whose pages read and write through its own API routes. Replace the in-memory store with a database and add sign-in before sharing it."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter web app built with Nuxt, a toolkit for Vue web apps, which draws pages on the server and answers data requests from the same program.",
+    "goodAt": [
+      "Pages that arrive in the browser already filled with data",
+      "A website and its own data routes kept in one project",
+      "Showing a clear message beside each form field that was filled in wrongly"
+    ],
+    "notGoodAt": [
+      "Projects that need sign-in or a database on day one; the starter has neither.",
+      "Teams that want React; use the Next.js or React Router stack instead."
+    ]
+  },
+  "platforms": [
+    "web",
+    "server"
+  ],
+  "productKinds": [
+    "web-app",
+    "fullstack"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "start a Nuxt app served by Node",
+    "vue web app with server-side rendering and its own API routes",
+    "nuxt project with useFetch and a zod-validated form",
+    "self-host a full-stack Vue site on a node server",
+    "a Nuxt server route that validates the body and returns field errors"
+  ],
+  "useCases": [
+    "server-rendered Vue apps",
+    "Nuxt pages backed by server routes",
+    "self-hosted Nuxt on Node"
+  ],
+  "synonyms": [
+    "Nuxt",
+    "NuxtJS",
+    "Vue",
+    "Vue SSR",
+    "Nitro",
+    "nuxi",
+    "useFetch",
+    "server routes",
+    "SSR",
+    "Vue framework"
+  ],
+  "goodFor": [
+    "app and server code boundaries",
+    "typed runtime config",
+    "component checks in the Nuxt environment",
+    "production build checks in a browser"
+  ],
+  "notFor": [
+    "React",
+    "Svelte"
+  ]
+}

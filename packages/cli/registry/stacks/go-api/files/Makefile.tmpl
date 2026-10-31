@@ -35,6 +35,7 @@ help: ## List targets
 install: ## Download modules and install dev tools that are missing
 	go mod download
 	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
 
 build: ## Build bin/server with version info
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
@@ -59,7 +60,8 @@ fmt: ## Format code
 	"$(GOIMPORTS)" -local "$(MODULE)" -w .
 
 fmt-check: ## Fail if gofmt or goimports would change any file
-	@out="$$(gofmt -l . ; "$(GOIMPORTS)" -local "$(MODULE)" -l .)"; if [ -n "$$out" ]; then echo "Unformatted files:"; echo "$$out" | sort -u; exit 1; fi
+	@out="$$(gofmt -l .)" || exit $$?; imports="$$("$(GOIMPORTS)" -local "$(MODULE)" -l .)" || exit $$?; \
+	if [ -n "$$out$$imports" ]; then echo "Unformatted files:"; printf '%s\n%s\n' "$$out" "$$imports" | sort -u; exit 1; fi
 
 test: ## Unit and handler tests with the race detector
 	go test -race ./...

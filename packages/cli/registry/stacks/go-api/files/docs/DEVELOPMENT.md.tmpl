@@ -1,0 +1,38 @@
+# Development
+
+Initialize with `go mod init {{project_slug}}`, then resolve the test dependency:
+
+```sh
+go get github.com/stretchr/testify
+go mod tidy
+make install
+```
+
+If the project chooses a remote module path, change it with `go mod edit
+-module <path>` and replace `{{project_slug}}/internal/` imports in every Go
+file. Install golangci-lint using its official instructions, and write its
+installed version to `.golangci-lint-version`. The config's version key is
+the config format, not a pinned tool release. Keep its linters when adapting
+the config to a new release.
+
+```sh
+make fmt-check vet lint build test test-integration
+go test -race -run TestRequestFailures ./internal/httpapi/
+make coverage
+```
+
+Unit and handler tests run with the race detector; it requires cgo and a C
+compiler. Tagged integration tests also build the server with `-race`.
+TestMain builds once into a temporary directory. Each test starts the binary
+with PORT=0, reads the actual address from JSON logs, keeps draining stdout
+and kills any surviving child in cleanup. Signal cases check both SIGINT and
+SIGTERM, exit status and the final stopped record.
+
+`make fmt` applies gofmt and goimports. `make serve` builds `bin/server`,
+embeds version metadata and runs it in the foreground. `make ci` adds coverage
+and vulnerability checks. A standard-library advisory needs a patched Go
+toolchain, recorded in go.mod, rather than a disabled vulnerability check.
+
+Fill README and the selected fragments' AGENTS, hook and CI guidance before
+the final `stacks verify`. The default hooks and workflow are supplied by
+their fragments; this slice does not write their files.

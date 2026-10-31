@@ -1,0 +1,265 @@
+package httpapi
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/notes"
+)
+
+// HTTP completion can precede the access-log write. A channel lets assertions
+// wait for completed records without sleeps or concurrent buffer reads.
+type capture struct {
+	records chan map[string]any
+}
+
+func (c *capture) Write(data []byte) (int, error) {
+	var record map[string]any
+	if err := json.Unmarshal(data, &record); err != nil {
+		return 0, err
+	}
+	c.records <- record
+	return len(data), nil
+}
+
+func start(t *testing.T, store notes.Store) (*httptest.Server, *capture) {
+	t.Helper()
+	logs := &capture{records: make(chan map[string]any, 100)}
+	server := httptest.NewServer(NewHandler(store, applog.New(logs, slog.LevelDebug)))
+	t.Cleanup(server.Close)
+	return server, logs
+}
+
+type response struct {
+	StatusCode int
+	Header     http.Header
+}
+
+func request(t *testing.T, server *httptest.Server, method, path, body, media, id string) (response, []byte) {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), method, server.URL+path, strings.NewReader(body))
+	require.NoError(t, err)
+	if media != "" {
+		req.Header.Set("Content-Type", media)
+	}
+	if id != "" {
+		req.Header.Set("X-Request-Id", id)
+	}
+	res, err := server.Client().Do(req)
+	require.NoError(t, err)
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
+	assert.Equal(t, "no-store", res.Header.Get("Cache-Control"))
+	assert.NotEmpty(t, res.Header.Get("X-Request-Id"))
+	return response{StatusCode: res.StatusCode, Header: res.Header}, data
+}
+
+func TestNotesRoundTrip(t *testing.T) {
+	server, _ := start(t, notes.NewMemory())
+	res, data := request(t, server, "GET", "/healthz", "", "", "")
+	assert.Equal(t, 200, res.StatusCode)
+	assert.JSONEq(t, `{"status":"ok"}`, string(data))
+	res, data = request(t, server, "GET", "/v1/notes", "", "", "")
+	assert.Equal(t, 200, res.StatusCode)
+	assert.JSONEq(t, `{"items":[]}`, string(data))
+	var created []notes.Note
+	for _, title := range []string{"first", "second"} {
+		res, data = request(t, server, "POST", "/v1/notes", `{"title":" `+title+` ","body":"text"}`, "application/json; charset=utf-8", "")
+		require.Equal(t, 201, res.StatusCode, string(data))
+		var note notes.Note
+		require.NoError(t, json.Unmarshal(data, &note))
+		assert.Equal(t, title, note.Title)
+		assert.Equal(t, "text", note.Body)
+		assert.False(t, note.CreatedAt.IsZero())
+		assert.Equal(t, "/v1/notes/"+note.ID, res.Header.Get("Location"))
+		created = append(created, note)
+		res, got := request(t, server, "GET", res.Header.Get("Location"), "", "", "")
+		assert.Equal(t, 200, res.StatusCode)
+		assert.JSONEq(t, string(data), string(got))
+	}
+	res, data = request(t, server, "GET", "/v1/notes?limit=1", "", "", "")
+	assert.Equal(t, 200, res.StatusCode)
+	var page notes.Page
+	require.NoError(t, json.Unmarshal(data, &page))
+	assert.Equal(t, []notes.Note{created[0]}, page.Items)
+	require.NotEmpty(t, page.NextCursor)
+	res, data = request(t, server, "GET", "/v1/notes?limit=1&cursor="+page.NextCursor, "", "", "")
+	assert.Equal(t, 200, res.StatusCode)
+	require.NoError(t, json.Unmarshal(data, &page))
+	assert.Equal(t, []notes.Note{created[1]}, page.Items)
+	assert.NotContains(t, string(data), "nextCursor")
+	res, data = request(t, server, "HEAD", "/v1/notes", "", "", "")
+	assert.Equal(t, 200, res.StatusCode)
+	assert.Empty(t, data)
+}
+
+// Fixed public expectations stay independent of the implementation's status table.
+var contractErrors = map[string]struct {
+	status    int
+	message   string
+	retryable bool
+}{
+	"BadInput":             {400, "Invalid request.", false},
+	"NotFound":             {404, "Resource not found.", false},
+	"MethodNotAllowed":     {405, "Method not allowed.", false},
+	"PayloadTooLarge":      {413, "Request body is too large.", false},
+	"UnsupportedMediaType": {415, "Expected a JSON body.", false},
+	"Internal":             {500, "Internal server error.", false},
+	"Unavailable":          {503, "Service unavailable.", true},
+}
+
+func TestRequestFailures(t *testing.T) {
+	for _, tt := range []struct{ name, method, path, body, media, tag string }{
+		{"missing", "GET", "/v1/notes/missing", "", "", apperrors.NotFound},
+		{"unknown path", "GET", "/unknown", "", "", apperrors.NotFound},
+		{"wrong method", "DELETE", "/v1/notes", "", "", apperrors.MethodNotAllowed},
+		{"title", "POST", "/v1/notes", `{}`, "application/json", apperrors.BadInput},
+		{"unknown field", "POST", "/v1/notes", `{"title":"ok","extra":true}`, "application/json", apperrors.BadInput},
+		{"malformed", "POST", "/v1/notes", `{`, "application/json", apperrors.BadInput},
+		{"null", "POST", "/v1/notes", `null`, "application/json", apperrors.BadInput},
+		{"array", "POST", "/v1/notes", `[]`, "application/json", apperrors.BadInput},
+		{"empty", "POST", "/v1/notes", ``, "application/json", apperrors.BadInput},
+		{"trailing object", "POST", "/v1/notes", `{"title":"ok"} {}`, "application/json", apperrors.BadInput},
+		{"trailing garbage", "POST", "/v1/notes", `{"title":"ok"} x`, "application/json", apperrors.BadInput},
+		{"wrong media", "POST", "/v1/notes", `{}`, "text/plain", apperrors.UnsupportedMediaType},
+		{"no media", "POST", "/v1/notes", `{}`, "", apperrors.UnsupportedMediaType},
+		{"oversized", "POST", "/v1/notes", `{"title":"ok","body":"` + strings.Repeat("x", 1<<20) + `"}`, "application/json", apperrors.PayloadTooLarge},
+		{"oversized trailing", "POST", "/v1/notes", `{"title":"ok"}` + strings.Repeat(" ", 1<<20), "application/json", apperrors.PayloadTooLarge},
+		{"unknown query", "GET", "/v1/notes?unknown=true", "", "", apperrors.BadInput},
+		{"bad limit", "GET", "/v1/notes?limit=bad", "", "", apperrors.BadInput},
+		{"large limit", "GET", "/v1/notes?limit=101", "", "", apperrors.BadInput},
+		{"zero limit", "GET", "/v1/notes?limit=0", "", "", apperrors.BadInput},
+		{"duplicate query", "GET", "/v1/notes?limit=1&limit=2", "", "", apperrors.BadInput},
+		{"empty query", "GET", "/v1/notes?cursor=", "", "", apperrors.BadInput},
+		{"malformed query", "GET", "/v1/notes?cursor=%zz", "", "", apperrors.BadInput},
+		{"bad cursor", "GET", "/v1/notes?cursor=not-a-cursor", "", "", apperrors.BadInput},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			server, _ := start(t, notes.NewMemory())
+			res, data := request(t, server, tt.method, tt.path, tt.body, tt.media, "")
+			row := contractErrors[tt.tag]
+			assert.Equal(t, row.status, res.StatusCode)
+			var envelope struct {
+				Error struct {
+					Tag, Message string
+					Retryable    bool
+				}
+			}
+			require.NoError(t, json.Unmarshal(data, &envelope))
+			assert.Equal(t, tt.tag, envelope.Error.Tag)
+			assert.Equal(t, row.message, envelope.Error.Message)
+			assert.Equal(t, row.retryable, envelope.Error.Retryable)
+			if tt.tag == apperrors.MethodNotAllowed {
+				assert.Contains(t, res.Header.Get("Allow"), "GET")
+				assert.Contains(t, res.Header.Get("Allow"), "HEAD")
+				assert.Contains(t, res.Header.Get("Allow"), "POST")
+			}
+		})
+	}
+}
+
+func TestRequestLogs(t *testing.T) {
+	server, logs := start(t, notes.NewMemory())
+	for _, tt := range []struct{ path, id, route, level string }{
+		{"/healthz", "incoming-123", "GET /healthz", "DEBUG"},
+		{"/v1/notes", "", "GET /v1/notes", "INFO"},
+		{"/v1/notes", "invalid id", "GET /v1/notes", "INFO"},
+		{"/unknown", strings.Repeat("x", 65), "", "INFO"},
+	} {
+		t.Run(tt.path+tt.id, func(t *testing.T) {
+			res, data := request(t, server, "GET", tt.path, "", "", tt.id)
+			var record map[string]any
+			select {
+			case record = <-logs.records:
+			case <-time.After(2 * time.Second):
+				t.Fatal("waiting for access log")
+			}
+			id := res.Header.Get("X-Request-Id")
+			if tt.id == "incoming-123" {
+				assert.Equal(t, tt.id, id)
+			} else {
+				assert.Regexp(t, `^[a-f0-9]{32}$`, id)
+			}
+			assert.Equal(t, "request", record["msg"])
+			assert.Equal(t, tt.level, record["level"])
+			assert.Equal(t, "GET", record["method"])
+			assert.Equal(t, tt.route, record["route"])
+			assert.Equal(t, float64(res.StatusCode), record["status"])
+			assert.Equal(t, float64(len(data)), record["bytes"])
+			assert.GreaterOrEqual(t, record["duration_ms"].(float64), float64(0))
+			assert.Equal(t, id, record["request_id"])
+		})
+	}
+}
+
+// Failure injection at the store boundary exercises the HTTP error and panic paths.
+type failedStore struct {
+	notes.Store
+	panicValue any
+}
+
+func (s failedStore) Get(context.Context, string) (notes.Note, error) {
+	if s.panicValue != nil {
+		panic(s.panicValue)
+	}
+	return notes.Note{}, errors.New("private database details")
+}
+
+func TestFailureBoundary(t *testing.T) {
+	for _, tt := range []struct {
+		name, tag  string
+		panicValue any
+	}{
+		{"unavailable", apperrors.Unavailable, nil}, {"panic", apperrors.Internal, "private panic details"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			server, logs := start(t, failedStore{Store: notes.NewMemory(), panicValue: tt.panicValue})
+			res, data := request(t, server, "GET", "/v1/notes/missing", "", "", "failure-id")
+			row := contractErrors[tt.tag]
+			assert.Equal(t, row.status, res.StatusCode)
+			var envelope struct {
+				Error struct {
+					Tag, Message string
+					Retryable    bool
+				}
+			}
+			require.NoError(t, json.Unmarshal(data, &envelope))
+			assert.Equal(t, tt.tag, envelope.Error.Tag)
+			assert.Equal(t, row.message, envelope.Error.Message)
+			assert.Equal(t, row.retryable, envelope.Error.Retryable)
+			assert.NotContains(t, string(data), "private")
+			var record map[string]any
+			select {
+			case record = <-logs.records:
+			case <-time.After(2 * time.Second):
+				t.Fatal("waiting for error log")
+			}
+			assert.Equal(t, "ERROR", record["level"])
+			assert.Equal(t, "failure-id", record["request_id"])
+			if tt.panicValue != nil {
+				assert.NotEmpty(t, record["stack"])
+			}
+		})
+	}
+}
+
+func TestAbortHandlerIsRepanicked(t *testing.T) {
+	logger := applog.New(io.Discard, slog.LevelDebug)
+	handler := recoverPanic(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic(http.ErrAbortHandler) }), logger)
+	assert.PanicsWithValue(t, http.ErrAbortHandler, func() { handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil)) })
+}

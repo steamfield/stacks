@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!--/*
+  The layout every page shares. A page replaces its own <html> with
+  ~{layout :: page(~{::title}, ~{::main})}, passing its <title> and <main>.
+  Comments in this form are Thymeleaf's own and never reach the browser.
+*/-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content)">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title th:replace="${title}">Page</title>
+        <link rel="stylesheet" th:href="@{/css/site.css}">
+        <!--/* WebJars: no version here; Spring writes the installed one into the link, so upgrading htmx changes only pom.xml. */-->
+        <script th:src="@{/webjars/htmx.org/dist/htmx.min.js}" defer></script>
+    </head>
+    <body>
+        <header>
+            <a href="/" th:href="@{/}">Home</a>
+        </header>
+        <main th:replace="${content}">
+            <p>Page content</p>
+        </main>
+    </body>
+</html>

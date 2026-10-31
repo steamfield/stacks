@@ -1,3 +1,4 @@
+import type { RolledDependency } from "@steamfield/stacks-format";
 import type { ShowReport } from "../schemas/show";
 import { plainStyle, type Style } from "../services/output";
 import { statsFields, statsLine } from "./stats-text";
@@ -48,22 +49,60 @@ function plainLines(plain: ShowReport["plain"]): string[] {
   ];
 }
 
+function dependencySource(dep: RolledDependency, own: boolean): string {
+  return own ? "" : ` (from ${dep.fragments.join(", ")})`;
+}
+
+function dependencyGroups(report: ShowReport) {
+  if (report.kind !== "stack" || report.dependencyRollup === undefined)
+    return Object.entries(report.deps).map(([role, names]) => ({
+      role,
+      deps: names.map((name) => ({ name, label: name })),
+    }));
+  const groups = new Map<string, Array<{ name: string; label: string }>>();
+  for (const dep of report.dependencyRollup.included) {
+    const group = groups.get(dep.role) ?? [];
+    group.push({ name: dep.name, label: dep.name + dependencySource(dep, dep.stack) });
+    groups.set(dep.role, group);
+  }
+  // Keep explicit empty roles visible, including the human app role's "none" row.
+  for (const [role, names] of Object.entries(report.deps))
+    if (!names.length && !groups.has(role)) groups.set(role, []);
+  return [...groups].map(([role, deps]) => ({ role, deps }));
+}
+
 function dependencyLines(report: ShowReport, human: boolean): string[] {
   const list = (values: ReadonlyArray<string>) => (values.length ? values.join(", ") : "none");
-  return Object.entries(report.deps).flatMap(([role, names]) => {
-    if (role !== "app" || !human || names.length === 0)
-      return [`Dependencies (${role}): ${list(names)}`];
+  const included = dependencyGroups(report).flatMap(({ role, deps }) => {
+    if (role !== "app" || !human || deps.length === 0)
+      return [`Dependencies (${role}): ${list(deps.map((dep) => dep.label))}`];
     return [
       "Dependencies (app):",
-      ...names.map((name) => {
+      ...deps.map(({ name, label }) => {
         const matches = Object.entries(report.dependencyCards ?? {}).filter(
           ([key]) => key.slice(key.indexOf("/") + 1) === name,
         );
         const card = matches.length === 1 ? matches[0]?.[1] : undefined;
-        return `  ${name}${card ? `: ${card.whatItIs}` : ""}`;
+        return `  ${label}${card ? `: ${card.whatItIs}` : ""}`;
       }),
     ];
   });
+  const optional = report.kind === "stack" ? (report.dependencyRollup?.optional ?? []) : [];
+  return [
+    ...included,
+    ...optional.map(
+      ({ fragment, deps }) =>
+        `Optional dependencies (with ${fragment}): ${deps
+          .map(
+            (dep) =>
+              `${dep.name} (${dep.role})${dependencySource(
+                dep,
+                dep.fragments.every((id) => id === fragment),
+              )}`,
+          )
+          .join(", ")}`,
+    ),
+  ];
 }
 
 /** Complete text review, including commands and every unfiltered guidance branch. */

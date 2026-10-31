@@ -1,6 +1,7 @@
 import { rmdir } from "node:fs/promises";
 import { Effect, Exit, FileSystem, Path, type PlatformError, type Scope } from "effect";
 import { PermissionDenied, TargetNotEmpty } from "../../errors";
+import { Invocation } from "../../services/invocation";
 
 /**
  * The one way `new` and `add` write into a project. Every file is created exclusively (never over an existing file or through a final
@@ -47,12 +48,6 @@ export type ProjectWriter = {
 const missing = (error: PlatformError.PlatformError) =>
   error.reason._tag === "NotFound" || error.reason._tag === "BadResource";
 
-const alreadyExists = (exit: Exit.Exit<unknown, PlatformError.PlatformError>) =>
-  Exit.isFailure(exit) &&
-  exit.cause.reasons.some(
-    (reason) => reason._tag === "Fail" && reason.error.reason._tag === "AlreadyExists",
-  );
-
 /** Whether `path` is `root` or under it; both are real paths. */
 export function within(root: string, path: string, separator: string): boolean {
   return path === root || path.startsWith(root.endsWith(separator) ? root : root + separator);
@@ -92,6 +87,7 @@ export function openProject(
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    const invocation = yield* Effect.serviceOption(Invocation);
     const unwritable = (at: string) =>
       new PermissionDenied({ details: { reason: "unwritable", path: at } });
     const escapes = (at: string) =>
@@ -146,9 +142,16 @@ export function openProject(
 
     const restoreBackups = Effect.gen(function* () {
       for (const [file, backup] of backups) {
-        const info = yield* Effect.option(fs.lstat(file));
-        if ((yield* inside(file)) && info._tag === "Some" && info.value.type === "File")
-          yield* Effect.ignore(atomicReplace(file, backup.bytes, backup.mode));
+        const restored = yield* Effect.exit(
+          Effect.gen(function* () {
+            const info = yield* fs.lstat(file);
+            if (info.type !== "File" || !(yield* inside(file))) return false;
+            yield* atomicReplace(file, backup.bytes, backup.mode);
+            return true;
+          }),
+        );
+        if ((Exit.isFailure(restored) || !restored.value) && invocation._tag === "Some")
+          yield* invocation.value.rollbackIncomplete(file);
       }
     });
     const removeDirectories = Effect.gen(function* () {
@@ -262,24 +265,26 @@ export function openProject(
     const writeExclusive = (file: string, rel: string, data: Uint8Array) =>
       Effect.gen(function* () {
         // `wx`: never over an existing file, and never through a symlink in the last segment.
-        const written = yield* Effect.exit(
-          fs.writeFile(file, data, { flag: "wx" }).pipe(
-            Effect.onExit((exit) =>
-              Effect.sync(() => {
-                const exists = alreadyExists(exit);
-                // Even cancelled I/O may already have created bytes. Track it in the finalizer,
-                // which also runs when an adapter restores interruption inside the mutation.
-                if (!exists) files.push(file);
-              }),
-            ),
+        yield* fs.writeFile(file, data, { flag: "wx" }).pipe(
+          Effect.onExit((exit) =>
+            Effect.sync(() => {
+              const exists =
+                Exit.isFailure(exit) &&
+                exit.cause.reasons.some(
+                  (reason) =>
+                    reason._tag === "Fail" && reason.error.reason._tag === "AlreadyExists",
+                );
+              // Even cancelled I/O may already have created bytes. Track it in the finalizer,
+              // which also runs when an adapter restores interruption inside the mutation.
+              if (!exists) files.push(file);
+            }),
+          ),
+          Effect.mapError((error) =>
+            error.reason._tag === "AlreadyExists"
+              ? new TargetNotEmpty({ details: { path: root, entries: [rel] } })
+              : unwritable(file),
           ),
         );
-        if (Exit.isFailure(written)) {
-          const exists = alreadyExists(written);
-          if (exists) return yield* new TargetNotEmpty({ details: { path: root, entries: [rel] } });
-          // Created exclusively, so whatever is there now (a partial write) is ours.
-          return yield* unwritable(file);
-        }
       });
 
     const setPermissions = (file: string, permissions: boolean | number) =>

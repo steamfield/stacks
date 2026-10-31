@@ -12,7 +12,7 @@ export const runsCommand = Command.make("runs", {}, () =>
   }),
 ).pipe(
   Command.withDescription(
-    "Show this project's verify history, timings and interventions, from its run records, state record and NOTES.md. Exits 0, 2 outside a project, 3 on a manifest that doesn't decode or a manifest or state record from a newer stacks, 6 when the manifest can't be read, 130 when interrupted.",
+    "Show this project's verify history, timings and interventions, from its run records, state record and NOTES.md. Exits 0, 2 outside a project, 3 on a manifest that doesn't decode or a manifest or state record from a newer stacks, 6 when the manifest or run history can't be read, 130 when interrupted.",
   ),
   Command.withShortDescription("Show this project's verify history and timings."),
   Command.withExamples(({ commandPath }) => [

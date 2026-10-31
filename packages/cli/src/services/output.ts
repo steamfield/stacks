@@ -2,6 +2,7 @@ import { styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
 import { Clock, Context, Effect, Layer, Option, type Scope, Semaphore } from "effect";
 import { AppConfig } from "../config";
+import { printable } from "../core/text";
 import {
   type AppError,
   BrokenPipe,
@@ -80,6 +81,7 @@ export class Output extends Context.Service<
     error: (
       error: AppError,
       invocation: string,
+      rollback?: ReadonlyArray<string>,
     ) => Effect.Effect<void, BrokenPipe | PermissionDenied>;
     flush: Effect.Effect<void, BrokenPipe | PermissionDenied>;
     /** Text modes: writes buffered results now (before a child takes the terminal). JSON: no-op. */
@@ -137,12 +139,13 @@ type ErrorView = {
   guide: ReturnType<typeof failureGuide>;
   json: boolean;
   style: Style;
+  rollback: ReadonlyArray<string>;
 };
 /**
  * The envelope (`errors.ts::ErrorEnvelope`) in JSON mode; otherwise the message, the guide's
  * lines and its `Next:` line. A keeps-result failure's report already ends with that `Next:` line.
  */
-function renderError({ error, details, guide, json, style }: ErrorView): string {
+function renderError({ error, details, guide, json, style, rollback }: ErrorView): string {
   if (json)
     return `${JSON.stringify({
       error: {
@@ -151,11 +154,15 @@ function renderError({ error, details, guide, json, style }: ErrorView): string 
         retryable: retryable(error),
         ...(guide.next === undefined ? {} : { next: guide.next }),
         ...(details === undefined ? {} : { details }),
+        ...(rollback.length === 0 ? {} : { rollback: { incomplete: rollback } }),
       },
     })}\n`;
   const next =
     guide.next === undefined || keepsResult(error) ? [] : [style("next", `Next: ${guide.next}`)];
-  return `${[style("error", error.message), ...[...guide.lines, ...next].map((line) => `  ${line}`)].join("\n")}\n`;
+  const restore = rollback.length
+    ? [`Rollback incomplete: check ${rollback.map(printable).join(", ")} before retrying.`]
+    : [];
+  return `${[style("error", error.message), ...[...guide.lines, ...restore, ...next].map((line) => `  ${line}`)].join("\n")}\n`;
 }
 function make(
   audience: Audience,
@@ -225,7 +232,7 @@ function make(
         ? terminal.line(agentText)
         : Effect.void;
     },
-    error: (error, invocation) =>
+    error: (error, invocation, rollback = []) =>
       encodeDetails(error).pipe(
         Effect.orDie,
         Effect.flatMap((details) =>
@@ -238,6 +245,7 @@ function make(
                 guide: failureGuide(error, invocation),
                 json,
                 style: errorStyle,
+                rollback,
               }),
             ),
           ),

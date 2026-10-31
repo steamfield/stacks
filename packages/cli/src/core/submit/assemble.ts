@@ -1,10 +1,11 @@
 import { AuthorsFile, authorKey, Kind, type SearchMetadata } from "@steamfield/stacks-format";
-import { Effect, FileSystem, Path, Result, Schema } from "effect";
+import { Effect, FileSystem, Path, type PlatformError, Result, Schema } from "effect";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { Registry } from "../registry/registry";
 import { searchSourceDigest } from "../search/digest";
 import { decodeSidecar, readSearchFile, sidecarPath } from "../search/sidecar";
 import { kindDir, type SubmittedEntry } from "./entries";
+import { writePermission } from "./filesystem";
 
 /** Where the registry sits in the upstream repository. */
 export const REGISTRY_PATH = "packages/cli/registry";
@@ -68,18 +69,54 @@ const planEntries = Effect.fn("submit.planEntries")(function* (options: {
   return planned;
 });
 
+/** Node copy errors name the source in `cause.path` for both read and write failures. */
+const sourceCopyPath = (error: PlatformError.PlatformError, entryDir: string, path: Path.Path) => {
+  const cause =
+    error.reason._tag === "PermissionDenied" || error.reason._tag === "NotFound"
+      ? error.reason.cause
+      : undefined;
+  const reported =
+    typeof cause === "object" && cause !== null && "path" in cause && typeof cause.path === "string"
+      ? cause.path
+      : entryDir;
+  const relative = path.relative(entryDir, reported);
+  return relative === "" ||
+    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+    ? reported
+    : entryDir;
+};
+
+const readUnavailable = (error: PlatformError.PlatformError) =>
+  error.reason._tag === "NotFound" || error.reason._tag === "PermissionDenied";
+
 /** Replaces the clone's copy of an entry with the author's directory. */
 const copyEntry = Effect.fn("submit.copyEntry")(function* (registry: string, entry: PlannedEntry) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const target = path.join(registry, kindDir(entry.kind), entry.id);
-  yield* fs.remove(target, { recursive: true, force: true }).pipe(Effect.orDie);
-  yield* fs.makeDirectory(path.dirname(target), { recursive: true }).pipe(Effect.orDie);
-  yield* fs
-    .copy(entry.dir, target)
-    .pipe(
-      Effect.mapError(() => new PermissionDenied({ details: { reason: "read", path: entry.dir } })),
-    );
+  yield* writePermission(fs.remove(target, { recursive: true, force: true }), target);
+  yield* writePermission(
+    fs.makeDirectory(path.dirname(target), { recursive: true }),
+    path.dirname(target),
+  );
+  yield* fs.copy(entry.dir, target).pipe(
+    Effect.catchTag("PlatformError", (error) =>
+      Effect.gen(function* () {
+        if (!readUnavailable(error)) return yield* Effect.die(error);
+        const access = yield* Effect.result(
+          fs.access(sourceCopyPath(error, entry.dir, path), { readable: true }),
+        );
+        if (Result.isFailure(access)) {
+          if (readUnavailable(access.failure))
+            return yield* new PermissionDenied({ details: { reason: "read", path: entry.dir } });
+          return yield* Effect.die(access.failure);
+        }
+        if (error.reason._tag === "PermissionDenied")
+          return yield* new PermissionDenied({ details: { reason: "write", path: target } });
+        return yield* Effect.die(error);
+      }),
+    ),
+  );
 });
 
 /**
@@ -112,7 +149,10 @@ const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry
   const bytes =
     own ?? (yield* readSearchFile(registry, card).pipe(Effect.orElseSucceed(() => undefined)));
   if (bytes === undefined) return;
-  yield* fs.makeDirectory(path.dirname(target), { recursive: true }).pipe(Effect.orDie);
+  yield* writePermission(
+    fs.makeDirectory(path.dirname(target), { recursive: true }),
+    path.dirname(target),
+  );
   const loaded = yield* Effect.result((yield* Registry).get(entry.kind, entry.id));
   const decoded = yield* Effect.result(decodeSidecar(bytes));
   const raw = Result.try(() => JSON.parse(new TextDecoder().decode(bytes)) as unknown);
@@ -124,8 +164,11 @@ const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry
       ? freshCard(raw.success, decoded.success, searchSourceDigest(loaded.success))
       : undefined;
   if (fresh !== undefined)
-    yield* fs.writeFileString(target, `${JSON.stringify(fresh, null, 2)}\n`).pipe(Effect.orDie);
-  else if (own !== undefined) yield* fs.writeFile(target, own).pipe(Effect.orDie);
+    yield* writePermission(
+      fs.writeFileString(target, `${JSON.stringify(fresh, null, 2)}\n`),
+      target,
+    );
+  else if (own !== undefined) yield* writePermission(fs.writeFile(target, own), target);
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -153,6 +196,9 @@ export const assemble = Effect.fn("submit.assemble")(function* (options: {
   const next: Record<string, string> = { ...authors };
   for (const entry of planned) next[authorKey(entry.kind, entry.id)] = options.login;
   const sorted = Object.fromEntries(Object.entries(next).sort(([a], [b]) => (a < b ? -1 : 1)));
-  yield* fs.writeFileString(authorsPath, `${JSON.stringify(sorted, null, 2)}\n`).pipe(Effect.orDie);
+  yield* writePermission(
+    fs.writeFileString(authorsPath, `${JSON.stringify(sorted, null, 2)}\n`),
+    authorsPath,
+  );
   return planned;
 });

@@ -122,20 +122,20 @@ describe("delegate.sh", () => {
     expect(result.status, result.stderr).toBe(0);
   });
 
-  it("runs Codex unsandboxed on sol 6 at high effort in fast mode and digests a completed turn", () => {
+  it("runs Codex unsandboxed on sol 6.1 at high effort in fast mode and digests a completed turn", () => {
     const result = run([contract, "--worktree", worktree, "--write"]);
     expect(result.status, result.stderr).toBe(0);
     const args = readFileSync(join(root, "args.txt"), "utf8").split("\n");
     expect(args).toEqual(
       expect.arrayContaining([
         'sandbox_mode="danger-full-access"',
-        "gpt-6-sol",
+        "gpt-6.1-sol",
         'model_reasoning_effort="high"',
         'service_tier="priority"',
         'approval_policy="never"',
       ]),
     );
-    expect(result.stdout).toContain("delegate:  codex gpt-6-sol (high, priority, write)");
+    expect(result.stdout).toContain("delegate:  codex gpt-6.1-sol (high, priority, write)");
     expect(args).not.toContain("--ephemeral");
     expect(args.join("\n")).toContain("Do the thing.");
     expect(result.stdout).toContain("result:    success - turn completed");

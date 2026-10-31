@@ -1,0 +1,11 @@
+# Protobuf module, lint and breaking-change rules (buf config format v2).
+# Keep STANDARD lint and FILE breaking rules; `make buf-lint` and `make breaking` read them.
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

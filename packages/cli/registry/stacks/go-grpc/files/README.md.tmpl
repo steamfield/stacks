@@ -1,0 +1,56 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this service does and who calls it. -->
+
+## Run it
+
+```bash
+make serve
+curl -s http://127.0.0.1:8080/healthz
+curl -s -H 'Content-Type: application/json' -d '{"title":"first"}' \
+  http://127.0.0.1:8080/notes.v1.NoteService/CreateNote
+```
+
+One port serves gRPC, gRPC-Web and the Connect protocol (JSON over plain HTTP).
+The server logs JSON to stdout and stops cleanly on Ctrl+C or SIGTERM.
+
+## API
+
+<!-- stacks:fill The services and methods (one line each on what they do), and who the clients are. -->
+
+The contract is [proto/](proto/); [docs/rpc-api.md](docs/rpc-api.md) covers
+protocols, error codes, health checks and reflection.
+
+## Configuration
+
+Settings come from environment variables only. See [docs/configuration.md](docs/configuration.md).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HOST` | `127.0.0.1` | Address to listen on (`0.0.0.0` in a container) |
+| `PORT` | `8080` | Port to listen on (`0` picks a free one) |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `SHUTDOWN_TIMEOUT` | `10s` | How long in-flight calls get after a stop signal |
+| `REFLECTION` | `true` | Serve gRPC server reflection |
+
+## Development
+
+Requires Go, make, a C compiler (for the race detector) and [golangci-lint](https://golangci-lint.run/). buf and the protoc plugins run through `go tool`.
+
+| Command | What it does |
+|---|---|
+| `make generate` | Regenerate `gen/` from `proto/` |
+| `make buf-lint` | Lint and format-check the `.proto` files |
+| `make breaking` | Check `proto/` for wire-breaking changes against `main` |
+| `make build` | Build `bin/server` |
+| `make serve` | Build and run the server in the foreground |
+| `make test` | Unit and loopback RPC tests with the race detector |
+| `make test-integration` | Run the built binary and call it over gRPC and Connect |
+| `make lint` | golangci-lint |
+| `make ci` | Everything CI runs |
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## License
+
+Copyright (c) {{year}} {{author}}

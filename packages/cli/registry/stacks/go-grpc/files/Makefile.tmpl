@@ -1,0 +1,110 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes, but keep the target names.
+# `stacks verify` calls install, generate-check, buf-lint, fmt-check, vet, lint, build, tidy-check,
+# test, test-integration and serve, and CI should call the same targets (golangci-lint's own
+# action is the one exception). buf, protoc-gen-go and protoc-gen-connect-go are `go tool`
+# dependencies in go.mod, so `go tool buf` needs no separate install.
+
+BIN      := server
+PKG      := ./cmd/$(BIN)
+MODULE   := $(shell go list -m 2>/dev/null)
+VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS  := -s -w -X main.version=$(VERSION)
+COVERAGE_MIN ?= 60
+# buf breaking compares proto/ with this input; CI passes the pull request's base.
+BREAKING_AGAINST ?= .git\#branch=main
+
+# Dev tools installed with `go install` land here; it may not be on PATH.
+GOBIN_DIR := $(shell go env GOBIN)
+ifeq ($(strip $(GOBIN_DIR)),)
+GOBIN_DIR := $(shell go env GOPATH | cut -d: -f1)/bin
+endif
+GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo $(GOBIN_DIR)/golangci-lint)
+GOIMPORTS     := $(shell command -v goimports 2>/dev/null || echo $(GOBIN_DIR)/goimports)
+# Hand-written Go only; gen/ is formatted by its generators.
+GO_DIRS       := cmd internal tests
+
+.DEFAULT_GOAL := help
+.PHONY: help install generate generate-check buf-lint breaking build serve vet lint lint-fix fmt fmt-check tidy-check test test-integration coverage vuln ci clean
+
+# Fails when golangci-lint is missing; warns when it differs from .golangci-lint-version.
+define require_golangci_lint
+@[ -x "$(GOLANGCI_LINT)" ] || { echo "golangci-lint not found. Install it: https://golangci-lint.run/welcome/install/"; exit 1; }
+@if [ -f .golangci-lint-version ]; then want="$$(sed 's/^v//' .golangci-lint-version | tr -d '[:space:]')"; \
+	"$(GOLANGCI_LINT)" --version | grep -q "$$want" || echo "warning: golangci-lint differs from .golangci-lint-version ($$want); CI uses that version" >&2; fi
+endef
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+install: ## Download modules and install dev tools that are missing
+	go mod download
+	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+
+generate: ## Regenerate gen/ from proto/ (buf generate with the go tool plugins)
+	go tool buf generate
+
+generate-check: ## Fail if gen/ differs from what proto/ generates
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	go tool buf generate -o "$$tmp" || exit $$?; \
+	diff -r gen "$$tmp/gen" || { echo "gen/ is stale or was edited by hand. Run: make generate"; exit 1; }
+
+buf-lint: ## Lint proto/ (buf lint) and fail if buf format would change it
+	go tool buf lint
+	go tool buf format --diff --exit-code
+
+breaking: ## Fail on wire-breaking proto changes against BREAKING_AGAINST (default: main)
+	go tool buf breaking --against '$(BREAKING_AGAINST)'
+
+build: ## Build bin/server with version info
+	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
+
+# exec replaces the shell, so SIGINT and SIGTERM reach the server directly.
+serve: build ## Build, then run the server in the foreground until SIGINT or SIGTERM
+	exec ./bin/$(BIN)
+
+vet: ## Type-check every package, including tagged integration tests (go vet)
+	go vet -tags integration ./...
+
+lint: ## Run golangci-lint
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run
+
+lint-fix: ## Run golangci-lint with --fix
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run --fix
+
+fmt: ## Format Go code and proto files
+	gofmt -w $(GO_DIRS)
+	"$(GOIMPORTS)" -local "$(MODULE)" -w $(GO_DIRS)
+	go tool buf format -w
+
+fmt-check: ## Fail if gofmt or goimports would change any hand-written Go file
+	@out="$$(gofmt -l $(GO_DIRS))" || exit $$?; imports="$$("$(GOIMPORTS)" -local "$(MODULE)" -l $(GO_DIRS))" || exit $$?; \
+	if [ -n "$$out$$imports" ]; then echo "Unformatted files:"; printf '%s\n%s\n' "$$out" "$$imports" | sort -u; exit 1; fi
+
+tidy-check: ## Fail if go mod tidy would change go.mod or go.sum
+	@go mod tidy -diff || { echo "go.mod or go.sum is out of date. Run: go mod tidy"; exit 1; }
+
+test: ## Unit and loopback RPC tests with the race detector
+	go test -race ./...
+
+test-integration: ## Build the binary, run it on a free port, call it over gRPC and Connect, stop it with signals
+	@find tests/integration -type f -name '*_test.go' -exec grep -l '^func Test' {} \; | grep -q . || { echo "test-integration: no tests under tests/integration"; exit 1; }
+	go test -race -tags integration ./tests/integration/...
+
+coverage: ## Race-enabled tests with a coverage floor over hand-written packages
+	go test -race -covermode=atomic -coverprofile=coverage.out -coverpkg="$$(go list ./... | grep -v '/gen/' | paste -sd, -)" ./...
+	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
+	echo "Total coverage: $$total% (minimum $(COVERAGE_MIN)%)"; \
+	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) }' || { echo "Coverage below $(COVERAGE_MIN)%"; exit 1; }
+
+vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+ci: generate-check buf-lint fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs (breaking runs separately on pull requests)
+
+clean: ## Remove build and coverage output
+	rm -rf bin/ coverage.out coverage.html

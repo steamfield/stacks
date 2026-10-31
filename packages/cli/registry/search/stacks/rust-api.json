@@ -20,7 +20,9 @@
     {
       "title": "Webhook receiver in a container",
       "description": "Illustrative: accept JSON callbacks from a payment provider, validate them and log each request. Signature checks are custom work; docker-deploy builds and publishes the image.",
-      "withFragments": ["docker-deploy"]
+      "withFragments": [
+        "docker-deploy"
+      ]
     }
   ],
   "plain": {
@@ -35,9 +37,15 @@
       "Pages and screens for people to click through; use a web app stack for those."
     ]
   },
-  "platforms": ["server"],
-  "productKinds": ["api"],
-  "languages": ["rust"],
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "rust"
+  ],
   "requests": [
     "build a REST API in Rust with axum",
     "a JSON web service in Rust on tokio",
@@ -45,9 +53,28 @@
     "fast Rust microservice with request ids and structured logs",
     "replace a slow Node backend with a Rust HTTP server"
   ],
-  "useCases": ["REST services", "internal HTTP services", "JSON backends"],
-  "synonyms": ["axum", "tokio", "tower-http", "web service", "HTTP server", "microservice", "Actix alternative", "Rocket alternative"],
-  "goodFor": ["one error envelope", "graceful shutdown", "router tests in process"],
+  "useCases": [
+    "REST services",
+    "internal HTTP services",
+    "JSON backends"
+  ],
+  "synonyms": [
+    "axum",
+    "tokio",
+    "tower-http",
+    "web service",
+    "HTTP server",
+    "microservice",
+    "Actix alternative",
+    "Rocket alternative"
+  ],
+  "goodFor": [
+    "one error envelope",
+    "graceful shutdown",
+    "router tests in process"
+  ],
   "notFor": [],
-  "caveats": ["The first build compiles the whole dependency tree, which takes a minute or more."]
+  "caveats": [
+    "The first build compiles the whole dependency tree, which takes a minute or more."
+  ]
 }

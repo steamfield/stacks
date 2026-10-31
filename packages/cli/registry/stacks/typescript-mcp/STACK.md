@@ -43,7 +43,7 @@ commands:
 
 # TypeScript MCP server with Effect
 
-A stdio MCP server launched by an agent client as a subprocess, with typed tools and one resource. The proving slice is a `ping` tool, an `echo` tool that takes a string and returns it with its length, and one markdown resource. Build that slice through the real transport before extending it. There is no model provider, chat loop, HTTP listener or dashboard.
+A stdio MCP server launched by an agent client as a subprocess, with typed tools and one resource. The proving slice is a `server_info` tool, an `echo` tool that takes a string and returns it with its length, and one markdown resource. Build that slice through the real transport before extending it. There is no model provider, chat loop, HTTP listener or dashboard.
 
 ## Layout
 
@@ -58,7 +58,7 @@ Tests live in `tests/`; transport checks in `e2e/` run against `dist/server.js`.
 ## Setup
 
 1. Create package metadata with `"type": "module"`, a release `version`, and a `bin` entry mapping the project slug to `dist/server.js`. Record current Node LTS in `.node-version` and `engines.node`, and the build's Bun version in `.bun-version` and `packageManager`.
-2. Install compatible Effect and Node platform packages together, checking peer ranges. Read the installed exports and declarations for MCP transport, client, protocol adapters, tools, handlers, resource registration, annotations and result encoding. Record the discovered imports and API shapes under AGENTS.md's Build workarounds, with removal conditions for actual workarounds. Do not copy unstable API snippets from another release.
+2. Install compatible Effect and Node platform packages together, checking peer ranges. Because the build bundles them, add them as `devDependencies`; `files` ships only `dist/`, and `dependencies` holds only a program the server wraps. Read the installed exports and declarations for MCP transport, client, protocol adapters, tools, handlers, resource registration, annotations and result encoding. Record the discovered imports and API shapes under AGENTS.md's Build workarounds, with removal conditions for actual workarounds. Do not copy unstable API snippets from another release.
 3. Generate strict TypeScript config from current compiler help: unchecked index access, verbatim modules and no emit. Include source, tests, e2e and shipped hook helpers.
 4. Generate Biome config for the installed release: recommended checks, organized imports, two spaces, double quotes and width 100. Load the shipped `biome-plugins/boundaries.grit` through its plugins setting. Check Grit syntax against installed Biome, preserving every rule when adapting it. Under `src/`, it rejects `console.*`, `process.stdout`, `process.exit`, and `process.env` outside `src/config.ts`. Confirm lint checks real files and rejects a deliberate violation.
 5. Wire scripts: `build` bundles `src/server.ts` as Node ESM with a shebang into `dist/server.js`; `dev` runs source through Bun; `lint`, `typecheck`, `test` (Vitest on Node, excluding e2e), `coverage`, `e2e` (build then transport checks), `check` (lint, typecheck, test, e2e), and `clean` (generated output only). Bun bundles JavaScript; Node runs the deliverable.
@@ -72,17 +72,17 @@ Stdout contains only newline-delimited JSON-RPC messages. Use Effect's logger co
 
 Inject the version from `package.json` at build time and use it as `serverInfo.version`. Set `instructions` to short guidance on using this server's tools and resource. Check the installed declarations for both metadata options.
 
-Support the two selected revisions through the library's adapters. Follow each revision's lifecycle: modern requests carry version and capabilities in metadata and servers implement `server/discover`; legacy clients use `initialize`. Read the [current versioning specification](https://modelcontextprotocol.io/specification/latest/basic/lifecycle) and installed declarations rather than assuming both use a handshake.
+Support the two selected revisions through the library's adapters. Follow each revision's lifecycle: modern requests carry version and capabilities in metadata and servers implement `server/discover`; legacy clients use `initialize`. Read the [lifecycle specification](https://modelcontextprotocol.io/specification/latest/basic/lifecycle) and installed declarations rather than assuming both use a handshake.
 
 ## Tools
 
 Give each tool a descriptive snake_case name, human-readable title, description, parameter schema and success schema. Set all four annotations truthfully: `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. For both slice tools these are respectively true, false, true, false. Inspect the installed annotation API instead of accepting defaults.
 
-`ping` takes an empty parameter object and returns a typed object confirming liveness. `echo` requires one string and returns it with its length; count Unicode code points for both the length and limit. Above 1,000 characters it fails with `EchoTooLong`. Declare that failure and map it to a tool result.
+`server_info` takes an empty parameter object and returns the server's name and version; liveness is the protocol's own `ping` request, so don't add a tool for it. `echo` requires one string and returns it with its length; count Unicode code points for both the length and limit. Above 1,000 code points it fails with `EchoTooLong`. Declare that failure and map it to a tool result.
 
 Close every parameter object: unknown keys are rejected and the emitted `inputSchema` has `additionalProperties: false`. Check both the JSON Schema conversion and runtime decoder in the installed library; a struct alone may silently strip keys. Input validation failures are tool execution errors: return `isError: true` with text naming the problem, including an offending unknown key. Inspect the default error path and adapt the tool-call boundary if it emits a protocol error instead.
 
-A tool error's first text block starts with one sentence saying what went wrong, followed by the next step the model should take. For `EchoTooLong`, tell it to shorten the input to at most 1,000 characters. Keep defects scrubbed. Do not assume the library's default failure encoding produces actionable text.
+A tool error's first text block starts with one sentence saying what went wrong, followed by the next step the model should take. For `EchoTooLong`, tell it to shorten the input to at most 1,000 code points. Keep defects scrubbed. Do not assume the library's default failure encoding produces actionable text.
 
 Successful results carry `structuredContent` conforming to the success schema plus a text block containing its serialized JSON, as the [tools specification recommends for compatibility](https://modelcontextprotocol.io/specification/latest/server/tools#structured-content). Additional readable text is optional. Inspect result customization in installed declarations and assert the wire output.
 
@@ -104,7 +104,7 @@ E2e builds first and spawns `node` with the absolute built-server path, using te
 
 Exercise both supported revisions in separate connections through the installed library's client. Use discovery with per-request metadata for modern revisions and initialization for legacy ones. Assert the actual revision used so losing an adapter fails the test. Check server version against package metadata and check instructions.
 
-Assert `tools/list` has exactly `ping` and `echo`, their titles, all four hints and closed input schemas. Call both tools, decode structured results and compare the serialized JSON text. Test echo at 1,000 characters and failure at 1,001; test missing input, wrong types and unknown keys for `isError: true` with problem and next step. Include non-ASCII input to check character counting. List the resource and read its expected bytes.
+Assert `tools/list` has exactly `server_info` and `echo`, their titles, all four hints and closed input schemas. Call both tools, decode structured results and compare the serialized JSON text; `server_info`'s version matches package metadata. Test echo at 1,000 code points and failure at 1,001; test missing input, wrong types and unknown keys for `isError: true` with problem and next step. Include non-ASCII input to check character counting. List the resource and read its expected bytes.
 
 Add one cross-implementation e2e through the official TypeScript MCP SDK client or Inspector CLI, choosing a compatible current version as a development dependency. Check `initialize` on a supported legacy revision, `tools/list` and one `tools/call`. Discover the current client API and revision selection in installed declarations; a modern-only check cannot prove legacy initialization.
 

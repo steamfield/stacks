@@ -80,7 +80,7 @@ tasks:
   # where it helps: bench.test.ts is latency-bound (its own maxConcurrency) and as long as the rest
   # of the suite together, so the two run side by side on the fast hosts.
   check:
-    description: The full gate (lint, typecheck, root and CLI tests, e2e), partitioned across hosts
+    description: The full gate (lint, typecheck, root, CLI and MCP tests, e2e), partitioned across hosts
     setup: bun install --frozen-lockfile
     parallel:
       [check-bench, check-cli, check-e2e, check-format, check-hooks, check-mcp, check-static]

@@ -1218,7 +1218,7 @@
       ]
     },
     {
-      "id": "product-mcp-tools-jsonrpc",
+      "id": "product-mcp-agent-typed-tools",
       "pool": "product",
       "split": "holdout",
       "query": "give a coding agent typed tools over the Model Context Protocol",

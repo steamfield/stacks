@@ -1,6 +1,12 @@
 # Phase 4.3: MCP server
 
-Status: DRAFT 2026-10-27 — rewritten for execution. The maintainers waived the evidence gate
+Status: executed 2026-10-31 (PR #7), with two decisions reversed in review. D-c: the server
+resolves the CLI through the `@steamfield/stacks` dependency's `bin` (or `STACKS_MCP_CLI`) and
+never runs source. D-d: `@steamfield/stacks-mcp` is published, third in `bun run release`. The
+CLI now has `show`. `packages/mcp/README.md` and AGENTS.md describe what shipped; the rest of
+this file is the plan as written.
+
+Original status: DRAFT 2026-10-27 — rewritten for execution. The maintainers waived the evidence gate
 (open question 15): the server is being built so it can be tried, and the trial is the evidence.
 Two parts, each independently done. Four decisions are listed in "Decisions this plan makes";
 each has the recommended default this plan is written to, and each is one word to override.
@@ -30,19 +36,19 @@ Verified against the checkout on 2026-10-27 before rewriting. Each row changed t
 
 ## Decisions this plan makes
 
-Recommended defaults; override any of them before Part 1 starts. D-a, D-c and D-d were confirmed by Eric
+Recommended defaults; override any of them before Part 1 starts. D-a, D-c and D-d were confirmed by the maintainers
 on 2026-10-27; D-b was already in force and is unchanged.
 
 | | Decision | Recommended | Why |
 |---|---|---|---|
-| D-a | Which tools ship in the MVP | Three: `stacks_list`, `stacks_new`, `stacks_verify`, plus the brief resource. `stacks_show` lands when 3.1a does. Interrogation beyond that (registry stats, package versions for a chosen stack) and the logging/telemetry conventions are follow-ups, not MVP | Every tool is a wrapper around a command that exists. A stub that always errors teaches an agent to stop trying. Confirmed by Eric 2026-10-27: "at least those items" |
+| D-a | Which tools ship in the MVP | Three: `stacks_list`, `stacks_new`, `stacks_verify`, plus the brief resource. `stacks_show` lands when 3.1a does. Interrogation beyond that (registry stats, package versions for a chosen stack) and the logging/telemetry conventions are follow-ups, not MVP | Every tool is a wrapper around a command that exists. A stub that always errors teaches an agent to stop trying. Confirmed by the maintainers 2026-10-27: "at least those items" |
 | D-b | Where the stack is dogfooded | In place: `packages/mcp` is scaffolded by `new typescript-mcp packages/mcp` (after `--without git-hooks`, see the trap below), and `stacks verify` inside `packages/mcp` is the package's own gate beside the root fan-out | The point of the exercise is to be the tool's user. A separate throwaway project proves less and drifts |
-| D-c | Whether the CLI package changes | **No** — no `bin` or `exports` entries for MCP in this phase. The resolver drops to two working steps: `STACKS_MCP_CLI`, then the monorepo sibling `../cli/src/bin.ts`. The dependency-`bin` step waits for 1.6c | Confirmed by Eric 2026-10-27: no export touches for MCP-specific items. The server instantiates a stack from the template and hands off; it is not a consumer of a published package, so the distribution path can wait for the distribution |
-| D-d | How far this plan goes | Local and CI-green: `bun run check` at the root, `stacks verify` green in `packages/mcp`, one real client registered against the built server, run note in `plans/runs/` | 0.2 and 1.6c own publishing. Nothing here needs npm. Confirmed by Eric 2026-10-27: no publish, that is a release step |
+| D-c | Whether the CLI package changes | **No** — no `bin` or `exports` entries for MCP in this phase. The resolver drops to two working steps: `STACKS_MCP_CLI`, then the monorepo sibling `../cli/src/bin.ts`. The dependency-`bin` step waits for 1.6c | Confirmed by the maintainers 2026-10-27: no export touches for MCP-specific items. The server instantiates a stack from the template and hands off; it is not a consumer of a published package, so the distribution path can wait for the distribution |
+| D-d | How far this plan goes | Local and CI-green: `bun run check` at the root, `stacks verify` green in `packages/mcp`, one real client registered against the built server, run note in `plans/runs/` | 0.2 and 1.6c own publishing. Nothing here needs npm. Confirmed by the maintainers 2026-10-27: no publish, that is a release step |
 
 ### Follow-ups beyond this phase
 
-Two directions raised by Eric (2026-10-27) that belong after the MVP, not in it:
+Two directions raised by the maintainers (2026-10-27) that belong after the MVP, not in it:
 
 1. **Give agents the full manual, not just the brief.** Today the server serves one markdown resource
    (the composed brief). The durable shape is *skills over MCP*: SEP-2640 is Final, the extension id is

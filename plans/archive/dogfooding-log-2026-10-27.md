@@ -208,7 +208,7 @@ the report.
 the brief.
 
 **Symptom:** exit 2, `ComposeConflict`, `details.reason: "needs_own_repo"`, `ids: ["ci-github",
-"git-hooks"]`, `path: "/Users/me/.hermes"`, `fix: ["--without ci-github", "--without git-hooks"]`.
+"git-hooks"]`, `path: "<home>/<project>"`, `fix: ["--without ci-github", "--without git-hooks"]`.
 The scratch directory was inside a git repository, so `new` found a parent repo and refused both
 fragments. `--sandbox` does not help: it keeps defaults.
 
@@ -638,7 +638,7 @@ true for an empty directory.
 
 **Symptom, second:** OpenCode, launched in a repository, refuses to *read* anything outside it —
 `permission requested: external_directory; auto-rejecting`. A stage plan that says "read the scaffold at
-/Users/me/..." therefore produces a coder that lists its todos and stops, having done nothing, and exits
+<home>/..." therefore produces a coder that lists its todos and stops, having done nothing, and exits
 0.
 
 **Cause:** both are correct policies enforced without a way to make progress from inside them. The
@@ -789,7 +789,7 @@ that succeeds, not one test that proves the tools exist.
 **Attempted:** build the project scaffolded from the stack at `quickstacks-projects/served1/app2`.
 
 **Symptom:** run one wrote `package.json`, installed dependencies, wrote `docs/harness.md`, then died
-on `external_directory` for a path it invented (`/Users/me/quickstacks-paths/...`). Run two, a
+on `external_directory` for a path it invented (`<home>/<invented directory>/...`). Run two, a
 continuation scoped to the missing files, exited 0 having only printed `node -v`, `bun -v` and
 `git log`. The project still has no `src/`, and `verify` reports eight failing steps.
 

@@ -28,7 +28,7 @@ function brief(stack: string): Promise<string> {
 test("go-cli gives a module path to fall back on instead of stopping to ask for an owner", async () => {
   const text = await brief("go-cli");
   expect(text).not.toContain("Ask if neither exists");
-  expect(text).toMatch(/If neither exists, use the bare `<project-slug>`/);
+  expect(text).toMatch(/If neither exists, keep the bare `<project-slug>`/);
 });
 
 test("astro-blog names a create-astro command whose --yes reaches create-astro", async () => {
@@ -74,10 +74,10 @@ test("astro-blog lists Testing Library's dom peer and the test types tsconfig ne
   expect(text).toMatch(/tsconfig\.json[^\n]*`vitest\/globals`[^\n]*`@testing-library\/jest-dom`/);
 });
 
-test("go-cli's main passes the version variables to cli.Execute itself", async () => {
-  const text = await brief("go-cli");
-  expect(text).not.toContain("calls `cli.Execute()`");
-  expect(text).toContain("`cli.Execute(version, commit, date)`");
+test("go-cli's main passes the version variables to cli.Execute itself", () => {
+  // The stack ships main.go, so the call the agent once got wrong is now in the file itself.
+  const main = readFileSync(join(bundled, "stacks/go-cli/files/main.go.tmpl"), "utf8");
+  expect(main).toContain("cli.Execute(version, commit, date)");
 });
 
 test("python-react's error envelope follows the wire casing", async () => {

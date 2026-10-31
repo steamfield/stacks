@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
@@ -60,47 +60,8 @@ test("the API tooling tests compile separately from NodeNext application tests",
     join(result.project, "node_modules"),
     "dir",
   );
-  writeFileSync(join(result.project, "package.json"), JSON.stringify({ type: "module" }));
-  mkdirSync(join(result.project, "src"));
-  writeFileSync(join(result.project, "src/health.ts"), "export const healthy = true;\n");
-  const strict = {
-    target: "ES2023",
-    lib: ["ES2023"],
-    strict: true,
-    noUncheckedIndexedAccess: true,
-    verbatimModuleSyntax: true,
-    erasableSyntaxOnly: true,
-    skipLibCheck: true,
-    noEmit: true,
-  };
-  for (const [name, config] of Object.entries({
-    app: {
-      compilerOptions: {
-        ...strict,
-        module: "NodeNext",
-        moduleResolution: "NodeNext",
-        types: ["node"],
-      },
-      include: ["src/**/*.ts", "tests/**/*.ts"],
-      exclude: ["tests/hooks", "tests/helpers/hooks.ts"],
-    },
-    tools: {
-      compilerOptions: {
-        ...strict,
-        module: "ESNext",
-        moduleResolution: "bundler",
-        types: ["node", "bun"],
-      },
-      include: [
-        "scripts/**/*.ts",
-        ".claude/hooks/*.ts",
-        "tests/hooks/**/*.ts",
-        "tests/helpers/hooks.ts",
-      ],
-    },
-  })) {
-    const configFile = join(result.project, `tsconfig.${name}.json`);
-    writeFileSync(configFile, JSON.stringify(config));
+  // The stack ships both projects; the application one also covers the shipped src/ and tests/.
+  for (const configFile of ["tsconfig.json", "tsconfig.tools.json"]) {
     const checked = spawnSync(join(result.project, "node_modules/.bin/tsc"), ["-p", configFile], {
       cwd: result.project,
       encoding: "utf8",

@@ -50,7 +50,7 @@ export const versions = [
   "## Versions",
   "",
   "- Nothing here pins a version, on purpose. Let the package manager resolve the latest stable versions that work together; don't pin from memory.",
-  "- Prefer each tool's official generator or init command over writing its files by hand, unless stacks already wrote them.",
+  "- Prefer each tool's official generator or init command over writing its files by hand.",
   "- Check current docs, `--help` and the installed types before writing config or calling an API; flags and config keys change between releases.",
 ];
 
@@ -68,7 +68,7 @@ export const ground = {
     return "- git isn't installed, so there is no repository. Skip generators' git setup and all commits.";
   },
   written:
-    "- Files stacks wrote are starting points: adapt them, don't delete them. If one fails against the versions you installed, update it; never pin older versions.",
+    "- Files stacks wrote are starting points: adapt them, don't delete them. Update any that fail against what you installed; never pin older versions.",
   agentsMd: "- Keep `AGENTS.md` accurate: real commands, implemented behavior.",
   notes: [
     `- Keep \`${NOTES_PATH}\` here as you work; git worktrees lack it and the brief (both git-ignored):`,

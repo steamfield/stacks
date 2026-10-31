@@ -1,0 +1,97 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes, but keep the target names.
+# `stacks verify` calls install, fmt-check, vet, lint, build, tidy-check, test, test-integration
+# and smoke, and CI should call the same targets (golangci-lint's own action is the one exception).
+# The server talks MCP on stdin and stdout, so run it through a client: make call, or an MCP host.
+
+BIN      := {{project_slug}}
+PKG      := .
+MODULE   := $(shell go list -m 2>/dev/null)
+VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS  := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+COVERAGE_MIN ?= 80
+# make call TOOL=convert_units ARGS='{"value": 5, "from": "km", "to": "mi"}'; no TOOL lists them.
+TOOL ?=
+ARGS ?= {}
+
+# Dev tools installed with `go install` land here; it may not be on PATH.
+GOBIN_DIR := $(shell go env GOBIN)
+ifeq ($(strip $(GOBIN_DIR)),)
+GOBIN_DIR := $(shell go env GOPATH | cut -d: -f1)/bin
+endif
+GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo $(GOBIN_DIR)/golangci-lint)
+GOIMPORTS     := $(shell command -v goimports 2>/dev/null || echo $(GOBIN_DIR)/goimports)
+
+.DEFAULT_GOAL := help
+.PHONY: help install build vet lint lint-fix fmt fmt-check tidy-check test test-integration coverage vuln smoke call ci clean
+
+# Fails when golangci-lint is missing; warns when it differs from .golangci-lint-version.
+define require_golangci_lint
+@[ -x "$(GOLANGCI_LINT)" ] || { echo "golangci-lint not found. Install it: https://golangci-lint.run/welcome/install/"; exit 1; }
+@if [ -f .golangci-lint-version ]; then want="$$(sed 's/^v//' .golangci-lint-version | tr -d '[:space:]')"; \
+	"$(GOLANGCI_LINT)" --version | grep -q "$$want" || echo "warning: golangci-lint differs from .golangci-lint-version ($$want); CI uses that version" >&2; fi
+endef
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+install: ## Download modules and install dev tools that are missing
+	go mod download
+	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+
+build: ## Build the server into bin/ with version info
+	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
+
+vet: ## Type-check every package, including tagged integration tests (go vet)
+	go vet -tags integration ./...
+
+lint: ## Run golangci-lint (forbidigo keeps prints off stdout)
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run
+
+lint-fix: ## Run golangci-lint with --fix
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run --fix
+
+fmt: ## Format code
+	gofmt -w .
+	"$(GOIMPORTS)" -local "$(MODULE)" -w .
+
+fmt-check: ## Fail if gofmt or goimports would change any file
+	@out="$$(gofmt -l .)" || exit $$?; imports="$$("$(GOIMPORTS)" -local "$(MODULE)" -l .)" || exit $$?; \
+	if [ -n "$$out$$imports" ]; then echo "Unformatted files:"; printf '%s\n%s\n' "$$out" "$$imports" | sort -u; exit 1; fi
+
+tidy-check: ## Fail if go mod tidy would change go.mod or go.sum
+	@go mod tidy -diff || { echo "go.mod or go.sum is out of date. Run: go mod tidy"; exit 1; }
+
+test: ## Unit and in-memory protocol tests with the race detector
+	go test -race ./...
+
+test-integration: ## Build the server and drive it over stdio as a host would (tools, errors, stdout, exit)
+	@find tests/integration -type f -name '*_test.go' -exec grep -l '^func Test' {} \; | grep -q . || { echo "test-integration: no tests under tests/integration"; exit 1; }
+	go test -race -tags integration ./tests/integration/...
+
+coverage: ## Race-enabled tests with a coverage floor (cmd/mcpcall is a dev client and not counted)
+	go test -race -covermode=atomic -coverprofile=coverage.out -coverpkg="$$(go list ./... | grep -v '/cmd/' | paste -sd, -)" ./...
+	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
+	echo "Total coverage: $$total% (minimum $(COVERAGE_MIN)%)"; \
+	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) }' || { echo "Coverage below $(COVERAGE_MIN)%"; exit 1; }
+
+vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+smoke: build ## Run --version, then start bin/ over stdio and list its tools
+	./bin/$(BIN) --version
+	go run ./cmd/mcpcall ./bin/$(BIN)
+
+call: build ## List the tools, or call TOOL with ARGS (JSON), over stdio
+	go run ./cmd/mcpcall $(if $(TOOL),-call '$(TOOL)' -args '$(ARGS)') ./bin/$(BIN)
+
+ci: fmt-check tidy-check lint coverage test-integration vuln build smoke ## Everything CI runs
+
+clean: ## Remove build and coverage output
+	rm -rf bin/ dist/ coverage.out coverage.html

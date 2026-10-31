@@ -1,0 +1,58 @@
+package convert
+
+import (
+	"math"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestConvert(t *testing.T) {
+	tests := []struct {
+		value    float64
+		from, to string
+		want     float64
+	}{
+		{value: 1, from: "km", to: "m", want: 1000},
+		{value: 1, from: "mi", to: "km", want: 1.609344},
+		{value: 12, from: "in", to: "ft", want: 1},
+		{value: 3, from: "ft", to: "yd", want: 1},
+		{value: 1, from: "lb", to: "oz", want: 16},
+		{value: 2.5, from: "KG", to: " g ", want: 2500},
+		{value: -4, from: "cm", to: "mm", want: -40},
+		{value: 0, from: "kg", to: "lb", want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.from+"->"+tt.to, func(t *testing.T) {
+			got, err := Convert(tt.value, tt.from, tt.to)
+			require.NoError(t, err)
+			assert.InDelta(t, tt.want, got, 1e-9)
+		})
+	}
+}
+
+func TestConvertRejects(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    float64
+		from, to string
+		message  string
+	}{
+		{name: "unknown source", value: 1, from: "furlong", to: "m", message: `unknown unit "furlong"; use one of cm, ft, g, in, kg, km, lb, m, mi, mm, oz, yd`},
+		{name: "unknown target", value: 1, from: "m", to: "parsec", message: `unknown unit "parsec"`},
+		{name: "different kinds", value: 1, from: "kg", to: "m", message: "cannot convert kg (mass) to m (length)"},
+		{name: "not finite", value: math.Inf(1), from: "m", to: "km", message: "finite"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Convert(tt.value, tt.from, tt.to)
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, apperrors.InvalidInput, failure.Code)
+			assert.Contains(t, failure.Message, tt.message)
+		})
+	}
+}

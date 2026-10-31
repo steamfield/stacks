@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make vet)",
+      "Bash(make lint)",
+      "Bash(make lint-fix)",
+      "Bash(make fmt)",
+      "Bash(make fmt-check)",
+      "Bash(make tidy-check)",
+      "Bash(make test)",
+      "Bash(make test-integration)",
+      "Bash(make coverage)",
+      "Bash(make build)",
+      "Bash(make smoke)",
+      "Bash(make call)",
+      "Bash(make call *)",
+      "Bash(make vuln)",
+      "Bash(make ci)",
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go build *)",
+      "Bash(go list *)",
+      "Bash(go run ./cmd/mcpcall *)",
+      "Bash(golangci-lint run *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-mcp.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

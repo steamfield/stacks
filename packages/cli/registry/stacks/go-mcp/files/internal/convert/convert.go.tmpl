@@ -1,0 +1,73 @@
+// Package convert is the proving payload's domain: unit conversion with no
+// I/O. It knows nothing about MCP; internal/server adapts it into a tool.
+package convert
+
+import (
+	"fmt"
+	"math"
+	"slices"
+	"strings"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type unit struct {
+	kind string
+	// perBase is how many of this unit make one metre or one kilogram.
+	perBase float64
+}
+
+var units = map[string]unit{
+	"mm": {kind: "length", perBase: 1000},
+	"cm": {kind: "length", perBase: 100},
+	"m":  {kind: "length", perBase: 1},
+	"km": {kind: "length", perBase: 0.001},
+	"in": {kind: "length", perBase: 1 / 0.0254},
+	"ft": {kind: "length", perBase: 1 / 0.3048},
+	"yd": {kind: "length", perBase: 1 / 0.9144},
+	"mi": {kind: "length", perBase: 1 / 1609.344},
+	"g":  {kind: "mass", perBase: 1000},
+	"kg": {kind: "mass", perBase: 1},
+	"oz": {kind: "mass", perBase: 1 / 0.028349523125},
+	"lb": {kind: "mass", perBase: 1 / 0.45359237},
+}
+
+// Units lists the unit symbols Convert accepts, sorted.
+func Units() []string {
+	names := make([]string, 0, len(units))
+	for name := range units {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+func lookup(symbol string) (unit, error) {
+	u, ok := units[strings.ToLower(strings.TrimSpace(symbol))]
+	if !ok {
+		return unit{}, apperrors.New(apperrors.InvalidInput,
+			fmt.Sprintf("unknown unit %q; use one of %s", symbol, strings.Join(Units(), ", ")))
+	}
+	return u, nil
+}
+
+// Convert returns value, given in from, expressed in to. Errors are
+// InvalidInput with a message written for the caller (here, a model) to act on.
+func Convert(value float64, from, to string) (float64, error) {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, apperrors.New(apperrors.InvalidInput, "value must be a finite number")
+	}
+	source, err := lookup(from)
+	if err != nil {
+		return 0, err
+	}
+	target, err := lookup(to)
+	if err != nil {
+		return 0, err
+	}
+	if source.kind != target.kind {
+		return 0, apperrors.New(apperrors.InvalidInput,
+			fmt.Sprintf("cannot convert %s (%s) to %s (%s); both units must measure the same thing", from, source.kind, to, target.kind))
+	}
+	return value / source.perBase * target.perBase, nil
+}

@@ -1,0 +1,72 @@
+package config
+
+import (
+	"log/slog"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func env(values map[string]string) func(string) string {
+	return func(key string) string { return values[key] }
+}
+
+func TestLoadPrecedence(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		env   map[string]string
+		level slog.Level
+	}{
+		{name: "default", level: slog.LevelInfo},
+		{name: "blank env keeps the default", env: map[string]string{EnvPrefix + "_LOG_LEVEL": " "}, level: slog.LevelInfo},
+		{name: "env", env: map[string]string{EnvPrefix + "_LOG_LEVEL": "debug"}, level: slog.LevelDebug},
+		{name: "flag over env", args: []string{"--log-level", "error"}, env: map[string]string{EnvPrefix + "_LOG_LEVEL": "debug"}, level: slog.LevelError},
+		{name: "case-insensitive", args: []string{"--log-level=WARN"}, level: slog.LevelWarn},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(tt.args, env(tt.env))
+			require.NoError(t, err)
+			assert.Equal(t, tt.level, cfg.LogLevel)
+		})
+	}
+}
+
+func TestLoadRejects(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		env  map[string]string
+		code string
+	}{
+		{name: "unknown flag", args: []string{"--nope"}, code: apperrors.InvalidInput},
+		{name: "argument", args: []string{"serve"}, code: apperrors.InvalidInput},
+		{name: "bad level flag", args: []string{"--log-level", "loud"}, code: apperrors.Config},
+		{name: "bad level env", env: map[string]string{EnvPrefix + "_LOG_LEVEL": "trace"}, code: apperrors.Config},
+		{name: "level between the named ones", args: []string{"--log-level", "INFO+2"}, code: apperrors.Config},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(tt.args, env(tt.env))
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, tt.code, failure.Code)
+		})
+	}
+}
+
+func TestHelpAndVersion(t *testing.T) {
+	cfg, err := Load([]string{"--help"}, env(nil))
+	require.NoError(t, err)
+	assert.True(t, cfg.Help)
+	cfg, err = Load([]string{"--version"}, env(nil))
+	require.NoError(t, err)
+	assert.True(t, cfg.Version)
+	usage := Usage(env(nil))
+	assert.Contains(t, usage, "Usage: "+Binary)
+	assert.Contains(t, usage, EnvPrefix+"_LOG_LEVEL")
+}

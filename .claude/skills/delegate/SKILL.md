@@ -82,7 +82,7 @@ faster than you could write the contract, or when you can't yet say what done lo
    tool so the lint, typecheck and boundary hooks see every change (none of them ran for
    Codex). Match the surrounding code's naming, comment density and idiom; cut abstractions,
    options and defensive branches the task didn't ask for; replace custom code with the
-   project's existing helpers and Effect idioms (`.claude/skills/effect/SKILL.md`); make tests
+   project's existing helpers and Effect idioms (`ce:effect`, `.claude/rules/cli/effect.md`); make tests
    assert behaviour through the real interfaces `AGENTS.md` "Testing" describes, with no mocks;
    check errors follow `AGENTS.md` "Error handling". Keep the diff surgical: anything Codex
    touched outside the task gets reverted.

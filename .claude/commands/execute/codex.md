@@ -36,8 +36,8 @@ git worktree add .claude/worktrees/<unit> -b delegate/<unit> feat/<name>
 Fill a contract from `.claude/skills/delegate/contract.md` in the scratchpad. Every contract:
 
 - carries the part of the design the unit implements (quoted, or the design file's path and its sections), and the directory or package in scope; Codex chooses internal structure;
-- names the repo rules that apply (rules/cli/*.md, rules/typescript.md, rules/architecture.md, `.claude/skills/effect/SKILL.md`), since Codex reads only AGENTS.md on its own;
-- keeps the template's "Skills to apply" (Codex finds `ce:writing-tests` and `ce:architecting-systems` in the plugin cache itself), "Review before hand-off" with `feat/<name>` as the base branch and the contract's own path filled in, and "Hand-off", unchanged.
+- names the repo rules that apply (rules/cli/*.md, rules/typescript.md, rules/architecture.md), since Codex reads only AGENTS.md on its own;
+- keeps the template's "Skills to apply" (`ce:writing-tests`, `ce:architecting-systems` and `ce:effect`, which Codex loads from the plugin cache), "Review before hand-off" with `feat/<name>` as the base branch and the contract's own path filled in, and "Hand-off", unchanged.
 
 Codex finishes a unit only after it has run one `code-reviewer` pass (`.claude/agents/code-reviewer.md`) on its own diff, in a fresh Codex process, and resolved every finding. You don't dispatch a reviewer for delegated work; that pass is the one rules/agent-ops.md allows.
 

@@ -33,7 +33,7 @@ from the right paths. Point at the existing tests and fixtures whose patterns to
 - `AGENTS.md` (already loaded): "Conventions", "Testing", "Error handling".
 - `.claude/rules/typescript.md` and `.claude/rules/architecture.md`.
 - `.claude/rules/cli/cli.md`, `.claude/rules/cli/effect.md`, `.claude/rules/cli/testing.md`
-  (especially "Process and gate" and "Realistic edge cases") and `.claude/skills/effect/SKILL.md`.
+  (especially "Process and gate" and "Realistic edge cases").
 - Existing tests whose patterns to follow: `packages/cli/tests/helpers/cli.ts` (`runCli`),
   `packages/cli/tests/new.test.ts`, `packages/cli/tests/verify.test.ts`,
   `packages/cli/tests/fixtures/`.
@@ -54,6 +54,9 @@ Read each skill and apply it to this task; your hand-off says where it changed w
 - `${ce}skills/architecting-systems/SKILL.md`, with its `references/structure.md`,
   `coupling.md` and `boundaries.md`: before deciding the shape of an interface the tests call.
   `.claude/rules/architecture.md` adds this repo's constraints on top.
+- `${ce}skills/effect/SKILL.md` (Codex also lists it as `ce:effect`), with its
+  `references/testing.md`: for Effect test mechanics (`it.effect`, TestClock, `Exit`). The rule
+  files above win where they differ.
 
 ## Your role: test author
 

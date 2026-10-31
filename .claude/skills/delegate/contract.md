@@ -12,8 +12,8 @@ implements, or give the design file's path and section, if there is one.}
 
 - `AGENTS.md` (already loaded): "Conventions", "Testing", "Error handling".
 - `.claude/rules/typescript.md` and `.claude/rules/architecture.md`.
-- For `packages/cli`: `.claude/rules/cli/cli.md`, `.claude/rules/cli/effect.md`,
-  `.claude/rules/cli/testing.md` and `.claude/skills/effect/SKILL.md`.
+- For `packages/cli`: `.claude/rules/cli/cli.md`, `.claude/rules/cli/effect.md` and
+  `.claude/rules/cli/testing.md`.
 - {The design section, and the existing files whose patterns to follow.}
 
 ## Skills to apply
@@ -32,6 +32,8 @@ Read each skill and apply it to this task; your hand-off says where it changed w
 - `${ce}skills/architecting-systems/SKILL.md`, with its `references/structure.md`,
   `coupling.md` and `boundaries.md`: before adding or changing a module, service, schema or
   contract. `.claude/rules/architecture.md` adds this repo's constraints on top.
+- `${ce}skills/effect/SKILL.md` (Codex also lists it as `ce:effect`) and the references it routes
+  to: for any Effect code. `.claude/rules/cli/effect.md` is this CLI's policy on top.
 
 ## Interface
 

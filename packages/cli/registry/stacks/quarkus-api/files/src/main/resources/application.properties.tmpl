@@ -1,0 +1,16 @@
+# Every setting an operator changes comes from the environment; docs/configuration.md lists them.
+quarkus.application.name={{project_slug}}
+quarkus.banner.enabled=false
+
+quarkus.http.host=${HOST:127.0.0.1}
+quarkus.http.port=${PORT:8080}
+# Tests (@QuarkusTest and @QuarkusIntegrationTest) take a free port, never PORT.
+quarkus.http.test-port=0
+quarkus.shutdown.timeout=${SHUTDOWN_TIMEOUT:10s}
+
+# Absent optional fields are omitted, never null; unknown request fields are rejected.
+quarkus.jackson.serialization-inclusion=non-null
+quarkus.jackson.fail-on-unknown-properties=true
+
+quarkus.log.level=${LOG_LEVEL:INFO}
+quarkus.log.console.json.log-format=ecs

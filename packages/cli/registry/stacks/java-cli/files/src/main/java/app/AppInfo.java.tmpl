@@ -1,0 +1,19 @@
+package app;
+
+/** The tool's name, which names its config paths and environment variables, and its version. */
+public final class AppInfo {
+
+    /** The command name, as `--help` prints it and the jar is named. */
+    public static final String NAME = "{{project_slug}}";
+
+    /** The prefix of every environment variable the tool reads ({@code <PREFIX>_GREETING}). */
+    public static final String ENV_PREFIX = "{{env_prefix}}";
+
+    private AppInfo() {}
+
+    /** {@code Implementation-Version} from the jar's manifest, or {@code dev} when run from classes. */
+    public static String version() {
+        String version = AppInfo.class.getPackage().getImplementationVersion();
+        return version == null ? "dev" : version;
+    }
+}

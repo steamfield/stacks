@@ -1,0 +1,18 @@
+# Configuration
+
+`{{project_slug}} config show` prints the effective configuration (`--json` for JSON). Precedence, lowest first: defaults, the home file, the project file, environment, then flags.
+
+The home file is `$XDG_CONFIG_HOME/{{project_slug}}/config.toml`, or `~/.config/{{project_slug}}/config.toml` when `XDG_CONFIG_HOME` is unset. The optional project file is `./{{project_slug}}.toml`; its keys override the home file's. `--config <path>` replaces both with that one file, which must exist. A default file that doesn't exist is skipped. An unknown key, a wrong type or a TOML syntax error fails with exit status 3.
+
+| TOML key | Default | Environment | Flag |
+| --- | --- | --- | --- |
+| `greeting` | `"Hello, world!"` | `{{env_prefix}}_GREETING` | none |
+| `json` | `false` | `{{env_prefix}}_JSON` | `--json` |
+| `verbose` | `false` | `{{env_prefix}}_VERBOSE` | `-v`, `--verbose` |
+| `no-color` | `false` | `{{env_prefix}}_NO_COLOR` | `--no-color` |
+
+`greeting` must contain non-whitespace text. Boolean variables accept `true`, `false`, `1` and `0`; anything else is an `INVALID_SETTING` error. Empty variables are ignored. Flags only turn a setting on: `--json` overrides `json = false` from a file or the environment.
+
+Logs go to stderr: `warn` and above, or `debug` with `verbose`. Under `--json` each log record is one JSON object per line.
+
+`NO_COLOR` (set and non-empty) or `no-color` turns off the colored error label, which is only used when a terminal is attached.

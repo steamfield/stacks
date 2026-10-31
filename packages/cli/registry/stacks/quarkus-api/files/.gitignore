@@ -1,0 +1,20 @@
+# Build output
+/target/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Quarkus CLI plugins and dev-mode certificates
+/.quarkus/
+.certs/
+
+# Editors and OS
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db

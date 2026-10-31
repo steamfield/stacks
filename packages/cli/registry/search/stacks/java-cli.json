@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "java-cli",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Java command-line program on picocli, built with Maven into one runnable jar with config files, exit codes and JSON output.",
+  "description": "Write a Java command-line program with picocli subcommands and Maven. Settings layer from defaults, a TOML file, environment variables and flags, and every failure maps to a fixed exit code with a suggested fix. Results print as text or one JSON document, logs go to stderr, and the build shades every dependency into one jar that runs with java -jar. The build formats code, catches nullness bugs at compile time, enforces a coverage floor and tests the packaged jar. One config command proves the wiring; the recipe adds no product commands, release pipeline or native binary.",
+  "seoDescription": "A Java CLI recipe on picocli and Maven: layered TOML config, exit codes with suggestions, text or JSON output, one runnable jar and tests against it.",
+  "projectExamples": [
+    {
+      "title": "Team deployment helper",
+      "description": "Illustrative: subcommands that read a shared TOML settings file and print JSON for scripts. Calls to real deployment systems are work the project still has to add."
+    },
+    {
+      "title": "Data file checker for a JVM team",
+      "description": "Illustrative: a command that checks files and exits with a distinct code per problem, run in CI with the jar. The checking rules are custom work."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a program written in Java that people run by typing commands in a terminal, with settings files and clear error messages.",
+    "goodAt": [
+      "Internal tools for teams that already work in Java",
+      "Commands that other scripts call and read JSON from",
+      "Shipping one file that runs anywhere Java is installed"
+    ],
+    "notGoodAt": [
+      "Instant start-up: each run starts a Java runtime first.",
+      "Graphical apps or full-screen terminal interfaces; use another stack."
+    ]
+  },
+  "platforms": [
+    "cli"
+  ],
+  "productKinds": [
+    "cli-tool"
+  ],
+  "languages": [
+    "java"
+  ],
+  "requests": [
+    "build a command-line tool in Java with picocli",
+    "a Java CLI with subcommands packaged as one runnable jar",
+    "JVM command line program with a TOML config file and JSON output",
+    "Java program where every failure has an exit code and a suggested fix",
+    "terminal command for my team written in Java and built with Maven"
+  ],
+  "useCases": [
+    "internal command-line tools",
+    "scripts other programs call",
+    "developer utilities on the JVM"
+  ],
+  "synonyms": [
+    "picocli",
+    "Maven",
+    "JVM",
+    "runnable jar",
+    "executable jar",
+    "fat jar",
+    "uber jar",
+    "shaded jar",
+    "Java console app"
+  ],
+  "goodFor": [
+    "layered configuration",
+    "exit codes with suggestions",
+    "text or JSON output",
+    "tests against the packaged jar"
+  ],
+  "notFor": [
+    "a terminal user interface"
+  ],
+  "caveats": [
+    "Needs a JDK, and Maven once to create the Maven wrapper.",
+    "Each run starts a Java runtime, which adds a fraction of a second."
+  ]
+}

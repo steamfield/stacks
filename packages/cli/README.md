@@ -95,6 +95,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `go-mcp` | Go MCP server on the official Go SDK over stdio: typed tools with schemas from Go structs, tool errors the model can read, a lint rule keeping stdout for the protocol, in-memory and stdio protocol tests | |
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
 | `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
+| `java-cli` | Java CLI on picocli and Maven: one shaded runnable jar, layered TOML config, an exit-code table with suggestions, text or JSON output, Logback logs on stderr, Error Prone and NullAway, tests against the packaged jar | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nestjs-api` | NestJS JSON API on Node: feature modules, class-validator DTOs behind a global pipe, one error envelope from an exception filter, request ids, JSON logs, Swagger, Vitest unit specs and Supertest contract tests | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
@@ -104,6 +105,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `python-data` | Python data pipeline and notebooks managed with uv: Polars transforms from raw CSV to Parquet with explicit schemas and a rejects file, a DuckDB query over the output, a fixture compared with expected frames, marimo notebooks linted, typechecked and run | |
 | `python-library` | Typed Python library for PyPI: a src layout with `py.typed`, an exception hierarchy, a public-API test, Hypothesis properties, tests on the oldest supported Python, and the built wheel installed and type-checked in a clean environment | |
 | `python-react` | FastAPI backend and a React SPA talking through a client generated from the OpenAPI spec | |
+| `quarkus-api` | Java JSON API on Quarkus REST and Maven in JVM mode: one error envelope from exception mappers, request ids and JSON logs, a validated config mapping, readiness checks and OpenAPI, Error Prone and NullAway, ArchUnit layering, `@QuarkusTest` tests and the packaged app tested as its own process | |
 | `react-router` | React Router framework mode with SSR, Effect services, typed HTTP errors, Tailwind and shadcn | `openrouter-chat` |
 | `react-vite` | Browser-only React app on Vite, built to static files: React Router, TanStack Query over a zod-checked fetch client, Vitest with MSW and Playwright | |
 | `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |

@@ -1,4 +1,4 @@
-// Publishes @steamfield/stacks-format, then @steamfield/stacks, at the versions in their
+// Publishes @steamfield/stacks-format, @steamfield/stacks, then @steamfield/stacks-mcp at their
 // package.json files, from a clean detached worktree of origin/main, then tags v<cli version>.
 // A person runs it (`bun run release`, or `bun run release -- --dry-run` to pack and check
 // without publishing or tagging); packages/format/README.md, "Publishing", has the steps it wraps.
@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const PACKAGES = ["format", "cli"] as const;
+const PACKAGES = ["format", "cli", "mcp"] as const;
 const dryRun = process.argv.includes("--dry-run");
 const root = join(import.meta.dirname, "..");
 
@@ -88,6 +88,30 @@ function preflight() {
     fail(`.claude-plugin/marketplace.json must pin the plugin to ${tag} in the release commit`);
 }
 
+function checkMcpPin(pkg: (typeof packages)[number]) {
+  const spec = `${pkg.name}@${pkg.version}`;
+  const published = read("npm", ["view", spec, "dependencies", "--json", "--prefer-online"]);
+  if (published.status !== 0)
+    fail(`could not read dependencies for ${spec}: ${published.stderr || "npm view failed"}`);
+  let dependencies: unknown;
+  try {
+    dependencies = JSON.parse(published.stdout);
+  } catch (error) {
+    fail(`could not decode dependencies for ${spec}: ${String(error)}`);
+  }
+  const pin =
+    typeof dependencies === "object" &&
+    dependencies !== null &&
+    "@steamfield/stacks" in dependencies
+      ? dependencies["@steamfield/stacks"]
+      : undefined;
+  const cliVersion = packages[1]?.version;
+  if (pin !== cliVersion)
+    fail(
+      `bump packages/mcp's version: it pins @steamfield/stacks ${cliVersion}, the published ${pkg.version} pins ${String(pin)}`,
+    );
+}
+
 function alreadyPublished(pkg: (typeof packages)[number], cwd: string) {
   const spec = `${pkg.name}@${pkg.version}`;
   const version = read("npm", ["view", spec, "version", "--prefer-online"]);
@@ -96,6 +120,7 @@ function alreadyPublished(pkg: (typeof packages)[number], cwd: string) {
     fail(`could not look up ${spec} on npm: ${version.stderr || "npm view failed"}`);
   }
   if (version.stdout !== pkg.version) fail(`npm returned an unexpected version for ${spec}`);
+  if (pkg.dir === "mcp") checkMcpPin(pkg);
   const published = read("npm", ["view", spec, "dist.integrity", "--prefer-online"]);
   if (published.status !== 0 || !published.stdout.startsWith("sha512-"))
     fail(`could not read dist.integrity for ${spec}: ${published.stderr || "invalid response"}`);
@@ -152,7 +177,7 @@ function release() {
     run("git", ["worktree", "remove", "--force", checkout]);
   }
   if (dryRun) {
-    const names = packages.map((pkg) => `${pkg.name}@${pkg.version}`).join(" and ");
+    const names = packages.map((pkg) => `${pkg.name}@${pkg.version}`).join(", ");
     console.error(`release: dry run packed ${names}; nothing published`);
     return;
   }

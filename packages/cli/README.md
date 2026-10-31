@@ -96,6 +96,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `tauri-react` | Tauri desktop app: Rust crates behind a thin shell, typed IPC, a React frontend with a mock transport | |
 | `typescript-api` | Node HTTP API on Effect's HttpApi: REST resource conventions, one error-status table, request logs, a core that also runs as a fetch handler | |
 | `typescript-cli` | Bun-compiled TypeScript CLI on Effect with typed errors, safe output and logs | `openrouter-chat-cli` |
+| `typescript-mcp` | Stdio MCP server on Effect: typed tools and a markdown resource, Vitest units, a real client handshake | |
 
 A stack pulls in default fragments (CI, git hooks, agent guardrails and so on); `stacks list` shows which, and `--without <fragment>` leaves one out. Apps are fragments that add a working feature on top of a stack. You can write your own stacks and fragments: see [Authoring a stack or fragment](docs/authoring.md).
 

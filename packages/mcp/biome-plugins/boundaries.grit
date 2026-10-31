@@ -1,0 +1,37 @@
+// Keep application output and process access at the MCP package's boundaries.
+language js
+
+or {
+  `console.$member` as $c where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$c, message="Use the stderr logger, never console.")
+  },
+  `process.stdout` as $o where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$o, message="Stdout belongs to the MCP transport.")
+  },
+  `process.exit` as $e where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$e, message="Let the runtime finish; never call process.exit.")
+  },
+  `process.$member` as $e where {
+    $member <: r"^(?:env|execPath)$",
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/config\.ts$",
+    register_diagnostic(span=$e, message="Read environment and the Node executable in config.ts.")
+  },
+  `process.stderr` as $e where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/server\.ts$",
+    register_diagnostic(span=$e, message="Only server.ts writes startup diagnostics to stderr.")
+  },
+  or {
+    JsModuleSource() as $source,
+    `import($source)`
+  } where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/run\.ts$",
+    $source <: r"[\"'](?:node:child_process|child_process|effect/process(?:/[^\"']*)?)[\"']",
+    register_diagnostic(span=$source, message="Only run.ts starts child processes; use CliRunner.")
+  }
+}

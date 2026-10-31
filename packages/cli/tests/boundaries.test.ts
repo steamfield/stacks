@@ -35,14 +35,11 @@ const probes = [
   ...nodeProcess.map((source) => [source, "Node process APIs belong"] as const),
 ] as const;
 /** Lints `source` written to `path` under a temporary root with only the boundary plugin. */
-function lint(path: string, source: string) {
+function lint(path: string, source: string, plugin = "biome-plugins/boundaries.grit") {
   const dir = tempDir();
   try {
     mkdirSync(join(dir.path, path, ".."), { recursive: true });
-    writeFileSync(
-      join(dir.path, "biome.json"),
-      JSON.stringify({ plugins: [join(pkg, "biome-plugins/boundaries.grit")] }),
-    );
+    writeFileSync(join(dir.path, "biome.json"), JSON.stringify({ plugins: [join(pkg, plugin)] }));
     const file = join(dir.path, path);
     writeFileSync(file, `${source}\n`);
     return spawnSync(join(pkg, "node_modules/.bin/biome"), ["lint", file], {
@@ -93,6 +90,59 @@ test.each(probes)("Grit enforces %s", (source, message) => {
   const result = lint("src/core/probe.ts", source);
   expect(result.stdout + result.stderr).toContain(message);
   expect(result.status).not.toBe(0);
+});
+test.each(["typescript-cli", "typescript-mcp"])(
+  "%s starter Grit rejects console and misplaced env reads, allowing near misses",
+  (stack) => {
+    const plugin = `registry/stacks/${stack}/files/biome-plugins/boundaries.grit`;
+    for (const { source, nearMiss, message } of [
+      {
+        source: 'console.log("x");',
+        nearMiss: 'export const hint = "console.log(x)";',
+        message: "never console",
+      },
+      {
+        source: "export const value = process.env;",
+        nearMiss: "export const value = process.env;",
+        message: "Read environment",
+      },
+    ]) {
+      const denied = lint("src/handlers.ts", source, plugin);
+      expect(denied.stdout + denied.stderr).toContain(message);
+      expect(denied.status).not.toBe(0);
+      const allowed = lint("src/config.ts", nearMiss, plugin);
+      expect(allowed.stdout + allowed.stderr).not.toContain(message);
+      expect(allowed.status).toBe(0);
+    }
+  },
+);
+test.each([
+  ["console reference", "export const value = console.error;", "never console"],
+  ["stdout", "export const value = process.stdout;", "Stdout belongs to the MCP transport"],
+  ["exit", "process.exit(0);", "Let the runtime finish"],
+])("typescript-mcp starter Grit rejects %s only under src", (_name, source, message) => {
+  const plugin = "registry/stacks/typescript-mcp/files/biome-plugins/boundaries.grit";
+  const denied = lint("src/server.ts", source, plugin);
+  expect(denied.stdout + denied.stderr).toContain(message);
+  expect(denied.status).not.toBe(0);
+  const allowed = lint("tests/server.test.ts", source, plugin);
+  expect(allowed.stdout + allowed.stderr).not.toContain(message);
+  expect(allowed.status).toBe(0);
+});
+test.each([
+  "export const value = process.stderr;",
+  "process.exitCode = 0;",
+  "export const value = process.argv;",
+  'export const hint = "process.stdout; process.exit(0); console.log(x); process.env";',
+  "// console.log(process.env); process.exit(0); process.stdout",
+])("typescript-mcp starter Grit allows the near miss %s", (source) => {
+  const result = lint(
+    "src/server.ts",
+    source,
+    "registry/stacks/typescript-mcp/files/biome-plugins/boundaries.grit",
+  );
+  expect(result.stdout + result.stderr).not.toContain("plugin");
+  expect(result.status).toBe(0);
 });
 test("a verify probe that imports @effect/platform-node fails lint [1.3a#20]", () => {
   const result = lint(

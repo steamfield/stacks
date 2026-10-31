@@ -1,0 +1,22 @@
+// Keep application output and shutdown under the MCP transport's runtime.
+language js
+
+or {
+  `console.$member` as $c where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$c, message="Use the stderr logger, never console.")
+  },
+  `process.stdout` as $o where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$o, message="Stdout belongs to the MCP transport; use the stderr logger.")
+  },
+  `process.exit` as $e where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$e, message="Let the runtime finish and flush; never call process.exit.")
+  },
+  `process.env` as $e where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/config\.ts",
+    register_diagnostic(span=$e, message="Read environment in config.ts.")
+  }
+}

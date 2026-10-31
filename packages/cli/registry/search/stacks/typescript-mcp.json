@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "typescript-mcp",
+  "source": {
+    "digest": "sha256:a7e11e7cb87c3bedc84c22a978cbda08e16772e731dd3812aa93037bac908ee2",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 3,
+    "reviewedAt": "2026-10-31"
+  },
+  "summary": "A stdio MCP server on Effect, serving typed tools and a resource over JSON-RPC to agent clients.",
+  "description": "Build a stdio MCP server with Effect's MCP modules: declare typed tools, register a resource, and speak newline-delimited JSON-RPC over stdin and stdout. Vitest covers the pure parts; an e2e test does a real client handshake against the built server. The proving slice is a server_info tool, an echo tool and one markdown resource, extended after the handshake passes.",
+  "seoDescription": "A stdio MCP server on Effect with typed tools, a resource, JSON-RPC over stdin/stdout and a real client handshake test.",
+  "projectExamples": [
+    {
+      "title": "Internal script tool server",
+      "description": "Illustrative: expose selected team scripts as typed tools an assistant can call. Add the script integration and its access rules after the server_info, echo and resource checks pass."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter MCP server: a program that lets AI assistants call your tools and read documents through a shared protocol.",
+    "goodAt": [
+      "Giving assistants typed tools they can run as a local subprocess",
+      "Testing tool calls and document reads against the built program"
+    ],
+    "notGoodAt": [
+      "MCP features Effect lacks; use the official TypeScript MCP SDK instead.",
+      "Chat screens or model calls; choose a web app with a model provider."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "build a stdio MCP server an agent can spawn as a subprocess",
+    "expose typed tools to an MCP client over JSON-RPC",
+    "serve a resource alongside tools through the Model Context Protocol"
+  ],
+  "useCases": [
+    "agent tool servers",
+    "MCP integrations"
+  ],
+  "synonyms": [
+    "MCP server",
+    "stdio transport",
+    "JSON-RPC",
+    "Effect MCP",
+    "tool server"
+  ],
+  "goodFor": [
+    "a proving slice with server_info, echo and a resource",
+    "testing a real handshake against the built server"
+  ],
+  "notFor": [
+    "an HTTP or SSE MCP server",
+    "a chat app, chat loop or model provider",
+    "an MCP client or agent host that calls other servers"
+  ],
+  "caveats": [
+    "Effect's MCP modules share Schema and runtime; use the official TypeScript MCP SDK when Effect lacks a required feature."
+  ]
+}

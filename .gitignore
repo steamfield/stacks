@@ -1,6 +1,9 @@
 # Compiled binaries (bun run build)
 dist/
 
+# Bun build cache
+.*.bun-build
+
 # Dependencies
 node_modules/
 

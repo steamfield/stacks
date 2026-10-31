@@ -6,7 +6,7 @@ category: tooling
 name: Effect testing and API skill
 description: Effect testing with @effect/vitest (fresh real layers per test, TestClock instead of sleeps, typed failure and defect assertions), shipped Effect guidance for each agent, and an agent skill written from the installed Effect release's declarations.
 tags: [typescript, effect, testing]
-applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, mobile-expo, python-react, react-router, tauri-react, typescript-api, typescript-cli]
+applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, mobile-expo, python-react, react-router, tauri-react, typescript-api, typescript-cli, typescript-mcp]
 requires: [effect-schema]
 deps:
   dev: ["@effect/vitest"]

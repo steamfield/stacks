@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "effect-schema",
   "source": {
-    "digest": "sha256:e8a9ac676588f6eb49efd3a88b6a9c341ec0a1f71d4372766e86d357d87c457f",
+    "digest": "sha256:902fb1cc3b9b3c5a067da514910bf2cbe5cda57dbde198c30e8ef772a9d0eb42",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Validate incoming data and encode outgoing data from shared schemas that also define TypeScript types.",
   "description": "Use one Effect Schema definition for runtime decoding, encoded output and the corresponding TypeScript type. Apply it where data crosses a trust boundary, such as requests, configuration or third-party responses. The guidance covers branded identifiers, tagged errors and JSON Schema for tools, with round-trip tests. Keep framework-required validators and adopt this at owned boundaries incrementally.",

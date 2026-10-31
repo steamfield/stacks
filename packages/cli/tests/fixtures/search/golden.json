@@ -1201,6 +1201,40 @@
       ]
     },
     {
+      "id": "product-mcp-stdio-server",
+      "pool": "product",
+      "split": "tune",
+      "query": "typescript server exposing tools to Claude over stdin and stdout",
+      "first": {
+        "kind": "stack",
+        "id": "typescript-mcp"
+      },
+      "relevant": [
+        {
+          "kind": "stack",
+          "id": "typescript-mcp",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "product-mcp-agent-typed-tools",
+      "pool": "product",
+      "split": "holdout",
+      "query": "give a coding agent typed tools over the Model Context Protocol",
+      "first": {
+        "kind": "stack",
+        "id": "typescript-mcp"
+      },
+      "relevant": [
+        {
+          "kind": "stack",
+          "id": "typescript-mcp",
+          "grade": 2
+        }
+      ]
+    },
+    {
       "id": "nomatch-gpu-training",
       "pool": "no-match",
       "split": "tune",

@@ -1,0 +1,14 @@
+{
+  "error": {
+    "tag": "VerifyFailed",
+    "message": "Verify failed.",
+    "retryable": false,
+    "next": "fix the code or config these steps exercise, not the steps, then run stacks verify again.",
+    "details": {
+      "failed": [
+        { "name": "first", "failureKind": "step", "exitCode": 1 },
+        { "name": "second", "failureKind": "step", "exitCode": 1 }
+      ]
+    }
+  }
+}

@@ -13,6 +13,7 @@ R13, release, submission, and judging operations. See the [active index](../READ
 ## Existing history
 
 - [Handoff from 2026-10-26](handoff-2026-10-26.md)
+- [Dogfooding log from 2026-10-27](dogfooding-log-2026-10-27.md): written in the checkout the MCP work was first built in, under the project's earlier name, before it was ported here. Its binary, directory and package names are that checkout's.
 
 ## Completed plans
 

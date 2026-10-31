@@ -14,6 +14,7 @@
       "@biomejs/biome": "^2.6.3",
       "@effect/platform-node": "^4.0.6",
       "@effect/vitest": "^4.0.6",
+      "@modelcontextprotocol/sdk": "^1.32.2",
       "@types/bun": "^1.4.3",
       "@types/node": "22",
       "@vitest/coverage-v8": "^5.0.5",

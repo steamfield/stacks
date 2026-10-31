@@ -8,6 +8,8 @@ The skill gives general structure. This rule carries the constraints it can't kn
 
 The CLI executes nothing it reads and never calls an LLM. `list`, `show`, `new`, `add`, `validate` and `create` read, compose and write entries; only `verify` runs commands, and only the steps in the project's own manifest. The CLI's other programs are fixed and never come from an entry: constant git commands (`scaffold/git.ts`: `git init` from `new`, read-only lookups from `new` and `add`), the harness chosen at handoff through `Processes.interactive` or `Processes.exec` (never for an untrusted entry), and `update`, which makes one request to the npm registry and calls `npm` with fixed arguments and a checked version, only when a person runs it, and `submit`, which runs `gh` and `git` with fixed arguments (`core/submit/github.ts`) in a temporary clone. A design that runs a generator, an install script or a hook from an entry is wrong, however convenient.
 
+The MCP server (`packages/mcp`) runs one program: the CLI's built Node entry under the server's own Node, with fixed flags, `--` before every positional (tool and resource arguments alike), and stdin closed. It never passes `--accept-changes` and never lets `new` launch an agent, so trust points 3 and 4 hold over MCP exactly as in a shell.
+
 Humans own what lasts and agents own what ages. Composition, layout, enforcement and the definition of done belong in stacks and in the CLI. Versions, generator flags and config formats belong to the agent. A feature that pins a version or freezes a config format in the CLI or in `files/` is drifting toward a template engine, which the product says it isn't.
 
 ## Trust model
@@ -27,6 +29,8 @@ Code two packages share goes in its own package under `packages/`, extracted whe
 ## Shared contracts
 
 The wire contracts the CLI, the hosted API and published tooling share (entry format, manifest, run record, canonical bundle, index, search and stats schemas) are owned by `packages/format/src` and exported from its `index.ts`; the CLI imports them from `@steamfield/stacks-format` and never redefines or re-exports one. Error tags are owned by `packages/cli/src/errors.ts`: a new tag adds its class to `errorClasses` and its row to `errorTable`. A design cites an existing contract by its symbol and never renames or reshapes it; a change to one is additive (`.claude/rules/format/format.md`) and lands with the code that needs it.
+
+One exception: `packages/mcp` consumes the CLI's `--json` results (`list`, `new`, `verify`, verify's events and the error envelope) as a client of that published output, the same output `stacks schema <name>` documents for any agent. It mirrors those CLI-only shapes in `packages/mcp/src/schemas/cli.ts`, imports every shape `@steamfield/stacks-format` already owns, and an e2e test fails when the mirror's fields drift from `stacks schema`. Move a shape into `packages/format` when a second consumer needs it as code.
 
 ## Designs
 

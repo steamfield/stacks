@@ -137,11 +137,12 @@ skip the entry and are listed. A failed draft preserves an existing card.
 Drafts record the actual model and prompt version, `by: "drafted"`, and
 `reviewedAt: null`. Read their claims and requests against the entry before
 approving. `--approve` refuses under a detected agent or without terminal stdin
-(`PermissionDenied`, reason `agent` or `no-tty`, exit 6). It sets the review date
-and stamps the card's digest against the entry as it stands, so one command
-clears a draft; when a model draft's entry changed after drafting, it prints a
-line saying so. `--restamp` preserves every other field and refreshes only the
-digest and review date after an entry change that still fits a reviewed card. Authors can also write cards by hand.
+(`PermissionDenied`, reason `agent` or `no-tty`, exit 6). It sets the review
+date and stamps the card's digest against the entry as it stands, so one
+command clears a draft; when the entry changed since the card was stamped, it
+prints a line saying so. `--restamp` preserves every other field and refreshes
+only the digest and review date after an entry change that still fits a
+reviewed card. Authors can also write cards by hand.
 Restamping an unread draft is refused; use the guarded approval operation first.
 Agents may restamp a reviewed card after editing its entry, once they have
 reread the card and judged that it still fits, and they report each restamp;

@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const PACKAGES = ["format", "cli"] as const;
+const FLAGS = ["--dry-run", "--format-only"];
 const dryRun = process.argv.includes("--dry-run");
 const formatOnly = process.argv.includes("--format-only");
 const root = join(import.meta.dirname, "..");
@@ -144,10 +145,20 @@ function awaitPublished(spec: string) {
     console.error(`release: waiting for the registry to serve ${spec}`);
     spawnSync("sleep", ["15"]);
   }
-  fail(`the registry still doesn't serve ${spec} after 10 minutes; tag once npm view finds it`);
+  fail(
+    `the registry still doesn't serve ${spec} after 10 minutes; ${tag === undefined ? "check npm view before relying on it" : "tag once npm view finds it"}`,
+  );
+}
+
+/** A mistyped flag (`--format_only`) must not fall through to a full release with a tag. */
+function checkArguments() {
+  const unknown = process.argv.slice(2).filter((arg) => !FLAGS.includes(arg));
+  if (unknown.length > 0)
+    fail(`unknown argument ${unknown.join(" ")}; the flags are ${FLAGS.join(" and ")}`);
 }
 
 function release() {
+  checkArguments();
   preflight();
   const checkout = join(mkdtempSync(join(tmpdir(), "stacks-release-")), "checkout");
   run("git", ["worktree", "add", "--detach", checkout, "origin/main"]);

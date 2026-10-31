@@ -385,7 +385,27 @@ test("a person with terminal stdin can approve without drafting [4.5b#11]", asyn
     },
   });
   expect(result.stdout).toContain(`Approved and restamped stack/${mobile.id}.`);
-  expect(result.stdout).not.toContain("changed since this draft");
+  expect(result.stdout).not.toContain("changed since");
+}, 30_000);
+
+test("approving a model draft stamped against the current entry keeps its digest and says nothing more", async () => {
+  const f = setup();
+  const stamped = await stamp(f.registry, mobile);
+  put(
+    cardPath(f.registry, mobile),
+    JSON.stringify({
+      ...stamped,
+      source: { ...stamped.source, by: "drafted", model, promptVersion: 3, reviewedAt: null },
+    }),
+  );
+  const result = await decorate(f, ["--approve", mobile.id], { tty: true });
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(result.stdout).toContain(`Approved and restamped stack/${mobile.id}.`);
+  expect(result.stdout).not.toContain("changed since");
+  const { SearchMetadata } = await import("@steamfield/stacks-format");
+  const approved = Schema.decodeUnknownSync(SearchMetadata)(readJson(cardPath(f.registry, mobile)));
+  expect(approved.source.digest).toBe(stamped.source.digest);
 }, 30_000);
 
 test("approving a model draft whose entry changed since says so and leaves nothing stale", async () => {
@@ -404,7 +424,7 @@ test("approving a model draft whose entry changed since says so and leaves nothi
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(result.stderr).toBe("");
   // The terminal stdin is a pseudo-terminal, which echoes into stdout; check the lines we print.
-  const note = `stack/${mobile.id}: the entry changed since this draft; approval stamps the card against the current entry.`;
+  const note = `stack/${mobile.id}: the entry changed since this card was stamped; approval stamps it against the current entry.`;
   const done = `Approved and restamped stack/${mobile.id}.`;
   expect(result.stdout).toContain(note);
   expect(result.stdout.indexOf(note)).toBeLessThan(result.stdout.indexOf(done));

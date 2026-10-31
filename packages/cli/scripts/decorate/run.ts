@@ -58,7 +58,7 @@ const review = Effect.fn("decorate.review")(function* (options: {
   const digest = searchSourceDigest(entry);
   if (!options.restamp && card.source.digest !== digest && card.source.digest !== DRAFT_DIGEST)
     yield* Console.log(
-      `${entry.kind}/${entry.id}: the entry changed since this draft; approval stamps the card against the current entry.`,
+      `${entry.kind}/${entry.id}: the entry changed since this card was stamped; approval stamps it against the current entry.`,
     );
   yield* save(options.root, { ...card, source: { ...card.source, reviewedAt, digest } });
   yield* Console.log(

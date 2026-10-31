@@ -43,19 +43,27 @@ PREAMBLE="You are working in a git worktree for an orchestrator that reviews, re
 
 FALLBACK_MODEL="gpt-6.1-sol"
 
+MODEL_CACHE="${CODEX_HOME:-$HOME/.codex}/models_cache.json"
+
 # The newest sol model Codex lists in its model cache, or nothing when the cache is missing,
-# unreadable or lists none. Hidden models and variants (`-sol-mini`) are skipped.
+# unreadable or lists none. Hidden models, variants (`-sol-mini`) and malformed entries are
+# skipped one by one, so an odd entry doesn't hide the rest.
 newest_sol_model() {
-    local cache="${CODEX_HOME:-$HOME/.codex}/models_cache.json"
-    [ -r "$cache" ] || return 0
-    jq -r '[.models[]
-            | select(.visibility == "list" and (.slug | test("^gpt-[0-9]+(\\.[0-9]+)*-sol$")))
+    [ -r "$MODEL_CACHE" ] || return 0
+    jq -r '[.models? // [] | if type == "array" then .[] else empty end | objects
+            | select(.visibility == "list" and (.slug | type) == "string"
+                     and (.slug | test("^gpt-[0-9]+(\\.[0-9]+)*-sol\\z")))
             | {slug, version: (.slug | ltrimstr("gpt-") | rtrimstr("-sol") | split(".") | map(tonumber))}]
-           | sort_by(.version) | last | .slug // empty' "$cache" 2>/dev/null
+           | sort_by(.version) | last | .slug // empty' "$MODEL_CACHE" 2>/dev/null
 }
 
 MODEL="${DELEGATE_MODEL:-$(newest_sol_model)}"
-MODEL="${MODEL:-$FALLBACK_MODEL}"
+if [ -z "$MODEL" ]; then
+    MODEL="$FALLBACK_MODEL"
+    # A cache that is there but yields nothing means the fallback may be stale: say so.
+    [ -e "$MODEL_CACHE" ] &&
+        echo "delegate.sh: no listed sol model read from $MODEL_CACHE; using $FALLBACK_MODEL" >&2
+fi
 export DELEGATE_MODEL="$MODEL"
 EFFORT="${DELEGATE_EFFORT:-high}"
 SERVICE_TIER="${DELEGATE_SERVICE_TIER:-priority}"

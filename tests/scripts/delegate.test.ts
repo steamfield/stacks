@@ -192,7 +192,7 @@ describe("delegate.sh", () => {
       expect(result.status, result.stderr).toBe(0);
       const args = readFileSync(join(root, "args.txt"), "utf8").split("\n");
       const exported = readFileSync(join(root, "args.txt.model"), "utf8").trim();
-      return { args, exported, stdout: result.stdout };
+      return { args, exported, stdout: result.stdout, stderr: result.stderr };
     };
 
     it("is the newest sol model Codex lists, and Codex's commands see it", () => {
@@ -215,16 +215,31 @@ describe("delegate.sh", () => {
         model("gpt-7-sol-mini"),
         model("gpt-7-terra"),
         model("codex-auto-review"),
+        model("gpt-8-sol\n"),
       ]);
       expect(chosen().exported).toBe("gpt-6.1-sol");
     });
 
-    it("falls back to the pinned model without a usable cache", () => {
-      expect(chosen().exported).toBe("gpt-6.1-sol");
-      cache("not json");
-      expect(chosen().exported).toBe("gpt-6.1-sol");
+    it("skips a malformed entry without dropping the rest of the cache", () => {
+      cache([{ slug: null, visibility: "list" }, "gpt-9-sol", model("gpt-6.2-sol")]);
+      expect(chosen().exported).toBe("gpt-6.2-sol");
+    });
+
+    it("falls back to the pinned model quietly when there is no cache", () => {
+      const { exported, stderr } = chosen();
+      expect(exported).toBe("gpt-6.1-sol");
+      expect(stderr).not.toContain("models_cache.json");
+    });
+
+    it("says so when a cache it can't use sends it to the pinned model", () => {
+      for (const unusable of ["not json", "{}", JSON.stringify({ models: "x" })]) {
+        cache(unusable);
+        const { exported, stderr } = chosen();
+        expect(exported).toBe("gpt-6.1-sol");
+        expect(stderr).toContain("no listed sol model read from");
+      }
       cache([model("gpt-7-terra")]);
-      expect(chosen().exported).toBe("gpt-6.1-sol");
+      expect(chosen().stderr).toContain("using gpt-6.1-sol");
     });
 
     it("reads the cache under CODEX_HOME when it is set", () => {

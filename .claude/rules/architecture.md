@@ -34,4 +34,4 @@ A design or task description cites symbols, never line numbers (`errors.ts::exit
 
 ## When a fix doesn't take
 
-Load `ce:systematic-debugging`. AGENTS.md "Debugging" already sets the stop rule after two failed fixes.
+Follow AGENTS.md "Debugging": read the error before guessing, and after two failed fixes with no new diagnostic, stop and test other hypotheses.

@@ -1,5 +1,6 @@
 import { RunRecord } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
+import { PermissionDenied } from "../errors";
 import type { ProjectRuns } from "../schemas/runs";
 import { locateManifest, readManifest } from "./manifest";
 import { findProjectState } from "./project-state";
@@ -38,9 +39,16 @@ export const projectRuns = (cwd: string) =>
     const located = yield* locateManifest(cwd);
     const manifest = yield* readManifest(located.path);
     const state = (yield* findProjectState(manifest.projectId))?.state;
+    const historyPath = path.join(located.root, ".stacks/state/runs.jsonl");
     const history = yield* fs
-      .readFileString(path.join(located.root, ".stacks/state/runs.jsonl"))
-      .pipe(Effect.orElseSucceed(() => ""));
+      .readFileString(historyPath)
+      .pipe(
+        Effect.catch((error) =>
+          error.reason._tag === "NotFound"
+            ? Effect.succeed("")
+            : Effect.fail(new PermissionDenied({ details: { reason: "read", path: historyPath } })),
+        ),
+      );
     let verifyRuns = 0;
     let lastOutcome: string | null = null;
     let skippedLines = 0;

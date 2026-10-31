@@ -47,9 +47,10 @@ test.each([
   {
     args: ["validate", "--brief", "typescript-cli"],
     output: "# Build",
-    // Validating the whole registry for one preview cost 1.5 s; today's preview is 0.1-0.5 s,
-    // depending on load.
-    budget: 1.0,
+    // Validating the whole registry for one preview cost 1.5 s on a laptop (~7 s on the slowest
+    // gate host). The preview renders the stack's shipped files: since typescript-cli ships its
+    // working slice it takes ~0.45 s on a laptop and 1.00-1.13 s on an idle m1 Linux gate host.
+    budget: 1.5,
   },
   {
     args: ["validate"],

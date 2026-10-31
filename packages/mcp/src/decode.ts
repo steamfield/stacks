@@ -53,5 +53,8 @@ export const decodeCli = Effect.fn("decode.cli")(function* <A>(
   if (output.exit === 0) return { result: yield* decodeJson(schema, output.stdout, output) };
   const failure = yield* decodeEnvelope(output, command);
   if (command !== "verify" || output.exit !== 5) return yield* failure;
-  return { result: yield* decodeJson(schema, output.stdout, output), next: failure.next };
+  const result = yield* decodeJson(schema, output.stdout, output).pipe(
+    Effect.catchTag("CliFailure", () => failure),
+  );
+  return { result, next: failure.next };
 });

@@ -71,7 +71,14 @@ export class CliRunner extends Context.Service<
           ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
         });
         return yield* Effect.gen(function* () {
-          const child = yield* spawner.spawn(command);
+          const unavailable = (error: PlatformError.PlatformError) =>
+            new CliFailure({
+              tag: "CliUnavailable",
+              cliMessage: `Cannot run ${config.node} ${config.cliEntry}: ${systemMessage(error)}`,
+              next: `Check or restore the server's Node executable at ${config.node}, then restart the server. For a CLI entry problem, set STACKS_MCP_CLI to @steamfield/stacks's dist/stacks entry or reinstall @steamfield/stacks.`,
+              retryable: false,
+            });
+          const child = yield* spawner.spawn(command).pipe(Effect.mapError(unavailable));
           const [stdout, stderr, exit] = yield* Effect.all(
             [
               child.stdout.pipe(
@@ -80,24 +87,26 @@ export class CliRunner extends Context.Service<
                   () => "",
                   (text, chunk) => text + chunk,
                 ),
+                Effect.mapError(unavailable),
               ),
-              collectStderr(child.stderr, options?.onStderrLine),
-              child.exitCode,
+              collectStderr(child.stderr, options?.onStderrLine).pipe(Effect.mapError(unavailable)),
+              child.exitCode.pipe(
+                Effect.mapError(
+                  (error) =>
+                    new CliFailure({
+                      tag: "CliKilled",
+                      cliMessage: `CLI process was killed: ${error.reason.cause instanceof Error ? error.reason.cause.message : error.message}`,
+                      next: "Rerun the call and check available memory or whoever stopped the CLI process.",
+                      retryable: true,
+                    }),
+                ),
+              ),
             ],
             { concurrency: "unbounded" },
           );
           return { stdout, stderr, exit: Number(exit) };
         }).pipe(
           Effect.scoped,
-          Effect.mapError(
-            (error) =>
-              new CliFailure({
-                tag: "CliUnavailable",
-                cliMessage: `Cannot run ${config.node} ${config.cliEntry}: ${systemMessage(error)}`,
-                next: `Check or restore the server's Node executable at ${config.node}, then restart the server. For a CLI entry problem, set STACKS_MCP_CLI to @steamfield/stacks's dist/stacks entry or reinstall @steamfield/stacks.`,
-                retryable: false,
-              }),
-          ),
           Effect.timeoutOrElse({
             duration: config.timeout,
             orElse: () =>

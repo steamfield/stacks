@@ -31,7 +31,7 @@ For Claude Desktop, add this to `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "@steamfield/stacks-mcp"],
       "env": {
-        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+        "PATH": "<directories holding node, git and the tools your verify steps run>"
       }
     }
   }
@@ -54,6 +54,9 @@ such as bun and git. The client's environment becomes every verify step's enviro
 entries they see. `verify` runs in `dir`. New never launches an agent; omitting `preset`
 preserves the CLI's user setting.
 
+List and new have `openWorldHint: true`: both may read the hosted API and the configured
+remote index. Verify is also open world because project commands may access external services.
+
 Verify executes the project's manifest commands, which may change files or access the network.
 Failed and changed verify outcomes are successful tool calls with a `next` action. Changed
 steps run nothing: a person must accept them in a terminal. The server never passes
@@ -63,7 +66,7 @@ CLI execution failures (`CliFailure`) have `isError: true`, no `structuredConten
 message, a `Next:` line, then a blank line and JSON metadata (`tag`, `retryable`, optional
 `exitCode` and `details`). Parameter-validation failures also have `isError: true`, but return
 Effect's plain diagnostic naming invalid or missing keys, without the `Next:` line or JSON
-metadata. Progress notifications count finished steps when the request
+metadata. Progress notifications count step-started and step-finished events when the request
 supplies a progress token; no total is guessed.
 
 Read `stacks://guide` for the CLI's guide and `stacks://guide/author` for its authoring guide.

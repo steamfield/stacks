@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { McpSchema, McpServer } from "effect/ai";
 import { decodeCli } from "./decode";
 import { CliRunner } from "./run";
@@ -8,12 +8,16 @@ const AuthorTopics = Schema.Struct({ topics: Schema.Array(Schema.String) });
 export const resourceLayer = Layer.unwrap(
   Effect.gen(function* () {
     const runner = yield* CliRunner;
+    const server = yield* McpServer.McpServer;
     const read = Effect.fn("resources.read")(function* (args: ReadonlyArray<string>) {
-      const output = yield* runner.run(args);
+      const output = yield* runner
+        .run(args)
+        .pipe(Effect.mapError((error) => new McpSchema.InternalError({ message: error.message })));
       if (output.exit !== 0) {
-        return yield* new McpSchema.InternalError({
-          message: output.stderr.trim() || `CLI exited ${output.exit}`,
-        });
+        const message = output.stderr.trim() || `CLI exited ${output.exit}`;
+        return yield* output.exit === 2
+          ? new McpSchema.InvalidParams({ message })
+          : new McpSchema.InternalError({ message });
       }
       return output.stdout;
     });
@@ -37,13 +41,36 @@ export const resourceLayer = Layer.unwrap(
         mimeType: "text/markdown",
         content: read(["guide", "author"]),
       }),
-      McpServer.resource`stacks://guide/author/${McpSchema.param("topic", Schema.String)}`({
-        name: "author-topic",
-        description: "An authoring reference from the CLI.",
-        mimeType: "text/markdown",
-        completion: { topic: topics },
-        content: (_uri, topic) => read(["guide", "author", topic]),
-      }),
+      // The high-level resource helper wraps InvalidParams as InternalError.
+      Layer.effectDiscard(
+        server.addResourceTemplate({
+          template: new McpSchema.ResourceTemplate({
+            uriTemplate: "stacks://guide/author/{topic}",
+            name: "author-topic",
+            description: "An authoring reference from the CLI.",
+            mimeType: "text/markdown",
+          }),
+          annotations: Context.empty(),
+          // `::` escapes the scheme's colon, as the helper's compileUriTemplate does.
+          routerPath: "stacks:://guide/author/:0",
+          completions: {
+            topic: (input) =>
+              topics(input).pipe(
+                Effect.map((values) => ({
+                  completion: { values, total: values.length, hasMore: false },
+                })),
+                Effect.mapError((error) => new McpSchema.InternalError({ message: error.message })),
+              ),
+          },
+          handle: Effect.fn("resources.readTopic")(function* (uri, params) {
+            const topic = params[0];
+            if (topic === undefined)
+              return yield* new McpSchema.InvalidParams({ message: "Missing author topic." });
+            const text = yield* read(["guide", "author", "--", topic]);
+            return { contents: [{ uri, text }] };
+          }),
+        }),
+      ),
     );
   }),
 );

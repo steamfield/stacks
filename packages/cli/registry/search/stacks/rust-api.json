@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "rust-api",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Rust JSON web service on Axum and Tokio with one error format, request logs and a clean shutdown.",
+  "description": "Write a Rust HTTP service on Axum and Tokio. One in-memory notes resource proves the shape: create, read and paged list routes, strict JSON input, and one error envelope for bad input, misses, wrong methods, timeouts and panics, all from a single status table. Request ids, JSON access logs, a body size limit and a request timeout come from tower-http. The server stops cleanly on SIGINT or SIGTERM and ships a health-check flag for containers. The recipe picks no database, sign-in or hosting; the store sits behind a trait a database can implement.",
+  "seoDescription": "A Rust Axum API recipe with one JSON error envelope, request ids and logs, timeouts, graceful shutdown, strict clippy lints and router tests.",
+  "projectExamples": [
+    {
+      "title": "Internal pricing service",
+      "description": "Illustrative: replace notes with price rules that other services look up over HTTP. Persistence and access control are work the project still has to add."
+    },
+    {
+      "title": "Webhook receiver in a container",
+      "description": "Illustrative: accept JSON callbacks from a payment provider, validate them and log each request. Signature checks are custom work; docker-deploy builds and publishes the image.",
+      "withFragments": ["docker-deploy"]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter web service written in the Rust language that answers requests with JSON data, with clear error replies, request logs and a clean shutdown.",
+    "goodAt": [
+      "Fast backends that websites, phone apps or other services call for data",
+      "Services that must report every error in one consistent format",
+      "Small services that run as one file inside a container"
+    ],
+    "notGoodAt": [
+      "Projects that need a database or sign-in from the start; you add both yourself.",
+      "Pages and screens for people to click through; use a web app stack for those."
+    ]
+  },
+  "platforms": ["server"],
+  "productKinds": ["api"],
+  "languages": ["rust"],
+  "requests": [
+    "build a REST API in Rust with axum",
+    "a JSON web service in Rust on tokio",
+    "Rust backend that returns consistent JSON errors and shuts down cleanly",
+    "fast Rust microservice with request ids and structured logs",
+    "replace a slow Node backend with a Rust HTTP server"
+  ],
+  "useCases": ["REST services", "internal HTTP services", "JSON backends"],
+  "synonyms": ["axum", "tokio", "tower-http", "web service", "HTTP server", "microservice", "Actix alternative", "Rocket alternative"],
+  "goodFor": ["one error envelope", "graceful shutdown", "router tests in process"],
+  "notFor": [],
+  "caveats": ["The first build compiles the whole dependency tree, which takes a minute or more."]
+}

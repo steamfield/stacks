@@ -1,0 +1,36 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this service does and who calls it. -->
+
+## Run
+
+```bash
+make serve
+curl http://127.0.0.1:8080/healthz
+```
+
+`make serve` builds the release binary and runs it in the foreground until Ctrl+C. Settings come from the environment; see [docs/configuration.md](docs/configuration.md).
+
+## API
+
+<!-- stacks:fill The resources this service exposes, one line each, and who calls them. -->
+
+[docs/http-api.md](docs/http-api.md) has the routes, the error envelope and the status table.
+
+## Development
+
+Requires rustup (the toolchain comes from `rust-toolchain.toml`) and make.
+
+| Command | What it does |
+|---|---|
+| `make build` | Release binary in `target/release/` |
+| `make test` | Unit, router and binary tests |
+| `make lint` | rustfmt check and clippy with warnings denied |
+| `make audit` | cargo-deny: advisories, licenses, sources |
+| `make ci` | Everything CI runs |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
+
+## License
+
+Copyright (c) {{year}} {{author}}

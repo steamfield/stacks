@@ -475,6 +475,11 @@
       "relevant": [
         {
           "kind": "stack",
+          "id": "react-vite",
+          "grade": 2
+        },
+        {
+          "kind": "stack",
           "id": "react-router",
           "grade": 2
         },

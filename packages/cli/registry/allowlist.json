@@ -4,6 +4,7 @@
   "names": {
     "npm": [
       "@ai-sdk/react",
+      "@arethetypeswrong/cli",
       "@astrojs/check",
       "@astrojs/mdx",
       "@astrojs/react",
@@ -100,6 +101,7 @@
       "prettier",
       "prettier-plugin-astro",
       "prettier-plugin-svelte",
+      "publint",
       "react",
       "react-dom",
       "react-native",
@@ -116,6 +118,7 @@
       "svelte-check",
       "tailwind-merge",
       "tailwindcss",
+      "tsdown",
       "typescript",
       "typescript-eslint",
       "vite",

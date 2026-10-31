@@ -17,6 +17,22 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "@arethetypeswrong/cli": {
+      "whatItIs": "Checks that a TypeScript package's type information will load correctly for the people who install it, whatever project settings they use.",
+      "goodAt": [
+        "Finding type errors users would hit only after installing a package",
+        "Checking a package before it is published"
+      ],
+      "notGoodAt": ["Checking whether the code works; use tests for that."],
+      "example": "Before a library is published, it reports that the types point at a file the package doesn't include.",
+      "homepage": "https://arethetypeswrong.github.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "@astrojs/check": {
       "whatItIs": "Checks Astro code for type and template errors during development.",
       "homepage": "https://github.com/withastro/astro/tree/main/packages/language-tools/astro-check",
@@ -1256,6 +1272,24 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "publint": {
+      "whatItIs": "Checks a package's settings file against the files it will actually ship, so it installs and loads the way its author intended.",
+      "goodAt": [
+        "Catching settings that point at missing files before publishing",
+        "Flagging package settings that some tools read differently"
+      ],
+      "notGoodAt": [
+        "Checking a package's type information in depth; Are the Types Wrong does that."
+      ],
+      "example": "Before a release, it reports that the package's entry point names a file the build no longer writes.",
+      "homepage": "https://publint.dev",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "prettier-plugin-astro": {
       "whatItIs": "Adds Astro file formatting to Prettier.",
       "homepage": "https://github.com/withastro/prettier-plugin-astro/",
@@ -1502,6 +1536,22 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "tsdown": {
+      "whatItIs": "Builds a TypeScript package into the JavaScript and type files that get published, in one fast step.",
+      "goodAt": [
+        "Turning a library's TypeScript code into files ready to publish",
+        "Writing the type information other TypeScript projects read"
+      ],
+      "notGoodAt": ["Building websites or apps; use a web build tool such as Vite for those."],
+      "example": "When a developer finishes a new function, one command writes the publishable code and its types into a dist folder.",
+      "homepage": "https://tsdown.dev",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "typescript": {

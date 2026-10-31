@@ -13,6 +13,7 @@
  * all six on 2026-10-31, and go-cli changed again that day for its shipped proving slice.
  * astro-blog changed again that day for its shipped blog, config and tests.
  * python-react changed that day for its shipped backend and frontend proving slice.
+ * python-react changed again that day for Biome frontend linting and formatting.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
@@ -23,6 +24,6 @@ export const briefDigests: Readonly<Record<string, string>> = {
   "astro-blog:sandbox": "sha256:ff6b070b0699468566e4fcc204056937f8f8b06e27ae4d4a2cd301fba1cd25d2",
   "go-cli:default": "sha256:409ba8d13b314025615c9d1a695963e8dfb913fe496a204eefd7b2d4c0447d62",
   "go-cli:sandbox": "sha256:95cc2b2f94070c6fc2228941697e9ed145e785372647b1237db8059657da91d9",
-  "python-react:default": "sha256:4b95c528537656c103455114b76de21cabbb15f33f5cf6d1eb207b0fc0ace2cf",
-  "python-react:sandbox": "sha256:97027b6e5ba20c8896ca826d11949c8d0b4425871e7ff6e870e1c1b748f2e63d",
+  "python-react:default": "sha256:b32c2c14a4d8e3c4b642a9d92ad295c62db1e26fd2eda84f4f7fad4154ec6082",
+  "python-react:sandbox": "sha256:38d8239b6b2aca2ae426ca175a000d7d64e63aabd88c5aca5029a3259d8b341e",
 };

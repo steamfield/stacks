@@ -1,5 +1,5 @@
-import type { ButtonHTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import type { ButtonHTMLAttributes } from "react";
 
 const button = cva(
   "inline-flex items-center gap-2 rounded-md px-4 py-2 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50",

@@ -14,9 +14,7 @@ test("reads the real API through Vite and refreshes it", async ({ page }) => {
 
 test("renders the route error page", async ({ page }) => {
   await page.goto("/missing");
-  await expect(
-    page.getByRole("heading", { name: "Page not found" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
   await page.getByRole("link", { name: "Return home" }).click();
   await expect(page.getByRole("status")).toHaveText("API status: ok");
 });

@@ -9,7 +9,7 @@ deps:
   backend: [fastapi, uvicorn, pydantic, pydantic-settings, structlog]
   backend-dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx]
   frontend: [react, react-dom, react-router, "@tanstack/react-query", zod, tailwindcss, "@tailwindcss/vite", class-variance-authority, lucide-react]
-  frontend-dev: ["@react-router/dev", vite, "@vitejs/plugin-react", typescript, eslint, "@eslint/js", typescript-eslint, eslint-plugin-react-hooks, eslint-plugin-jsx-a11y, globals, prettier, vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/jest-dom", "@testing-library/user-event", msw, "@faker-js/faker", orval, "@playwright/test"]
+  frontend-dev: ["@react-router/dev", vite, "@vitejs/plugin-react", typescript, "@biomejs/biome", vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/jest-dom", "@testing-library/user-event", msw, "@faker-js/faker", orval, "@playwright/test"]
 tools: [uv, bun, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
@@ -65,8 +65,8 @@ commands:
   backend-test: pytest (parallel)
   backend-coverage: pytest with the coverage floor
   frontend-install: bun install (frozen lockfile when CI is set)
-  frontend-lint: ESLint + prettier --check
-  frontend-format: prettier --write
+  frontend-lint: Biome lint and format check
+  frontend-format: Biome formatting and safe fixes
   frontend-typecheck: React Router typegen + tsc
   frontend-test: vitest run
   frontend-coverage: vitest with coverage thresholds
@@ -88,7 +88,7 @@ Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep bu
 ## Setup
 
 1. No project generator. In `backend/`, select the newest stable CPython supported by the declared packages with `uv python pin`, set matching `requires-python` in the shipped `pyproject.toml`, then `uv add` every backend dependency and `uv add --dev` every backend-dev dependency from deps. In `frontend/`, `bun add` every frontend dependency and `bun add --dev` every frontend-dev dependency. Install required peers too, including React's types, Node's types and Testing Library's DOM peer if the package manager leaves them out.
-2. Read `bun pm view typescript-eslint peerDependencies` and install `typescript` at the newest release within its declared peer range. Resolve that range from the registry rather than choosing a version from memory. Run `make generate-api`: this writes `frontend/openapi.json`, orval's client/hooks/MSW handlers and zod schemas in `frontend/app/api/generated/`. These outputs depend on installed releases and are intentionally generated during Setup. Commit them with both lockfiles.
+2. Run `make generate-api`: this writes `frontend/openapi.json`, orval's client/hooks/MSW handlers and zod schemas in `frontend/app/api/generated/`. These outputs depend on installed releases and are intentionally generated during Setup. Commit them with both lockfiles.
 3. Apply the selected fragments, including their edits to shipped entry points, then run `make install lint typecheck test build e2e check-api coverage`. Update shipped code or config the installed releases reject without dropping a rule, reducing coverage or weakening a check. The home test must use the real query provider and fetch boundary; Playwright must call the real backend.
 4. Record Python in `backend/.python-version` and `requires-python`, Bun in `frontend/package.json`'s `packageManager`, and Node in `.node-version`. Set ruff's target to that Python version. Copy `.env.example` to `.env` only when changing defaults.
 5. Fill the README's `stacks:fill` marker, then `stacks verify` until green. Fill the agent-ops instructions from the project as built.
@@ -101,8 +101,8 @@ Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep bu
 - `app/middleware.py` validates or generates request ids, echoes them and logs one sanitized request record with the route pattern. `/health` stays dependency-free. The notes store is ephemeral; accounts and persistence remain application work.
 - React Router stays in SPA mode, with no server loaders or actions. `app/lib/api.ts` owns transport/errors and the public `VITE_API_BASE_URL`; `app/lib/health.ts` demonstrates decoding generated results before UI use. Use generated query keys for invalidation.
 - The Vite config reads the root env and proxies `/api` and `/health` to PORT_API. A separate API origin must explicitly allow the web origin in CORS settings.
-- Generated files are read-only; run `make generate-api` after backend changes. ESLint ignores them; Prettier formats them through orval's post-generation hook. `make check-api` compares the committed spec as parsed JSON with a fresh backend dump, without rewriting it.
-- Keep the configured lint rules, strict mypy/TypeScript and coverage floors when adapting releases. `frontend/.prettierignore` excludes `.stacks/`, `.claude/` and the Python-formatted spec, but not generated TypeScript.
+- Generated files are read-only; run `make generate-api` after backend changes. Biome skips their lint and import sorting; orval's post-generation hook formats them. `make check-api` compares the committed spec as parsed JSON with a fresh backend dump, without rewriting it.
+- Keep the configured lint rules, strict mypy/TypeScript and coverage floors when adapting releases. `frontend/biome.json` preserves React and accessibility checks, type imports/exports, const enforcement and organized imports. It excludes build and test output, `.stacks/`, `.claude/` and the Python-formatted spec; generated TypeScript stays format-checked.
 - Extend the owned UI primitives in place, use theme tokens and cva variants, and give interactive elements accessible names. Adding a shadcn component may require its current utility dependencies; keep the `~` aliases from tsconfig.
 
 ## Testing
@@ -116,7 +116,7 @@ Frontend tests render the real home route with a fresh QueryClient and generated
 `make help` lists combined install, lint, format, typecheck, test, coverage, build, dev, e2e, generate-api, check-api and clean targets, plus the backend/frontend sub-targets. Mirror those and a single-test command in AGENTS.md. `frontend/package.json` owns the frontend scripts.
 <!-- stacks:when with=git-hooks -->
 
-The install target already guards lefthook on its config's existence and skips it in CI. Staged frontend ESLint must use `--no-warn-ignored` for generated files; run it from `frontend/` so it reads that config.
+The install target already guards lefthook on its config's existence and skips it in CI. Staged frontend lint uses `biome check --no-errors-on-unmatched`; run it from `frontend/` so it reads that config.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
@@ -131,7 +131,6 @@ Replace the shipped MemoryNotes behind NoteStore with a SQLAlchemy store created
 
 - Bare `vitest` watches in a TTY; scripts use `vitest run`.
 - React Router typegen must precede tsc; `.react-router/` is generated.
-- typescript-eslint needs a supported compiler API. Resolve TypeScript within its peer range until that range accepts the newest TypeScript release; then use the newest release directly.
 - Ruff TC can move annotations FastAPI evaluates at runtime. Keep runtime-evaluated bases and API/test exceptions; dependencies elsewhere need the same care.
 - If orval fails under Bun with `Cannot find module 'ajv/dist/core'`, install the current ajv as a frontend dev dependency and record it under Build workarounds.
 - Keep fetch clients returning the success body rather than an HTTP wrapper; confirm the installed orval's options in `orval.config.ts` before adapting them.

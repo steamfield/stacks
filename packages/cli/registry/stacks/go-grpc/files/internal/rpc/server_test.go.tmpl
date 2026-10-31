@@ -1,0 +1,241 @@
+package rpc
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/grpchealth/v2"
+	"connectrpc.com/grpcreflect/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
+	notesv1 "{{project_slug}}/gen/notes/v1"
+	"{{project_slug}}/gen/notes/v1/notesv1connect"
+	apperrors "{{project_slug}}/internal/errors"
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/notes"
+)
+
+// logBuffer collects JSON log records written from server goroutines.
+type logBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *logBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *logBuffer) records(t *testing.T) []map[string]any {
+	t.Helper()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var records []map[string]any
+	for line := range strings.Lines(b.buf.String()) {
+		var record map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &record))
+		records = append(records, record)
+	}
+	return records
+}
+
+type running struct {
+	url     string
+	logs    *logBuffer
+	service *Server
+}
+
+// start serves a real Server on a loopback port, as main does, and closes it
+// when the test ends.
+func start(t *testing.T, store notes.Store, opts Options) *running {
+	t.Helper()
+	logs := &logBuffer{}
+	service := New(store, applog.New(logs, slog.LevelDebug), opts)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	server := NewHTTPServer(service.Handler())
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+	return &running{url: "http://" + listener.Addr().String(), logs: logs, service: service}
+}
+
+// clients returns one Connect client per wire protocol the server speaks.
+func (r *running) clients() map[string]*connect.Client {
+	http1 := &http.Client{Timeout: 5 * time.Second}
+	return map[string]*connect.Client{
+		"connect":      connect.NewClient(connecthttp.NewTransport(http1, r.url)),
+		"connect-json": connect.NewClient(connecthttp.NewTransport(http1, r.url, connecthttp.WithProtoJSON())),
+		"grpc":         connect.NewClient(connecthttp.NewTransport(NewH2CClient(5*time.Second), r.url, connecthttp.WithGRPC())),
+		"grpc-web":     connect.NewClient(connecthttp.NewTransport(http1, r.url, connecthttp.WithGRPCWeb())),
+	}
+}
+
+func (r *running) grpc() *connect.Client {
+	return r.clients()["grpc"]
+}
+
+func requireCode(t *testing.T, err error, code connect.Code, message string) {
+	t.Helper()
+	var failure *connect.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, code, failure.Code())
+	assert.Equal(t, message, failure.Message())
+}
+
+func TestNotesOverEveryProtocol(t *testing.T) {
+	server := start(t, notes.NewMemory(), Options{})
+	for name, client := range server.clients() {
+		t.Run(name, func(t *testing.T) {
+			service := notesv1connect.NewNoteServiceClient(client)
+			created, err := service.CreateNote(t.Context(), &notesv1.CreateNoteRequest{Title: "  " + name + "  ", Body: "body"})
+			require.NoError(t, err)
+			assert.Equal(t, name, created.GetNote().GetTitle())
+			assert.NotEmpty(t, created.GetNote().GetId())
+			assert.False(t, created.GetNote().GetCreateTime().AsTime().IsZero())
+			got, err := service.GetNote(t.Context(), &notesv1.GetNoteRequest{Id: created.GetNote().GetId()})
+			require.NoError(t, err)
+			assert.True(t, proto.Equal(created.GetNote(), got.GetNote()))
+			_, err = service.CreateNote(t.Context(), &notesv1.CreateNoteRequest{})
+			requireCode(t, err, connect.CodeInvalidArgument, "title must contain 1 to 200 characters")
+			_, err = service.GetNote(t.Context(), &notesv1.GetNoteRequest{Id: "missing"})
+			requireCode(t, err, connect.CodeNotFound, "note not found")
+		})
+	}
+	var calls []string
+	for _, record := range server.logs.records(t) {
+		if record["msg"] == "rpc" {
+			calls = append(calls, record["protocol"].(string)+" "+record["procedure"].(string)+" "+record["code"].(string))
+		}
+	}
+	assert.Contains(t, calls, "grpc /notes.v1.NoteService/CreateNote ok")
+	assert.Contains(t, calls, "grpcweb /notes.v1.NoteService/GetNote not_found")
+	assert.Contains(t, calls, "connect /notes.v1.NoteService/CreateNote invalid_argument")
+}
+
+func TestGetNoteOverHTTPGet(t *testing.T) {
+	server := start(t, notes.NewMemory(), Options{})
+	created, err := notesv1connect.NewNoteServiceClient(server.grpc()).
+		CreateNote(t.Context(), &notesv1.CreateNoteRequest{Title: "cacheable"})
+	require.NoError(t, err)
+	query := url.Values{"encoding": {"json"}, "message": {`{"id":"` + created.GetNote().GetId() + `"}`}}
+	res, err := http.Get(server.url + "/notes.v1.NoteService/GetNote?" + query.Encode())
+	require.NoError(t, err)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode, string(body))
+	var got struct {
+		Note struct{ ID, Title string } `json:"note"`
+	}
+	require.NoError(t, json.Unmarshal(body, &got))
+	assert.Equal(t, created.GetNote().GetId(), got.Note.ID)
+	assert.Equal(t, "cacheable", got.Note.Title)
+}
+
+type failingStore struct{ fail func() error }
+
+func (s failingStore) Create(context.Context, notes.Input) (notes.Note, error) {
+	return notes.Note{}, s.fail()
+}
+
+func (s failingStore) Get(context.Context, string) (notes.Note, error) {
+	return notes.Note{}, s.fail()
+}
+
+func TestServerFaultsHideTheirCause(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		fail    func() error
+		code    connect.Code
+		message string
+		logged  string
+	}{
+		{"untyped error", func() error { return errors.New("disk on fire") }, connect.CodeInternal, "internal error", "rpc failed"},
+		{"unavailable", func() error {
+			return apperrors.Wrap(apperrors.Unavailable, "store down", errors.New("disk on fire"))
+		}, connect.CodeUnavailable, "service unavailable", "rpc failed"},
+		{"panic", func() error { panic("disk on fire") }, connect.CodeInternal, "internal error", "panic"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			server := start(t, failingStore{tt.fail}, Options{})
+			_, err := notesv1connect.NewNoteServiceClient(server.grpc()).
+				GetNote(t.Context(), &notesv1.GetNoteRequest{Id: "any"})
+			requireCode(t, err, tt.code, tt.message)
+			var logged []string
+			for _, record := range server.logs.records(t) {
+				logged = append(logged, record["msg"].(string))
+				if record["msg"] == tt.logged {
+					assert.Contains(t, fmt.Sprint(record["error"], record["panic"]), "disk on fire")
+				}
+			}
+			assert.Contains(t, logged, tt.logged)
+		})
+	}
+}
+
+func TestHealth(t *testing.T) {
+	server := start(t, notes.NewMemory(), Options{})
+	health := grpchealth.NewClient(server.grpc())
+	for _, service := range []string{"", notesv1connect.NoteServiceName} {
+		res, err := health.Check(t.Context(), &grpchealth.CheckRequest{Service: service})
+		require.NoError(t, err)
+		assert.Equal(t, grpchealth.StatusServing, res.Status, service)
+	}
+	_, err := health.Check(t.Context(), &grpchealth.CheckRequest{Service: "unknown.v1.Service"})
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	assertHealthz(t, server.url, http.StatusOK, "serving")
+
+	server.service.Drain()
+	for _, service := range []string{"", notesv1connect.NoteServiceName} {
+		res, err := health.Check(t.Context(), &grpchealth.CheckRequest{Service: service})
+		require.NoError(t, err)
+		assert.Equal(t, grpchealth.StatusNotServing, res.Status, service)
+	}
+	assertHealthz(t, server.url, http.StatusServiceUnavailable, "not_serving")
+}
+
+func assertHealthz(t *testing.T, base string, status int, body string) {
+	t.Helper()
+	res, err := http.Get(base + "/healthz")
+	require.NoError(t, err)
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Equal(t, status, res.StatusCode)
+	assert.Equal(t, "no-store", res.Header.Get("Cache-Control"))
+	assert.JSONEq(t, `{"status":"`+body+`"}`, string(data))
+}
+
+func TestReflection(t *testing.T) {
+	server := start(t, notes.NewMemory(), Options{Reflection: true})
+	stream := grpcreflect.NewClient(server.grpc()).NewStream(t.Context())
+	defer stream.Close()
+	names, err := stream.ListServices()
+	require.NoError(t, err)
+	assert.Contains(t, names, protoreflect.FullName(notesv1connect.NoteServiceName))
+	assert.Contains(t, names, protoreflect.FullName(grpcreflect.ReflectV1ServiceName))
+
+	off := start(t, notes.NewMemory(), Options{Reflection: false})
+	stream = grpcreflect.NewClient(off.grpc()).NewStream(t.Context())
+	defer stream.Close()
+	_, err = stream.ListServices()
+	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+}

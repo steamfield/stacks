@@ -1,0 +1,45 @@
+package rpc
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+
+	"connectrpc.com/connect/v2"
+	"github.com/stretchr/testify/assert"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestErrorTable(t *testing.T) {
+	cause := errors.New("connection refused")
+	for _, tt := range []struct {
+		name    string
+		err     error
+		code    connect.Code
+		message string
+		fault   bool
+	}{
+		{"bad input keeps its message", apperrors.New(apperrors.BadInput, "title is required"), connect.CodeInvalidArgument, "title is required", false},
+		{"not found keeps its message", fmt.Errorf("lookup: %w", apperrors.New(apperrors.NotFound, "note not found")), connect.CodeNotFound, "note not found", false},
+		{"unavailable hides its cause", apperrors.Wrap(apperrors.Unavailable, "store down", cause), connect.CodeUnavailable, "service unavailable", true},
+		{"internal hides its cause", apperrors.Wrap(apperrors.Internal, "encode", cause), connect.CodeInternal, "internal error", true},
+		{"unknown domain code", apperrors.New("Teapot", "short and stout"), connect.CodeInternal, "internal error", true},
+		{"untyped error", cause, connect.CodeInternal, "internal error", true},
+		{"canceled", context.Canceled, connect.CodeCanceled, "request canceled", false},
+		{"deadline", fmt.Errorf("store: %w", context.DeadlineExceeded), connect.CodeDeadlineExceeded, "deadline exceeded", false},
+		{"connect errors pass through", connect.NewError(connect.CodeResourceExhausted, "message too large"), connect.CodeResourceExhausted, "message too large", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			public, fault := toStatus(tt.err)
+			assert.Equal(t, tt.code, public.Code())
+			assert.Equal(t, tt.message, public.Message())
+			assert.Equal(t, tt.fault, fault)
+			assert.NotContains(t, public.Error(), "connection refused")
+		})
+	}
+	for code := range errorTable {
+		assert.NotEqual(t, connect.CodeUnknown, errorTable[code].code, code)
+	}
+}

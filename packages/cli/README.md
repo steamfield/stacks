@@ -86,6 +86,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `astro-fullstack` | Bun workspace: a static Astro site with React islands and an Effect HttpApi server on Node, sharing a typed contract package | |
 | `cloudflare-react-router` | React Router on the local Workers runtime with typed bindings and Workers integration tests | |
 | `go-api` | Go HTTP API on the standard library: one JSON error envelope, request logging, clean shutdown, race-enabled tests against the built binary | |
+| `go-grpc` | Go RPC service on Connect from a protobuf contract: buf lint, breaking and generation checks through `go tool`, gRPC health and reflection, loopback tests over gRPC, gRPC-Web and Connect | |
 | `go-cli` | Go CLI: cobra, viper config, structured errors, human and JSON output, golangci-lint | |
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
 | `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |

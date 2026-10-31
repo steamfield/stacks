@@ -21,12 +21,14 @@ Before using a kit API, read its declaration in `node_modules/@sveltejs/kit/type
 - Expected failures (validation, a missing record) return `fail(status, data)` with the field errors and the submitted values. Don't throw for them: a thrown error renders `+error.svelte`, and production hides an unexpected error's message.
 - The form is `method="POST"` and works without JavaScript; `use:enhance` upgrades it. After a successful enhanced submit the kit reruns the page's load functions, so the list updates without a manual reload. Write a custom enhance callback only to add pending state, and call the default update from it.
 - The page reads the action's returned data through the prop the installed kit documents for form results, and passes it to the form component.
+- Successful writes redirect with 303 so a reload of a plain form response does not repeat the POST. Enhancement follows that redirect through client navigation.
 
 ## Endpoints
 
 - `+server.ts` exports one function per HTTP method. Return the kit's `json` helper (or `Response.json`) with an explicit status. Decode request bodies as `unknown` and parse them with zod before use.
 - An endpoint that reports live state (health, counts) must render per request. Never set prerendering on it or on a layout above it.
 - `/api/health` reads the items service and touches nothing outside the process.
+- `hooks.server.ts` maps API failures to `{error:{code,message,requestId}}`, adds no-store and request-ID headers, and logs request metadata without query strings or submitted values. `server/errors.ts` owns the safe public messages. The database fragment's `/api/ready` 503 keeps its `{"status":"unavailable"}` readiness body and gets the same headers.
 
 ## Server state
 

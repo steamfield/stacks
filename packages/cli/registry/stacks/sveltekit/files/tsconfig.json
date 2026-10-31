@@ -1,0 +1,20 @@
+{
+	"extends": "$app/tsconfig",
+	"compilerOptions": {
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"allowJs": true,
+		"checkJs": true,
+		"types": ["$app/types", "node", "@testing-library/jest-dom"]
+	},
+	"include": [
+		"src/**/*",
+		"tests/**/*",
+		"e2e/**/*",
+		"scripts/**/*",
+		"*.ts",
+		"*.js",
+		".claude/hooks/**/*.ts"
+	],
+	"exclude": ["node_modules", "build", ".claude/worktrees"]
+}

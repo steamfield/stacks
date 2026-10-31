@@ -36,6 +36,12 @@
     "registry/stacks/nextjs/files/next-env.d.ts",
     "registry/stacks/nextjs/files/src",
     "registry/stacks/nextjs/files/tests",
-    "registry/stacks/nextjs/files/e2e"
+    "registry/stacks/nextjs/files/e2e",
+    // SvelteKit's $app/*, ./$types and browser dependencies resolve only in the scaffold.
+    // Keep prepare/e2e scripts and adapter hook tests checked here.
+    "registry/stacks/sveltekit/files/*.ts",
+    "registry/stacks/sveltekit/files/src",
+    "registry/stacks/sveltekit/files/tests",
+    "registry/stacks/sveltekit/files/e2e"
   ]
 }

@@ -1,0 +1,81 @@
+package config
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+const Binary = "{{project_slug}}"
+const EnvPrefix = "{{env_prefix}}"
+
+type Config struct {
+	Greeting string `mapstructure:"greeting" json:"greeting"`
+	JSON     bool   `mapstructure:"json" json:"json"`
+	Verbose  bool   `mapstructure:"verbose" json:"verbose"`
+	NoColor  bool   `mapstructure:"no-color" json:"no-color"`
+}
+
+func (c Config) Validate() error {
+	if strings.TrimSpace(c.Greeting) == "" {
+		return apperrors.New(apperrors.Config, "greeting must not be empty", "Set greeting in the config file or "+EnvPrefix+"_GREETING.")
+	}
+	return nil
+}
+
+// Load keeps Viper at the boundary; callers only receive the typed configuration.
+func Load(flags *pflag.FlagSet) (Config, error) {
+	v := viper.New()
+	v.SetDefault("greeting", "Hello, world!")
+	v.SetDefault("json", false)
+	v.SetDefault("verbose", false)
+	v.SetDefault("no-color", false)
+	v.SetEnvPrefix(EnvPrefix)
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	v.AutomaticEnv()
+
+	path, err := flags.GetString("config")
+	if err != nil {
+		return Config{}, apperrors.Wrap(apperrors.Internal, "read config flag", "Use the root command's persistent flags.", err)
+	}
+	if path != "" {
+		if err := mergeFile(v, path); err != nil {
+			return Config{}, err
+		}
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return Config{}, apperrors.Wrap(apperrors.Config, "locate home directory", "Set HOME or pass --config with a YAML file.", err)
+		}
+		for _, file := range []string{filepath.Join(home, ".config", Binary, "config.yaml"), Binary + ".yaml"} {
+			if err := mergeFile(v, file); err != nil {
+				return Config{}, err
+			}
+		}
+	}
+	for _, key := range []string{"json", "verbose", "no-color"} {
+		if err := v.BindPFlag(key, flags.Lookup(key)); err != nil {
+			return Config{}, apperrors.Wrap(apperrors.Internal, "bind flag "+key, "Use the root command's persistent flags.", err)
+		}
+	}
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return Config{}, apperrors.Wrap(apperrors.Config, "decode configuration", "Check the types in the config file and environment variables.", err)
+	}
+	return cfg, cfg.Validate()
+}
+
+func mergeFile(v *viper.Viper, path string) error {
+	v.SetConfigFile(path)
+	v.SetConfigType("yaml")
+	if err := v.MergeInConfig(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return apperrors.Wrap(apperrors.Config, "read config "+path, "Check the file's permissions and YAML syntax, or choose another --config path.", err)
+	}
+	return nil
+}

@@ -28,8 +28,8 @@ Add tag-driven releases. Pushing `vX.Y.Z` builds every target, attaches archives
 ## What to add
 
 **`.goreleaser.yaml`**:
-- **Build**: `main` is `./cmd/<bin>`, `binary` is `<bin>`, `CGO_ENABLED=0`, goos linux/darwin/windows, goarch amd64/arm64 (per the decision). ldflags: `-s -w` plus `-X main.version`, `-X main.commit`, and `-X main.date` bound to GoReleaser's version, commit, and date template fields. These must match the variables the go-cli stack declares in `cmd/<bin>/main.go` and the Makefile's `build` target, so `<bin> --version` reports the same thing whether GoReleaser or make built it.
-- **Archives**: tar.gz, with zip for windows. Name them `<project>_<os>_<arch>` so install scripts can predict the URL. Include README, LICENSE, and shell completions if the project generates them (a `before` hook can run `go run ./cmd/<bin> completion <shell>` into `completions/`).
+- **Build**: `main` is the go-cli stack's package `.` (its `main.go` sits at the project root), `binary` is `<bin>`, `CGO_ENABLED=0`, goos linux/darwin/windows, goarch amd64/arm64 (per the decision). ldflags: `-s -w` plus `-X main.version`, `-X main.commit`, and `-X main.date` bound to GoReleaser's version, commit, and date template fields. These must match the variables the go-cli stack declares in `main.go` and the Makefile's `build` target, so `<bin> --version` reports the same thing whether GoReleaser or make built it.
+- **Archives**: tar.gz, with zip for windows. Name them `<project>_<os>_<arch>` so install scripts can predict the URL. Include README, LICENSE, and shell completions if the project generates them (a `before` hook can run `go run . completion <shell>` into `completions/`).
 - **Checksum**: a single `checksums.txt`.
 - **Changelog**: sorted ascending, excluding `docs:`, `test:`, `chore:`, and `ci:` commits (the git-hooks fragment enforces conventional commits, which makes this useful).
 - **Snapshot**: a version template for snapshot builds that marks them clearly as non-releases.

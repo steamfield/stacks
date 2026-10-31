@@ -1,0 +1,19 @@
+package cli
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"{{project_slug}}/internal/config"
+	"{{project_slug}}/internal/output"
+)
+
+func renderVersion(cmd *cobra.Command, version, commit, date string) error {
+	info := struct {
+		Version string `json:"version"`
+		Commit  string `json:"commit"`
+		Date    string `json:"date"`
+	}{Version: version, Commit: commit, Date: date}
+	return output.Render(cmd.OutOrStdout(), outputOptions(cmd), info, fmt.Sprintf("%s version %s", config.Binary, version))
+}

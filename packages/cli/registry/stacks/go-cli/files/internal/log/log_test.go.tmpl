@@ -1,0 +1,50 @@
+package log
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+func TestLogger(t *testing.T) {
+	tests := []struct {
+		name, debug string
+		verbose     bool
+		json        bool
+		wantDebug   bool
+	}{
+		{name: "warn by default"},
+		{name: "verbose", verbose: true, wantDebug: true},
+		{name: "env", debug: "1", wantDebug: true},
+		{name: "other env values", debug: "true"},
+		{name: "JSON", json: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(config.EnvPrefix+"_DEBUG", tt.debug)
+			var buf bytes.Buffer
+			logger := New(&buf, tt.verbose, tt.json)
+			logger.Debug("debug message")
+			logger.Info("info message")
+			if tt.wantDebug {
+				assert.Contains(t, buf.String(), "debug message")
+				assert.Contains(t, buf.String(), "info message")
+			} else {
+				assert.Empty(t, buf.String())
+			}
+			buf.Reset()
+			logger.Warn("warning message")
+			assert.Contains(t, buf.String(), "warning message")
+			if tt.json {
+				var value map[string]any
+				require.NoError(t, json.Unmarshal(buf.Bytes(), &value))
+				assert.Equal(t, "WARN", value["level"])
+			}
+		})
+	}
+}

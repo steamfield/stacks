@@ -1,0 +1,106 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func testFlags(t *testing.T, args ...string) *pflag.FlagSet {
+	t.Helper()
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config", "", "")
+	flags.Bool("json", false, "")
+	flags.Bool("verbose", false, "")
+	flags.Bool("no-color", false, "")
+	require.NoError(t, flags.Parse(args))
+	return flags
+}
+
+func isolate(t *testing.T) {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	t.Chdir(t.TempDir())
+	for _, key := range []string{"GREETING", "JSON", "VERBOSE", "NO_COLOR"} {
+		t.Setenv(EnvPrefix+"_"+key, "")
+	}
+}
+
+func TestPrecedence(t *testing.T) {
+	tests := []struct {
+		name, file, env string
+		args            []string
+		want            bool
+	}{
+		{name: "defaults"},
+		{name: "file", file: "json: true\n", want: true},
+		{name: "env overrides file", file: "json: false\n", env: "true", want: true},
+		{name: "flag overrides env", file: "json: false\n", env: "false", args: []string{"--json"}, want: true},
+		{name: "explicit false flag", file: "json: true\n", env: "true", args: []string{"--json=false"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolate(t)
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if tt.file != "" {
+				require.NoError(t, os.WriteFile(path, []byte(tt.file), 0o600))
+			}
+			t.Setenv(EnvPrefix+"_JSON", tt.env)
+			args := append([]string{"--config", path}, tt.args...)
+			cfg, err := Load(testFlags(t, args...))
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg.JSON)
+			assert.Equal(t, "Hello, world!", cfg.Greeting)
+		})
+	}
+}
+
+func TestFileSearch(t *testing.T) {
+	isolate(t)
+	homeFile := filepath.Join(os.Getenv("HOME"), ".config", Binary, "config.yaml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(homeFile), 0o700))
+	require.NoError(t, os.WriteFile(homeFile, []byte("greeting: from home\nverbose: true\n"), 0o600))
+	cfg, err := Load(testFlags(t))
+	require.NoError(t, err)
+	assert.Equal(t, "from home", cfg.Greeting)
+	require.NoError(t, os.WriteFile(Binary+".yaml", []byte("greeting: from project\n"), 0o600))
+	cfg, err = Load(testFlags(t))
+	require.NoError(t, err)
+	assert.Equal(t, "from project", cfg.Greeting)
+	assert.True(t, cfg.Verbose, "project config preserves other home keys")
+	t.Setenv(EnvPrefix+"_GREETING", "from env")
+	t.Setenv(EnvPrefix+"_NO_COLOR", "true")
+	cfg, err = Load(testFlags(t))
+	require.NoError(t, err)
+	assert.Equal(t, "from env", cfg.Greeting)
+	assert.True(t, cfg.NoColor)
+	cfg, err = Load(testFlags(t, "--config", filepath.Join(t.TempDir(), "missing.yaml")))
+	require.NoError(t, err)
+	assert.False(t, cfg.Verbose, "explicit config replaces the default search")
+}
+
+func TestInvalidConfig(t *testing.T) {
+	tests := []struct{ name, content string }{
+		{"malformed YAML", "greeting: [\n"},
+		{"invalid type", "json: not-a-bool\n"},
+		{"validation", "greeting: '   '\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolate(t)
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			require.NoError(t, os.WriteFile(path, []byte(tt.content), 0o600))
+			_, err := Load(testFlags(t, "--config", path))
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, apperrors.Config, failure.Code)
+			assert.NotEmpty(t, failure.Suggestion)
+		})
+	}
+}

@@ -1,0 +1,21 @@
+package log
+
+import (
+	"io"
+	"log/slog"
+	"os"
+
+	"{{project_slug}}/internal/config"
+)
+
+func New(stderr io.Writer, verbose, json bool) *slog.Logger {
+	level := slog.LevelWarn
+	if verbose || os.Getenv(config.EnvPrefix+"_DEBUG") == "1" {
+		level = slog.LevelDebug
+	}
+	opts := &slog.HandlerOptions{Level: level}
+	if json {
+		return slog.New(slog.NewJSONHandler(stderr, opts))
+	}
+	return slog.New(slog.NewTextHandler(stderr, opts))
+}

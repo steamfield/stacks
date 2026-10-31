@@ -1,13 +1,13 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
 import {
+  isRouteErrorResponse,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
-  isRouteErrorResponse,
   useRouteError,
 } from "react-router";
 import { createQueryClient } from "./lib/query-client";
@@ -47,9 +47,7 @@ export function HydrateFallback() {
 export function ErrorBoundary() {
   const error = useRouteError();
   const message =
-    isRouteErrorResponse(error) && error.status === 404
-      ? "Page not found"
-      : "Something went wrong";
+    isRouteErrorResponse(error) && error.status === 404 ? "Page not found" : "Something went wrong";
   return (
     <main className="mx-auto max-w-xl p-8">
       <h1>{message}</h1>

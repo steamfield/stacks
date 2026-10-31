@@ -3,12 +3,7 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["DOM", "DOM.Iterable", "ES2023"],
-    "types": [
-      "node",
-      "vite/client",
-      "vitest/globals",
-      "@testing-library/jest-dom"
-    ],
+    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",

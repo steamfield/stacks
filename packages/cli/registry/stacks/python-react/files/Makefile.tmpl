@@ -69,10 +69,10 @@ backend-coverage: ## pytest with the coverage floor
 frontend-install: ## bun install (frozen lockfile when CI is set)
 	cd frontend && bun install $(if $(CI),--frozen-lockfile)
 
-frontend-lint: ## ESLint + prettier --check
+frontend-lint: ## Biome lint and format check
 	cd frontend && bun run lint
 
-frontend-format: ## prettier --write (bun run format)
+frontend-format: ## Biome formatting and safe fixes (bun run format)
 	cd frontend && bun run format
 
 frontend-typecheck: ## React Router typegen + tsc

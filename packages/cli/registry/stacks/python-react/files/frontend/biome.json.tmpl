@@ -1,0 +1,103 @@
+{
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true, "root": ".." },
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.mjs",
+      "**/*.json",
+      "**/*.css",
+      "!build",
+      "!.react-router",
+      "!coverage",
+      "!node_modules",
+      "!playwright-report",
+      "!test-results",
+      "!.stacks",
+      "!.claude",
+      "!openapi.json",
+      "!bun.lock"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  "css": { "parser": { "tailwindDirectives": true } },
+  "linter": {
+    "enabled": true,
+    "includes": ["**", "!app/api/generated/**"],
+    "domains": { "react": "recommended" },
+    "rules": {
+      "preset": "recommended",
+      "a11y": { "preset": "recommended", "noNoninteractiveElementInteractions": "error" },
+      "complexity": {
+        "noAdjacentSpacesInRegex": "error",
+        "noArguments": "error",
+        "noBannedTypes": "error",
+        "noExtraBooleanCast": "error",
+        "noUselessCatch": "error",
+        "noUselessEscapeInRegex": "error",
+        "noUselessThisAlias": "error",
+        "noUselessTypeConstraint": "error"
+      },
+      "performance": { "noDelete": "error" },
+      "nursery": {
+        "noOctal": "error",
+        "noUselessAssignment": "error",
+        "useReactCompiler": "error"
+      },
+      "style": {
+        "noCommonJs": "error",
+        "noNamespace": "error",
+        "useArrayLiterals": "error",
+        "useAsConstAssertion": "error",
+        "useErrorCause": { "level": "error", "options": { "requireCatchParameter": false } },
+        "useImportType": "error",
+        "useExportType": "error",
+        "noNonNullAssertion": "error",
+        "useConst": "error",
+        "useSpreadOverApply": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "error",
+        "noUnusedLabels": "error",
+        "noUnusedPrivateClassMembers": "error",
+        "noUnusedVariables": {
+          "level": "error",
+          "options": { "ignoreRestSiblings": false, "ignoreUsingDeclarations": false }
+        }
+      },
+      "suspicious": {
+        "noCatchAssign": "error",
+        "noConstantBinaryExpressions": "error",
+        "noDuplicateEnumValues": "error",
+        "noEmptyBlockStatements": "error",
+        "noExplicitAny": "error",
+        "noExtraNonNullAssertion": "error",
+        "noIrregularWhitespace": "error",
+        "noPrototypeBuiltins": "error",
+        "noTsIgnore": "error",
+        "noUnassignedVariables": "error",
+        "noUnusedExpressions": "error",
+        "noUselessRegexBackrefs": "error",
+        "noVar": "error"
+      }
+    }
+  },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["**/*.{js,mjs}"],
+      "linter": { "rules": { "correctness": { "noUndeclaredVariables": "error" } } }
+    },
+    {
+      "includes": ["app/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
+      "linter": { "domains": { "playwright": "none" } }
+    },
+    {
+      "includes": ["app/api/generated/**"],
+      "assist": { "enabled": false }
+    }
+  ]
+}

@@ -11,18 +11,11 @@ export default function Home() {
       {health.isPending && <p role="status">Checking API…</p>}
       {health.isError && (
         <p role="alert">
-          {health.error instanceof ApiError
-            ? health.error.message
-            : "Could not read API health."}
+          {health.error instanceof ApiError ? health.error.message : "Could not read API health."}
         </p>
       )}
-      {health.isSuccess && (
-        <p role="status">API status: {health.data.status}</p>
-      )}
-      <Button
-        onClick={() => void health.refetch()}
-        disabled={health.isFetching}
-      >
+      {health.isSuccess && <p role="status">API status: {health.data.status}</p>}
+      <Button onClick={() => void health.refetch()} disabled={health.isFetching}>
         <RefreshCw aria-hidden="true" size={16} />
         Check again
       </Button>

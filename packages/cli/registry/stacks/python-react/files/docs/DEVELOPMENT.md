@@ -28,5 +28,7 @@ route error page. Its HTML reporter never opens a browser automatically.
 
 When adding hooks and CI from fragments, keep their files outside this slice's
 source. Run frontend tooling from `frontend/` and backend tooling from `backend/`.
-For staged frontend lint use `eslint --no-warn-ignored`; generated clients are
-ignored by ESLint and formatted by orval's Prettier hook.
+For staged frontend lint use `biome check --no-errors-on-unmatched`; generated
+clients skip lint and import sorting, and orval's `biome format --write` hook
+formats them. `biome.json` excludes build and test output, `.stacks/`, `.claude/`
+and the Python-formatted OpenAPI spec. Keep its React and accessibility rules.

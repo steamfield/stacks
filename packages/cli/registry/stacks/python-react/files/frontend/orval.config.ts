@@ -14,7 +14,7 @@ export default defineConfig({
         header: false,
       },
     },
-    hooks: { afterAllFilesWrite: "prettier --write" },
+    hooks: { afterAllFilesWrite: "biome format --write" },
   },
   schemas: {
     input: "./openapi.json",
@@ -23,6 +23,6 @@ export default defineConfig({
       client: "zod",
       override: { header: false },
     },
-    hooks: { afterAllFilesWrite: "prettier --write" },
+    hooks: { afterAllFilesWrite: "biome format --write" },
   },
 });

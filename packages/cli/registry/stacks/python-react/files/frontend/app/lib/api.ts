@@ -23,14 +23,8 @@ export class ApiError extends Error {
 
 export type ErrorType<_T> = ApiError;
 
-export async function apiFetch<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL ?? ""}${path}`,
-    options,
-  );
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}${path}`, options);
   const text = await response.text();
   let body: unknown;
   try {
@@ -49,11 +43,7 @@ export async function apiFetch<T>(
       const { code, message, requestId } = parsed.data.error;
       throw new ApiError(code, message, response.status, requestId);
     }
-    throw new ApiError(
-      "INVALID_RESPONSE",
-      `API returned HTTP ${response.status}`,
-      response.status,
-    );
+    throw new ApiError("INVALID_RESPONSE", `API returned HTTP ${response.status}`, response.status);
   }
   // Callers validate the success body with the schema generated from OpenAPI.
   return body as T;

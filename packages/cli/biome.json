@@ -38,8 +38,7 @@
       "includes": [
         "registry/stacks/astro-blog/files/**",
         "registry/stacks/nextjs/files/**",
-        "registry/stacks/sveltekit/files/**",
-        "registry/stacks/python-react/files/frontend/**"
+        "registry/stacks/sveltekit/files/**"
       ],
       "formatter": { "enabled": false },
       "assist": { "enabled": false },

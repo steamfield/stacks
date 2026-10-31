@@ -51,13 +51,12 @@ test("astro-blog keeps Prettier off .stacks/ and .claude/", async () => {
   expect(ignored).toContain(".claude/");
 });
 
-test("python-react keeps Prettier off .stacks/ and .claude/", async () => {
-  const ignore = readFileSync(
-    join(await scaffold("python-react"), "frontend/.prettierignore"),
-    "utf8",
+test("python-react keeps Biome off .stacks/ and .claude/", async () => {
+  const config = JSON.parse(
+    readFileSync(join(await scaffold("python-react"), "frontend/biome.json"), "utf8"),
   );
-  expect(ignore.split("\n")).toContain(".stacks/");
-  expect(ignore.split("\n")).toContain(".claude/");
+  expect(config.files.includes).toContain("!.stacks");
+  expect(config.files.includes).toContain("!.claude");
 });
 
 test("the sandbox CI workflow pins a release tag when an action publishes no major tag", async () => {
@@ -110,7 +109,7 @@ test("python-react runs dump_openapi.py as a module so it can import app", async
 
 test("git-hooks keeps a staged-file linter quiet about files its config ignores", async () => {
   const guide = readFileSync(join(await scaffold("python-react"), "docs/DEVELOPMENT.md"), "utf8");
-  expect(guide).toContain("`eslint --no-warn-ignored`");
+  expect(guide).toContain("`biome check --no-errors-on-unmatched`");
 });
 
 /** `new <stack> app --sandbox` from the bundled registry, with a git shim on PATH. */

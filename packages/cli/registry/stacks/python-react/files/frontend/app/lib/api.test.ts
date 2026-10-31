@@ -1,5 +1,5 @@
-import { http, HttpResponse } from "msw";
-import { expect, test, vi, afterEach } from "vitest";
+import { HttpResponse, http } from "msw";
+import { afterEach, expect, test, vi } from "vitest";
 import { server } from "../../tests/mocks/server";
 import { ApiError, apiFetch } from "./api";
 
@@ -35,11 +35,7 @@ test("keeps the public error code, status and correlation id", async () => {
 });
 
 test("rejects a malformed error envelope without exposing its body", async () => {
-  server.use(
-    http.get("*/health", () =>
-      HttpResponse.json({ secret: "hidden" }, { status: 502 }),
-    ),
-  );
+  server.use(http.get("*/health", () => HttpResponse.json({ secret: "hidden" }, { status: 502 })));
   await expect(apiFetch("/health")).rejects.toEqual(
     new ApiError("INVALID_RESPONSE", "API returned HTTP 502", 502),
   );
@@ -48,9 +44,7 @@ test("rejects a malformed error envelope without exposing its body", async () =>
 test.each(["<html>private upstream error</html>", ""])(
   "retains the HTTP status for a non-JSON error body %j",
   async (body) => {
-    server.use(
-      http.get("*/health", () => new HttpResponse(body, { status: 503 })),
-    );
+    server.use(http.get("*/health", () => new HttpResponse(body, { status: 503 })));
     await expect(apiFetch("/health")).rejects.toMatchObject({
       name: "ApiError",
       code: "INVALID_RESPONSE",
@@ -76,10 +70,7 @@ test("uses the configured API origin", async () => {
   );
   server.use(
     http.get("https://api.example.test/health", () =>
-      HttpResponse.json(
-        { status: "ok" },
-        { headers: { "Access-Control-Allow-Origin": "*" } },
-      ),
+      HttpResponse.json({ status: "ok" }, { headers: { "Access-Control-Allow-Origin": "*" } }),
     ),
   );
   await expect(apiFetch("/health")).resolves.toEqual({ status: "ok" });

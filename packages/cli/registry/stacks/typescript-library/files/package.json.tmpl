@@ -1,0 +1,30 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "description": "",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tools.json",
+    "lint": "biome check .",
+    "lint:package": "publint --strict && attw --pack . --profile esm-only",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:consumer": "bun scripts/consumer.ts",
+    "coverage": "vitest run --coverage",
+    "check": "bun run lint && bun run typecheck && bun run coverage && bun run lint:package && bun run test:consumer",
+    "clean": "rm -rf dist coverage *.tgz",
+    "prepack": "bun run build",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

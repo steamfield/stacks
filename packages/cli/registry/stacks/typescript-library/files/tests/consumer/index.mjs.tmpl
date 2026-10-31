@@ -1,0 +1,32 @@
+// A JavaScript user of the published package, with no types to lean on. scripts/consumer.ts runs
+// it with Node after installing the packed tarball.
+import { isLibraryError, slugify } from "{{project_slug}}";
+
+function check(condition, message) {
+  if (!condition) throw new Error(`consumer (mjs): ${message}`);
+}
+
+check(slugify("Crème Brûlée") === "creme-brulee", "slugify");
+
+try {
+  slugify(42);
+  check(false, "a number should throw");
+} catch (error) {
+  check(isLibraryError(error) && error.code === "invalid_input", "runtime input check");
+}
+
+try {
+  slugify("text", { maxlength: 10 });
+  check(false, "an unknown option should throw");
+} catch (error) {
+  check(isLibraryError(error) && error.field === "maxlength", "unknown option names its key");
+}
+
+// Only "exports" is reachable: the build's internals stay private.
+const internal = await import("{{project_slug}}/dist/index.js").then(
+  () => "resolved",
+  (error) => error.code,
+);
+check(internal === "ERR_PACKAGE_PATH_NOT_EXPORTED", `deep import gave ${internal}`);
+
+console.log("consumer (mjs): ok");

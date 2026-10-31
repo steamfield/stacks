@@ -1,4 +1,11 @@
-import type { DependencyCard, Kind } from "@steamfield/stacks-format";
+import {
+  type AgentId,
+  type DependencyCard,
+  type DependencyRollup,
+  type FragmentMeta,
+  type Kind,
+  stackDependencies,
+} from "@steamfield/stacks-format";
 import { Effect, Option, Result } from "effect";
 import { AppConfig } from "../config";
 import { BadInput, NotFound } from "../errors";
@@ -7,12 +14,12 @@ import type { ShowReport } from "../schemas/show";
 import { Output } from "../services/output";
 import { countWords } from "./brief/words";
 import { targetAgents } from "./compose/agents";
-import { compose } from "./compose/compose";
+import { type Composition, compose } from "./compose/compose";
 import { fitsStack } from "./compose/selection";
 import { fingerprint } from "./fingerprint";
 import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
 import { toRow } from "./list";
-import { type CatalogEntry, type Entry, outputPath } from "./registry/entry";
+import { type CatalogEntry, type Entry, isFragment, outputPath } from "./registry/entry";
 import { Registry, type RegistryRoots, remoteRoots } from "./registry/registry";
 import { searchSourceDigest } from "./search/digest";
 import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
@@ -41,7 +48,7 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
       const { stats: _summaryStats, ...row } = toRow(entry, records, yield* registry.authors);
       const stats = yield* officialDetail(entry);
       const { meta } = entry;
-      const copy = yield* entryCopy(entry, registry);
+      const fragments = yield* dependencyFragments(entry, registry);
       const files = (yield* registry.files(entry)).map((file) => {
         const agent = /^adapters\/([^/]+)\//.exec(file.source)?.[1];
         return {
@@ -50,18 +57,12 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
           ...(agent ? { agent } : {}),
         };
       });
-      const composition =
-        entry.kind === "stack"
-          ? yield* compose({
-              stack: id,
-              with: [],
-              without: [],
-              preset: "default",
-              agents: targetAgents(undefined, settings).slice(0, 1),
-              always: [],
-              mode: "new",
-            })
-          : null;
+      const composition = yield* defaultComposition(
+        entry,
+        targetAgents(undefined, settings).slice(0, 1),
+      );
+      const dependencyRollup = entryDependencyRollup(entry, fragments, composition);
+      const copy = yield* entryCopy(entry, registry, dependencyRollup);
       const lastRun =
         entry.indexEntry?.lastRun && row.lastRun
           ? { ...row.lastRun, sameContent: yield* indexSameContent(entry) }
@@ -71,6 +72,7 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
         ...stats,
         path: entry.dir,
         deps: meta.deps,
+        ...(dependencyRollup === undefined ? {} : { dependencyRollup }),
         ...copy,
         tools: meta.tools,
         decisions: meta.decisions,
@@ -89,9 +91,65 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
     }).pipe(Effect.provide(Registry.layer(roots)));
   });
 
-const entryCopy = Effect.fn("show.copy")(function* (entry: Entry, registry: Registry["Service"]) {
+const defaultComposition = (entry: Entry, agents: ReadonlyArray<AgentId>) =>
+  entry.kind === "stack"
+    ? compose({
+        stack: entry.id,
+        with: [],
+        without: [],
+        preset: "default",
+        agents,
+        always: [],
+        mode: "new",
+      })
+    : Effect.succeed(null);
+
+/** A stack's fragments and their `requires`, one lookup each; unresolvable ones are left out. */
+const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
+  entry: Entry,
+  registry: Registry["Service"],
+) {
+  const resolved: FragmentMeta[] = [];
+  if (entry.meta.kind !== "stack") return resolved;
+  const { fragments } = entry.meta;
+  const pending = [...fragments.required, ...fragments.default, ...fragments.optional];
+  const seen = new Set<string>();
+  for (const id of pending) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const loaded = yield* Effect.result(registry.get("fragment", id));
+    if (Result.isFailure(loaded)) {
+      // compose reports a missing or rejected default fragment; optional ones only lose their row.
+      if (loaded.failure._tag === "PermissionDenied") return yield* loaded.failure;
+      continue;
+    }
+    if (!isFragment(loaded.success)) continue;
+    resolved.push(loaded.success.meta);
+    pending.push(...loaded.success.meta.requires);
+  }
+  return resolved;
+});
+
+function entryDependencyRollup(
+  entry: Entry,
+  fragments: ReadonlyArray<FragmentMeta>,
+  composition: Composition | null,
+) {
+  if (entry.meta.kind !== "stack") return undefined;
+  // Composition already selects pinned snapshots and applies project/user overrides.
+  const included = composition?.fragments.flatMap((fragment) =>
+    fragment.meta.kind === "fragment" ? [fragment.meta] : [],
+  );
+  return stackDependencies(entry.meta, [...fragments, ...(included ?? [])]);
+}
+
+const entryCopy = Effect.fn("show.copy")(function* (
+  entry: Entry,
+  registry: Registry["Service"],
+  rollup: DependencyRollup | undefined,
+) {
   const plain = yield* entryPlain(entry, registry);
-  const dependencyCards = yield* entryDependencyCards(entry, registry);
+  const dependencyCards = yield* entryDependencyCards(entry, registry, rollup);
   return { ...(plain ? { plain } : {}), ...(dependencyCards ? { dependencyCards } : {}) };
 });
 
@@ -118,8 +176,15 @@ const entryPlain = Effect.fn("show.plain")(function* (entry: Entry, registry: Re
 const entryDependencyCards = Effect.fn("show.dependencyCards")(function* (
   entry: Entry,
   registry: Registry["Service"],
+  rollup: DependencyRollup | undefined,
 ) {
-  const wanted = new Set(Object.values(entry.meta.deps).flat());
+  const wanted = new Set(
+    rollup === undefined
+      ? Object.values(entry.meta.deps).flat()
+      : [...rollup.included, ...rollup.optional.flatMap((optional) => optional.deps)].map(
+          (dep) => dep.name,
+        ),
+  );
   if (!wanted.size) return undefined;
   const found: Record<string, DependencyCard> = {};
   const files = yield* registry.dependencyCards;

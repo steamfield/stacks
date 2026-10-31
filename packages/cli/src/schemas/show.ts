@@ -1,6 +1,7 @@
 import {
   Category,
   DependencyCard,
+  DependencyRollup,
   Plain,
   StatsDetail,
   VerifyStep,
@@ -17,6 +18,7 @@ export const ShowReport = Schema.Struct({
   stats: Schema.optionalKey(StatsDetail),
   path: Schema.String,
   deps: Schema.Record(Schema.String, Schema.Array(Schema.String)),
+  dependencyRollup: Schema.optionalKey(DependencyRollup),
   plain: Schema.optionalKey(
     Schema.Struct({
       ...Plain.fields,

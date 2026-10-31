@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make lint)",
+      "Bash(make format)",
+      "Bash(make typecheck)",
+      "Bash(make test)",
+      "Bash(make coverage)",
+      "Bash(make makemigrations)",
+      "Bash(make check-migrations)",
+      "Bash(make openapi)",
+      "Bash(make check-openapi)",
+      "Bash(make check-deploy)",
+      "Bash(make build)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run ruff check *)",
+      "Bash(uv run python manage.py makemigrations *)",
+      "Bash(uv run python manage.py showmigrations *)",
+      "Bash(uv run python manage.py sqlmigrate *)",
+      "Bash(uv run python manage.py check *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-django-api.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -89,6 +89,32 @@
         "reviewedAt": null
       }
     },
+    "djangorestframework": {
+      "whatItIs": "Django REST framework, an add-on for Django that turns its stored records into a service other programs and apps talk to, sending and receiving data instead of web pages.",
+      "goodAt": [
+        "Letting a phone app or website read and save records kept in Django",
+        "Checking incoming data and naming each field that is wrong"
+      ],
+      "notGoodAt": ["Websites whose pages are made on the server; plain Django does that."],
+      "example": "When a phone app sends a new note without a title, the service answers with an error naming the title instead of saving it.",
+      "homepage": "https://www.django-rest-framework.org/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "djangorestframework-stubs": {
+      "whatItIs": "Type descriptions for Django REST framework and a plugin that lets mypy, a type checker, understand its serializers and views.",
+      "homepage": "https://github.com/typeddjango/djangorestframework-stubs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "djlint": {
       "whatItIs": "djLint, a tool that checks and tidies the HTML page templates of Django and similar frameworks.",
       "goodAt": [
@@ -98,6 +124,24 @@
       "notGoodAt": ["Checking Python code; use Ruff for that."],
       "example": "When someone saves a template with uneven indentation, the check fails and the format command lines it up again.",
       "homepage": "https://djlint.com/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "drf-spectacular": {
+      "whatItIs": "drf-spectacular, a tool that writes a machine-readable description of a Django REST framework service (an OpenAPI file) listing every address, the data each accepts and what it returns.",
+      "goodAt": [
+        "Giving other teams an exact, up-to-date list of what the service accepts",
+        "Generating client code for apps that call the service"
+      ],
+      "notGoodAt": [
+        "Services built without Django REST framework; each framework has its own tool."
+      ],
+      "example": "When a developer renames a field, the regenerated file shows the change, so callers learn about it before it ships.",
+      "homepage": "https://drf-spectacular.readthedocs.io/",
       "source": {
         "by": "drafted",
         "model": "claude-opus-5-5",

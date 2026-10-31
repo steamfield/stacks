@@ -138,6 +138,7 @@ export function benchFixture(space: ReturnType<typeof workspace>, compiled?: () 
     "package.json",
     "tsconfig.json",
     "scripts/build.ts",
+    "scripts/packaging.ts",
     "scripts/node-entry.mjs",
   ])
     cpSync(join(cli, file), join(packageRoot, file));

@@ -151,6 +151,8 @@
       "connectrpc.com/connect",
       "connectrpc.com/grpchealth",
       "connectrpc.com/grpcreflect",
+      "github.com/PuerkitoBio/goquery",
+      "github.com/a-h/templ",
       "github.com/charmbracelet/x/exp/teatest",
       "github.com/jackc/pgx",
       "github.com/pressly/goose",

@@ -18,7 +18,8 @@
     "desktop-app": ["desktop app"],
     "cli-tool": ["cli tool", "command line tool"],
     "ai-app": ["chat", "llm", "ai"],
-    "fullstack": ["full stack", "fullstack", "frontend and backend"]
+    "fullstack": ["full stack", "fullstack", "frontend and backend"],
+    "library": ["library", "npm package", "python package", "crate", "sdk"]
   },
   "languages": {
     "typescript": ["typescript", "ts", "javascript", "js", "node"],
@@ -37,7 +38,8 @@
     ],
     "rust": ["rust"],
     "swift": ["swift", "swiftui"],
-    "kotlin": ["kotlin"]
+    "kotlin": ["kotlin"],
+    "java": ["java", "jvm", "spring boot", "springboot", "maven", "quarkus"]
   },
   "capabilities": {
     "auth": [

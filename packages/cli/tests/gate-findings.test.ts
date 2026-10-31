@@ -174,7 +174,7 @@ test.each(["astro-blog", "go-cli", "python-react"])(
   "%s's brief says its make targets are already allowed",
   async (stack) => {
     expect(await brief(stack)).toContain(
-      "merges in allow rules for its non-destructive root scripts",
+      "already merged into `.claude/settings.json` are approved",
     );
   },
 );

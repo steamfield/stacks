@@ -37,15 +37,7 @@ When the repo already has an `AGENTS.md`, the skeleton isn't copied (it's listed
 
 **Claude Code adapter** (when Claude is a target): `CLAUDE.md` imports `AGENTS.md` via `@AGENTS.md` (Claude Code ignores `AGENTS.md` otherwise; never remove the line). `.claude/settings.json` wires the hooks; other fragments deep-merge into it. The hooks stop destructive commands, secret-shaped writes and `.env` writes before they happen: a block means ask the user, never work around it. `.claude/README.md` documents the hooks; replace its `stacks:fill` row with one row per hook other entries ship (`claude-readme-filled` checks).
 
-`.claude/settings.json` pre-approves read-only git. Once `AGENTS.md`'s Commands are settled, allow the project's other non-destructive commands (lint, format, typecheck, test, the single-test-file command) in the same `Bash(<cmd>)` / `Bash(<cmd> *)` shape. Never allow deploy, publish, release, migrate, or anything that deletes data.
-<!-- stacks:when with=claude-harness -->
-
-This stack's own `.claude/settings.json` merges in allow rules for its `bun run` scripts, so they're already approved; add rules only for commands you create beyond those.
-<!-- stacks:end -->
-<!-- stacks:when stack=astro-blog,go-cli,mobile-expo,python-react -->
-
-The stack's `.claude/settings.json` merges in allow rules for its non-destructive root scripts, so they're already approved; add rules only for commands you create beyond those.
-<!-- stacks:end -->
+`.claude/settings.json` pre-approves read-only git. Once `AGENTS.md`'s Commands are settled, allow the project's other non-destructive commands (lint, format, typecheck, test, the single-test-file command) in the same `Bash(<cmd>)` / `Bash(<cmd> *)` shape. Never allow deploy, publish, release, migrate, or anything that deletes data. Allow rules the stack or its fragments already merged into `.claude/settings.json` are approved; add rules only for commands you create beyond those.
 
 Claude Code asks the user before any edit under `.claude/` or to `lefthook.yml`; if denied, finish the rest, then ask once for all of them, with exact content.
 

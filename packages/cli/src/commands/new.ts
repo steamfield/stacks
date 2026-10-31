@@ -147,13 +147,16 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
               .get("fragment", id)
               .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
           );
-          yield* telemetry.recordScaffold({
-            type: "new",
-            manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
-            without,
-            source,
-            steps: officialSteps(composition),
-          });
+          yield* telemetry.recordScaffold(
+            {
+              type: "new",
+              manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
+              without,
+              source,
+              steps: officialSteps(composition),
+            },
+            registry,
+          );
           yield* telemetry.flush;
         }),
       render: (context) =>

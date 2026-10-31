@@ -129,6 +129,7 @@
       "fastapi",
       "greenlet",
       "httpx",
+      "hypothesis",
       "mypy",
       "pydantic",
       "pydantic-settings",

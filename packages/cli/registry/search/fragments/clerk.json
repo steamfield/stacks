@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "clerk",
   "source": {
-    "digest": "sha256:b48ef1160aca896ff01a73b8e5b29c57a7c17ff477b676bd84d3981662e2d160",
+    "digest": "sha256:7d9b93c3b557d81bacdf41bfd5d0a40e08611630c0fa910a0ad68d67fbfbf807",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
@@ -50,6 +50,9 @@
   "synonyms": [
     "Clerk",
     "login",
+    "authentication",
+    "sign in",
+    "JWT verification",
     "email code",
     "bearer tokens",
     "session verification",

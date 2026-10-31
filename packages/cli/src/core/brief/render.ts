@@ -16,6 +16,7 @@ export type GitState = { kind: "fresh" } | { kind: "parent"; toplevel: string } 
 export type BriefContext = {
   add?: {
     applied: ReadonlyArray<string>;
+    createAgentsMd?: boolean;
     stack: string | null;
     mergeNeeded: ReadonlyArray<{ path: string; incoming: ReadonlyArray<string> }>;
     missingRequired: ReadonlyArray<{ id: string; command: string }>;
@@ -27,6 +28,8 @@ export type BriefContext = {
   /** Paths stacks wrote, relative to the project root. */
   written: ReadonlyArray<string>;
   missing: ReadonlyArray<MissingTool>;
+  /** Canonical previews do not inspect PATH. */
+  toolsUnchecked?: boolean;
   /** `--yes` or `--sandbox`: take every decision's default. */
   yes: boolean;
   /** `Host.invocation`. */
@@ -145,8 +148,9 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
         data(
           ...composition.tools.map(({ tool }) => {
             const missing = context.missing.find((item) => item.tool === tool);
-            return missing
-              ? T.dependencies.missing(tool, T.installHint(tool), missing.drop)
+            if (missing) return T.dependencies.missing(tool, T.installHint(tool), missing.drop);
+            return context.toolsUnchecked
+              ? T.dependencies.unchecked(tool)
               : T.dependencies.found(tool);
           }),
         );
@@ -391,6 +395,9 @@ function renderAddBrief(
   }
   fixed(
     T.add.stack(add.stack),
+    ...(composition.inferredTags !== undefined
+      ? [T.add.inferredTags(composition.inferredTags)]
+      : []),
     T.add.applied(add.applied),
     T.facts.fragments(composition.fragments.map((entry) => entry.id)),
     T.facts.preset(composition.preset === "sandbox"),
@@ -418,6 +425,7 @@ function renderAddBrief(
     ...T.ground.notes,
   );
   if (context.missing.length) fixed(T.ground.missing);
+  if (add.createAgentsMd) fixed(T.add.createAgentsMd);
   const pendingWork = () => {
     if (add.mergeNeeded.length) {
       fixed("", T.add.merge, "", T.add.mergeTask, "");
@@ -443,17 +451,24 @@ function renderAddBrief(
     data(
       ...composition.tools.map(({ tool }) => {
         const missing = context.missing.find((item) => item.tool === tool);
-        return missing
-          ? T.dependencies.missing(tool, T.installHint(tool), missing.drop)
-          : T.dependencies.found(tool);
+        if (missing) return T.dependencies.missing(tool, T.installHint(tool), missing.drop);
+        return context.toolsUnchecked ? T.dependencies.unchecked(tool) : T.dependencies.found(tool);
       }),
     );
   }
-  for (const entry of composition.fragments) {
-    fixed("", T.sections.fragment(oneLine(entry.meta.name), entry.id));
-    // Retain a fragment's title: in add mode it may carry guidance beyond its registry name.
-    data("", nest(entry.body.replace(/^(\s*)#(?=[ \t])/, "$1##")).trim());
-  }
+  const guidance = () => {
+    for (const entry of composition.fragments) {
+      fixed("", T.sections.fragment(oneLine(entry.meta.name), entry.id));
+      // Retain a fragment's title: in add mode it may carry guidance beyond its registry name.
+      data("", nest(entry.body.replace(/^(\s*)#(?=[ \t])/, "$1##")).trim());
+      for (const note of composition.addNotes ?? [])
+        if (note.fragment === entry.id) {
+          fixed("", T.add.recipeNote(note.entry.id), "");
+          data(nest(note.entry.body, 4).trim());
+        }
+    }
+  };
+  guidance();
   fixed("", T.done.heading, "", T.add.done(cli));
   const definitionOfDone = () => {
     const steps: ComposedStep[] = add.manifest.verify.map((step) => ({

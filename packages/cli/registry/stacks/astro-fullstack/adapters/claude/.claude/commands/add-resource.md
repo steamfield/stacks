@@ -5,7 +5,7 @@ argument-hint: "<the resource and what clients do with it>"
 
 Add an API resource or endpoint: $ARGUMENTS
 
-Read `docs/guidance/rest-api/rest-api.md`, `docs/guidance/astro-fullstack/effect-api.md` and `docs/guidance/astro-fullstack/testing.md` (and `docs/guidance/astro-fullstack/astro.md` if the site uses it), and load the `effect` skill (when the project has one) before writing Effect code. Use the smallest existing group in `packages/contract/src/groups/` as the template.
+Read `docs/guidance/rest-api/rest-api.md`, `docs/guidance/astro-fullstack/effect-api.md` and `docs/guidance/astro-fullstack/testing.md` (and `docs/guidance/astro-fullstack/astro.md` if the site uses it), and `docs/guidance/effect/api.md` (when the project has one) before writing Effect code. Use the smallest existing group in `packages/contract/src/groups/` as the template.
 
 Before any code, write down in one short list: the resource noun (plural path), its fields and their types, each endpoint as `METHOD <prefix>/<path>` with its success status (the prefix is in AGENTS.md, "API conventions"), every error status it returns, and whether the site reads it at build time (from files) or at view time (from an island). Search the contract for an existing resource with that meaning and reuse its name. If the noun or an endpoint is ambiguous, or a wrong guess would be a breaking change to undo, ask before writing code.
 

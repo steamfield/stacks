@@ -3,14 +3,14 @@
   "kind": "fragment",
   "id": "bun-release",
   "source": {
-    "digest": "sha256:6c6e94d539b8a44e85b9ee0d377fbb2c76fafe06c695f9dd85f03142119e658c",
+    "digest": "sha256:6ff2b3b6e0857eb1b2cf8c657558ed6bd7cecaacdd79cf3708adc849d9496630",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Distribute compiled Bun binaries for macOS and glibc Linux with checksum-verified installation, atomic self-update and a release workflow.",
-  "description": "Add distribution to a Bun-compiled command-line tool: target builds, checksum files, a shell installer and an atomic update command. The release workflow checks and smoke-tests artifacts before publishing a tagged GitHub release. The default targets cover macOS and glibc Linux on Intel and ARM. Repository setup and publishing credentials remain maintainer actions; Windows and musl builds are deferred.",
+  "description": "Add distribution to a Bun-compiled command-line tool: target builds, checksum files, a shell installer and an atomic update command. The release workflow checks and smoke-tests artifacts before publishing a tagged GitHub release. The default targets cover macOS and glibc Linux on Intel and ARM. Repository setup and publishing credentials remain maintainer actions; Windows builds are deferred and musl builds are optional.",
   "seoDescription": "Release Bun-compiled CLI binaries with target builds, checksums, a shell installer, atomic self-update and a tagged GitHub release workflow.",
   "projectExamples": [
     {
@@ -35,7 +35,7 @@
       "Updating an installed program in place, keeping the old copy if a download fails"
     ],
     "notGoodAt": [
-      "Windows computers or some Linux systems such as Alpine; add those targets separately.",
+      "Windows computers; add that target separately.",
       "Updating a copy run from source code; the update command only works for installed builds."
     ]
   },
@@ -65,7 +65,6 @@
   ],
   "notFor": [
     "Windows binaries",
-    "musl Linux targets",
     "self-update when running from source"
   ]
 }

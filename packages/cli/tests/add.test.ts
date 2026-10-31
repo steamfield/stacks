@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import {
   chmodSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -16,6 +17,7 @@ import { Effect, Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
 import * as T from "../src/core/brief/text";
 import { countWords } from "../src/core/brief/words";
+import { decideHandoff } from "../src/core/handoff";
 import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
 import { VerifyResult } from "../src/schemas/verify";
 import {
@@ -1011,3 +1013,218 @@ test("add examples use the manifest's first target agent when --agents is omitte
   );
   expect(readManifestAt(project.root).agents).toEqual(["codex"]);
 });
+
+test.each([
+  ["go-api", "docker-deploy", "health"],
+  ["astro-blog", "cloudflare-pages", "adapter"],
+])("add %s notes under %s from the current recipe", async (stack, fragment, note) => {
+  const project = { ...addProject(), registry: join(import.meta.dirname, "../registry") };
+  const created = await addCli(project, ["new", stack, project.root, "--json"]);
+  expect(created.status).toBe(0);
+  await added(await addCli(project, ["add", fragment, "--json"]));
+  const brief = read(project.root, ".stacks/BRIEF.md");
+  expect(brief).toContain(`From the \`${stack}\` recipe`);
+  expect(brief.slice(brief.indexOf(`From the \`${stack}\` recipe`))).toContain(note);
+});
+
+test("add includes only matching notes from the stack and applied fragments, and protects untrusted notes", async () => {
+  const project = await scaffolded();
+  const notes = (label: string) =>
+    `\n<!-- stacks:when with=ci-github mode=add -->\n${label}\n<!-- stacks:end -->\n<!-- stacks:when with=named -->\nOTHER NOTE\n<!-- stacks:end -->\n`;
+  for (const [source, label] of [
+    ["stacks/fixture-stack/STACK.md", "STACK ADD NOTE"],
+    ["fragments/fixture-required/FRAGMENT.md", "APPLIED ADD NOTE"],
+  ] as const)
+    put(project.registry, source, read(project.registry, source) + notes(label));
+  cpSync(
+    join(project.registry, "stacks/fixture-stack"),
+    join(project.root, ".stacks/stacks/fixture-stack"),
+    { recursive: true },
+  );
+  const result = await added(await addCli(project, ["add", "ci-github", "--json"]));
+  const brief = read(project.root, ".stacks/BRIEF.md");
+  expect(brief).toContain("STACK ADD NOTE");
+  expect(brief).toContain("APPLIED ADD NOTE");
+  expect(brief).not.toContain("OTHER NOTE");
+  expect(brief).not.toContain("STACK BODY MUST NOT REAPPEAR");
+  expect(brief).not.toContain("EXISTING BODY MUST NOT REAPPEAR");
+  expect(result.untrusted).toMatchObject([{ id: "fixture-stack", origin: "project" }]);
+  expect(result.handoff.kind).toBe("print");
+  expect(
+    decideHandoff({
+      detected: "none",
+      json: false,
+      launch: true,
+      stdinIsTTY: true,
+      stdoutIsTTY: true,
+      configured: [],
+      found: new Map([
+        ["codex", "/bin/codex"],
+        ["claude", "/bin/claude"],
+      ]),
+      prompt: "apply",
+      untrusted: result.untrusted.map((entry) => entry.id),
+    }),
+  ).toMatchObject({ kind: "print", reason: "untrusted" });
+});
+
+test("add selects the recorded stack overlay and parks conflicts without overwriting", async () => {
+  const project = await scaffolded();
+  const dir = writeEntry({
+    root: project.registry,
+    kind: "fragment",
+    dir: "overlaid",
+    frontmatter: minimal("fragment", "overlaid"),
+  });
+  put(dir, "stacks/fixture-stack/chosen.txt.tmpl", "{{project_name}} overlay\\n");
+  put(dir, "stacks/other-stack/other.txt", "wrong host");
+  put(project.root, "chosen.txt", "keep mine");
+  const result = await added(await addCli(project, ["add", "overlaid", "--json"]));
+  expect(result.written).not.toContain("other.txt");
+  expect(result.mergeNeeded).toEqual([
+    { path: "chosen.txt", incoming: [".stacks/incoming/chosen.txt"] },
+  ]);
+  expect(read(project.root, "chosen.txt")).toBe("keep mine");
+  expect(read(project.root, ".stacks/incoming/chosen.txt")).toBe("app overlay\\n");
+});
+
+test("an unavailable recorded stack falls back to inferred tags", async () => {
+  const project = await scaffolded();
+  rmSync(join(project.registry, "stacks/fixture-stack"), { recursive: true });
+  put(project.root, "go.mod", "module example.test/app\n");
+  writeEntry({
+    root: project.registry,
+    kind: "fragment",
+    dir: "tagged",
+    frontmatter: minimal("fragment", "tagged"),
+    body: "<!-- stacks:when tag=go -->\nGO NOTE\n<!-- stacks:end -->\n",
+  });
+  const result = await added(await addCli(project, ["add", "tagged", "--json"]));
+  expect(result.inferredTags).toEqual(["go"]);
+  expect(result.warnings).toContainEqual({ code: "stack_unknown", id: "fixture-stack" });
+  expect(read(project.root, ".stacks/BRIEF.md")).toContain("GO NOTE");
+});
+
+test("add does not ask to create AGENTS.md when guidance only mentions the file", async () => {
+  const project = addProject();
+  writeEntry({
+    root: project.registry,
+    kind: "fragment",
+    dir: "mention",
+    frontmatter: minimal("fragment", "mention"),
+    body: "Read `AGENTS.md` if present.\n",
+  });
+  await added(await addCli(project, ["add", "mention", "--json"]));
+  expect(read(project.root, ".stacks/BRIEF.md")).not.toContain("Create `AGENTS.md`");
+});
+
+test.each([
+  {
+    files: {
+      "package.json": '{"scripts":{},"workspaces":[]}',
+      Makefile: "all:",
+      "bun.lockb": "lock",
+      "tsconfig.json": "{}",
+      "pyproject.toml": "",
+      "Cargo.toml": "",
+    },
+    tags: ["bun", "make", "monorepo", "node", "python", "rust", "typescript"],
+  },
+  {
+    files: { "first/go.mod": "", "second/Cargo.toml": "", "third/child/package.json": "{}" },
+    tags: ["monorepo"],
+  },
+  {
+    files: {
+      "first/go.mod": "",
+      "first/package.json": "{}",
+      "second/child/Cargo.toml": "",
+      "package.json": "broken json",
+      "bun.lock": "",
+    },
+    tags: ["bun", "node"],
+  },
+])(
+  "inferred tags inspect immediate manifest directories and honour Makefile precedence: $tags",
+  async ({ files, tags }) => {
+    const project = addProject();
+    for (const [path, bytes] of Object.entries(files))
+      if (bytes !== undefined) put(project.root, path, bytes);
+    const result = await added(await addCli(project, ["add", "named", "--json"]));
+    expect(result.inferredTags).toEqual(tags);
+  },
+);
+
+test.each([
+  [
+    "go",
+    { "go.mod": "module example.test/app\n", Makefile: "test:\n\tgo test ./...\n" },
+    ["go", "make"],
+  ],
+  [
+    "bun",
+    { "package.json": '{"scripts":{},"packageManager":"bun@1"}' },
+    ["bun", "node", "scripts"],
+  ],
+])(
+  "add infers %s tags for conditionals without restricting stackless fit",
+  async (_name, files, tags) => {
+    const project = addProject();
+    for (const [path, text] of Object.entries(files))
+      if (text !== undefined) put(project.root, path, text);
+    writeEntry({
+      root: project.registry,
+      kind: "fragment",
+      dir: "tagged",
+      frontmatter: minimal("fragment", "tagged", "applies_to: [unrelated]"),
+      body: tags
+        .map((tag) => `<!-- stacks:when tag=${tag} -->\nBRANCH ${tag}\n<!-- stacks:end -->`)
+        .join("\n"),
+    });
+    await added(await addCli(project, ["add", "tagged", "--json"]));
+    const brief = read(project.root, ".stacks/BRIEF.md");
+    expect(brief).toContain(`Inferred tags: ${tags.join(", ")}`);
+    for (const tag of tags) expect(brief).toContain(`BRANCH ${tag}`);
+    expect(readManifestAt(project.root)).not.toHaveProperty("inferredTags");
+    const recorded = await scaffolded();
+    cpSync(
+      join(project.registry, "fragments/tagged"),
+      join(recorded.registry, "fragments/tagged"),
+      { recursive: true },
+    );
+    refused(await addCli(recorded, ["add", "tagged", "--json"]), 2, "ComposeConflict");
+  },
+);
+
+test("add into a recorded sandbox takes decision defaults without the flag", async () => {
+  const project = addProject();
+  expect(
+    (await addCli(project, ["new", "fixture-stack", project.root, "--sandbox", "--json"])).status,
+  ).toBe(0);
+  writeEntry({
+    root: project.registry,
+    kind: "fragment",
+    dir: "decision",
+    frontmatter: minimal("fragment", "decision", "decisions: [Choose a colour (default blue)]"),
+  });
+  await added(await addCli(project, ["add", "decision", "--json"]));
+  expect(read(project.root, ".stacks/BRIEF.md")).toContain(T.decisions.yes);
+  expect(read(project.root, ".stacks/BRIEF.md")).not.toContain(T.decisions.ask);
+});
+
+test.each([false, true])(
+  "add asks to create AGENTS.md only when a section needs it (present=%s)",
+  async (present) => {
+    const project = addProject();
+    if (present) put(project.root, "AGENTS.md", "# Project\n");
+    writeEntry({
+      root: project.registry,
+      kind: "fragment",
+      dir: "guidance",
+      frontmatter: minimal("fragment", "guidance"),
+      body: "## AGENTS.md\n\nA **Testing** section describing real checks.\n",
+    });
+    await added(await addCli(project, ["add", "guidance", "--json"]));
+    expect(read(project.root, ".stacks/BRIEF.md").includes("Create `AGENTS.md`")).toBe(!present);
+  },
+);

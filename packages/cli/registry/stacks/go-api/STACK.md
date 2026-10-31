@@ -96,7 +96,7 @@ The stack's Claude settings already allow its non-destructive make checks and go
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->
-The shipped Makefile's install recipe guards `lefthook install` on CI and the presence of lefthook.yml; write that config before installing. pre-commit formats staged Go files with gofmt and goimports, re-stages fixes, then runs `make lint`; pre-push runs `make test`.
+If the Makefile's install recipe already runs `lefthook install`, don't add another install step. pre-commit formats staged Go files with gofmt and goimports, re-stages fixes, then runs `make lint`; pre-push runs `make test`.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->

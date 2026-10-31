@@ -1,6 +1,6 @@
 # Styling
 
-Read `DESIGN.md` at the repo root before a visual change; token values live in `app/app.css`. Before adding a section header, label, card, badge, empty state, or hero, load the `frontend-design-slop` skill: it covers the generic "made by an LLM" patterns that stay generic even when every token is right.
+Read `DESIGN.md` at the repo root before a visual change; token values live in `app/app.css`. Before adding a section header, label, card, badge, empty state, or hero, read [design-slop](design-slop.md) (Claude also has it as the `frontend-design-slop` skill): it covers the generic "made by an LLM" patterns that stay generic even when every token is right.
 
 ## The styling ladder
 

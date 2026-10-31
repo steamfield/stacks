@@ -1,16 +1,15 @@
 ---
 description: "Build, install, test and update Bun binary releases with checksums and atomic replacement."
-alwaysApply: true
+globs: "scripts/build.ts,install.sh,src/commands/update.ts,src/core/update.ts,src/services/releases.ts,tests/install.test.ts,tests/update.test.ts,tests/helpers/releases.ts,.github/workflows/release.yml"
+alwaysApply: false
 ---
 
 # Bun releases
 
-The build, installer, and update command agree on `{{project_slug}}-<os>-<arch>` and SHA256SUMS. Disable runtime configuration autoload in compiled binaries. Release targets each require a matching runner smoke test. If the application has native dependencies, include only the target's native package and test it on that platform.
+`scripts/build.ts --all`, `install.sh`, `update` and the release workflow agree on `{{project_slug}}-<os>-<arch>[-musl]` and `SHA256SUMS`. Change one, change all four. Compiled binaries keep dotenv and bunfig autoload off.
 
-Download into a temporary location, verify the checksum, and rename atomically beside the destination. Never modify a running binary in place. On checksum, network, or permission failures preserve the installed binary and clean temporary files. Source invocations cannot self-update. Release settings are independent of application config so invalid config cannot block repairs.
+Replacing a binary: download into a temporary file in the destination directory, verify the checksum, chmod 0755, rename over the old one. Never write the running binary in place. Checksum, network and permission failures keep the installed binary and remove the temporary file. A source run refuses to update. Release settings (`{{env_prefix}}_RELEASES_REPO`, `{{env_prefix}}_RELEASES_URL`, `{{env_prefix}}_INSTALL_DIR`) are read apart from application config, so a broken config file never blocks `update`.
 
-The workflow checks the tag against package version, runs check and build:all, verifies each binary's checksum and version on its OS/CPU, and publishes only after all smoke jobs pass. Only publishing receives contents-write. Extend smoke tests for optional application capabilities only when present.
+Tests use `startStubReleases` from `tests/helpers/releases.ts` and never the network. `bun run test:unit tests/install.test.ts` and `tests/update.test.ts` must pass after any change here; a read-only install directory exits 6.
 
-Test release metadata, absent assets, checksums, permissions, path quoting, and atomic replacement using a local release server. Document `{{env_prefix}}_RELEASES_REPO`, `{{env_prefix}}_RELEASES_URL`, and `{{env_prefix}}_INSTALL_DIR`. Keep the installer working independently of optional apps.
-
-Tests isolate `{{env_prefix}}_RELEASES_URL` to an unreachable local address unless they start a release stub. Assert broken application config cannot block `update`, checksum mismatch changes nothing, source mode refuses replacement, and a read-only install directory exits 6.
+The workflow checks the tag against `package.json`'s version, runs `bun run check` and `build:all`, smoke-tests each binary on its own OS and CPU, and only the publish job gets `contents: write`.

@@ -12,6 +12,13 @@
     "rr@rr": true
   },
   "permissions": {
-    "allow": ["Bash(rr doctor *)", "Bash(rr status *)", "Bash(rr tasks *)"]
+    "allow": [
+      "Bash(rr doctor)",
+      "Bash(rr doctor *)",
+      "Bash(rr status)",
+      "Bash(rr status *)",
+      "Bash(rr tasks)",
+      "Bash(rr tasks *)"
+    ]
   }
 }

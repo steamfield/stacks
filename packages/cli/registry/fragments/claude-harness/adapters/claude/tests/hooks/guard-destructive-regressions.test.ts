@@ -98,6 +98,29 @@ describe("destructive guard review regressions", () => {
     expect(result.stderr).toBe("");
     expect(result.stdout).toBe("");
   });
+  it.each([
+    ["rm -rf ./tmp/*", undefined],
+    ["rm -rf tmp/*.log", undefined],
+    ["rm -rf ./*", "root"],
+    ["rm -rf tmp/*/../../outside", "unknown target"],
+    ["rm -rf ../*", "root"],
+    ["rm -rf ../sibling/*", "outside"],
+  ])("checks the directory a glob empties: %s", async (command, reason) => {
+    const project = makeFixture();
+    try {
+      mkdirSync(join(project.dir, "tmp"));
+      const result = await runHook("PreToolUse", "block-destructive", bash(command), {
+        cwd: project.dir,
+        env: { CLAUDE_PROJECT_DIR: project.dir },
+      });
+      expect(result.code).toBe(0);
+      expect(result.stderr).toBe("");
+      if (reason === undefined) expect(result.stdout).toBe("");
+      else expect(denyReason(result)).toContain(reason);
+    } finally {
+      project.cleanup();
+    }
+  });
   it.each(["rm -rf link/../work", "cd link; rm -rf ../work"])(
     "checks symlinks before parent traversal: %s",
     async (command) => {

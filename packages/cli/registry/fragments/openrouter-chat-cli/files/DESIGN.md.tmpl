@@ -1,6 +1,6 @@
 # Design
 
-{{project_slug}}'s terminal UI. Its rules: dark, quiet, one accent, and hierarchy from brightness rather than hue, on a character grid. Colors live in `src/tui/theme.ts`, the only file under `src/tui/` allowed to hold color literals (the Grit plugin flags hex strings anywhere else). This file says what each role is for. Read it before a visual change, and load the `tui-design-slop` skill before adding a panel, border, header, badge, spinner, or empty state.
+{{project_slug}}'s terminal UI. Its rules: dark, quiet, one accent, and hierarchy from brightness rather than hue, on a character grid. Colors live in `src/tui/theme.ts`, the only file under `src/tui/` allowed to hold color literals (the Grit plugin flags hex strings anywhere else). This file says what each role is for. Read it before a visual change, and read `docs/guidance/openrouter-chat-cli/design-slop.md` (Claude also has it as the `tui-design-slop` skill) before adding a panel, border, header, badge, spinner, or empty state.
 
 ## Theme
 

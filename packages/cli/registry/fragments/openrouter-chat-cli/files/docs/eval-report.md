@@ -18,7 +18,7 @@ inherits verify's process group and timeout; the runner owns its local server an
 per-case aborts. Keep the checkpoint unchanged; implement the app runner to meet
 the protocol. It does not trust stdout or agent-authored report tests.
 
-Add `.eval/` to `.gitignore` during setup. The checkpoint prints a relative,
+The shipped `.eval/.gitignore` keeps everything else in `.eval/` out of git. The checkpoint prints a relative,
 uniquely timestamped `.eval/results/<timestamp>-<uuid>.json` artifact path and
 preserves structurally valid reports even for failed outcomes or aggregate
 mismatches. It removes its temporary handoff directory on success/failure.

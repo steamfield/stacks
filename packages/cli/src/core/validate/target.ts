@@ -86,10 +86,11 @@ export const resolveTarget = (given: string | undefined) =>
     }
     const at = path.resolve(host.cwd, given);
     if (!(yield* isDirectory(at))) return yield* missing(at);
-    const root = yield* registryDirectory(at);
-    if (root) return root;
+    // A fragment can hold stacks/ overlays without becoming a registry root itself.
     const entry = yield* entryDirectory(at);
     if (entry) return entry;
+    const root = yield* registryDirectory(at);
+    if (root) return root;
     // An entry outside a `stacks/` or `fragments/` directory belongs to no registry.
     if (yield* hasEntryFile(at)) return yield* missing(at);
     if (yield* isBundled(at)) return { root: at, bundled: true } satisfies Target;

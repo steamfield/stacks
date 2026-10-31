@@ -5,7 +5,7 @@ argument-hint: "<the resource and what clients do with it>"
 
 Add an API resource or endpoint: $ARGUMENTS
 
-Read `docs/guidance/rest-api/rest-api.md`, `docs/guidance/typescript-api/effect-api.md` and `testing.md`, and load the `effect` skill (when the project has one) before writing Effect code. Use the smallest existing group in `src/api/` as the template.
+Read `docs/guidance/rest-api/rest-api.md`, `docs/guidance/typescript-api/effect-api.md` and `testing.md`, and `docs/guidance/effect/api.md` (when the project has one) before writing Effect code. Use the smallest existing group in `src/api/` as the template.
 
 Before any code, write down in one short list: the resource noun (plural path), its fields and their types, each endpoint as `METHOD <prefix>/<path>` with its success status (the prefix is in AGENTS.md, "API conventions"), and every error status it returns. Search `src/api/` for an existing resource with that meaning and reuse its name. If the noun or an endpoint is ambiguous, or a wrong guess would be a breaking change to undo, ask before writing code.
 

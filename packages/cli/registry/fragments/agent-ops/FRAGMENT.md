@@ -16,6 +16,28 @@ verify:
   - name: claude-readme-filled
     layer: check
     run: "test ! -f .claude/README.md || ! grep -n 'stacks:fill' .claude/README.md"
+  - name: hooks-smoke
+    layer: check
+    run: |
+      set -e
+      h=.claude/hooks
+      out() { printf '%s' "$1" | bash "$2"; }
+      denies() { out "$1" "$2" | grep -q '"permission\(Decision\)\{0,1\}":"deny"'; }
+      allows() { test -z "$(out "$1" "$2")"; }
+      f='git push --'force
+      denies "{\"tool_input\":{\"command\":\"$f origin main\"}}" $h/block-destructive.sh
+      allows "{\"tool_input\":{\"command\":\"git commit -m 'docs: never $f'\"}}" $h/block-destructive.sh
+      denies '{"tool_input":{"file_path":".env","content":"A=1"}}' $h/detect-secrets.sh
+      k=AKIA; k="${k}QQQQABCDEFGHIJKL"
+      denies "{\"tool_input\":{\"file_path\":\"src/k.ts\",\"content\":\"const k = '$k';\"}}" $h/detect-secrets.sh
+      allows '{"tool_input":{"file_path":"src/k.ts","content":"export const k = 1;"}}' $h/detect-secrets.sh
+      test ! -f .codex/hooks/check-patch.sh || denies "{\"tool_input\":{\"command\":\"*** Begin Patch\\n*** Add File: src/k.ts\\n+const k = '$k';\\n*** End Patch\"}}" .codex/hooks/check-patch.sh
+      test ! -f .cursor/hooks/guard.sh || denies "{\"tool_name\":\"Shell\",\"tool_input\":{\"command\":\"$f\"}}" .cursor/hooks/guard.sh
+      j() { if command -v node >/dev/null 2>&1; then node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$1"; elif command -v python3 >/dev/null 2>&1; then python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$1"; fi; }
+      for c in .claude/settings.json .codex/hooks.json .cursor/hooks.json opencode.json; do test ! -f "$c" || j "$c"; done
+      test ! -f .claude/settings.json || grep -q 'hooks/block-destructive.sh' .claude/settings.json
+      test ! -f .codex/hooks.json || grep -q 'hooks/check-patch.sh' .codex/hooks.json
+      test ! -f .cursor/hooks.json || grep -q 'hooks/guard.sh' .cursor/hooks.json
 ---
 
 # Agent operations
@@ -47,9 +69,13 @@ This stack's own `.claude/settings.json` merges in allow rules for its `bun run`
 The stack's `.claude/settings.json` merges in allow rules for its non-destructive root scripts, so they're already approved; add rules only for commands you create beyond those.
 <!-- stacks:end -->
 
+**Other agents** run the shell guards from `.claude/hooks/`, so keep it whatever the targets. Codex runs project hooks only after the user trusts the project and approves each hook in `/hooks`: list that under Pending user actions. Cursor's guards fail closed, so without `bash` every Shell, Write and Delete call is refused.
+
+`hooks-smoke` feeds the guards a deny and a near miss each, and checks every hook config still parses and wires them. If it fails, fix the hook or the wiring, never the step.
+
 Claude Code asks the user before any edit under `.claude/` or to `lefthook.yml`; if denied, finish the rest, then ask once for all of them, with exact content.
 
-If the project has a linter (a formatter alone doesn't count), confirm `lint-on-write.sh` reports a deliberate lint error, then revert. If it's silent, check the linter is where the hook looks (`.venv`, `node_modules/.bin`, PATH); `session-start.sh` also flags a `package.json` or `pyproject.toml` whose dependencies aren't installed. On Stop, `format-changed.sh` formats only this session's files. If the project uses biome or eslint, add `.claude/worktrees/` to the root `.gitignore`: both discover nested config and trip over Claude Code worktrees. Project-specific guards (a generated file never hand-edited) belong in hooks written like the existing ones (bash 3.2, `set -euo pipefail`, quiet exit when a tool is missing).
+If the project has a linter (a formatter alone doesn't count), confirm `lint-on-write.sh` reports a deliberate lint error, then revert. If it's silent, check the linter is where the hook looks (`.venv`, `node_modules/.bin`, PATH); `session-start.sh` also flags a `package.json` or `pyproject.toml` whose dependencies aren't installed. On Stop, `format-changed.sh` formats only this session's files. If the project uses biome or eslint, add `.claude/worktrees/` to the root `.gitignore`: both discover nested config and trip over Claude Code worktrees.
 <!-- stacks:when with=claude-harness -->
 
 The shared harness supplies Bun TypeScript hook helpers. Write project-specific guards against those helpers and test them in `tests/hooks/`. The agent-ops hooks above stay bash.

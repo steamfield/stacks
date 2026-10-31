@@ -1,0 +1,83 @@
+# TUI design slop
+
+AI design slop is the visual fingerprint of a model that averaged instead of chose. Asked for a terminal UI, a model emits the modal answer from TUI demos and dashboards: a box around everything, a double-line title bar, an ASCII-art banner, a spinner, emoji status icons, every label in the accent color, and a help panel nobody asked for. None of it is broken. All of it is recognizable, and it makes a chat client look like a template.
+
+The root cause is screen-level. A model decorates each region on its own, so every region gets a frame and the same weight, and nothing is left to carry emphasis. The fix is to decide once, per screen, what matters most (in {{project_slug}}, the conversation) and let only that carry the weight.
+
+Read `DESIGN.md` first: it has the color roles, the layout, the keys, and the states. This guide covers what it doesn't: patterns that stay generic even when every token is right. Colors come from `theme` in `src/tui/theme.ts`.
+
+## The two tests
+
+The deletion test. Delete the element. If nothing is lost, it was decoration. Applies to borders, titles, labels, separators, icons, badges, and hint text. Run it on every one before shipping.
+
+The squint test. Look at a capture (`bun run tui:capture -- chat --keys "hi<enter>"`) from across the room, or with the colors stripped. If you can't tell that the conversation is the main thing, the screen has no hierarchy. Hierarchy on a grid comes from brightness (`text` over `muted` over `faint`), position, and blank rows, not from frames and hue.
+
+## Frames
+
+The terminal tell is a border around every region: header in a box, messages in a box, each message in a box, footer in a box. Borders cost two columns and two rows each and flatten everything to the same weight.
+
+A border earns its place only when it marks something you act on or something layered over something else. In {{project_slug}} that's two things: the composer (where you type) and the model picker (an overlay). A third one needs a reason of that kind. Separate everything else with a blank row or a brightness step. Never nest bordered boxes, and never frame the whole screen.
+
+Box titles (`title=" Model "`) are fine on an overlay that needs a name; a title on an always-visible region that says what it obviously is ("Messages", "Input") fails the deletion test.
+
+## Labels and chrome
+
+- A header is facts: the wordmark, the model, the chat id. No tagline, no version string, no "Welcome to {{project_slug}}".
+- A label is slop when it names a region whose content already says what it is (`MESSAGES`, `CHAT`, `STATUS:`). It's fine when it names a value next to it (`chat 0f0e0d0c`).
+- Key hints live in one place, the footer, in `faint`. Don't repeat them in the empty state, a help panel, and the placeholder at once.
+- Uppercase, bold, and the accent are three different ways to shout. Use at most one per element, and the accent only for its one job per screen.
+
+## Catalog
+
+Every grep hit needs the deletion test, not a blanket rewrite. Run these from the repo root.
+
+### Structure
+
+| Pattern | Grep | Instead |
+| --- | --- | --- |
+| Border on every region | `rg -n "\bborder\b" src/tui` (count them) | Borders for the composer and overlays; blank rows elsewhere |
+| Bordered box per message | read `message-list.tsx` | One blank row between messages |
+| Nested borders | read the tree | One level |
+| Full-width rule or bar | `rg -n "[─━═]{3,}\|repeat\(" src/tui` | A blank row, or a brightness step |
+| Title bar with a filled background | `rg -n "backgroundColor\|\bbg=" src/tui` | Text on the terminal's own background; fills only for the picker layer and selection |
+| Region labels (`MESSAGES`, `INPUT`) | `rg -n "title=\|[A-Z]{4,}" src/tui --glob '*.tsx'` | Nothing; position says it |
+
+### Color
+
+| Pattern | Grep | Instead |
+| --- | --- | --- |
+| Hex literal outside `theme.ts` | `rg -n "#[0-9a-fA-F]{3,8}\b" src/tui --glob '!theme.ts'` | A `theme` token (lint fails otherwise) |
+| Accent on several jobs | `rg -n "theme.accent" src/tui` | One accent job per screen (DESIGN.md) |
+| Error color for something that isn't an error | `rg -n "theme.error" src/tui` | `muted` or `faint` |
+| A new token for a one-off | read the `theme.ts` diff | An existing role; a new one needs a row in DESIGN.md |
+| Rainbow by role (every kind of line its own hue) | count distinct `fg=` values per component | Brightness steps; hue only for user, tool, error |
+
+### Decoration and motion
+
+| Pattern | Grep | Instead |
+| --- | --- | --- |
+| Emoji as status or icon | `rg -nP "[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]" src/tui` | Words, or a plain glyph that tells two things apart |
+| Checkmarks, crosses, bullets on every line | `rg -n "[✓✔✗✘•●◆★]" src/tui` | Only where they distinguish states in the same list |
+| Spinner or animated dots | `rg -n "spinner\|setInterval\|useTimeline\|[⠋⠙⠹⠸]" src/tui` | The streaming text is the progress; `…` until the first token |
+| ASCII-art banner or `ascii-font` | `rg -n "ascii-font\|figlet" src/tui` | The wordmark in the header row |
+| Sparkle or robot framing for the model | `rg -n "✨\|🤖\|AI assistant" src/tui` | The model id |
+
+### Copy in the UI
+
+| Pattern | Instead |
+| --- | --- |
+| "Ask anything", "How can I help you today?", "Welcome to..." | Say what this screen does, or show the keys |
+| Seamless, Powerful, Blazing, Supercharge | A verb that names what happens |
+| "Oops!", "Something went wrong" | What failed, and whether sending again helps |
+| "Loading..." with nothing to say what | What's loading ("Loading models…"), or nothing |
+| Title Case On Every Label | Sentence case |
+
+## Reviewing a screen
+
+1. Capture it (`bun run tui:capture`) in the states the change touches: empty, streaming, tool call, finished, error, picker open.
+2. Name the part that matters most. If it's not the conversation, fix hierarchy before touching labels.
+3. Count borders. Each should mark something you type into or something layered on top.
+4. Count accent uses. One job per screen.
+5. Deletion test on every label, title, glyph, and hint.
+6. Read every string aloud. It should only fit {{project_slug}}, and say what happens.
+7. Resize narrow (60 columns) and short (15 rows): fixed rows keep `flexShrink={0}`, and nothing decorative should survive at the conversation's expense.

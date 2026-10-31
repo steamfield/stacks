@@ -21,7 +21,7 @@ help: ## List targets
 # Combined targets
 
 install: backend-install frontend-install ## Install backend and frontend dependencies
-	@if [ -z "$(CI)" ] && [ -f lefthook.yml ]; then lefthook install; fi
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
 
 lint: backend-lint frontend-lint ## Lint and format-check both halves
 

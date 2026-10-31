@@ -3,40 +3,41 @@ schema_version: 1
 id: effect
 kind: fragment
 category: tooling
-name: Effect testing and API skill
-description: Effect testing with @effect/vitest (fresh real layers per test, TestClock instead of sleeps, typed failure and defect assertions), shipped Effect guidance for each agent, and an agent skill written from the installed Effect release's declarations.
+name: Effect test kit and API reference
+description: Effect testing for the Effect stacks with @effect/vitest and a shipped test of TestClock, Layer.fresh and failure assertions, shared guidance for Claude Code, Codex, Cursor and OpenCode, and an API reference the agent writes from the installed Effect release and keeps in step with it.
 tags: [typescript, effect, testing]
-applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, mobile-expo, python-react, react-router, tauri-react, typescript-api, typescript-cli]
+applies_to: [effect]
 requires: [effect-schema]
 deps:
   dev: ["@effect/vitest"]
 decisions:
-  - "Effect major: the current stable major (default). If the latest release is still a prerelease, pin every Effect package to the same one (with transitive overrides where needed) and record the pins under Build workarounds; otherwise use caret ranges. Check peer ranges before selecting Vitest and its coverage package."
+  - "Effect release: the current stable release (default). Upgrade `effect` and every `@effect/*` package to the same version together, and choose Vitest inside `@effect/vitest`'s Vitest peer range."
+verify:
+  - { name: effect-testkit, layer: test, run: bun run test effect-testkit }
+  - name: effect-api-reference
+    layer: docs
+    run: >-
+      v=$(node -p "require(require.resolve('effect/package.json', { paths: ['.', 'apps/api'] })).version")
+      && head -n 1 docs/guidance/effect/api.md | grep -qxF "Verified against effect $v"
 ---
 
 # Effect testing and development
 
-Read `docs/guidance/effect/index.md` before implementation; it supplies the shared guidance for every selected agent.
+Read `docs/guidance/effect/index.md` before writing Effect code. The stack owns the runtime, services, errors, logging and test layers; this fragment adds the Effect test kit and the project's API reference.
 
-The stack owns runtime, services, errors, and logging. This fragment adds testing and development guidance.
+## What to add
 
-## Testing
+1. Add `@effect/vitest` as a dev dependency at the same version as `effect`.
+<!-- stacks:when stack=astro-fullstack -->
+   Add it to `apps/api`, and move `tests/effect-testkit.test.ts` to `apps/api/tests/`: the root `tests/` directory belongs to the `hooks` Vitest project.
+<!-- stacks:end -->
+2. Run `bun run test effect-testkit`. The shipped test is the pattern for Effect tests (TestClock, `Layer.fresh`, typed failures, defects, a fresh `ConfigProvider`). If a release renames a name it uses, fix the test against the installed declarations without dropping a case.
+3. Once the project typechecks, write `docs/guidance/effect/api.md` as `docs/guidance/effect/effect.md` describes, and link it from `docs/guidance/effect/index.md`. Its first line is exactly `Verified against effect <version>`, the installed version. Every agent's Effect rule or skill links that index, so write no per-agent copy.
 
-Use `@effect/vitest` with fresh real service layers; fake only third-party boundaries. Factories allocate state per build; test isolation. Memoization shares static memory layers unless wrapped in `Layer.fresh`; share `it.layer` state only deliberately. Inject a fresh ConfigProvider. Separate route/CLI runtimes use the live clock, so test time-dependent programs directly with provided layers.
+## Verify
 
-`it.effect` supplies TestClock, TestConsole, and scope. Fork timers, advance TestClock, then join. For intervening real I/O, yield and wait for a condition; never guess with sleeps. Assert typed failures and defects without swallowing causes.
+`effect-testkit` runs the shipped test. `effect-api-reference` fails when `api.md` is missing or names a different version than the installed `effect`; after an upgrade, recheck the reference against the new declarations before updating that line.
 
-## Installed API guidance
+## AGENTS.md
 
-After core compilation, write `effect/SKILL.md` in the skill tree AGENTS.md specifies, checking claims against installed declarations. Include triggers and a lookup order: installed declarations, then compiled source for behavior, then its docs and changelog; other majors and memory last. Resolve imports through package exports, not older directory layouts. Cover:
-
-- Namespaced services, static layers, named functions, typed failures/defects, scope, cancellation, callbacks, and captured runtime context.
-- Current migration traps: Context, catch helpers, Result/Either, schema annotations/checks, forks, scoped layers, Config constructors/providers, log levels, and TestClock imports.
-- Configuration, custom logger inputs/annotations, clocks, promise cancellation, layer memoization, and boundary-only runtime execution.
-- Boundary decoding, closed JSON schemas, references, Standard Schema, virtual time, properties, and failure/state-sharing tests.
-
-Extend for CLI/platform/AI modules only when used. Link from AGENTS.md and the shipped Effect rule; don't freeze an API reference.
-
-## Gotchas
-
-Upgrade Effect packages together; rerun checks and update the skill. Never install `@effect/schema`. Treat empty config strings as absent. Scripts invoked repeatedly need fresh ConfigProviders, not environment snapshots. Observe every fork at its owner. Catch typed failures deliberately; defects remain defects.
+Add an **Effect** section: the API reference at `docs/guidance/effect/api.md`, rewritten on every Effect upgrade; `tests/effect-testkit.test.ts` as the test pattern; `effect` and `@effect/*` packages upgraded together.

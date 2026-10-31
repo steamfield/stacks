@@ -15,7 +15,7 @@ help: ## List targets
 
 install: ## Install dependencies (frozen lockfile when CI is set)
 	bun install $(if $(CI),--frozen-lockfile)
-	@if [ -z "$(CI)" ] && [ -f lefthook.yml ]; then lefthook install; fi
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
 
 # --ignore-lock keeps astro dev in the foreground when it detects an agent
 # (otherwise it backgrounds itself and exits). Stop a stray one: bunx astro dev stop

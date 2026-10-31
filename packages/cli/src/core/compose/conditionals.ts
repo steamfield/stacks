@@ -133,19 +133,26 @@ export function scanConditionals(
 /**
  * `body` with every block resolved for `context`, or the first malformed marker. A blank line
  * left doubled by a removal is dropped, so a removed block leaves no gap.
+ * With `withFragment`, keep only matching blocks explicitly naming that fragment, for add notes.
  */
 export function resolveConditionals(
   body: string,
   context: ConditionContext,
+  withFragment?: string,
 ): { text: string } | ConditionalError {
   const scanned = scanConditionals(body);
   if (!("blocks" in scanned)) return scanned;
   const drop = new Set<number>();
+  if (withFragment !== undefined) for (const [index] of body.split("\n").entries()) drop.add(index);
   for (const block of scanned.blocks) {
     // Marker lines always go; a block whose condition doesn't match goes whole.
-    const keep = matches(block.condition, context);
-    for (let line = block.start; line <= block.end; line++)
+    const keep =
+      matches(block.condition, context) &&
+      (withFragment === undefined || block.condition.with?.includes(withFragment));
+    for (let line = block.start; line <= block.end; line++) {
       if (!keep || line === block.start || line === block.end) drop.add(line - 1);
+      else drop.delete(line - 1);
+    }
   }
   return { text: keepLines(body.split("\n"), drop) };
 }

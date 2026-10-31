@@ -91,6 +91,7 @@ export const dependencies = {
     "Packages, by role. Install the current stable version of each; these are names, not versions:",
   tools: "Tools:",
   found: (tool: string) => `- ${code(tool)}: found on PATH`,
+  unchecked: (tool: string) => `- ${code(tool)}: required; PATH not checked in this preview`,
   missing: (
     tool: string,
     hint: string,
@@ -217,6 +218,11 @@ export const sandbox = [
 
 /** Fixed wording specific to applying fragments to an existing project. */
 export const add = {
+  inferredTags: (tags: ReadonlyArray<string>) =>
+    `- Inferred tags: ${tags.length ? tags.join(", ") : "none"}`,
+  recipeNote: (id: string) => `### From the ${code(id)} recipe (current version)`,
+  createAgentsMd:
+    "Create `AGENTS.md` at the project root before adding the sections requested below.",
   title: (ids: ReadonlyArray<string>, project: string) => `# Add ${ids.join(", ")} to ${project}`,
   stack: (id: string | null) => `- Stack: ${id ? code(id) : "none recorded, existing repo"}`,
   applied: (ids: ReadonlyArray<string>) =>

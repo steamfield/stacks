@@ -1,19 +1,21 @@
-import { Effect } from "effect";
-import { ComposeConflict } from "../../errors";
+import { Effect, FileSystem, Path } from "effect";
+import { ComposeConflict, PermissionDenied } from "../../errors";
 import { Host } from "../../services/host";
 import { Output } from "../../services/output";
 import type { AddOptions } from "../add";
 import { targetAgents } from "../compose/agents";
-import { compose } from "../compose/compose";
+import { type Composition, compose } from "../compose/compose";
 import { composeFiles } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
 import { buildManifest } from "../manifest";
+import type { Entry } from "../registry/entry";
 import { gitInstalled } from "../scaffold/git";
 import { templateOverrides, templateValues } from "../scaffold/values";
 import { printable } from "../text";
 import { inferName } from "./name";
-import { planAdd } from "./plan";
+import { type AddPlan, planAdd } from "./plan";
 import type { AddProject } from "./project";
+import { inferTags } from "./tags";
 
 /** Compose only the requested delta, then render and classify its files before opening a writer. */
 export const prepareAdd = (options: AddOptions, project: AddProject) =>
@@ -29,6 +31,7 @@ export const prepareAdd = (options: AddOptions, project: AddProject) =>
       always: [],
       mode: "add",
       existing,
+      ...(!stack ? { inferredTags: yield* inferTags(options.root) } : {}),
     });
     const warnings = [...project.warnings, ...composition.warnings];
     const missing = yield* missingToolsOnPath(composition);
@@ -75,5 +78,44 @@ export const prepareAdd = (options: AddOptions, project: AddProject) =>
             .filter((id) => !present.has(id))
             .map((id) => ({ id, command: `${host.invocation} add ${id}` }))
         : [];
-    return { composition, missing, name, plan, built, added, missingRequired, warnings };
+    const createAgentsMd = yield* needsAgentsMd(options.root, composition, plan);
+    return {
+      composition,
+      missing,
+      name,
+      plan,
+      built,
+      added,
+      missingRequired,
+      warnings,
+      createAgentsMd,
+    };
   });
+
+const needsAgentsMd = Effect.fn("add.needsAgentsMd")(function* (
+  root: string,
+  composition: Composition<Entry | null>,
+  plan: AddPlan,
+) {
+  const entries = [
+    ...composition.fragments,
+    ...(composition.addNotes ?? []).map((note) => note.entry),
+  ];
+  if (
+    !entries.some((entry) =>
+      /(?:^#{1,6}[ \t]+`?AGENTS\.md`?(?:[ \t]|$)|AGENTS\.md[^\n]*section|section[^\n]*AGENTS\.md)/im.test(
+        entry.body,
+      ),
+    )
+  )
+    return false;
+  if (plan.write.some((file) => file.path === "AGENTS.md")) return false;
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const file = path.join(root, "AGENTS.md");
+  return !(yield* fs
+    .exists(file)
+    .pipe(
+      Effect.mapError(() => new PermissionDenied({ details: { reason: "read", path: file } })),
+    ));
+});

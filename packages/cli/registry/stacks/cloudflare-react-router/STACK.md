@@ -73,7 +73,7 @@ The shipped scripts are the command contract: `dev`, `build`, `typecheck`, `lint
 `test` and `coverage` build first. Vitest runs adjacent binding and scheduled-work tests in the local Workers runtime; its Node project starts local Wrangler against the built Worker and tests the page, resource route, error boundary, CSS and scheduled export over HTTP. Extend both boundaries for new routes and services. Tests need no account or credentials, own their temporary persistence and stop their servers. Coverage instruments the service and scheduled work with Istanbul; HTTP tests prove framework wiring. Never substitute a response stub, `bun test` or `--bun`.
 
 <!-- stacks:when with=cloudflare-d1 -->
-The shipped `/healthz` loader already returns the healthy JSON shape. Extend it with the fragment's real Drizzle query before returning that response; preserve its framework HTTP test. Add DB to Wrangler, regenerate types, and adapt the HTTP tests' isolated persistence setup to apply local migrations before either test server starts.
+Keep `/healthz` and the `web` probe database-free; the fragment adds `/readyz` for the database. If `tests/http.test.ts` still starts its servers through one `start()` helper, migrate each server's persistence directory there with `migrateLocalD1` before `wrangler dev` starts, and keep both test servers.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->

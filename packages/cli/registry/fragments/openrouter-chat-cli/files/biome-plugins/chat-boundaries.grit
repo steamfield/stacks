@@ -1,4 +1,5 @@
-// Repo boundaries from .claude/rules/src/ that a pattern can check. Messages name the rule to read.
+// Repo boundaries from docs/guidance/ that a pattern can check. Messages name the guide to read.
+// It replaces the base biome-plugins/boundaries.grit entry and keeps its rules.
 // Only src/bin.ts and src/tui/** may touch Bun or OpenTUI: everything else runs under vitest on
 // Node, so it goes through Effect's FileSystem, Path, Stdio, and HttpClient instead.
 language js
@@ -13,7 +14,7 @@ or {
       and {
         $src <: r"[\"'](?:bun|bun:[^\"']*|@effect/platform-bun[^\"']*|@opentui/[^\"']*)[\"']",
         $filename <: not r".*/src/(?:bin\.ts|tui/.*)",
-        register_diagnostic(span=$src, message="Bun or OpenTUI import outside src/bin.ts and src/tui/: this code runs under vitest on Node. Use Effect's FileSystem, Path, Stdio, or HttpClient. See .claude/rules/src/cli.md, Platform boundary.")
+        register_diagnostic(span=$src, message="Bun or OpenTUI import outside src/bin.ts and src/tui/: this code runs under vitest on Node. Use Effect's FileSystem, Path, Stdio, or HttpClient. See docs/guidance/typescript-cli/cli.md.")
       },
       and {
         $src <: r"[\"'](?:zod|zod/[^\"']*|@effect/schema[^\"']*)[\"']",
@@ -23,7 +24,7 @@ or {
         $src <: r"[\"'](?:effect|effect/[^\"']*|@effect/[^\"']*)[\"']",
         $filename <: r".*/src/tui/.*",
         $filename <: not r".*/src/tui/launch\.tsx?",
-        register_diagnostic(span=$src, message="TUI components don't import effect: they get plain functions from the bridge in src/tui/launch.tsx. See .claude/rules/openrouter-chat-cli/tui.md.")
+        register_diagnostic(span=$src, message="TUI components don't import effect: they get plain functions from the bridge in src/tui/launch.tsx. See docs/guidance/openrouter-chat-cli/tui.md, The bridge.")
       }
     }
   },
@@ -43,11 +44,11 @@ or {
         $src <: r"[\"']\.\./\.\./tui(?:/[^\"']*)?[\"']"
       }
     },
-    register_diagnostic(span=$src, message="Static import of src/tui/ from outside it: that loads OpenTUI everywhere. Load it with importTui from src/commands/load-tui.ts, a dynamic import. See .claude/rules/openrouter-chat-cli/tui.md, The bridge.")
+    register_diagnostic(span=$src, message="Static import of src/tui/ from outside it: that loads OpenTUI everywhere. Load it with importTui from src/commands/load-tui.ts, a dynamic import. See docs/guidance/openrouter-chat-cli/tui.md, The bridge.")
   },
   `console.$m($args)` as $c where {
     $filename <: r".*/src/.*",
-    register_diagnostic(span=$c, message="No console in src/: results go through the Output service, diagnostics through Effect.log*. See .claude/rules/src/cli.md, stdout contract.")
+    register_diagnostic(span=$c, message="No console in src/: results go through the Output service, diagnostics through Effect.log*. See docs/guidance/typescript-cli/cli.md.")
   },
   `process.env` as $e where {
     $filename <: r".*/src/.*",
@@ -59,17 +60,17 @@ or {
   `process.stdout` as $o where {
     $filename <: r".*/src/.*",
     $filename <: not r".*/src/bin\.ts",
-    register_diagnostic(span=$o, message="process.stdout outside src/bin.ts: results go through the Output service. See .claude/rules/src/cli.md, stdout contract.")
+    register_diagnostic(span=$o, message="process.stdout outside src/bin.ts: results go through the Output service. See docs/guidance/typescript-cli/cli.md.")
   },
   `process.stderr` as $o where {
     $filename <: r".*/src/.*",
     $filename <: not r".*/src/(?:bin|logging|config)\.ts",
-    register_diagnostic(span=$o, message="process.stderr outside src/bin.ts, src/logging.ts, and src/config.ts: notes go through Output.note, diagnostics through Effect.log*. See .claude/rules/src/cli.md, stdout contract.")
+    register_diagnostic(span=$o, message="process.stderr outside src/bin.ts, src/logging.ts, and src/config.ts: notes go through Output.note, diagnostics through Effect.log*. See docs/guidance/typescript-cli/cli.md.")
   },
   `Bun.$x` as $b where {
     $filename <: r".*/src/.*",
     $filename <: not r".*/src/(?:bin\.ts|tui/.*)",
-    register_diagnostic(span=$b, message="The Bun global outside src/bin.ts and src/tui/: this code runs under vitest on Node. See .claude/rules/src/cli.md, Platform boundary.")
+    register_diagnostic(span=$b, message="The Bun global outside src/bin.ts and src/tui/: this code runs under vitest on Node. See docs/guidance/typescript-cli/cli.md.")
   },
   or {
     JsStringLiteralExpression(),

@@ -35,7 +35,7 @@ help: ## List targets
 install: ## Download modules and install dev tools that are missing
 	go mod download
 	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
-	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+	@test -n "$$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || lefthook install
 
 build: ## Build bin/server with version info
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)

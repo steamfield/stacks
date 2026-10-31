@@ -90,6 +90,10 @@ The shipped Makefile (`make help`) has install, build, vet, lint, lint-fix, fmt,
 
 **CI.** Go's setup action with the version read from `go.mod`. Steps: `make install`, `make fmt-check`, `make tidy-check`, lint, `make coverage` (`make test` if the coverage decision is no), `make test-integration`, `make vuln`, `make build`. Lint is the one sanctioned exception to calling make targets: use golangci-lint's official action with its `version-file` input pointed at `.golangci-lint-version` (the file `make lint` checks against; the action accepts only that name or `.tool-versions`), because the action installs and caches that exact binary.
 <!-- stacks:end -->
+<!-- stacks:when with=git-hooks -->
+
+If `make install` already runs `lefthook install`, don't add another install step. pre-commit formats staged Go files with gofmt and goimports, re-staging fixes, then runs `make lint`; pre-push runs `make test`.
+<!-- stacks:end -->
 
 ## Gotchas
 

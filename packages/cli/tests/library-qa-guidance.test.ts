@@ -67,7 +67,7 @@ test.each(compositions.flatMap((c) => agents.map((agent) => ({ ...c, agent }))))
   15_000,
 );
 
-test.each(agents)("Effect bootstrap can start without a generated skill for %s", async (agent) => {
+test.each(agents)("Effect bootstrap can start without an API reference for %s", async (agent) => {
   const result = await scaffoldAdapters({
     home: space.temp(),
     stack: "typescript-cli",
@@ -76,14 +76,14 @@ test.each(agents)("Effect bootstrap can start without a generated skill for %s",
   const guide = "docs/guidance/effect/effect.md";
   expect(result.written).toContain(guide);
   const source = readFileSync(join(result.project, guide), "utf8");
-  expect(source).toContain("When the project skill does not exist");
-  expect(source).toContain("After core compilation");
+  expect(source).toContain("docs/guidance/effect/api.md");
+  expect(source).toContain("Verified against effect");
   expect(source).toContain("installed declarations");
   const services = readFileSync(
     join(result.project, "docs/guidance/typescript-cli/effect-services.md"),
     "utf8",
   );
-  expect(services).toContain("When the project skill does not exist");
+  expect(services).toContain("Until `docs/guidance/effect/api.md` exists");
   expect(services).toContain("installed declarations");
 });
 

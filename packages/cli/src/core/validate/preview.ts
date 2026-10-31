@@ -7,6 +7,7 @@ import { type ComposeOptions, compose } from "../compose/compose";
 import { fingerprint } from "../fingerprint";
 import { type Entry, isRejected } from "../registry/entry";
 import { Registry } from "../registry/registry";
+import { addCompositionChecks } from "./add-compositions";
 import { canonicalBrief, composedLimit } from "./budget";
 import { composeEachChecks } from "./compose-each";
 import { composedFiles } from "./composed";
@@ -81,7 +82,11 @@ export const previewBrief = (target: Target, options: PreviewOptions) =>
       // outside this canonical, process-free preview of one composition.
       const findings = (yield* Effect.forEach(
         checks.filter(
-          (check) => check !== loadChecks && check !== gitChecks && check !== composeEachChecks,
+          (check) =>
+            check !== loadChecks &&
+            check !== gitChecks &&
+            check !== composeEachChecks &&
+            check !== addCompositionChecks,
         ),
         (check) => check(view),
       ))

@@ -5,7 +5,7 @@ argument-hint: "<what the feature does>"
 
 Add a feature: $ARGUMENTS
 
-The extract feature is the smallest complete slice, so use it as the template: `app/schemas/extract.ts`, `app/.server/extract.ts`, `app/routes/api.extract.ts`, `app/routes/extract.tsx`, `app/components/extract-form.tsx`, `tests/extract.test.ts`, and the `api.extract` case in `tests/chat-routes.test.ts`. Read the rules for the paths you touch (`routes.md`, `effect-server.md`, `ui.md`, `testing.md`) and load the `effect` skill before writing Effect code.
+The extract feature is the smallest complete slice, so use it as the template: `app/schemas/extract.ts`, `app/.server/extract.ts`, `app/routes/api.extract.ts`, `app/routes/extract.tsx`, `app/components/extract-form.tsx`, `tests/extract.test.ts`, and the `api.extract` case in `tests/chat-routes.test.ts`. Read the rules for the paths you touch (`routes.md`, `effect-server.md`, `ui.md`, `testing.md`) and the Effect guidance (`docs/guidance/effect/index.md`, when the effect fragment is selected) before writing Effect code.
 
 If the request is ambiguous (what goes in, what comes out, what counts as failure), state your assumptions in one short list before writing code, and ask if a wrong guess would be expensive to undo.
 

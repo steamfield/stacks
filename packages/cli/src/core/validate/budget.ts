@@ -24,7 +24,7 @@ export function bodyLimit(entry: Entry): number {
 }
 
 /** The composed limit: higher when the composition holds an app. */
-export const composedLimit = (composition: Composition) =>
+export const composedLimit = (composition: Composition<Entry | null>) =>
   composition.app ? BUDGET.composedWithApp : BUDGET.composed;
 
 /**
@@ -32,12 +32,13 @@ export const composedLimit = (composition: Composition) =>
  * on every machine: no missing tools, a fresh repository, the longest invocation an agent sees,
  * and the composition's own planned paths as the written list. `yes` follows the preset.
  */
-export function canonicalContext(composition: Composition): BriefContext {
+export function canonicalContext(composition: Composition<Entry | null>): BriefContext {
   return {
     project: "project",
     git: { kind: "fresh" },
     written: projectFiles(composition.files),
     missing: [],
+    toolsUnchecked: true,
     yes: composition.preset === "sandbox",
     invocation: `npx -y @steamfield/stacks@${VERSION}`,
   };

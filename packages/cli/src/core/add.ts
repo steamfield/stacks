@@ -51,9 +51,10 @@ export const add = (options: AddOptions) =>
       git: { kind: "parent", toplevel: options.root },
       written,
       missing,
-      yes: options.yes || options.sandbox,
+      yes: options.yes || composition.preset === "sandbox",
       add: {
         applied: project.existing,
+        createAgentsMd: prepared.createAgentsMd,
         stack: project.previous?.stack?.id ?? null,
         mergeNeeded: incoming,
         missingRequired,
@@ -92,6 +93,7 @@ export const add = (options: AddOptions) =>
       digestRecorded: merged.digestRecorded,
       brief: BRIEF_PATH,
       briefWords: brief.briefWords,
+      ...(composition.inferredTags !== undefined ? { inferredTags: composition.inferredTags } : {}),
       untrusted: [...composition.untrusted],
     };
     return { result, decision, manifest, composition };

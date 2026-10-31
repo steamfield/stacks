@@ -7,7 +7,7 @@ Everything under `src/` is Effect. This rule says what the code must do; the ins
 Effect's module names, helpers and defaults change between majors, and examples online mix them. Before writing Effect code:
 
 1. Read the installed version (`node_modules/effect/package.json`) and work only from that major.
-2. Load the project's `effect` skill when it exists: it was written against the installed release and records its names and traps.
+2. Read the Effect API reference, `docs/guidance/effect/api.md`, when it exists: it was written against the installed release and records its names and traps.
 3. Treat the installed type declarations and their doc comments (`node_modules/effect/dist/**/*.d.ts`) as the authority, and the package's compiled source when behavior matters (how a failure is surfaced, what a default does). Effect's own documentation and changelog for that major come next; an example from another major, a blog post or memory comes last.
 4. When a name in a skill or a doc doesn't exist in the declarations, find the concept there instead of adding a shim, and correct the skill.
 5. Behavior this rule depends on is pinned by tests (below). After an Effect upgrade, a failing one of those tests means the mechanism moved: find the new one, don't loosen the test.
@@ -24,7 +24,7 @@ Effect's module names, helpers and defaults change between majors, and examples 
 
 One request middleware in `app.ts` owns the `x-request-id`, the `request` log line, the defect log and the error envelope. It must see every response, so install it at server level wherever the app is served (the Node entry and the web-handler test), not on a route. A route-level middleware never sees misses or responses the framework builds before a handler runs. Turn the framework's own request logger off in each of those places, or calls log twice and a defect's message reaches the log.
 
-Response rewriting must happen before the transport sends headers/body. Mapping a response returned by middleware after sending is too late. Check the installed router/server declarations for pre-response hooks or middleware that can still change the wire response, and record the verified mechanism in the generated Effect skill. The same HTTP matrix must prove the actual response on both transports.
+Response rewriting must happen before the transport sends headers/body. Mapping a response returned by middleware after sending is too late. Check the installed router/server declarations for pre-response hooks or middleware that can still change the wire response, and record the verified mechanism in `docs/guidance/effect/api.md`. The same HTTP matrix must prove the actual response on both transports.
 
 The envelope rules, each pinned by a test:
 

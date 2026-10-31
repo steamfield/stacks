@@ -14,7 +14,7 @@
 
 - Both runners start from `isolateEnv()` in `tests/isolation.ts` (vitest `setupFiles`, bun's `bunfig.toml` preload): empty `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` at `127.0.0.1:9`, `HOME`, `XDG_CONFIG_HOME`, and `{{env_prefix}}_DATA_DIR` in a fresh temp dir, `{{env_prefix}}_LOG_FILE` empty. bun auto-loads `.env`, so the preload is what keeps a real key out. A test that needs a key or a stub sets it explicitly.
 - `runCli` builds its env from scratch (a dummy key, unreachable URLs, a temp root) and parses it with the real config; e2e spawns the binary with an env built from scratch, never `process.env`.
-- The only fakes are for third parties: the stub OpenRouter (`tests/helpers/stub-openrouter.ts`) and the optional release fragment's stub server when selected. The model is always the real provider pointed at the stub, which serves `/models` and streaming `/chat/completions` and can be scripted per test: `toolCalls` (a queue of `{ name, arguments }` streamed as tool calls), `dropAfter` (N deltas, then drop the connection), `hangAfter` (N deltas, then never finish), `failCompletions` (an error response), and `replay(names)` of recorded fixtures; `chatRequests` holds what it received. Never mock our own modules or services; use the real layers (`ChatStore.layerMemory` where a test needs fresh in-memory state).
+- The only fakes are for third parties: the shipped stub OpenRouter (`tests/helpers/stub-openrouter.ts`, pinned to the documented format by `tests/openrouter-stub.test.ts`) and the optional release fragment's stub server when selected. The model is always the real provider pointed at the stub, which serves `/models` and streaming `/chat/completions` and can be scripted per test: `toolCalls` (a queue of `{ name, arguments }` streamed as tool calls), `replies`, `dropAfter` (N deltas, then drop the connection), `hangAfter` (N deltas, then never finish), `failCompletions` (an error status with OpenRouter's body and optional `Retry-After`), `streamError` (an in-band error chunk), and `replay(bodies, { chunkSize })` of recorded SSE bodies; `chatRequests` and `chatHeaders` hold what it received. `docs/openrouter.md` lists what to cover. Never mock our own modules or services; use the real layers (`ChatStore.layerMemory` where a test needs fresh in-memory state).
 
 ## Where a test goes
 
@@ -34,7 +34,7 @@
 
 - `tests/hooks/` runs each hook in `.claude/hooks/` through its wired command, with a JSON payload on stdin (helpers in `tests/helpers/hooks.ts`); `wiring.test.ts` checks `settings.json`. A new guard pattern gets a deny row and a near miss that must pass. Rows are named after the command; the guards ignore quoted text, so `-t "<name>"` works. Run them with `bun run test:unit tests/hooks`.
 - `tests/fixtures/openrouter/*.sse` are real OpenRouter bodies replayed through the real provider; `tests/openrouter-replay.test.ts` asserts each one's text, tokens, and cost. Don't hand-edit them (a hook denies it); re-record with `bun run record:openrouter` (needs a key) after upgrading `effect` or `@effect/ai-openrouter`.
-- `bun run eval` calls the real API and costs money, so it's manual and never part of `bun run test` or CI. Its pure scoring is unit-tested.
+- `bun run eval` calls the real API and costs money, so it's manual and never part of `bun run test` or CI. Its pure scoring is unit-tested. Reports follow `docs/eval-report.md` and land in the ignored `.eval/results/`; only `--dry-run`, which owns its stub, runs in verify (`scripts/check-eval-dry-run.ts`).
 
 ## Effect tests
 

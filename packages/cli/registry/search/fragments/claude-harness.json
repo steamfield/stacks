@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:3a6c7e51b121fe3e999d089d6be6af35e47435ffaad551d009a6af68f6ef1143",
+    "digest": "sha256:0565b7925ad036df89e767499eedacafd70ea1a629f80a335569ee4003e09c6f",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Add reusable TypeScript hook helpers and a Claude Code adapter with command guards, incremental type checks, hook tests, workflows and review agents.",
   "description": "Build project-specific agent guards on shared Bun TypeScript hook helpers. For Claude Code, the adapter adds guarded commands, incremental typechecking, development commands and read-only review agents, with tests and a harness guide. The shared helpers can also support stack-owned Codex hooks. Each guard must be wired once and documented with its own regression cases.",

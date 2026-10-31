@@ -1,0 +1,36 @@
+# Releasing {{project_name}}
+
+Releases are built by GoReleaser from `.goreleaser.yaml` and published by `.github/workflows/release.yml` when a `v*` tag is pushed. Never upload release files by hand.
+
+## Cut a release
+
+1. Make sure `main` is green in CI and `make release-check` passes.
+2. Tag the commit and push the tag:
+
+   ```sh
+   git tag -a vX.Y.Z -m "vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+3. Watch the release workflow. When it finishes, the GitHub release has one archive per target, `checksums.txt` and a changelog built from commit messages (`docs:`, `test:`, `chore:` and `ci:` commits are left out).
+4. Download one archive and check `{{project_slug}} --version` prints the tag.
+
+## Test locally
+
+- `make release-check` validates the config.
+- `make release-build` builds this platform's binary through GoReleaser into `dist/` and checks that `--version` carries the version.
+- `make release-snapshot` builds every archive into `dist/` without publishing.
+
+## Version info
+
+`main.version`, `main.commit` and `main.date` are set by ldflags, the same in the Makefile's `build` target and in `.goreleaser.yaml`. A plain `go build` reports `dev`.
+
+## Secrets
+
+- `GITHUB_TOKEN`: the workflow's own token; creates the release.
+
+<!-- stacks:fill List any other secret the release uses (HOMEBREW_TAP_TOKEN for a Homebrew tap) and where it's set, or delete this comment. -->
+
+## If a release fails
+
+Fix the cause on `main`, delete the tag locally and on GitHub (`git push origin :refs/tags/vX.Y.Z`) and any draft release, then tag again.

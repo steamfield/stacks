@@ -84,7 +84,7 @@ A working FastAPI app factory, validated settings, lifespan-owned in-memory note
 The shipped Makefile (`make help`) holds every declared target. Mirror them and a single-file command (`uv run pytest tests/test_http.py`) in AGENTS.md. `TEST_WORKERS` defaults to auto; reduce it on shared machines without changing test behavior.
 
 <!-- stacks:when with=git-hooks -->
-Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
+If `make install` already runs `lefthook install`, don't add another install step. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 CI uses uv's setup action (cache on, Python read from .python-version), then `make install lint typecheck coverage check-openapi` with CI set.

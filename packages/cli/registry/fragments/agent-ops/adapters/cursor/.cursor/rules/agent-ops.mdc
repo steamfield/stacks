@@ -5,7 +5,8 @@ alwaysApply: true
 # Agent operations
 
 Read `AGENTS.md` for project commands and conventions. `.cursor/hooks.json` wires
-`preToolUse` guards for destructive shell commands and secret writes. A deny means
+`preToolUse` guards for destructive shell commands, secret writes and env-file
+deletes, and a `beforeReadFile` guard that keeps real env files unread. A deny means
 ask the user; never rephrase a command, split it up or write through another tool
 to bypass it. Real `.env` values belong to the user; commit only example templates.
 Fix lint diagnostics and run the project check command before finishing.

@@ -8,11 +8,11 @@
 - **Provider routing**: `provider.sort` (price, throughput, latency), `allow_fallbacks`, `data_collection`, `zdr`.
 - **Output cap**: `max_tokens` from `MAX_OUTPUT_TOKENS`.
 
-There is no `usage: { include: true }` equivalent in the Effect provider; cost arrives in each step's finish metadata (`metadata.openrouter.usage.cost`). Tests point the real provider at the stub OpenRouter and assert on the request body it received (`stub.chatRequests`, as in `tests/config.test.ts`). Give each new setting such a case, so a renamed option shows up as a failing test, not a silent no-op.
+OpenRouter returns usage and cost on every response, so there's nothing to turn on (`usage: { include: true }` is deprecated and the Effect provider has no equivalent); cost arrives in each step's finish metadata (`metadata.openrouter.usage.cost`). Tests point the real provider at the stub OpenRouter and assert on the request body it received (`stub.chatRequests`, as in `tests/config.test.ts`). Give each new setting such a case, so a renamed option shows up as a failing test, not a silent no-op.
 
-The stub speaks the chat-completions format, and `@effect/ai-openrouter` decodes it strictly: every streamed chunk and every non-streaming reply needs a string `system_fingerprint` (missing or `null` fails decoding).
+The stub speaks the chat-completions format, and `@effect/ai-openrouter` decodes it strictly: every streamed chunk and every non-streaming reply needs a string `system_fingerprint` (missing or `null` fails decoding), usage needs `cost_details` with numeric `upstream_inference_prompt_cost` and `upstream_inference_completions_cost`, and an in-band error's `metadata.error_type` must be one of the provider's known types. The shipped stub already does all three; `docs/openrouter.md` is the wire contract and the error classes to map.
 
-The client (`OpenRouterClient.make({ apiKey, apiUrl, siteTitle })`) is built once per process, on first use, because it needs the key and `--help` doesn't. No key is `NotConfigured` (exit 3) from `Llm.languageModel`, not from building the layer.
+Attribution: `siteTitle` sends `X-Title` (the project name) and `siteReferrer` sends `HTTP-Referer` (`OPENROUTER_SITE_URL`, only when set). The client (`OpenRouterClient.make({ apiKey, apiUrl, siteTitle, siteReferrer })`) is built once per process, on first use, because it needs the key and `--help` doesn't. No key is `NotConfigured` (exit 3) from `Llm.languageModel`, not from building the layer.
 
 ## Models list
 

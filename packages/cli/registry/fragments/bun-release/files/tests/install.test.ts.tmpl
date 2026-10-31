@@ -1,0 +1,126 @@
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { type StubReleases, startStubReleases } from "./helpers/releases";
+
+// install.sh against a local release stub: no network, no GitHub.
+const script = resolve("install.sh");
+const name = "{{project_slug}}";
+const prefix = "{{env_prefix}}";
+const os = process.platform === "darwin" ? "darwin" : "linux";
+
+const binary = (version: string) => `#!/bin/sh\necho ${version}\n`;
+const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+
+/** A release carrying a fake binary for both CPUs (Rosetta can make install.sh pick arm64). */
+function release(tag: string, options: { corrupt?: boolean; sums?: boolean } = {}) {
+  const assets: Record<string, string> = {};
+  const sums: string[] = [];
+  for (const arch of ["x64", "arm64"]) {
+    const asset = `${name}-${os}-${arch}`;
+    assets[asset] = binary(tag);
+    sums.push(`${sha256(options.corrupt ? "other bytes" : binary(tag))}  ${asset}`);
+  }
+  if (options.sums !== false) assets.SHA256SUMS = `${sums.join("\n")}\n`;
+  return { tag, assets };
+}
+
+let home: string;
+let stub: StubReleases;
+let installDir: string;
+
+beforeEach(async () => {
+  home = await mkdtemp(join(tmpdir(), "install-sh-"));
+  installDir = join(home, "inst dir $x");
+  stub = await startStubReleases([release("v0.2.0"), release("v0.1.0")]);
+});
+
+afterEach(async () => {
+  await stub.close();
+  await rm(home, { recursive: true, force: true });
+});
+
+/** Runs install.sh with an environment built from scratch; resolves with its status. */
+function install(env: Record<string, string> = {}, path = process.env.PATH ?? "") {
+  return new Promise<{ status: number; stdout: string; stderr: string }>((done) => {
+    execFile(
+      "bash",
+      [script],
+      {
+        env: {
+          PATH: path,
+          HOME: home,
+          [`${prefix}_RELEASES_URL`]: stub.url,
+          [`${prefix}_INSTALL_DIR`]: installDir,
+          ...env,
+        },
+      },
+      (error, stdout, stderr) => {
+        let status = 0;
+        if (error) status = typeof error.code === "number" ? error.code : 1;
+        done({ status, stdout, stderr });
+      },
+    );
+  });
+}
+
+const installed = () => readFile(join(installDir, name), "utf8");
+
+describe("install.sh", () => {
+  it("installs the latest release into a directory with spaces and $", async () => {
+    const result = await install();
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(await installed()).toBe(binary("v0.2.0"));
+    expect(stub.requests).toContain(`/releases/latest/download/SHA256SUMS`);
+  });
+
+  it("installs the tag named by _VERSION", async () => {
+    const result = await install({ [`${prefix}_VERSION`]: "v0.1.0" });
+    expect(result.status).toBe(0);
+    expect(await installed()).toBe(binary("v0.1.0"));
+  });
+
+  it("keeps the installed binary on a checksum mismatch", async () => {
+    await install({ [`${prefix}_VERSION`]: "v0.1.0" });
+    stub.releases = [release("v0.3.0", { corrupt: true })];
+    const result = await install();
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("checksum mismatch");
+    expect(await installed()).toBe(binary("v0.1.0"));
+  });
+
+  it("fails without installing when the binary or SHA256SUMS is missing", async () => {
+    stub.releases = [{ tag: "v0.3.0", assets: {} }];
+    const noBinary = await install();
+    expect(noBinary.status).not.toBe(0);
+    expect(noBinary.stderr).toContain("couldn't download");
+    stub.releases = [release("v0.3.0", { sums: false })];
+    const noSums = await install();
+    expect(noSums.status).not.toBe(0);
+    expect(noSums.stderr).toContain("SHA256SUMS");
+    await expect(installed()).rejects.toThrow();
+  });
+
+  it("refuses an unsupported OS", async () => {
+    const bin = join(home, "fake-bin");
+    await mkdir(bin);
+    await writeFile(join(bin, "uname"), "#!/bin/sh\necho Plan9\n");
+    await chmod(join(bin, "uname"), 0o755);
+    const result = await install({}, `${bin}:${process.env.PATH ?? ""}`);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("no {{project_slug}} build for Plan9");
+  });
+
+  it("asks for an owner when the default repository has none", async () => {
+    const result = await install({
+      [`${prefix}_RELEASES_URL`]: "",
+      [`${prefix}_RELEASES_REPO`]: `/${name}`,
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(`${prefix}_RELEASES_REPO=owner/repo`);
+  });
+});

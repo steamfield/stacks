@@ -1,0 +1,6 @@
+---
+name: effect-otlp
+description: "Use before changing tracing, OTLP export, request spans or log trace fields in the Effect server."
+---
+
+Read [OpenTelemetry for Effect servers](../../../docs/guidance/effect-otlp/index.md) before changes. It is the shared guidance for every selected agent: the layer's location, the supported variables, span and metric attribute names, safe-error rules and the test cases.

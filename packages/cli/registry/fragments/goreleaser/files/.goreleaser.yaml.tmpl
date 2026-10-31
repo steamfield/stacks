@@ -1,0 +1,50 @@
+# Release config. `make release-check` validates it, `make release-build` builds and runs this
+# platform's binary, and `make release-snapshot` builds every target into dist/ without
+# publishing. Docs: https://goreleaser.com/customization/
+version: 2
+project_name: {{project_slug}}
+
+builds:
+  - id: {{project_slug}}
+    main: .
+    binary: {{project_slug}}
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    # The Makefile's LDFLAGS variables, so --version reports the same fields from either build.
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }} -X main.date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - ids: [{{project_slug}}]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # Predictable asset names, so an install script can build the download URL.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot+{{ .ShortCommit }}"
+
+changelog:
+  sort: asc
+  use: git
+  filters:
+    exclude:
+      - "^docs(\\(.*\\))?:"
+      - "^test(\\(.*\\))?:"
+      - "^chore(\\(.*\\))?:"
+      - "^ci(\\(.*\\))?:"
+
+release:
+  prerelease: auto
+  # Named here so `goreleaser check` passes before the repository has a remote.
+  github:
+    owner: OWNER # stacks:fill the GitHub owner from the module path (github.com/<owner>/<slug>)
+    name: {{project_slug}}

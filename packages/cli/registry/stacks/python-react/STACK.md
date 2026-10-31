@@ -116,7 +116,7 @@ Frontend tests render the real home route with a fresh QueryClient and generated
 `make help` lists combined install, lint, format, typecheck, test, coverage, build, dev, e2e, generate-api, check-api and clean targets, plus the backend/frontend sub-targets. Mirror those and a single-test command in AGENTS.md. `frontend/package.json` owns the frontend scripts.
 <!-- stacks:when with=git-hooks -->
 
-The install target already guards lefthook on its config's existence and skips it in CI. Staged frontend lint uses `biome check --no-errors-on-unmatched`; run it from `frontend/` so it reads that config.
+If the install target already runs `lefthook install`, don't add another. Staged frontend lint uses `biome check --no-errors-on-unmatched`; run it from `frontend/` so it reads that config.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 

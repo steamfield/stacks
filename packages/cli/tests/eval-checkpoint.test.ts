@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { validateEvalReport } from "../registry/fragments/openrouter-ai/files/scripts/lib/eval-report";
+import { validateEvalReport } from "../registry/fragments/openrouter-chat/files/scripts/lib/eval-report";
 import { spawnGit } from "./helpers/git";
 import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
 import { readManifestAt } from "./helpers/verify";
@@ -173,23 +173,40 @@ test("rejects the saved Terra report even when its runner exits zero", () => {
   expect(result.stderr).toBe("eval report: schemaVersion: invalid or missing field\n");
 });
 
-test("vendor-only compositions ship the same helpers without adding an eval verify step", async () => {
+const EVAL_FILES = [
+  "scripts/check-eval-dry-run.ts",
+  "scripts/lib/eval-report.ts",
+  "docs/eval-report.md",
+  ".eval/.gitignore",
+];
+
+test("a vendor-only composition ships the OpenRouter stub and no eval checker", async () => {
   const value = await scaffoldAdapters({
     home: space.temp(),
     stack: "typescript-cli",
     fragments: ["openrouter-ai"],
     agents: ["codex"],
   });
-  expect(
-    readManifestAt(value.project).verify.some((step) => step.name === "app-eval-dry-run"),
-  ).toBe(false);
-  for (const path of [
-    "scripts/check-eval-dry-run.ts",
-    "scripts/lib/eval-report.ts",
-    "docs/eval-report.md",
-  ]) {
+  for (const path of EVAL_FILES) expect(existsSync(join(value.project, path))).toBe(false);
+  expect(existsSync(join(value.project, "tests/helpers/stub-openrouter.ts"))).toBe(true);
+  const steps = readManifestAt(value.project).verify.map((step) => step.name);
+  expect(steps).toContain("openrouter-stub");
+  expect(steps).not.toContain("app-eval-dry-run");
+});
+
+test("both chat apps ship byte-identical eval checkers with an eval verify step", async () => {
+  const value = await scaffoldAdapters({
+    home: space.temp(),
+    stack: "typescript-cli",
+    fragments: ["openrouter-chat-cli"],
+    agents: ["codex"],
+  });
+  for (const path of EVAL_FILES) {
     expect(readFileSync(join(value.project, path), "utf8")).toBe(
       readFileSync(join(composed, path), "utf8"),
     );
   }
+  expect(readManifestAt(value.project).verify.map((step) => step.name)).toContain(
+    "app-eval-dry-run",
+  );
 });

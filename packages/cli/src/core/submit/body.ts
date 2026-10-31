@@ -7,7 +7,7 @@ import { printable } from "../text";
  */
 export const MAINTAINER_CHECKLIST: ReadonlyArray<string> = [
   "`authors.json` names the PR author's login for every submitted entry",
-  "Security review of `files/` and `adapters/` (hooks and settings run in users' projects)",
+  "Security review of `files/`, `adapters/` and `stacks/` overlays (hooks and settings run in users' projects)",
   "Search card reviewed and restamped",
   "Dependency allowlist and dependency cards updated",
   "Golden queries added, and existing golden rankings checked for shifts",

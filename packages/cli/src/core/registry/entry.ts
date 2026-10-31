@@ -39,9 +39,26 @@ export type RejectedEntry = {
 };
 /**
  * A file an entry ships. `source` is the entry-relative path on disk; `path` is where it goes in
- * the project: `source` without its `files/` or `adapters/<agent>/` prefix. Names are literal.
+ * the project: `source` without its files, agent adapter or stack overlay prefix. Names are literal.
  */
 export type EntryFile = { source: string; path: string; mode: number };
+
+/** Map an entry-relative source to its project path and the selection that ships it. */
+export function shippedPath(source: string):
+  | {
+      path: string;
+      condition: { kind: "agent" | "stack"; id: string } | null;
+    }
+  | undefined {
+  const shared = /^files\/(.+)$/.exec(source);
+  if (shared?.[1]) return { path: shared[1], condition: null };
+  const overlay = /^(adapters|stacks)\/([^/]+)\/(.+)$/.exec(source);
+  if (!overlay?.[2] || !overlay[3]) return undefined;
+  return {
+    path: overlay[3],
+    condition: { kind: overlay[1] === "adapters" ? "agent" : "stack", id: overlay[2] },
+  };
+}
 
 /** Output path of a shipped file; a literal `.tmpl` basename is copied unchanged. */
 export function outputPath(file: Pick<EntryFile, "path">): string {

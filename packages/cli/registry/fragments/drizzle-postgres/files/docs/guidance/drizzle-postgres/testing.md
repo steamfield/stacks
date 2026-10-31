@@ -37,13 +37,11 @@ Playwright runs the production server against its own run-owned database on `db-
 - The server's pool connects on the first request, so the order of web server start and global setup doesn't matter.
 - One spec checks `/api/ready` returns 200 with `status` `ready`.
 
-<!-- stacks:when stack=sveltekit -->
 ## SvelteKit test placement
 
-Keep the base Vitest config on SvelteKit's Vite config and exclude `tests/db/` from ordinary `test`, so schema and component tests remain Docker-free. `vitest.db.config` reuses that Vite plugin, Testing Library plugin and aliases, but runs `tests/db/**/*.test.ts` in Node with the global setup above. Move the service and directly called action tests that read or write items into `tests/db/`; use the cloned database rather than resetting a module store. Preserve tests of zod parsing and form rendering in the base suite. The action tests still pass a real `Request` with `FormData` and assert the `fail` result or the repository rows.
+In SvelteKit: keep the base Vitest config on SvelteKit's Vite config and exclude `tests/db/` from ordinary `test`, so schema and component tests remain Docker-free. `vitest.db.config` reuses that Vite plugin, Testing Library plugin and aliases, but runs `tests/db/**/*.test.ts` in Node with the global setup above. Move the service and directly called action tests that read or write items into `tests/db/`; use the cloned database rather than resetting a module store. Preserve tests of zod parsing and form rendering in the base suite. The action tests still pass a real `Request` with `FormData` and assert the `fail` result or the repository rows.
 
 The Playwright web server runs the built Node adapter with the run-owned `DATABASE_URL` from its config. `e2e` needs `db:up` before global setup; if `db-test` is unavailable, name that command in the failure. Its global setup migrates and seeds the two items the SvelteKit page spec expects, and global teardown drops only its own database. Keep the existing enhanced and JavaScript-disabled submissions, cross-origin rejection, health and 404 assertions; add the readiness assertion. The pool must connect lazily so server startup does not depend on whether global setup or the web server starts first.
-<!-- stacks:end -->
 
 ## In CI
 

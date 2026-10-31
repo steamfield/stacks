@@ -36,8 +36,9 @@ const registry = fileURLToPath(new URL("../registry/", import.meta.url));
 declare const PACKAGED_ESCAPES: ReadonlyArray<string>;
 declare const STACKS_RELEASE_BUILD: boolean;
 declare const STACKS_PUBLISHED_TELEMETRY: boolean;
-// Packers drop literal .gitignore and bunfig.toml members even when present in a tarball. Only this installed
-// registry's reads translate the packer's escape; authors and core see the original names.
+// Packers drop literal .gitignore and bunfig.toml members even when present in a tarball. Only
+// this installed registry's reads translate the packer's escape; authors and core see the
+// original names.
 const packagedFiles = Layer.effect(
   FileSystem.FileSystem,
   Effect.gen(function* () {

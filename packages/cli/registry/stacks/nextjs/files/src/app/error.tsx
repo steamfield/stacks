@@ -18,7 +18,9 @@ export default function ErrorPage({
     <>
       <h1>Could not load this page.</h1>
       <p>Please try again.</p>
-      <button onClick={reset}>Try again</button>
+      <button type="button" onClick={reset}>
+        Try again
+      </button>
     </>
   );
 }

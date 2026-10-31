@@ -55,10 +55,11 @@ test.each([
     args: ["validate"],
     output: "(bundled registry)",
     // Validating the bundled registry grows with its entries and with the files they ship, which
-    // it reads to render and check every composition. At 37 entries the cost was ~0.05 s per
-    // entry on a laptop and ~0.10 s on a CI runner; growing the shipped files from 504 to 904
-    // added ~2 ms per file on a laptop (2.67 s to 3.43 s).
-    budget: 0.15 * bundledEntries + 0.003 * bundledFiles,
+    // it reads to render and check every composition. Measured on the slowest gate host (an
+    // m1 Linux machine, idle): 37 entries took 6.01 s with 504 shipped files and 7.45 s with
+    // 904, so ~3.6 ms per file and ~0.11 s per entry. The budget is that cost with 1.5x headroom;
+    // a laptop runs it in under half (3.43 s at 904 files).
+    budget: 0.17 * bundledEntries + 0.0055 * bundledFiles,
   },
 ])(
   "$args stays within its CPU budget",

@@ -39,7 +39,7 @@ function anonymousOwner(): string[] {
     : ["--owner=0", "--group=0", "--numeric-owner"];
 }
 
-/** Packers and installers drop .gitignore and bunfig.toml; bin.ts exposes these escaped assets as data. */
+/** Packers and installers drop .gitignore and bunfig.toml; bin.ts exposes the escaped assets. */
 function restoreDroppedFiles(archive: string) {
   const files = escapedRegistryFiles();
   if (!files.length) return;

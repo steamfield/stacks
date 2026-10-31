@@ -45,24 +45,20 @@ test("astro-blog says tests importing astro:content run in the node environment"
   expect(await astroFile("docs/DEVELOPMENT.md")).toContain("astro:content");
 });
 
-test.each(["astro-blog", "python-react"])(
-  "%s keeps Prettier off .stacks/ and .claude/",
-  async (stack) => {
-    if (stack === "astro-blog") {
-      const ignored = await astroFile(".prettierignore");
-      expect(ignored).toContain(".stacks/");
-      expect(ignored).toContain(".claude/");
-      return;
-    }
-    if (stack === "python-react") {
-      const ignore = readFileSync(join(await scaffold(stack), "frontend/.prettierignore"), "utf8");
-      expect(ignore.split("\n")).toContain(".stacks/");
-      expect(ignore.split("\n")).toContain(".claude/");
-      return;
-    }
-    expect(await brief(stack)).toMatch(/`\.prettierignore`[^\n]*`\.stacks\/`[^\n]*`\.claude\/`/);
-  },
-);
+test("astro-blog keeps Prettier off .stacks/ and .claude/", async () => {
+  const ignored = await astroFile(".prettierignore");
+  expect(ignored).toContain(".stacks/");
+  expect(ignored).toContain(".claude/");
+});
+
+test("python-react keeps Prettier off .stacks/ and .claude/", async () => {
+  const ignore = readFileSync(
+    join(await scaffold("python-react"), "frontend/.prettierignore"),
+    "utf8",
+  );
+  expect(ignore.split("\n")).toContain(".stacks/");
+  expect(ignore.split("\n")).toContain(".claude/");
+});
 
 test("the sandbox CI workflow pins a release tag when an action publishes no major tag", async () => {
   const text = await brief("python-react");

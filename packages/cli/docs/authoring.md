@@ -29,10 +29,10 @@ stdin. The user origin is the destination and cannot be a copy source.
 
 - Frontmatter holds package names by role (no versions), commands, verify steps,
   decisions and fragment relationships. Every decision needs `(default: ...)`.
-- Prose holds durable rules and instructions for discovering current tool details.
-  Anything that would be wrong after the next major release belongs here, not in a
-  shipped configuration. Replace a stale fact with a durable rule, a discovery step
-  against current official docs, or a verify step that asks the tool.
+- Prose holds durable rules and instructions for discovering current tool details. It
+  points at the shipped code instead of restating it, and tells the agent to update any
+  shipped file the installed release rejects. Replace a stale fact with a durable rule, a
+  discovery step against current official docs, or a verify step that asks the tool.
 - `files/` holds everything the project needs except versions: source, tests,
   configs and docs from the working project. Leave out dependency versions and ranges,
   `packageManager`, `engines`, `go` directives, action refs, versioned `$schema` URLs and
@@ -45,9 +45,10 @@ stdin. The user origin is the destination and cannot be a copy source.
 Use snake_case keys: `schema_version`, `applies_to`, `requires_tools`, `needs_own_repo`.
 An app is a fragment with `category: app`; fill its `applies_to` with a stack id or tag.
 
-Keep Setup numbered. Tell the agent to inspect current generator help and run the
-generator non-interactively into a subdirectory before moving its output into place.
-Do not freeze generator flags. Declare exactly one task-runner tag, `make` or `scripts`,
+Keep Setup numbered, and open the body with what stacks wrote. Use a generator only for
+what can't ship as files (native project directories, a lockfile): tell the agent to
+inspect its current help, run it non-interactively into a subdirectory and merge the
+output without overwriting shipped files. Do not freeze generator flags. Declare exactly one task-runner tag, `make` or `scripts`,
 and list every project command used by verify in `commands`. A `scripts` stack's install
 step runs the package manager (`bun install`) and declares no `install` command: a
 `package.json` script named `install` runs during every install, so it recurses.

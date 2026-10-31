@@ -457,6 +457,24 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "streamlit": {
+      "whatItIs": "Streamlit, a Python library that turns a script into an interactive web page with filters, charts and tables, without writing any HTML or JavaScript.",
+      "goodAt": [
+        "Internal dashboards and data apps built by people who know Python",
+        "Sharing an analysis as a page others can filter and explore"
+      ],
+      "notGoodAt": [
+        "Public sites with custom design or many visitors; use a web framework for those."
+      ],
+      "example": "When the sales team wants this month's numbers, they open the page, pick their region and see revenue and a chart update at once.",
+      "homepage": "https://streamlit.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "structlog": {
       "whatItIs": "structlog, a Python library that writes a program's activity log as labeled pieces of information, so each entry can be searched and sorted.",
       "goodAt": [

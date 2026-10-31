@@ -111,6 +111,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `rust-cli` | Rust CLI: clap, layered TOML config, coded errors with exit statuses, human and JSON output, strict clippy, binary tests | |
 | `rust-library` | Rust library crate: documented public API, thiserror errors, doctests on every item, proptest, optional serde feature, rustdoc and cargo package checks | |
 | `spring-boot-api` | Java JSON API on Spring Boot and Maven: one error envelope, request ids and JSON logs, validated settings, Error Prone and NullAway, ArchUnit layering, MockMvc slice tests and a random-port integration test | |
+| `streamlit` | Streamlit data app managed with uv: a thin page over a Streamlit-free Polars package, sidebar filters driving a metric, an Altair chart and a table, AppTest page tests, a headless server probe | |
 | `sveltekit` | SvelteKit on the Node adapter: server load functions, zod-validated form actions, svelte-check, Vitest and Playwright | |
 | `tauri-react` | Tauri desktop app: Rust crates behind a thin shell, typed IPC, a React frontend with a mock transport | |
 | `typescript-api` | Node HTTP API on Effect's HttpApi: REST resource conventions, one error-status table, request logs, a core that also runs as a fetch handler | |

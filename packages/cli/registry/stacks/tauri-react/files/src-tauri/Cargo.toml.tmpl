@@ -1,0 +1,13 @@
+[package]
+name = "{{project_slug}}"
+edition.workspace = true
+
+[lib]
+name = "desktop_shell"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+core_app = { package = "{{project_slug}}-core", path = "../crates/core" }
+
+[lints]
+workspace = true

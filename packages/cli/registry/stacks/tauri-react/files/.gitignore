@@ -3,6 +3,7 @@ dist/
 
 # Rust
 target/
+src-tauri/gen/
 
 # Dependencies
 node_modules/

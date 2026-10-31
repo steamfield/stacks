@@ -19,6 +19,11 @@
     "allowImportingTsExtensions": true
   },
   "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
-  // This SPA imports React, browser globals and tools installed only in the scaffold.
-  "exclude": ["registry/stacks/python-react/files/frontend/**"]
+  // These SPAs import React, browser globals and tools installed only in the scaffold.
+  "exclude": [
+    "registry/stacks/python-react/files/frontend/**",
+    "registry/stacks/tauri-react/files/src/**",
+    "registry/stacks/tauri-react/files/tests/**",
+    "registry/stacks/tauri-react/files/*.config.ts"
+  ]
 }

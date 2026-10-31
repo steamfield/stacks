@@ -3,15 +3,22 @@
     "allow": [
       "Bash(make vet)",
       "Bash(make lint)",
+      "Bash(make lint-fix)",
       "Bash(make fmt)",
       "Bash(make fmt-check)",
+      "Bash(make tidy-check)",
+      "Bash(make vuln)",
       "Bash(make test)",
       "Bash(make test-integration)",
       "Bash(make coverage)",
       "Bash(make build)",
       "Bash(make smoke)",
       "Bash(make ci)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go build *)",
+      "Bash(go list *)",
+      "Bash(golangci-lint run *)"
     ]
   }
 }

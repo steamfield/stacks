@@ -13,6 +13,7 @@ decisions:
   - "Runners: ubuntu-latest (default) or self-hosted labels."
   - "Required check: one aggregate ci-ok job (default)."
   - "CI runs the coverage target instead of plain tests (default: yes)."
+  - "Weekly grouped Dependabot updates per ecosystem and for actions (default: yes)."
 ---
 
 # GitHub Actions CI

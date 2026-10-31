@@ -82,6 +82,38 @@
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
       }
+    },
+    "go.yaml.in/yaml/v3": {
+      "whatItIs": "go-yaml, a library for the Go programming language that reads and writes YAML, a plain-text format for settings files.",
+      "goodAt": [
+        "Reading a settings file into the program's own types",
+        "Keeping names such as hostnames exactly as the user typed them"
+      ],
+      "notGoodAt": ["Merging settings from files, flags and the environment; viper does that."],
+      "example": "A command-line tool reads a list of servers from its settings file, keeping each server's name exactly as written.",
+      "homepage": "https://github.com/yaml/go-yaml",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 2,
+        "reviewedAt": null
+      }
+    },
+    "golang.org/x/term": {
+      "whatItIs": "x/term, a library from the Go project that tells a program whether it is writing to a person's terminal or to a file.",
+      "goodAt": [
+        "Showing colors only when a person is watching the terminal",
+        "Reading a password without showing it on screen"
+      ],
+      "notGoodAt": ["Drawing full-screen terminal interfaces; use a terminal interface library."],
+      "example": "A command-line tool prints colored output in a terminal and plain text when its output goes to a file.",
+      "homepage": "https://pkg.go.dev/golang.org/x/term",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 2,
+        "reviewedAt": null
+      }
     }
   }
 }

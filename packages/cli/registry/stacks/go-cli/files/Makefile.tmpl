@@ -20,9 +20,10 @@ GOBIN_DIR := $(shell go env GOPATH | cut -d: -f1)/bin
 endif
 GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo $(GOBIN_DIR)/golangci-lint)
 GOIMPORTS     := $(shell command -v goimports 2>/dev/null || echo $(GOBIN_DIR)/goimports)
+GOTESTSUM     := $(shell command -v gotestsum 2>/dev/null || echo $(GOBIN_DIR)/gotestsum)
 
 .DEFAULT_GOAL := help
-.PHONY: help install build vet lint lint-fix fmt fmt-check test test-integration coverage vuln smoke ci clean
+.PHONY: help install build vet lint lint-fix fmt fmt-check tidy-check test test-integration coverage vuln smoke ci clean
 
 # Fails when golangci-lint is missing; warns when it differs from .golangci-lint-version.
 define require_golangci_lint
@@ -37,6 +38,7 @@ help: ## List targets
 install: ## Download modules and install dev tools that are missing
 	go mod download
 	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
+	@[ -x "$(GOTESTSUM)" ] || go install gotest.tools/gotestsum@latest
 
 build: ## Build the binary into bin/ with version info
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
@@ -59,6 +61,9 @@ fmt: ## Format code
 fmt-check: ## Fail if gofmt or goimports would change any file
 	@out="$$(gofmt -l . ; "$(GOIMPORTS)" -local "$(MODULE)" -l .)"; if [ -n "$$out" ]; then echo "Unformatted files:"; echo "$$out" | sort -u; exit 1; fi
 
+tidy-check: ## Fail if go mod tidy would change go.mod or go.sum
+	@go mod tidy -diff || { echo "go.mod or go.sum is out of date. Run: go mod tidy"; exit 1; }
+
 test: ## Unit tests
 	go test ./...
 
@@ -66,8 +71,9 @@ test-integration: ## Integration tests (build and run the binary)
 	@find tests/integration -type f -name '*_test.go' -exec grep -l '^func Test' {} \; | grep -q . || { echo "test-integration: no tests under tests/integration"; exit 1; }
 	go test -tags integration ./tests/integration/...
 
-coverage: ## Race-enabled tests with a coverage floor
-	go test -race -coverprofile=coverage.out -covermode=atomic ./...
+coverage: ## Race-enabled tests with a coverage floor and a failure summary
+	@[ -x "$(GOTESTSUM)" ] || { echo "gotestsum not found. Run: make install"; exit 1; }
+	"$(GOTESTSUM)" --format testname -- -race -coverprofile=coverage.out -covermode=atomic ./...
 	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
 	echo "Total coverage: $$total% (minimum $(COVERAGE_MIN)%)"; \
 	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) }' || { echo "Coverage below $(COVERAGE_MIN)%"; exit 1; }
@@ -79,7 +85,7 @@ smoke: build ## Build and run the binary's --help and --version
 	./bin/$(BIN) --help >/dev/null
 	./bin/$(BIN) --version
 
-ci: fmt-check lint coverage test-integration vuln build ## Everything CI runs
+ci: fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs
 
 clean: ## Remove build and coverage output
 	rm -rf bin/ dist/ coverage.out coverage.html

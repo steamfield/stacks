@@ -6,7 +6,7 @@ name: Go CLI
 description: A Go command-line tool with cobra commands, viper config (file, env, flags), structured errors with actionable suggestions, human and JSON output, testify tests with race detection and a coverage floor, and golangci-lint.
 tags: [go, cli, make]
 deps:
-  cli: [github.com/spf13/cobra, github.com/spf13/viper]
+  cli: [github.com/spf13/cobra, github.com/spf13/viper, golang.org/x/term, go.yaml.in/yaml/v3]
   test: [github.com/stretchr/testify]
 tools: [go, make, git, golangci-lint]
 decisions:
@@ -24,6 +24,7 @@ verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: build, layer: build, run: make build }
   - { name: vet, layer: typecheck, run: make vet }
+  - { name: tidy, layer: check, run: make tidy-check }
   - { name: lint, layer: lint, run: make lint }
   - { name: test, layer: test, run: make test }
   - { name: test-integration, layer: test, run: make test-integration }
@@ -39,12 +40,13 @@ commands:
   lint-fix: Run golangci-lint with --fix
   fmt: Format code
   fmt-check: Fail if gofmt or goimports would change any file
+  tidy-check: Fail if go mod tidy would change go.mod or go.sum
   test: Unit tests
   test-integration: Integration tests (build and run the binary)
-  coverage: Race-enabled tests with a coverage floor
+  coverage: Race-enabled tests with a coverage floor and a failure summary (gotestsum)
   vuln: Check dependencies for known vulnerabilities (govulncheck)
   smoke: Build and run the binary's --help and --version
-  ci: "Everything CI runs (fmt-check, lint, coverage, test-integration, vuln, build): the full check"
+  ci: "Everything CI runs (fmt-check, tidy-check, lint, coverage, test-integration, vuln, build): the full check"
   clean: Remove build and coverage output
 ---
 
@@ -60,6 +62,7 @@ internal/cli/          root.go (persistent flags --config --json --verbose --no-
                        version.go, one <command>.go + _test.go per command
 internal/config/       typed Config, Load() via a fresh viper instance, Validate()
 internal/errors/       structured Error, codes, exit-code mapping
+internal/log/          log/slog logger on stderr, level from --verbose or <BIN>_DEBUG
 internal/output/       human vs JSON rendering, TTY and NO_COLOR detection
 tests/integration/     black-box tests of the built binary (build tag: integration)
 docs/                  ARCHITECTURE.md, configuration.md (every key/env/flag), DEVELOPMENT.md
@@ -69,8 +72,8 @@ docs/                  ARCHITECTURE.md, configuration.md (every key/env/flag), D
 
 No generator; write the code by hand at the root.
 
-1. `go mod init <module path>`, `go get` cobra, viper, testify, `go mod tidy`.
-2. Write errors, output, config, `cli/root.go` + `version.go`, then `main.go`. `BIN` in the Makefile must match the `cmd/` directory.
+1. `go mod init <module path>`, `go get` cobra, viper, testify, `golang.org/x/term`, `go mod tidy`.
+2. Write errors, log, output, config, `cli/root.go` + `version.go`, then `main.go`. `BIN` in the Makefile must match the `cmd/` directory.
 3. Add one real command (for example `config show`) that exercises config, output modes, and errors end to end.
 4. Write `.golangci.yml` for the installed golangci-lint and its version to `.golangci-lint-version`.
 5. Tests per Testing; short docs skeletons; fill the README's `stacks:fill` markers (`readme-filled` checks).
@@ -84,7 +87,8 @@ No generator; write the code by hand at the root.
 - **Config**: `config.Load(flags)` uses `viper.New()` (never the global). Defaults, then the config file if present (missing is fine, malformed is an error), `SetEnvPrefix(<BIN upper>)`, `AutomaticEnv()`, a key replacer mapping `.` and `-` to `_`, bound persistent flags. Unmarshal into `Config`, call `Validate()`. Commands receive `Config`, never read viper.
 - **Errors**: `internal/errors` has `type Error struct { Code, Message, Suggestion string; Cause error }`, `New`, `Wrap`, `Unwrap()`, and UPPER_SNAKE codes (`CONFIG`, `CONFIG_NOT_FOUND`, `INVALID_INPUT`, `NOT_FOUND`, `IO`, `INTERNAL`). Human rendering: what failed, why, how to fix. Every user-reachable error has a suggestion; non-`*Error`s are wrapped as `INTERNAL` at the top.
 - **Exit codes**: 0 success, 1 runtime, 2 usage, mapped in one function.
-- **Output**: `--json` makes every command emit one JSON document on stdout and errors as `{"error":{"code","message","suggestion"}}` on stderr. Color only on a TTY with `NO_COLOR` unset. All of this lives in `internal/output`.
+- **Output**: `--json` makes every command emit one JSON document on stdout and errors as `{"error":{"code","message","suggestion"}}` on stderr. Color only on a TTY (`term.IsTerminal` from `golang.org/x/term`) with `NO_COLOR` unset. All of this lives in `internal/output`.
+- **Logging**: `internal/log` builds one `*slog.Logger` writing to stderr: warnings by default, debug with `--verbose` or `<BIN>_DEBUG=1`, a JSON handler under `--json` so stderr stays parseable. `Execute` builds it and passes it down; no `slog.SetDefault`, no logging to stdout.
 - **Packages**: `internal/` unless the user wants a public API. Domain packages never import `cli`. A changed flag, key, or env var updates `docs/configuration.md`.
 
 ## Tool configuration
@@ -104,19 +108,19 @@ No generator; write the code by hand at the root.
 - Command tests build the tree via the constructor, capture output with `SetOut`/`SetErr`, and assert on output, error code, and that a suggestion exists. `t.TempDir()` for config files, `t.Setenv` for env (never `os.Setenv`).
 - A config precedence table test: default < file < env < flag.
 - Integration tests (`//go:build integration`): `TestMain` builds the binary once into a temp dir; tests run it with `os/exec` and assert exit codes and output.
-- `make coverage` runs with `-race` and the agreed floor. `make test` skips `-race` (it needs cgo).
+- `make coverage` runs with `-race` and the agreed floor, through gotestsum so a failing run ends with a list of the failed tests. `make test` skips `-race` (it needs cgo).
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, build, vet, lint, lint-fix, fmt, fmt-check (gofmt and goimports), test, test-integration, coverage, vuln (govulncheck), smoke, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md.
+The shipped Makefile (`make help`) has install, build, vet, lint, lint-fix, fmt, fmt-check (gofmt and goimports), tidy-check, test, test-integration, coverage, vuln (govulncheck), smoke, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md.
 <!-- stacks:when with=ci-github -->
 
-**CI.** Go's setup action with the version read from `go.mod`. Steps: `make fmt-check`, lint, `make coverage` (`make test` if the coverage decision is no), `make test-integration`, `make vuln`, `make build`. Lint is the one sanctioned exception to calling make targets: use golangci-lint's official action with its `version-file` input pointed at `.golangci-lint-version` (the file `make lint` checks against; the action accepts only that name or `.tool-versions`), because the action installs and caches that exact binary.
+**CI.** Go's setup action with the version read from `go.mod`. Steps: `make install`, `make fmt-check`, `make tidy-check`, lint, `make coverage` (`make test` if the coverage decision is no), `make test-integration`, `make vuln`, `make build`. Lint is the one sanctioned exception to calling make targets: use golangci-lint's official action with its `version-file` input pointed at `.golangci-lint-version` (the file `make lint` checks against; the action accepts only that name or `.tool-versions`), because the action installs and caches that exact binary.
 <!-- stacks:end -->
 
 ## Gotchas
 
-- viper lowercases keys and treats dots as nesting. Decode sections whose keys are user data (env var names, hostnames) with a YAML library into your own types.
+- viper lowercases keys and treats dots as nesting. Decode sections whose keys are user data (env var names, hostnames) with `go.yaml.in/yaml/v3` into your own types; `gopkg.in/yaml.v3` is archived.
 - cobra already prints `<name> version <v>` for `--version` when `root.Version` is set. Set it to the bare version string; don't prefix the name or "version" again. Without ldflags it prints `dev`.
 - Files behind a build tag are invisible to `go vet`, gopls, and golangci-lint unless the tag is configured.
 - `go install ...@latest` lands in `$(go env GOPATH)/bin`, which may not be on PATH; the Makefile falls back to it.

@@ -17,7 +17,8 @@
       "registry/stacks/typescript-api/adapters/claude",
       "registry/stacks/typescript-api/files",
       "registry/stacks/typescript-cli/adapters/claude",
-      "registry/stacks/typescript-library/adapters/claude"
+      "registry/stacks/typescript-library/adapters/claude",
+      "registry/stacks/typescript-mcp/adapters/claude"
     ],
     "allowImportingTsExtensions": true
   },
@@ -55,6 +56,10 @@
     "registry/stacks/hono-api/files/tests",
     // tsdown is installed only in the library scaffold; its src/, tests and scripts stay checked.
     "registry/stacks/typescript-library/files/tsdown.config.ts",
+    // The MCP SDK, zod and pino are installed only in the MCP scaffold; keep scripts and hooks checked.
+    "registry/stacks/typescript-mcp/files/*.ts",
+    "registry/stacks/typescript-mcp/files/src",
+    "registry/stacks/typescript-mcp/files/tests",
     // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
     "registry/stacks/nextjs/files/*.ts",
     "registry/stacks/nextjs/files/next-env.d.ts",

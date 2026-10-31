@@ -90,6 +90,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `go-grpc` | Go RPC service on Connect from a protobuf contract: buf lint, breaking and generation checks through `go tool`, gRPC health and reflection, loopback tests over gRPC, gRPC-Web and Connect | |
 | `go-htmx` | Server-rendered Go web app: templ components generated through `go tool`, a vendored htmx, forms validated on the server with inline errors, HTML and htmx-header tests | |
 | `go-cli` | Go CLI: cobra, viper config, structured errors, human and JSON output, golangci-lint | |
+| `go-mcp` | Go MCP server on the official Go SDK over stdio: typed tools with schemas from Go structs, tool errors the model can read, a lint rule keeping stdout for the protocol, in-memory and stdio protocol tests | |
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
 | `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
@@ -108,6 +109,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `typescript-api` | Node HTTP API on Effect's HttpApi: REST resource conventions, one error-status table, request logs, a core that also runs as a fetch handler | |
 | `typescript-cli` | Bun-compiled TypeScript CLI on Effect with typed errors, safe output and logs | `openrouter-chat-cli` |
 | `typescript-library` | TypeScript npm package: ESM and bundled declarations from tsdown, publint and Are the Types Wrong, a packed-tarball consumer test | |
+| `typescript-mcp` | TypeScript MCP server on the v2 SDK over stdio: zod-described tools, tool errors for the model, logs on stderr, Vitest through in-memory and stdio clients, an Inspector smoke check | |
 
 A stack pulls in default fragments (CI, git hooks, agent guardrails and so on); `stacks list` shows which, and `--without <fragment>` leaves one out. Apps are fragments that add a working feature on top of a stack. You can write your own stacks and fragments: see [Authoring a stack or fragment](docs/authoring.md).
 

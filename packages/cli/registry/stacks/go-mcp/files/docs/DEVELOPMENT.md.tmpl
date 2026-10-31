@@ -1,0 +1,44 @@
+# Development
+
+Initialize the module with `go mod init {{project_slug}}`, or use the intended
+remote module path and replace `{{project_slug}}/internal/` in the Go imports.
+Resolve the dependencies before running the Makefile:
+
+```sh
+go get github.com/modelcontextprotocol/go-sdk github.com/stretchr/testify
+go mod tidy
+make install
+```
+
+Install golangci-lint using its official instructions and write its installed
+version to `.golangci-lint-version`. Run `make help` for every target.
+
+```sh
+make fmt-check tidy-check vet lint build test test-integration smoke coverage
+go test -race -run TestConvertUnitsToolErrors ./internal/server/
+```
+
+## Trying the server
+
+The server speaks JSON-RPC on stdin and stdout, so run it through a client:
+
+```sh
+make call                                                     # list the tools
+make call TOOL=convert_units ARGS='{"value": 5, "from": "km", "to": "mi"}'
+```
+
+`make call` builds the binary and runs `cmd/mcpcall`, which starts it the way
+a host does. Piping hand-written JSON-RPC into the binary prints nothing: the
+server stops when stdin closes, before it replies. The MCP Inspector's web UI
+(`npx @modelcontextprotocol/inspector ./bin/{{project_slug}}`) is for a person
+at a browser; its `--cli` mode works from a script.
+
+## Stdout
+
+Stdout is the transport. golangci-lint's forbidigo rule fails on
+`fmt.Print*`, `println`, `os.Stdout` and the standard `log` printers outside
+`cmd/mcpcall`; the integration test fails if any stdout line isn't JSON-RPC.
+Log through the `*slog.Logger` passed down from `internal/app`.
+
+`make test`, `make test-integration` and `make coverage` use `-race`, which
+needs cgo and a C compiler.

@@ -1,0 +1,95 @@
+package app
+
+import (
+	"bytes"
+	"context"
+	"io"
+	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+func noEnv(string) string { return "" }
+
+func TestFlags(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		code   int
+		stdout string
+		stderr string
+	}{
+		{name: "version", args: []string{"--version"}, stdout: config.Binary + " version v1.2.3 (commit abc, built today)\n"},
+		{name: "help", args: []string{"--help"}, stdout: "Usage: " + config.Binary},
+		{name: "unknown flag", args: []string{"--nope"}, code: 2, stderr: "parse flags"},
+		{name: "bad level", args: []string{"--log-level", "loud"}, code: 2, stderr: `log level "loud"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			code := Main(t.Context(), tt.args, Env{Stdout: &stdout, Stderr: &stderr, Getenv: noEnv}, Build{Version: "v1.2.3", Commit: "abc", Date: "today"})
+			assert.Equal(t, tt.code, code)
+			assert.Contains(t, stdout.String(), tt.stdout)
+			assert.Contains(t, stderr.String(), tt.stderr)
+			if tt.code != 0 {
+				assert.Empty(t, stdout.String())
+			}
+		})
+	}
+}
+
+// serve runs the app with a client connected over pipes, as a host would
+// over the process's stdin and stdout, and returns what the app wrote to
+// its "stdout" and stderr once it has stopped.
+func serve(ctx context.Context, t *testing.T, use func(*mcp.ClientSession)) (stdout, stderr string, code int) {
+	t.Helper()
+	toServer, fromClient := io.Pipe()
+	toClient, fromServer := io.Pipe()
+	var wire, logs bytes.Buffer
+	done := make(chan int, 1)
+	go func() {
+		env := Env{Stdout: io.Discard, Stderr: &logs, Getenv: noEnv,
+			Transport: &mcp.IOTransport{Reader: toServer, Writer: fromServer}}
+		done <- Main(ctx, nil, env, Build{Version: "test"})
+		_ = fromServer.Close()
+	}()
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
+	session, err := client.Connect(t.Context(), &mcp.IOTransport{Reader: io.NopCloser(io.TeeReader(toClient, &wire)), Writer: fromClient}, nil)
+	require.NoError(t, err)
+	use(session)
+	select {
+	case code = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the server did not stop")
+	}
+	return wire.String(), logs.String(), code
+}
+
+func TestServeUntilTheClientCloses(t *testing.T) {
+	stdout, stderr, code := serve(t.Context(), t, func(session *mcp.ClientSession) {
+		res, err := session.ListTools(t.Context(), nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, res.Tools)
+		require.NoError(t, session.Close())
+	})
+	assert.Equal(t, 0, code)
+	assert.Contains(t, stdout, `"convert_units"`)
+	assert.Contains(t, stderr, `"msg":"serving"`)
+	assert.Contains(t, stderr, `"msg":"stopped","reason":"client closed the connection"`)
+}
+
+func TestServeUntilCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	_, stderr, code := serve(ctx, t, func(session *mcp.ClientSession) {
+		_, err := session.ListTools(t.Context(), nil)
+		require.NoError(t, err)
+		cancel()
+	})
+	assert.Equal(t, 0, code)
+	assert.Contains(t, stderr, `"reason":"signal"`)
+}

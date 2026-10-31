@@ -1,0 +1,180 @@
+//go:build integration
+
+package integration
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"os"
+	"os/exec"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+type process struct {
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout *bytes.Buffer // every byte the server wrote to stdout
+	stderr *bytes.Buffer
+	reader io.ReadCloser // stdout, copied into the buffer as the client reads it
+	exited chan error
+}
+
+// start runs the built server the way a host does: stdin and stdout are pipes
+// owned by the client, stderr is collected.
+func start(t *testing.T, env ...string) *process {
+	t.Helper()
+	cmd := exec.Command(binary)
+	cmd.Env = append([]string{"HOME=" + t.TempDir(), "PATH=" + os.Getenv("PATH")}, env...)
+	stdin, err := cmd.StdinPipe()
+	require.NoError(t, err)
+	stdout, err := cmd.StdoutPipe()
+	require.NoError(t, err)
+	p := &process{cmd: cmd, stdin: stdin, stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, exited: make(chan error, 1)}
+	cmd.Stderr = p.stderr
+	p.reader = struct {
+		io.Reader
+		io.Closer
+	}{io.TeeReader(stdout, p.stdout), stdout}
+	require.NoError(t, cmd.Start())
+	go func() { p.exited <- cmd.Wait() }()
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	return p
+}
+
+func (p *process) connect(t *testing.T) *mcp.ClientSession {
+	t.Helper()
+	client := mcp.NewClient(&mcp.Implementation{Name: "integration", Version: "test"}, nil)
+	session, err := client.Connect(t.Context(), &mcp.IOTransport{Reader: p.reader, Writer: p.stdin}, nil)
+	require.NoError(t, err)
+	return session
+}
+
+func (p *process) wait(t *testing.T) error {
+	t.Helper()
+	select {
+	case err := <-p.exited:
+		return err
+	case <-time.After(10 * time.Second):
+		t.Fatal("the server did not exit")
+		return nil
+	}
+}
+
+// requireProtocolOnly fails unless every stdout line is a JSON-RPC message.
+// Anything else (a print, a log line) corrupts the stream for a real host.
+func requireProtocolOnly(t *testing.T, stdout string) {
+	t.Helper()
+	require.NotEmpty(t, stdout)
+	for line := range strings.Lines(stdout) {
+		var message struct {
+			JSONRPC string `json:"jsonrpc"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(line), &message), "stdout line is not JSON: %q", line)
+		require.Equal(t, "2.0", message.JSONRPC, "stdout line is not JSON-RPC: %q", line)
+	}
+}
+
+func TestToolsOverStdio(t *testing.T) {
+	p := start(t, config.EnvPrefix+"_LOG_LEVEL=debug")
+	session := p.connect(t)
+
+	tools, err := session.ListTools(t.Context(), nil)
+	require.NoError(t, err)
+	names := make([]string, 0, len(tools.Tools))
+	for _, tool := range tools.Tools {
+		names = append(names, tool.Name)
+	}
+	assert.Contains(t, names, "convert_units")
+
+	res, err := session.CallTool(t.Context(), &mcp.CallToolParams{Name: "convert_units", Arguments: map[string]any{"value": 2, "from": "lb", "to": "kg"}})
+	require.NoError(t, err)
+	assert.False(t, res.IsError)
+	assert.Contains(t, res.StructuredContent, "value")
+
+	res, err = session.CallTool(t.Context(), &mcp.CallToolParams{Name: "convert_units", Arguments: map[string]any{"value": 2, "from": "lb", "to": "parsec"}})
+	require.NoError(t, err, "a domain error is a tool result, not a protocol error")
+	assert.True(t, res.IsError)
+
+	// Closing the session closes the server's stdin; a stdio server must
+	// exit then, or hosts leak processes.
+	require.NoError(t, session.Close())
+	require.NoError(t, p.wait(t), p.stderr.String())
+
+	requireProtocolOnly(t, p.stdout.String())
+	logs := p.stderr.String()
+	assert.Contains(t, logs, `"msg":"serving"`)
+	assert.Contains(t, logs, `"tool":"convert_units"`)
+	assert.Contains(t, logs, `"reason":"client closed the connection"`)
+	for line := range strings.Lines(logs) {
+		assert.True(t, json.Valid([]byte(line)), "stderr line is not a JSON log record: %q", line)
+	}
+}
+
+func TestStopsOnSignal(t *testing.T) {
+	for _, signal := range []syscall.Signal{syscall.SIGTERM, syscall.SIGINT} {
+		t.Run(signal.String(), func(t *testing.T) {
+			p := start(t)
+			session := p.connect(t)
+			_, err := session.ListTools(t.Context(), nil)
+			require.NoError(t, err)
+			require.NoError(t, p.cmd.Process.Signal(signal))
+			require.NoError(t, p.wait(t), p.stderr.String())
+			assert.Contains(t, p.stderr.String(), `"reason":"signal"`)
+			requireProtocolOnly(t, p.stdout.String())
+		})
+	}
+}
+
+func TestExitsWhenStdinIsEmpty(t *testing.T) {
+	cmd := exec.Command(binary)
+	cmd.Stdin = strings.NewReader("")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	require.NoError(t, cmd.Run())
+	assert.Empty(t, stdout.String())
+}
+
+func TestFlags(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		env    []string
+		code   int
+		stdout string
+		stderr string
+	}{
+		{name: "version", args: []string{"--version"}, stdout: config.Binary + " version dev"},
+		{name: "help", args: []string{"--help"}, stdout: "Usage: " + config.Binary},
+		{name: "unknown flag", args: []string{"--nope"}, code: 2, stderr: "parse flags"},
+		{name: "bad level", env: []string{config.EnvPrefix + "_LOG_LEVEL=loud"}, code: 2, stderr: `log level "loud"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command(binary, tt.args...)
+			cmd.Env = append([]string{"PATH=" + os.Getenv("PATH")}, tt.env...)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
+			err := cmd.Run()
+			if tt.code == 0 {
+				require.NoError(t, err, stderr.String())
+			} else {
+				var exit *exec.ExitError
+				require.ErrorAs(t, err, &exit)
+				assert.Equal(t, tt.code, exit.ExitCode())
+				assert.Empty(t, stdout.String())
+			}
+			assert.Contains(t, stdout.String(), tt.stdout)
+			assert.Contains(t, stderr.String(), tt.stderr)
+		})
+	}
+}

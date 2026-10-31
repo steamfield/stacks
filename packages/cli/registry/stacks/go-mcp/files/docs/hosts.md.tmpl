@@ -1,0 +1,36 @@
+# Connecting a host
+
+Every MCP host starts a stdio server from a command and optional environment
+variables. Build first (`make build`) and use the binary's absolute path:
+hosts start servers from their own working directory.
+
+Claude Code:
+
+```sh
+claude mcp add {{project_slug}} -- /absolute/path/to/bin/{{project_slug}}
+claude mcp add --env {{env_prefix}}_LOG_LEVEL=debug {{project_slug}} -- /absolute/path/to/bin/{{project_slug}}
+```
+
+Options go before the server name; everything after `--` is the command.
+
+Hosts configured with JSON (Claude Desktop, Cursor and others) take an entry
+shaped like this under their MCP servers key; check the host's documentation
+for the file and key name:
+
+```json
+{
+  "{{project_slug}}": {
+    "command": "/absolute/path/to/bin/{{project_slug}}",
+    "args": [],
+    "env": { "{{env_prefix}}_LOG_LEVEL": "info" }
+  }
+}
+```
+
+After a rebuild, restart the server from the host (or the host itself) so it
+starts the new binary. If the host reports the server as failed, read the
+host's MCP log: the server's stderr (JSON logs and startup errors) ends up
+there.
+
+Once the binary is released (GoReleaser, if added), point the command at the
+installed binary instead of the checkout.

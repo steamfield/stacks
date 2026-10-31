@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "typescript-mcp",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A TypeScript MCP server that gives AI assistants such as Claude your own tools, run as a local stdio process.",
+  "description": "Start a Model Context Protocol server in TypeScript on the official SDK. The starter has one tool that reads text files under a configured folder, with input and output schemas, a description written for the model, and errors the model can act on. The server runs over stdio, so Claude Code, Claude Desktop, Cursor and other hosts start it as a local process, and its logs go to stderr so they never corrupt the protocol. Tests drive it through a real MCP client in memory and over stdio, and MCP Inspector lists the built server's tools. Replace the sample tool with your own; remote hosting over HTTP is a later decision.",
+  "seoDescription": "A TypeScript Model Context Protocol server starter on the official SDK with stdio, zod tool schemas, MCP Inspector and Vitest client tests.",
+  "projectExamples": [
+    {
+      "title": "Team knowledge for a coding assistant",
+      "description": "An illustrative server whose tools look up internal docs or runbooks so an assistant can quote them. Access to those sources and any credentials are yours to add."
+    },
+    {
+      "title": "Assistant tools for an internal service",
+      "description": "An illustrative server that wraps a few calls to a company service as tools an assistant can run. Authentication, rate limits and write safeguards are your work."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for an MCP server: a small program that AI assistants such as Claude start on your computer to use tools you write.",
+    "goodAt": [
+      "Letting an AI assistant read or look up your own data",
+      "Giving several AI apps the same set of custom tools"
+    ],
+    "notGoodAt": [
+      "Ordinary web APIs for apps and browsers; pick an API stack.",
+      "Hosting the server online for many users; it runs locally over stdio."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "build an mcp server so claude can call my own tools",
+    "model context protocol server in typescript",
+    "give my ai agent a custom tool it can run locally",
+    "expose internal data to claude code and cursor as mcp tools"
+  ],
+  "useCases": [
+    "MCP servers",
+    "custom tools for AI assistants",
+    "Claude Code and Cursor integrations"
+  ],
+  "synonyms": [
+    "MCP",
+    "Model Context Protocol",
+    "MCP tools",
+    "Claude tools",
+    "tool server",
+    "stdio server",
+    "MCP SDK",
+    "MCP Inspector",
+    "agent tools",
+    "function calling"
+  ],
+  "goodFor": [
+    "tools a model calls by name",
+    "local servers started by an AI host"
+  ],
+  "notFor": [
+    "AI chat"
+  ],
+  "caveats": [
+    "Runs over stdio only; serving MCP over HTTP to remote clients is a later decision with its own authorization.",
+    "The sample tool reads files under one folder; replace it with your own tools."
+  ]
+}

@@ -1,0 +1,53 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"runtime/debug"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+// Handler is a tool's logic: typed input in, typed output or a domain error
+// out. It never sees the request or builds a result.
+type Handler[In, Out any] func(ctx context.Context, in In) (Out, error)
+
+// addTool registers a tool through mcp.AddTool, which derives the input and
+// output schemas from In and Out, validates arguments before run sees them and
+// fills the result's structured content from Out.
+//
+// It is also the one place a tool's failure becomes what the model sees: a
+// returned error is a tool error result (isError), never a protocol error, so
+// the model can read it and retry. Client faults keep their message; server
+// faults and panics send a fixed message and log the cause. The SDK doesn't
+// recover panics, and a panic would end the process and the host's session.
+func addTool[In, Out any](s *mcp.Server, logger *slog.Logger, tool *mcp.Tool, run Handler[In, Out]) {
+	mcp.AddTool(s, tool, func(ctx context.Context, _ *mcp.CallToolRequest, in In) (_ *mcp.CallToolResult, out Out, err error) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				var zero Out
+				out = zero
+				err = toolError(ctx, logger, tool.Name, fmt.Errorf("panic: %v\n%s", recovered, debug.Stack()))
+			}
+		}()
+		out, err = run(ctx, in)
+		if err != nil {
+			var zero Out
+			return nil, zero, toolError(ctx, logger, tool.Name, err)
+		}
+		return nil, out, nil
+	})
+}
+
+// toolError turns a handler's error into the text the model reads.
+func toolError(ctx context.Context, logger *slog.Logger, tool string, err error) error {
+	message, fault := apperrors.Public(err)
+	if fault {
+		logger.ErrorContext(ctx, "tool failed", "tool", tool, "error", err.Error())
+	}
+	return errors.New(message)
+}

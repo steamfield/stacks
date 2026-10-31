@@ -217,13 +217,249 @@ export const VerifyEvent = Schema.Union([
 });
 export type VerifyEvent = typeof VerifyEvent.Type;
 
+const UsageDetails = Schema.Union([
+  Schema.Struct({
+    flag: Schema.String,
+    value: Schema.String,
+    expected: Schema.String,
+    command: Schema.optionalKey(Schema.String),
+    suggestions: Schema.optionalKey(Schema.Array(Schema.String)),
+  }),
+  Schema.Struct({
+    flag: Schema.String,
+    command: Schema.String,
+    suggestions: Schema.Array(Schema.String),
+  }),
+  Schema.Struct({ command: Schema.String, suggestions: Schema.Array(Schema.String) }),
+  Schema.Struct({ flags: Schema.Tuple([Schema.String, Schema.String]) }),
+]);
+
+const SubmissionBlocker = Schema.Struct({
+  kind: Kind,
+  id: Schema.String,
+  check: Schema.String,
+  severity: Schema.Literals(["error", "warning"]),
+  file: Schema.optionalKey(Schema.String),
+  line: Schema.optionalKey(Schema.Number),
+});
+
+const BadInputDetails = Schema.Union([
+  Schema.Struct({ flag: Schema.Literal("request"), length: Schema.Int }),
+  Schema.Struct({ flag: Schema.Literal("limit"), value: Schema.String }),
+  Schema.Struct({
+    flag: Schema.Literal("offline"),
+    command: Schema.optionalKey(Schema.Literals(["submit"])),
+  }),
+  Schema.Struct({ flag: Schema.Literal("repo"), value: Schema.String }),
+  Schema.Struct({
+    flag: Schema.Literal("tool"),
+    tool: Schema.Literals(["gh", "git"]),
+    reason: Schema.Literals(["missing", "unauthenticated"]),
+  }),
+  Schema.Struct({ flag: Schema.Literal("submission"), blockers: Schema.Array(SubmissionBlocker) }),
+  Schema.Struct({
+    flag: Schema.Literal("collision"),
+    kind: Kind,
+    id: Schema.String,
+    removed: Schema.Boolean,
+    owner: Schema.optionalKey(Schema.String),
+  }),
+  Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
+  Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
+  Schema.Struct({
+    id: Schema.String,
+    flag: Schema.Literals([
+      "scope",
+      "source",
+      "with_without",
+      "dir",
+      "brief",
+      "brief_stack",
+      "kind",
+      "only",
+      "name",
+      "author",
+      "fragment",
+      "agents",
+      "sandbox",
+      "create_id",
+      "create_target",
+      "create_shadows",
+      "from",
+      "confirmation",
+      "submit_entry",
+      "submit_id",
+    ]),
+    known: Schema.optionalKey(Schema.Array(Schema.String)),
+    alreadyApplied: Schema.optionalKey(Schema.Array(Schema.String)),
+    origins: Schema.optionalKey(Schema.Array(Origin)),
+  }),
+]);
+
+const NotFoundDetails = Schema.Struct({
+  suggestions: Schema.Array(Schema.String),
+  id: Schema.optionalKey(Schema.String),
+  kind: Schema.optionalKey(Schema.Literals([...Kind.literals, "project"])),
+  looked: Schema.optionalKey(Schema.String),
+  root: Schema.optionalKey(Schema.String),
+  path: Schema.optionalKey(Schema.String),
+  directory: Schema.optionalKey(Schema.String),
+});
+
+const InvalidConfigDetails = Schema.Struct({
+  path: Schema.String,
+  schemaVersion: Schema.optionalKey(Schema.Number),
+});
+
+const UpstreamUnavailableDetails = Schema.Struct({
+  service: Schema.Literals(["npm-registry", "github"]),
+  status: Schema.optionalKey(Schema.Number),
+  step: Schema.optionalKey(Schema.Literals(["auth", "clone", "fork", "push", "pr"])),
+});
+
+const UpdateFailedDetails = Schema.Struct({
+  command: Schema.String,
+  exitCode: Schema.optionalKey(Schema.Number),
+  timedOut: Schema.optionalKey(Schema.Boolean),
+});
+
+const VerifyFailedDetails = Schema.Struct({
+  failed: Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+      failureKind: FailureKind,
+      exitCode: Schema.optionalKey(Schema.Number),
+    }),
+  ),
+  stages: VerifyResult.fields.stages,
+});
+
+const VerifyChangedDetails = VerifyChange;
+
+const PermissionDeniedDetails = Schema.Struct({
+  reason: Schema.Literals([
+    "write",
+    "read",
+    "escape",
+    "unwritable",
+    "blocked",
+    "agent",
+    "no-tty",
+    "state-unwritable",
+    "launch",
+    "github",
+  ]),
+  path: Schema.optionalKey(Schema.String),
+});
+
+const ConditionalProblem = Schema.Literals([
+  "unclosed",
+  "nested",
+  "stray_end",
+  "unknown_key",
+  "bad_value",
+  "empty",
+  "repeated",
+  "unknown_marker",
+  "not_alone",
+]);
+
+const EntryInvalidDetails = Schema.Struct({
+  id: Schema.String,
+  origin: Origin,
+  reason: Schema.Literals([
+    "decode",
+    "symlink",
+    "id_mismatch",
+    "missing",
+    "conditional",
+    "merge_json",
+    "merge_template",
+    "template",
+  ]),
+  path: Schema.optionalKey(Schema.String),
+  line: Schema.optionalKey(Schema.Number),
+  problem: Schema.optionalKey(ConditionalProblem),
+});
+
+const ComposeConflictDetails = Schema.Struct({
+  reason: Schema.Literals([
+    "required",
+    "requires",
+    "cycle",
+    "conflicts",
+    "applies_to",
+    "app_required",
+    "app_count",
+    "step_name",
+    "file_owner",
+    "env",
+    "needs_own_repo",
+    "reserved_path",
+  ]),
+  stack: Schema.optionalKey(Schema.String),
+  ids: Schema.Array(Schema.String),
+  path: Schema.optionalKey(Schema.String),
+  step: Schema.optionalKey(Schema.String),
+  key: Schema.optionalKey(Schema.String),
+  fix: Schema.optionalKey(Schema.Array(Schema.String)),
+});
+
+const TargetNotEmptyDetails = Schema.Struct({
+  path: Schema.String,
+  entries: Schema.Array(Schema.String),
+  scaffold: Schema.optionalKey(Schema.Literals(["unfinished", "green"])),
+  blocker: Schema.optionalKey(Schema.Literal("non-file")),
+});
+
+const ValidationFailedDetails = Schema.Struct({
+  errors: Schema.Number,
+  warnings: Schema.Number,
+});
+
+const ErrorTag = Schema.Literals([
+  "Usage",
+  "BadInput",
+  "NotFound",
+  "NotConfigured",
+  "InvalidConfig",
+  "UpstreamUnavailable",
+  "UpdateFailed",
+  "VerifyFailed",
+  "VerifyChanged",
+  "PermissionDenied",
+  "EntryInvalid",
+  "ComposeConflict",
+  "TargetNotEmpty",
+  "ValidationFailed",
+  "Interrupted",
+  "Defect",
+  "BrokenPipe",
+]);
+
 export const CliErrorEnvelope = Schema.Struct({
   error: Schema.Struct({
-    tag: Schema.String,
+    tag: ErrorTag,
     message: Schema.String,
     retryable: Schema.Boolean,
     next: Schema.optionalKey(Schema.String),
-    details: Schema.optionalKey(Schema.Unknown),
+    details: Schema.optionalKey(
+      Schema.Union([
+        UpstreamUnavailableDetails,
+        UpdateFailedDetails,
+        UsageDetails,
+        BadInputDetails,
+        NotFoundDetails,
+        InvalidConfigDetails,
+        VerifyFailedDetails,
+        VerifyChangedDetails,
+        PermissionDeniedDetails,
+        EntryInvalidDetails,
+        ComposeConflictDetails,
+        TargetNotEmptyDetails,
+        ValidationFailedDetails,
+      ]),
+    ),
   }),
 });
 export type CliErrorEnvelope = typeof CliErrorEnvelope.Type;

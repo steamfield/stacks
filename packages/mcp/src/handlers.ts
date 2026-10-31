@@ -11,8 +11,8 @@ export const listHandler = Effect.fn("handlers.list")(function* (params: ListPar
   const runner = yield* CliRunner;
   const output = yield* runner.run([
     "list",
-    ...(params.group === undefined ? [] : [params.group]),
     "--json",
+    ...(params.group === undefined ? [] : ["--", params.group]),
   ]);
   return (yield* decodeCli(ListResult, output, "list")).result;
 });
@@ -73,9 +73,10 @@ export const forwardVerifyProgress = Effect.fn("handlers.forwardVerifyProgress")
     const decoded = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(VerifyEvent))(
       line,
     ).pipe(Effect.result);
-    if (Result.isFailure(decoded) || decoded.success.event !== "step-finished") return;
+    if (Result.isFailure(decoded)) return;
     const progress = yield* Ref.updateAndGet(counter, (value) => value + 1);
-    yield* send({ progress, message: `${decoded.success.name}: ${decoded.success.status}` });
+    const status = decoded.success.event === "step-started" ? "started" : decoded.success.status;
+    yield* send({ progress, message: `${decoded.success.name}: ${status}` });
   });
 });
 

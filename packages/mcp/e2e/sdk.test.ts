@@ -61,12 +61,12 @@ describe("official SDK interoperability", () => {
         {
           name: "stacks_list",
           title: "List stacks and fragments",
-          hints: [true, false, true, false],
+          hints: [true, false, true, true],
         },
         {
           name: "stacks_new",
           title: "Create a project from a stack",
-          hints: [false, false, false, false],
+          hints: [false, false, false, true],
         },
         {
           name: "stacks_verify",
@@ -235,7 +235,7 @@ describe("official SDK interoperability", () => {
     withSdk(async ({ client }) => {
       await expect(
         client.readResource({ uri: "stacks://guide/author/no-such-topic" }, { timeout: 5000 }),
-      ).rejects.toMatchObject({ code: -32603 });
+      ).rejects.toMatchObject({ code: -32602 });
     }));
 
   it("every stdout line in a complete SDK session is a JSON-RPC 2.0 frame", () =>

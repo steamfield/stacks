@@ -8,15 +8,15 @@ import { fixture, outputCli, runnerLayer, tempDir } from "./helpers/cli";
 type Update = { readonly progress: number; readonly message: string };
 
 it.effect(
-  "two finished verify events forward progress 1 and 2 without a total and ignore other lines",
+  "started and finished verify events share one increasing counter and ignore other lines",
   () =>
     Effect.gen(function* () {
       const events = fixture("verify-events.jsonl");
       const decoded = yield* Effect.forEach(events.trim().split("\n"), (line) =>
         Schema.decodeUnknownEffect(VerifyEvent)(JSON.parse(line)),
       );
-      const finished = decoded.filter((event) => event.event === "step-finished");
-      expect(finished).toHaveLength(2);
+      expect(decoded.filter((event) => event.event === "step-started")).toHaveLength(2);
+      expect(decoded.filter((event) => event.event === "step-finished")).toHaveLength(2);
       const notifications: Update[] = [];
       const onStderrLine = yield* forwardVerifyProgress((progress: Update) =>
         Effect.sync(() => {
@@ -30,12 +30,12 @@ it.effect(
       yield* Effect.gen(function* () {
         yield* (yield* CliRunner).run(["verify", "--json"], { onStderrLine });
       }).pipe(Effect.provide(runnerLayer(entry)));
-      expect(notifications.map((n) => n.progress)).toEqual([1, 2]);
+      expect(notifications.map((n) => n.progress)).toEqual([1, 2, 3, 4]);
       for (const [index, notification] of notifications.entries()) {
-        const event = finished[index];
+        const event = decoded[index];
         if (event === undefined) throw new Error("Missing captured event");
-        expect(notification.message).toContain(event.name);
-        expect(notification.message).toContain(event.status);
+        const status = event.event === "step-started" ? "started" : event.status;
+        expect(notification.message).toBe(`${event.name}: ${status}`);
         expect(notification).not.toHaveProperty("total");
       }
       const nextRequest: unknown[] = [];
@@ -44,7 +44,7 @@ it.effect(
           nextRequest.push(progress);
         }),
       );
-      const event = finished[0];
+      const event = decoded[0];
       if (event === undefined) throw new Error("Missing captured event");
       yield* fresh(JSON.stringify(event));
       expect(nextRequest).toEqual([expect.objectContaining({ progress: 1 })]);

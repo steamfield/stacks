@@ -61,6 +61,9 @@ case "$(basename "$0")" in
       if [ "$FAKE_LOOKUP_FAIL" = 1 ]; then echo 'lookup failed' >&2; exit 1; fi
       if [ "$2" = "${mcpSpec}" ]; then echo "$FAKE_MCP_INTEGRITY"; exit 0; fi
       echo "$FAKE_INTEGRITY"; exit 0
+    fi
+    if [ "$1 $3" = "view dependencies" ]; then
+      printf '{"@steamfield/stacks":"%s"}' "$FAKE_MCP_PIN"; exit 0
     fi ;;
 esac
 exit 98
@@ -85,6 +88,7 @@ function run(
     cliPublished?: boolean;
     mcpPublished?: boolean;
     mcpIntegrity?: string;
+    mcpPin?: string;
     allowPublish?: boolean;
     dryRun?: boolean;
   } = {},
@@ -103,13 +107,14 @@ function run(
       FAKE_CLI_PUBLISHED: options.cliPublished ? "1" : "0",
       FAKE_MCP_PUBLISHED: options.mcpPublished ? "1" : "0",
       FAKE_MCP_INTEGRITY: options.mcpIntegrity ?? mcpIntegrity,
+      FAKE_MCP_PIN: options.mcpPin ?? cliPackage.version,
       FAKE_ALLOW_PUBLISH: options.allowPublish ? "1" : "0",
     },
   });
   return { ...result, commands: readFileSync(log, "utf8") };
 }
 
-describe("release dry run", () => {
+describe("release", () => {
   it("publishes MCP third and tags the CLI version after checking all packages", () => {
     const result = run({ dryRun: false, formatPublished: false, allowPublish: true });
     expect(result.status, result.stderr).toBe(0);
@@ -149,14 +154,6 @@ describe("release dry run", () => {
     expect(result.stderr).not.toContain("waiting for the registry");
   });
 
-  it("skips a published MCP package only when its own integrity matches", () => {
-    const result = run({ mcpPublished: true });
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stderr).toContain(`would skip ${mcpSpec}`);
-    expect(result.commands).toContain(`npm view ${mcpSpec} dist.integrity`);
-    expect(result.commands).not.toContain("npm publish");
-  });
-
   it("checks a conflicting MCP version before publishing either dependency", () => {
     const result = run({
       dryRun: false,
@@ -171,12 +168,48 @@ describe("release dry run", () => {
     expect(result.commands).not.toContain("npm publish");
   });
 
+  it("checks a conflicting CLI version before publishing a new format version", () => {
+    const result = run({
+      dryRun: false,
+      formatPublished: false,
+      cliPublished: true,
+      publishedIntegrity: "sha512-different",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `${cliSpec} is already on npm, but its tarball integrity differs`,
+    );
+    expect(result.commands).not.toContain("npm publish");
+  });
+});
+
+describe("release dry run", () => {
+  it("requires an MCP version bump when the published version pins another CLI", () => {
+    const result = run({ mcpPublished: true, mcpPin: "0.5.0" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `bump packages/mcp's version: it pins @steamfield/stacks ${cliPackage.version}, the published ${mcpPackage.version} pins 0.5.0`,
+    );
+    expect(result.commands).not.toContain("npm publish");
+  });
+
+  it("skips a published MCP package only when its own integrity matches", () => {
+    const result = run({ mcpPublished: true });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain(`would skip ${mcpSpec}`);
+    expect(result.commands).toContain(`npm view ${mcpSpec} dist.integrity`);
+    expect(result.commands).not.toContain("npm publish");
+  });
+
   it("skips a published package with matching integrity and shows the embedded endpoint", () => {
     const result = run();
     expect(result.status, result.stderr).toBe(0);
     expect(result.stderr).toContain(`would skip ${formatSpec}`);
     expect(result.stderr).toContain(`would publish ${cliSpec}`);
     expect(result.stderr).toContain(`would publish ${mcpSpec}`);
+    expect(result.stderr).toContain(
+      `dry run packed ${[formatSpec, cliSpec, mcpSpec].join(", ")}; nothing published`,
+    );
     expect(result.stderr).toContain("telemetry endpoint embedded");
     expect(result.commands).toContain(`npm view ${formatSpec} dist.integrity`);
     expect(result.commands).toContain("pack telemetry: 1");
@@ -203,20 +236,6 @@ describe("release dry run", () => {
     const result = run({ versionLookupFails: true });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`could not look up ${formatSpec}`);
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("checks a conflicting CLI version before publishing a new format version", () => {
-    const result = run({
-      dryRun: false,
-      formatPublished: false,
-      cliPublished: true,
-      publishedIntegrity: "sha512-different",
-    });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      `${cliSpec} is already on npm, but its tarball integrity differs`,
-    );
     expect(result.commands).not.toContain("npm publish");
   });
 });

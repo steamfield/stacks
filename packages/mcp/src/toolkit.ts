@@ -23,7 +23,7 @@ export const stacksList = Tool.make("stacks_list", {
   .annotate(Tool.Readonly, true)
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true)
-  .annotate(Tool.OpenWorld, false);
+  .annotate(Tool.OpenWorld, true);
 
 export const stacksNew = Tool.make("stacks_new", {
   description:
@@ -38,11 +38,11 @@ export const stacksNew = Tool.make("stacks_new", {
   .annotate(Tool.Readonly, false)
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, false)
-  .annotate(Tool.OpenWorld, false);
+  .annotate(Tool.OpenWorld, true);
 
 export const stacksVerify = Tool.make("stacks_verify", {
   description:
-    "Run a project's manifest verify steps. dir must be an absolute existing directory. Executes project commands, which may change files or access the network. Returns green or partial (CLI exit 0), failed or changed (exit 5, with next); a red or changed verify is a successful call. For changed, stop: only a person can accept changes in a terminal. Tool errors include NotFound (outside a project, exit 2), InvalidConfig (3), PermissionDenied (6), Interrupted (130), CliUnavailable, CliTimedOut, CliOutputInvalid and InvalidArgument. Fix failed steps and verify until green.",
+    "Run a project's manifest verify steps. dir must be an absolute existing directory. Executes project commands, which may change files or access the network. Returns green or partial (CLI exit 0), failed or changed (exit 5, with next); a red or changed verify is a successful call. For changed, stop: only a person can accept changes in a terminal. Tool errors include NotFound (outside a project, exit 2), InvalidConfig (3), PermissionDenied (6), Interrupted (130), CliUnavailable, CliKilled (retryable), CliTimedOut, CliOutputInvalid and InvalidArgument. Fix failed steps and verify until green.",
   parameters: VerifyParams,
   success: VerifySuccess,
   failure: CliFailure,

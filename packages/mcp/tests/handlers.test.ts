@@ -175,7 +175,8 @@ describe("whole CLI results", () => {
           const error = yield* Effect.flip(verifyHandler({ dir: root })).pipe(
             Effect.provide(runnerLayer(entry)),
           );
-          expect(error.tag).toBe("CliOutputInvalid");
+          // A valid envelope with an unreadable result keeps the CLI's own failure and next step.
+          expect(error.tag).toBe(invalid === "stdout" ? "VerifyFailed" : "CliOutputInvalid");
           expect(error.retryable).toBe(false);
         }),
     );
@@ -284,7 +285,12 @@ describe("CLI argument and directory boundaries", () => {
         const record = join(root, "record.json");
         const entry = outputCli(root, { stdout: fixture("list.json"), record });
         yield* listHandler({ group }).pipe(Effect.provide(runnerLayer(entry)));
-        expect(JSON.parse(readFileSync(record, "utf8")).args).toEqual(["list", group, "--json"]);
+        expect(JSON.parse(readFileSync(record, "utf8")).args).toEqual([
+          "list",
+          "--json",
+          "--",
+          group,
+        ]);
       }),
   );
 

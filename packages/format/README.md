@@ -36,6 +36,9 @@ in, publishing or tagging. The steps below are what it runs.
    change that rejects data the previous version accepted or removes an export. The first
    release publishes the version already in the file.
 
+   With every CLI version bump, bump the patch version in `packages/mcp/package.json` too:
+   the MCP package pins the CLI's exact version, so its published version must change with it.
+
 3. Run the gate on that commit (`rr check`, or `bun run check` without rr) and push it to `main`.
    Pack and publish from a checkout of exactly that commit
    (`git worktree add --detach <dir> origin/main`, then `bun install --frozen-lockfile` there),

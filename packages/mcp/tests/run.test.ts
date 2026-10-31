@@ -140,6 +140,9 @@ it.effect("an unspawnable Node path returns CliUnavailable with the system code 
     expect(error.retryable).toBe(false);
     expect(error.exitCode).toBeUndefined();
     expect(error.next).toContain("STACKS_MCP_CLI");
+    expect(error.next).toContain(node);
+    expect(error.next).toMatch(/check|restore/i);
+    expect(error.next).toMatch(/restart/i);
   }),
 );
 

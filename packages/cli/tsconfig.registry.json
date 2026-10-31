@@ -10,6 +10,7 @@
       "registry/fragments/openrouter-chat-cli/adapters/claude",
       "registry/stacks/nextjs/adapters/claude",
       "registry/stacks/react-router/adapters/claude",
+      "registry/stacks/react-vite/adapters/claude",
       "registry/stacks/sveltekit/adapters/claude",
       "registry/stacks/tauri-react/adapters/claude",
       "registry/stacks/typescript-api/adapters/claude",
@@ -41,6 +42,11 @@
     "registry/stacks/react-router/files/app",
     "registry/stacks/react-router/files/tests",
     "registry/stacks/react-router/files/e2e",
+    // React, Vite, MSW, zod and DOM types belong to the SPA scaffold; keep scripts and hooks checked.
+    "registry/stacks/react-vite/files/*.ts",
+    "registry/stacks/react-vite/files/src",
+    "registry/stacks/react-vite/files/tests",
+    "registry/stacks/react-vite/files/e2e",
     // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
     "registry/stacks/nextjs/files/*.ts",
     "registry/stacks/nextjs/files/next-env.d.ts",

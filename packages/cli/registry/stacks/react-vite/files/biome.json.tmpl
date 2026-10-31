@@ -1,0 +1,47 @@
+{
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.json",
+      "**/*.css",
+      "!dist",
+      "!coverage",
+      "!node_modules",
+      "!playwright-report",
+      "!test-results",
+      "!.stacks"
+    ]
+  },
+  "plugins": ["./biome-plugins/boundaries.grit"],
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  "linter": {
+    "enabled": true,
+    "domains": { "react": "recommended" },
+    "rules": {
+      "preset": "recommended",
+      "a11y": { "preset": "recommended" },
+      "style": {
+        "useImportType": "error",
+        "useExportType": "error",
+        "noNonNullAssertion": "error",
+        "useConst": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
+      "suspicious": { "noExplicitAny": "error" },
+      "nursery": { "noFloatingPromises": "error" }
+    }
+  },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["src/**/*.test.{ts,tsx}", "tests/**/*.test.ts"],
+      "linter": { "domains": { "playwright": "none" } }
+    }
+  ]
+}

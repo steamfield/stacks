@@ -1,0 +1,20 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "e2e": "bun run build && playwright test",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
+    "clean": "rm -rf dist coverage test-results playwright-report",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

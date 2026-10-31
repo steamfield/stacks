@@ -1,0 +1,46 @@
+# Configuration
+
+`{{project_slug}} config show` prints the effective configuration. Each layer
+overrides the one before it: defaults, the config file, environment variables,
+then flags. Flags only override when they are given.
+
+The config file is TOML at `$XDG_CONFIG_HOME/{{project_slug}}/config.toml`, or
+`~/.config/{{project_slug}}/config.toml` when `XDG_CONFIG_HOME` is unset. A
+missing default file is fine. `--config PATH` reads that file instead and fails
+when it doesn't exist. Unknown keys, malformed TOML and invalid values fail
+with a `CONFIG` error that names the file.
+
+| Key | Default | Environment | Flag |
+|---|---|---|---|
+| `greeting` | `"Hello, world!"` | `{{env_prefix}}_GREETING` | none |
+| `output` | `"text"` | `{{env_prefix}}_OUTPUT` | `--json` / `--no-json` |
+| `verbose` | `false` | `{{env_prefix}}_VERBOSE` | `--verbose` |
+| `color` | `true` | `{{env_prefix}}_COLOR` | `--no-color` |
+
+`greeting` must contain non-whitespace text. `output` is `text` or `json`.
+Booleans accept `true`, `false`, `1` and `0`.
+
+Global options go before the command: `{{project_slug}} --json config show`.
+`--version` and errors that happen before settings load (an unknown command, a
+bad flag) follow the explicit `--json` flag only, not the file or environment.
+`--help` is always text.
+
+## Output
+
+Results go to stdout. Logs, errors and suggestions go to stderr. With
+`--json`, stdout holds one JSON document and an error is one JSON document on
+stderr: `{"error": {"code", "message", "suggestion"}}`. Logs are warnings and
+above by default, debug with `--verbose`, and JSON records in JSON mode.
+`NO_COLOR` (even empty) disables color, and color needs a terminal.
+
+## Exit codes
+
+| Exit | Codes | When |
+|---|---|---|
+| 0 | | Success, `--help`, `--version` |
+| 1 | `CONFIG`, `IO`, `INTERNAL` | Bad config, a failed read or write, an unexpected error |
+| 2 | `INVALID_INPUT` | Unknown command or option, a missing or extra argument |
+| 130 | `INTERRUPTED` | Ctrl+C (Typer exits quietly), or input closed at a prompt |
+
+An unexpected error prints `INTERNAL: unexpected error` without details;
+`--verbose` logs the traceback to stderr.

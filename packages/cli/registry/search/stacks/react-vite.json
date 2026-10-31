@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "react-vite",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A single-page app that runs entirely in the browser, built by Vite into static files and reading an API it doesn't own.",
+  "description": "Build a client-side React app that Vite compiles into static files any file host can serve. Routes use React Router in data mode, and every API call goes through one typed client that decodes responses with zod and feeds TanStack Query. The starter covers validated build-time settings, a typed error with user-facing messages and request ids, console logging, and an error page. Vitest with MSW and a Playwright test of the built site run against a fake API. The app has no server of its own: it needs an existing API, and accounts or storage come from that API.",
+  "seoDescription": "A browser-only React app on Vite with React Router, a typed fetch client, TanStack Query, and tests against a fake API.",
+  "projectExamples": [
+    {
+      "title": "Dashboard over an existing API",
+      "description": "An illustrative internal dashboard that lists and opens records from a team's existing JSON API, deployed as static files. Sign-in and permissions come from that API."
+    },
+    {
+      "title": "Public data browser",
+      "description": "An illustrative site that browses a public JSON API with shareable deep links. Add the host's rewrite to index.html and CORS on the API before launch."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter web app built with React, a toolkit for web screens, that runs only in the visitor's browser and reads data from an existing API.",
+    "goodAt": [
+      "Interactive screens hosted as plain files, with no server to run",
+      "Front ends for an API you already have",
+      "Testing pages against a fake API, with no backend running"
+    ],
+    "notGoodAt": [
+      "Pages rendered on a server, or secret keys; use Next.js or React Router."
+    ]
+  },
+  "platforms": [
+    "web"
+  ],
+  "productKinds": [
+    "web-app"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "start a react single-page app with vite",
+    "react front end that reads data from a service I already run",
+    "client-side react site I can host as static files",
+    "typed fetch client with schema validation and react query"
+  ],
+  "useCases": [
+    "front ends for in-house or public APIs",
+    "static-hosted web apps"
+  ],
+  "synonyms": [
+    "SPA",
+    "Vite",
+    "client-side rendering",
+    "CRA replacement",
+    "data router",
+    "TanStack Query",
+    "React Query",
+    "MSW",
+    "zod",
+    "static hosting"
+  ],
+  "goodFor": [
+    "one typed API boundary",
+    "tests against a fake API"
+  ],
+  "notFor": [
+    "server-side rendering",
+    "Vue",
+    "postgres",
+    "database"
+  ],
+  "caveats": [
+    "Needs an API to call: same-origin /api by default, or an absolute URL with CORS.",
+    "The static host must rewrite unknown paths to index.html."
+  ]
+}

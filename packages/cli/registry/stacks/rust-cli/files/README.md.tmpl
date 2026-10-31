@@ -1,0 +1,44 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this tool does and who it's for. -->
+
+## Install
+
+<!-- stacks:fill A bash code block with the install command people should use (`cargo install --path .` until there's a release). -->
+
+Or build from source:
+
+```bash
+make build
+./target/release/{{project_slug}} --help
+```
+
+## Usage
+
+```bash
+{{project_slug}} --help
+{{project_slug}} --version
+{{project_slug}} config show
+```
+
+<!-- stacks:fill The two or three commands people run most, with one line each on what they do. -->
+
+Every command accepts `--json` for machine-readable output. See [docs/configuration.md](docs/configuration.md) for config files, environment variables and flags.
+
+## Development
+
+Requires rustup (the toolchain comes from `rust-toolchain.toml`) and make.
+
+| Command | What it does |
+|---|---|
+| `make build` | Release binary in `target/release/` |
+| `make test` | Unit and integration tests |
+| `make lint` | rustfmt check and clippy with warnings denied |
+| `make audit` | cargo-deny: advisories, licenses, sources |
+| `make ci` | Everything CI runs |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
+
+## License
+
+Copyright (c) {{year}} {{author}}

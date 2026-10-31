@@ -1,6 +1,7 @@
-import { Clock, Effect, type FileSystem, Option, type Path, Schema, type Scope } from "effect";
+import { Clock, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
 import { RemoteStatus } from "../schemas/remote-index";
+import { replaceFile } from "./replace-file";
 
 const DAY = 24 * 60 * 60 * 1000;
 const State = Schema.Struct({
@@ -33,14 +34,10 @@ const date = (value: string | null) => (value === null ? 0 : Date.parse(value) |
 
 const write = Effect.fn("cachedFetch.write")(function* (cache: Cache, file: string, text: string) {
   const { fs, path, root } = cache;
-  yield* Effect.scoped(
-    Effect.gen(function* () {
-      yield* fs.makeDirectory(root, { recursive: true });
-      const temporary = yield* fs.makeTempDirectoryScoped({ directory: root, prefix: ".write-" });
-      const at = path.join(temporary, "value");
-      yield* fs.writeFileString(at, text, { flag: "wx" });
-      yield* fs.rename(at, path.join(root, file));
-    }),
+  yield* fs.makeDirectory(root, { recursive: true });
+  yield* replaceFile(path.join(root, file), text).pipe(
+    Effect.provideService(FileSystem.FileSystem, fs),
+    Effect.provideService(Path.Path, path),
   );
 });
 

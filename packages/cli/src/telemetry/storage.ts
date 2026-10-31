@@ -1,5 +1,6 @@
 import { TelemetryNewEvent } from "@steamfield/stacks-format";
-import { Clock, Effect, type FileSystem, type Path, Random, Schema, Struct } from "effect";
+import { Clock, Effect, FileSystem, Path, Random, Schema, Struct } from "effect";
+import { replaceFile } from "../core/replace-file";
 
 export type Storage = { fs: FileSystem.FileSystem; path: Path.Path; root: string };
 export const DAY = 86_400_000;
@@ -33,16 +34,9 @@ export const write = Effect.fn("telemetry.write")(function* (
 ) {
   const at = store.path.join(store.root, file);
   yield* directory(store, store.path.dirname(at));
-  yield* Effect.scoped(
-    Effect.gen(function* () {
-      const temp = yield* store.fs.makeTempDirectoryScoped({
-        directory: store.path.dirname(at),
-        prefix: ".write-",
-      });
-      const pending = store.path.join(temp, "value");
-      yield* store.fs.writeFileString(pending, JSON.stringify(value), { mode: 0o600, flag: "wx" });
-      yield* store.fs.rename(pending, at);
-    }),
+  yield* replaceFile(at, JSON.stringify(value), { mode: 0o600 }).pipe(
+    Effect.provideService(FileSystem.FileSystem, store.fs),
+    Effect.provideService(Path.Path, store.path),
   );
 });
 export const remove = (store: Storage, file: string) =>

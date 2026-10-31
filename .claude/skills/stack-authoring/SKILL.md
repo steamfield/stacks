@@ -35,6 +35,16 @@ Where a framework has a generator (Next.js, SvelteKit, Astro, React Router, Expo
 
 `STACK.md` follows the slice. Open with "What stacks wrote" (one paragraph, ending "read the code before extending it"), as `go-cli` does; `typescript-api` says the same in its unheaded first paragraphs, and a converted stack uses the heading. Setup becomes: add the declared `deps` so they resolve to current releases, run the checks, update shipped code or config the installed release rejects without loosening a check, record toolchain versions, fill the README. Conventions shrink to rules new code must keep, each already followed by the shipped code; cut prose the code now carries. Keep every Gotcha that still applies. Keep `id`, `tags` and `description` unless the description becomes false. Keep `deps` to names the slice imports; a new name needs an allowlist row and a reviewed dependency card, which is a maintainer's step, so don't add one: report the need instead.
 
+Lessons from converting the twelve stacks:
+
+- Use the framework's own server and static-file mechanism (`react-router-serve`, Effect's `HttpStaticServer`) over a hand-written one; record its trade-offs as a Gotcha rather than replacing it.
+- When one declared tool lags another's newest release (typescript-eslint or `@astrojs/check` behind a TypeScript major), Setup installs the newest release inside the lagging tool's peer range and a Gotcha says when to drop that. It's version resolution, not a new dependency, and no version number goes anywhere.
+- Code generated at setup (an OpenAPI document, a typed client, framework type files) stays generated; ship the generator config and the code that imports its output.
+- Setup records toolchain versions before running the checks, since linters read them (Ruff's Python target, go.mod's directive selecting the mux behavior).
+- `adapters/` carries rules and docs too (hidden directories such as `.claude/rules/`); update them with the body, and drop a `.tmpl` suffix from any adapter or doc file that uses no template variable.
+- A `.tmpl` file is tokenized for `{{`, so source that needs a literal `{{` (Go templates, JSX style objects) either stays out of `.tmpl` or spells it another way.
+- Keep the proving payload's names when a fragment's branch already refers to them (the `items` service `drizzle-postgres` replaces), and update that branch with the shipped names.
+
 The slice must compose with every default and optional fragment. Don't ship a file a fragment writes (CI workflows, git hooks, harness scripts, the agent files `claude-harness` owns); compose with `--with` and read where each fragment's files land. Update the stack's `stacks:when with=` branches. A fragment's `stack=<id>` block for this stack that now describes code the stack ships gets trimmed to what still applies; any wider fragment change gets reported.
 
 ### Checks this checkout runs on shipped files

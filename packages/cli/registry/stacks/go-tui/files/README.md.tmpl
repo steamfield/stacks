@@ -1,0 +1,52 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this terminal app shows or does, and who runs it. -->
+
+## Run it
+
+```bash
+make build
+./bin/{{project_slug}}            # full-screen UI in a terminal
+./bin/{{project_slug}} --no-tui   # the same tasks as text
+./bin/{{project_slug}} --json     # the same tasks as JSON
+```
+
+In the UI: `↑`/`↓` or `j`/`k` move, `/` filters, `enter` opens, `esc` goes back, `q` quits, `?` shows every key. When stdin or stdout isn't a terminal (a pipe, CI, an editor's task runner) it prints the text list instead of starting the UI.
+
+## Keys and screens
+
+<!-- stacks:fill The screens the app has and the keys each one takes, once they go beyond the shipped list and detail views. -->
+
+## Configuration
+
+Flags override environment variables. See [docs/configuration.md](docs/configuration.md).
+
+| Flag | Variable | Default | Meaning |
+|---|---|---|---|
+| `--tasks` | `{{env_prefix}}_TASKS` | built-in sample | JSON file of tasks to show |
+| `--log-file` | `{{env_prefix}}_LOG_FILE` | none | Append JSON logs to this file |
+| `--log-level` | `{{env_prefix}}_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `--no-tui` | | off | Print text and exit |
+| `--json` | | off | Print JSON and exit; errors are JSON on stderr |
+
+`NO_COLOR` turns colors off.
+
+## Development
+
+Requires Go, make, a C compiler (for the race detector) and [golangci-lint](https://golangci-lint.run/).
+
+| Command | What it does |
+|---|---|
+| `make build` | Build `bin/{{project_slug}}` |
+| `make test` | Unit, golden-frame and headless program tests |
+| `make test-integration` | Run the built binary without a terminal |
+| `make golden` | Rewrite the golden frames after a view change |
+| `make lint` | golangci-lint |
+| `make smoke` | `--help`, `--version` and the text fallback |
+| `make ci` | Everything CI runs |
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## License
+
+Copyright (c) {{year}} {{author}}

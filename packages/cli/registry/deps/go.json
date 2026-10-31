@@ -1,6 +1,64 @@
 {
   "formatVersion": 1,
   "cards": {
+    "charm.land/bubbles": {
+      "whatItIs": "Bubbles, a set of ready-made parts for Bubble Tea terminal apps in the Go programming language, such as lists, text inputs and help lines.",
+      "goodAt": [
+        "Adding a scrollable list a person can search by typing",
+        "Showing which keys do what at the bottom of the screen"
+      ],
+      "notGoodAt": ["Running the app or drawing the screen; Bubble Tea does that."],
+      "example": "A terminal app shows a list of open tickets that the user narrows down by typing part of a title.",
+      "homepage": "https://github.com/charmbracelet/bubbles",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "charm.land/bubbletea": {
+      "whatItIs": "Bubble Tea, a library for the Go programming language for apps that fill the terminal window and react to each key a person presses.",
+      "goodAt": [
+        "Building a full-screen terminal app with several screens",
+        "Keeping the screen in step with the app's data as keys arrive"
+      ],
+      "notGoodAt": ["Commands that print a result and exit; a command library such as cobra fits."],
+      "example": "A person browses a list of tasks in the terminal with the arrow keys and opens one to read its notes.",
+      "homepage": "https://github.com/charmbracelet/bubbletea",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "charm.land/lipgloss": {
+      "whatItIs": "Lip Gloss, a library for the Go programming language that adds colors, borders and spacing to text shown in a terminal.",
+      "goodAt": [
+        "Giving terminal text colors, bold titles and boxes",
+        "Lining up text in columns and panels"
+      ],
+      "notGoodAt": ["Handling key presses or screens; Bubble Tea does that."],
+      "example": "A terminal app shows a task's title in bold purple and its status in green when it is done.",
+      "homepage": "https://github.com/charmbracelet/lipgloss",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "github.com/charmbracelet/x/exp/teatest": {
+      "whatItIs": "teatest, an experimental test helper that runs a Bubble Tea terminal app without a terminal, sends it key presses and checks what it shows.",
+      "homepage": "https://github.com/charmbracelet/x/tree/main/exp/teatest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "github.com/jackc/pgx": {
       "whatItIs": "pgx, a library for the Go programming language that reads and writes records in a PostgreSQL database.",
       "goodAt": [

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "python-cli",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Python command-line tool on Typer, packaged as a wheel, with layered settings, text or JSON output and fixed exit codes.",
+  "description": "Write a Python command-line tool with Typer commands and pydantic-settings, layered from defaults, a TOML file, environment variables and flags. Commands print text or one JSON document, errors carry a suggestion and map to fixed exit codes, and logs go to stderr. uv and make run lint, strict typing and pytest, build the wheel and run it from a clean install. Add your tool's commands; publishing to PyPI is a step you set up yourself.",
+  "seoDescription": "A Python CLI recipe on Typer with pydantic-settings config, text or JSON output, exit codes and a wheel tested from a clean install.",
+  "projectExamples": [
+    {
+      "title": "Log file summarizer",
+      "description": "Add a command that reads local log files and prints counts by level, as a table for people or JSON for scripts. Reuse the output and exit-code contract."
+    },
+    {
+      "title": "Team release helper",
+      "description": "Add commands that check a repository's changelog and version before a release, with defaults in the shared config file and overrides from environment variables."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a terminal program written in Python that people install with one command and run by name.",
+    "goodAt": [
+      "Commands that read settings from a file, environment variables and flags",
+      "Output for people to read, or in a structured form scripts can parse",
+      "Error messages that say what went wrong and how to fix it"
+    ],
+    "notGoodAt": [
+      "Graphical apps with windows and buttons; choose a web or desktop stack.",
+      "A single file that runs without Python installed; choose the Go CLI stack."
+    ]
+  },
+  "platforms": ["cli"],
+  "productKinds": ["cli-tool"],
+  "languages": ["python"],
+  "requests": [
+    "build a Python command line tool people install with uv tool or pipx",
+    "write a typer cli with subcommands and a json output flag",
+    "a python script I can turn into a proper installable command",
+    "let users set defaults in a config file and override them with env vars"
+  ],
+  "useCases": ["command-line automation", "developer tooling", "scriptable utilities"],
+  "synonyms": ["typer", "click", "argparse", "console script", "pipx", "uv tool", "python terminal tool"],
+  "goodFor": ["configuration precedence", "exit codes", "JSON output for scripts", "wheel packaging"],
+  "notFor": ["terminal user interface", "terminal ui"]
+}

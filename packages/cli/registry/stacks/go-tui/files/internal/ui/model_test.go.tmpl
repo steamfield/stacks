@@ -1,0 +1,155 @@
+package ui
+
+import (
+	"log/slog"
+	"testing"
+	"unicode/utf8"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/tasks"
+)
+
+// Frames are compared at a fixed size so goldens match on every terminal.
+const width, height = 60, 16
+
+var discard = slog.New(slog.DiscardHandler)
+
+func sample() ([]tasks.Task, error) { return tasks.Sample(), nil }
+
+func press(keys ...string) []tea.Msg {
+	special := map[string]tea.KeyPressMsg{
+		"enter":  {Code: tea.KeyEnter},
+		"esc":    {Code: tea.KeyEscape},
+		"ctrl+c": {Code: 'c', Mod: tea.ModCtrl},
+	}
+	msgs := make([]tea.Msg, 0, len(keys))
+	for _, k := range keys {
+		if msg, ok := special[k]; ok {
+			msgs = append(msgs, msg)
+			continue
+		}
+		code, _ := utf8.DecodeRuneInString(k)
+		msgs = append(msgs, tea.KeyPressMsg{Code: code, Text: k})
+	}
+	return msgs
+}
+
+// send feeds messages through Update and returns the model and the last command.
+func send(t *testing.T, m Model, msgs ...tea.Msg) (Model, tea.Cmd) {
+	t.Helper()
+	var cmd tea.Cmd
+	for _, msg := range msgs {
+		next, c := m.Update(msg)
+		var ok bool
+		m, ok = next.(Model)
+		require.True(t, ok)
+		cmd = c
+	}
+	return m, cmd
+}
+
+// ready is a sized model with the load command already run and delivered.
+func ready(t *testing.T, load LoadFunc) Model {
+	t.Helper()
+	m, _ := send(t, New(load, discard), tea.WindowSizeMsg{Width: width, Height: height})
+	m, _ = send(t, m, m.Init()())
+	return m
+}
+
+func quits(t *testing.T, cmd tea.Cmd) {
+	t.Helper()
+	require.NotNil(t, cmd)
+	assert.Equal(t, tea.QuitMsg{}, cmd())
+}
+
+func TestFrames(t *testing.T) {
+	failure := func() ([]tasks.Task, error) {
+		return nil, apperrors.New(apperrors.IO, "read tasks file tasks.json", "Check that the file exists.")
+	}
+	loaded := ready(t, sample)
+	opened, _ := send(t, loaded, press("j", "enter")...)
+	loadingModel, _ := send(t, New(sample, discard), tea.WindowSizeMsg{Width: width, Height: height})
+	frames := map[string]Model{
+		"loading": loadingModel,
+		"list":    loaded,
+		"detail":  opened,
+		"failed":  ready(t, failure),
+	}
+	for name, m := range frames {
+		t.Run(name, func(t *testing.T) {
+			view := m.View()
+			assert.True(t, view.AltScreen)
+			// Regenerate with `make golden` and review the diff before committing.
+			teatest.RequireEqualOutput(t, []byte(view.Content))
+		})
+	}
+}
+
+func TestInitLoadsInACommand(t *testing.T) {
+	calls := 0
+	load := func() ([]tasks.Task, error) { calls++; return tasks.Sample(), nil }
+	m := New(load, discard)
+	cmd := m.Init()
+	assert.Zero(t, calls, "New and Init must not do I/O")
+	msg := cmd()
+	assert.Equal(t, 1, calls)
+	m, _ = send(t, m, msg)
+	assert.Equal(t, browsing, m.screen)
+	assert.Len(t, m.list.Items(), 3)
+}
+
+func TestOpenAndGoBack(t *testing.T) {
+	m, _ := send(t, ready(t, sample), press("j", "enter")...)
+	require.Equal(t, detail, m.screen)
+	assert.Equal(t, "T-2", m.open.ID)
+	m, _ = send(t, m, press("esc")...)
+	assert.Equal(t, browsing, m.screen)
+	assert.Equal(t, 1, m.list.Index(), "going back keeps the selection")
+}
+
+func TestQuit(t *testing.T) {
+	_, cmd := send(t, ready(t, sample), press("q")...)
+	quits(t, cmd)
+	m, _ := send(t, ready(t, sample), press("enter")...)
+	_, cmd = send(t, m, press("ctrl+c")...)
+	quits(t, cmd)
+	_, cmd = send(t, New(sample, discard), press("q")...)
+	quits(t, cmd)
+}
+
+func TestFilter(t *testing.T) {
+	m := ready(t, sample)
+	m, _ = send(t, m, press("/", "q")...)
+	assert.Equal(t, browsing, m.screen, "q is typed into the filter, not a quit")
+	assert.Equal(t, "q", m.list.FilterValue())
+
+	m = ready(t, sample)
+	m.list.SetFilterText("release")
+	require.Len(t, m.list.VisibleItems(), 1)
+	m, _ = send(t, m, press("enter")...)
+	assert.Equal(t, "T-3", m.open.ID)
+}
+
+func TestLoadFailureIsKept(t *testing.T) {
+	m := ready(t, func() ([]tasks.Task, error) { return nil, apperrors.New(apperrors.InvalidData, "bad", "Fix it.") })
+	assert.Equal(t, failed, m.screen)
+	var failure *apperrors.Error
+	require.ErrorAs(t, m.Err(), &failure)
+	assert.Equal(t, apperrors.InvalidData, failure.Code)
+}
+
+func TestBackgroundColorSwitchesTheme(t *testing.T) {
+	m := ready(t, sample)
+	require.True(t, m.theme.Dark)
+	m, _ = send(t, m, tea.BackgroundColorMsg{Color: lightBackground{}})
+	assert.False(t, m.theme.Dark)
+}
+
+type lightBackground struct{}
+
+func (lightBackground) RGBA() (r, g, b, a uint32) { return 0xffff, 0xffff, 0xffff, 0xffff }

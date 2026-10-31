@@ -1,0 +1,60 @@
+package ui
+
+import (
+	"errors"
+	"strings"
+
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+// View is pure: it renders the current screen from the model and nothing else.
+func (m Model) View() tea.View {
+	var content string
+	switch m.screen {
+	case loading:
+		content = m.theme.Frame.Render(m.theme.Title.Render("Tasks") + "\n\n" + m.theme.Muted.Render("Loading tasks…"))
+	case browsing:
+		content = m.list.View()
+	case detail:
+		content = m.detailView()
+	case failed:
+		content = m.failedView()
+	}
+	view := tea.NewView(content)
+	view.AltScreen = true
+	view.WindowTitle = "Tasks"
+	return view
+}
+
+func (m Model) detailView() string {
+	task := m.open
+	notes := task.Notes
+	if notes == "" {
+		notes = m.theme.Muted.Render("No notes.")
+	}
+	body := lipgloss.JoinVertical(lipgloss.Left,
+		m.theme.Title.Render(task.Title),
+		"",
+		m.theme.Label.Render("ID")+task.ID,
+		m.theme.Label.Render("Status")+m.theme.Status(string(task.Status)),
+		"",
+		lipgloss.NewStyle().Width(max(m.width-4, 20)).Render(notes),
+		"",
+		m.help.ShortHelpView([]key.Binding{m.keys.Back, m.keys.Quit}),
+	)
+	return m.theme.Frame.Render(body)
+}
+
+func (m Model) failedView() string {
+	lines := []string{m.theme.Error.Render("Could not load tasks"), "", m.err.Error()}
+	var failure *apperrors.Error
+	if errors.As(m.err, &failure) && failure.Suggestion != "" {
+		lines = append(lines, m.theme.Muted.Render(failure.Suggestion))
+	}
+	lines = append(lines, "", m.help.ShortHelpView([]key.Binding{m.keys.Quit}))
+	return m.theme.Frame.Render(strings.Join(lines, "\n"))
+}

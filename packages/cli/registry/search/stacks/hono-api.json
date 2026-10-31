@@ -20,7 +20,9 @@
     {
       "title": "Internal service with a typed contract",
       "description": "An illustrative service other teams call from their own code, generating clients from its OpenAPI document. Ship it as a container with the optional Docker fragment.",
-      "withFragments": ["docker-deploy"]
+      "withFragments": [
+        "docker-deploy"
+      ]
     }
   ],
   "plain": {
@@ -35,16 +37,25 @@
       "Saving data for good; notes stay in memory until you add a database."
     ]
   },
-  "platforms": ["server"],
-  "productKinds": ["api"],
-  "languages": ["typescript"],
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "typescript"
+  ],
   "requests": [
     "start a hono api on node",
     "rest api on hono without effect",
     "json backend with zod validation and openapi docs",
     "lightweight express alternative for node"
   ],
-  "useCases": ["REST backends", "JSON services for web and mobile clients"],
+  "useCases": [
+    "REST backends",
+    "JSON services for web and mobile clients"
+  ],
   "synonyms": [
     "Hono",
     "Express alternative",
@@ -56,8 +67,13 @@
     "Node.js",
     "web standards fetch handler"
   ],
-  "goodFor": ["routes and validation declared once", "contract tests without a running server"],
-  "notFor": ["graphical interfaces"],
+  "goodFor": [
+    "routes and validation declared once",
+    "contract tests without a running server"
+  ],
+  "notFor": [
+    "graphical interfaces"
+  ],
   "caveats": [
     "Notes live in memory and are lost on restart until you add a database.",
     "Runs on Node; Bun and Workers hosts aren't set up."

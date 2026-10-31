@@ -20,7 +20,9 @@
     {
       "title": "Containerised RPC backend",
       "description": "Illustrative: ship the service as a container whose health check calls the gRPC health service. docker-deploy builds and publishes the image; TLS stays at the load balancer.",
-      "withFragments": ["docker-deploy"]
+      "withFragments": [
+        "docker-deploy"
+      ]
     }
   ],
   "plain": {
@@ -35,9 +37,15 @@
       "Projects that need a database or sign-in from the start; you add both yourself."
     ]
   },
-  "platforms": ["server"],
-  "productKinds": ["api"],
-  "languages": ["go"],
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "go"
+  ],
   "requests": [
     "build a gRPC service in Go from a proto file",
     "golang protobuf server with buf generate and lint",
@@ -45,7 +53,11 @@
     "detect breaking changes to my protobuf schema in CI",
     "Go microservice that other services call over gRPC"
   ],
-  "useCases": ["service-to-service RPC", "internal gRPC services", "protobuf contracts"],
+  "useCases": [
+    "service-to-service RPC",
+    "internal gRPC services",
+    "protobuf contracts"
+  ],
   "synonyms": [
     "grpc",
     "gRPC",
@@ -60,7 +72,12 @@
     "remote procedure call",
     "grpc-web"
   ],
-  "goodFor": ["generated client and server code", "schema lint and breaking checks", "server reflection", "graceful shutdown"],
+  "goodFor": [
+    "generated client and server code",
+    "schema lint and breaking checks",
+    "server reflection",
+    "graceful shutdown"
+  ],
   "notFor": [],
   "caveats": [
     "Race-enabled tests need cgo and a C compiler on every machine and CI runner.",

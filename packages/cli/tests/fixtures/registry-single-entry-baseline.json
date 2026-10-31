@@ -1,0 +1,192 @@
+{
+  "list": {
+    "entries": [
+      {
+        "id": "base",
+        "kind": "stack",
+        "name": "base name",
+        "description": "base description.",
+        "tags": [],
+        "origin": "bundled",
+        "trusted": true,
+        "shadows": [],
+        "lastRun": null
+      },
+      {
+        "id": "chosen",
+        "kind": "fragment",
+        "name": "chosen name",
+        "description": "chosen description.",
+        "tags": [],
+        "category": "tooling",
+        "appliesTo": [],
+        "origin": "bundled",
+        "trusted": true,
+        "shadows": [],
+        "lastRun": null
+      }
+    ],
+    "rejected": [
+      {
+        "id": "broken-and-linked",
+        "kind": "fragment",
+        "origin": "bundled",
+        "dir": "<REGISTRY>/fragments/broken-and-linked",
+        "error": "symlink: files/escape"
+      },
+      {
+        "id": "tainted",
+        "kind": "fragment",
+        "origin": "bundled",
+        "dir": "<REGISTRY>/fragments/tainted",
+        "error": "symlink: files/nested/escape"
+      }
+    ]
+  },
+  "validation": {
+    "root": "<REGISTRY>",
+    "bundled": true,
+    "entries": {
+      "stacks": 1,
+      "fragments": 3
+    },
+    "findings": [
+      {
+        "check": "vocabulary-invalid",
+        "severity": "error",
+        "file": "search/vocabulary.json",
+        "message": "Bundled search vocabulary is missing or unreadable."
+      },
+      {
+        "check": "verify-layers",
+        "severity": "error",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "no verify step with layer install (default, sandbox)"
+      },
+      {
+        "check": "verify-layers",
+        "severity": "error",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "no verify step with layer lint (default, sandbox)"
+      },
+      {
+        "check": "verify-layers",
+        "severity": "error",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "no verify step with layer test (default, sandbox)"
+      },
+      {
+        "check": "verify-layers",
+        "severity": "error",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "no verify step with layer typecheck (default, sandbox)"
+      },
+      {
+        "check": "search-missing",
+        "severity": "warning",
+        "kind": "stack",
+        "entry": "base",
+        "file": "search/stacks/base.json",
+        "message": "No search card; add a reviewed sidecar for search discovery."
+      },
+      {
+        "check": "stack-setup-section",
+        "severity": "warning",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "no \"## Setup\" heading in the body"
+      },
+      {
+        "check": "task-runner-tag",
+        "severity": "warning",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "tags hold neither make nor scripts; a stack declares exactly one"
+      },
+      {
+        "check": "symlink",
+        "severity": "error",
+        "kind": "fragment",
+        "entry": "broken-and-linked",
+        "file": "fragments/broken-and-linked/files/escape",
+        "message": "symlink: files/escape"
+      },
+      {
+        "check": "search-missing",
+        "severity": "warning",
+        "kind": "fragment",
+        "entry": "chosen",
+        "file": "search/fragments/chosen.json",
+        "message": "No search card; add a reviewed sidecar for search discovery."
+      },
+      {
+        "check": "symlink",
+        "severity": "error",
+        "kind": "fragment",
+        "entry": "tainted",
+        "file": "fragments/tainted/files/nested/escape",
+        "message": "symlink: files/nested/escape"
+      }
+    ],
+    "sizes": [
+      {
+        "kind": "body",
+        "entryKind": "stack",
+        "entry": "base",
+        "words": 2,
+        "limit": 2000
+      },
+      {
+        "kind": "body",
+        "entryKind": "fragment",
+        "entry": "chosen",
+        "words": 2,
+        "limit": 1000
+      },
+      {
+        "kind": "composed",
+        "entryKind": "stack",
+        "entry": "base",
+        "preset": "default",
+        "words": 720,
+        "fixedWords": 718,
+        "limit": 6000
+      },
+      {
+        "kind": "composed",
+        "entryKind": "stack",
+        "entry": "base",
+        "preset": "sandbox",
+        "words": 761,
+        "fixedWords": 759,
+        "limit": 6000
+      }
+    ]
+  },
+  "search": {
+    "request": "tainted",
+    "ranking": "local",
+    "remote": "off",
+    "remoteReason": "local_flag",
+    "understood": {
+      "platforms": [],
+      "productKinds": [],
+      "languages": [],
+      "capabilities": [],
+      "unmatched": ["tainted"]
+    },
+    "noStrongMatch": true,
+    "stacks": [],
+    "fragments": []
+  }
+}

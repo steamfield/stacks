@@ -83,8 +83,8 @@ test("Python penalizes CLI languages, sign-in names auth, and go live is not Go 
   const opts = options(space.dir());
   const python = (await searched("a command line tool in Python", opts, ["--limit", "20"])).value;
   expect(python.understood.languages).toEqual(["python"]);
-  expect(python.noStrongMatch).toBe(true);
-  for (const id of ["go-cli", "typescript-cli"]) {
+  expect(python.stacks[0]).toMatchObject({ id: "python-cli", tier: "strong" });
+  for (const id of ["go-cli", "rust-cli", "typescript-cli"]) {
     expect(hit(python.stacks, id).penalties).toContainEqual(
       expect.objectContaining({ kind: "language" }),
     );
@@ -110,15 +110,10 @@ test("overlapping vocabulary categories and TUI exclusions remain visible [4.5c#
       expect.objectContaining({ field: "platforms", matched: "cli" }),
     ]),
   );
-  const tui = (await searched("a cli with a good TUI experience", opts)).value;
+  const tui = (await searched("a cli with a good TUI experience", opts, ["--limit", "20"])).value;
   expect(tui.stacks[0]).toMatchObject({ id: "go-tui", tier: "strong" });
-  expect(
-    tui.stacks
-      .slice(1, 3)
-      .map(({ id }) => id)
-      .sort(),
-  ).toEqual(["go-cli", "typescript-cli"]);
-  for (const row of tui.stacks.slice(1, 3)) {
+  for (const id of ["go-cli", "python-cli", "rust-cli", "typescript-cli"]) {
+    const row = hit(tui.stacks, id);
     expect(row.penalties).toContainEqual(expect.objectContaining({ kind: "notFor" }));
     expect(row.tier).not.toBe("strong");
   }

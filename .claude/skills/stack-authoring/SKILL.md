@@ -41,7 +41,7 @@ From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind stack
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgments, and the pending user actions:
 
-- card approval and restamp
+- card approval and restamp, for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
 - a bench run, `bun run bench <id> --agent claude` from `packages/cli` (`docs/maintaining.md`, "The bench"), before the stack counts as proven
 - if you edited a stack with `runs.json` records or a fragment in its default composition, that its ledger proof is now stale
 
@@ -53,6 +53,6 @@ A PR from `stacks submit` or the entry template carries an author card (`by: "au
 
 | Don't | Do |
 | --- | --- |
-| Setting `reviewedAt` or running restamp yourself | Leave the card a draft for a person |
+| Setting `reviewedAt` by hand or running `--approve` | Leave a new or rewritten card a draft for a person; restamp only a reviewed card that still fits (`search-card.md`) |
 | Renaming an id to fix search | Fix the card and description; a rename is a release decision |
 | Tags chosen without checking which fragments they admit | Compose the brief with each admitted fragment |

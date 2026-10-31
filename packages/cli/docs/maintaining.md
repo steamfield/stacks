@@ -141,6 +141,9 @@ approving. `--approve` refuses under a detected agent or without terminal stdin
 every other field and refreshes only the digest and review date after an entry
 change that still fits its card. Authors can also write cards by hand.
 Restamping an unread draft is refused; use the guarded approval operation first.
+Agents may restamp a reviewed card after editing its entry, once they have
+reread the card and judged that it still fits, and they report each restamp;
+approving a new or rewritten card stays a person's step.
 
 When dispatching agents to draft cards, provide the same prompt and examples at
 the current version in a checkout without the golden evaluation set. Do not read

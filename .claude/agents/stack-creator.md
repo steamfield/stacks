@@ -22,7 +22,7 @@ A tracked file holds on any clone and for any maintainer: no absolute home paths
 
 The CLI executes nothing it reads: an entry may never ship a generator, install script or hook that `new` or `add` would run. Versions, generator flags and config formats belong in prose for the agent that builds the project, not in `files/` (`authoring.md`, "Distill the working project").
 
-A search card's `reviewedAt` is a person's review. Never set it and never run `bun run decorate --restamp` or `--approve`; the skills list the checks that stay red on your draft until a person reviews it.
+Approving a search card is a person's review: never set `reviewedAt` by hand and never run `bun run decorate --approve`; the skills list the checks that stay red on your draft until a person reviews it. When you edited an entry whose reviewed card still fits, restamp it yourself as `search-card.md` describes and say so in the hand-back.
 
 ## Clarify before you write
 
@@ -65,5 +65,6 @@ Write the report to the scratchpad path your caller gives (or a scratchpad path 
 - the output of `bun run dev validate` and each scoped test, with counts, and which failures are the expected draft ones
 - a table of the search requests you ran, the top three results and tiers for each, and whether the order is right
 - proposed golden judgments, phrased differently from the card's `requests`, as tune candidates
-- pending user actions: approve and restamp the card, add the entry to any stack's `fragments` lists, the bench run the skill names, and any `runs.json` proof your edits staled
+- cards you restamped after an entry edit
+- pending user actions: approve and restamp a new or rewritten card, add the entry to any stack's `fragments` lists, the bench run the skill names, and any `runs.json` proof your edits staled
 - assumptions you made and anything you couldn't verify

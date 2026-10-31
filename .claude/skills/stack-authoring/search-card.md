@@ -36,9 +36,11 @@ The editorial fields (`description`, `seoDescription`, `projectExamples`) are fo
 
 ## Provenance: you write drafts, a person reviews
 
-`reviewedAt` is a person's statement that they read the card. Don't set it, and don't run `bun run decorate --restamp` or `--approve`: restamp writes today's date as a review, so running it yourself fakes one.
+Approval is a person's: never set `reviewedAt` by hand and never run `bun run decorate --approve`, which refuses under an agent anyway. A new or rewritten card's text is model copy that ends up public, so a person reads it first.
 
-A card you write or rewrite is a draft: `source.by: "drafted"`, `model` set to your model id, `promptVersion` set to `PROMPT_VERSION` from `scripts/decorate/prompt.ts`, `reviewedAt: null`, and a placeholder `source.digest` (`sha256:` and 64 zeros). If you edit an entry's frontmatter or body and its card still fits unchanged, leave the card alone and list a restamp as a pending user action. If you change any card field, reset `source` to a draft as above.
+Restamping is yours when you changed the entry and not its card. Reread the card against the edited entry; if every claim and request still fits, run `bun run decorate --restamp <id>` from `packages/cli` and name the restamp in your hand-back. The tool refuses to restamp an unread draft. If the card no longer fits, rewrite it instead.
+
+A card you write or rewrite is a draft: `source.by: "drafted"`, `model` set to your model id, `promptVersion` set to `PROMPT_VERSION` from `scripts/decorate/prompt.ts`, `reviewedAt: null`, and a placeholder `source.digest` (`sha256:` and 64 zeros). If you change any card field, reset `source` to a draft as above.
 
 The pending user action for a draft is: read the card, then run `bun run decorate --approve <id>` and `bun run decorate --restamp <id>` from `packages/cli` (approval doesn't refresh the digest).
 

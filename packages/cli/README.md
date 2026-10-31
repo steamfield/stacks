@@ -96,16 +96,19 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
 | `python-api` | FastAPI service managed with uv: in-process pytest, structured request logs, one error envelope, an OpenAPI drift check | |
 | `python-cli` | Python CLI on Typer packaged as a wheel: TOML, env and flag settings, text or JSON output, an exit-code table, a smoke run of the built wheel | |
+| `python-library` | Typed Python library for PyPI: a src layout with `py.typed`, an exception hierarchy, a public-API test, Hypothesis properties, tests on the oldest supported Python, and the built wheel installed and type-checked in a clean environment | |
 | `python-react` | FastAPI backend and a React SPA talking through a client generated from the OpenAPI spec | |
 | `react-router` | React Router framework mode with SSR, Effect services, typed HTTP errors, Tailwind and shadcn | `openrouter-chat` |
 | `react-vite` | Browser-only React app on Vite, built to static files: React Router, TanStack Query over a zod-checked fetch client, Vitest with MSW and Playwright | |
 | `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |
 | `rust-cli` | Rust CLI: clap, layered TOML config, coded errors with exit statuses, human and JSON output, strict clippy, binary tests | |
+| `rust-library` | Rust library crate: documented public API, thiserror errors, doctests on every item, proptest, optional serde feature, rustdoc and cargo package checks | |
 | `sveltekit` | SvelteKit on the Node adapter: server load functions, zod-validated form actions, svelte-check, Vitest and Playwright | |
 | `tauri-react` | Tauri desktop app: Rust crates behind a thin shell, typed IPC, a React frontend with a mock transport | |
 | `typescript-api` | Node HTTP API on Effect's HttpApi: REST resource conventions, one error-status table, request logs, a core that also runs as a fetch handler | |
 | `typescript-cli` | Bun-compiled TypeScript CLI on Effect with typed errors, safe output and logs | `openrouter-chat-cli` |
 | `typescript-library` | TypeScript npm package: ESM and bundled declarations from tsdown, publint and Are the Types Wrong, a packed-tarball consumer test | |
+| `typescript-mcp` | TypeScript MCP server on the v2 SDK over stdio: zod-described tools, tool errors for the model, logs on stderr, Vitest through in-memory and stdio clients, an Inspector smoke check | |
 
 A stack pulls in default fragments (CI, git hooks, agent guardrails and so on); `stacks list` shows which, and `--without <fragment>` leaves one out. Apps are fragments that add a working feature on top of a stack. You can write your own stacks and fragments: see [Authoring a stack or fragment](docs/authoring.md).
 

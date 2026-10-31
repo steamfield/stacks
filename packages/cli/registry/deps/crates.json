@@ -71,6 +71,24 @@
         "reviewedAt": null
       }
     },
+    "proptest": {
+      "whatItIs": "proptest, a library for the Rust programming language that tests code with many generated inputs and, when one fails, shrinks it to the simplest failing case.",
+      "goodAt": [
+        "Checking a rule holds for every input, not just a few examples",
+        "Finding odd inputs a person wouldn't think to write down"
+      ],
+      "notGoodAt": [
+        "Checking one exact expected result; an ordinary example test reads more clearly."
+      ],
+      "example": "A test tries thousands of made-up names and checks that each one the code accepts comes back out exactly as it went in.",
+      "homepage": "https://github.com/proptest-rs/proptest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "serde": {
       "whatItIs": "serde, a library for the Rust programming language that converts data between saved text formats and the program's own data shapes.",
       "goodAt": [

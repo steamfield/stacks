@@ -1,0 +1,57 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes to the project, but keep the target
+# names. `stacks verify` calls install, lint, typecheck, coverage, test-min,
+# build and smoke, and CI should call the same targets.
+
+DIST := {{project_slug}}
+MODULE := $(subst -,_,$(DIST))
+TEST_WORKERS ?= auto
+# The oldest supported Python, read from requires-python's lower bound.
+MIN_PYTHON = $(shell sed -n 's/^requires-python *= *">= *\([0-9][0-9.]*\).*/\1/p' pyproject.toml)
+
+.DEFAULT_GOAL := help
+.PHONY: help install lint format typecheck test coverage test-min build smoke clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
+
+install: ## uv sync (--locked when CI is set), then git hooks outside CI
+	uv sync $(if $(CI),--locked)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
+
+lint: ## ruff check + ruff format --check
+	uv run ruff check . && uv run ruff format --check .
+
+format: ## ruff format + ruff check --fix
+	uv run ruff format . && uv run ruff check --fix .
+
+typecheck: ## mypy strict over src, tests and scripts
+	uv run mypy src tests scripts
+
+test: ## pytest (parallel) on the development Python
+	uv run pytest -n $(TEST_WORKERS)
+
+coverage: ## pytest with the branch coverage floor
+	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
+
+test-min: ## pytest on the oldest supported Python, in a fresh environment
+	@test -n "$(MIN_PYTHON)" || { echo 'pyproject.toml needs requires-python = ">=X.Y"' >&2; exit 1; }
+	uv run $(if $(CI),--locked) --isolated --python $(MIN_PYTHON) pytest -n $(TEST_WORKERS) -p no:cacheprovider
+
+build: ## Build the sdist and wheel into dist/ and check their metadata
+	rm -rf dist
+	uv build
+	uv run twine check --strict dist/*
+
+smoke: build ## Install the wheel on the oldest Python, import it and type-check against it
+	@test -n "$(MIN_PYTHON)" || { echo 'pyproject.toml needs requires-python = ">=X.Y"' >&2; exit 1; }
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	uv venv --quiet --python $(MIN_PYTHON) "$$tmp/venv" && \
+	uv pip install --quiet --python "$$tmp/venv/bin/python" dist/*.whl && \
+	(cd "$$tmp" && "$$tmp/venv/bin/python" -I "$(CURDIR)/scripts/smoke.py" $(MODULE) $(DIST)) && \
+	printf 'import %s\n' $(MODULE) > "$$tmp/consumer.py" && \
+	uv run mypy --strict --no-incremental --python-executable "$$tmp/venv/bin/python" "$$tmp/consumer.py"
+
+clean: ## Remove caches, build and coverage output
+	rm -rf .pytest_cache .mypy_cache .ruff_cache .hypothesis htmlcov .coverage .coverage.* dist

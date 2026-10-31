@@ -286,6 +286,54 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "@modelcontextprotocol/client": {
+      "whatItIs": "The official TypeScript library for connecting to MCP servers, the programs that give AI assistants tools to call.",
+      "goodAt": [
+        "Testing an MCP server the way an AI assistant would use it",
+        "Calling another MCP server's tools from your own program"
+      ],
+      "notGoodAt": ["Building the server itself; that is @modelcontextprotocol/server."],
+      "example": "A test starts the server, asks which tools it offers and calls one, checking the reply.",
+      "homepage": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@modelcontextprotocol/inspector": {
+      "whatItIs": "A developer tool for trying out an MCP server, from a web page or the command line, without an AI assistant.",
+      "goodAt": [
+        "Listing a server's tools and calling one by hand",
+        "Checking that a server's tool descriptions work with other clients"
+      ],
+      "notGoodAt": ["Running in production; it is for development only."],
+      "example": "Before sharing a server, the developer lists its tools from the command line and calls each one.",
+      "homepage": "https://github.com/modelcontextprotocol/inspector",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@modelcontextprotocol/server": {
+      "whatItIs": "The official TypeScript library for building MCP servers, programs that give AI assistants such as Claude tools they can call.",
+      "goodAt": [
+        "Letting an AI assistant use your data or service through named tools",
+        "Describing each tool's inputs so the assistant calls it correctly"
+      ],
+      "notGoodAt": ["Ordinary web APIs for apps and browsers; use a web API library such as Hono."],
+      "example": "A team's assistant calls a tool on the server to look up an order and gets back its status.",
+      "homepage": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "@openrouter/ai-sdk-provider": {
       "whatItIs": "Lets the AI SDK, a JavaScript toolkit for AI features, use models from OpenRouter.",
       "goodAt": [

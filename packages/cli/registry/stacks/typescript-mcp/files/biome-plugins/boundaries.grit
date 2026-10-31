@@ -1,0 +1,43 @@
+// MCP server boundaries: stdout belongs to the protocol, only the entry touches the process and
+// the transport, and the SDK is the v2 split packages.
+language js
+
+or {
+  or {
+    JsModuleSource() as $src,
+    `import($src)`
+  } where {
+    or {
+      and {
+        $src <: r"[\"']@modelcontextprotocol/sdk(?:/[^\"']*)?[\"']",
+        register_diagnostic(span=$src, message="@modelcontextprotocol/sdk is the v1 SDK. Import McpServer from @modelcontextprotocol/server and Client from @modelcontextprotocol/client.")
+      },
+      and {
+        $src <: r"[\"']@modelcontextprotocol/(?:server|node|express|hono|fastify)/stdio[\"']|[\"']@modelcontextprotocol/(?:node|express|hono|fastify)[\"']",
+        $filename <: r".*/src/.*",
+        $filename <: not r".*/src/index\.ts",
+        register_diagnostic(span=$src, message="Transports start only in src/index.ts. Build the server in src/server.ts and register tools there; tests connect a client in memory.")
+      }
+    }
+  },
+  `console.$m($args)` as $c where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$c, message="On stdio, stdout is the protocol channel and console.log corrupts it. Log with the logger from src/logging.ts, which writes to stderr.")
+  },
+  or {
+    `process.stdout`,
+    `globalThis.process.stdout`
+  } as $o where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$o, message="stdout carries JSON-RPC only and the transport owns it. Write logs through src/logging.ts (stderr).")
+  },
+  or {
+    `process.$x`,
+    `globalThis.process`
+  } as $p where {
+    $x <: not `stdout`,
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/index\.ts",
+    register_diagnostic(span=$p, message="Only src/index.ts reads process (env, cwd, signals); pass parsed config down instead.")
+  }
+}

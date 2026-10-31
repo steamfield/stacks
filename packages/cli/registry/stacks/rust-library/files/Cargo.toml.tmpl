@@ -1,0 +1,45 @@
+[package]
+name = "{{project_slug}}"
+edition.workspace = true
+description = "stacks:fill One sentence on what this crate does; crates.io shows it in search."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+# Only these paths go into the published .crate; `make package` lists them.
+include = ["/src/", "/README.md", "/LICENSE*"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
+
+# One package at the root, inside a workspace, so a second crate joins without
+# moving this one. `cargo add` writes [dependencies] here.
+[workspace]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+missing_docs = "deny"
+unreachable_pub = "deny"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"

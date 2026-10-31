@@ -1,0 +1,27 @@
+"""{{project_name}}: parse and format compact durations such as `1h30m`.
+
+The names in `__all__` are the public API, documented in `docs/api.md`.
+Everything else, including the underscore modules, may change in any release.
+"""
+
+from __future__ import annotations
+
+import logging
+from importlib.metadata import version
+
+from ._duration import format_duration, parse_duration
+from ._errors import Error, ParseError, RangeError
+
+__all__ = [
+    "Error",
+    "ParseError",
+    "RangeError",
+    "__version__",
+    "format_duration",
+    "parse_duration",
+]
+
+__version__ = version("{{project_slug}}")
+
+# The application that imports this library decides where log records go.
+logging.getLogger(__name__).addHandler(logging.NullHandler())

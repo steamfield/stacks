@@ -236,6 +236,21 @@ const launchTerminal = Effect.fn("handoff.launchTerminal")(function* (
   yield* (yield* Invocation).exitWith(status);
 });
 
+const recordAppFallback = Effect.fn("handoff.recordAppFallback")(function* (
+  project: string,
+  decision: HandoffDecision,
+) {
+  const invocation = yield* Invocation;
+  const before = yield* invocation.rollbackCount;
+  yield* recordHandoff(project, decision).pipe(
+    Effect.catch((failure) =>
+      invocation.rollbackCount.pipe(
+        Effect.flatMap((after) => (after > before ? Effect.fail(failure) : Effect.void)),
+      ),
+    ),
+  );
+});
+
 const launchApp = Effect.fn("handoff.launchApp")(function* (
   project: string,
   context: Parameters<typeof renderHandoff>[1],
@@ -254,7 +269,7 @@ const launchApp = Effect.fn("handoff.launchApp")(function* (
     );
   if (result) return;
   const printed = { kind: "print", reason: "not-chosen", untrusted: [] } satisfies HandoffDecision;
-  yield* recordHandoff(project, printed).pipe(Effect.ignore);
+  yield* recordAppFallback(project, printed);
   yield* (yield* Output).result(null, renderHandoff(printed, context));
 });
 

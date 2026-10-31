@@ -1,0 +1,39 @@
+# Development
+
+Initialize the module with `go mod init {{project_slug}}`, or use the intended
+remote module path and replace `{{project_slug}}/internal/` in the Go imports.
+Resolve the dependencies (import paths, so the `/v2` majors stay) before
+running the Makefile:
+
+```sh
+go get charm.land/bubbletea/v2 charm.land/bubbles/v2 charm.land/lipgloss/v2 golang.org/x/term
+go get github.com/stretchr/testify github.com/charmbracelet/x/exp/teatest/v2
+go mod tidy
+make install
+```
+
+Install golangci-lint using its official instructions and write its installed
+version to `.golangci-lint-version`. Run `make help` for every target.
+
+```sh
+make fmt-check tidy-check vet lint build test test-integration smoke coverage
+go test -race -run TestFrames/detail ./internal/ui/
+```
+
+## Trying the UI
+
+Run `./bin/{{project_slug}}` yourself, in a real terminal. Coding agents
+don't: their shell has no terminal, so the binary prints text, and wrapping it
+in `script` or `tmux` hangs the session. The Claude Code hook denies those
+wrappers. Agents prove UI behavior through `make test`.
+
+## Golden frames
+
+`internal/ui/testdata/TestFrames/*.golden` hold each screen's exact `View()`
+output, ANSI styles included, at 60x16. A view change, or a Bubbles or Lip Gloss
+release that changes default styles, fails `TestFrames` with a diff. Rewrite
+them with `make golden` and read the diff before committing; never hand-edit
+them.
+
+`make test`, `make test-integration` and `make coverage` use `-race`, which
+needs cgo and a C compiler.

@@ -1,0 +1,85 @@
+package config
+
+import (
+	"log/slog"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func env(values map[string]string) func(string) string {
+	return func(key string) string { return values[key] }
+}
+
+func TestLoadPrecedence(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		env  map[string]string
+		want Config
+	}{
+		{name: "defaults", want: Config{LogLevel: slog.LevelInfo}},
+		{
+			name: "environment",
+			env:  map[string]string{EnvPrefix + "_TASKS": "env.json", EnvPrefix + "_LOG_FILE": "env.log", EnvPrefix + "_LOG_LEVEL": "debug"},
+			want: Config{TasksFile: "env.json", LogFile: "env.log", LogLevel: slog.LevelDebug},
+		},
+		{
+			name: "flags over environment",
+			args: []string{"--tasks", "flag.json", "--log-level", "warn", "--no-tui"},
+			env:  map[string]string{EnvPrefix + "_TASKS": "env.json", EnvPrefix + "_LOG_LEVEL": "debug"},
+			want: Config{TasksFile: "flag.json", LogLevel: slog.LevelWarn, NoTUI: true},
+		},
+		{name: "blank environment uses defaults", env: map[string]string{EnvPrefix + "_LOG_LEVEL": " "}, want: Config{LogLevel: slog.LevelInfo}},
+		{name: "json", args: []string{"--json"}, want: Config{JSON: true, LogLevel: slog.LevelInfo}},
+		{name: "version", args: []string{"--version"}, want: Config{Version: true, LogLevel: slog.LevelInfo}},
+		{name: "help", args: []string{"--help"}, want: Config{Help: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(tt.args, env(tt.env))
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg)
+		})
+	}
+}
+
+func TestLoadRejects(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		env  map[string]string
+		code string
+	}{
+		{name: "unknown flag", args: []string{"--nope"}, code: apperrors.InvalidInput},
+		{name: "argument", args: []string{"extra"}, code: apperrors.InvalidInput},
+		{name: "bad level flag", args: []string{"--log-level", "loud"}, code: apperrors.Config},
+		{name: "offset level", args: []string{"--log-level", "info+2"}, code: apperrors.Config},
+		{name: "bad level env", env: map[string]string{EnvPrefix + "_LOG_LEVEL": "trace"}, code: apperrors.Config},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(tt.args, env(tt.env))
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, tt.code, failure.Code)
+			assert.NotEmpty(t, failure.Suggestion)
+		})
+	}
+}
+
+func TestInteractive(t *testing.T) {
+	assert.True(t, Config{}.Interactive())
+	assert.False(t, Config{NoTUI: true}.Interactive())
+	assert.False(t, Config{JSON: true}.Interactive())
+}
+
+func TestUsage(t *testing.T) {
+	usage := Usage(env(nil))
+	for _, flag := range []string{"-tasks", "-no-tui", "-json", "-log-file", "-log-level", "-version"} {
+		assert.Contains(t, usage, flag)
+	}
+}

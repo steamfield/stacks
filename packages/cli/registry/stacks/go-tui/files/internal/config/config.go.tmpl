@@ -1,0 +1,94 @@
+package config
+
+import (
+	"bytes"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"log/slog"
+	"strings"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+const Binary = "{{project_slug}}"
+const EnvPrefix = "{{env_prefix}}"
+
+// Config is everything the program reads from flags and the environment.
+// Precedence: defaults < environment < flags.
+type Config struct {
+	TasksFile string // "" loads the built-in sample tasks
+	NoTUI     bool   // print the list as text and exit
+	JSON      bool   // print the list (and errors) as JSON and exit
+	LogFile   string // "" discards logs; the terminal belongs to the UI
+	LogLevel  slog.Level
+	Version   bool
+	Help      bool
+}
+
+// Interactive reports whether the flags allow the full-screen UI. The caller
+// still checks that stdin and stdout are terminals.
+func (c Config) Interactive() bool { return !c.NoTUI && !c.JSON }
+
+type settings struct {
+	tasks, logFile, logLevel string
+	noTUI, json, version     bool
+}
+
+func flags(getenv func(string) string, s *settings) *flag.FlagSet {
+	fs := flag.NewFlagSet(Binary, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&s.tasks, "tasks", getenv(EnvPrefix+"_TASKS"), "JSON file of tasks to show (env "+EnvPrefix+"_TASKS; default: built-in sample)")
+	fs.BoolVar(&s.noTUI, "no-tui", false, "print the tasks as text and exit (automatic when stdin or stdout is not a terminal)")
+	fs.BoolVar(&s.json, "json", false, "print the tasks as JSON and exit; errors are JSON on stderr")
+	fs.StringVar(&s.logFile, "log-file", getenv(EnvPrefix+"_LOG_FILE"), "append JSON logs to this file (env "+EnvPrefix+"_LOG_FILE; default: no logs)")
+	fs.StringVar(&s.logLevel, "log-level", value(getenv(EnvPrefix+"_LOG_LEVEL"), "info"), "debug, info, warn or error (env "+EnvPrefix+"_LOG_LEVEL)")
+	fs.BoolVar(&s.version, "version", false, "print the version and exit")
+	return fs
+}
+
+func value(v, fallback string) string {
+	if strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	return v
+}
+
+// Load parses args over the environment and validates the result.
+func Load(args []string, getenv func(string) string) (Config, error) {
+	var s settings
+	fs := flags(getenv, &s)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return Config{Help: true}, nil
+		}
+		return Config{}, apperrors.Wrap(apperrors.InvalidInput, "parse flags", "Run "+Binary+" --help to list the flags.", err)
+	}
+	if fs.NArg() > 0 {
+		return Config{}, apperrors.New(apperrors.InvalidInput, "unexpected argument "+fs.Arg(0), "Run "+Binary+" --help; it takes flags only.")
+	}
+	cfg := Config{TasksFile: s.tasks, NoTUI: s.noTUI, JSON: s.json, LogFile: s.logFile, Version: s.version}
+	if err := cfg.LogLevel.UnmarshalText([]byte(s.logLevel)); err != nil || !knownLevel(cfg.LogLevel) {
+		return Config{}, apperrors.New(apperrors.Config, fmt.Sprintf("log level %q is not debug, info, warn or error", s.logLevel), "Set --log-level or "+EnvPrefix+"_LOG_LEVEL to one of them.")
+	}
+	return cfg, nil
+}
+
+func knownLevel(l slog.Level) bool {
+	switch l {
+	case slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError:
+		return true
+	}
+	return false
+}
+
+// Usage is the --help text.
+func Usage(getenv func(string) string) string {
+	var out bytes.Buffer
+	fs := flags(getenv, &settings{})
+	fs.SetOutput(&out)
+	fmt.Fprintf(&out, "Usage: %s [flags]\n\nA terminal task browser. Without a terminal it prints the tasks as text.\n\nFlags:\n", Binary)
+	fs.PrintDefaults()
+	return out.String()
+}

@@ -1,0 +1,27 @@
+package log
+
+import (
+	"io"
+	"log/slog"
+	"os"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+// New returns a JSON logger on w. Pass it down; never call slog.SetDefault.
+func New(w io.Writer, level slog.Level) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}))
+}
+
+// Open appends JSON logs to path, or discards them when path is empty.
+// Logs never go to stdout or stderr: the full-screen UI owns the terminal.
+func Open(path string, level slog.Level) (*slog.Logger, func() error, error) {
+	if path == "" {
+		return slog.New(slog.DiscardHandler), func() error { return nil }, nil
+	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // The path is the user's own log-file setting.
+	if err != nil {
+		return nil, nil, apperrors.Wrap(apperrors.IO, "open log file "+path, "Choose a writable --log-file path or unset it.", err)
+	}
+	return New(file, level), file.Close, nil
+}

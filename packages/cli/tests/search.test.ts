@@ -111,18 +111,18 @@ test("overlapping vocabulary categories and TUI exclusions remain visible [4.5c#
     ]),
   );
   const tui = (await searched("a cli with a good TUI experience", opts)).value;
+  expect(tui.stacks[0]).toMatchObject({ id: "go-tui", tier: "strong" });
   expect(
     tui.stacks
-      .slice(0, 2)
+      .slice(1, 3)
       .map(({ id }) => id)
       .sort(),
   ).toEqual(["go-cli", "typescript-cli"]);
-  for (const row of tui.stacks.slice(0, 2)) {
+  for (const row of tui.stacks.slice(1, 3)) {
     expect(row.penalties).toContainEqual(expect.objectContaining({ kind: "notFor" }));
     expect(row.tier).not.toBe("strong");
   }
-  expect(tui.noStrongMatch).toBe(true);
-  expect(tui.understood.unmatched).toContain("TUI");
+  expect(tui.noStrongMatch).toBe(false);
 });
 
 test.each([

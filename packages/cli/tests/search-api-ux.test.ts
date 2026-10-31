@@ -143,7 +143,11 @@ test("API hits retain missing local evidence and use it to break ties", async ()
     stats: { greenRateLower: 0.86 },
     lastRun: { result: "pass" },
   });
-  const body = response([officialHit("api-first"), officialHit("go-cli")]);
+  const body = response([
+    officialHit("api-first"),
+    officialHit("go-cli"),
+    officialHit("go-tui", { tier: "partial", score: 0.5 }),
+  ]);
   server.answer(body);
   const merged = decoded(await runCli(["search", "go cli", "--json"], opts));
   expect(merged.stacks[0]).toEqual({ ...body.stacks[1], evidence: go?.evidence });

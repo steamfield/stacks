@@ -2,11 +2,12 @@
 // `prepare`, which bun runs after every `bun install`: installs the git hooks. CI sets CI and
 // does its own setup, so this does nothing there.
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 process.chdir(join(import.meta.dirname, '..'));
 
-if (!process.env.CI) {
+if (!process.env.CI && existsSync('lefthook.yml')) {
   const lefthook = spawnSync('lefthook', ['install'], { stdio: 'inherit' });
   if ((lefthook.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
     console.log(

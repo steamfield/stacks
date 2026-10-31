@@ -1,0 +1,5 @@
+import { hc } from 'hono/client';
+import type { AppType } from '{{project_slug}}-api/client';
+import { apiUrl } from './api-url';
+
+export const api = hc<AppType>(apiUrl());

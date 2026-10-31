@@ -29,7 +29,7 @@ The mobile app consumes the API's types through the API workspace's `./client` e
 - `bun` is imported by `db/index.ts` alone, the one place the SQL client is created.
 - Drizzle is reachable through services (`routes -> services -> db` is the architecture), but never from a route module or `env.ts` directly; query building stays in services.
 
-`test/client-type-surface.test.ts` crawls imports from `client.ts` and asserts these: no middleware or auth SDK is reachable, `bun` is imported only by `db/index.ts`, and Drizzle only by services and `db/`. `bun` and Drizzle being reachable through services is expected. Before adding an import to a route module, check what it pulls in, then run `bun run typecheck` (it covers mobile).
+`test/harness-contract.test.ts` crawls imports from `client.ts` and asserts these: no middleware or auth SDK is reachable, `bun` is imported only by `db/index.ts`, and Drizzle only by services and `db/`. `bun` and Drizzle being reachable through services is expected. Before adding an import to a route module, check what it pulls in, then run `bun run typecheck` (it covers mobile).
 
 ## Errors: throw, unless you are composed
 
@@ -47,12 +47,12 @@ export const JOIN_FAILURES = {
 
 The first caller that owns a response throws.
 
-Every error leaves as `{ "message": string }` JSON, decided in `app.ts` only: `onError`, `notFound`, and the `defaultHook` that turns zod issues into `path: message`. `onError` splits deliberate from went-wrong, not 4xx from 5xx: an `HTTPException` is response copy and passes through at its status (a 503 from `/health/ready` included); anything else is logged whole beside the request and answered as a bare 500. So an impossible state is `throw new Error('upsert returned no row')`, never `HTTPException(500)`.
+Every error leaves as `{ "message": string }` JSON: `app.ts` owns `onError` and `notFound`; `validation.ts` supplies the `defaultHook` for the app and each route group. Mounted OpenAPI groups do not inherit the parent's hook. An `HTTPException` passes through at its status (a 503 from `/health/ready` included); an unexpected error logs its class and request id and answers a bare 500. Keep headers, tokens and payloads out of logs. An impossible state is `throw new Error('upsert returned no row')`, never `HTTPException(500)`.
 
 Work that rides along on a request (a notification send after the response) logs and carries on rather than failing the request that triggered it.
 
 ## Database
 
-`db()` in `db/index.ts` builds the Drizzle client lazily and caches it per connection string: importing never connects, and bun:test points each test file at its own database. `index.ts` exits with a fix-it message when `DATABASE_URL` is missing, rather than serving 500s while `/health` stays green.
+`db(url)` in `db/index.ts` builds the Drizzle client lazily and caches it per connection string. `createApp(url)` binds a test's URL to its context; changing process env cannot redirect an existing app to another file's database. `index.ts` validates config before listening.
 
 Migrations: edit `src/db/schema.ts`, then `bun run db:generate` and `bun run db:migrate`. Never hand-edit `drizzle/`; the SQL and the journal are generated, and a hand edit desynchronises the next diff. If a migration is wrong, fix the schema and regenerate. `bun run db:check` validates the folder without a database. Migrations are a release step; the API never migrates on boot.

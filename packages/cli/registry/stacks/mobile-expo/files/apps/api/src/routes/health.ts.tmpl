@@ -1,0 +1,37 @@
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
+import { ErrorResponse, HealthResponse, ReadyResponse } from '{{project_slug}}-schemas';
+import type { AppEnv } from '../env';
+import { readiness } from '../services/health';
+import { validationHook } from '../validation';
+
+export const health = new OpenAPIHono<AppEnv>({ defaultHook: validationHook })
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/',
+      tags: ['Health'],
+      summary: 'Process health',
+      description: 'Liveness without a database query.',
+      responses: {
+        200: { description: 'Alive', content: { 'application/json': { schema: HealthResponse } } },
+      },
+    }),
+    (c) => c.json({ status: 'ok' as const, uptime: process.uptime() }, 200),
+  )
+  .openapi(
+    createRoute({
+      method: 'get',
+      path: '/ready',
+      tags: ['Health'],
+      summary: 'Database readiness',
+      description: 'Ready only when Postgres answers.',
+      responses: {
+        200: { description: 'Ready', content: { 'application/json': { schema: ReadyResponse } } },
+        503: {
+          description: 'Unavailable',
+          content: { 'application/json': { schema: ErrorResponse } },
+        },
+      },
+    }),
+    async (c) => c.json(await readiness(c.get('databaseUrl')), 200),
+  );

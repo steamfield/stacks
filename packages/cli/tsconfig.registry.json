@@ -21,6 +21,9 @@
   "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
   // These SPAs import React, browser globals and tools installed only in the scaffold.
   "exclude": [
+    // Expo, Hono, Drizzle and zod are installed only in the mobile scaffold.
+    "registry/stacks/mobile-expo/files/apps/**",
+    "registry/stacks/mobile-expo/files/packages/**",
     "registry/stacks/python-react/files/frontend/**",
     "registry/stacks/tauri-react/files/src/**",
     "registry/stacks/tauri-react/files/tests/**",

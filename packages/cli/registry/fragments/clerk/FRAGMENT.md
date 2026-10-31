@@ -18,6 +18,17 @@ decisions:
 
 Auth is on for every API route unless a path is named public, and the test suite proves it without a Clerk account. A clone with no keys still boots: the app runs with auth unmounted and the API serves its public routes.
 
+<!-- stacks:when stack=mobile-expo -->
+The base ships `createApp(databaseUrl)`, the anonymous `Providers`, `renderScreen`,
+and `useHealth`. Extend those boundaries rather than replacing the slice. Install
+auth middleware inside `createApp`, before mounting routes; retain its per-app
+database URL. `/items` becomes protected, so move its existing success and zod-400
+requests onto the harness's signed `t.as(...)` path. Keep the parallel isolation
+files and same-process app-binding cases signed too. Extend `Providers` and the test renderer together, clear the
+same QueryClient on identity changes, and add `test/auth-provider.test.tsx` from
+the acceptance matrix in `docs/acceptance/mobile-expo.md`.
+<!-- stacks:end -->
+
 ## API
 
 - `middleware/auth.ts` exports `clerkAuth()`, which builds Clerk's Hono middleware per request with `jwtKey` from `CLERK_JWT_KEY` (read per request, since bun:test shares modules across files). Passing the PEM is what turns on networkless verification.

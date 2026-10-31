@@ -1,0 +1,17 @@
+import { useQuery } from '@tanstack/react-query';
+import { HealthResponse } from '{{project_slug}}-schemas';
+import { api } from '../api';
+import { apiError } from './api-error';
+import { queryKeys } from './keys';
+
+export function useHealth() {
+  return useQuery({
+    queryKey: queryKeys.health,
+    staleTime: 30000,
+    queryFn: async () => {
+      const response = await api.health.$get();
+      if (!response.ok) throw await apiError(response, 'Health request failed');
+      return HealthResponse.parse(await response.json());
+    },
+  });
+}

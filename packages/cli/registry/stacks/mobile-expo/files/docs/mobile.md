@@ -23,8 +23,6 @@ An inline `style` prop is allowed for exactly four reasons, each with a one-line
 
 `className` only works on components NativeWind knows. NativeWind's import rewriting covers `react-native` itself (`View`, `Text`, `Pressable`, `ScrollView`); a component from any other package silently drops the prop and renders unstyled. A `SafeAreaView` that lost its `flex-1` this way collapses to zero height and looks like a blank screen. Register third-party components once, in `src/components/styled.ts`, and import them from there; never call `styled` at a call site.
 
-`cn()` in `src/lib/cn.ts` joins class strings and drops falsy parts. It deliberately doesn't de-duplicate: NativeWind resolves conflicts by order, so an override goes last.
-
 ## Debugging a screen
 
 `bun run dev` records everything it prints (migrations, the api, the native build, Metro, the app's `console.*`) to `.logs/dev.log`, truncated each run. Read it with `bun run dev:logs` before asking for a screenshot.

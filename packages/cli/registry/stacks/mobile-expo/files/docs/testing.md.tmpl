@@ -42,14 +42,13 @@ Why it's shaped this way:
 
 - Each run owns a uniquely named template database, migrated once under a Postgres advisory lock from the real `drizzle/` migrations. Cleanup drops only exact database names this run created. Never infer ownership or staleness from a prefix; leftovers from earlier runs require explicit review, not automatic deletion.
 - Each file gets `CREATE DATABASE ... TEMPLATE <template>`, which fails if anything is connected to the template, so the harness closes that connection before cloning. Each file's database is always dropped after.
-- `../src/app` is imported dynamically inside `beforeAll`, after `DATABASE_URL` is set. A static import captures the wrong environment. Get the type statically with `type App = (typeof import('../src/app'))['app']`, which is erased at compile time; the same trick works for any late import.
+- `../src/app` is imported dynamically inside `beforeAll`, after `DATABASE_URL` is set, then `createApp(database.url)` binds the connection per app. Get the type with `ReturnType<(typeof import('../src/app'))['createApp']>`, which is erased at compile time. `test/preload.ts` installs whole-run cleanup; keep it in both Bun configs, since a hook imported by the first test file has only that file's scope.
 - Requests go through `t.app.request(path, init)`: no supertest, no port, no server lifecycle.
 
 ## The mobile harness (`apps/mobile/test/`)
 
-- `render.tsx`: `renderScreen(ui, options?)` mounts the providers the root layout mounts, in the same order, with a fresh `QueryClient` whose queries don't retry and whose `gcTime` is `Infinity` (a garbage-collection timer otherwise keeps jest alive after the run). Screen tests never hand-wrap providers. Also `mockJsonResponse(body, status?)` for one canned response and `mockApi([[urlFragment, method, handler], ...])` for screens that call several endpoints; unmatched requests answer 404. Both are `jest.spyOn(globalThis, 'fetch')` returning a real `Response`.
-- `router-mock.ts`: the shared `expo-router` stub. `jest.mock` factories are hoisted and can't close over the test file, so the line stays in the file and its body doesn't: `jest.mock('expo-router', () => require('./router-mock').routerMock())`, then `getMockRouter()` and `setMockParams(...)`. It runs `useFocusEffect` on mount, since a screen rendered alone never gets the navigator's focus call.
-- `setup.ts`: restores mocks and resets the router spies after each test, and holds global stubs for native modules that throw at import time outside a native binary.
+- `render.tsx`: `renderScreen(ui)` mounts the root layout's real `Providers` with a fresh `QueryClient` whose queries don't retry and whose `gcTime` is `Infinity` (a garbage-collection timer otherwise keeps jest alive after the run). Screen tests never hand-wrap providers. `mockJsonResponse(body, status?)` stubs fetch with a real `Response`; add a shared dispatch helper when a screen needs multiple endpoints.
+- `setup.ts` restores spies after each test and stubs the native safe-area binding. Add a shared router stub when testing a screen that navigates; the shipped home does not call the navigator. A router stub must run `useFocusEffect` on mount.
 - Add response builders to a `fixtures.ts`, each typed with its real schema type and taking a `Partial`, rather than spelling bodies out in each test.
 
 Await everything Testing Library returns: `render`, `rerender`, `unmount`, and every `fireEvent`. A floating one lets the assertion run before React flushes, which makes the test pass whatever the component does. Before asserting that nothing happened, wait for a sign the code ran.
@@ -60,8 +59,7 @@ Mock the process boundary and nothing inside it. In mobile, the hooks in `src/li
 
 | Module | Stub | Why |
 | --- | --- | --- |
-| `expo-router` | `test/router-mock.ts` | the navigator; a screen rendered alone has none |
-| native modules that throw at import outside a native binary | `test/setup.ts` (global), one row each when added | the module reaches for a native binding jest doesn't have |
+| `react-native-safe-area-context` | its official Jest mock in `test/setup.ts` | the native binding has no device |
 
 Adding a module stub is a change to this table first. Mocking a hook or the API client to make a screen test pass tests the mock; assert on what the user sees given a stubbed response.
 

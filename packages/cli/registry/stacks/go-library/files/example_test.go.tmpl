@@ -1,0 +1,55 @@
+package libname_test
+
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	"{{project_slug}}"
+)
+
+// These examples are the package documentation pkg.go.dev shows, and go test
+// runs each one and compares what it prints with its Output comment.
+
+func ExampleParse() {
+	d, err := libname.Parse("1d12h")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(d, d == 36*time.Hour)
+	// Output: 36h0m0s true
+}
+
+func ExampleFormat() {
+	fmt.Println(libname.Format(90 * time.Minute))
+	fmt.Println(libname.Format(8*24*time.Hour + 1500*time.Millisecond))
+	// Output:
+	// 1h30m
+	// 1w1d1s500ms
+}
+
+func ExampleNew() {
+	p, err := libname.New(libname.WithMax(libname.Week))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	_, err = p.Parse("8d")
+	fmt.Println(errors.Is(err, libname.ErrRange))
+	// Output: true
+}
+
+func ExampleParseError() {
+	_, err := libname.Parse("2h15x")
+	if errors.Is(err, libname.ErrSyntax) {
+		fmt.Println("not a duration")
+	}
+	var perr *libname.ParseError
+	if errors.As(err, &perr) {
+		fmt.Printf("%q fails at byte %d: %s\n", perr.Input, perr.Offset, perr.Reason)
+	}
+	// Output:
+	// not a duration
+	// "2h15x" fails at byte 4: unknown unit "x"; use w, d, h, m, s or ms
+}

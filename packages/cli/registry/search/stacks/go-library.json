@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "go-library",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A reusable Go module with no binary, for other Go code to import: a small documented API, runnable examples and an API-compatibility check.",
+  "description": "Start a Go library that other modules import with go get. A duration parser proves the shape: exported functions with doc comments, functional options validated by a constructor, sentinel errors wrapped by a typed error so callers use errors.Is and errors.As, examples that pkg.go.dev shows and every check runs, a fuzzing property, and a consumer module that imports it from outside. golangci-lint requires a doc comment on every exported name and keeps printing and global state out, and apidiff fails the checks on an incompatible change since the last release. It ships no binary, CLI or server, and releasing stays a person's step.",
+  "seoDescription": "A Go library module recipe: documented exported API, errors.Is and errors.As errors, runnable examples, fuzzing, a consumer module check and apidiff.",
+  "projectExamples": [
+    {
+      "title": "Client package for an internal service",
+      "description": "Illustrative: replace the duration parser with typed request and response helpers that the team's Go services import, with errors callers can test with errors.Is."
+    },
+    {
+      "title": "Parser for a small file format",
+      "description": "Illustrative: a reader and writer for a config or log format, with round-trip fuzz properties and examples that double as documentation."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a reusable piece of Go code that other Go programs add as a dependency, rather than a program people run themselves.",
+    "goodAt": [
+      "Sharing code between Go projects through go get",
+      "Documentation examples that are checked on every change",
+      "Catching changes that would break the code depending on it"
+    ],
+    "notGoodAt": [
+      "A program people run; choose the Go command-line, API or terminal app stack.",
+      "Code called from other languages, which needs bindings this doesn't set up."
+    ]
+  },
+  "platforms": [],
+  "productKinds": [
+    "library"
+  ],
+  "languages": [
+    "go"
+  ],
+  "requests": [
+    "start a reusable Go module other projects import with go get",
+    "golang package with runnable examples that show up on pkg.go.dev",
+    "a go library with sentinel errors for errors.Is and errors.As",
+    "catch breaking changes to my Go module's exported functions before tagging a release",
+    "fuzzing for a golang parser package"
+  ],
+  "useCases": [
+    "publishing a Go module",
+    "shared Go code across services",
+    "semver releases with API checks"
+  ],
+  "synonyms": [
+    "golang library",
+    "go package",
+    "go module",
+    "pkg.go.dev",
+    "godoc",
+    "apidiff",
+    "gorelease alternative",
+    "Example functions",
+    "go fuzzing"
+  ],
+  "goodFor": [
+    "documented exported APIs",
+    "semver discipline",
+    "fuzzing"
+  ],
+  "notFor": [],
+  "caveats": [
+    "Race-enabled tests need cgo and a C compiler on every machine and CI runner."
+  ]
+}

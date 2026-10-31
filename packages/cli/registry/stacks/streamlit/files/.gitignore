@@ -1,0 +1,34 @@
+# Environment
+.env
+.env.*
+!.env.example
+!.env.example.tmpl
+
+# Streamlit secrets stay local; deploys pass them as environment or platform secrets.
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Build output
+dist/
+
+# Logs
+*.log
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

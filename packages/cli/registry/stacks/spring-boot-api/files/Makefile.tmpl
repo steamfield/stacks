@@ -48,7 +48,7 @@ lint: env ## Maven Enforcer: JDK version, dependency convergence, duplicate decl
 	$(MVN) -q validate
 
 compile: env ## Compile main and test code with Error Prone and NullAway
-	$(MVN) -q test-compile
+	$(MVN) test-compile
 
 test: env ## Unit and slice tests (*Test)
 	$(MVN) test

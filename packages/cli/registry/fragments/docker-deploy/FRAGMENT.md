@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api, spring-boot-api, quarkus-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api, spring-boot-api, quarkus-api, streamlit]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -49,6 +49,9 @@ Run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when stack=django,django-api -->
 **Django**: one root `Dockerfile` served by gunicorn, with migrations as a release step; the stack's own deploy section has the specifics.
+<!-- stacks:end -->
+<!-- stacks:when stack=streamlit -->
+**Streamlit**: one root `Dockerfile` running `streamlit run app.py` headless on `0.0.0.0`, health-checked on `/_stcore/health`; the stack's own deploy section has the specifics.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-react -->
 **React SPA**: build with bun, serve `build/client` from an unprivileged nginx or Caddy image with the `index.html` fallback, immutable caching for hashed assets, `no-cache` for `index.html`, a `/healthz` location, and a `/api` proxy if the API shares the origin.

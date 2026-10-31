@@ -1,0 +1,19 @@
+# Read by `streamlit run` from the project root. Command-line flags and STREAMLIT_* variables win.
+
+[server]
+# Never prompt for an email or open a browser; agents, verify and containers run it unattended.
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[runner]
+# Only explicit st.* calls draw on the page; a bare expression in app.py is a mistake, not output.
+magicEnabled = false
+
+[client]
+# Viewers see a generic message for an unexpected exception; the traceback goes to the server log.
+showErrorDetails = "none"
+
+[theme]
+base = "light"

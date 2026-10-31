@@ -187,6 +187,7 @@
       "pytest-xdist",
       "ruff",
       "sqlalchemy",
+      "streamlit",
       "structlog",
       "twine",
       "typer",

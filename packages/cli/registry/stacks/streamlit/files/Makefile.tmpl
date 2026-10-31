@@ -1,0 +1,44 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes to the project, but keep the target
+# names. `stacks verify` calls install, lint, typecheck, coverage and start,
+# and CI should call the same targets except start.
+
+PORT_WEB ?= 8501
+WEB_HOST ?= 127.0.0.1
+TEST_WORKERS ?= auto
+STREAMLIT := uv run streamlit run app.py --server.port $(PORT_WEB) --server.address $(WEB_HOST)
+
+.DEFAULT_GOAL := help
+.PHONY: help install lint format typecheck test coverage dev start clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+
+install: ## uv sync (--locked when CI is set), then git hooks outside CI
+	uv sync $(if $(CI),--locked)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
+
+lint: ## ruff check + ruff format --check
+	uv run ruff check . && uv run ruff format --check .
+
+format: ## ruff format + ruff check --fix
+	uv run ruff format . && uv run ruff check --fix .
+
+typecheck: ## mypy strict over app.py, src and tests
+	uv run mypy app.py src tests
+
+test: ## pytest (parallel), including the AppTest page tests
+	uv run pytest -n $(TEST_WORKERS)
+
+coverage: ## pytest with the branch coverage floor
+	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
+
+dev: ## Streamlit on PORT_WEB, rerunning the page when a file is saved
+	$(STREAMLIT) --server.runOnSave true
+
+start: ## Streamlit on PORT_WEB with no file watcher, as a deploy runs it
+	exec $(STREAMLIT) --server.fileWatcherType none
+
+clean: ## Remove caches and coverage output
+	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage .coverage.*

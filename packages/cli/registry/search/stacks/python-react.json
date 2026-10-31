@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "python-react",
   "source": {
-    "digest": "sha256:7af89b6cf70045794da92b62dcbebb46080b7ea4b875705e8d8fe2fab46b73a7",
+    "digest": "sha256:eaea896c1ec2df895848aa5273c050260f4fd8e4f2451e87e5cd49f5b2960f2c",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A browser app backed by a Python API, with generated frontend types, query hooks and test mocks.",
   "description": "Keep Python business logic in FastAPI and build the browser interface as a React single-page app. OpenAPI generates the frontend's types, query hooks and test handlers, with a drift check for the committed API contract. Both halves have their own tests behind one Makefile. The base has no database or authentication; postgres is the compatible persistence add-on, while account handling remains your work.",

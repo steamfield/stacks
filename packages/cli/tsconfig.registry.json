@@ -46,6 +46,14 @@
     "registry/stacks/sveltekit/files/*.ts",
     "registry/stacks/sveltekit/files/src",
     "registry/stacks/sveltekit/files/tests",
-    "registry/stacks/sveltekit/files/e2e"
+    "registry/stacks/sveltekit/files/e2e",
+    // Expo, Hono, Drizzle and zod are installed only in the mobile scaffold.
+    "registry/stacks/mobile-expo/files/apps/**",
+    "registry/stacks/mobile-expo/files/packages/**",
+    // These SPAs import React, browser globals and tools installed only in the scaffold.
+    "registry/stacks/python-react/files/frontend/**",
+    "registry/stacks/tauri-react/files/src/**",
+    "registry/stacks/tauri-react/files/tests/**",
+    "registry/stacks/tauri-react/files/*.config.ts"
   ]
 }

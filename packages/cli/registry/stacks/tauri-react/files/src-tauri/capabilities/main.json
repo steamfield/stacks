@@ -1,0 +1,6 @@
+{
+  "identifier": "main",
+  "description": "The main window uses only application commands.",
+  "windows": ["main"],
+  "permissions": []
+}

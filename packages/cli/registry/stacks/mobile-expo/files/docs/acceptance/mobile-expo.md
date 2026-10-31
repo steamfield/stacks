@@ -2,12 +2,13 @@
 
 Verify runs `test:api test/harness-contract.test.ts`,
 `test:mobile --runInBand test/auth-provider.test.tsx` and `test:ci` separately.
-Implement the suites and script, preserve their names, and include them in the
+The base ships the database/import and CI suites; the Clerk fragment adds its
+provider matrix. Preserve their names and include them in the
 ordinary workspace tests/check/CI. Hook coverage is not an application audit.
 
 ## Database and import graph
 
-Implement the prescribed setupApiTest(label): migrate a template once per run
+Keep the shipped setupApiTest(label): migrate a template once per run
 under an advisory lock, close template connections, clone one database per file
 with safe unique names, dynamically import the app only after setting its env,
 and drop only owned databases in cleanup even when assertions fail. Have at least
@@ -34,8 +35,8 @@ When Clerk is excluded, test the same anonymous seam without importing its SDK.
 
 ## Local CI contract
 
-Implement `test:ci` as a scoped test of the actual parsed workflow (use a YAML
-parser). Require changes outputs and path-filtered API/mobile/bundle jobs, shared
+`test:ci` parses the fragment's actual workflow with Bun's YAML parser. Keep
+changes outputs and path-filtered API/mobile/bundle jobs, shared
 lock/config/workflow paths in every relevant filter, API/schema paths in mobile's
 filter, and always-running ci-ok handling failure/cancellation versus intentional
 skips. Test relevant path-change examples and a deliberate missing filter to prove

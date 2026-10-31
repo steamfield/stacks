@@ -1,0 +1,162 @@
+{
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!!src/core/generated", "!!src-tauri/gen"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "markdown": { "formatter": { "enabled": false } },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "useExhaustiveDependencies": "error"
+      },
+      "nursery": {
+        "useTailwindSortedClasses": "error"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/**", "tests/**", "!tests/e2e/**"],
+      "linter": { "domains": { "playwright": "none" } }
+    },
+    {
+      "includes": ["src/core/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "react-router",
+                      "react-router/**",
+                      "@tanstack/react-*",
+                      "lucide-react",
+                      "@testing-library/react",
+                      "zustand",
+                      "zustand/react*",
+                      "zustand/traditional",
+                      "~/**",
+                      "**/app/**"
+                    ],
+                    "message": "Keep src/core framework-free; use zustand/vanilla."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/core/**", "!src/core/transport/**", "!src/core/app-transport.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "react",
+                      "react/**",
+                      "react-dom",
+                      "react-dom/**",
+                      "react-router",
+                      "react-router/**",
+                      "@tanstack/react-*",
+                      "lucide-react",
+                      "@testing-library/react",
+                      "zustand",
+                      "zustand/react*",
+                      "zustand/traditional",
+                      "~/**",
+                      "**/app/**"
+                    ],
+                    "message": "Keep src/core framework-free; use zustand/vanilla."
+                  },
+                  {
+                    "group": ["@tauri-apps/*", "@core/transport/*", "**/core/transport/*"],
+                    "message": "Reach Rust through the Transport contract and its provider."
+                  },
+                  {
+                    "group": ["**/generated/bindings"],
+                    "importNamePattern": "commands|events|default|\\*",
+                    "message": "Import generated types only; call Transport methods."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/app/**",
+        "src/main.tsx",
+        "tests/**",
+        "!tests/hooks/**",
+        "!tests/helpers/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@tauri-apps/*", "@core/transport/*", "**/core/transport/*"],
+                    "message": "Reach Rust through the Transport contract and its provider."
+                  },
+                  {
+                    "group": ["**/generated/bindings"],
+                    "importNamePattern": "commands|events|default|\\*",
+                    "message": "Import generated types only; call Transport methods."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

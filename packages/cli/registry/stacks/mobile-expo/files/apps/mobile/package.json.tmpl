@@ -1,0 +1,13 @@
+{
+  "name": "{{project_slug}}-mobile",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start",
+    "ios": "expo run:ios",
+    "typecheck": "expo customize tsconfig.json && biome format --write tsconfig.json && tsc --noEmit",
+    "test": "jest",
+    "bundle": "expo export --platform ios --platform android --output-dir ../../dist/mobile",
+    "expo:check": "expo install --check"
+  }
+}

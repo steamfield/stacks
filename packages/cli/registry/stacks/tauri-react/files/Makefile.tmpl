@@ -1,6 +1,6 @@
 # {{project_name}} development commands.
 #
-# A starting point: adapt the recipes to the project, but keep the target
+# Adapt the recipes to the project, but keep the target
 # names. `stacks verify` calls install, lint, typecheck, check-targets, test,
 # bindings-check, architecture-check, e2e, build and dev-web. CI calls the -web and -rust
 # halves per job; the combined targets are for local use.
@@ -21,11 +21,12 @@ BINDINGS := src/core/generated/bindings.ts
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
-install: ## JS deps (frozen when CI is set), the pinned Rust toolchain and crates, Playwright's Chromium
+install: ## JS deps (frozen in CI), the selected Rust toolchain and crates, Playwright's Chromium
 	bun install $(if $(CI),--frozen-lockfile)
 	rustup toolchain install --no-self-update
 	cargo fetch
 	bunx playwright install $(if $(CI),--with-deps) chromium
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ]; then lefthook install; fi
 
 dev: ## Full app: tauri dev (Vite on PORT_WEB plus the Rust shell)
 	bun run tauri dev

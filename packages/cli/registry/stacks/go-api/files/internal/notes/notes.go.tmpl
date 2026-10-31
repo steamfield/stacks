@@ -1,0 +1,119 @@
+package notes
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+	"unicode/utf8"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type Note struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type Input struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+type Page struct {
+	Items      []Note `json:"items"`
+	NextCursor string `json:"nextCursor,omitempty"`
+}
+
+type Store interface {
+	Create(context.Context, Input) (Note, error)
+	Get(context.Context, string) (Note, error)
+	List(context.Context, int, string) (Page, error)
+}
+
+type Memory struct {
+	mu    sync.RWMutex
+	notes map[string]Note
+}
+
+func NewMemory() *Memory { return &Memory{notes: make(map[string]Note)} }
+
+func (m *Memory) Create(ctx context.Context, input Input) (Note, error) {
+	if err := ctx.Err(); err != nil {
+		return Note{}, err
+	}
+	input.Title = strings.TrimSpace(input.Title)
+	if input.Title == "" || utf8.RuneCountInString(input.Title) > 200 {
+		return Note{}, apperrors.New(apperrors.BadInput, "title must contain 1 to 200 characters")
+	}
+	if utf8.RuneCountInString(input.Body) > 10000 {
+		return Note{}, apperrors.New(apperrors.BadInput, "body must contain at most 10000 characters")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	note := Note{ID: rand.Text(), Title: input.Title, Body: input.Body, CreatedAt: time.Now().UTC()}
+	m.notes[note.ID] = note
+	return note, nil
+}
+
+func (m *Memory) Get(ctx context.Context, id string) (Note, error) {
+	if err := ctx.Err(); err != nil {
+		return Note{}, err
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	note, ok := m.notes[id]
+	if !ok {
+		return Note{}, apperrors.New(apperrors.NotFound, "note not found")
+	}
+	return note, nil
+}
+
+func (m *Memory) List(ctx context.Context, limit int, cursor string) (Page, error) {
+	if err := ctx.Err(); err != nil {
+		return Page{}, err
+	}
+	if limit < 1 || limit > 100 {
+		return Page{}, apperrors.New(apperrors.BadInput, "limit must be between 1 and 100")
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	items := make([]Note, 0, len(m.notes))
+	for _, note := range m.notes {
+		items = append(items, note)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].ID < items[j].ID
+		}
+		return items[i].CreatedAt.Before(items[j].CreatedAt)
+	})
+	start := 0
+	if cursor != "" {
+		id, err := base64.RawURLEncoding.DecodeString(cursor)
+		if err != nil {
+			return Page{}, apperrors.New(apperrors.BadInput, "invalid cursor")
+		}
+		found := false
+		for i, note := range items {
+			if note.ID == string(id) {
+				start, found = i+1, true
+				break
+			}
+		}
+		if !found {
+			return Page{}, apperrors.New(apperrors.BadInput, "invalid cursor")
+		}
+	}
+	end := min(start+limit, len(items))
+	page := Page{Items: items[start:end]}
+	if end < len(items) {
+		page.NextCursor = base64.RawURLEncoding.EncodeToString([]byte(items[end-1].ID))
+	}
+	return page, nil
+}

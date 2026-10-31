@@ -52,9 +52,15 @@ test.each(["astro-blog", "python-react"])(
       const ignored = await astroFile(".prettierignore");
       expect(ignored).toContain(".stacks/");
       expect(ignored).toContain(".claude/");
-    } else {
-      expect(await brief(stack)).toMatch(/`\.prettierignore`[^\n]*`\.stacks\/`[^\n]*`\.claude\/`/);
+      return;
     }
+    if (stack === "python-react") {
+      const ignore = readFileSync(join(await scaffold(stack), "frontend/.prettierignore"), "utf8");
+      expect(ignore.split("\n")).toContain(".stacks/");
+      expect(ignore.split("\n")).toContain(".claude/");
+      return;
+    }
+    expect(await brief(stack)).toMatch(/`\.prettierignore`[^\n]*`\.stacks\/`[^\n]*`\.claude\/`/);
   },
 );
 
@@ -93,15 +99,22 @@ test("go-cli's main passes the version variables to cli.Execute itself", () => {
 });
 
 test("python-react's error envelope follows the wire casing", async () => {
-  expect(await brief("python-react")).toMatch(/"requestId"\}\}`[^\n]*`request_id`/);
+  const handlers = readFileSync(
+    join(await scaffold("python-react"), "backend/app/error_handlers.py"),
+    "utf8",
+  );
+  expect(handlers).toContain('request_id: str = Field(serialization_alias="requestId")');
+  expect(handlers).toContain(".model_dump(by_alias=True)");
 });
 
 test("python-react runs dump_openapi.py as a module so it can import app", async () => {
-  expect(await brief("python-react")).toContain("`uv run python -m scripts.dump_openapi`");
+  const makefile = readFileSync(join(await scaffold("python-react"), "Makefile"), "utf8");
+  expect(makefile).toContain("cd backend && uv run python -m scripts.dump_openapi");
 });
 
 test("git-hooks keeps a staged-file linter quiet about files its config ignores", async () => {
-  expect(await brief("python-react")).toContain("`--no-warn-ignored`");
+  const guide = readFileSync(join(await scaffold("python-react"), "docs/DEVELOPMENT.md"), "utf8");
+  expect(guide).toContain("`eslint --no-warn-ignored`");
 });
 
 /** `new <stack> app --sandbox` from the bundled registry, with a git shim on PATH. */

@@ -1,0 +1,114 @@
+package httpapi
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"regexp"
+	"runtime/debug"
+	"time"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type requestIDKey struct{}
+
+func RequestID(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey{}).(string)
+	return id
+}
+
+var validRequestID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func identify(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("X-Request-Id")
+		if !validRequestID.MatchString(id) {
+			var random [16]byte
+			if _, err := rand.Read(random[:]); err != nil {
+				writeError(w, err, logger)
+				return
+			}
+			id = hex.EncodeToString(random[:])
+		}
+		w.Header().Set("X-Request-Id", id)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey{}, id)))
+	})
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	status, bytes int
+}
+
+func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *responseWriter) WriteHeader(status int) {
+	if w.status != 0 {
+		return
+	}
+	if status >= 200 {
+		w.status = status
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *responseWriter) Write(data []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	n, err := w.ResponseWriter.Write(data)
+	w.bytes += n
+	return n, err
+}
+
+func accessLog(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		out := &responseWriter{ResponseWriter: w}
+		defer func() {
+			status := out.status
+			if status == 0 {
+				status = http.StatusOK
+			}
+			level := slog.LevelInfo
+			if r.Pattern == "GET /healthz" {
+				level = slog.LevelDebug
+			}
+			logger.Log(r.Context(), level, "request", "method", r.Method, "route", r.Pattern,
+				"status", status, "duration_ms", time.Since(started).Milliseconds(), "bytes", out.bytes, "request_id", RequestID(r.Context()))
+		}()
+		next.ServeHTTP(out, r)
+	})
+}
+
+func recoverPanic(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if value := recover(); value != nil {
+				if value == http.ErrAbortHandler {
+					panic(value)
+				}
+				requestLogger := logger.With("request_id", RequestID(r.Context()))
+				requestLogger.Error("panic", "panic", value, "stack", string(debug.Stack()))
+				// A response already sent cannot be replaced; abort the connection instead.
+				if out, ok := w.(*responseWriter); ok && out.status != 0 {
+					panic(http.ErrAbortHandler)
+				}
+				writeJSON(w, errorTable[apperrors.Internal].status, envelope(apperrors.Internal), requestLogger)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func urlQuery(r *http.Request) (url.Values, error) {
+	q, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return nil, apperrors.Wrap(apperrors.BadInput, "invalid query", err)
+	}
+	return q, nil
+}

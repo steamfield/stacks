@@ -168,19 +168,3 @@ export const locateManifest = (
     }
     return yield* new NotFound({ details: { suggestions: [], kind: "project", looked: from } });
   });
-
-/**
- * Writes `manifest` to `path` (whose directory must exist), replacing the file. Any write error
- * is `PermissionDenied` (`write`) with the path. `new` writes `encodeManifest`'s text through its
- * own safe writer instead, so its rollback covers the file; this is for later rewrites (1.4, 3.0).
- */
-export const writeManifest = (
-  path: string,
-  manifest: Manifest,
-): Effect.Effect<void, PermissionDenied, FileSystem.FileSystem> =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    yield* fs
-      .writeFileString(path, encodeManifest(manifest))
-      .pipe(Effect.mapError(() => new PermissionDenied({ details: { reason: "write", path } })));
-  });

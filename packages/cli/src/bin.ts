@@ -33,17 +33,17 @@ const output = Output.layer(
 const holder = Foreground.make();
 const registry = fileURLToPath(new URL("../registry/", import.meta.url));
 // Replaced by Bun at build time; source development has no escaped asset paths.
-declare const PACKAGED_GITIGNORES: ReadonlyArray<string>;
+declare const PACKAGED_ESCAPES: ReadonlyArray<string>;
 declare const STACKS_RELEASE_BUILD: boolean;
 declare const STACKS_PUBLISHED_TELEMETRY: boolean;
-// npm drops literal .gitignore members even when present in a tarball. Only this installed
+// Packers drop literal .gitignore and bunfig.toml members even when present in a tarball. Only this installed
 // registry's reads translate the packer's escape; authors and core see the original names.
 const packagedFiles = Layer.effect(
   FileSystem.FileSystem,
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const escapedPaths = new Set(
-      (typeof PACKAGED_GITIGNORES === "undefined" ? [] : PACKAGED_GITIGNORES).map(
+      (typeof PACKAGED_ESCAPES === "undefined" ? [] : PACKAGED_ESCAPES).map(
         (file) => `${registry}${file}`,
       ),
     );
@@ -66,7 +66,7 @@ const packagedFiles = Layer.effect(
           .pipe(
             Effect.map((names) =>
               names.map((name) =>
-                name.endsWith(".gitignore.stacks") &&
+                name.endsWith(".stacks") &&
                 escapedPaths.has(`${args[0]}/${name.slice(0, -".stacks".length)}`)
                   ? name.slice(0, -".stacks".length)
                   : name,

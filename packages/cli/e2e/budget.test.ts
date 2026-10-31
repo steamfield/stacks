@@ -8,6 +8,11 @@ import { binary, packageRoot, scratchPath } from "./package";
 const bundledEntries = ["stacks", "fragments"]
   .flatMap((kind) => readdirSync(join(packageRoot, "registry", kind), { withFileTypes: true }))
   .filter((entry) => entry.isDirectory()).length;
+const bundledFiles = ["stacks", "fragments"]
+  .flatMap((kind) =>
+    readdirSync(join(packageRoot, "registry", kind), { recursive: true, withFileTypes: true }),
+  )
+  .filter((entry) => entry.isFile()).length;
 
 function sample(args: readonly string[]) {
   const home = mkdtempSync(join(tmpdir(), "cli-binary-budget-"));
@@ -49,9 +54,11 @@ test.each([
   {
     args: ["validate"],
     output: "(bundled registry)",
-    // Validating the bundled registry grows with its size, so the guard is per entry: at 37
-    // entries the cost is ~0.05 s per entry on a laptop and ~0.10 s on a CI runner.
-    budget: 0.15 * bundledEntries,
+    // Validating the bundled registry grows with its entries and with the files they ship, which
+    // it reads to render and check every composition. At 37 entries the cost was ~0.05 s per
+    // entry on a laptop and ~0.10 s on a CI runner; growing the shipped files from 504 to 904
+    // added ~2 ms per file on a laptop (2.67 s to 3.43 s).
+    budget: 0.15 * bundledEntries + 0.003 * bundledFiles,
   },
 ])(
   "$args stays within its CPU budget",

@@ -5,7 +5,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   utimesSync,
@@ -15,6 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { name, version } from "../package.json";
+import { escapedRegistryFiles } from "./packaging";
 
 /** The fixed time npm packers give every member. */
 const PACKED_AT = new Date("1985-10-26T08:15:00Z");
@@ -27,7 +27,7 @@ const packed = Bun.spawnSync(["bun", "pm", "pack", "--destination", "dist/pack",
 if (packed.exitCode !== 0) process.exit(packed.exitCode);
 const filename = `${name.replace(/^@/, "").replace("/", "-")}-${version}.tgz`;
 const tarball = `dist/pack/${filename}`;
-restoreGitignores(tarball);
+restoreDroppedFiles(tarball);
 const digest = createHash("sha256").update(readFileSync(tarball)).digest("hex");
 writeFileSync(`${tarball}.sha256`, `${digest}  ${filename}\n`);
 
@@ -39,11 +39,9 @@ function anonymousOwner(): string[] {
     : ["--owner=0", "--group=0", "--numeric-owner"];
 }
 
-/** npm packers and installers drop .gitignore; bin.ts exposes these escaped assets as data. */
-function restoreGitignores(archive: string) {
-  const files = readdirSync("registry", { recursive: true, encoding: "utf8" })
-    .filter((file) => file.split(/[\\/]/).at(-1) === ".gitignore")
-    .sort();
+/** Packers and installers drop .gitignore and bunfig.toml; bin.ts exposes these escaped assets as data. */
+function restoreDroppedFiles(archive: string) {
+  const files = escapedRegistryFiles();
   if (!files.length) return;
   const staging = mkdtempSync(join(tmpdir(), "stacks-pack-"));
   try {

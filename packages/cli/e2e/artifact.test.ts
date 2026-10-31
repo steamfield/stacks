@@ -53,7 +53,8 @@ test("the tarball contains exactly the allowlisted files, preserving every asset
   const assets = ["registry", "skills"].flatMap((dir) =>
     files(join(source, dir)).map((file) => `${dir}/${file}`),
   );
-  const packedPath = (file: string) => (file.endsWith("/.gitignore") ? `${file}.stacks` : file);
+  const packedPath = (file: string) =>
+    file.endsWith("/.gitignore") || file.endsWith("/bunfig.toml") ? `${file}.stacks` : file;
   const expected = [
     "package.json",
     "README.md",

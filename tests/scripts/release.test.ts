@@ -73,10 +73,15 @@ function run(
     formatPublished?: boolean;
     cliPublished?: boolean;
     dryRun?: boolean;
+    formatOnly?: boolean;
   } = {},
 ) {
   const log = join(dir, "commands.log");
-  const result = spawnSync(bun, [script, ...(options.dryRun === false ? [] : ["--dry-run"])], {
+  const flags = [
+    ...(options.dryRun === false ? [] : ["--dry-run"]),
+    ...(options.formatOnly ? ["--format-only"] : []),
+  ];
+  const result = spawnSync(bun, [script, ...flags], {
     encoding: "utf8",
     env: {
       HOME: dir,
@@ -139,5 +144,33 @@ describe("release dry run", () => {
       `${cliSpec} is already on npm, but its tarball integrity differs`,
     );
     expect(result.commands).not.toContain("npm publish");
+  });
+});
+
+describe("format-only release", () => {
+  it("packs and would publish only the format package, with no CLI tag or pack", () => {
+    const result = run({ formatOnly: true, formatPublished: false });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain(`would publish ${formatSpec}`);
+    expect(result.stderr).toContain(`dry run packed ${formatSpec}; nothing published`);
+    expect(result.stderr).not.toContain(cliPackage.name.concat("@"));
+    expect(result.commands).not.toContain("refs/tags");
+    expect(result.commands).not.toContain("pack telemetry: 1");
+    expect(result.commands).not.toContain(`npm view ${cliSpec}`);
+    expect(result.commands).not.toContain("npm publish");
+  });
+
+  it("publishes the format package and creates no tag", () => {
+    const result = run({ formatOnly: true, formatPublished: false, dryRun: false });
+    // The fake npm refuses to publish (exit 99), which ends the run right after the attempt.
+    expect(result.status).toBe(1);
+    expect(result.commands).toContain("npm publish dist/pack/steamfield-stacks-format-");
+    expect(result.commands).not.toContain("git tag");
+  });
+
+  it("skips a format version already published with the same tarball", () => {
+    const result = run({ formatOnly: true });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain(`would skip ${formatSpec}`);
   });
 });

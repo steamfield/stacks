@@ -124,4 +124,4 @@ To add a package:
 
 ## Releasing
 
-Maintainers publish both packages with `bun run release` from an up-to-date `main`; `bun run release:dry-run` packs both and publishes nothing. [packages/format/README.md](packages/format/README.md#publishing) has the steps and the checks the script makes.
+Maintainers publish both packages with `bun run release` from an up-to-date `main`; `bun run release:dry-run` packs both and publishes nothing, and `bun run release:format` publishes the format package alone. [packages/format/README.md](packages/format/README.md#publishing) has the steps and the checks the script makes.

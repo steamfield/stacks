@@ -2,6 +2,8 @@
 // package.json files, from a clean detached worktree of origin/main, then tags v<cli version>.
 // A person runs it (`bun run release`, or `bun run release -- --dry-run` to pack and check
 // without publishing or tagging); packages/format/README.md, "Publishing", has the steps it wraps.
+// `--format-only` (`bun run release:format`) publishes only the format package, with no tag: the
+// published CLI pins its format version exactly, so a new format version reaches no installed CLI.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -10,6 +12,7 @@ import { join } from "node:path";
 
 const PACKAGES = ["format", "cli"] as const;
 const dryRun = process.argv.includes("--dry-run");
+const formatOnly = process.argv.includes("--format-only");
 const root = join(import.meta.dirname, "..");
 
 class ReleaseFailed extends Error {}
@@ -54,8 +57,9 @@ function manifest(dir: (typeof PACKAGES)[number]) {
   return { dir, name: parsed.name, version: parsed.version, tarball };
 }
 
-const packages = PACKAGES.map(manifest);
-const tag = `v${packages[1]?.version}`;
+const packages = formatOnly ? [manifest("format")] : PACKAGES.map(manifest);
+/** The CLI release's tag; a format-only release creates none. */
+const tag = formatOnly ? undefined : `v${manifest("cli").version}`;
 
 /**
  * The tag the Claude Code marketplace pins the plugin to. Users read marketplace.json from the
@@ -82,6 +86,7 @@ function preflight() {
     read("git", ["rev-parse", "HEAD"]).stdout !== read("git", ["rev-parse", "origin/main"]).stdout
   )
     fail("HEAD is not origin/main; push the release commit first");
+  if (tag === undefined) return;
   if (read("git", ["rev-parse", "--quiet", "--verify", `refs/tags/${tag}`]).status === 0)
     fail(`tag ${tag} already exists`);
   if (marketplaceRef() !== tag)
@@ -157,6 +162,7 @@ function release() {
     return;
   }
   for (const pkg of packages) awaitPublished(`${pkg.name}@${pkg.version}`);
+  if (tag === undefined) return;
   run("git", ["tag", "--annotate", tag, "--message", `Release ${tag}`, "origin/main"]);
   run("git", ["push", "origin", tag]);
 }

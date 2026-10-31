@@ -39,7 +39,8 @@
     "prepare": "bun scripts/prepare.ts",
     "install:ci": "bun install --frozen-lockfile",
     "release": "bun scripts/release.ts",
-    "release:dry-run": "bun scripts/release.ts --dry-run"
+    "release:dry-run": "bun scripts/release.ts --dry-run",
+    "release:format": "bun scripts/release.ts --format-only"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

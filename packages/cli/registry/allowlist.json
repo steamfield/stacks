@@ -162,6 +162,7 @@
       "assert_cmd",
       "axum",
       "clap",
+      "proptest",
       "serde",
       "serde_json",
       "specta",

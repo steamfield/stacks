@@ -1,5 +1,5 @@
 ---
-description: Execute a design or task as the orchestrator, delegating the coding to Codex (gpt-6.1-sol, high effort, fast mode)
+description: Execute a design or task as the orchestrator, delegating the coding to Codex (the newest sol model Codex lists, high effort, fast mode)
 argument-hint: <design file or task description>
 ---
 

@@ -1,7 +1,8 @@
-import { Context, Duration, Effect, Layer, Stream } from "effect";
+import { Context, Effect, Layer, type PlatformError, Stream } from "effect";
 import { ChildProcess } from "effect/process";
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
-import { cliPath } from "./config";
+import { McpConfig } from "./config";
+import { CliFailure } from "./errors";
 
 export interface CliOutput {
   readonly exit: number;
@@ -9,86 +10,107 @@ export interface CliOutput {
   readonly stderr: string;
 }
 
-const DEFAULT_TIMEOUT = Duration.minutes(5);
-
-function collectOutput(stream: Stream.Stream<Uint8Array, unknown, never>): Effect.Effect<string> {
-  return stream.pipe(
-    Stream.decodeText(),
-    Stream.runFold(
-      () => "",
-      (acc, chunk) => acc + chunk,
-    ),
-    Effect.catchCause(() => Effect.succeed("")),
-  );
+interface RunOptions {
+  readonly cwd?: string;
+  readonly onStderrLine?: (line: string) => Effect.Effect<void>;
 }
 
-function runProcess(
-  spawner: ChildProcessSpawner["Service"],
-  path: string,
-  args: ReadonlyArray<string>,
-  options?: { readonly cwd?: string },
-): Effect.Effect<CliOutput, never> {
-  return Effect.gen(function* () {
-    const command = ChildProcess.make("bun", [path, ...args, "--json"], {
-      extendEnv: true,
-      cwd: options?.cwd,
-    });
+const collectStderr = Effect.fn("run.collectStderr")(function* (
+  stream: Stream.Stream<Uint8Array, PlatformError.PlatformError>,
+  onLine: RunOptions["onStderrLine"],
+) {
+  let stderr = "";
+  const text = stream.pipe(
+    Stream.decodeText(),
+    Stream.tap((chunk) =>
+      Effect.sync(() => {
+        stderr += chunk;
+      }),
+    ),
+  );
+  yield* text.pipe(
+    Stream.splitLines,
+    Stream.runForEach((line) => (onLine === undefined ? Effect.void : onLine(line))),
+  );
+  return stderr;
+});
 
-    const result = yield* Effect.gen(function* () {
-      const handle = yield* spawner.spawn(command);
-      const [stdout, stderr, exitCode] = yield* Effect.all([
-        collectOutput(handle.stdout),
-        collectOutput(handle.stderr),
-        handle.exitCode,
-      ]);
-      return {
-        exit: Number(exitCode),
-        stdout: stdout as string,
-        stderr: stderr as string,
-      } satisfies CliOutput;
-    }).pipe(
-      Effect.scoped,
-      Effect.timeoutOption(DEFAULT_TIMEOUT),
-      Effect.catchCause(() => Effect.succeed(undefined)),
-    );
-
-    if (result === undefined) {
-      return { exit: -1, stdout: "", stderr: "Failed to spawn CLI" } satisfies CliOutput;
-    }
-    if (result._tag === "None") {
-      return { exit: -1, stdout: "", stderr: "CLI timed out" } satisfies CliOutput;
-    }
-    return result.value;
-  });
+function systemMessage(error: PlatformError.PlatformError): string {
+  const cause = error.reason.cause;
+  const code =
+    typeof cause === "object" && cause !== null && "code" in cause
+      ? String(cause.code)
+      : error.reason._tag;
+  return `${code}: ${error.message}`;
 }
 
 export class CliRunner extends Context.Service<
   CliRunner,
   {
-    run(
+    readonly run: (
       args: ReadonlyArray<string>,
-      options?: { readonly cwd?: string },
-    ): Effect.Effect<CliOutput, never>;
+      options?: RunOptions,
+    ) => Effect.Effect<CliOutput, CliFailure>;
   }
->()("stacks/mcp/CliRunner") {
-  static readonly Live = Layer.effect(
+>()("stacks-mcp/CliRunner") {
+  static readonly layer = Layer.effect(
     CliRunner,
     Effect.gen(function* () {
+      const config = yield* McpConfig;
       const spawner = yield* ChildProcessSpawner;
-      return CliRunner.of({
-        run: (args, options) => runProcess(spawner, cliPath, args, options),
+      const run = Effect.fn("CliRunner.run")(function* (
+        args: ReadonlyArray<string>,
+        options?: RunOptions,
+      ) {
+        const command = ChildProcess.make(config.node, [config.cliEntry, ...args], {
+          extendEnv: false,
+          env: config.env,
+          stdin: "ignore",
+          killSignal: "SIGTERM",
+          forceKillAfter: "15 seconds",
+          ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
+        });
+        return yield* Effect.gen(function* () {
+          const child = yield* spawner.spawn(command);
+          const [stdout, stderr, exit] = yield* Effect.all(
+            [
+              child.stdout.pipe(
+                Stream.decodeText(),
+                Stream.runFold(
+                  () => "",
+                  (text, chunk) => text + chunk,
+                ),
+              ),
+              collectStderr(child.stderr, options?.onStderrLine),
+              child.exitCode,
+            ],
+            { concurrency: "unbounded" },
+          );
+          return { stdout, stderr, exit: Number(exit) };
+        }).pipe(
+          Effect.scoped,
+          Effect.mapError(
+            (error) =>
+              new CliFailure({
+                tag: "CliUnavailable",
+                cliMessage: `Cannot run ${config.node} ${config.cliEntry}: ${systemMessage(error)}`,
+                next: `Check or restore the server's Node executable at ${config.node}, then restart the server. For a CLI entry problem, set STACKS_MCP_CLI to @steamfield/stacks's dist/stacks entry or reinstall @steamfield/stacks.`,
+                retryable: false,
+              }),
+          ),
+          Effect.timeoutOrElse({
+            duration: config.timeout,
+            orElse: () =>
+              new CliFailure({
+                tag: "CliTimedOut",
+                cliMessage: `CLI command timed out: ${args.join(" ")}.`,
+                next: "Raise STACKS_MCP_TIMEOUT_SECONDS, or run the command in a terminal.",
+                retryable: false,
+              }),
+          }),
+        );
       });
+      return CliRunner.of({ run });
     }),
   );
-
-  static readonly test = (scriptPath: string) =>
-    Layer.effect(
-      CliRunner,
-      Effect.gen(function* () {
-        const spawner = yield* ChildProcessSpawner;
-        return CliRunner.of({
-          run: (args, options) => runProcess(spawner, scriptPath, args, options),
-        });
-      }),
-    );
 }

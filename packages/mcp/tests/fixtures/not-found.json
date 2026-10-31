@@ -1,0 +1,9 @@
+{
+  "error": {
+    "tag": "NotFound",
+    "message": "Not found.",
+    "retryable": false,
+    "next": "run stacks list to see every stack and fragment id.",
+    "details": { "suggestions": [], "id": "does-not-exist", "kind": "stack" }
+  }
+}

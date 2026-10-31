@@ -1,150 +1,117 @@
 # @steamfield/stacks-mcp
 
-A stdio MCP server built on Effect's MCP modules. It wraps the stacks CLI,
-exposing three typed tools and markdown resources over newline-delimited
-JSON-RPC, launched by an agent client as a subprocess.
+A stdio MCP server for the stacks workflow: choose a stack, create a project, then run its
+verification checks. Requires Node.js 22 or newer.
 
-## Tools
+Run it with:
 
-- **stacks_list** — lists available stacks and fragments. Pass `kind` to
-  filter to `"stack"` or `"fragment"`. Returns each entry's id, kind, name,
-  description, tags, origin, trusted flag, shadows and lastRun.
-- **stacks_new** — scaffolds a new project from a stack: writes starter
-  files and `.stacks/BRIEF.md`. Runs nothing from the stack. Pass `stack`
-  (required), `dir` (optional), `sandbox` (default `true`), and optional
-  `with`/`without` fragment lists. Returns the project path, stack, fragments,
-  agents, written files, brief word count, and handoff info. Fails with
-  `CliFailure` carrying the CLI's tag, message and details verbatim.
-- **stacks_verify** — runs the project's verify steps. Pass `dir`
-  (optional, defaults to the server's working directory). Returns the outcome
-  (`green`, `partial`, `failed`, `changed` or `interrupted`), totals, duration,
-  and per-step results. A failing project is a successful call; it only fails
-  when the CLI itself cannot run.
-
-## Resources
-
-- `stacks://guide` — the stacks agent guide, captured at startup.
-- `skill://<name>` — one per file in `skills/*.md`, each a short skill document
-  with frontmatter carrying `name` and `description`.
-
-## Skill documents
-
-A skill is a markdown file in `skills/`. The frontmatter gives its name and the
-description a client shows before reading it; the body is served unchanged.
-
-```
----
-name: authoring-stack
-description: How a stack, its fragments and its verify steps fit together.
----
-
-# Authoring a stack
-
-...
+```sh
+npx -y @steamfield/stacks-mcp
 ```
 
-Resources are registered when the server starts, so a new skill file needs a
-restart, not a reload. Two ship today: `authoring-stack` and `reading-a-brief`.
+The package includes `@steamfield/stacks` as a dependency and runs its built Node entry.
+No separate CLI installation or `STACKS_MCP_CLI` setting is needed.
 
-## Wiring into a client
+## Connecting a client
 
-Any MCP client that spawns a stdio server works; the only thing it needs is the
-path to the built server:
+For [Claude Code](https://code.claude.com/docs/en/mcp):
+
+```sh
+claude mcp add stacks -- npx -y @steamfield/stacks-mcp
+```
+
+Add `--scope project` before `--` to save it in the project's `.mcp.json`.
+
+For Claude Desktop, add this to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "stacks": {
-      "command": "node",
-      "args": ["/absolute/path/to/packages/mcp/dist/server.js"]
+      "command": "npx",
+      "args": ["-y", "@steamfield/stacks-mcp"],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
     }
   }
 }
 ```
 
-The server then appears with three tools and reads the guide and skills as
-resources, so an agent can pick a stack, create a project and verify it without
-shell access.
+Desktop does not use your shell's PATH. An absolute path to `npx` may be needed, especially
+with nvm or mise. Set `env.PATH` to include the tools your project's verify steps need,
+such as bun and git. The client's environment becomes every verify step's environment.
 
-## Finding the CLI
+## Tools and resources
 
-The server runs the CLI as a subprocess — `bun` with the resolved entry path
-and `--json` — and never imports CLI code. It resolves that path in
-`src/config.ts` from two places, in order: the `STACKS_MCP_CLI` environment
-variable, then `../../cli/src/bin.ts` relative to the config module, which lands
-at `packages/cli/src/bin.ts`. There is no PATH lookup, so an installed copy of
-the CLI outside this repo is not found by the relative path and needs
-`STACKS_MCP_CLI` set until a lookup mechanism exists.
+| Tool | Input | Result |
+| --- | --- | --- |
+| `stacks_list` | Optional `group`: `stacks`, `fragments` or `apps` | Whole CLI listing, including rejected entries and project context |
+| `stacks_new` | `stack`, absolute `dir`; optional `preset`, `with`, `without` | Whole scaffold result, including warnings, missing tools and handoff |
+| `stacks_verify` | Absolute existing `dir` | Whole verify result, including step diagnostics and an optional `next` |
 
-If neither resolves, the spawn fails on the first tool call. The runner catches
-it and returns exit code -1 with stderr `Failed to spawn CLI`, which the handler
-maps to a `CliFailure` — not a stack trace — and the message names the spawn
-failure.
+`list` and `new` run in the server's working directory, which decides which project-origin
+entries they see. `verify` runs in `dir`. New never launches an agent; omitting `preset`
+preserves the CLI's user setting.
 
-## Known limit: skills are resources, not the skills extension
+Verify executes the project's manifest commands, which may change files or access the network.
+Failed and changed verify outcomes are successful tool calls with a `next` action. Changed
+steps run nothing: a person must accept them in a terminal. The server never passes
+`--accept-changes`.
 
-MCP's skills extension (SEP-2640) defines `skills/list` and `skills/get` on top
-of protocol `2026-07-28`. The server advertises that revision, but `effect/ai`
-4.0.6 can register tools, resources and prompts only — there is no way to serve
-an arbitrary method. So skills ride on `skill://` resources, which every client
-can read, and the extension is not declared. Declaring it without serving its
-two methods would be false.
+CLI execution failures (`CliFailure`) have `isError: true`, no `structuredContent`, and text containing the
+message, a `Next:` line, then a blank line and JSON metadata (`tag`, `retryable`, optional
+`exitCode` and `details`). Parameter-validation failures also have `isError: true`, but return
+Effect's plain diagnostic naming invalid or missing keys, without the `Next:` line or JSON
+metadata. Progress notifications count finished steps when the request
+supplies a progress token; no total is guessed.
 
+Read `stacks://guide` for the CLI's guide and `stacks://guide/author` for its authoring guide.
+`stacks://guide/author/{topic}` serves an authoring reference and completes topic names.
+Each read runs the CLI afresh; a failed read is a protocol error. The CLI guide also names
+commands this server does not expose.
 
-## Running
+## Configuration
 
-```
-node dist/server.js
-```
+| Variable | Meaning |
+| --- | --- |
+| `STACKS_MCP_CLI` | Optional absolute path to a built CLI JavaScript entry; overrides the dependency |
+| `STACKS_MCP_TIMEOUT_SECONDS` | Positive integer per-call timeout; default 900 |
+| `STACKS_MCP_LOG_LEVEL` | Case-insensitive Effect log level; default Info |
+| `PATH` | Tools available to project verification commands |
 
-The server reads no flags and no config file. Its entire input is JSON-RPC over
-stdin; stdout is protocol-only. Set `MCP_LOG_LEVEL` (trace, debug, info, warn,
-error, fatal) to adjust the log threshold; logs go to stderr. An unset or
-unrecognized value defaults to info.
+The CLI always runs through the server's Node executable, with stdin ignored and the captured
+environment. PATH is never searched for the CLI itself. Logs go to stderr; stdout contains
+only JSON-RPC messages. EOF and SIGTERM shut down cleanly.
 
-Set `STACKS_MCP_CLI` to an absolute path to the stacks CLI entry
-(`packages/cli/src/bin.ts`) if the default relative path does not resolve.
+## From source
 
-The server advertises both protocol revisions `2026-07-28` and `2025-11-25`, so
-a client that lags behind still connects.
+From the workspace root:
 
-## Build
-
-```
-bun run build      # Bun bundles src/server.ts → dist/server.js (ESM, Node target, shebang)
-bun run dev        # run the source through Bun for a quick loop
-bun run lint       # Biome check
-bun run typecheck  # tsc --noEmit
-bun run test       # Vitest unit tests (tests/)
-bun run e2e        # build, then Vitest e2e (e2e/) against dist/server.js
-bun run check      # lint, typecheck, test, e2e
-bun run clean      # remove dist/
+```sh
+bun install
+bun run --filter @steamfield/stacks build
+bun run --cwd packages/mcp build
+node /absolute/path/to/stacks/packages/mcp/dist/server.js
 ```
 
-## Layout
+Register that build with Claude Code using an absolute server path:
 
-```
-src/server.ts     entry: builds the layer, registers tools and resources, runs
-src/toolkit.ts    Tool declarations and Toolkit (pure, no I/O)
-src/handlers.ts   one handler per tool, failure mapping
-src/run.ts        CliRunner service: spawns the CLI with bun, always --json
-src/resource.ts   guide capture and skill resource loading
-src/config.ts     the only reader of process.env (MCP_LOG_LEVEL, STACKS_MCP_CLI)
-src/errors.ts     tagged errors (CliFailure)
-src/schemas/      one file per shape crossing the boundary, re-exported from index.ts
-skills/           markdown skill files with frontmatter (name, description)
-tests/            unit tests (schemas, handlers against a fake CLI)
-e2e/              stdio handshake test against dist/server.js
-scripts/build.ts  Bun bundle script
+```sh
+claude mcp add stacks -- node /absolute/path/to/stacks/packages/mcp/dist/server.js
 ```
 
-## Dependencies
+Use an absolute Node path too if the client cannot find it. `bun run --cwd packages/mcp dev`
+builds and starts the Node bundle. `bun run --cwd packages/mcp pack` writes the publishable
+tarball under `dist/pack/`; the maintainer's `bun run release` publishes format, CLI, then MCP,
+after packing and checking all three.
 
-- `effect` — MCP modules (`McpServer`, `McpClient`, `McpProtocol`, `Tool`,
-  `Toolkit`), Schema, Effect runtime.
-- `@effect/platform-node` — `NodeStdio`, `NodeRuntime`, `NodeServices`.
+## Known limits
 
-Dev: `typescript`, `@biomejs/biome`, `vitest`, `@vitest/coverage-v8`,
-`@types/node`, `@types/bun`, `@effect/vitest`.
+The server supports MCP 2026-07-28 and 2025-11-25 through the installed Effect adapters.
+Cross-implementation tests use the official TypeScript SDK's legacy handshake; modern discovery
+and per-request metadata are exercised with Effect's client and raw stdio.
 
-Dependency versions resolve from the root workspace catalog.
+Effect's stdio adapter always advertises logging, completions, and, when resources exist,
+resource subscription and list-change capabilities. These capabilities cannot be disabled through
+its public API. The server exposes no logging controls beyond the adapter's behavior.

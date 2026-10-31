@@ -1,76 +1,30 @@
 import { Schema } from "effect";
-import { ListEntry } from "./cli";
+import { ListResult, NewResult, VerifyResult } from "./cli";
+
+const AbsoluteDir = Schema.String.check(Schema.isPattern(/^\//u));
 
 export const ListParams = Schema.Struct({
-  kind: Schema.optionalKey(Schema.Literals(["stack", "fragment"])),
+  group: Schema.optionalKey(Schema.Literals(["stacks", "fragments", "apps"])),
 });
-
 export type ListParams = typeof ListParams.Type;
-
-export const ListSuccess = Schema.Struct({
-  entries: Schema.Array(ListEntry),
-});
-
+export const ListSuccess = ListResult;
 export type ListSuccess = typeof ListSuccess.Type;
 
 export const NewParams = Schema.Struct({
   stack: Schema.String,
-  dir: Schema.optionalKey(Schema.String),
-  sandbox: Schema.optionalKey(Schema.Boolean),
+  dir: AbsoluteDir,
+  preset: Schema.optionalKey(Schema.Literals(["default", "sandbox"])),
   with: Schema.optionalKey(Schema.Array(Schema.String)),
   without: Schema.optionalKey(Schema.Array(Schema.String)),
 });
-
 export type NewParams = typeof NewParams.Type;
-
-export const NewSuccess = Schema.Struct({
-  project: Schema.String,
-  stack: Schema.String,
-  fragments: Schema.Array(Schema.String),
-  agents: Schema.Array(Schema.String),
-  written: Schema.Array(Schema.String),
-  briefWords: Schema.Number,
-  handoff: Schema.Union([
-    Schema.Struct({
-      kind: Schema.Literal("inside-agent"),
-      agent: Schema.String,
-      untrusted: Schema.Array(Schema.String),
-      prompt: Schema.String,
-    }),
-    Schema.Struct({
-      kind: Schema.Literal("print"),
-      reason: Schema.String,
-      agent: Schema.optionalKey(Schema.String),
-      untrusted: Schema.Array(Schema.String),
-      prompt: Schema.String,
-    }),
-  ]),
-});
-
+export const NewSuccess = NewResult;
 export type NewSuccess = typeof NewSuccess.Type;
 
-export const VerifyParams = Schema.Struct({
-  dir: Schema.optionalKey(Schema.String),
-});
-
+export const VerifyParams = Schema.Struct({ dir: AbsoluteDir });
 export type VerifyParams = typeof VerifyParams.Type;
-
-export const VerifyStepResult = Schema.Struct({
-  name: Schema.String,
-  status: Schema.String,
-  exitCode: Schema.optionalKey(Schema.Number),
-  durationMs: Schema.Number,
-});
-
 export const VerifySuccess = Schema.Struct({
-  outcome: Schema.String,
-  totals: Schema.Struct({
-    passed: Schema.Number,
-    failed: Schema.Number,
-    skipped: Schema.Number,
-  }),
-  durationMs: Schema.Number,
-  steps: Schema.Array(VerifyStepResult),
+  ...VerifyResult.fields,
+  next: Schema.optionalKey(Schema.String),
 });
-
 export type VerifySuccess = typeof VerifySuccess.Type;

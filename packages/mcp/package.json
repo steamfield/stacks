@@ -1,32 +1,53 @@
 {
   "name": "@steamfield/stacks-mcp",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=22"
   },
   "scripts": {
     "build": "bun scripts/build.ts",
-    "dev": "bun src/server.ts",
+    "dev": "bun run build && node dist/server.js",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "bun run build && vitest run --config e2e/vitest.config.ts",
+    "e2e": "bun run --filter @steamfield/stacks build && bun run build && vitest run --config e2e/vitest.config.ts",
     "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "coverage": "vitest run --coverage",
+    "pack": "bun run build && bun scripts/pack.ts"
   },
   "dependencies": {
-    "@effect/platform-node": "catalog:",
-    "effect": "catalog:"
+    "@steamfield/stacks": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@steamfield/stacks-format": "workspace:*",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
+    "effect": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "bin": {
+    "stacks-mcp": "dist/server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "description": "MCP tools for choosing stacks, creating projects and running their verification checks.",
+  "homepage": "https://stacks.steamfield.io",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/steamfield/stacks",
+    "directory": "packages/mcp"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

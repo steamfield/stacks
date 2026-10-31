@@ -1,36 +1,31 @@
+import {
+  AgentId,
+  Category,
+  FailureKind,
+  GitHubLogin,
+  Harness,
+  Kind,
+  Outcome,
+  Phase,
+  StatsDay,
+  StatsWindow,
+  StepLayer,
+  TamperCheck,
+} from "@steamfield/stacks-format";
 import { Schema } from "effect";
 
-// Shapes copied from packages/cli/src/schemas — not imported, to avoid a
-// cross-package source dependency. Keep them in sync with the CLI when it
-// changes. Origin: packages/cli/src/schemas/origin.ts
+// CLI-only wire shapes; e2e/schema-drift.test.ts compares them with stacks schema.
 const Origin = Schema.Literals(["project", "user", "index", "bundled"]);
-// Kind: packages/format/src/entry.ts (re-declared here for the same reason)
-const Kind = Schema.Literals(["stack", "fragment"]);
-// Category: packages/format/src/entry.ts
-const Category = Schema.Literals([
-  "agent-ops",
-  "app",
-  "ci",
-  "deploy",
-  "release",
-  "service",
-  "vendor",
-  "tooling",
-]);
-// DetectedAgent: packages/format/src/agent.ts
-const DetectedAgent = Schema.Literals(["claude", "codex", "opencode", "cursor", "other", "none"]);
-
-// LastRun: copied from packages/cli/src/schemas/ledger.ts
+const NoticeFields = { notice: Schema.optionalKey(Schema.String) };
 const LastRun = Schema.Struct({
   date: Schema.String,
   result: Schema.Literals(["pass", "partial", "fail", "infra"]),
-  agent: DetectedAgent,
+  agent: Schema.Literals([...AgentId.literals, "other", "none"]),
   preset: Schema.String,
   fingerprint: Schema.String,
 });
 
-// ListEntry: copied from packages/cli/src/schemas/list.ts (ListRow)
-export const ListEntry = Schema.Struct({
+export const ListRow = Schema.Struct({
   id: Schema.String,
   kind: Kind,
   name: Schema.String,
@@ -41,15 +36,27 @@ export const ListEntry = Schema.Struct({
   origin: Origin,
   trusted: Schema.Boolean,
   shadows: Schema.Array(Origin),
+  author: Schema.optionalKey(GitHubLogin),
   lastRun: Schema.NullOr(LastRun),
+  stats: Schema.optionalKey(
+    Schema.Struct({
+      window: StatsWindow,
+      through: StatsDay,
+      population: Schema.Literals(["stacks projects", "seeded development data"]),
+      projects: Schema.NullOr(Schema.Number),
+      greenRate: Schema.NullOr(Schema.Number),
+      greenRateLower: Schema.NullOr(Schema.Number),
+      greenRateUpper: Schema.NullOr(Schema.Number),
+      sample: Schema.NullOr(Schema.Number),
+      noVerifyShare: Schema.NullOr(Schema.Number),
+      medianMinutesToGreen: Schema.NullOr(Schema.Number),
+    }),
+  ),
 });
+export type ListRow = typeof ListRow.Type;
 
-export type ListEntry = typeof ListEntry.Type;
-
-// ListResult: copied from packages/cli/src/schemas/list.ts
-// (notice and project are optional; the handler only reads entries)
 export const ListResult = Schema.Struct({
-  notice: Schema.optionalKey(Schema.String),
+  ...NoticeFields,
   project: Schema.optionalKey(
     Schema.Struct({
       stack: Schema.NullOr(Schema.String),
@@ -57,7 +64,7 @@ export const ListResult = Schema.Struct({
       addable: Schema.Array(Schema.String),
     }),
   ),
-  entries: Schema.Array(ListEntry),
+  entries: Schema.Array(ListRow),
   rejected: Schema.Array(
     Schema.Struct({
       id: Schema.String,
@@ -67,19 +74,23 @@ export const ListResult = Schema.Struct({
       error: Schema.String,
     }),
   ),
+}).annotate({
+  title: "List result",
+  description: "Stacks and fragments an agent can choose from, and entries that failed to load",
 });
-
 export type ListResult = typeof ListResult.Type;
 
-const EntryRef = Schema.Struct({ kind: Schema.String, id: Schema.String });
+const EntryRef = Schema.Struct({ kind: Kind, id: Schema.String });
 
 export const NewResult = Schema.Struct({
+  ...NoticeFields,
   project: Schema.String,
+  dryRun: Schema.Boolean,
   fingerprint: Schema.String,
   stack: Schema.String,
   fragments: Schema.Array(Schema.String),
   preset: Schema.Literals(["default", "sandbox"]),
-  agents: Schema.Array(Schema.String),
+  agents: Schema.Array(AgentId),
   written: Schema.Array(Schema.String),
   brief: Schema.Literal(".stacks/BRIEF.md"),
   briefWords: Schema.Number,
@@ -94,16 +105,18 @@ export const NewResult = Schema.Struct({
     }),
   ),
   untrusted: Schema.Array(
-    Schema.Struct({
-      id: Schema.String,
-      kind: Schema.String,
-      origin: Schema.String,
-      dir: Schema.String,
-    }),
+    Schema.Struct({ id: Schema.String, kind: Kind, origin: Origin, dir: Schema.String }),
   ),
   warnings: Schema.Array(
     Schema.Struct({
-      code: Schema.String,
+      code: Schema.Literals([
+        "always_not_applicable",
+        "always_unknown",
+        "with_not_applicable",
+        "without_not_selected",
+        "git_init_failed",
+        "git_unusable",
+      ]),
       id: Schema.String,
       exitCode: Schema.optionalKey(Schema.Number),
     }),
@@ -113,83 +126,104 @@ export const NewResult = Schema.Struct({
   handoff: Schema.Union([
     Schema.Struct({
       kind: Schema.Literal("inside-agent"),
-      agent: Schema.String,
+      agent: Schema.Union([AgentId, Schema.Literal("other")]),
       untrusted: Schema.Array(Schema.String),
       prompt: Schema.String,
     }),
     Schema.Struct({
       kind: Schema.Literal("print"),
-      reason: Schema.String,
-      agent: Schema.optionalKey(Schema.String),
+      reason: Schema.Literals([
+        "json",
+        "no-launch",
+        "not-a-terminal",
+        "untrusted",
+        "no-agent-found",
+        "agent-not-found",
+        "not-chosen",
+      ]),
+      agent: Schema.optionalKey(Harness),
       untrusted: Schema.Array(Schema.String),
       prompt: Schema.String,
     }),
   ]),
+}).annotate({
+  title: "New result",
+  description: "A project stacks wrote or planned, with its brief and the next step",
 });
-
 export type NewResult = typeof NewResult.Type;
 
-export const VerifyStep = Schema.Struct({
+export const StepResult = Schema.Struct({
   name: Schema.String,
-  phase: Schema.String,
-  layer: Schema.optionalKey(Schema.String),
+  phase: Phase,
+  layer: Schema.optionalKey(StepLayer),
   command: Schema.String,
   status: Schema.Literals(["passed", "failed", "skipped"]),
-  failureKind: Schema.optionalKey(Schema.String),
+  failureKind: Schema.optionalKey(FailureKind),
   exitCode: Schema.optionalKey(Schema.Number),
   durationMs: Schema.Number,
   reason: Schema.optionalKey(Schema.String),
   note: Schema.optionalKey(Schema.String),
   outputTail: Schema.optionalKey(Schema.String),
 });
+export type StepResult = typeof StepResult.Type;
 
-export type VerifyStep = typeof VerifyStep.Type;
-
-export const VerifyTotals = Schema.Struct({
-  passed: Schema.Int,
-  failed: Schema.Int,
-  skipped: Schema.Int,
+export const VerifyChange = Schema.Struct({
+  against: Schema.Literals(["manifest", "state-record"]),
+  reason: Schema.Literals(["digest", "project-id"]),
+  removed: Schema.Array(Schema.String),
+  added: Schema.Array(Schema.String),
+  edited: Schema.Array(Schema.String),
+  settings: Schema.Boolean,
 });
-
-export type VerifyTotals = typeof VerifyTotals.Type;
+export type VerifyChange = typeof VerifyChange.Type;
 
 export const VerifyResult = Schema.Struct({
-  outcome: Schema.String,
-  stages: Schema.optionalKey(
-    Schema.Struct({
-      base: Schema.String,
-      app: Schema.NullOr(Schema.String),
-    }),
-  ),
-  scope: Schema.String,
-  steps: Schema.Array(VerifyStep),
-  totals: VerifyTotals,
+  ...NoticeFields,
+  outcome: Outcome,
+  stages: Schema.optionalKey(Schema.Struct({ base: Outcome, app: Schema.NullOr(Outcome) })),
+  scope: Schema.Literals(["full", "partial"]),
+  steps: Schema.Array(StepResult),
+  totals: Schema.Struct({
+    passed: Schema.Number,
+    failed: Schema.Number,
+    skipped: Schema.Number,
+  }),
   durationMs: Schema.Number,
   secondsSinceCreated: Schema.Number,
-  tamperCheck: Schema.String,
-  changed: Schema.optionalKey(
-    Schema.Struct({
-      against: Schema.String,
-      reason: Schema.String,
-      removed: Schema.Array(Schema.String),
-      added: Schema.Array(Schema.String),
-      edited: Schema.Array(Schema.String),
-      settings: Schema.Boolean,
-    }),
-  ),
+  tamperCheck: TamperCheck,
+  changed: Schema.optionalKey(VerifyChange),
   firstGreen: Schema.Boolean,
   stateRecord: Schema.Boolean,
 });
-
 export type VerifyResult = typeof VerifyResult.Type;
+
+export const VerifyEvent = Schema.Union([
+  Schema.Struct({
+    event: Schema.Literal("step-started"),
+    name: Schema.String,
+    phase: Phase,
+  }),
+  Schema.Struct({
+    event: Schema.Literal("step-finished"),
+    name: Schema.String,
+    phase: Phase,
+    status: StepResult.fields.status,
+    failureKind: Schema.optionalKey(FailureKind),
+    durationMs: Schema.Number,
+  }),
+]).annotate({
+  title: "Verify event",
+  description: "A live stderr line from verify --json: a step started or finished",
+});
+export type VerifyEvent = typeof VerifyEvent.Type;
 
 export const CliErrorEnvelope = Schema.Struct({
   error: Schema.Struct({
     tag: Schema.String,
     message: Schema.String,
     retryable: Schema.Boolean,
-    details: Schema.optional(Schema.Unknown),
+    next: Schema.optionalKey(Schema.String),
+    details: Schema.optionalKey(Schema.Unknown),
   }),
 });
-
 export type CliErrorEnvelope = typeof CliErrorEnvelope.Type;

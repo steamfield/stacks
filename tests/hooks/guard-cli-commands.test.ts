@@ -16,6 +16,9 @@ describe("base CLI runner guard", () => {
     "bun add @effect/schema",
     "bun a @effect/schema",
     "bun add zod",
+    "cd packages/cli && bun add zod",
+    'cd "$SCAFFOLD" && bun add zod',
+    "bun add --cwd packages/cli zod",
   ])("denies %s", async (command) => expect(denyReason(await check(command))).toBeDefined());
   it.each([
     "bun run test",
@@ -26,5 +29,17 @@ describe("base CLI runner guard", () => {
     "bun test ./packages/api/e2e",
     "git commit -m 'bun test'",
     "bun add effect",
+    // A project scaffolded outside this repository picks its own schema library.
+    "cd /tmp/scaffold && bun add zod",
+    "bun add --cwd /tmp/scaffold zod",
+    "bun add --cwd=/tmp/scaffold zod",
   ])("allows %s", async (command) => expect(denyReason(await check(command))).toBeUndefined());
+
+  it("allows bun add zod when the session's directory is outside the repository", async () => {
+    const result = await runHook("PreToolUse", "guard-cli-commands", {
+      ...bash("bun add zod"),
+      cwd: "/tmp/scaffold",
+    });
+    expect(denyReason(result)).toBeUndefined();
+  });
 });

@@ -92,13 +92,13 @@ From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind stack
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgments, and the pending user actions:
 
-- card approval and restamp, for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
+- card approval (`bun run decorate --approve <id>`, which also restamps), for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
 - a bench run, `bun run bench <id> --agent claude` from `packages/cli` (`docs/maintaining.md`, "The bench"), before the stack counts as proven
 - if you edited a stack with `runs.json` records or a fragment in its default composition, that its ledger proof is now stale
 
 ## Reviewing a submitted stack
 
-A PR from `stacks submit` or the entry template carries an author card (`by: "author"`, `reviewedAt: null`). Work through the maintainer checklist in the PR body (`CONTRIBUTING.md`, "What maintainers do"): compare the `authors.json` login with the PR author, review `files/` and `adapters/` for anything that runs in a user's project, then review the card and the entry against the public references, add allowlist rows and dependency cards, add golden judgments, and run the bench. Approve and restamp the card only after reading it.
+A PR from `stacks submit` or the entry template carries an author card (`by: "author"`, `reviewedAt: null`). Work through the maintainer checklist in the PR body (`CONTRIBUTING.md`, "What maintainers do"): compare the `authors.json` login with the PR author, review `files/` and `adapters/` for anything that runs in a user's project, then review the card and the entry against the public references, add allowlist rows and dependency cards, add golden judgments, and run the bench. Approve the card (which also restamps it) only after reading it.
 
 ## Maintainer-only anti-patterns
 

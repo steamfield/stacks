@@ -375,10 +375,45 @@ test("a person with terminal stdin can approve without drafting [4.5b#11]", asyn
   const { SearchMetadata } = await import("@steamfield/stacks-format");
   const approved = Schema.decodeUnknownSync(SearchMetadata)(readJson(cardPath(f.registry, mobile)));
   expect([before, new Date().toISOString().slice(0, 10)]).toContain(approved.source.reviewedAt);
+  // Approval also stamps the card against the entry as it stands, so one command clears a draft.
   expect(approved).toEqual({
     ...value,
-    source: { ...value.source, reviewedAt: approved.source.reviewedAt },
+    source: {
+      ...value.source,
+      reviewedAt: approved.source.reviewedAt,
+      digest: await sourceDigest(f.registry, mobile),
+    },
   });
+  expect(result.stdout).toContain(`Approved and restamped stack/${mobile.id}.`);
+  expect(result.stdout).not.toContain("changed since this draft");
+}, 30_000);
+
+test("approving a model draft whose entry changed since says so and leaves nothing stale", async () => {
+  const f = setup();
+  const stamped = await stamp(f.registry, mobile);
+  put(
+    cardPath(f.registry, mobile),
+    JSON.stringify({
+      ...stamped,
+      source: { ...stamped.source, by: "drafted", model, promptVersion: 3, reviewedAt: null },
+    }),
+  );
+  const entry = join(f.registry, "stacks/mobile-expo/STACK.md");
+  put(entry, `${readFileSync(entry, "utf8")}\nClarification.\n`);
+  const result = await decorate(f, ["--approve", mobile.id], { tty: true });
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stderr).toBe("");
+  // The terminal stdin is a pseudo-terminal, which echoes into stdout; check the lines we print.
+  const note = `stack/${mobile.id}: the entry changed since this draft; approval stamps the card against the current entry.`;
+  const done = `Approved and restamped stack/${mobile.id}.`;
+  expect(result.stdout).toContain(note);
+  expect(result.stdout.indexOf(note)).toBeLessThan(result.stdout.indexOf(done));
+  const report = await validateSearch(f.registry, { home: join(f.root, "home"), bundled: true });
+  expect(
+    searchFindings(report).filter(
+      ({ check, entry }) => check === "search-stale" && entry === mobile.id,
+    ),
+  ).toEqual([]);
 }, 30_000);
 
 test("changing body text stales only its card and restamp changes only the review baseline [4.5b#2]", async () => {

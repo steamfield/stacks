@@ -8,6 +8,7 @@
       "registry/fragments/claude-harness/adapters/claude",
       "registry/fragments/claude-harness/files",
       "registry/fragments/openrouter-chat-cli/adapters/claude",
+      "registry/stacks/hono-api/adapters/claude",
       "registry/stacks/nextjs/adapters/claude",
       "registry/stacks/react-router/adapters/claude",
       "registry/stacks/react-vite/adapters/claude",
@@ -47,6 +48,10 @@
     "registry/stacks/react-vite/files/src",
     "registry/stacks/react-vite/files/tests",
     "registry/stacks/react-vite/files/e2e",
+    // Hono, zod and pino are installed only in the API scaffold; keep scripts and hooks checked.
+    "registry/stacks/hono-api/files/*.ts",
+    "registry/stacks/hono-api/files/src",
+    "registry/stacks/hono-api/files/tests",
     // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
     "registry/stacks/nextjs/files/*.ts",
     "registry/stacks/nextjs/files/next-env.d.ts",

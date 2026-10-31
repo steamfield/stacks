@@ -87,6 +87,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `cloudflare-react-router` | React Router on the local Workers runtime with typed bindings and Workers integration tests | |
 | `go-api` | Go HTTP API on the standard library: one JSON error envelope, request logging, clean shutdown, race-enabled tests against the built binary | |
 | `go-cli` | Go CLI: cobra, viper config, structured errors, human and JSON output, golangci-lint | |
+| `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
 | `python-api` | FastAPI service managed with uv: in-process pytest, structured request logs, one error envelope, an OpenAPI drift check | |

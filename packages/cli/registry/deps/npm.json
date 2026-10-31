@@ -244,6 +244,16 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "@hono/node-server": {
+      "whatItIs": "Lets a Hono server, a small web server toolkit, run on Node, the program that runs JavaScript on a server.",
+      "homepage": "https://github.com/honojs/node-server",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "@hono/zod-openapi": {
       "whatItIs": "An add-on for Hono, a small web server toolkit, that checks incoming data and writes a description of the server's requests and replies.",
       "goodAt": [
@@ -1160,6 +1170,32 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "pino": {
+      "whatItIs": "A library that writes a server's log, one line of structured data per event, quickly and with little overhead.",
+      "goodAt": [
+        "Recording each request a server handles in a searchable form",
+        "Hiding secret fields such as passwords before they reach the log"
+      ],
+      "notGoodAt": ["Storing or searching logs; send them to a log service for that."],
+      "example": "When an order fails, the developer searches the log for its request id and finds every line about it.",
+      "homepage": "https://getpino.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "pino-pretty": {
+      "whatItIs": "Turns pino's structured log lines into readable, colored text while you develop.",
+      "homepage": "https://github.com/pinojs/pino-pretty",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "postcss": {

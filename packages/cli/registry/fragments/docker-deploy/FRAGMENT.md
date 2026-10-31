@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -49,6 +49,9 @@ A production image per deployable part and a workflow that publishes them, writt
 <!-- stacks:end -->
 <!-- stacks:when stack=typescript-api -->
 **Node API**: one root `Dockerfile`. Build the bundle with bun in the build stage; the runtime stage is the official slim Node image matching `.node-version` with only `dist/`, no `node_modules` or source, running `node` on the bundle with `NODE_ENV=production`, so it logs JSON to stdout and never writes `logs/`. The health check fetches `/healthz` with Node's own `fetch`.
+<!-- stacks:end -->
+<!-- stacks:when stack=hono-api -->
+**Node API**: one root `Dockerfile`. The build stage installs frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only `package.json` (its `"type": "module"` marks the bundle as ESM) and `dist/main.js` (the bundle includes its dependencies, so no `node_modules`), running `node dist/main.js` with `PORT_API` set and exposed. The health check fetches `/healthz` with Node's own `fetch`. Logs are JSON on stdout.
 <!-- stacks:end -->
 <!-- stacks:when stack=astro-fullstack -->
 **API and site**: one root `Dockerfile`, one image. The build stage installs the workspace frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only the API bundle and `apps/web/dist`, `STATIC_DIR` pointing at the copied site and `NODE_ENV=production`. The health check fetches `/healthz` with Node's own `fetch`.

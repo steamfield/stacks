@@ -37,6 +37,22 @@
         "reviewedAt": null
       }
     },
+    "axum": {
+      "whatItIs": "axum, a library for the Rust programming language that builds web servers: it matches each incoming request to the code that answers it.",
+      "goodAt": [
+        "Web services that answer requests with JSON data",
+        "Reading request bodies, addresses and settings into typed values"
+      ],
+      "notGoodAt": ["Pages people click through, with templates and forms; use a web app stack."],
+      "example": "When a phone app asks the service for a list of notes, axum sends the request to the code that loads them and returns them as JSON.",
+      "homepage": "https://github.com/tokio-rs/axum",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "clap": {
       "whatItIs": "clap, a library for the Rust programming language that reads the words and options typed after a command-line program's name.",
       "goodAt": [
@@ -213,6 +229,40 @@
       "notGoodAt": ["Merging settings from several places; the program decides which source wins."],
       "example": "When a settings file has a typo in a key name, the tool stops and names the key and the line it was on.",
       "homepage": "https://github.com/toml-rs/toml",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "tower": {
+      "whatItIs": "tower, a library for the Rust programming language that wraps a server's request handling in reusable steps, such as time limits.",
+      "goodAt": [
+        "Giving every request the same time limit or retry rule",
+        "Calling a server's routes directly in tests, without a network"
+      ],
+      "notGoodAt": [
+        "Answering web requests on its own; it works under a web framework such as axum."
+      ],
+      "example": "When a request takes longer than ten seconds, the service stops it and answers that it is busy instead of leaving the caller waiting.",
+      "homepage": "https://github.com/tower-rs/tower",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "tower-http": {
+      "whatItIs": "tower-http, a library for the Rust programming language with ready-made web server steps such as request ids, request logs and crash recovery.",
+      "goodAt": [
+        "Giving each request an id and logging how it ended",
+        "Turning a crash in one request into an error reply instead of a dropped connection"
+      ],
+      "notGoodAt": ["Deciding which code answers a request; that is the web framework's job."],
+      "example": "Every reply from the service carries a request id, and the log line for that request has the same id, so a support ticket can be traced.",
+      "homepage": "https://github.com/tower-rs/tower-http",
       "source": {
         "by": "drafted",
         "model": "claude-opus-5-5",

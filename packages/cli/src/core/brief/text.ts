@@ -68,7 +68,7 @@ export const ground = {
     return "- git isn't installed, so there is no repository. Skip generators' git setup and all commits.";
   },
   written:
-    "- Files stacks wrote are starting points: adapt them to what you build, don't delete them. If one fails against the versions you installed, update it; never pin older versions to fit.",
+    "- Files stacks wrote are starting points: adapt them, don't delete them. If one fails against the versions you installed, update it; never pin older versions.",
   agentsMd: "- Keep `AGENTS.md` accurate: real commands, implemented behavior.",
   notes: [
     `- Keep \`${NOTES_PATH}\` here as you work; git worktrees lack it and the brief (both git-ignored):`,

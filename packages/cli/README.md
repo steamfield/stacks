@@ -100,6 +100,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `nuxt` | Nuxt on Node: server API routes loaded with `useFetch`, a zod-validated form with field errors, runtime config, Vitest in Nuxt's test environment and Playwright against the built server | |
 | `python-api` | FastAPI service managed with uv: in-process pytest, structured request logs, one error envelope, an OpenAPI drift check | |
 | `python-cli` | Python CLI on Typer packaged as a wheel: TOML, env and flag settings, text or JSON output, an exit-code table, a smoke run of the built wheel | |
+| `python-data` | Python data pipeline and notebooks managed with uv: Polars transforms from raw CSV to Parquet with explicit schemas and a rejects file, a DuckDB query over the output, a fixture compared with expected frames, marimo notebooks linted, typechecked and run | |
 | `python-library` | Typed Python library for PyPI: a src layout with `py.typed`, an exception hierarchy, a public-API test, Hypothesis properties, tests on the oldest supported Python, and the built wheel installed and type-checked in a clean environment | |
 | `python-react` | FastAPI backend and a React SPA talking through a client generated from the OpenAPI spec | |
 | `react-router` | React Router framework mode with SSR, Effect services, typed HTTP errors, Tailwind and shadcn | `openrouter-chat` |

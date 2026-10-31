@@ -1,0 +1,7 @@
+order_id,ordered_at,region,product,quantity,unit_price,reject_reason
+1006,2026-01-07,south,,2,12.00,product is missing
+1007,2026-13-01,east,pen,4,1.25,ordered_at is missing or not a YYYY-MM-DD date
+1009,2026-01-09,,pen,1,1.25,region is missing
+1012,2026-01-10,east,stapler,-1,12.00,quantity is missing or not a positive whole number
+abc,2026-01-12,south,pen,3,1.25,order_id is missing or not a whole number
+1018,2026-01-15,west,pen,6,n/a,"unit_price is missing, not a number or negative"

@@ -1,0 +1,42 @@
+"""Settings: defaults, then a .env file, then environment variables, then command-line flags."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Annotated, Any, Literal
+
+from pydantic import Field, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from package_name.errors import ErrorCode, PipelineError
+
+APP_NAME = "{{project_slug}}"
+ENV_PREFIX = "{{env_prefix}}_"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix=ENV_PREFIX, env_file=".env", extra="forbid", frozen=True
+    )
+
+    input_path: Path = Path("data/raw")
+    output_dir: Path = Path("data/processed")
+    top_products: Annotated[int, Field(ge=1, le=100)] = 5
+    log_level: Literal["debug", "info", "warning", "error"] = "info"
+    log_format: Literal["console", "json"] = "console"
+
+
+def load_settings(**flags: Any) -> Settings:
+    """Load settings; flags passed here win over the environment and .env."""
+    try:
+        return Settings(**flags)
+    except ValidationError as error:
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in issue['loc'])}: {issue['msg']}"
+            for issue in error.errors()
+        )
+        raise PipelineError(
+            ErrorCode.CONFIG,
+            f"invalid configuration: {problems}",
+            f"Fix the flag, or the {ENV_PREFIX}* variable in the environment or .env.",
+        ) from error

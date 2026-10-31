@@ -1,121 +1,93 @@
-import { resolve } from "node:path";
+import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer } from "effect";
 import { McpClient, McpProtocol } from "effect/ai";
 import { ChildProcess } from "effect/process";
-import {
-  ChildProcessSpawner,
-  makeHandle,
-  make as makeSpawner,
-} from "effect/process/ChildProcessSpawner";
 import { describe, expect, it } from "vitest";
+import { capture, relayPath, sandbox, serverPath } from "./helpers/session";
 
-const serverPath = resolve(import.meta.dirname, "../dist/server.js");
-
-const serverStderr: Uint8Array[] = [];
-
-function makeClientLayer(protocol: McpProtocol.ProtocolAdapter<McpClient.ProtocolVersion>) {
-  const command = ChildProcess.make("node", [serverPath]);
-  const clientLayer = McpClient.layerStdio({
-    name: "e2e-client",
-    version: "0.0.0",
-    command,
-    protocol,
-  });
-  const capturingSpawner = Layer.effect(
-    ChildProcessSpawner,
-    Effect.gen(function* () {
-      const inner = yield* ChildProcessSpawner;
-      return makeSpawner((cmd: ChildProcess.Command) =>
-        inner.spawn(cmd).pipe(
-          Effect.map((handle) =>
-            makeHandle({
-              ...handle,
-              stderr: handle.stderr.pipe(
-                Stream.tap((chunk) => Effect.sync(() => serverStderr.push(chunk))),
-              ),
-            }),
-          ),
-        ),
+describe("Effect client protocol eras", () => {
+  for (const protocol of [McpProtocol.v2025_11_25, McpProtocol.v2026_07_28]) {
+    it(`exchanges tools and resources using the actual ${protocol.protocolVersion} wire lifecycle`, async () => {
+      const box = sandbox();
+      const incoming = join(box.root, "incoming.jsonl");
+      const outgoing = join(box.root, "outgoing.jsonl");
+      const stderr = join(box.root, "stderr");
+      const command = ChildProcess.make(
+        process.execPath,
+        [relayPath, serverPath, incoming, outgoing, stderr],
+        { cwd: box.root, env: box.env, extendEnv: false },
       );
-    }),
-  );
-  return clientLayer.pipe(Layer.provide(capturingSpawner), Layer.provide(NodeServices.layer));
-}
-
-function printStderr() {
-  if (serverStderr.length > 0) {
-    const text = serverStderr.map((chunk) => new TextDecoder().decode(chunk)).join("");
-    console.error(`--- server stderr ---\n${text}--- end server stderr ---`);
-  }
-}
-
-function findTool<T extends { name: string }>(tools: ReadonlyArray<T>, name: string): T {
-  const tool = tools.find((t) => t.name === name);
-  if (tool === undefined) throw new Error(`tool "${name}" not found`);
-  return tool;
-}
-
-describe("stdio handshake", () => {
-  it("lists tools, calls them, reads resources, and connects on both protocol revisions", async () => {
-    const program = Effect.gen(function* () {
-      const client = yield* McpClient.McpClient;
-
-      const tools = yield* client.listTools();
-      const toolNames = tools.map((t) => t.name).sort();
-
-      expect(toolNames).toEqual(["stacks_list", "stacks_new", "stacks_verify"]);
-
-      const listTool = findTool(tools, "stacks_list");
-      const listResult = yield* client.callTool({ tool: listTool });
-      expect(listResult.isError).toBeFalsy();
-      const listText = (listResult.content[0] as { text: string }).text;
-      const listParsed = JSON.parse(listText);
-      expect(Array.isArray(listParsed.entries)).toBe(true);
-      expect(listParsed.entries.length).toBeGreaterThanOrEqual(9);
-      for (const entry of listParsed.entries) {
-        expect(typeof entry.id).toBe("string");
-        expect(typeof entry.kind).toBe("string");
+      const layer = McpClient.layerStdio({
+        name: "acceptance-effect",
+        version: "1",
+        command,
+        protocol,
+        timeout: "5 seconds",
+      }).pipe(Layer.provide(NodeServices.layer));
+      const program = Effect.gen(function* () {
+        const client = yield* McpClient.McpClient;
+        expect(client.protocolVersion).toBe(protocol.protocolVersion);
+        const tools = yield* client.listTools();
+        expect(tools.map((tool) => tool.name).sort()).toEqual([
+          "stacks_list",
+          "stacks_new",
+          "stacks_verify",
+        ]);
+        const list = tools.find((tool) => tool.name === "stacks_list");
+        if (list === undefined) throw new Error("No stacks_list tool");
+        const result = yield* client.callTool(
+          { tool: list, arguments: {} },
+          { timeout: "5 seconds" },
+        );
+        expect(result.isError).toBeFalsy();
+        const resources = yield* client.listResources();
+        expect(resources.map((resource) => resource.uri)).toContain("stacks://guide");
+        const guide = yield* client.readResource(
+          { uri: "stacks://guide" },
+          { timeout: "5 seconds" },
+        );
+        expect(guide.contents).toHaveLength(1);
+      }).pipe(Effect.provide(layer), Effect.scoped);
+      try {
+        await Effect.runPromise(program);
+        const sent = capture(incoming)
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line));
+        const received = capture(outgoing)
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line));
+        if (protocol.protocolVersion === "2025-11-25") {
+          const initialize = sent.find((frame) => frame.method === "initialize");
+          expect(initialize?.params.protocolVersion).toBe(protocol.protocolVersion);
+          expect(
+            received.find((frame) => frame.id === initialize?.id)?.result.protocolVersion,
+          ).toBe(protocol.protocolVersion);
+          expect(sent.some((frame) => frame.method === "notifications/initialized")).toBe(true);
+        } else {
+          expect(sent.some((frame) => frame.method === "initialize")).toBe(false);
+          const discover = sent.find((frame) => frame.method === "server/discover");
+          expect(discover).toBeDefined();
+          expect(
+            received.find((frame) => frame.id === discover?.id)?.result._meta?.[
+              "io.modelcontextprotocol/serverInfo"
+            ],
+          ).toBeDefined();
+          for (const frame of sent.filter((frame) => "id" in frame)) {
+            expect(frame.params?._meta?.["io.modelcontextprotocol/protocolVersion"]).toBe(
+              protocol.protocolVersion,
+            );
+            expect(
+              frame.params?._meta?.["io.modelcontextprotocol/clientCapabilities"],
+            ).toBeDefined();
+          }
+        }
+      } catch (error) {
+        console.error(`Server stderr:\n${capture(stderr)}`);
+        throw error;
       }
-
-      const newTool = findTool(tools, "stacks_new");
-      const newResult = yield* client.callTool({
-        tool: newTool,
-        arguments: { stack: "bogus-stack" },
-      });
-      expect(newResult.isError).toBe(true);
-      const newText = (newResult.content[0] as { text: string }).text;
-      expect(newText).toContain("NotFound");
-
-      const resources = yield* client.listResources();
-      const uris = resources.map((r) => r.uri);
-      expect(uris).toContain("stacks://guide");
-      const skillUris = uris.filter((u) => u.startsWith("skill://"));
-      expect(skillUris.length).toBeGreaterThanOrEqual(2);
-
-      const guideResult = yield* client.readResource({ uri: "stacks://guide" });
-      expect(guideResult.contents).toHaveLength(1);
-      const guideContent = guideResult.contents[0] as { text: string };
-      expect(guideContent.text).toContain("verify");
-    }).pipe(Effect.scoped, Effect.provide(makeClientLayer(McpProtocol.v2025_11_25)));
-
-    await Effect.runPromise(program).catch((error) => {
-      printStderr();
-      throw error;
     });
-  });
-
-  it("connects on the newer protocol revision (2026-07-28)", async () => {
-    const program = Effect.gen(function* () {
-      const client = yield* McpClient.McpClient;
-      const tools = yield* client.listTools();
-      expect(tools).toHaveLength(3);
-      expect(client.protocolVersion).toBe("2026-07-28");
-    }).pipe(Effect.scoped, Effect.provide(makeClientLayer(McpProtocol.v2026_07_28)));
-
-    await Effect.runPromise(program).catch((error) => {
-      printStderr();
-      throw error;
-    });
-  });
+  }
 });

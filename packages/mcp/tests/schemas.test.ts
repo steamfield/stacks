@@ -1,165 +1,194 @@
-import { Schema } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Schema } from "effect";
 import { CliFailure } from "../src/errors";
-import { CliErrorEnvelope, ListEntry } from "../src/schemas/cli";
-import { ListParams, NewParams, VerifyParams } from "../src/schemas/tools";
+import {
+  CliErrorEnvelope,
+  ListResult,
+  NewResult,
+  VerifyEvent,
+  VerifyResult,
+} from "../src/schemas/cli";
+import {
+  ListParams,
+  ListSuccess,
+  NewParams,
+  NewSuccess,
+  VerifyParams,
+  VerifySuccess,
+} from "../src/schemas/tools";
+import { fixture, jsonFixture } from "./helpers/cli";
 
-describe("ListParams", () => {
-  it("decodes with no kind", () => {
-    const result = Schema.decodeUnknownSync(ListParams)({});
-    expect(result.kind).toBeUndefined();
-  });
-
-  it("decodes with kind stack", () => {
-    const result = Schema.decodeUnknownSync(ListParams)({ kind: "stack" });
-    expect(result.kind).toBe("stack");
-  });
-
-  it("rejects an invalid kind", () => {
-    expect(() => Schema.decodeUnknownSync(ListParams)({ kind: "bogus" })).toThrow();
-  });
-});
-
-describe("NewParams", () => {
-  it("decodes with required stack only", () => {
-    const result = Schema.decodeUnknownSync(NewParams)({ stack: "astro-blog" });
-    expect(result.stack).toBe("astro-blog");
-    expect(result.dir).toBeUndefined();
-    expect(result.sandbox).toBeUndefined();
-  });
-
-  it("decodes with all fields", () => {
-    const result = Schema.decodeUnknownSync(NewParams)({
-      stack: "astro-blog",
-      dir: "./myproject",
-      sandbox: false,
-      with: ["effect-schema"],
-      without: ["deploy"],
-    });
-    expect(result.stack).toBe("astro-blog");
-    expect(result.dir).toBe("./myproject");
-    expect(result.sandbox).toBe(false);
-    expect(result.with).toEqual(["effect-schema"]);
-    expect(result.without).toEqual(["deploy"]);
-  });
-
-  it("rejects a missing stack", () => {
-    expect(() => Schema.decodeUnknownSync(NewParams)({})).toThrow();
-  });
-});
-
-describe("VerifyParams", () => {
-  it("decodes with no dir", () => {
-    const result = Schema.decodeUnknownSync(VerifyParams)({});
-    expect(result.dir).toBeUndefined();
-  });
-
-  it("decodes with dir", () => {
-    const result = Schema.decodeUnknownSync(VerifyParams)({ dir: "/tmp/project" });
-    expect(result.dir).toBe("/tmp/project");
-  });
-});
-
-describe("ListEntry", () => {
-  it("decodes a valid entry", () => {
-    const result = Schema.decodeUnknownSync(ListEntry)({
-      id: "x",
-      kind: "stack",
-      name: "X",
-      description: "d",
-      tags: [],
-      origin: "bundled",
-      trusted: true,
-      shadows: [],
-      lastRun: null,
-    });
-    expect(result.id).toBe("x");
-  });
-
-  it("decodes lastRun as an object", () => {
-    const result = Schema.decodeUnknownSync(ListEntry)({
-      id: "x",
-      kind: "fragment",
-      name: "X",
-      description: "d",
-      tags: [],
-      origin: "bundled",
-      trusted: false,
-      shadows: [],
-      lastRun: {
-        date: "2026-01-01T00:00:00Z",
-        result: "pass",
-        agent: "claude",
-        preset: "default",
-        fingerprint: "abc123",
-      },
-    });
-    expect(result.lastRun).not.toBeNull();
-    expect(result.lastRun?.result).toBe("pass");
-  });
-
-  it("rejects lastRun as a string", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(ListEntry)({
-        id: "x",
-        kind: "fragment",
-        name: "X",
-        description: "d",
-        tags: [],
-        origin: "bundled",
-        trusted: false,
-        shadows: [],
-        lastRun: "2026-01-01T00:00:00Z",
+describe("CLI mirrors", () => {
+  for (const [name, schema] of [
+    ["list", ListResult],
+    ["list-project", ListResult],
+    ["new", NewResult],
+    ["verify-green", VerifyResult],
+    ["verify-partial", VerifyResult],
+    ["verify-failed", VerifyResult],
+    ["verify-changed", VerifyResult],
+    ["not-found", CliErrorEnvelope],
+    ["verify-failed-envelope", CliErrorEnvelope],
+  ] as const) {
+    it.effect(`${name} decodes without dropping any captured CLI fields`, () =>
+      Effect.gen(function* () {
+        const raw = jsonFixture(name);
+        expect(yield* Schema.decodeUnknownEffect(schema)(raw)).toEqual(raw);
       }),
-    ).toThrow();
-  });
+    );
+  }
+
+  it.effect("every captured verify event decodes without losing fields", () =>
+    Effect.gen(function* () {
+      for (const line of fixture("verify-events.jsonl").trim().split("\n")) {
+        const event: unknown = JSON.parse(line);
+        expect(yield* Schema.decodeUnknownEffect(VerifyEvent)(event)).toEqual(event);
+      }
+    }),
+  );
+
+  it.effect("a wrong list kind and a string lastRun fail decoding", () =>
+    Effect.gen(function* () {
+      const list = yield* Schema.decodeUnknownEffect(ListResult)(jsonFixture("list"));
+      const entry = list.entries.find((row) => row.lastRun !== null);
+      expect(entry).toBeDefined();
+      if (entry === undefined) throw new Error("Captured list has no ledger evidence");
+      for (const invalid of [
+        { ...entry, kind: "bogus" },
+        { ...entry, lastRun: "2026-01-01" },
+      ]) {
+        expect(
+          (yield* Effect.result(
+            Schema.decodeUnknownEffect(ListResult)({ ...list, entries: [invalid] }),
+          ))._tag,
+        ).toBe("Failure");
+      }
+    }),
+  );
+
+  it.effect("red is rejected because the CLI outcome is failed", () =>
+    Effect.gen(function* () {
+      const result = yield* Schema.decodeUnknownEffect(VerifyResult)(jsonFixture("verify-failed"));
+      expect(
+        (yield* Effect.result(
+          Schema.decodeUnknownEffect(VerifyResult)({ ...result, outcome: "red" }),
+        ))._tag,
+      ).toBe("Failure");
+    }),
+  );
+
+  it.effect("verify rejects unknown phases, failure kinds and tamper states", () =>
+    Effect.gen(function* () {
+      const result = yield* Schema.decodeUnknownEffect(VerifyResult)(jsonFixture("verify-failed"));
+      const step = result.steps[0];
+      if (step === undefined) throw new Error("Captured verify has no steps");
+      for (const invalid of [
+        { ...result, steps: [{ ...step, phase: "unknown" }] },
+        { ...result, steps: [{ ...step, failureKind: "unknown" }] },
+        { ...result, tamperCheck: "unknown" },
+      ])
+        expect((yield* Effect.result(Schema.decodeUnknownEffect(VerifyResult)(invalid)))._tag).toBe(
+          "Failure",
+        );
+    }),
+  );
+
+  it.effect("envelopes allow absent optional next and details", () =>
+    Effect.gen(function* () {
+      const captured = yield* Schema.decodeUnknownEffect(CliErrorEnvelope)(
+        jsonFixture("not-found"),
+      );
+      const { next: _next, details: _details, ...error } = captured.error;
+      expect(yield* Schema.decodeUnknownEffect(CliErrorEnvelope)({ error })).toEqual({ error });
+    }),
+  );
+
+  it.effect("success schemas retain the complete CLI contracts", () =>
+    Effect.gen(function* () {
+      expect(yield* Schema.decodeUnknownEffect(ListSuccess)(jsonFixture("list"))).toEqual(
+        jsonFixture("list"),
+      );
+      expect(yield* Schema.decodeUnknownEffect(NewSuccess)(jsonFixture("new"))).toEqual(
+        jsonFixture("new"),
+      );
+      const verify = yield* Schema.decodeUnknownEffect(VerifyResult)(jsonFixture("verify-failed"));
+      const envelope = yield* Schema.decodeUnknownEffect(CliErrorEnvelope)(
+        jsonFixture("verify-failed-envelope"),
+      );
+      expect(
+        yield* Schema.decodeUnknownEffect(VerifySuccess)({ ...verify, next: envelope.error.next }),
+      ).toEqual({ ...verify, next: envelope.error.next });
+    }),
+  );
 });
 
-describe("CliErrorEnvelope", () => {
-  it("decodes with details", () => {
-    const result = Schema.decodeUnknownSync(CliErrorEnvelope)({
-      error: {
-        tag: "NotFound",
-        message: "Not found.",
-        retryable: false,
-        details: { suggestions: [], id: "bogus", kind: "stack" },
-      },
-    });
-    expect(result.error.tag).toBe("NotFound");
-    expect(result.error.details).toBeDefined();
-  });
+describe("tool parameters", () => {
+  it.effect.each(["stacks", "fragments", "apps"] as const)("list accepts the %s group", (group) =>
+    Effect.gen(function* () {
+      expect(yield* Schema.decodeUnknownEffect(ListParams)({ group })).toEqual({ group });
+    }),
+  );
 
-  it("decodes without details", () => {
-    const result = Schema.decodeUnknownSync(CliErrorEnvelope)({
-      error: { tag: "Usage", message: "Bad.", retryable: false },
-    });
-    expect(result.error.tag).toBe("Usage");
-    expect(result.error.details).toBeUndefined();
-  });
+  it.effect("list accepts no group and rejects an unknown group", () =>
+    Effect.gen(function* () {
+      expect(yield* Schema.decodeUnknownEffect(ListParams)({})).toEqual({});
+      expect(
+        (yield* Effect.result(Schema.decodeUnknownEffect(ListParams)({ group: "bogus" })))._tag,
+      ).toBe("Failure");
+    }),
+  );
+
+  it.effect(
+    "new accepts absolute paths, fragment arrays and either preset without inventing defaults",
+    () =>
+      Effect.gen(function* () {
+        const minimal = { stack: "typescript-mcp", dir: "/tmp/project with spaces" };
+        expect(yield* Schema.decodeUnknownEffect(NewParams)(minimal)).toEqual(minimal);
+        for (const preset of ["default", "sandbox"]) {
+          const params = { ...minimal, preset, with: ["one"], without: ["two"] };
+          expect(yield* Schema.decodeUnknownEffect(NewParams)(params)).toEqual(params);
+        }
+      }),
+  );
+
+  it.effect("new and verify reject missing or relative directories", () =>
+    Effect.gen(function* () {
+      for (const dir of [undefined, "relative/path", ""]) {
+        const directory = dir === undefined ? {} : { dir };
+        expect(
+          (yield* Effect.result(
+            Schema.decodeUnknownEffect(NewParams)({ stack: "fixture", ...directory }),
+          ))._tag,
+        ).toBe("Failure");
+        expect(
+          (yield* Effect.result(Schema.decodeUnknownEffect(VerifyParams)(directory)))._tag,
+        ).toBe("Failure");
+      }
+      expect(
+        (yield* Effect.result(Schema.decodeUnknownEffect(NewParams)({ dir: "/tmp" })))._tag,
+      ).toBe("Failure");
+      expect(yield* Schema.decodeUnknownEffect(VerifyParams)({ dir: "/tmp" })).toEqual({
+        dir: "/tmp",
+      });
+    }),
+  );
 });
 
-describe("CliFailure", () => {
-  it("creates with tag and details", () => {
+it.effect("CliFailure renders actionable text followed by machine readable metadata", () =>
+  Effect.gen(function* () {
+    const envelope = yield* Schema.decodeUnknownEffect(CliErrorEnvelope)(jsonFixture("not-found"));
     const error = new CliFailure({
-      message: "Not found.",
-      tag: "NotFound",
-      details: { id: "bogus" },
+      tag: envelope.error.tag,
+      cliMessage: envelope.error.message,
+      retryable: envelope.error.retryable,
+      next: envelope.error.next ?? "stacks new --help",
       exitCode: 2,
+      details: envelope.error.details,
     });
     expect(error._tag).toBe("CliFailure");
-    expect(error.tag).toBe("NotFound");
-    expect(error.exitCode).toBe(2);
-  });
-
-  it("encodes to JSON with _tag", () => {
-    const error = new CliFailure({
-      message: "Not found.",
-      tag: "NotFound",
-      details: {},
-      exitCode: 2,
-    });
-    const encoded = Schema.encodeSync(CliFailure)(error);
-    expect(encoded._tag).toBe("CliFailure");
-    expect(encoded.tag).toBe("NotFound");
-  });
-});
+    expect(error.message).toBe(
+      `${error.cliMessage}\nNext: ${error.next}\n\n${JSON.stringify({ tag: error.tag, retryable: error.retryable, exitCode: 2, details: error.details })}`,
+    );
+    expect((yield* Schema.encodeEffect(CliFailure)(error))._tag).toBe("CliFailure");
+  }),
+);

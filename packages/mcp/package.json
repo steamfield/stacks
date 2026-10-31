@@ -12,17 +12,19 @@
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "bun run build && vitest run --config e2e/vitest.config.ts",
+    "e2e": "bun run --filter @steamfield/stacks build && bun run build && vitest run --config e2e/vitest.config.ts",
     "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@steamfield/stacks": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@effect/vitest": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",

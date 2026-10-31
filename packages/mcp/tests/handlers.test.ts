@@ -1,173 +1,325 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { resolve } from "node:path";
-import { NodeServices } from "@effect/platform-node";
-import { Effect, Layer, Schema } from "effect";
-import { describe, expect, it } from "vitest";
+import { existsSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, type FileSystem, type Path, Schema } from "effect";
 import { CliFailure } from "../src/errors";
 import { listHandler, newHandler, verifyHandler } from "../src/handlers";
-import { CliRunner } from "../src/run";
-import { CliErrorEnvelope, ListResult, NewResult, VerifyResult } from "../src/schemas/cli";
+import type { CliRunner } from "../src/run";
+import { CliErrorEnvelope } from "../src/schemas/cli";
+import {
+  envelopeFixture,
+  fixture,
+  jsonFixture,
+  outputCli,
+  runnerLayer,
+  tempDir,
+} from "./helpers/cli";
 
-function makeFakeCli(js: string): string {
-  const dir = resolve(tmpdir(), `qs-mcp-fake-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
-  const path = resolve(dir, "fake-cli.mjs");
-  writeFileSync(path, js, { mode: 0o755 });
-  return path;
+function calls(dir: string) {
+  const cases: ReadonlyArray<{
+    name: string;
+    fixture: string;
+    run: () => Effect.Effect<unknown, CliFailure, CliRunner | FileSystem.FileSystem | Path.Path>;
+  }> = [
+    { name: "list", run: () => listHandler({}), fixture: "list" },
+    { name: "new", run: () => newHandler({ stack: "fixture", dir }), fixture: "new" },
+    { name: "verify", run: () => verifyHandler({ dir }), fixture: "verify-green" },
+  ];
+  return cases;
 }
 
-function makeLayer(scriptPath: string) {
-  return CliRunner.test(scriptPath).pipe(Layer.provide(NodeServices.layer));
-}
-
-const LIST_JSON =
-  '{"entries":[{"id":"astro-blog","kind":"stack","name":"Astro blog","description":"d","tags":["typescript"],"origin":"bundled","trusted":true,"shadows":[],"lastRun":null}],"rejected":[]}';
-
-const NOT_FOUND_JSON =
-  '{"error":{"tag":"NotFound","message":"Not found.","retryable":false,"details":{"suggestions":["astro-blog"],"id":"bogus-stack","kind":"stack"}}}';
-
-const NEW_JSON =
-  '{"project":"/tmp/test","fingerprint":"sha256:abc","stack":"astro-blog","fragments":["effect-schema"],"preset":"default","agents":["claude"],"written":["README.md",".claude/rules/effect.md"],"brief":".stacks/BRIEF.md","briefWords":100,"fixedWords":50,"missingTools":[],"untrusted":[],"warnings":[],"git":"fresh","stateRecord":true,"handoff":{"kind":"print","reason":"no-launch","agent":"none","untrusted":[],"prompt":"go"}}';
-
-const VERIFY_RED_JSON =
-  '{"outcome":"red","scope":"full","steps":[{"name":"test","phase":"check","layer":"test","command":"bun run test","status":"failed","exitCode":1,"durationMs":100}],"totals":{"passed":0,"failed":1,"skipped":0},"durationMs":200,"secondsSinceCreated":5,"tamperCheck":"full","firstGreen":false,"stateRecord":true}';
-
-const VERIFY_GREEN_JSON =
-  '{"outcome":"green","scope":"full","steps":[{"name":"test","phase":"check","layer":"test","command":"bun run test","status":"passed","exitCode":0,"durationMs":100}],"totals":{"passed":1,"failed":0,"skipped":0},"durationMs":200,"secondsSinceCreated":5,"tamperCheck":"full","firstGreen":true,"stateRecord":true}';
-
-const FAKE_LIST = `process.stdout.write(${JSON.stringify(LIST_JSON)});\n`;
-
-const FAKE_NOT_FOUND = `process.stderr.write(${JSON.stringify(`${NOT_FOUND_JSON}\n`)});\nprocess.exit(2);\n`;
-
-const FAKE_NEW_SUCCESS = `process.stdout.write(${JSON.stringify(NEW_JSON)});\n`;
-
-const FAKE_VERIFY_RED = `process.stdout.write(${JSON.stringify(VERIFY_RED_JSON)});\n`;
-
-const FAKE_VERIFY_GREEN = `process.stdout.write(${JSON.stringify(VERIFY_GREEN_JSON)});\n`;
-
-describe("listHandler", () => {
-  it("decodes parameters and maps success", async () => {
-    const script = makeFakeCli(FAKE_LIST);
-    const result = await Effect.runPromise(listHandler({}).pipe(Effect.provide(makeLayer(script))));
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0]?.id).toBe("astro-blog");
-    expect(result.entries[0]?.kind).toBe("stack");
-  });
-
-  it("filters by kind", async () => {
-    const script = makeFakeCli(FAKE_LIST);
-    const result = await Effect.runPromise(
-      listHandler({ kind: "fragment" }).pipe(Effect.provide(makeLayer(script))),
-    );
-    expect(result.entries).toHaveLength(0);
-  });
-
-  it("fails with CliFailure when CLI exits non-zero", async () => {
-    const script = makeFakeCli(FAKE_NOT_FOUND);
-    const error = await Effect.runPromise(
-      Effect.flip(listHandler({}).pipe(Effect.provide(makeLayer(script)))),
-    );
-    expect(error).toBeInstanceOf(CliFailure);
-    expect(error.tag).toBe("NotFound");
-    expect(error.message).toBe("Not found.");
-    expect(error.exitCode).toBe(2);
-    const details = error.details as {
-      suggestions: string[];
-      id: string;
-      kind: string;
-    };
-    expect(details.suggestions).toEqual(["astro-blog"]);
-    expect(details.id).toBe("bogus-stack");
-  });
-});
-
-describe("newHandler", () => {
-  it("maps success from the CLI", async () => {
-    const script = makeFakeCli(FAKE_NEW_SUCCESS);
-    const result = await Effect.runPromise(
-      newHandler({ stack: "astro-blog", sandbox: true }).pipe(Effect.provide(makeLayer(script))),
-    );
-    expect(result.project).toBe("/tmp/test");
-    expect(result.stack).toBe("astro-blog");
-    expect(result.briefWords).toBe(100);
-    expect(result.handoff.kind).toBe("print");
-  });
-
-  it("fails with CliFailure carrying NotFound details", async () => {
-    const script = makeFakeCli(FAKE_NOT_FOUND);
-    const error = await Effect.runPromise(
-      Effect.flip(newHandler({ stack: "bogus-stack" }).pipe(Effect.provide(makeLayer(script)))),
-    );
-    expect(error).toBeInstanceOf(CliFailure);
-    expect(error.tag).toBe("NotFound");
-    const details = error.details as { id: string; kind: string };
-    expect(details.id).toBe("bogus-stack");
-    expect(details.kind).toBe("stack");
-  });
-});
-
-describe("verifyHandler", () => {
-  it("returns normally for a red outcome", async () => {
-    const script = makeFakeCli(FAKE_VERIFY_RED);
-    const result = await Effect.runPromise(
-      verifyHandler({}).pipe(Effect.provide(makeLayer(script))),
-    );
-    expect(result.outcome).toBe("red");
-    expect(result.totals.failed).toBe(1);
-    expect(result.steps).toHaveLength(1);
-    expect(result.steps[0]?.status).toBe("failed");
-  });
-
-  it("returns normally for a green outcome", async () => {
-    const script = makeFakeCli(FAKE_VERIFY_GREEN);
-    const result = await Effect.runPromise(
-      verifyHandler({}).pipe(Effect.provide(makeLayer(script))),
-    );
-    expect(result.outcome).toBe("green");
-    expect(result.totals.passed).toBe(1);
-  });
-});
-
-describe("schemas", () => {
-  it("decodes a ListResult", () => {
-    const decoded = Schema.decodeUnknownSync(ListResult)(JSON.parse(LIST_JSON));
-    expect(decoded.entries).toHaveLength(1);
-  });
-
-  it("decodes a NewResult", () => {
-    const decoded = Schema.decodeUnknownSync(NewResult)(JSON.parse(NEW_JSON));
-    expect(decoded.project).toBe("/tmp/test");
-  });
-
-  it("decodes a VerifyResult", () => {
-    const decoded = Schema.decodeUnknownSync(VerifyResult)(JSON.parse(VERIFY_RED_JSON));
-    expect(decoded.outcome).toBe("red");
-  });
-
-  it("decodes a CliErrorEnvelope", () => {
-    const decoded = Schema.decodeUnknownSync(CliErrorEnvelope)(JSON.parse(NOT_FOUND_JSON));
-    expect(decoded.error.tag).toBe("NotFound");
-  });
-
-  it("rejects a wrong ListEntry kind", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(ListResult)({
-        entries: [
-          {
-            id: "x",
-            kind: "bogus",
-            name: "X",
-            description: "d",
-            tags: [],
-            origin: "bundled",
-            trusted: true,
-            shadows: [],
-            lastRun: null,
-          },
-        ],
-        rejected: [],
+describe("whole CLI results", () => {
+  for (const name of ["list", "new", "verify"]) {
+    it.effect(`${name} returns every field of the captured result`, () =>
+      Effect.gen(function* () {
+        const root = tempDir();
+        const call = calls(root).find((c) => c.name === name);
+        if (call === undefined) throw new Error(`Missing call ${name}`);
+        const entry = outputCli(root, { stdout: fixture(`${call.fixture}.json`) });
+        const result = yield* call.run().pipe(Effect.provide(runnerLayer(entry)));
+        expect(result).toEqual(jsonFixture(call.fixture));
       }),
-    ).toThrow();
-  });
+    );
+
+    for (const stdout of ["not JSON", "", "{}"]) {
+      it.effect(
+        `${name} rejects successful stdout ${JSON.stringify(stdout)} as CliOutputInvalid`,
+        () =>
+          Effect.gen(function* () {
+            const root = tempDir();
+            const call = calls(root).find((c) => c.name === name);
+            if (call === undefined) throw new Error(`Missing call ${name}`);
+            const entry = outputCli(root, { stdout });
+            const error = yield* Effect.flip(call.run()).pipe(Effect.provide(runnerLayer(entry)));
+            expect(error).toBeInstanceOf(CliFailure);
+            expect(error.tag).toBe("CliOutputInvalid");
+            expect(error.retryable).toBe(false);
+            expect(error.next).toMatch(/report|version/i);
+          }),
+      );
+    }
+
+    it.effect(
+      `${name} preserves the final CLI envelope after diagnostics and trailing whitespace`,
+      () =>
+        Effect.gen(function* () {
+          const root = tempDir();
+          const call = calls(root).find((c) => c.name === name);
+          if (call === undefined) throw new Error(`Missing call ${name}`);
+          const envelope = yield* Schema.decodeUnknownEffect(CliErrorEnvelope)(
+            jsonFixture("not-found"),
+          );
+          const entry = outputCli(root, {
+            stderr: `diagnostic\n${envelopeFixture("not-found")}\n \t\n`,
+            exit: 2,
+          });
+          const error = yield* Effect.flip(call.run()).pipe(Effect.provide(runnerLayer(entry)));
+          expect(error).toBeInstanceOf(CliFailure);
+          expect(error).toMatchObject({
+            tag: envelope.error.tag,
+            cliMessage: envelope.error.message,
+            next: envelope.error.next,
+            retryable: envelope.error.retryable,
+            details: envelope.error.details,
+            exitCode: 2,
+          });
+          const [lead, metadata] = error.message.split("\n\n");
+          expect(lead).toBe(`${envelope.error.message}\nNext: ${envelope.error.next}`);
+          expect(JSON.parse(metadata ?? "")).toEqual({
+            tag: envelope.error.tag,
+            retryable: envelope.error.retryable,
+            exitCode: 2,
+            details: envelope.error.details,
+          });
+        }),
+    );
+  }
+
+  it.effect("list preserves project context along with entries and rejected rows", () =>
+    Effect.gen(function* () {
+      const entry = outputCli(tempDir(), { stdout: fixture("list-project.json") });
+      expect(yield* listHandler({}).pipe(Effect.provide(runnerLayer(entry)))).toEqual(
+        jsonFixture("list-project"),
+      );
+    }),
+  );
+
+  for (const outcome of ["failed", "changed"]) {
+    it.effect(
+      `verify exit 5 returns the whole ${outcome} result and the envelope next action`,
+      () =>
+        Effect.gen(function* () {
+          const root = tempDir();
+          const stdout = yield* Schema.decodeUnknownEffect(
+            Schema.Record(Schema.String, Schema.Unknown),
+          )(jsonFixture(`verify-${outcome}`));
+          const envelope = yield* Schema.decodeUnknownEffect(CliErrorEnvelope)(
+            jsonFixture(`verify-${outcome}-envelope`),
+          );
+          const entry = outputCli(root, {
+            stdout: fixture(`verify-${outcome}.json`),
+            stderr: envelopeFixture(`verify-${outcome}-envelope`),
+            exit: 5,
+          });
+          const result = yield* verifyHandler({ dir: root }).pipe(
+            Effect.provide(runnerLayer(entry)),
+          );
+          expect(result).toEqual({ ...stdout, next: envelope.error.next });
+          if (outcome === "failed") {
+            expect(
+              result.steps
+                .filter((step) => step.status === "failed")
+                .map((step) => step.failureKind),
+            ).toEqual(["step", "step"]);
+          } else {
+            expect(result.next).toContain("--accept-changes");
+          }
+        }),
+    );
+  }
+
+  it.effect("verify preserves a partial result on exit 0", () =>
+    Effect.gen(function* () {
+      const root = tempDir();
+      const entry = outputCli(root, { stdout: fixture("verify-partial.json") });
+      expect(yield* verifyHandler({ dir: root }).pipe(Effect.provide(runnerLayer(entry)))).toEqual(
+        jsonFixture("verify-partial"),
+      );
+    }),
+  );
+
+  for (const invalid of [
+    "stdout",
+    "empty envelope",
+    "malformed envelope",
+    "schema-invalid envelope",
+  ]) {
+    it.effect(
+      `verify exit 5 rejects an invalid ${invalid} instead of returning a kept result`,
+      () =>
+        Effect.gen(function* () {
+          const root = tempDir();
+          const invalidStderr: Record<string, string> = {
+            "empty envelope": "",
+            "malformed envelope": "not JSON",
+            "schema-invalid envelope": "{}",
+          };
+          const stderr = Object.hasOwn(invalidStderr, invalid)
+            ? invalidStderr[invalid]
+            : envelopeFixture("verify-failed-envelope");
+          const entry = outputCli(root, {
+            stdout: invalid === "stdout" ? "{}" : fixture("verify-failed.json"),
+            stderr,
+            exit: 5,
+          });
+          const error = yield* Effect.flip(verifyHandler({ dir: root })).pipe(
+            Effect.provide(runnerLayer(entry)),
+          );
+          expect(error.tag).toBe("CliOutputInvalid");
+          expect(error.retryable).toBe(false);
+        }),
+    );
+  }
+
+  it.effect("a non-5 verify failure remains a tool error even when stdout is a valid result", () =>
+    Effect.gen(function* () {
+      const root = tempDir();
+      const entry = outputCli(root, {
+        stdout: fixture("verify-green.json"),
+        stderr: envelopeFixture("not-found"),
+        exit: 2,
+      });
+      const error = yield* Effect.flip(verifyHandler({ dir: root })).pipe(
+        Effect.provide(runnerLayer(entry)),
+      );
+      expect(error.tag).toBe("NotFound");
+      expect(error.exitCode).toBe(2);
+    }),
+  );
+
+  it.effect("an envelope without next gets a fallback naming the command help", () =>
+    Effect.gen(function* () {
+      const envelope = yield* Schema.decodeUnknownEffect(CliErrorEnvelope)(
+        jsonFixture("not-found"),
+      );
+      const { next: _next, ...errorWithoutNext } = envelope.error;
+      const entry = outputCli(tempDir(), {
+        stderr: JSON.stringify({ error: errorWithoutNext }),
+        exit: 2,
+      });
+      const error = yield* Effect.flip(listHandler({})).pipe(Effect.provide(runnerLayer(entry)));
+      expect(error.next).toContain("stacks list --help");
+    }),
+  );
+
+  it.effect("an invalid failure envelope retains only the last 4 KiB of stderr", () =>
+    Effect.gen(function* () {
+      const stderr = `${"x".repeat(8192)}invalid envelope`;
+      const entry = outputCli(tempDir(), { stderr, exit: 2 });
+      const error = yield* Effect.flip(listHandler({})).pipe(Effect.provide(runnerLayer(entry)));
+      expect(error.tag).toBe("CliOutputInvalid");
+      expect(error.details).toEqual({ stderr: stderr.slice(-4096) });
+    }),
+  );
+});
+
+describe("CLI argument and directory boundaries", () => {
+  for (const stack of ["--dry-run", "café-日本語"]) {
+    it.effect(
+      `new places ${stack} and a path with spaces after -- with one argument per flag`,
+      () =>
+        Effect.gen(function* () {
+          const root = tempDir();
+          const record = join(root, "record.json");
+          const dir = join(root, "project with spaces");
+          const entry = outputCli(root, { stdout: fixture("new.json"), record });
+          yield* newHandler({
+            stack,
+            dir,
+            preset: "sandbox",
+            with: ["one", "two"],
+            without: ["three", "four"],
+          }).pipe(Effect.provide(runnerLayer(entry)));
+          const recorded = JSON.parse(readFileSync(record, "utf8"));
+          expect(recorded.args).toEqual([
+            "new",
+            "--no-launch",
+            "--json",
+            "--preset=sandbox",
+            "--with=one",
+            "--with=two",
+            "--without=three",
+            "--without=four",
+            "--",
+            stack,
+            dir,
+          ]);
+          expect(recorded.cwd).toBe(realpathSync(process.cwd()));
+        }),
+    );
+  }
+
+  it.effect("new omits the preset flag so CLI settings can choose it", () =>
+    Effect.gen(function* () {
+      const root = tempDir();
+      const record = join(root, "record.json");
+      const entry = outputCli(root, { stdout: fixture("new.json"), record });
+      yield* newHandler({ stack: "fixture", dir: root }).pipe(Effect.provide(runnerLayer(entry)));
+      expect(JSON.parse(readFileSync(record, "utf8")).args).toEqual([
+        "new",
+        "--no-launch",
+        "--json",
+        "--",
+        "fixture",
+        root,
+      ]);
+    }),
+  );
+
+  it.effect.each(["stacks", "fragments", "apps"] as const)(
+    "list passes group %s as a positional without trust override flags",
+    (group) =>
+      Effect.gen(function* () {
+        const root = tempDir();
+        const record = join(root, "record.json");
+        const entry = outputCli(root, { stdout: fixture("list.json"), record });
+        yield* listHandler({ group }).pipe(Effect.provide(runnerLayer(entry)));
+        expect(JSON.parse(readFileSync(record, "utf8")).args).toEqual(["list", group, "--json"]);
+      }),
+  );
+
+  it.effect("verify uses the real project directory and never accepts changed steps", () =>
+    Effect.gen(function* () {
+      const root = tempDir();
+      const alias = join(tempDir(), "project link");
+      symlinkSync(root, alias);
+      const record = join(root, "record.json");
+      const entry = outputCli(root, { stdout: fixture("verify-green.json"), record });
+      yield* verifyHandler({ dir: alias }).pipe(Effect.provide(runnerLayer(entry)));
+      expect(JSON.parse(readFileSync(record, "utf8"))).toMatchObject({
+        args: ["verify", "--json"],
+        cwd: realpathSync(alias),
+      });
+    }),
+  );
+
+  it.effect.each(["missing", "file"])(
+    "verify rejects a %s directory before starting the CLI",
+    (kind) =>
+      Effect.gen(function* () {
+        const root = tempDir();
+        const dir = join(root, kind);
+        if (kind === "file") writeFileSync(dir, "not a directory");
+        const record = join(root, "record.json");
+        const entry = outputCli(root, { record });
+        const error = yield* Effect.flip(verifyHandler({ dir })).pipe(
+          Effect.provide(runnerLayer(entry)),
+        );
+        expect(error.tag).toBe("InvalidArgument");
+        expect(error.retryable).toBe(false);
+        expect(error.next).toContain(dir);
+        expect(error.next).toMatch(/existing.*director/i);
+        expect(existsSync(record)).toBe(false);
+      }),
+  );
 });

@@ -159,6 +159,8 @@
     ],
     "crates": [
       "anyhow",
+      "assert_cmd",
+      "clap",
       "serde",
       "serde_json",
       "specta",
@@ -169,6 +171,7 @@
       "tempfile",
       "thiserror",
       "tokio",
+      "toml",
       "tracing",
       "tracing-subscriber"
     ]

@@ -114,6 +114,7 @@ test("kind and limit reach the API and merged lists obey tier before score [4.5e
     officialHit("go-cli", { tier: "partial", score: 0.99 }),
     officialHit("typescript-cli", { tier: "strong", score: 0.51 }),
     officialHit("go-tui", { tier: "partial", score: 0.98 }),
+    officialHit("rust-cli", { tier: "partial", score: 0.98 }),
   ]);
   server.answer(body);
   const value = decoded(

@@ -1,0 +1,54 @@
+# {{project_name}} development commands.
+#
+# Adapt the recipes, but keep the target names. `stacks verify` calls install,
+# fmt-check, clippy, check, test, build and smoke; CI calls `make ci`.
+
+BIN        := {{project_slug}}
+TARGET_DIR := $(or $(CARGO_TARGET_DIR),target)
+RELEASE    := $(TARGET_DIR)/release/$(BIN)
+
+.DEFAULT_GOAL := help
+.PHONY: help install fmt fmt-check clippy lint check test build smoke audit ci clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+
+install: ## Install the toolchain rust-toolchain.toml selects and fetch crates
+	rustup toolchain install --no-self-update
+	cargo fetch
+
+fmt: ## Format the code
+	cargo fmt --all
+
+fmt-check: ## Fail if rustfmt would change any file
+	cargo fmt --all --check
+
+clippy: ## clippy on every target with warnings denied
+	cargo clippy --locked --all-targets --all-features -- -D warnings
+
+lint: fmt-check clippy ## fmt-check and clippy
+
+check: ## Type-check every target
+	cargo check --locked --all-targets --all-features
+
+test: ## Unit and integration tests (the integration tests run the binary)
+	cargo test --locked --all-features
+
+build: ## Release binary in target/release/
+	cargo build --locked --release
+
+smoke: build ## Run the release binary's --help, --version and config show --json
+	$(RELEASE) --help >/dev/null
+	$(RELEASE) --version
+	$(RELEASE) --json config show >/dev/null
+
+audit: ## Advisories, licenses and sources with cargo-deny (needs network)
+	@command -v cargo-deny >/dev/null 2>&1 || { \
+		if command -v cargo-binstall >/dev/null 2>&1; then cargo binstall --no-confirm cargo-deny; \
+		else cargo install --locked cargo-deny; fi; }
+	cargo deny check
+
+ci: fmt-check clippy test smoke audit ## Everything CI runs
+
+clean: ## Remove build output
+	cargo clean

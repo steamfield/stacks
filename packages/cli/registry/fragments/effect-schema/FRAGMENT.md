@@ -6,7 +6,7 @@ category: tooling
 name: Effect Schema
 description: Effect Schema as the one validation and typing layer for data crossing a trust boundary (requests, config, storage, third-party and LLM output), with branded ids, tagged errors, JSON Schema for tools, and round-trip plus property tests.
 tags: [typescript, effect, validation, schema]
-applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, mobile-expo, python-react, react-router, tauri-react, typescript-api, typescript-cli]
+applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, mobile-expo, python-react, react-router, tauri-react, typescript-api, typescript-cli, typescript-mcp]
 deps:
   typescript: [effect]
 decisions:

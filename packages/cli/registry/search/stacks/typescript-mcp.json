@@ -3,19 +3,36 @@
   "kind": "stack",
   "id": "typescript-mcp",
   "source": {
-    "digest": "sha256:64698a8a40bc04bd35bea8170e1ae6455378de3e28ab36c638333400a72118fb",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     "by": "drafted",
-    "reviewedAt": "2026-10-27"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 3,
+    "reviewedAt": null
   },
   "summary": "A stdio MCP server on Effect, serving typed tools and a resource over JSON-RPC to agent clients.",
   "description": "Build a stdio MCP server with Effect's MCP modules: declare typed tools, register a resource, and speak newline-delimited JSON-RPC over stdin and stdout. Vitest covers the pure parts; an e2e test does a real client handshake against the built server. The proving slice is a ping tool, an echo tool and one markdown resource, extended after the handshake passes.",
   "seoDescription": "A stdio MCP server on Effect with typed tools, a resource, JSON-RPC over stdin/stdout and a real client handshake test.",
+  "projectExamples": [
+    {
+      "title": "Internal script tool server",
+      "description": "Illustrative: expose selected team scripts as typed tools an assistant can call. Add the script integration and its access rules after the ping, echo and resource checks pass."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter MCP server: a program that lets AI assistants call your tools and read documents through a shared protocol.",
+    "goodAt": [
+      "Giving assistants typed tools they can run as a local subprocess",
+      "Testing tool calls and document reads against the built program"
+    ],
+    "notGoodAt": [
+      "MCP features Effect lacks; use the official TypeScript MCP SDK instead.",
+      "Chat screens or model calls; choose a web app with a model provider."
+    ]
+  },
   "platforms": [
     "server"
   ],
-  "productKinds": [
-    "ai-app"
-  ],
+  "productKinds": [],
   "languages": [
     "typescript"
   ],
@@ -41,6 +58,10 @@
   ],
   "notFor": [
     "an HTTP or SSE MCP server",
+    "a chat app",
     "a chat loop or model provider"
+  ],
+  "caveats": [
+    "Effect's MCP modules share Schema and runtime; use the official TypeScript MCP SDK when Effect lacks a required feature."
   ]
 }

@@ -159,7 +159,7 @@ path; preview shows the composed brief without writing or starting processes. Pr
 ignores personal always-fragments and the preset setting.
 
 Fix findings at their source: replace pinned versions and dated phrases with discovery
-instructions; move version-sensitive files into prose; use ATX headings; repair unknown
+instructions; drop version literals from shipped configs; use ATX headings; repair unknown
 references, unreachable conditionals and template variables. Imports must belong to the
 entry or its required dependencies. Declare commands and cover fragment deliverables
 with verify. Repair shipped hook/editor command references and stale run fingerprints.

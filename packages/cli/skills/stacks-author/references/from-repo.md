@@ -28,7 +28,7 @@ A repo mixes a reusable foundation with one product built on it. Sort what you f
 
 - **Stack**: layout, tooling, conventions, the test bar, the commands, agent setup.
 - **Fragments**: pieces someone would add or drop on their own, such as CI, deployment, a database or auth. Check `<cli> search "<capability>" --kind fragment --json` before writing a new one; an existing fragment is usually better.
-- **Product**: domain code, business rules, branding, the specific pages or endpoints. Leave it out. At most, one feature can survive as an example in Setup that proves the wiring works ("add one real command that exercises config and output").
+- **Product**: domain code, business rules, branding, the specific pages or endpoints. Leave it out. At most, one feature survives in `files/` as the payload that proves the wiring (one real command or route that exercises config, errors and output).
 
 Ask the user which pile each unclear item belongs in, in a round of at most five questions, each with your recommended answer. Then write a one-paragraph summary of the stack, list each verify step with its command, and get the user's yes before running `<cli> create`.
 
@@ -41,9 +41,9 @@ Ask the user which pile each unclear item belongs in, in a round of at most five
 | A CLI's entry point | A smoke step that runs `--help` or `--version` on the built binary |
 | Pinned dependencies | `deps` grouped by role (`app`, `dev`, `test`, `cli`), names only. Keep the ones that define the stack; drop transitive and incidental ones |
 | Runtime and tool versions (`.nvmrc`, `go.mod`'s `go` line, `.python-version`) | A decision or Setup step: "use the current LTS, recorded in `.node-version`" |
-| Files that stay correct across releases (`.gitignore`, `.editorconfig`, shared scripts, hook code, a Makefile) | `files/`, with `.tmpl` and `{{project_name}}` where the project name appears |
-| Config whose format depends on the tool version (linter configs, framework config, CI action pins) | Requirements in Tool configuration, so the agent writes it for the installed version |
-| Generators the project was started from | A Setup step telling the agent to read the generator's current help and run it non-interactively |
+| The foundation code: entry point, config, errors, logging, output, one example feature, and their tests | `files/`, cut down to a slice that passes every verify step, with `.tmpl` and `{{project_name}}` where the project name appears |
+| Lint, format, typecheck and test configs, the Makefile or scripts, `.gitignore`, `.editorconfig`, docs | `files/` as they are, with every version literal removed (ranges, `packageManager`, `engines`, toolchain directives, action refs, versioned `$schema` URLs) |
+| Generators the project was started from | Nothing, when the shipped files cover their output. Otherwise a Setup step for only what can't ship (native directories, a lockfile), telling the agent to read the generator's current help and run it non-interactively |
 | CI | Usually the `ci-github` fragment as a default, plus `stacks:when with=ci-github` notes in the body |
 | Agent config | `adapters/claude/`, `adapters/codex/` and so on, with commands rewritten to the declared ones. Shared JSON goes in `merge` |
 | Choices the repo made that another project might make differently | `decisions`, each with the repo's choice as `(default: ...)` |

@@ -14,16 +14,16 @@ Use `stacks` on PATH, otherwise `npx -y @steamfield/stacks@latest`; `<cli>` mean
 ```text
 <id>/
   STACK.md            frontmatter + guidance (FRAGMENT.md for a fragment)
-  files/              stable starter files; *.tmpl takes {{project_name}} and a few other variables
+  files/              the working slice: source, tests, configs, docs; *.tmpl takes {{project_name}} and a few other variables
   adapters/claude/    files only Claude Code targets get (also codex/, opencode/, cursor/)
 search/stacks/<id>.json   the search card, beside the entry directories
 ```
 
 - **Frontmatter**: `id`, `name`, `description`, `tags` (exactly one of `make` or `scripts`), `deps` as package names by role (never versions), `tools`, `commands` (every command verify uses), `verify` steps with a `layer` (install, lint, typecheck, test, and a `serve` probe for `web` or `api`), `decisions` each with `(default: ...)`, and `fragments` (required, default, optional).
-- **Body**: Layout, numbered Setup, Conventions, Tool configuration, Testing, Commands, Gotchas.
+- **Body**: what stacks wrote, Layout, numbered Setup, Conventions, Testing, Commands, Gotchas. It points at the shipped code instead of restating it.
 - **Fragment**: adds `category`, `applies_to`, `requires`, `conflicts`, `requires_tools`, and a body that says what to add plus the `AGENTS.md` section the project gets. An app is a fragment with `category: app`.
 
-**Durable, not stale.** Anything that would be wrong after the next major release (versions, generator flags, config file formats) goes in prose as a rule or a discovery step against current official docs, never in `files/`.
+**Ship working code, never versions.** `files/` holds a small working slice (source, tests, configs, docs) that passes every verify step once dependencies are installed. No versions, ranges, `engines`, toolchain directives or action refs; the building agent installs current releases and updates what they outdate. Ship only what a verify step exercises.
 
 Full format: `references/anatomy.md`.
 

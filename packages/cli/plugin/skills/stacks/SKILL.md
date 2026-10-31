@@ -31,7 +31,7 @@ Run `<cli> new <stack> <dir> --json`; use `<cli> new <stack> <dir> --sandbox --j
 
 After `add`, read the same brief, merge the contributions parked in `.stacks/incoming/` while keeping the project's choices, then delete incoming files once merged. Verify checks the whole manifest.
 
-Read `.stacks/BRIEF.md`. The brief is the whole task: follow it in order, and ask the user only what it tells you to ask. Use current docs and official generators rather than remembered flags or config formats.
+Read `.stacks/BRIEF.md`. The brief is the whole task: follow it in order, and ask the user only what it tells you to ask. Update the files stacks wrote to current releases; use current docs, not remembered flags.
 
 ## Loop to green
 

@@ -20,7 +20,7 @@ Everything you write is read by people skimming a list: names, descriptions, bod
 
 A tracked file holds on any clone and for any maintainer: no absolute home paths, no machine-specific locations, no maintainer names. Edit files only with Edit and Write; shell edits skip the lint, boundary and secret hooks and the command guard denies them. Never run the full gate or a whole test suite (`bun run check`, `bun run test`, `rr check`); run only the scoped tests the skills name. Don't commit, push or create branches.
 
-The CLI executes nothing it reads: an entry may never ship a generator, install script or hook that `new` or `add` would run. Versions, generator flags and config formats belong in prose for the agent that builds the project, not in `files/` (`authoring.md`, "Distill the working project").
+The CLI executes nothing it reads: an entry may never ship a generator, install script or hook that `new` or `add` would run. A stack ships a working slice in `files/` (source, tests, configs, docs) that passes every verify step once dependencies are installed, with no version literal anywhere; versions and generator flags belong to the agent that builds the project. `stack-authoring`'s "The proving slice" says what the slice carries, which checks this checkout runs on it and how to prove it from a fresh scaffold.
 
 Approving a search card is a person's review: never set `reviewedAt` by hand and never run `bun run decorate --approve`; the skills list the checks that stay red on your draft until a person reviews it. When you edited an entry whose reviewed card still fits, restamp it yourself as `search-card.md` describes and say so in the hand-back.
 

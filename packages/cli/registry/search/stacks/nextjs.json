@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "nextjs",
   "source": {
-    "digest": "sha256:6c280d4cc07e407af8b3dfacdf5ebc943d4dda1b63e8e2e8245f6e4d4ee65baa",
+    "digest": "sha256:db5dc9fc5967690df2907d081020e17d4bf36c2aa0b888d51f248692a6ade0cd",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A Next.js App Router app on Node with server components, validated Server Actions and browser tests against the production build.",
   "description": "Start a Next.js App Router project that builds for production and runs under next start on Node. Pages render on the server from a server-only service, forms post to Server Actions that validate with zod and show field errors, and a route handler serves JSON. Vitest covers schemas, services and client components; Playwright drives the production build in Chromium. There is no database, sign-in or hosting setup; add those for a real product.",

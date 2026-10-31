@@ -55,6 +55,8 @@ test.each(cases)(
       [
         join(import.meta.dirname, "../node_modules/vitest/vitest.mjs"),
         "run",
+        "--config",
+        join(import.meta.dirname, "fixtures/native-adapters/vitest-hooks.config.ts"),
         "tests/hooks/codex-wiring.test.ts",
         "--maxWorkers",
         "1",

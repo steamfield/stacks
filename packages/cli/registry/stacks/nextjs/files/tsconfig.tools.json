@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "plugins": []
+  },
+  "include": [
+    "scripts/**/*.ts",
+    ".claude/hooks/**/*.ts",
+    "tests/hooks/**/*.ts",
+    "tests/helpers/hooks.ts"
+  ],
+  "exclude": ["node_modules"]
+}

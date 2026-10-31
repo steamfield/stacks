@@ -53,86 +53,70 @@ commands:
 
 # Next.js app on Node
 
-One Next.js App Router application, built with `next build` and served by `next start` on Node. Server components are the default; client components are explicit and small. Package scripts are the entry points. The proving slice is an items page: a server-rendered list from an in-memory service, a form that posts to a Server Action validated with zod, the list refreshed after a successful write, a JSON health route and an error boundary. No database, account, auth or deploy target is assumed; fragments add them.
+## What stacks wrote
 
-Read `docs/guidance/nextjs/index.md` before writing code and link it from AGENTS.md.
+A working App Router slice: the root layout and server-rendered items page, a process-local items service, a zod-validated Server Action and client form, `/api/health`, error and not-found pages, validated server config, structured logs, colocated unit tests and Playwright tests against the production build. The tool configs and package scripts ship too; read the code before extending it.
+
+Read `docs/guidance/nextjs/index.md` and link it from AGENTS.md.
 
 ## Look up the installed release first
 
-Next changes routing, caching and config conventions between majors, and your memory of it is probably older than the installed release. Recent releases ship their docs inside the package at `node_modules/next/dist/docs/` (getting started, guides including testing, API reference, CLI). Look things up in this order: the installed type declarations and that docs folder, then the matching page on nextjs.org, then memory last. If the folder is missing, the release predates bundled docs; use nextjs.org for the installed major.
+Next changes routing, caching and config conventions between majors. Look things up in this order: installed declarations and `node_modules/next/dist/docs/`, then the matching page on nextjs.org, then memory last. If bundled docs are absent, use the site for the installed major.
 
 ## Layout
 
-```text
-src/app/              routes: layout.tsx, page.tsx, error.tsx, not-found.tsx, actions.ts,
-                      api/health/route.ts, CSS modules beside the components that use them
-src/components/       client components ("use client"), one per file
-src/lib/              code safe on both sides: zod schemas, pure helpers
-src/lib/server/       server-only services; each module imports "server-only" first
-tests/                Vitest: services, schemas, client components
-e2e/                  Playwright specs against the production server
-scripts/prepare.ts    shipped: lefthook and Chromium install outside CI
-```
+- `src/app/`: layout, page, actions, error boundary, not-found page, health route and global CSS.
+- `src/components/add-item-form.tsx`: client form with action state, field errors and pending feedback.
+- `src/lib/item-schema.ts`: shared input parser and serializable action state.
+- `src/lib/server/`: config, items service and structured logging; each imports `server-only`.
+- Colocated `*.test.ts(x)`: unit and component tests. `tests/helpers/`: Vitest setup. The harness adds `tests/hooks/`.
+- `e2e/items.spec.ts`: real production-server page, action, health and 404 tests.
+- `scripts/prepare.ts`: git hooks and Chromium installation outside CI.
 
 ## Setup
 
-1. Read `bunx create-next-app@latest --help`, then run it non-interactively into a temporary directory: TypeScript, App Router, `src/` directory, ESLint, the `@/*` alias, Bun as package manager, no install, no git, no agent files, no Tailwind unless the styling decision chose it. Move its files into the project without overwriting scaffold files, then delete the temporary directory and the starter's marketing page, images and generator README.
-2. Keep the generator's `next.config` settings and its TypeScript and ESLint version ranges. Raise a major only after the TypeScript and ESLint config pages in the installed docs say it's supported. Set the package name, Bun `packageManager`, Node LTS in `.node-version` and `engines.node`.
-3. Install the remaining dev dependencies, checking peer ranges. Configure Vitest, Prettier and Playwright as below.
-4. Build the proving slice:
-   - `src/lib/server/items.ts`: an in-memory items service (list, add) seeded with two items, holding its store on `globalThis` so dev hot reload keeps it.
-   - `src/lib/item-schema.ts`: the zod schema for a new item (a trimmed, required name with a length limit) and a pure function turning `FormData` into either the item or per-field errors.
-   - `src/app/actions.ts` (`"use server"`): parse with that function; on errors return them with the submitted values; on success add the item and invalidate the page's cached data the way the installed caching docs describe for read-your-own-writes, so the new item shows without a manual reload.
-   - `src/app/page.tsx`: a server component that awaits the service and renders the list and the form. `src/components/add-item-form.tsx`: a client component that submits to the action, keeps its returned state, shows field errors next to the input and disables the button while pending.
-   - `src/app/api/health/route.ts`: `GET` returns `{"status":"ok","items":<count>}` from the service, rendered per request rather than at build time.
-   - `src/app/error.tsx`: a client error boundary with a safe message and a retry button; `not-found.tsx` for unknown paths.
-5. Write the tests listed under Testing, fill README and AGENTS.md, then run verify.
+1. Add all declared app and dev dependencies with `bun add` and `bun add -d`, checking peer ranges. Install the newest TypeScript and ESLint releases supported by Next and its ESLint plugins, rather than forcing unsupported majors. Match `@types/node` to the chosen Node major. Keep the shipped scripts and configs; no generator is needed.
+2. Run lint, typecheck, test and e2e. Where the installed release rejects shipped code or config, update it using its docs without weakening a check, lint rule or assertion. `typecheck` generates route types before tsc; `e2e` builds before starting the production server.
+3. Record Node LTS in `.node-version` and `engines.node`, Bun in `packageManager`, and installed tool versions and any compatibility workaround with its removal condition in README.
+4. Fill README's `stacks:fill` markers and AGENTS.md with the actual commands, single-file test examples, server/client boundary and guidance links. Fill the harness documentation when present. Run `bun run format` after adding the fragments to normalize their shared files with Prettier, then run `stacks verify` until green. If a default port is busy, choose free `PORT_WEB` and `PORT_E2E` values in verify's environment.
 
-## Server and client boundary
+## Conventions
 
-Only `src/lib/server/` reads environment variables, holds state or talks to anything outside the process. Server components and actions call it; client components never import it. The `server-only` import makes a leak fail the build; the shipped Claude hook stops it earlier. Treat every Server Action as a public HTTP endpoint: validate its input with zod on the server even when the form validates in the browser, and return errors as data rather than throwing. Thrown errors go to the nearest `error.tsx`, where production hides the message, so expected failures never throw.
+Keep the shipped boundaries when adding code:
 
-Pass plain serializable data from server to client components. Keep `"use client"` at the leaves; a provider or form is a client component, the page around it isn't.
+- Server components and actions call `src/lib/server/items.ts`; client components receive serializable props. Keep `"use client"` at the leaves and `server-only` first in every server module.
+- `config.ts` alone reads the app's environment, lazily validates it with zod and caches it. New settings get a schema field, an `.env.example` line, a test and README documentation.
+- Treat every Server Action as a public endpoint. `parseItem` validates FormData on the server and returns submitted values and `{ error: { code, fields } }` for expected failures. Do not throw validation failures. The action revalidates the page after a successful write.
+- `items.ts` keeps state on `globalThis` for development reloads and returns copies. It is process-local, resets on restart and is not persistence. The page reads it per request rather than baking a snapshot into the build.
+- `logging.ts` writes structured JSON with UTC time, event and request ID, never submitted names or raw errors. The health route returns its request ID and a no-store response. Extend the allowlisted fields when a new boundary needs them.
+- `error.tsx` shows a fixed safe message and retries; it logs only the framework digest. Unexpected failures propagate to Next. Missing routes use `not-found.tsx`.
 
-## Tool configuration
+## Tool configuration and tests
 
-TypeScript is strict with unchecked index access, no emit, bundler resolution and the generator's Next plugin and include list (it covers generated route types). `typecheck` runs Next's route-type generation command (see `next --help`), then `tsc --noEmit`, so typed routes exist before tsc. If the installed TypeScript has no JavaScript compiler API, follow the installed TypeScript config page for how `next build` type checks.
+Keep the shipped Next plugin, route-type includes, strict TypeScript and unchecked index access. ESLint uses `eslint-config-next`'s flat core-web-vitals and TypeScript configs; `lint` also checks Prettier with its defaults and the shipped ignore file. Add generated output to the ignores, never format `.stacks/`.
 
-Next's environment types can require `NODE_ENV` on every child-process environment. If the shipped harness tests fail typechecking for that reason, keep their isolated environments and supply `NODE_ENV` explicitly, including after filtering inherited variables.
+Vitest runs on Node with the React plugin and the `@/*` alias; component tests select jsdom per file. The `server-only` alias is test-only: the production build enforces the real boundary. Unit tests exercise the parser, isolated real service, config, safe log records, form feedback and error retry. Keep service test resets test-only.
 
-ESLint runs through its own CLI (`eslint .`) with the generator's flat config, which extends Next's core-web-vitals and TypeScript configs. Don't use a framework lint wrapper; newer majors removed it. Add Playwright and test globs to its ignores only if a rule misfires. `lint` also runs `prettier --check .`. The shipped `.prettierignore` keeps Prettier off generated output and the stacks-owned `.stacks/` directory; add to it rather than formatting those.
-
-Vitest uses the React plugin, resolves the `@/*` alias (the installed Vite's tsconfig-paths option, else `vite-tsconfig-paths`), runs `tests/**/*.test.{ts,tsx}` only, uses the node environment by default and jsdom for files that render components (a per-file environment comment), and loads jest-dom matchers and Testing Library cleanup in a setup file. Map `server-only` to an empty module in the Vitest config: imported outside Next's server bundler it throws, so service tests fail on import otherwise.
-
-Playwright uses Chromium, one worker, `forbidOnly` in CI, retained traces on failure and a `webServer` that runs `bun run start --port <port>` on a test port (`PORT_E2E`, default 3100) with `reuseExistingServer` off in CI. `e2e` runs `next build` first, because `next start` serves only a finished build.
-
-## Testing
-
-Vitest can't render async server components. Test what it can and leave the rest to Playwright:
-
-- The item schema and FormData parser: valid input, empty and whitespace names, an over-long name, each with the exact field error.
-- The items service: list, add, and that two tests don't share state (reset the store in a `beforeEach` through an exported test helper).
-- The form component in jsdom with a stub action: renders field errors from state and disables submit while pending.
-- `error.tsx`: shows the safe message and calls `reset` on retry.
-
-Don't call the Server Action from Vitest: invalidation needs Next's request context. Playwright covers it in `e2e/items.spec.ts`: the page lists the seed items, an empty submit shows the field error without adding anything, a valid submit shows the new item and it survives a reload, and `/api/health` returns 200 with `status` `ok`. Tests need no `.env` and no network beyond localhost.
+Vitest cannot render async server components or supply Next's action/revalidation context. Playwright runs Chromium against `next build` plus `next start`, with one worker, no server reuse and retained traces on failure. Its tests cover seed data, rejected input without a write, successful action/revalidation, reload persistence within that process, health JSON and a real 404. Use unique names and condition waits; tests need no secrets or network beyond localhost.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from packageManager and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload the Playwright report and test results on failure. No credentials are needed.
+CI sets up Bun from packageManager and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands
 
-Wire the declared scripts to `next`, ESLint, Prettier, Vitest, Playwright and the shipped helper. `test` is `vitest run`; `prepare` runs `bun scripts/prepare.ts`, which outside CI installs lefthook when `lefthook.yml` exists and downloads Chromium for e2e (slow once, then a no-op). `clean` removes `.next/`, `coverage/`, `test-results/` and `playwright-report/` only. List every script in AGENTS.md with a single-test-file example (`bun run test tests/item-schema.test.ts`).
+`package.json` wires every declared command. Mirror them in AGENTS.md, including a scoped example such as `bun run test src/lib/item-schema.test.ts`. `prepare` runs the shipped helper after install; `clean` removes only build, test and coverage output.
 
 <!-- stacks:when with=git-hooks -->
-`scripts/prepare.ts` already runs `lefthook install` after every `bun install`, so don't add another install step. pre-commit runs ESLint with `--fix` and Prettier on staged files; pre-push runs `bun run typecheck` and `bun run test` in parallel.
+The shipped prepare helper already runs `lefthook install` when its config exists outside CI, so don't add another installer. pre-commit runs ESLint with `--fix` and Prettier on staged files; pre-push runs typecheck and tests in parallel.
 <!-- stacks:end -->
 
 ## Gotchas
 
-- `next dev` writes a marked block into AGENTS.md pointing agents at the bundled docs when it detects a coding agent. Keep it and commit it; deleting it only brings it back.
-- Never force `--bun` on next, Vitest or Playwright, and never use `bun test`; they run on Node. Bun doesn't pass its loaded `.env` to the Node child, and Next loads `.env*` itself.
-- Caching defaults differ by major and by `next.config` flags. A page that shows stale data after a write is a caching problem: read the installed caching and revalidation guides before adding a dynamic flag to the page.
+- Drop TypeScript/ESLint compatibility resolution once Next and its plugins support the newest majors; check their peer ranges on upgrades.
+- `next dev` may add an AGENTS.md block pointing at bundled docs. Keep it; deleting it brings it back.
+- Never force `--bun` on Next, Vitest or Playwright, and never use `bun test`. These run on Node; Bun installs and runs scripts. Bun doesn't pass its loaded `.env` to Node children; Next loads its own `.env*`.
+- Caching defaults differ by release and config. Read the installed caching and revalidation docs when a write shows stale data; don't add dynamic flags without checking why.
 - `.next/` and `next-env.d.ts` are generated. Change source or config, never them.
-- Production builds hide thrown error messages. Read the server log printed by `next start` or the Playwright trace (`test-results/<test>/`) for the real cause.
+- Next's types require `NODE_ENV` in child-process environments. `tsconfig.tools.json` checks the Node-only scripts and harness separately to keep their isolated environments free of Next's ambient augmentation; `typecheck` runs both programs.
+- Production hides thrown messages. Read the server output and Playwright's `test-results/<test>/error-context.md` and trace for the cause.

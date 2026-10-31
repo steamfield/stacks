@@ -1,0 +1,29 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "dev:api": "node --env-file-if-exists=.env --watch apps/api/src/platform/node.ts",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:bg": "bun scripts/dev-bg.ts start",
+    "logs": "bun scripts/logs.ts",
+    "dev:status": "bun scripts/dev-bg.ts status",
+    "dev:stop": "bun scripts/dev-bg.ts stop",
+    "build": "bun build apps/api/src/platform/node.ts --target=node --format=esm --packages=bundle --env=disable --outdir=apps/api/dist && bun run --cwd apps/web build",
+    "start": "node --env-file-if-exists=.env apps/api/dist/node.js",
+    "typecheck": "tsc -p packages/contract/tsconfig.json && tsc -p apps/api/tsconfig.json && tsc -p tsconfig.tools.json && bun run --cwd apps/web typecheck",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "clean": "rm -rf apps/api/dist apps/web/dist apps/web/.astro coverage logs",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

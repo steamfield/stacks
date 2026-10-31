@@ -65,56 +65,43 @@ commands:
   prepare: Install project hooks outside CI
 ---
 
-# Astro site + Effect API
+## What stacks wrote
+
+A Bun workspace with a shared Effect HTTP contract, a Node API and a static Astro site with a React island. The API ships health and payload endpoints, configuration, the error table, safe structured logging, global request middleware and static-file serving; the site shows live API status through the contract client. Source, tests, tool configs, development scripts and guidance are present; read the code before extending it.
 
 Read `docs/guidance/astro-fullstack/index.md` before implementation; it supplies the shared guidance for every selected agent.
 
-Three Bun workspaces: `packages/contract` defines the `HttpApi`, `apps/api` implements it on Node, and `apps/web` builds a static Astro site whose React islands use the contract's typed client. Name packages `@<slug>/contract`, `@<slug>/api` and `@<slug>/web`; ship TypeScript source without separate workspace builds.
-
-Pages are HTML built ahead of time. An island fetches data that must be fresher than the build. Add server rendering only for a page that needs per-request data, after asking. The base proving slice is `GET /healthz` end to end: contract, handler, the API's error table, and a home page island showing whether the API answers.
-
 ## Layout
 
-```
-package.json         workspaces apps/*, packages/*; root scripts; biome.json; tsconfig.base.json
-tsconfig.tools.json  scripts/, .claude/hooks/, tests/hooks/, tests/helpers/hooks.ts (bundler resolution)
-vitest.config.ts     projects named api (apps/api), web (apps/web) and hooks (tests/)
-scripts/             dev.ts, dev-bg.ts, dev-pid.ts, dev-logs.ts, logs.ts, dev-status.ts, prepare.ts
-packages/contract/src/   api.ts, groups/<resource>.ts, schemas/, errors.ts, index.ts
-apps/api/src/        handlers/<resource>.ts, services/, config.ts, logging.ts, app.ts, platform/node.ts
-apps/api/tests/      helpers/, *.test.ts
-apps/web/src/        pages/, layouts/BaseLayout.astro, components/*.tsx (+ .test.tsx), islands/*.tsx, lib/api.ts, styles/global.css
-```
+- `packages/contract/index.ts` is the public entry for `src/api.ts`, `src/groups/health.ts`, schemas and errors. It imports only Effect.
+- `apps/api/src/` holds `app.ts`, `config.ts`, `logging.ts`, `handlers/`, `services/` and the only runtime entry, `platform/node.ts`.
+- `apps/api/tests/http-contract.test.ts` runs the HTTP acceptance matrix on Node and web transports. Configuration, error and logging unit tests sit beside their source; platform tests and HTTP helpers stay in `tests/`.
+- `apps/web/src/` holds `layouts/BaseLayout.astro`, `pages/index.astro`, `pages/404.astro`, `islands/ApiStatus.tsx` with its test, `lib/api.ts` and Tailwind styles.
+- Root package scripts, TypeScript and Vitest projects configure the workspace; `biome.json` loads `biome-plugins/boundaries.grit`. `scripts/` owns development servers and logs; `tests/hooks/` checks the scripts and agent hooks.
+
+Workspaces use fixed internal names `@app/contract`, `@app/api` and `@app/web`. Application imports cross only the contract's public `packages/contract/index.ts`, using relative paths so Node can load source without workspace transpilation. The site never imports the API.
 
 Read `docs/api-foundation.md` for lint, testing and development requirements.
 
 ## Setup
 
-1. Write the root `package.json` (`private`, `"type": "module"`, workspaces, the current Bun `packageManager`, the declared scripts) and one per workspace. Node LTS goes in `.node-version` and `engines.node`. Install compatible versions together, checking peer ranges. Pin `@types/node` to the `.node-version` major. The `dev` and `typescript` roles name no workspace: `@effect/vitest` goes in root devDependencies, `effect` in each workspace importing it.
-2. Create the site with create-astro (`bunx create-astro@latest`, minimal template, no install, git or agent files) in a temp directory, move it into `apps/web` without overwriting, then add React and Tailwind the way `astro add` currently does.
-3. Generate the TypeScript, Biome, Astro and Vitest config described below, checked against the installed versions. Confirm Node runs `apps/api/src/platform/node.ts` with type stripping, including its imports of the contract's `.ts` source through the workspace link. If it doesn't, record the fix under Build workarounds.
-4. Implement the proving slice: the `Health` group with `GET /healthz` returning `{"status":"ok"}` in the contract, then its handler, config, logging, `app.ts` and the Node entry in the API. On the site, a `BaseLayout`, an `index.astro` and an `ApiStatus` island.
-5. Write the tests below, then fill the README and AGENTS for this base before adding any resource.
+1. Add the declared dependencies to their named workspaces with `bun add` or `bun add -d`. Put `web-dev` in `apps/web`, `root-dev` and fragments' `dev` at root, Vitest in each workspace too, and Effect at root for the boundary probes. Check peer ranges and resolve current compatible releases; align Effect packages together. Install the newest TypeScript within `@astrojs/check`'s supported peer range.
+2. Run lint, typecheck, test and build. Update shipped code or config the installed releases reject, using their declarations and docs; keep every check, lint rule and assertion. No generator is needed. Confirm Node runs `apps/api/src/platform/node.ts` with type stripping; if a flag is needed, add it to the scripts and record it under Build workarounds.
+3. Record current Node LTS in `.node-version` and `engines.node`, and the installed Bun in `packageManager`; match `@types/node` to the Node major. Record release workarounds with their removal conditions.
+4. Set `site` in `apps/web/astro.config.mjs` to the chosen production URL. Fill README and AGENTS for this base, including the harness documentation's markers, before adding a resource. Run `stacks verify` until green, then `stacks verify --all`.
 
-## Contract
+## Conventions
 
-Follow `docs/guidance/astro-fullstack/effect-api.md` and the `rest-api` rule. Every error body is `{ "error": { "tag", "message", "retryable" } }`. Base rows are `BadInput` (400), `NotFound` (404), `Unavailable` (503, retryable) and `Defect` (generic 500); add `UnsupportedMediaType` (415) with the first body endpoint. Resources live under `/v1`; `/healthz` and `/openapi.json` stay outside it.
+- Copy the health resource's contract, handler and service shape. Follow `docs/guidance/astro-fullstack/effect-api.md` and the `rest-api` rule.
+- Keep `app.ts` platform-free; both transports must pass the same matrix.
+- Add settings through `config.ts`, `.env.example` and README; build layers once at the platform entry.
+- Build pages without a running API; islands use `lib/api.ts`. Add server rendering only after asking.
+- Use Tailwind and accessible HTML. Follow `docs/guidance/astro-fullstack/astro.md` for proxies and browser settings.
+- Resolve `STATIC_DIR` against the repository root. API paths retain their envelopes; site misses use `404.html`. Logs never include bodies or credentials.
 
-## API
+## Testing
 
-Follow the API guidance for services, config, platform boundaries and request middleware. The same `app.ts` must run as a web fetch handler; a wrong method gets the 404 envelope. Serve `/openapi.json` from the definition.
-
-When `STATIC_DIR` is set (a relative one resolves against the repository root), `platform/node.ts` mounts Effect's static file server over it, resolving directory `index.html` files. API routes always win. A miss on an API path (`/v1/*`, `/healthz`, `/openapi.json`, any method) gets the 404 envelope, and any other miss gets the site's `404.html` with status 404.
-
-The custom Effect logger writes JSON with UTC `time`, lowercase `level`, `msg`, annotations and an allowlisted `error`. The Node entry writes terminal lines and JSONL to `LOG_FILE` (default `logs/server.jsonl`) in development, JSON to stdout in production. Respect `NO_COLOR` and `LOG_LEVEL`.
-
-## Site
-
-Follow `docs/guidance/astro-fullstack/astro.md`. Build static pages without a running API; islands fetch changing data through the contract client at relative URLs. Proxy `/v1`, `/healthz` and `/openapi.json` to `PORT_API` in development. Only `PUBLIC_` vars reach islands. The site never imports `@<slug>/api`.
-
-## Tool configuration and tests
-
-Follow `docs/guidance/astro-fullstack/tooling.md` for Biome, TypeScript and Vitest configuration. Implement `docs/acceptance/astro-fullstack.md`; verify independently runs its HTTP contract test. Use real layers per `docs/guidance/astro-fullstack/testing.md`. `bun run build` integrates the site.
+`vitest.config.ts` names `api`, `web` and `hooks` projects. The HTTP suite implements `docs/acceptance/astro-fullstack.md`: real Node listeners and the web handler, fresh layers, safe error bodies and logs, request ids, payload limits and static files. Extend it with new endpoints. The island's Testing Library tests replace only fetch and return contract-encoded bodies; never mock the client or contract. `bun run build` integrates every Astro route and bundles the Node entry. Keep the coverage floors in `docs/api-foundation.md`. Follow `docs/guidance/astro-fullstack/testing.md`.
 
 <!-- stacks:when with=ci-github -->
 CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and the build. No credentials are needed.
@@ -122,12 +109,14 @@ CI sets up Bun from packageManager and Node from .node-version, installs frozen 
 
 ## Commands and gotchas
 
-Follow `docs/guidance/astro-fullstack/development.md` for script wiring, process ownership, logs and runtime gotchas. Document the commands in AGENTS.md.
+Follow `docs/guidance/astro-fullstack/development.md` for process ownership and logs; document commands in AGENTS.md.
 
 <!-- stacks:when with=git-hooks -->
 The shipped `scripts/prepare.ts` already runs `lefthook install` after every `bun install` (skipped in CI or without lefthook), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`.
 <!-- stacks:end -->
 
 <!-- stacks:when with=effect -->
-The generated Effect skill also records, under the installed release's names, every HTTP mechanism `effect-api.md` and `astro.md` describe by behavior: the API declaration, server-level middleware, the typed client and its fetch, test clients, serving and static files.
+The generated Effect skill records the HTTP mechanisms in `effect-api.md` and `astro.md` against the installed release.
 <!-- stacks:end -->
+
+The API and Vitest run on Node: never `bun test`, never `--bun`. Bun doesn't pass its loaded `.env` to a Node child. `dev:web` passes `--ignore-lock` to prevent Astro backgrounding itself under an agent. Delete `apps/web/.astro/` for stale generated types. Drop the TypeScript compatibility workaround once `@astrojs/check` supports the current major. Build-time switches use Astro's env schema, not secret `PUBLIC_` values.

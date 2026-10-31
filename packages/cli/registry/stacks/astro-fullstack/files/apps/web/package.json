@@ -1,0 +1,10 @@
+{
+  "name": "@app/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --ignore-lock",
+    "build": "astro build",
+    "typecheck": "astro check"
+  }
+}

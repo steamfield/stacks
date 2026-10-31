@@ -15,6 +15,7 @@ help: ## List targets
 
 install: ## Install dependencies (frozen lockfile when CI is set)
 	bun install $(if $(CI),--frozen-lockfile)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ]; then lefthook install; fi
 
 # --ignore-lock keeps astro dev in the foreground when it detects an agent
 # (otherwise it backgrounds itself and exits). Stop a stray one: bunx astro dev stop
@@ -36,6 +37,7 @@ coverage: ## Tests with coverage
 
 build: ## Static production build into dist/
 	bunx astro build
+	node --test tests/build.test.mjs
 
 preview: ## Serve the production build
 	bunx astro preview --port $(PORT_WEB) --ignore-lock

@@ -1,0 +1,60 @@
+---
+import { site } from "../config";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  path: string;
+  image?: string;
+  noindex?: boolean;
+}
+const {
+  title,
+  description = site.description,
+  path,
+  image = site.image,
+  noindex = false,
+} = Astro.props;
+const canonical = new URL(path, site.url);
+const ogImage = new URL(image, site.url);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title} | {site.title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={site.title}
+      href="/rss.xml"
+    />
+    <script is:inline>
+      document.documentElement.classList.toggle(
+        "dark",
+        window.matchMedia("(prefers-color-scheme: dark)").matches,
+      );
+    </script>
+  </head>
+  <body class="mx-auto max-w-3xl px-6 py-10">
+    <nav aria-label="Main" class="mb-10 flex gap-6">
+      {site.nav.map((item) => (
+        <a href={item.href}>{item.label}</a>
+      ))}
+    </nav>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

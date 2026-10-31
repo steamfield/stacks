@@ -4,7 +4,7 @@
 
 `scripts/architecture/crate-edges.json` is the dependency policy: every workspace member and the path dependencies it may have, split into `normal` and `dev`. `make architecture-check` compares it with `cargo metadata`. Cargo prevents cycles; this check prevents an otherwise valid edge from crossing an ownership boundary. Don't add an edge to the policy just to silence a failure: say why ownership changed.
 
-- `crates/{{project_slug}}-core` and other library crates hold the logic. No Tauri, testable without a webview.
+- `crates/core` (package `{{project_slug}}-core`) and other library crates hold the logic. No Tauri, testable without a webview.
 - `src-tauri/` is a thin shell: commands, channels, windows, plugins. Anything not Tauri-specific moves into a crate.
 - Library crates compile on every target platform. Platform code is gated with `#[cfg(target_os = ...)]` at module level, never sprinkled through function bodies; don't gate on `target_arch` when you mean the OS.
 - Prefer crates that bundle or vendor their C libraries, so the app needs nothing installed on the user's machine.

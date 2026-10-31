@@ -23,13 +23,15 @@ rotate(join(logs, "cli.log"), join(logs, "cli.prev.log"));
 const args = process.argv.slice(2);
 // Preserve terminal capabilities for interactive invocations; structured logs remain on disk.
 const interactive = process.stdin.isTTY && process.stdout.isTTY;
+const logFileKey = "{{env_prefix}}_LOG_FILE";
+const dataDirKey = "{{env_prefix}}_DATA_DIR";
 
 const child = Bun.spawn([process.execPath, join(root, "src/bin.ts"), ...args], {
   env: {
     ...process.env,
     LOG_LEVEL: process.env.LOG_LEVEL || "info",
-    {{env_prefix}}_LOG_FILE: process.env.{{env_prefix}}_LOG_FILE ?? join(logs, "cli.jsonl"),
-    {{env_prefix}}_DATA_DIR: process.env.{{env_prefix}}_DATA_DIR || join(root, ".dev", "data"),
+    [logFileKey]: process.env[logFileKey] ?? join(logs, "cli.jsonl"),
+    [dataDirKey]: process.env[dataDirKey] || join(root, ".dev", "data"),
     // Colors survive the pipe when the real stderr is a terminal.
     ...(process.stderr.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: "1" } : {}),
   },
@@ -40,6 +42,7 @@ const child = Bun.spawn([process.execPath, join(root, "src/bin.ts"), ...args], {
 
 // Ctrl+C reaches the child through the terminal's process group; wait for its exit code.
 process.on("SIGINT", () => {});
+process.on("SIGTERM", () => child.kill("SIGTERM"));
 
 if (child.stderr) {
   const logFile = join(logs, "cli.log");

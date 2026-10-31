@@ -62,9 +62,9 @@ src/lib/server/items.ts        the service the page and action already call, sam
 src/app/api/ready/route.ts     readiness, rendered per request
 ```
 
-The items service keeps the names and shapes the page, the Server Action and the form use, but its functions become async and `add` returns the duplicate-name case as a field error ("An item with this name already exists") through the action's existing error path. Remove the in-memory store and its test reset helper; its service tests move to `tests/db/` against a real database. The page, form and e2e specs keep their assertions.
+The items service keeps the async `listItems` and `addItem` exports the page and action already await. Map duplicate names to the action's existing `INVALID_INPUT` state with a `name` field error ("An item with this name already exists"). Remove the in-memory store and `resetItemsForTest`; move `src/lib/server/items.test.ts` to `tests/db/` against a real database. The page, form and item-write browser assertions stay.
 
-`/api/health` stays the liveness check for the `web` verify probe and stops reporting the item count, so it returns `{"status":"ok"}` without touching the database. Say so in README. Readiness lives at `/api/ready`.
+`/api/health` stays the liveness check for the `web` verify probe and stops reporting the item count, so it returns `{"status":"ok"}` without touching the database. Update the health schema in `e2e/items.spec.ts` to match, keeping its status, no-store and request-ID assertions. Say so in README. Readiness lives at `/api/ready`.
 
 The items page now reads the database, so it must render per request: opt it out of build-time prerendering the way the installed caching docs describe, or `next build` queries a database verify hasn't given it. Keep the existing revalidation after a write.
 
@@ -74,7 +74,7 @@ The items page now reads the database, so it must render per request: opt it out
 <!-- stacks:when stack=sveltekit -->
 ## SvelteKit placement
 
-Follow the SvelteKit sections in `database.md` and `testing.md`. Put the schema, lazy pool and repository under `src/lib/server/`; `$lib/server` enforces the boundary, so omit `server-only`. Keep the items service interface for `+page.server.ts`, making its calls async and mapping duplicate names to the form action's field error. The page load and `/api/ready` query per request, without prerendering. `/api/health` returns only `{"status":"ok"}` and never queries Postgres; document its removed item count in README. Keep the shared zod parser, form and browser assertions.
+Follow the SvelteKit sections in `database.md` and `testing.md`. Put the schema, lazy pool and repository under `src/lib/server/`; SvelteKit enforces the server-directory boundary, so omit `server-only` and use the shipped `#lib/*` imports. Keep the items service's async `listItems` and `addItem` exports for `+page.server.ts`, mapping duplicate names to the form action's field error. Move the adjacent service and action tests to `tests/db/` and remove the in-memory reset helper. The database Vitest config must replace the server project's includes with `tests/db/**/*.test.ts`, keeping Node resolution; the component project's browser resolution must not reach server tests. The page load and `/api/ready` query per request, without prerendering. Preserve the hook's 503 readiness body and keep `src/hooks.server.test.ts` in the base suite to prove it survives request middleware. `/api/health` returns only `{"status":"ok"}` and never queries Postgres; document its removed item count in README and update the e2e health schema, preserving its status, no-store and request-ID assertions. Keep the shared zod parser, form and browser assertions.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->

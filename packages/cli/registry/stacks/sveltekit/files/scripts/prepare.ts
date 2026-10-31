@@ -8,12 +8,11 @@ import { join } from "node:path";
 
 process.chdir(join(import.meta.dirname, ".."));
 
-// Skipped until SvelteKit is installed (the first install can run before the generator's files
-// are moved in).
+// The first dependency install may run before SvelteKit is available.
 if (existsSync("node_modules/.bin/svelte-kit")) {
   const sync = spawnSync("node_modules/.bin/svelte-kit", ["sync"], { stdio: "inherit" });
   if (sync.error || sync.status !== 0) {
-    console.log("svelte-kit sync failed: generated types are stale (run bun run typecheck)");
+    throw sync.error ?? new Error("svelte-kit sync failed: run bun run typecheck");
   }
 }
 

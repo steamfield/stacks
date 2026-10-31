@@ -1,0 +1,43 @@
+{
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.mjs",
+      "**/*.json",
+      "**/*.css",
+      "!build",
+      "!.react-router",
+      "!coverage",
+      "!node_modules",
+      "!logs",
+      "!playwright-report",
+      "!test-results",
+      "!.stacks"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  "css": { "parser": { "tailwindDirectives": true } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "useImportType": "error",
+        "useExportType": "error",
+        "noNonNullAssertion": "error",
+        "useConst": "error"
+      },
+      "correctness": { "noUnusedImports": "error" }
+    }
+  },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["app/**/*.test.{ts,tsx}", "tests/**/*.test.ts"],
+      "linter": { "domains": { "playwright": "none" } }
+    }
+  ]
+}

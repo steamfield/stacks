@@ -1,15 +1,15 @@
 # Testing
 
-## No network, fakes only at the boundary
+## No external services, fakes only at the boundary
 
-- Tests never reach the network and need no `.env` or credentials.
+- Tests use no external services and need no `.env` or credentials. The browser smoke uses a local built server.
 - The only fakes are for third parties. Never mock our own modules or services; build a test runtime from real in-memory layers (`layerMemory`) instead.
-- Route tests call loaders and actions with a real `Request` on a test runtime set through the runtime setter, and dispose it afterwards. `Route.LoaderArgs` (and `ActionArgs`) require `request`, `params`, `context`, `url`, and `pattern`; build them with one helper in `tests/helpers/` (`url: new URL(request.url)`, `pattern` the route path).
+- Route tests call loaders and actions with a real `Request` on a test runtime set through the runtime setter, and dispose it afterwards. `tests/helpers/runtime.ts` builds their arguments, including `new RouterContextProvider()`, the URL and route pattern.
 
 ## Required coverage
 
 - `/healthz` succeeding through the runtime, and failing visibly when config is invalid.
-- Error paths for every route, each status it can return (bad body 400, wrong content type 415, missing thing 404, defect 500), with `retryable` asserted on each error body, not only the status.
+- Error paths for every route, each status it can return (bad body 400, oversized body 413, wrong content type 415, missing thing 404, defect 500), with `retryable` asserted on each error body, not only the status. Test actual streamed bytes at and above MAX_BODY_BYTES, rather than trusting Content-Length.
 - Request ids on responses, one completed-request log line, a defect logged exactly once, runtime isolation and disposal, and a log file sink that survives its directory being deleted.
 - Retry schedules and anything time-based with `TestClock`.
 
@@ -21,10 +21,10 @@
 
 ## Running
 
-- Scoped first: `bun run test tests/<file>.test.ts` (add `-t "<name>"` for one test). Then `bun run test` before calling it done. Vitest runs on Node: never `bun test`, never `--bun`.
+- Scoped first: `bun run test app/.server/http.test.ts` (add `-t "<name>"` for one test). Then `bun run test` before calling it done. Vitest runs on Node: never `bun test`, never `--bun`.
 - Server tests run in the `node` environment; component tests opt into `happy-dom` per file. happy-dom replaces `fetch` and enforces same-origin rules, so a component test that calls a local server disables its same-origin policy for that file.
 - Components that render router links need `createRoutesStub`.
-- `bun run e2e` builds and runs the Playwright smoke against the production build. Add to it only when a change could break in the browser but not in happy-dom (hydration, the client bundle, a download); test behavior in vitest. On failure, read `test-results/<test>/error-context.md` first: it has the error and a snapshot of the page. Apps add their own acceptance flows.
+- `bun run e2e` builds and runs the Playwright smoke against `bun run start`, using `@react-router/serve` on the separate test port. Add to it only when a change could break in the browser but not in happy-dom (hydration, the client bundle, a download); test behavior in vitest. On failure, read `test-results/<test>/error-context.md` first: it has the error and a snapshot of the page. Apps add their own acceptance flows.
 
 ## Discipline
 

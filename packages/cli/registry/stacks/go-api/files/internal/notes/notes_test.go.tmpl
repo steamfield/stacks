@@ -1,0 +1,102 @@
+package notes
+
+import (
+	"context"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestMemory(t *testing.T) {
+	store := NewMemory()
+	page, err := store.List(t.Context(), 20, "")
+	require.NoError(t, err)
+	assert.NotNil(t, page.Items)
+	first, err := store.Create(t.Context(), Input{Title: "  first  ", Body: "body"})
+	require.NoError(t, err)
+	assert.Equal(t, "first", first.Title)
+	assert.NotEmpty(t, first.ID)
+	assert.False(t, first.CreatedAt.IsZero())
+	second, err := store.Create(t.Context(), Input{Title: "second"})
+	require.NoError(t, err)
+	got, err := store.Get(t.Context(), first.ID)
+	require.NoError(t, err)
+	assert.Equal(t, first, got)
+	page, err = store.List(t.Context(), 1, "")
+	require.NoError(t, err)
+	assert.Equal(t, []Note{first}, page.Items)
+	require.NotEmpty(t, page.NextCursor)
+	page, err = store.List(t.Context(), 1, page.NextCursor)
+	require.NoError(t, err)
+	assert.Equal(t, []Note{second}, page.Items)
+	assert.Empty(t, page.NextCursor)
+	_, err = store.Get(t.Context(), "missing")
+	var failure *apperrors.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, apperrors.NotFound, failure.Code)
+}
+
+func TestValidation(t *testing.T) {
+	store := NewMemory()
+	for _, input := range []Input{
+		{},
+		{Title: " \t "},
+		{Title: strings.Repeat("界", 201)},
+		{Title: "ok", Body: strings.Repeat("界", 10001)},
+	} {
+		t.Run(input.Title, func(t *testing.T) {
+			_, err := store.Create(t.Context(), input)
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, apperrors.BadInput, failure.Code)
+		})
+	}
+	_, err := store.Create(t.Context(), Input{Title: strings.Repeat("界", 200), Body: strings.Repeat("界", 10000)})
+	require.NoError(t, err)
+	for _, cursor := range []string{"%", "bWlzc2luZw"} {
+		_, err := store.List(t.Context(), 20, cursor)
+		require.Error(t, err)
+	}
+	for _, limit := range []int{0, -1, 101} {
+		_, err := store.List(t.Context(), limit, "")
+		require.Error(t, err)
+	}
+}
+
+func TestConcurrentMemory(t *testing.T) {
+	store := NewMemory()
+	var workers sync.WaitGroup
+	for range 20 {
+		workers.Go(func() {
+			note, err := store.Create(t.Context(), Input{Title: "concurrent"})
+			if !assert.NoError(t, err) {
+				return
+			}
+			_, err = store.Get(t.Context(), note.ID)
+			assert.NoError(t, err)
+			_, err = store.List(t.Context(), 100, "")
+			assert.NoError(t, err)
+		})
+	}
+	workers.Wait()
+	page, err := store.List(t.Context(), 100, "")
+	require.NoError(t, err)
+	assert.Len(t, page.Items, 20)
+}
+
+func TestCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	store := NewMemory()
+	_, err := store.Create(ctx, Input{Title: "cancelled"})
+	assert.ErrorIs(t, err, context.Canceled)
+	_, err = store.Get(ctx, "missing")
+	assert.ErrorIs(t, err, context.Canceled)
+	_, err = store.List(ctx, 20, "")
+	assert.ErrorIs(t, err, context.Canceled)
+}

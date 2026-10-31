@@ -8,6 +8,11 @@ import { binary, packageRoot, scratchPath } from "./package";
 const bundledEntries = ["stacks", "fragments"]
   .flatMap((kind) => readdirSync(join(packageRoot, "registry", kind), { withFileTypes: true }))
   .filter((entry) => entry.isDirectory()).length;
+const bundledFiles = ["stacks", "fragments"]
+  .flatMap((kind) =>
+    readdirSync(join(packageRoot, "registry", kind), { recursive: true, withFileTypes: true }),
+  )
+  .filter((entry) => entry.isFile()).length;
 
 function sample(args: readonly string[]) {
   const home = mkdtempSync(join(tmpdir(), "cli-binary-budget-"));
@@ -42,16 +47,20 @@ test.each([
   {
     args: ["validate", "--brief", "typescript-cli"],
     output: "# Build",
-    // Validating the whole registry for one preview cost 1.5 s; today's preview is 0.1-0.5 s,
-    // depending on load.
-    budget: 1.0,
+    // Validating the whole registry for one preview cost 1.5 s on a laptop (~7 s on the slowest
+    // gate host). The preview renders the stack's shipped files: since typescript-cli ships its
+    // working slice it takes ~0.45 s on a laptop and 1.00-1.13 s on an idle m1 Linux gate host.
+    budget: 1.5,
   },
   {
     args: ["validate"],
     output: "(bundled registry)",
-    // Validating the bundled registry grows with its size, so the guard is per entry: at 37
-    // entries the cost is ~0.05 s per entry on a laptop and ~0.10 s on a CI runner.
-    budget: 0.15 * bundledEntries,
+    // Validating the bundled registry grows with its entries and with the files they ship, which
+    // it reads to render and check every composition. Measured on the slowest gate host (an
+    // m1 Linux machine, idle): 37 entries took 6.01 s with 504 shipped files and 7.45 s with
+    // 904, so ~3.6 ms per file and ~0.11 s per entry. The budget is that cost with 1.5x headroom;
+    // a laptop runs it in under half (3.43 s at 904 files).
+    budget: 0.17 * bundledEntries + 0.0055 * bundledFiles,
   },
 ])(
   "$args stays within its CPU budget",

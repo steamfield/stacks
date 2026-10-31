@@ -29,6 +29,17 @@ make dev-web    # the frontend alone in a browser, on mock data
 
 Run `make help` for the full list.
 
+## Configuration
+
+`PORT_WEB` defaults to 1420. For native development, change `src-tauri/tauri.conf.json`'s
+devUrl together with that port. `RUST_LOG` defaults to info and filters JSON records on
+stderr. `VITE_TRANSPORT=mock` forces fixtures; otherwise Tauri uses the native adapter
+and a browser uses fixtures. Invalid transport values fail at startup.
+
+The browser preview accepts `?window=main&scenario=ok&ticks=off`. Scenarios error and
+offline exercise tagged command errors and rejected transport promises. See
+[the frontend and IPC guidance](docs/guidance/tauri-react/index.md).
+
 ## Layout
 
 ```

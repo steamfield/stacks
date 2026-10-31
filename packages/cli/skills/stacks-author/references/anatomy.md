@@ -118,13 +118,15 @@ Go beyond install, lint, typecheck and test: add the step that proves the delive
 
 Markdown after the frontmatter, copied into the brief under the entry's name. Use ATX headings (`## Layout`). A stack body uses these sections, combined or extended where the product needs it:
 
-- **Layout**: the directory tree and what lives where.
-- **Setup**: numbered steps. When a generator exists, tell the agent to read its current help and run it non-interactively into a subdirectory, then move the output into place. Never freeze its flags.
-- **Conventions**: the rules the code must keep.
-- **Tool configuration**: what lint, typecheck and format must enforce, described so the agent writes config for the installed version.
-- **Testing**: what tests exist and where.
+- **What stacks wrote**: one paragraph naming the shipped slice (entry point, modules, tests, configs, docs) and the payload that proves the wiring, ending with an instruction to read the code before extending it. The code is the reference for every convention; the body doesn't restate what it shows.
+- **Layout**: where new code goes, beyond what the shipped tree already shows.
+- **Setup**: numbered steps. Add the declared dependencies so they resolve to current releases, run the checks, and update any shipped file the installed release rejects (a renamed API, a dropped config key) without loosening a check. Record toolchain versions, then fill the README. Use a generator only for what can't ship as files (native project directories, a lockfile): tell the agent to read its current help, run it non-interactively into a subdirectory and merge the output without overwriting shipped files. Never freeze its flags.
+- **Conventions**: the rules new code must keep, each already followed by the shipped code.
+- **Testing**: the test layers the slice ships and what a new feature adds to each.
 - **Commands**: the project commands, matching `commands`.
 - **Gotchas**: the mistakes an agent actually makes with these tools.
+
+A shipped config needs words only where an agent adapting it to a new release would drop a rule; say which rules to keep.
 
 Spend words on what an agent would get wrong, not on what it does anyway. Budgets: a stack body under 2,000 words, a fragment under 1,000, an app under 3,000, and the composed brief under 6,000 (9,000 with an app). Move reference material into a shipped doc in `files/docs/` and link it from the body.
 
@@ -142,9 +144,11 @@ Conditions: `with=<fragment>`, `stack=<id>`, `tag=<tag>`, `tag!=<tag>`, `preset=
 
 ## files/ and adapters/
 
-`files/` holds starter content that stays correct across releases: `.gitignore`, `.editorconfig`, a Makefile, shared scripts, hook code, docs. Store dotfiles under their real names (`files/.gitignore`). A file ending in `.tmpl` is rendered with only these variables: `{{project_name}}`, `{{project_slug}}`, `{{env_prefix}}`, `{{package_scope}}`, `{{author}}`, `{{year}}`. Everything else is copied byte for byte.
+`files/` holds a working slice of the project: the entry point, a few modules that exercise config, errors, logging and output, their unit and integration tests, the lint, format, typecheck and test configs, the task runner (a Makefile or `package.json` scripts), docs, `.gitignore` and `.env.example`. Write it against a current release and make it pass every verify step from a fresh scaffold once dependencies are installed. Keep it small: one payload that proves the wiring, no product features.
 
-Version-sensitive configuration (a linter config whose schema changed between majors, a framework config file, CI action versions) goes in the body as requirements for the agent to generate, not in `files/`. `validate` warns on version-sensitive config files and pinned versions.
+Leave out everything that ages: dependency versions and ranges (a shipped `package.json` has scripts but no dependency blocks; the agent adds the declared `deps`), `packageManager`, `engines`, the `go` and `toolchain` directives, action refs, versioned `$schema` URLs and generator flags. `validate` warns on a version literal inside a shipped config. Every shipped file a tool reads must be exercised by a verify step (built, linted, typechecked, tested or run), so a file a release outdates fails verify instead of passing silently; docs and editor settings are exempt.
+
+Store dotfiles under their real names (`files/.gitignore`). A file ending in `.tmpl` is rendered with only these variables: `{{project_name}}`, `{{project_slug}}`, `{{env_prefix}}`, `{{package_scope}}`, `{{author}}`, `{{year}}`. Everything else is copied byte for byte. Directory names can't be templated, so code that must live under a project-named directory, or import itself by module path, uses `{{project_slug}}` inside the files and a Setup step for any rename.
 
 `adapters/<agent>/` holds files for one coding agent: `claude`, `codex`, `opencode` or `cursor`. Only targeted agents get them; every target gets `AGENTS.md`. Settings permissions and hook commands must name composed commands, and hook paths must exist in the composed files. List shared JSON files such as `.claude/settings.json` in `merge`.
 
@@ -157,4 +161,4 @@ Version-sensitive configuration (a linter config whose schema changed between ma
 <cli> validate ~/.config/stacks --brief <id> --with <fragment>
 ```
 
-`show` prints every guidance branch and shipped path. `--brief` prints the composed brief an agent would get, without writing anything. Fix findings at their source: replace a pinned version with a discovery step, move a version-sensitive file into prose, repair an unknown reference or template variable. Read warnings as well as errors.
+`show` prints every guidance branch and shipped path. `--brief` prints the composed brief an agent would get, without writing anything. Fix findings at their source: replace a pinned version with a discovery step, drop a version literal from a shipped config, repair an unknown reference or template variable. Read warnings as well as errors.

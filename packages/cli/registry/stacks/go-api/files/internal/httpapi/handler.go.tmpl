@@ -1,0 +1,127 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"mime"
+	"net/http"
+	"strconv"
+
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/notes"
+)
+
+func NewHandler(store notes.Store, logger *slog.Logger) http.Handler {
+	mux := http.NewServeMux()
+	endpoint := func(handle func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if err := handle(w, r); err != nil {
+				writeError(w, err, logger.With("request_id", RequestID(r.Context())))
+			}
+		}
+	}
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"}, logger)
+	})
+	mux.HandleFunc("GET /v1/notes", endpoint(func(w http.ResponseWriter, r *http.Request) error {
+		query, err := httpQuery(r)
+		if err != nil {
+			return err
+		}
+		page, err := store.List(r.Context(), query.limit, query.cursor)
+		if err != nil {
+			return storeError(err)
+		}
+		writeJSON(w, http.StatusOK, page, logger)
+		return nil
+	}))
+	mux.HandleFunc("GET /v1/notes/{noteId}", endpoint(func(w http.ResponseWriter, r *http.Request) error {
+		note, err := store.Get(r.Context(), r.PathValue("noteId"))
+		if err != nil {
+			return storeError(err)
+		}
+		writeJSON(w, http.StatusOK, note, logger)
+		return nil
+	}))
+	mux.HandleFunc("POST /v1/notes", endpoint(func(w http.ResponseWriter, r *http.Request) error {
+		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || media != "application/json" {
+			return apperrors.New(apperrors.UnsupportedMediaType, "expected JSON")
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		var input *notes.Input
+		if err := decoder.Decode(&input); err != nil {
+			return decodeError(err)
+		}
+		if input == nil {
+			return apperrors.New(apperrors.BadInput, "expected an object")
+		}
+		var extra any
+		if err := decoder.Decode(&extra); err != io.EOF {
+			if err != nil {
+				return decodeError(err)
+			}
+			return apperrors.New(apperrors.BadInput, "expected one object")
+		}
+		note, err := store.Create(r.Context(), *input)
+		if err != nil {
+			return storeError(err)
+		}
+		w.Header().Set("Location", "/v1/notes/"+note.ID)
+		writeJSON(w, http.StatusCreated, note, logger)
+		return nil
+	}))
+	boundary := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := mux.Handler(r); pattern == "" {
+			mux.ServeHTTP(&missWriter{ResponseWriter: w, logger: logger}, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
+	return identify(accessLog(recoverPanic(boundary, logger), logger), logger)
+}
+
+func storeError(err error) error {
+	var failure *apperrors.Error
+	if errors.As(err, &failure) {
+		return err
+	}
+	return apperrors.Wrap(apperrors.Unavailable, "store unavailable", err)
+}
+
+func decodeError(err error) error {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		return apperrors.Wrap(apperrors.PayloadTooLarge, "body limit", err)
+	}
+	return apperrors.Wrap(apperrors.BadInput, "invalid JSON", err)
+}
+
+type listQuery struct {
+	limit  int
+	cursor string
+}
+
+func httpQuery(r *http.Request) (listQuery, error) {
+	q, err := urlQuery(r)
+	if err != nil {
+		return listQuery{}, err
+	}
+	query := listQuery{limit: 20, cursor: q.Get("cursor")}
+	for key, values := range q {
+		if (key != "limit" && key != "cursor") || len(values) != 1 || values[0] == "" {
+			return listQuery{}, apperrors.New(apperrors.BadInput, "invalid query parameter")
+		}
+	}
+	if q.Has("limit") {
+		query.limit, err = strconv.Atoi(q.Get("limit"))
+		if err != nil || query.limit < 1 || query.limit > 100 {
+			return listQuery{}, apperrors.New(apperrors.BadInput, "invalid limit")
+		}
+	}
+	return query, nil
+}

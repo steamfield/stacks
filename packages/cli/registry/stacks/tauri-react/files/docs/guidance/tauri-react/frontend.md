@@ -20,7 +20,7 @@ src/core/                framework-free TypeScript, alias @core/
 - Stable keys from data identity, never the array index, for lists that update live.
 - Values that update live shouldn't reflow the layout on each update. Animate `transform` and `opacity` only, and respect `prefers-reduced-motion`.
 - Semantic color tokens, not literal colors. Files are kebab-case with named exports.
-- A dropped channel shows a visible reconnecting state and resubscribes; never leave a frozen last value on screen without saying so.
+- `Providers` owns React subscriptions and retry timers; the native adapter shares one Rust stream for the window. The shell cancels it on page replacement, window destruction or a replacement subscription; a successful channel send cannot prove that JavaScript still has its callback. A dropped channel shows a visible reconnecting state and resubscribes. Add an unsubscribe command for other early-stop behavior.
 
 ## Testing
 

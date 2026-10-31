@@ -2,7 +2,7 @@
 
 ## What runs where
 
-- Vitest (`tests/`) covers zod schemas, FormData parsing, server services and client components. It can't render async server components and has no Next request context, so it never calls a Server Action or a cache invalidation API.
+- Vitest runs colocated `src/**/*.test.{ts,tsx}` and `tests/**/*.test.{ts,tsx}` (including harness hooks). It covers zod schemas, FormData parsing, server services and client components. It can't render async server components and has no Next request context, so it never calls a Server Action or a cache invalidation API.
 - Playwright (`e2e/`) runs against `next build` plus `next start`. It covers anything that needs the real server: async pages, Server Actions, revalidation after a write, route handlers and hydration.
 
 ## Vitest
@@ -11,7 +11,7 @@
 - `server-only` is mapped to an empty module in `vitest.config`. Don't remove that: the real package throws when imported outside Next's server bundler.
 - Services hold state, so each test resets it through the service's exported test helper in `beforeEach`. Never mock our own modules; use the real in-memory service.
 - Client components that call an action get a stub action passed as a prop or module boundary, and the assertions are on what the user sees (Testing Library queries by role and label, `user-event` for input).
-- Scoped first: `bun run test tests/<file>.test.ts` (add `-t "<name>"` for one test), then `bun run test`. Vitest runs on Node: never `bun test`, never `--bun`.
+- Scoped first: `bun run test src/lib/item-schema.test.ts` (add `-t "<name>"` for one test), then `bun run test`. Vitest runs on Node: never `bun test`, never `--bun`.
 
 ## Playwright
 

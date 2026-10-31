@@ -1,0 +1,24 @@
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
+import { ErrorResponse, ItemsQuery, ItemsResponse } from '{{project_slug}}-schemas';
+import type { AppEnv } from '../env';
+import { listItems } from '../services/items';
+import { validationHook } from '../validation';
+
+export const items = new OpenAPIHono<AppEnv>({ defaultHook: validationHook }).openapi(
+  createRoute({
+    method: 'get',
+    path: '/',
+    tags: ['Items'],
+    summary: 'List items',
+    description: 'A bounded, ordered read of the proving table.',
+    request: { query: ItemsQuery },
+    responses: {
+      200: { description: 'Items', content: { 'application/json': { schema: ItemsResponse } } },
+      400: {
+        description: 'Invalid limit',
+        content: { 'application/json': { schema: ErrorResponse } },
+      },
+    },
+  }),
+  async (c) => c.json(await listItems(c.get('databaseUrl'), c.req.valid('query').limit), 200),
+);

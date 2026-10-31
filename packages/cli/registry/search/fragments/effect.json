@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "effect",
   "source": {
-    "digest": "sha256:4bee772930a1f1614ede59cf64ffeab3af5d92eb7d1a5b2c3821a5c348c7bea5",
+    "digest": "sha256:daa42e370613ece26082e64d3eace48c9162b6bee63a3706857a5b935bae7ef2",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Add isolated service tests, controllable time and guidance checked against the installed Effect APIs.",
   "description": "Add Effect-focused testing practices and guidance checked against installed APIs. Tests use real service layers with fresh state, controlled clocks and explicit assertions for failures and defects. The generated skill records the installed release's service, schema and runtime conventions. The stack still owns application architecture, services, configuration and logging; this fragment supports developing and testing them.",

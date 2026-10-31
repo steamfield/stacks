@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "typescript-mcp",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:93efed34c0eb5b9871baa0e1740ede54c0314a037d1b7acfb2d79c2e592cb998",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A stdio MCP server on Effect, serving typed tools and a resource over JSON-RPC to agent clients.",
   "description": "Build a stdio MCP server with Effect's MCP modules: declare typed tools, register a resource, and speak newline-delimited JSON-RPC over stdin and stdout. Vitest covers the pure parts; an e2e test does a real client handshake against the built server. The proving slice is a ping tool, an echo tool and one markdown resource, extended after the handshake passes.",

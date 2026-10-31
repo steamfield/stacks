@@ -7,7 +7,7 @@ import {
   NotFound,
   type PermissionDenied,
 } from "../../errors";
-import { type CatalogEntry, type Entry, isFragment, isStack } from "../registry/entry";
+import { type CatalogEntry, type Entry, isFragment, isRejected, isStack } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import { closest } from "../suggest";
 import type { ComposeOptions, ComposeWarning, Via } from "./compose";
@@ -64,11 +64,15 @@ export function selectFragments(
     const listed = yield* registry.catalog;
     const known = (kind: Kind) =>
       listed.filter((item) => item.kind === kind).map((item) => item.id);
-    const usable = (kind: Kind) =>
-      listed.filter((item) => item.kind === kind && !item.rejected).map((item) => item.id);
     const fragmentIds = new Set(known("fragment"));
     const missing = (id: string, kind: Kind) =>
-      new NotFound({ details: { suggestions: closest(id, usable(kind)), id, kind } });
+      Effect.gen(function* () {
+        const checked = yield* registry.all;
+        const usable = checked
+          .filter((item) => item.kind === kind && !isRejected(item))
+          .map((item) => item.id);
+        return yield* new NotFound({ details: { suggestions: closest(id, usable), id, kind } });
+      });
 
     const loadStack = Effect.gen(function* () {
       if (options.stack === null) return null;

@@ -13,7 +13,7 @@ import { fingerprint } from "./fingerprint";
 import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
 import { toRow } from "./list";
 import { type CatalogEntry, type Entry, outputPath } from "./registry/entry";
-import { Registry, type RegistryRoot, type RegistryRoots, remoteRoots } from "./registry/registry";
+import { Registry, type RegistryRoots, remoteRoots } from "./registry/registry";
 import { searchSourceDigest } from "./search/digest";
 import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
 import { Stats } from "./stats";
@@ -65,7 +65,7 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
       const lastRun =
         entry.indexEntry?.lastRun && row.lastRun
           ? { ...row.lastRun, sameContent: yield* indexSameContent(entry) }
-          : yield* entryLastRun(entry, records, bundled);
+          : yield* entryLastRun(entry, records, registry);
       return {
         ...row,
         ...stats,
@@ -77,7 +77,7 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
         env: meta.env,
         commands: meta.commands,
         verify: meta.verify,
-        ...selectionMetadata(entry, all),
+        ...(yield* selectionMetadata(entry, all, registry)),
         files,
         body: entry.body,
         bodyWords: countWords(entry.body),
@@ -138,22 +138,32 @@ const officialDetail = Effect.fn("show.officialDetail")(function* (entry: Entry)
   return detail?.published ? { stats: detail } : {};
 });
 
-function selectionMetadata(entry: Entry, all: ReadonlyArray<CatalogEntry>) {
+function selectionMetadata(
+  entry: Entry,
+  all: ReadonlyArray<CatalogEntry>,
+  registry: Registry["Service"],
+) {
   const { meta } = entry;
-  return meta.kind === "stack"
-    ? { fragments: meta.fragments }
-    : {
-        category: meta.category,
-        appliesTo: meta.appliesTo,
-        requires: meta.requires,
-        conflicts: meta.conflicts,
-        requiresTools: meta.requiresTools,
-        needsOwnRepo: meta.needsOwnRepo,
-        fits: all
-          .filter((entry) => entry.kind === "stack" && !entry.rejected)
-          .filter((stack) => fitsStack(meta.appliesTo, stack))
-          .map((stack) => stack.id),
-      };
+  if (meta.kind === "stack") return Effect.succeed({ fragments: meta.fragments });
+  return Effect.gen(function* () {
+    const stacks = all
+      .filter((candidate) => candidate.kind === "stack" && !candidate.rejected)
+      .filter((stack) => fitsStack(meta.appliesTo, stack));
+    const checked = yield* Effect.forEach(stacks, (stack) =>
+      stack.origin === "index"
+        ? Effect.succeed(true)
+        : Effect.result(registry.get("stack", stack.id)).pipe(Effect.map(Result.isSuccess)),
+    );
+    return {
+      category: meta.category,
+      appliesTo: meta.appliesTo,
+      requires: meta.requires,
+      conflicts: meta.conflicts,
+      requiresTools: meta.requiresTools,
+      needsOwnRepo: meta.needsOwnRepo,
+      fits: stacks.filter((_, index) => checked[index]).map((stack) => stack.id),
+    };
+  });
 }
 
 const indexSameContent = Effect.fn("show.indexSameContent")(function* (entry: Entry) {
@@ -202,34 +212,79 @@ const findEntry = (all: ReadonlyArray<CatalogEntry>, id: string, kind: Kind | un
     return match;
   });
 
-const fragmentRecords = (entry: Entry, records: ReadonlyArray<LedgerRecord>) =>
+const fragmentReachable = (
+  id: string,
+  ids: ReadonlyArray<string>,
+  metadata: ReadonlyMap<string, Entry["meta"]>,
+  seen = new Set<string>(),
+): boolean => {
+  for (const candidate of ids) {
+    if (candidate === id) return true;
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    const fragment = metadata.get(`fragment/${candidate}`);
+    if (fragment?.kind !== "fragment") return true;
+    if (fragmentReachable(id, fragment.requires, metadata, seen)) return true;
+  }
+  return false;
+};
+
+const recordConcerns = (
+  entry: Entry,
+  record: LedgerRecord,
+  metadata: ReadonlyMap<string, Entry["meta"]>,
+) => {
+  if (record.with.includes(entry.id)) return true;
+  const stack = metadata.get(`stack/${record.stack}`);
+  if (stack?.kind !== "stack") return true;
+  return fragmentReachable(
+    entry.id,
+    [...stack.fragments.required, ...stack.fragments.default, ...record.with],
+    metadata,
+  );
+};
+
+const recordIncludes = (entry: Entry, record: LedgerRecord) =>
+  Effect.gen(function* () {
+    const current = yield* Effect.result(
+      compose({
+        stack: record.stack,
+        with: record.with,
+        without: [],
+        preset: record.preset === "sandbox" ? "sandbox" : "default",
+        agents: ledgerAdapterSets(record.agent)[0] ?? targetAgents(undefined, {}),
+        always: [],
+        mode: "new",
+      }),
+    );
+    return (
+      Result.isSuccess(current) &&
+      current.success.fragments.some((fragment) => fragment.id === entry.id)
+    );
+  });
+
+const fragmentRecords = (
+  entry: Entry,
+  records: ReadonlyArray<LedgerRecord>,
+  metadata: ReadonlyMap<string, Entry["meta"]>,
+) =>
   Effect.gen(function* () {
     const candidates: LedgerRecord[] = [];
     for (const record of entry.kind === "stack" ? [] : records) {
       if (record.preset !== "default" && record.preset !== "sandbox") continue;
-      const current = yield* Effect.result(
-        compose({
-          stack: record.stack,
-          with: record.with,
-          without: [],
-          preset: record.preset,
-          agents: ledgerAdapterSets(record.agent)[0] ?? targetAgents(undefined, {}),
-          always: [],
-          mode: "new",
-        }),
-      );
-      if (
-        Result.isSuccess(current) &&
-        current.success.fragments.some((fragment) => fragment.id === entry.id)
-      )
-        candidates.push(record);
+      if (!recordConcerns(entry, record, metadata)) continue;
+      if (yield* recordIncludes(entry, record)) candidates.push(record);
     }
     return candidates;
   });
 
-const bundledLastRun = (entry: Entry, records: ReadonlyArray<LedgerRecord>) =>
+const bundledLastRun = (
+  entry: Entry,
+  records: ReadonlyArray<LedgerRecord>,
+  metadata: ReadonlyMap<string, Entry["meta"]>,
+) =>
   Effect.gen(function* () {
-    const candidates = yield* fragmentRecords(entry, records);
+    const candidates = yield* fragmentRecords(entry, records, metadata);
     const record =
       entry.kind === "stack"
         ? lastDefaultRecord(records, entry.id)
@@ -270,11 +325,15 @@ const bundledLastRun = (entry: Entry, records: ReadonlyArray<LedgerRecord>) =>
 const entryLastRun = (
   entry: Entry,
   records: ReadonlyArray<LedgerRecord>,
-  bundled: RegistryRoot | undefined,
+  registry: Registry["Service"],
 ) =>
-  entry.origin === "bundled" && bundled
+  entry.origin === "bundled"
     ? // A bundled run is compared only to bundled inputs, never a local shadow of a fragment.
-      bundledLastRun(entry, records).pipe(
-        Effect.provide(Registry.layer([{ ...bundled, remote: false }])),
+      registry.bundled.pipe(
+        Effect.flatMap((bundled) =>
+          bundledLastRun(entry, records, bundled.metadata).pipe(
+            Effect.provideService(Registry, { ...registry, ...bundled }),
+          ),
+        ),
       )
     : Effect.succeed(null);

@@ -4,7 +4,7 @@ paths:
   - "src/main.ts"
   - "src/cli.ts"
   - "src/commands/**"
-  - "src/services/Output.ts"
+  - "src/services/output.ts"
   - "src/errors.ts"
 ---
 

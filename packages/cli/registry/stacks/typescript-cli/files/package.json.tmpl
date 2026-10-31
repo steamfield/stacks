@@ -1,0 +1,20 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "bun scripts/build.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "bun run test:unit",
+    "test:unit": "node node_modules/vitest/vitest.mjs run",
+    "test:watch": "node node_modules/vitest/vitest.mjs",
+    "coverage": "node node_modules/vitest/vitest.mjs run --coverage",
+    "e2e": "bun run build && bun test ./e2e",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
+    "clean": "rm -rf dist coverage logs .dev",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

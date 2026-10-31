@@ -18,5 +18,7 @@
     ],
     "allowImportingTsExtensions": true
   },
-  "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"]
+  "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
+  // Only the Bun entry imports @effect/platform-bun (not installed in this checkout).
+  "exclude": ["registry/stacks/typescript-cli/files/src/bin.ts"]
 }

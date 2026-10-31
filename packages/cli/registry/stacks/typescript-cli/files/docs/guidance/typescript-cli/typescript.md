@@ -9,7 +9,7 @@ Only the things that are easy to get wrong here. Effect-specific typing is in th
 - With `erasableSyntaxOnly` on (TS1294): no `enum` (use a union of literals or an `as const` object), no namespaces, no constructor parameter properties (declare the field and assign it).
 - `types` includes Bun's, so the `Bun` global and `bun:*` modules type-check in every file, including the ones vitest runs on Node. tsc won't tell you that `Bun.file` in `src/core/` breaks under vitest; the `guard-boundaries` hook and `biome-plugins/boundaries.grit` do. A new global types package goes in `types` in `tsconfig.json`.
 - `lib` limits which built-ins type-check even when the runtimes have them (`Object.groupBy`, `Promise.withResolvers`, Set methods, iterator helpers). The error is TS2550 ("change your target library"), or TS2339 for iterator helpers like `.values().map`. Either raise `lib` on purpose or don't use the API; don't cast or polyfill around it. The code runs on Node (vitest), Bun (`bun run dev`), and the compiled Bun binary: check all three before raising it.
-- Imports are extensionless or use `~/` (`~/schemas` is `src/schemas`). Don't add `.ts` or `.js` extensions.
+- Use extensionless relative imports, as the shipped files do. No path alias is configured in TypeScript or Vitest.
 
 ## Places strict mode still gives you `any`
 
@@ -25,4 +25,4 @@ Only the things that are easy to get wrong here. Effect-specific typing is in th
 
 ## Promises
 
-Nothing lints floating promises: tsc doesn't, and Biome's floating-promise rule isn't enabled by default. Every promise's rejection must be handled (await it, return it, or end the chain with `.catch`), and `void` marks a deliberate fire-and-forget. In a CLI a floating rejection is worse than in a server: it can land after the runtime is gone, as an unhandled rejection on a restored terminal. Effect code brings promises in as described in `effect-services.md`.
+The shipped Biome config enables floating- and misused-promise checks. Every promise's rejection must be handled (await it, return it, or end the chain with `.catch`). A deliberate background task needs an owner that observes its failure and lifetime; `void` alone doesn't handle rejection. In a CLI a late rejection can arrive after the runtime has gone. Effect code brings promises in as described in `effect-services.md`.

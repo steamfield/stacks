@@ -96,13 +96,7 @@ test("adding CLI chat supplies a helper accepted by the prescribed base formatte
     agents: ["codex"],
     fragments: ["openrouter-chat-cli"],
   });
-  const config = join(home, "biome.json");
-  writeFileSync(
-    config,
-    JSON.stringify({
-      formatter: { indentStyle: "space", indentWidth: 2, lineWidth: 100 },
-    }),
-  );
+  const config = join(project, "biome.json");
   const file = join(project, "scripts/lib/stub-pid.ts");
   const source = readFileSync(file, "utf8");
   const formatted = spawnSync(

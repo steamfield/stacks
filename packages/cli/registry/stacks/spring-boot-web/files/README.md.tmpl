@@ -1,0 +1,36 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this web app does and who uses it. -->
+
+## Run
+
+```bash
+make serve
+open http://127.0.0.1:8080/
+```
+
+`make serve` builds `target/app.jar` and runs it in the foreground until Ctrl+C. Settings come from the environment; see [docs/configuration.md](docs/configuration.md).
+
+## Pages
+
+<!-- stacks:fill The pages this app serves, one line each. -->
+
+[docs/web.md](docs/web.md) has how pages, forms, htmx fragments and error pages work.
+
+## Development
+
+Requires the JDK named in `.java-version` (on macOS, `brew install openjdk@<major>`; the Makefile finds it) and make. Maven comes from the committed wrapper, `./mvnw`.
+
+| Command | What it does |
+|---|---|
+| `make build` | Executable jar at `target/app.jar` |
+| `make test` | Unit tests and page tests without a server |
+| `make test-integration` | The app on a random port, driven by a browser without JavaScript |
+| `make fmt` | Format with Spotless |
+| `make ci` | Everything CI runs |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
+
+## License
+
+Copyright (c) {{year}} {{author}}

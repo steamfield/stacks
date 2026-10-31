@@ -1,0 +1,54 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 40rem;
+  padding: 1rem;
+}
+
+header {
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+input,
+textarea {
+  font: inherit;
+  padding: 0.4rem;
+}
+
+.invalid {
+  border-color: #b42318;
+}
+
+.error {
+  color: #b42318;
+  margin: 0;
+}
+
+.saved {
+  color: #067647;
+}
+
+.notes {
+  padding-left: 1.25rem;
+}
+
+.body {
+  white-space: pre-wrap;
+}

@@ -17,6 +17,9 @@
 #   *.rs              nothing: clippy checks a whole crate, too slow per write,
 #                     so it stays in the project's lint target (rustfmt still
 #                     runs at Stop)
+#   *.java            nothing: compiling through Maven starts a JVM, seconds per
+#                     write, so it stays in the project's compile and lint
+#                     targets (Spotless still formats at Stop)
 #
 # Nothing installed, file outside the project, or linter crashed or timed out:
 # exit 0 with no output. A broken linter must not turn into fake diagnostics.
@@ -147,7 +150,7 @@ case "$file_path" in
 *.json | *.jsonc | *.css) lint_biome || true ;;
 *.go) lint_go ;;
 *.sh | *.bash) lint_shell ;;
-*.rs) exit 0 ;;
+*.rs | *.java) exit 0 ;;
 *) exit 0 ;;
 esac
 

@@ -1,0 +1,35 @@
+# Every setting an operator changes comes from the environment; docs/configuration.md lists them.
+spring:
+  application:
+    name: {{project_slug}}
+  main:
+    banner-mode: off
+  jackson:
+    # Absent optional fields are omitted, never null.
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:10s}
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  address: ${HOST:127.0.0.1}
+  port: ${PORT:8080}
+  shutdown: graceful
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  structured:
+    format:
+      console: ecs

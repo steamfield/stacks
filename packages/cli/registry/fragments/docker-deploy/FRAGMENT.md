@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, spring-boot-api]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -67,6 +67,9 @@ Run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when tag=rust -->
 **Rust**: build in the official Rust image for the toolchain `rust-toolchain.toml` records, its Debian release named by tag suffix (`-slim-<codename>`) so it can't drift from the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; a cache-mounted `target/` isn't in the layer, so copy the binary out of it in the same `RUN`. Copy only the binary into the nonroot variant of the distroless `cc` image for that same Debian release, since the binary links against the build image's glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary itself with a probe flag the app ships (`--healthcheck`, which requests the health endpoint and exits 0 or 1).
+<!-- stacks:end -->
+<!-- stacks:when tag=java -->
+**Java**: build in the Temurin JDK image for `.java-version`'s major, copying `mvnw`, `.mvn/` and `pom.xml` before `src/`, with a cache mount on `/root/.m2`, then `./mvnw -B -ntp package -DskipTests`. Run only the jar on the same major's Temurin JRE with `HOST=0.0.0.0`; the `HEALTHCHECK` runs `java -jar <jar> --healthcheck`, with a start period for JVM startup.
 <!-- stacks:end -->
 
 <!-- stacks:when with=postgres -->

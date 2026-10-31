@@ -17,6 +17,9 @@
 #   *.rs              rustfmt with the edition `cargo fmt` would pass, read from
 #                     the nearest Cargo.toml; files with no Cargo.toml above them
 #                     are left alone
+#   *.java            Spotless through the project's Maven wrapper, once for all
+#                     of the session's files under that wrapper; files with no
+#                     executable mvnw and pom.xml above them are left alone
 #
 # Silent by design: no output, always exit 0. A Stop hook that prints errors can
 # trap the session in a feedback loop.
@@ -128,6 +131,33 @@ rustfmt_file() {
   rm -f "$out"
 }
 
+# java_home_for <dir>: the JDK the project's Makefile would pick when JAVA_HOME
+# is unset: the major in <dir>/.java-version through /usr/libexec/java_home,
+# then Homebrew's openjdk@<major>. Prints nothing when neither has it, and
+# mvnw then falls back to the java on PATH.
+java_home_for() {
+  local major prefix
+  [ -z "${JAVA_HOME:-}" ] || { printf '%s\n' "$JAVA_HOME"; return 0; }
+  [ -f "$1/.java-version" ] || return 0
+  major=$(tr -d '[:space:]' <"$1/.java-version" 2>/dev/null) || return 0
+  [ -n "$major" ] || return 0
+  if [ -x /usr/libexec/java_home ] && /usr/libexec/java_home -v "$major" 2>/dev/null; then return 0; fi
+  prefix=$(brew --prefix "openjdk@$major" 2>/dev/null) || return 0
+  [ -d "$prefix/libexec/openjdk.jdk/Contents/Home" ] && printf '%s\n' "$prefix/libexec/openjdk.jdk/Contents/Home"
+  return 0
+}
+
+# spotless_files <dir> <file>...: one `spotless:apply` for these files. Each
+# path becomes a literal \Q...\E pattern in -DspotlessFiles, which Spotless
+# matches against the absolute path, so only the session's files are touched.
+spotless_files() {
+  local dir=$1 f patterns="" jdk
+  shift
+  for f in "$@"; do patterns="${patterns:+$patterns,}\\Q$f\\E"; done
+  jdk=$(java_home_for "$dir")
+  (cd "$dir" && JAVA_HOME="$jdk" with_timeout 40 ./mvnw -q -B spotless:apply "-DspotlessFiles=$patterns") >/dev/null 2>&1 || true
+}
+
 # formatter_for <abs-path>: print "<tool>\t<workdir>" or return 1.
 formatter_for() {
   local f=$1 dir cfg edition
@@ -164,6 +194,13 @@ formatter_for() {
     command -v rustfmt >/dev/null 2>&1 || return 1
     edition=$(cargo_edition "$dir") || return 1
     printf 'rustfmt:%s\t%s\n' "$edition" "$dir"
+    ;;
+  *.java)
+    # A comma would split the -DspotlessFiles list and \E would end the quote.
+    case "$f" in *,* | *'\E'*) return 1 ;; esac
+    cfg=$(find_up "$dir" mvnw) || return 1
+    [ -x "$cfg/mvnw" ] && [ -f "$cfg/pom.xml" ] || return 1
+    printf 'spotless\t%s\n' "$cfg"
     ;;
   *) return 1 ;;
   esac
@@ -214,6 +251,9 @@ cut -f1,2 "$plan" | sort -u | while IFS=$'\t' read -r tool dir; do
     ;;
   rustfmt:*)
     for f in "$@"; do rustfmt_file "${tool#rustfmt:}" "$f"; done
+    ;;
+  spotless)
+    spotless_files "$dir" "$@"
     ;;
   esac
 done

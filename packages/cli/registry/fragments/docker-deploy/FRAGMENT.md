@@ -59,6 +59,9 @@ A production image per deployable part and a workflow that publishes them, writt
 <!-- stacks:when tag=go -->
 **Go**: `CGO_ENABLED=0` with version ldflags in the official Go image, static binary copied into a distroless nonroot runtime.
 <!-- stacks:end -->
+<!-- stacks:when tag=rust -->
+**Rust**: build in the official Rust image for the toolchain `rust-toolchain.toml` records, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; a cache-mounted `target/` isn't in the layer, so copy the binary out of it in the same `RUN`. Copy only the binary into the distroless `cc` image's nonroot variant. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary itself with a probe flag the app ships (`--healthcheck`, which requests the health endpoint and exits 0 or 1).
+<!-- stacks:end -->
 
 <!-- stacks:when with=postgres -->
 **Migrations** run as a one-shot `docker run <image> <migrate command>`, never on container start, so replicas can't race.

@@ -14,6 +14,9 @@
 #   *.json *.css      biome, when configured
 #   *.go              golangci-lint when configured, else gofmt syntax check
 #   *.sh *.bash       shellcheck
+#   *.rs              nothing: clippy checks a whole crate, too slow per write,
+#                     so it stays in the project's lint target (rustfmt still
+#                     runs at Stop)
 #
 # Nothing installed, file outside the project, or linter crashed or timed out:
 # exit 0 with no output. A broken linter must not turn into fake diagnostics.
@@ -144,6 +147,7 @@ case "$file_path" in
 *.json | *.jsonc | *.css) lint_biome || true ;;
 *.go) lint_go ;;
 *.sh | *.bash) lint_shell ;;
+*.rs) exit 0 ;;
 *) exit 0 ;;
 esac
 

@@ -1,0 +1,65 @@
+package tasks
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestLoadSampleWithoutPath(t *testing.T) {
+	list, err := Load(t.Context(), "")
+	require.NoError(t, err)
+	assert.Equal(t, Sample(), list)
+	require.NoError(t, Validate(Sample()))
+}
+
+func TestLoadFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tasks.json")
+	require.NoError(t, os.WriteFile(path, []byte(`[{"id":"A","title":"Ship it","status":"todo"}]`), 0o600))
+	list, err := Load(t.Context(), path)
+	require.NoError(t, err)
+	want := []Task{
+		{ID: "A", Title: "Ship it", Status: Todo},
+	}
+	assert.Equal(t, want, list)
+}
+
+func TestLoadFailures(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+		return path
+	}
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	tests := []struct {
+		name string
+		ctx  context.Context
+		path string
+		code string
+	}{
+		{"missing file", t.Context(), filepath.Join(dir, "missing.json"), apperrors.IO},
+		{"malformed", t.Context(), write("bad.json", "[{"), apperrors.InvalidData},
+		{"no id", t.Context(), write("id.json", `[{"title":"x","status":"todo"}]`), apperrors.InvalidData},
+		{"repeated id", t.Context(), write("dup.json", `[{"id":"A","title":"x","status":"todo"},{"id":"A","title":"y","status":"done"}]`), apperrors.InvalidData},
+		{"no title", t.Context(), write("title.json", `[{"id":"A","title":" ","status":"todo"}]`), apperrors.InvalidData},
+		{"bad status", t.Context(), write("status.json", `[{"id":"A","title":"x","status":"later"}]`), apperrors.InvalidData},
+		{"cancelled", cancelled, "", apperrors.Interrupted},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(tt.ctx, tt.path)
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, tt.code, failure.Code)
+			assert.NotEmpty(t, failure.Suggestion)
+		})
+	}
+}

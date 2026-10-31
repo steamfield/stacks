@@ -1,0 +1,119 @@
+//! Black-box tests: run the built binary as a separate process with a clean
+//! environment and check exit status, stdout and stderr.
+
+use std::path::Path;
+
+use assert_cmd::Command;
+use serde_json::Value;
+
+const BIN: &str = env!("CARGO_BIN_EXE_{{project_slug}}");
+
+fn env_var(key: &str) -> String {
+    format!("{}_{key}", env!("CARGO_PKG_NAME"))
+        .to_uppercase()
+        .replace('-', "_")
+}
+
+/// The binary in `dir`, with HOME there and nothing inherited but PATH.
+fn cli(dir: &Path) -> Command {
+    let mut cmd = Command::new(BIN);
+    cmd.env_clear()
+        .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+        .env("HOME", dir)
+        .current_dir(dir);
+    cmd
+}
+
+#[test]
+fn help_and_version_succeed_without_writing_to_stderr() {
+    let dir = tempfile::tempdir().unwrap();
+    cli(dir.path()).arg("--help").assert().success().stderr("");
+    let out = cli(dir.path())
+        .arg("--version")
+        .assert()
+        .success()
+        .stderr("")
+        .get_output()
+        .clone();
+    let version = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        version.ends_with(&format!(" {}\n", env!("CARGO_PKG_VERSION"))),
+        "{version}"
+    );
+}
+
+#[test]
+fn config_show_json_reflects_file_and_environment() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("custom.toml"),
+        "greeting = \"from file\"\nverbose = true\n",
+    )
+    .unwrap();
+    let out = cli(dir.path())
+        .args(["--json", "config", "show", "--config", "custom.toml"])
+        .env(env_var("greeting"), "from env")
+        .env("RUST_LOG", "error")
+        .assert()
+        .success()
+        .stderr("")
+        .get_output()
+        .clone();
+    let config: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(config["greeting"], "from env");
+    assert_eq!(config["verbose"], true);
+    assert_eq!(config["json"], true);
+}
+
+#[test]
+fn failures_exit_with_their_code_and_report_once_on_stderr() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("bad.toml"), "greeting = [\n").unwrap();
+    let cases: [(&[&str], i32, &str); 3] = [
+        (&["unknown"], 2, "USAGE"),
+        (
+            &["config", "show", "--config", "missing.toml"],
+            3,
+            "CONFIG_NOT_FOUND",
+        ),
+        (&["config", "show", "--config", "bad.toml"], 3, "CONFIG"),
+    ];
+    for (args, code, error_code) in cases {
+        let human = cli(dir.path())
+            .args(args)
+            .assert()
+            .code(code)
+            .stdout("")
+            .get_output()
+            .clone();
+        let text = String::from_utf8(human.stderr).unwrap();
+        assert!(
+            text.starts_with(&format!("error[{error_code}]: ")),
+            "{args:?}: {text}"
+        );
+        assert_eq!(text.matches("suggestion: ").count(), 1, "{args:?}: {text}");
+
+        let json = cli(dir.path())
+            .arg("--json")
+            .args(args)
+            .assert()
+            .code(code)
+            .stdout("")
+            .get_output()
+            .clone();
+        let document: Value = serde_json::from_slice(&json.stderr).unwrap();
+        assert_eq!(document["error"]["code"], error_code, "{args:?}");
+        assert_ne!(document["error"]["suggestion"], "", "{args:?}");
+    }
+}
+
+#[test]
+fn an_invalid_rust_log_fails_before_any_output() {
+    let dir = tempfile::tempdir().unwrap();
+    cli(dir.path())
+        .args(["config", "show"])
+        .env("RUST_LOG", "debug,=[")
+        .assert()
+        .code(3)
+        .stdout("");
+}

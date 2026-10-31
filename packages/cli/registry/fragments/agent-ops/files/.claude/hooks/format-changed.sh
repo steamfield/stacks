@@ -14,6 +14,9 @@
 #   JS/TS/JSON/CSS    biome when a biome config exists, else prettier when a
 #                     prettier config exists (project node_modules binaries)
 #   *.go              gofmt
+#   *.rs              rustfmt with the edition `cargo fmt` would pass, read from
+#                     the nearest Cargo.toml; files with no Cargo.toml above them
+#                     are left alone
 #
 # Silent by design: no output, always exit 0. A Stop hook that prints errors can
 # trap the session in a feedback loop.
@@ -52,9 +55,82 @@ prettier_for() {
   printf 'prettier\t%s\n' "$cfg"
 }
 
+# manifest_edition <Cargo.toml>: print "<package> <workspace> <has-workspace>".
+# <package> is the [package] edition, "inherit" for edition.workspace = true,
+# "none" when [package] sets no edition and "-" with no [package]; <workspace>
+# is the [workspace.package] edition or "-"; <has-workspace> is 1 when the file
+# has a [workspace] table. Only plain year values count as an edition.
+manifest_edition() {
+  LC_ALL=C awk '
+    function year(s) {
+      if (match(s, /["\047][0-9]+["\047]/)) return substr(s, RSTART + 1, RLENGTH - 2)
+      return ""
+    }
+    { line = $0; sub(/^[ \t]+/, "", line) }
+    line ~ /^\[\[/ { sec = ""; next }
+    line ~ /^\[/ {
+      sec = line; sub(/^\[[ \t]*/, "", sec); sub(/[ \t]*\].*$/, "", sec)
+      if (sec == "package") pkg_seen = 1
+      if (sec == "workspace" || sec ~ /^workspace\./) has_ws = 1
+      next
+    }
+    sec == "package" && line ~ /^edition[ \t]*\.[ \t]*workspace[ \t]*=[ \t]*true/ { pkg = "inherit"; next }
+    sec == "package" && line ~ /^edition[ \t]*=[ \t]*\{.*workspace[ \t]*=[ \t]*true/ { pkg = "inherit"; next }
+    sec == "package" && line ~ /^edition[ \t]*=/ { y = year(line); if (y != "") pkg = y; next }
+    sec == "workspace.package" && line ~ /^edition[ \t]*=/ { y = year(line); if (y != "") ws = y; next }
+    END {
+      if (!pkg_seen) pkg = "-"; else if (pkg == "") pkg = "none"
+      if (ws == "") ws = "-"
+      printf "%s %s %d\n", pkg, ws, has_ws
+    }' "$1" 2>/dev/null
+}
+
+# cargo_edition <dir>: the edition for a Rust file in <dir>. The nearest
+# Cargo.toml's [package] edition; when that is inherited, or the manifest has
+# no [package], the [workspace.package] edition of the nearest manifest with a
+# [workspace] table (the same file or an ancestor). A package that sets no
+# edition is 2015, Cargo's default. Returns 1 when no manifest decides it.
+cargo_edition() {
+  local dir pkg ws has_ws
+  dir=$(find_up "$1" Cargo.toml) || return 1
+  read -r pkg ws has_ws <<<"$(manifest_edition "$dir/Cargo.toml")" || return 1
+  case "$pkg" in
+  none) printf '2015\n'; return 0 ;;
+  inherit | -) ;;
+  *) printf '%s\n' "$pkg"; return 0 ;;
+  esac
+  while :; do
+    if [ "$has_ws" = 1 ]; then
+      [ "$ws" != - ] || return 1
+      printf '%s\n' "$ws"
+      return 0
+    fi
+    [ "$dir" != / ] || return 1
+    dir=$(find_up "$(dirname "$dir")" Cargo.toml) || return 1
+    read -r pkg ws has_ws <<<"$(manifest_edition "$dir/Cargo.toml")" || return 1
+  done
+}
+
+# rustfmt_file <edition> <file>: format one file through stdin, because rustfmt
+# given a path also rewrites the out-of-line modules that file declares, which
+# may be someone else's. It runs from the file's directory so rustfmt.toml is
+# still found, and the file is rewritten only when rustfmt succeeded and changed it.
+rustfmt_file() {
+  local out
+  out=$(mktemp "${TMPDIR:-/tmp}/claude-rustfmt.XXXXXX") || return 0
+  # shellcheck disable=SC2016 # the inner sh expands its own arguments
+  if (cd "$(dirname "$2")" &&
+    with_timeout 20 sh -c 'exec rustfmt --edition "$1" --emit stdout <"$2" >"$3" 2>/dev/null' \
+      sh "$1" "$2" "$out") >/dev/null 2>&1 &&
+    [ -s "$out" ] && ! cmp -s "$out" "$2"; then
+    cat "$out" >"$2" || true
+  fi
+  rm -f "$out"
+}
+
 # formatter_for <abs-path>: print "<tool>\t<workdir>" or return 1.
 formatter_for() {
-  local f=$1 dir cfg
+  local f=$1 dir cfg edition
   dir=$(dirname "$f")
   case "$f" in
   */node_modules/* | */.venv/* | */venv/* | */vendor/* | */dist/* | */build/* | */target/*) return 1 ;;
@@ -83,6 +159,11 @@ formatter_for() {
   *.go)
     command -v gofmt >/dev/null 2>&1 || return 1
     printf 'gofmt\t%s\n' "$root"
+    ;;
+  *.rs)
+    command -v rustfmt >/dev/null 2>&1 || return 1
+    edition=$(cargo_edition "$dir") || return 1
+    printf 'rustfmt:%s\t%s\n' "$edition" "$dir"
     ;;
   *) return 1 ;;
   esac
@@ -130,6 +211,9 @@ cut -f1,2 "$plan" | sort -u | while IFS=$'\t' read -r tool dir; do
     ;;
   gofmt)
     with_timeout 20 gofmt -w "$@" >/dev/null 2>&1 || true
+    ;;
+  rustfmt:*)
+    for f in "$@"; do rustfmt_file "${tool#rustfmt:}" "$f"; done
     ;;
   esac
 done

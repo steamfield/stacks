@@ -8,6 +8,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   statSync,
   symlinkSync,
   writeFileSync,
@@ -720,6 +721,69 @@ describe("advisory hooks never get in the way [1.6d#6]", () => {
     expect(allowed(stop)).toEqual(ALLOW);
     // The formatter did run, and failed.
     expect(readFileSync(join(project, "biome-calls"), "utf8")).toContain("check --write");
+  });
+
+  test("format-changed.sh formats a Rust file with its manifest's edition and skips one with no Cargo.toml", async () => {
+    const project = await scaffold("astro-blog");
+    const write = (file: string, text: string) => {
+      mkdirSync(join(project, file, ".."), { recursive: true });
+      writeFileSync(join(project, file), text);
+    };
+    // A workspace edition the member inherits, and a decoy `edition` under another table.
+    write(
+      "ws/Cargo.toml",
+      '[workspace]\nmembers = ["crates/core"]\n\n[workspace.package]\nedition = "2024"\n',
+    );
+    write(
+      "ws/crates/core/Cargo.toml",
+      '[package]\nname = "core"\nedition.workspace = true\n\n[dependencies.decoy]\nedition = "2018"\n',
+    );
+    write("ws/crates/core/src/lib.rs", "pub fn a() {}\n");
+    write("ws/crates/core/src/child.rs", "pub fn child() {}\n");
+    write("legacy/Cargo.toml", '[package]\nname = "legacy"\n');
+    write("legacy/src/main.rs", "fn main() {}\n");
+    write("scripts/stray.rs", "fn main() {}\n");
+    // A rustfmt that logs where and how it ran and marks what it read on stdin.
+    const bin = join(temp(), "fake-rustfmt");
+    mkdirSync(bin);
+    writeFileSync(
+      join(bin, "rustfmt"),
+      `#!/bin/sh\nprintf '%s %s\\n' "$PWD" "$*" >> "${join(project, "rustfmt-calls")}"\nprintf '// formatted\\n'\ncat\n`,
+    );
+    chmodSync(join(bin, "rustfmt"), 0o755);
+    const path = `${bin}${delimiter}${withJq}`;
+    for (const file of ["ws/crates/core/src/lib.rs", "legacy/src/main.rs", "scripts/stray.rs"])
+      expect({
+        file,
+        ...allowed(
+          runHook(
+            project,
+            "lint-on-write.sh",
+            postWritePayload(project, file, "rust-session"),
+            path,
+          ),
+        ),
+      }).toEqual({ file, ...ALLOW });
+    const stop = runHook(
+      project,
+      "format-changed.sh",
+      { ...recorded.Stop, session_id: "rust-session" },
+      path,
+    );
+    expect(allowed(stop)).toEqual(ALLOW);
+    // The hooks compare physical paths (/var is /private/var on macOS).
+    const real = realpathSync(project);
+    const calls = readFileSync(join(project, "rustfmt-calls"), "utf8").trim().split("\n").sort();
+    expect(calls).toEqual([
+      `${join(real, "legacy", "src")} --edition 2015 --emit stdout`,
+      `${join(real, "ws", "crates", "core", "src")} --edition 2024 --emit stdout`,
+    ]);
+    const read = (file: string) => readFileSync(join(project, file), "utf8");
+    expect(read("ws/crates/core/src/lib.rs")).toBe("// formatted\npub fn a() {}\n");
+    expect(read("legacy/src/main.rs")).toBe("// formatted\nfn main() {}\n");
+    // Not written this session, and not in a crate: both untouched.
+    expect(read("ws/crates/core/src/child.rs")).toBe("pub fn child() {}\n");
+    expect(read("scripts/stray.rs")).toBe("fn main() {}\n");
   });
 
   test("lint-on-write.sh caps the diagnostics it returns at 60 lines [1.6d#6]", async () => {

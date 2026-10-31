@@ -1,0 +1,106 @@
+// Package app wires config, logging, the task loader and the two front ends:
+// the full-screen UI on a terminal, text or JSON everywhere else.
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"slices"
+
+	tea "charm.land/bubbletea/v2"
+	"golang.org/x/term"
+
+	"{{project_slug}}/internal/config"
+	apperrors "{{project_slug}}/internal/errors"
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/output"
+	"{{project_slug}}/internal/tasks"
+	"{{project_slug}}/internal/ui"
+)
+
+// Streams is the process boundary, replaced by buffers in tests.
+type Streams struct {
+	Stdin          io.Reader
+	Stdout, Stderr io.Writer
+	Getenv         func(string) string
+}
+
+func Std() Streams {
+	return Streams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Getenv: os.Getenv}
+}
+
+// Build is the version information the Makefile sets with ldflags.
+type Build struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
+	Date    string `json:"date"`
+}
+
+// Main runs the program and returns its exit status. Errors are reported here,
+// on stderr, and nowhere else.
+func Main(ctx context.Context, args []string, s Streams, b Build) int {
+	err := Run(ctx, args, s, b)
+	if err != nil {
+		output.Error(s.Stderr, slices.Contains(args, "--json") || slices.Contains(args, "-json"), err)
+	}
+	return apperrors.ExitCode(err)
+}
+
+func Run(ctx context.Context, args []string, s Streams, b Build) error {
+	cfg, err := config.Load(args, s.Getenv)
+	if err != nil {
+		return err
+	}
+	if cfg.Help {
+		return output.Render(s.Stdout, false, nil, config.Usage(s.Getenv))
+	}
+	if cfg.Version {
+		return output.Render(s.Stdout, cfg.JSON, b, fmt.Sprintf("%s version %s (commit %s, built %s)\n", config.Binary, b.Version, b.Commit, b.Date))
+	}
+	logger, closeLog, err := applog.Open(cfg.LogFile, cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = closeLog() }() // Losing the last log lines must not change the exit status.
+
+	load := func() ([]tasks.Task, error) { return tasks.Load(ctx, cfg.TasksFile) }
+	// Without a terminal on both ends the UI would hang or, worse, open
+	// /dev/tty behind a pipe. Print the list instead.
+	if !cfg.Interactive() || !terminal(s.Stdin) || !terminal(s.Stdout) {
+		logger.Info("start", "mode", "text", "json", cfg.JSON)
+		list, err := load()
+		if err != nil {
+			return err
+		}
+		return output.Tasks(s.Stdout, cfg.JSON, list)
+	}
+	logger.Info("start", "mode", "tui")
+	return runUI(ctx, s, load, logger)
+}
+
+func runUI(ctx context.Context, s Streams, load ui.LoadFunc, logger *slog.Logger) error {
+	program := tea.NewProgram(ui.New(load, logger),
+		tea.WithContext(ctx), tea.WithInput(s.Stdin), tea.WithOutput(s.Stdout))
+	final, err := program.Run()
+	switch {
+	case errors.Is(err, tea.ErrProgramPanic):
+		return apperrors.Wrap(apperrors.Internal, "the terminal UI panicked", "Read the stack trace printed above it.", err)
+	case errors.Is(err, tea.ErrInterrupted), errors.Is(err, tea.ErrProgramKilled):
+		return apperrors.Wrap(apperrors.Interrupted, "interrupted", "Run it again; press q to quit normally.", err)
+	case err != nil:
+		return apperrors.Wrap(apperrors.IO, "run the terminal UI", "Run it in a terminal, or pass --no-tui.", err)
+	}
+	if model, ok := final.(ui.Model); ok {
+		return model.Err()
+	}
+	return nil
+}
+
+func terminal(stream any) bool {
+	file, ok := stream.(*os.File)
+	return ok && term.IsTerminal(int(file.Fd()))
+}

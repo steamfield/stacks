@@ -44,43 +44,54 @@ function cargoNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
   return [...result];
 }
 
+export function goAllowlistKey(name: string): string {
+  return name.replace(/\/v(?:[2-9]|[1-9][0-9]+)$/u, "");
+}
+
 function goEntry(text: string): { name: string; version: string } | null {
   const fields = text.trim().split(/\s+/u);
   if (fields.length !== 2 || fields[0] === undefined || fields[1] === undefined) return null;
-  return { name: fields[0].replace(/\/v(?:[2-9]|[1-9][0-9]+)$/u, ""), version: fields[1] };
+  return { name: goAllowlistKey(fields[0]), version: fields[1] };
 }
 
+type GoBlock = "require" | "skip" | null;
 type GoLine =
-  | { kind: "skip" | "open" | "close" | "error" }
+  | { kind: "skip" | "close" | "error" }
+  | { kind: "open"; block: Exclude<GoBlock, null> }
   | { kind: "entry"; value: { name: string; version: string } };
 
-function parseGoLine(line: string, inRequire: boolean): GoLine {
+function parseGoLine(line: string, block: GoBlock): GoLine {
   if (line === "") return { kind: "skip" };
-  if (line === "require (") return { kind: inRequire ? "error" : "open" };
-  if (line === ")") return { kind: inRequire ? "close" : "error" };
-  if (!inRequire && !line.startsWith("require ")) return { kind: "skip" };
-  const entry = goEntry(inRequire ? line : line.slice(8));
+  const open = /^(require|tool|replace|exclude|retract|godebug)\s+\($/u.exec(line);
+  if (open)
+    return block === null
+      ? { kind: "open", block: open[1] === "require" ? "require" : "skip" }
+      : { kind: "error" };
+  if (line === ")") return { kind: block === null ? "error" : "close" };
+  if (block === "skip") return { kind: "skip" };
+  if (block === null && !line.startsWith("require ")) return { kind: "skip" };
+  const entry = goEntry(block === "require" ? line : line.slice(8));
   return entry === null ? { kind: "error" } : { kind: "entry", value: entry };
 }
 
 function goDependencies(text: string): ReadonlyArray<{ name: string; version: string }> | null {
   const result: Array<{ name: string; version: string }> = [];
-  let inRequire = false;
+  let block: GoBlock = null;
   for (const raw of text.split(/\r?\n/u)) {
     const line = raw.replace(/\/\/.*$/u, "").trim();
-    const parsed = parseGoLine(line, inRequire);
+    const parsed = parseGoLine(line, block);
     if (parsed.kind === "error") return null;
     if (parsed.kind === "open") {
-      inRequire = true;
+      block = parsed.block;
       continue;
     }
     if (parsed.kind === "close") {
-      inRequire = false;
+      block = null;
       continue;
     }
     if (parsed.kind === "entry") result.push(parsed.value);
   }
-  return inRequire ? null : result;
+  return block === null ? result : null;
 }
 
 const readNpm = Effect.fn("deps.readNpm")(function* (read: Read, allowlist: DependencyAllowlist) {

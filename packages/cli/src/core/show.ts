@@ -16,6 +16,7 @@ import { countWords } from "./brief/words";
 import { targetAgents } from "./compose/agents";
 import { type Composition, compose } from "./compose/compose";
 import { fitsStack } from "./compose/selection";
+import { goAllowlistKey } from "./deps";
 import { fingerprint } from "./fingerprint";
 import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
 import { toRow } from "./list";
@@ -186,13 +187,15 @@ const entryDependencyCards = Effect.fn("show.dependencyCards")(function* (
         ),
   );
   if (!wanted.size) return undefined;
+  const goWanted = new Set([...wanted].map(goAllowlistKey));
   const found: Record<string, DependencyCard> = {};
   const files = yield* registry.dependencyCards;
   for (const [ecosystem, bytes] of files) {
     const decoded = yield* Effect.result(decodeDependencyCards(bytes));
     if (decoded._tag === "Failure") continue;
+    const selected = ecosystem === "go" ? goWanted : wanted;
     for (const [name, card] of Object.entries(decoded.success.cards))
-      if (wanted.has(name)) found[`${ecosystem}/${name}`] = card;
+      if (selected.has(name)) found[`${ecosystem}/${name}`] = card;
   }
   return Object.keys(found).length ? found : undefined;
 });

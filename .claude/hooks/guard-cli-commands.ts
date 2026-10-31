@@ -1,7 +1,7 @@
 // Protect the Node unit runner and explicitly scoped Bun binary/native tests.
-import { basename } from "node:path";
-import { deny, readPayload, text } from "./_lib";
-import { commands } from "./_shell";
+import { basename, isAbsolute, relative, resolve } from "node:path";
+import { deny, projectRoot, readPayload, text } from "./_lib";
+import { type Command, commands } from "./_shell";
 
 const VALUE_FLAGS = new Set([
   "-t",
@@ -22,8 +22,31 @@ const UNIT_SCRIPTS = new Set(["test", "test:unit", "test:watch", "coverage"]);
 // (`bun test ./packages/<name>/e2e`).
 const E2E_ROOT = /^\.\/(?:packages\/[\w.-]+\/)?e2e(?:\/|$)/;
 
-const command = text(readPayload()?.tool_input?.command);
-for (const { argv } of commands(command ?? "")) {
+const payload = readPayload();
+const command = text(payload?.tool_input?.command);
+const start = text(payload?.cwd) || process.cwd();
+const root = projectRoot();
+
+/** The directory `bun add` installs into, or null when it can't be known from the line. */
+function installDir({ dir }: Command, args: ReadonlyArray<string>): string | null {
+  if (dir === null) return null;
+  const at = resolve(start, dir ?? ".");
+  const flag = args.findIndex((arg) => arg === "--cwd" || arg.startsWith("--cwd="));
+  if (flag === -1) return at;
+  const value = args[flag]?.startsWith("--cwd=") ? args[flag].slice(6) : args[flag + 1];
+  if (value === undefined || /[$~`]/.test(value)) return null;
+  return resolve(at, value);
+}
+
+// The schema rule protects this repository's packages; a project scaffolded elsewhere picks its own.
+function insideProject(dir: string | null): boolean {
+  if (dir === null) return true;
+  const path = relative(root, dir);
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
+}
+
+for (const parsed of commands(command ?? "")) {
+  const { argv } = parsed;
   const [first = "", ...args] = argv;
   const name = basename(first);
   const vitest = args.some((arg) => basename(arg) === "vitest");
@@ -51,7 +74,8 @@ for (const { argv } of commands(command ?? "")) {
   if (
     name === "bun" &&
     ["add", "install", "i", "a"].includes(args[0] ?? "") &&
-    args.some((arg) => /^(?:zod|@effect\/(?:schema|platform))(@|$)/.test(arg))
+    args.some((arg) => /^(?:zod|@effect\/(?:schema|platform))(@|$)/.test(arg)) &&
+    insideProject(installDir(parsed, args))
   ) {
     deny(
       "BLOCKED: Use Schema and platform modules from the installed effect package, not competing schema or legacy platform packages.",

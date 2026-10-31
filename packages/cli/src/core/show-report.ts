@@ -1,6 +1,7 @@
 import type { RolledDependency } from "@steamfield/stacks-format";
 import type { ShowReport } from "../schemas/show";
 import { plainStyle, type Style } from "../services/output";
+import { goAllowlistKey } from "./deps";
 import { statsFields, statsLine } from "./stats-text";
 import { printable } from "./text";
 import { BUDGET } from "./validate/budget";
@@ -80,7 +81,9 @@ function dependencyLines(report: ShowReport, human: boolean): string[] {
       "Dependencies (app):",
       ...deps.map(({ name, label }) => {
         const matches = Object.entries(report.dependencyCards ?? {}).filter(
-          ([key]) => key.slice(key.indexOf("/") + 1) === name,
+          ([key]) =>
+            key.slice(key.indexOf("/") + 1) ===
+            (key.startsWith("go/") ? goAllowlistKey(name) : name),
         );
         const card = matches.length === 1 ? matches[0]?.[1] : undefined;
         return `  ${label}${card ? `: ${card.whatItIs}` : ""}`;

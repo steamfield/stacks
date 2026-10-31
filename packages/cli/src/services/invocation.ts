@@ -22,6 +22,8 @@ export class Invocation extends Context.Service<
     /** Adds fields to the `command` log record. Never argument values, paths or prompt text. */
     annotate: (fields: Record<string, string>) => Effect.Effect<void>;
     rollbackIncomplete: (path: string) => Effect.Effect<void>;
+    /** Number of recorded paths, to detect incomplete rollback from a best-effort write. */
+    rollbackCount: Effect.Effect<number>;
   }
 >()("stacks/Invocation") {
   static make = () => {
@@ -41,6 +43,7 @@ export class Invocation extends Context.Service<
           Effect.sync(() => {
             state.rollback.push(path);
           }),
+        rollbackCount: Effect.sync(() => state.rollback.length),
       }),
     };
   };

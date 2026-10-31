@@ -1,6 +1,6 @@
 // Enforce the CLI's platform and output boundaries before writing TypeScript under packages/cli/src/.
 // Other workspace packages (the API, the MCP server) get their own rules, not these.
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, posix, resolve } from "node:path";
 import { deny, findUp, projectRoot, readPayload, text, writtenText } from "./_lib";
 
 /** The written text as lines, without `//` comments and JSDoc/block-comment lines. */
@@ -87,10 +87,53 @@ const RULES: ReadonlyArray<{
   },
 ];
 
+// Mirrors the core/services rules in packages/cli/biome-plugins/boundaries.grit.
+const SPECIFIER = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
+const BUILTIN =
+  /^(?:node:.*|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|sea|sqlite|stream|string_decoder|sys|test|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:\/.*)?)$/;
+/** The one builtin each file may import, for deterministic utilities and atomic rmdir. */
+const BUILTIN_ALLOWED: Readonly<Record<string, string>> = {
+  "core/manifest.ts": "node:crypto",
+  "core/fingerprint.ts": "node:crypto",
+  "core/search/digest.ts": "node:crypto",
+  "services/output.ts": "node:util",
+  "core/scaffold/write.ts": "node:fs/promises",
+};
+
+/** A relative import from `file` that lands in platform/ or commands/; Processes' own import is allowed. */
+function crossesLayer(file: string, line: string, spec: string): boolean {
+  if (!spec.startsWith(".")) return false;
+  const target = posix.join(posix.dirname(file), spec);
+  if (!/^(?:platform|commands)\//.test(target)) return false;
+  const processPort =
+    file === "services/processes.ts" &&
+    /^\s*import\b/.test(line) &&
+    /^platform\/process(?:\.ts)?$/.test(target);
+  return !processPort;
+}
+
+const builtinDenied = (file: string, spec: string) =>
+  BUILTIN.test(spec) && !(Object.hasOwn(BUILTIN_ALLOWED, file) && BUILTIN_ALLOWED[file] === spec);
+
+function layerReasons(file: string, lines: string[]): string[] {
+  if (!/^(?:core|services)\//.test(file)) return [];
+  const reasons = new Set<string>();
+  for (const line of lines)
+    for (const [, spec = ""] of line.matchAll(SPECIFIER)) {
+      if (crossesLayer(file, line, spec))
+        reasons.add(
+          "imports platform/ or commands/ from core or services; use an injected service",
+        );
+      if (builtinDenied(file, spec))
+        reasons.add("imports a Node builtin in core or services; use Effect services");
+    }
+  return [...reasons];
+}
+
 function reasonsFor(file: string, lines: string[]): string[] {
-  return RULES.filter(
-    (rule) => rule.applies(file) && lines.some((line) => rule.pattern.test(line)),
-  ).map((rule) => rule.reason);
+  return RULES.filter((rule) => rule.applies(file) && lines.some((line) => rule.pattern.test(line)))
+    .map((rule) => rule.reason)
+    .concat(layerReasons(file, lines));
 }
 const payload = readPayload();
 const filePath = text(payload?.tool_input?.file_path);

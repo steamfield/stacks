@@ -1,0 +1,55 @@
+language js
+
+or {
+  JsModuleSource() as $src,
+  `import($src)`
+} where {
+  $filename <: r".*/(?:src|scripts|tests)/.*",
+  $filename <: not r".*/registry/.*",
+  or {
+    and {
+      $src <: r"[\"']\.[^\"']*[\"']",
+      $path = trim(string=$src, trim_chars="\"'"),
+      $resolved = resolve(path=$path),
+      or {
+        and {
+          $filename <: r".*/packages/cli/(?:src|scripts|tests)/.*",
+          $resolved <: r".*/packages/(?:format|mcp)/(?:src|scripts|tests)/.*"
+        },
+        and {
+          $filename <: r".*/packages/format/(?:src|scripts|tests)/.*",
+          $resolved <: r".*/packages/(?:cli|mcp)/(?:src|scripts|tests)/.*"
+        },
+        and {
+          $filename <: r".*/packages/mcp/(?:src|scripts|tests)/.*",
+          $resolved <: r".*/packages/(?:cli|format)/(?:src|scripts|tests)/.*"
+        },
+        and {
+          $filename <: not r".*/packages/.*",
+          $resolved <: r".*/packages/(?:cli|format|mcp)/(?:src|scripts|tests)/.*"
+        }
+      }
+    },
+    and {
+      or {
+        and {
+          $filename <: r".*/packages/cli/(?:src|scripts|tests)/.*",
+          $src <: r"[\"']@steamfield/stacks-(?:format|mcp)/[^\"']+[\"']"
+        },
+        and {
+          $filename <: r".*/packages/format/(?:src|scripts|tests)/.*",
+          $src <: r"[\"']@steamfield/(?:stacks|stacks-mcp)/[^\"']+[\"']"
+        },
+        and {
+          $filename <: r".*/packages/mcp/(?:src|scripts|tests)/.*",
+          $src <: r"[\"']@steamfield/(?:stacks|stacks-format)/[^\"']+[\"']"
+        },
+        and {
+          $filename <: not r".*/packages/.*",
+          $src <: r"[\"']@steamfield/(?:stacks|stacks-format|stacks-mcp)/[^\"']+[\"']"
+        }
+      }
+    }
+  },
+  register_diagnostic(span=$src, message="Workspace packages expose public package imports; use @steamfield/stacks-format for shared contracts.")
+}

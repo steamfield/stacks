@@ -1,0 +1,9 @@
+---
+import ApiStatus from "../islands/ApiStatus";
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout title="API status">
+  <h1 class="mb-6 text-3xl font-semibold">API status</h1>
+  <p class="mb-4">This page builds without a running API. Its island checks the live service.</p>
+  <ApiStatus client:load />
+</BaseLayout>

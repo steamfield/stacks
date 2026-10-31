@@ -38,6 +38,9 @@ describe("workspace boundaries", () => {
   );
   it.each([
     [`${C}/api.ts`, 'import { HttpApi } from "effect/http-api";'],
+    [`${C}/errors.test.ts`, 'import { expect, it } from "vitest";'],
+    [`${A}/config.test.ts`, 'import { readFile } from "node:fs";'],
+    [`${W}/islands/ApiStatus.test.tsx`, 'import { readFile } from "node:fs";'],
     [`${C}/api.ts`, 'import { OrderGroup } from "./groups/orders.ts";'],
     [`${C}/schemas/order.ts`, 'import { Schema } from "effect";'],
     [`${A}/platform/node.ts`, 'import { NodeHttpServer } from "@effect/platform-node";'],
@@ -58,6 +61,9 @@ describe("workspace boundaries", () => {
     expect(denyReason(await check(path, content))).toBeUndefined(),
   );
   it("checks an Edit's new text too", async () => {
+    expect(
+      denyReason(await checkEdit(`${C}/errors.test.ts`, 'import { expect } from "vitest";')),
+    ).toBeUndefined();
     expect(
       denyReason(await checkEdit(`${A}/handlers/orders.ts`, 'import { readFile } from "node:fs";')),
     ).toBeDefined();

@@ -112,6 +112,12 @@ it.each([
 
 it.each([
   ["apps/api/src/platform/sample.ts", 'import "node:fs";'],
+  [
+    "packages/contract/src/errors.test.ts",
+    'import { expect } from "vitest";\nexport const check = expect;',
+  ],
+  ["apps/api/src/config.test.ts", `${effect}export const run = Effect.runPromise(Effect.void);`],
+  ["apps/web/src/islands/ApiStatus.test.tsx", 'import "node:fs";'],
   ["apps/web/src/lib/api.ts", 'export const health = fetch("/healthz");'],
   [
     "apps/api/src/config.ts",

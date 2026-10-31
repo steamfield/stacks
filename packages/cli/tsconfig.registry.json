@@ -20,6 +20,9 @@
   },
   "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
   "exclude": [
+    // Astro/React/Vite and browser types are installed only in the fresh scaffold.
+    // Keep apps/api, packages/contract, scripts and hook tests checked here.
+    "registry/stacks/astro-fullstack/files/apps/web",
     // Only the Bun entry imports @effect/platform-bun (not installed in this checkout).
     "registry/stacks/typescript-cli/files/src/bin.ts",
     // React Router/React/Vite and DOM types belong to the scaffold's dependencies.

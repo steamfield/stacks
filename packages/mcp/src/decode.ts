@@ -41,6 +41,7 @@ export const decodeEnvelope = Effect.fn("decode.envelope")(function* (
     retryable: error.retryable,
     next: error.next ?? `Run stacks ${command} --help for the command's arguments.`,
     exitCode: output.exit,
+    ...(error.rollback === undefined ? {} : { rollback: error.rollback }),
     ...(error.details === undefined ? {} : { details: error.details }),
   });
 });

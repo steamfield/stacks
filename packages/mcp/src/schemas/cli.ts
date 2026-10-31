@@ -443,6 +443,7 @@ export const CliErrorEnvelope = Schema.Struct({
     message: Schema.String,
     retryable: Schema.Boolean,
     next: Schema.optionalKey(Schema.String),
+    rollback: Schema.optionalKey(Schema.Struct({ incomplete: Schema.Array(Schema.String) })),
     details: Schema.optionalKey(
       Schema.Union([
         UpstreamUnavailableDetails,

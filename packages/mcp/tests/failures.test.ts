@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { verifyHandler } from "../src/handlers";
+import { newHandler, verifyHandler } from "../src/handlers";
 import { CliRunner } from "../src/run";
 import { CliErrorEnvelope } from "../src/schemas/cli";
 import {
@@ -54,4 +54,28 @@ it.effect.each(["", "not JSON", "{}"])(
         details: envelope.error.details,
       });
     }),
+);
+
+it.effect("a failed new reports the paths its rollback could not restore", () =>
+  Effect.gen(function* () {
+    const root = tempDir();
+    const incomplete = [`${root}/project/README.md`];
+    const entry = outputCli(root, {
+      stderr: JSON.stringify({
+        error: {
+          tag: "PermissionDenied",
+          message: "Permission denied.",
+          retryable: false,
+          next: "fix the permissions, then rerun stacks new.",
+          rollback: { incomplete },
+        },
+      }),
+      exit: 6,
+    });
+    const error = yield* Effect.flip(
+      newHandler({ stack: "typescript-cli", dir: `${root}/project` }),
+    ).pipe(Effect.provide(runnerLayer(entry)));
+    expect(error.rollback).toEqual({ incomplete });
+    expect(error.message).toContain(JSON.stringify({ incomplete }));
+  }),
 );

@@ -6,6 +6,7 @@ export class CliFailure extends Schema.TaggedError<CliFailure>()("CliFailure", {
   next: Schema.String,
   retryable: Schema.Boolean,
   exitCode: Schema.optionalKey(Schema.Int),
+  rollback: Schema.optionalKey(Schema.Struct({ incomplete: Schema.Array(Schema.String) })),
   details: Schema.optionalKey(Schema.Unknown),
 }) {
   get message(): string {
@@ -13,6 +14,7 @@ export class CliFailure extends Schema.TaggedError<CliFailure>()("CliFailure", {
       tag: this.tag,
       retryable: this.retryable,
       ...(this.exitCode === undefined ? {} : { exitCode: this.exitCode }),
+      ...(this.rollback === undefined ? {} : { rollback: this.rollback }),
       ...(this.details === undefined ? {} : { details: this.details }),
     };
     return `${this.cliMessage}\nNext: ${this.next}\n\n${JSON.stringify(metadata)}`;

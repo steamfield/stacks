@@ -1,0 +1,51 @@
+[
+  {
+    "at": "2026-10-28T03:35:03.465Z",
+    "outcome": "failed",
+    "scope": "full",
+    "durationMs": 10,
+    "secondsSinceCreated": 6,
+    "steps": [
+      {
+        "name": "test",
+        "phase": "check",
+        "layer": "test",
+        "status": "skipped",
+        "durationMs": 0
+      },
+      {
+        "name": "harness-hooks",
+        "phase": "check",
+        "layer": "test",
+        "status": "skipped",
+        "durationMs": 0
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T03:36:09.221Z",
+    "outcome": "failed",
+    "scope": "full",
+    "durationMs": 2124,
+    "secondsSinceCreated": 74,
+    "steps": [
+      {
+        "name": "test",
+        "phase": "check",
+        "layer": "test",
+        "status": "failed",
+        "failureKind": "step",
+        "exitCode": 1,
+        "durationMs": 12
+      },
+      {
+        "name": "harness-hooks",
+        "phase": "check",
+        "layer": "test",
+        "status": "passed",
+        "exitCode": 0,
+        "durationMs": 4
+      }
+    ]
+  }
+]

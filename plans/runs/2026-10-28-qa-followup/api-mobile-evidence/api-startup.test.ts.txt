@@ -1,0 +1,9 @@
+import { expect, it } from 'vitest';
+import { ConfigProvider, Effect } from 'effect';
+import { createServer } from 'node:http';
+import { acquireAndServe } from '../src/startup.ts';
+it('rejects invalid startup config before binding a Node server', async () => {
+  const server = createServer(); let called = false;
+  const result = await Effect.runPromiseExit(acquireAndServe(() => Effect.sync(() => { called = true; server.listen(0); })).pipe(Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnvRecord({ PORT_API: 'not-a-number' }))));
+  expect(result._tag).toBe('Failure'); expect(called).toBe(false); expect(server.listening).toBe(false);
+});

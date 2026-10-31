@@ -1,0 +1,39 @@
+{
+  "project": "<qa-root>/project",
+  "stack": "react-router",
+  "added": ["openrouter-ai", "openrouter-chat"],
+  "alreadyApplied": [
+    "agent-ops",
+    "ci-github",
+    "claude-harness",
+    "effect-schema",
+    "effect",
+    "git-hooks"
+  ],
+  "written": [
+    ".agents/skills/openrouter-chat/SKILL.md",
+    "DESIGN.md",
+    "biome-plugins/styling.grit",
+    "docs/chat-turn.md"
+  ],
+  "skipped": [],
+  "mergeNeeded": [],
+  "missingRequired": [],
+  "commandsKept": ["check", "e2e"],
+  "warnings": [],
+  "missingTools": [],
+  "name": { "value": "project", "source": "manifest" },
+  "createdManifest": false,
+  "tamperCheck": "full",
+  "stateRecord": true,
+  "digestRecorded": true,
+  "brief": ".stacks/BRIEF.md",
+  "briefWords": 3169,
+  "untrusted": [],
+  "handoff": {
+    "kind": "inside-agent",
+    "agent": "codex",
+    "untrusted": [],
+    "prompt": "Read .stacks/BRIEF.md and carry it out. It's your full task for this project; you're done when stacks verify passes."
+  }
+}

@@ -1,0 +1,2 @@
+frontend/openapi.json is stale: run make generate-api
+make: *** [check-api] Error 1

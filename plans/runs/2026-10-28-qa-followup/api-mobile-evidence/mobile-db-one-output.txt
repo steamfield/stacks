@@ -1,0 +1,9 @@
+bun test v1.4.2 (744846f84)
+
+apps/api/test/one.test.ts:
+(pass) one sees only its own row while peer database is live [31.41ms]
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [117.00ms]

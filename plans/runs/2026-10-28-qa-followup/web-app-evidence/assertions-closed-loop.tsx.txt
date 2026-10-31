@@ -1,0 +1,111 @@
+// @vitest-environment happy-dom
+import "@testing-library/jest-dom/vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { Layer, Logger, ManagedRuntime, Redacted } from "effect";
+import { createRoutesStub } from "react-router";
+import { afterEach, expect, it, vi } from "vitest";
+import { AppConfig } from "../app/.server/config";
+import { makeLogger } from "../app/.server/logging";
+import { Health, swapRuntime } from "../app/.server/runtime";
+import { Limits } from "../app/.server/services/limits";
+import { ChatStore } from "../app/.server/services/store";
+import { Chat } from "../app/components/chat";
+import { action as chatAction } from "../app/routes/api.chat";
+import { loader as modelsLoader } from "../app/routes/api.models";
+import { startStubOpenRouter } from "./helpers/stub-openrouter";
+
+function TestChat() {
+  return (
+    <Chat
+      id="11111111-1111-4111-8111-111111111111"
+      messages={[]}
+      configured
+      model="synthetic/local"
+    />
+  );
+}
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+it("uses actual transport and route action to render a streamed tool result", async () => {
+  const stub = await startStubOpenRouter();
+  stub.queueToolCall();
+  const logLines: string[] = [];
+  let requestId: string | null = null;
+  const layer = Layer.mergeAll(
+    Health.layer,
+    Layer.succeed(AppConfig, {
+      key: Redacted.make("dummy"),
+      baseUrl: stub.url,
+      model: "synthetic/local",
+    }),
+    ChatStore.layerMemory,
+    Limits.layer,
+    Logger.layer([
+      makeLogger({ mode: "production" }, (line) => logLines.push(line)),
+    ]),
+  );
+  const restore = swapRuntime(ManagedRuntime.make(layer));
+  const original = globalThis.fetch;
+  (
+    window as unknown as {
+      happyDOM: { settings: { fetch: { disableSameOriginPolicy: boolean } } };
+    }
+  ).happyDOM.settings.fetch.disableSameOriginPolicy = true;
+  vi.stubGlobal(
+    "fetch",
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url,
+        "<local-url>",
+      );
+      if (url.pathname === "/api/chat") {
+        const response = await chatAction({ request: new Request(url, init) });
+        requestId = response.headers.get("x-request-id");
+        return response;
+      }
+      if (url.pathname === "/api/models")
+        return modelsLoader({ request: new Request(url, init) });
+      return original(input, init);
+    },
+  );
+  const Router = createRoutesStub([{ path: "/", Component: TestChat }]);
+  try {
+    render(<Router initialEntries={["/"]} />);
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Message" }),
+      "What time is it?",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("Hello from the local provider."),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Current time:/)).toBeInTheDocument();
+    expect(stub.chatRequests).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        logLines.some((line) => JSON.parse(line).msg === "chat request"),
+      ).toBe(true),
+    );
+    const records = logLines.map((line) => JSON.parse(line));
+    expect(
+      records.find((row) => row.msg === "request" && row.path === "/api/chat")
+        ?.requestId,
+    ).toBe(requestId);
+    expect(records.find((row) => row.msg === "chat request")?.requestId).toBe(
+      requestId,
+    );
+    expect(logLines.join("")).not.toContain("What time is it?");
+  } finally {
+    await restore();
+    await stub.close();
+  }
+});

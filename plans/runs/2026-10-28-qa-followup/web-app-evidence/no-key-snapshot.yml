@@ -1,0 +1,15 @@
+- generic [ref=e2]:
+    - banner [ref=e3]:
+        - heading "Chat" [level=1] [ref=e4]
+        - navigation [ref=e5]:
+            - link "Extract contact" [ref=e6] [cursor=pointer]:
+                - /url: /extract
+    - main [ref=e7]:
+        - paragraph [ref=e9]: Start a conversation.
+        - paragraph [ref=e10]: Set OPENROUTER_API_KEY to enable chat.
+        - generic [ref=e11]:
+            - text: Message
+            - textbox "Message" [disabled] [ref=e12]
+            - combobox "Model" [disabled] [ref=e13]: prism-ml/ternary-bonsai-2-9b
+            - button "Send" [disabled] [ref=e14]
+        - paragraph

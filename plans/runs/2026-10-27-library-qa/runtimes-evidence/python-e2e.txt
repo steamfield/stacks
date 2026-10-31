@@ -1,0 +1,30 @@
+cd frontend && bunx playwright install chromium && bun run test:e2e
+$ playwright test
+[WebServer] INFO:     Will watch for changes in these directories: ['<qa-root>/python-react/backend']
+
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:18600 (Press CTRL+C to quit)
+[WebServer] INFO:     Started reloader process [44718] using StatReload
+
+[WebServer] INFO:     Started server process [44720]
+
+[WebServer] INFO:     Waiting for application startup.
+
+[WebServer] INFO:     Application startup complete.
+
+[WebServer] $ react-router dev --port "18700" --strictPort
+
+[WebServer] (node:44724) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:44725) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 1 test using 1 worker
+
+(node:44738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/1] tests/e2e/health.spec.ts:2:1 › shows the real API health and refreshes it
+  1 passed (3.2s)

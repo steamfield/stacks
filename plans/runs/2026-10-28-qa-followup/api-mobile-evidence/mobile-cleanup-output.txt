@@ -1,0 +1,5 @@
+[dev] logging to .logs/dev.log (bun run dev:logs to follow it)
+[dev] api on :38600, /health and /docs
+[dev] mobile dev on :38700
+
+[dev] shutting down owned processes; Postgres stays up (bun run db:down to stop it)

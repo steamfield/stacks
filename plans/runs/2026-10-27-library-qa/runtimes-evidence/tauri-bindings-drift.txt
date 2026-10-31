@@ -1,0 +1,10 @@
+--- src/core/generated/bindings.ts	2026-10-27 23:15:31
++++ <temporary-file>	2026-10-27 23:15:42
+@@ -32,5 +32,3 @@
+     }
+ }
+
+-
+-// deliberate drift for QA
+bindings-check: src/core/generated/bindings.ts is stale. Run make bindings and commit the result.
+make: *** [bindings-check] Error 1

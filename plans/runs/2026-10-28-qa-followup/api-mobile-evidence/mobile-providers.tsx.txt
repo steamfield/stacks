@@ -1,0 +1,13 @@
+import React, { useEffect } from 'react';
+import { ClerkProvider, useAuth } from '@clerk/expo';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { TokenContext } from '../lib/auth-token';
+function SignedBoundary({ children }: { children: React.ReactNode }) {
+  const { isSignedIn, getToken } = useAuth(); const client = useQueryClient();
+  useEffect(() => { if (!isSignedIn) client.clear(); }, [isSignedIn, client]);
+  return <TokenContext.Provider value={getToken}>{children}</TokenContext.Provider>;
+}
+export function Providers({ children, client, enabled }: { children: React.ReactNode; client: QueryClient; enabled: boolean }) {
+  const content = <QueryClientProvider client={client}>{enabled ? <SignedBoundary>{children}</SignedBoundary> : children}</QueryClientProvider>;
+  return enabled ? <ClerkProvider publishableKey="pk_test_fake">{content}</ClerkProvider> : content;
+}

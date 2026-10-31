@@ -1,0 +1,200 @@
+{
+  "outcome": "green",
+  "stages": {
+    "base": "green",
+    "app": "green"
+  },
+  "scope": "full",
+  "steps": [
+    {
+      "name": "install",
+      "phase": "setup",
+      "layer": "install",
+      "command": "bun install",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 169
+    },
+    {
+      "name": "git-hooks-install",
+      "phase": "setup",
+      "layer": "install",
+      "command": "lefthook install",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 86
+    },
+    {
+      "name": "lint",
+      "phase": "check",
+      "layer": "lint",
+      "command": "bun run lint",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 235
+    },
+    {
+      "name": "typecheck",
+      "phase": "check",
+      "layer": "typecheck",
+      "command": "bun run typecheck",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 5027
+    },
+    {
+      "name": "test",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run test",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 20275
+    },
+    {
+      "name": "config-logging",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run test:unit tests/config-logging.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 560
+    },
+    {
+      "name": "binary",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run e2e",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 992
+    },
+    {
+      "name": "readme-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -s README.md && ! grep -n 'stacks:fill' README.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "agents-md-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -s AGENTS.md && ! grep -n 'stacks:fill' AGENTS.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "claude-readme-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f .claude/README.md || ! grep -n 'stacks:fill' .claude/README.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    },
+    {
+      "name": "harness-hooks",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -d tests/hooks || node node_modules/vitest/vitest.mjs run tests/hooks",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 3
+    },
+    {
+      "name": "harness-doc-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f docs/harness.md || ! grep -n 'stacks:fill' docs/harness.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    },
+    {
+      "name": "git-hooks-validate",
+      "phase": "check",
+      "layer": "check",
+      "command": "lefthook validate",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 22
+    },
+    {
+      "name": "git-hooks-configured",
+      "phase": "check",
+      "layer": "check",
+      "command": "grep -Eq '^(pre-commit|commit-msg|pre-push):' lefthook.yml",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 5
+    },
+    {
+      "name": "app-tui-entry",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -f src/tui/launch.tsx",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    },
+    {
+      "name": "app-tui-test",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run test:tui",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 395
+    },
+    {
+      "name": "app-tui-smoke",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run tui:capture -- --smoke",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 692
+    },
+    {
+      "name": "app-eval-dry-run",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run eval -- --dry-run",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 167
+    },
+    {
+      "name": "app-e2e",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run app:e2e",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 2006
+    },
+    {
+      "name": "app-acceptance",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run test:unit tests/app-acceptance.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 19464
+    }
+  ],
+  "totals": {
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0
+  },
+  "durationMs": 50127,
+  "secondsSinceCreated": 1323,
+  "tamperCheck": "full",
+  "firstGreen": false,
+  "stateRecord": true
+}

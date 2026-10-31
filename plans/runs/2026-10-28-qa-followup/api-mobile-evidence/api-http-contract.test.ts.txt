@@ -1,0 +1,63 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Effect, Fiber, Layer, Schema } from 'effect';
+import { HttpRouter } from 'effect/http';
+import { NodeHttpServer } from '@effect/platform-node';
+import { createServer } from 'node:http';
+import { apiErrorTable, app, boundary, records, web } from '../src/app.ts';
+const runtime = web();
+const server = createServer();
+const running = Effect.runFork(Layer.launch(HttpRouter.serve(app, { disableLogger: true, disableListenLog: true, middleware: boundary }).pipe(Layer.provide(NodeHttpServer.layer(() => server, { port: 0, host: '127.0.0.1' })))));
+beforeAll(async () => { await vi.waitFor(() => { if (!server.listening) throw Error('not ready'); }); });
+afterAll(async () => { await runtime.dispose(); await Effect.runPromise(Fiber.interrupt(running)); });
+import { vi } from 'vitest';
+const errorSchema = Schema.Struct({ error: Schema.Struct({ tag: Schema.String, message: Schema.String, retryable: Schema.Boolean }) });
+for (const transport of ['web', 'node'] as const) describe(transport, () => {
+  async function request(path: string, init?: RequestInit) {
+    const url = transport === 'web' ? 'http://local' : `http://127.0.0.1:${(server.address() as {port:number}).port}`;
+    return transport === 'web' ? runtime.handler(new Request(url + path, init)) : fetch(url + path, init);
+  }
+  it('health and request ids', async () => {
+    records.length = 0;
+    const res = await request('/healthz', { headers: { 'x-request-id': 'test_123', 'x-extra': 'ordinary' } });
+    expect(res.status).toBe(200); expect(Schema.decodeUnknownSync(Schema.Struct({ status: Schema.Literal('ok') }))(await res.json())).toEqual({ status: 'ok' }); expect(res.headers.get('x-request-id')).toBe('test_123');
+    expect(records.filter(r => r.msg === 'request')).toHaveLength(1);
+    expect(records[0]).toMatchObject({ level: 'debug', method: 'GET', path: '/healthz', status: 200, requestId: 'test_123' });
+    expect(typeof records[0]?.time).toBe('string'); expect(typeof records[0]?.duration).toBe('number');
+    const unsafe = await request('/healthz', { headers: { 'x-request-id': 'bad id' } });
+    expect(unsafe.headers.get('x-request-id')).toMatch(/^[a-zA-Z0-9_-]{1,64}$/);
+  });
+  for (const [tag, row] of Object.entries(apiErrorTable)) it(`error table ${tag}`, async () => {
+    records.length = 0;
+    const res = await request(`/v1/failure/${tag}`);
+    expect(res.status).toBe(row.status);
+    expect(Schema.decodeUnknownSync(errorSchema)(await res.json())).toEqual({ error: { tag, message: row.message, retryable: row.retryable } });
+    expect(records.filter(r => r.msg === 'request')).toHaveLength(1);
+  });
+  it('logs route patterns without query or header values', async () => {
+    records.length = 0;
+    const res = await request('/v1/query/123?q=SECRET_SENTINEL', { headers: { authorization: 'SECRET_SENTINEL' } });
+    expect(res.status).toBe(200);
+    expect(records[0]).toMatchObject({ path: '/v1/query/:id', method: 'GET', status: 200, level: 'info' });
+    expect(JSON.stringify(records)).not.toContain('SECRET_SENTINEL');
+  });
+  for (const [label, path, init, status, tag] of [
+    ['miss', '/missing', {}, 404, 'NotFound'], ['method', '/healthz', { method: 'POST' }, 404, 'NotFound'],
+    ['query', '/v1/query/1?q=ok&extra=x', {}, 400, 'BadInput'], ['param', '/v1/query/no?q=ok', {}, 400, 'BadInput'],
+    ['payload', '/v1/echo', { method: 'POST', headers: { 'content-type':'application/json' }, body:'{"name":1}' }, 400, 'BadInput'],
+    ['media', '/v1/echo', { method:'POST', headers:{'content-type':'text/plain'}, body:'abc' }, 415, 'UnsupportedMediaType'],
+    ['encoding', '/v1/encode', {}, 500, 'Defect'], ['defect', '/v1/defect', { headers: {'x-request-id':'defect_1'} }, 500, 'Defect']
+  ] as const) it(label, async () => {
+    records.length = 0;
+    const res = await request(path, init);
+    expect(res.status).toBe(status);
+    const body = Schema.decodeUnknownSync(errorSchema)(await res.json()); expect(body.error.tag).toBe(tag);
+    expect(records.filter(r => r.msg === 'request')).toHaveLength(1);
+    expect(JSON.stringify(records)).not.toContain('SECRET_SENTINEL');
+    if (label === 'defect') {
+      const defects = records.filter(r => r.msg === 'defect'); expect(defects).toHaveLength(1);
+      expect(defects[0]).toMatchObject({ requestId: 'defect_1', error: { name: 'Error' } });
+      expect((defects[0]?.error as {stack: string[]}).stack.length).toBeGreaterThan(0);
+      expect(res.headers.get('x-request-id')).toBe('defect_1');
+    }
+  });
+});

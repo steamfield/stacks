@@ -1,0 +1,147 @@
+import { spawn } from "node:child_process";
+import { Effect, Layer, Redacted } from "effect";
+import { expect, it } from "vitest";
+import { chatProgram } from "../app/.server/chat";
+import { AppConfig } from "../app/.server/config";
+import { exportProgram } from "../app/.server/export";
+import { Limits } from "../app/.server/services/limits";
+import { ChatStore, makeStore } from "../app/.server/services/store";
+import { startStubOpenRouter } from "./helpers/stub-openrouter";
+import "./chat-program.test";
+import "./upstream-errors.test";
+import "./models.test";
+import "./models-down.test";
+import "./limits.test";
+import "./synthetic-replay.test";
+import "./evals.test";
+import "./eval-deadline.test";
+import "./request-validation.test";
+import "./extract-errors.test";
+import "./tools.test";
+import "./fallback.test";
+
+const id = "11111111-1111-4111-8111-111111111111";
+const message = {
+  id: "22222222-2222-4222-8222-222222222222",
+  role: "user",
+  parts: [{ type: "text", text: "Hello" }],
+};
+const request = (body: unknown) =>
+  new Request("<local-url>/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+function runScript(
+  script: string,
+  baseUrl: string,
+  args: string[] = [],
+  key = "",
+) {
+  return new Promise<{ code: number | null; output: string }>(
+    (resolve, reject) => {
+      const env = {
+        ...process.env,
+        OPENROUTER_API_KEY: key,
+        OPENROUTER_BASE_URL: baseUrl,
+      };
+      const child = spawn("bun", ["run", script, ...args], { env });
+      let output = "";
+      child.stdout.on("data", (data) => {
+        output += String(data);
+      });
+      child.stderr.on("data", (data) => {
+        output += String(data);
+      });
+      child.on("error", reject);
+      child.on("close", (code) => resolve({ code, output }));
+    },
+  );
+}
+it("recorder and live eval reject a missing key before provider access", async () => {
+  const stub = await startStubOpenRouter();
+  try {
+    for (const script of ["record:openrouter", "eval"]) {
+      const result = await runScript(script, stub.url);
+      expect(result.code).not.toBe(0);
+      expect(result.output).toContain("OPENROUTER_API_KEY");
+    }
+    expect(stub.count()).toBe(0);
+  } finally {
+    await stub.close();
+  }
+});
+it("dry-run ignores inherited provider credentials and URL and validates its three-case report", async () => {
+  const trap = await startStubOpenRouter();
+  try {
+    const result = await runScript(
+      "eval",
+      trap.url,
+      ["--", "--dry-run"],
+      "dummy-inherited-key",
+    );
+    expect(result.code).toBe(0);
+    expect(trap.count()).toBe(0);
+    const report = JSON.parse(
+      result.output.split("\n").find((line) => line.startsWith("{")) ?? "{}",
+    );
+    expect(report.mode).toBe("synthetic-local-stub");
+    expect(report.cases.map((row: { name: string }) => row.name)).toEqual([
+      "concise-answer",
+      "currentTime",
+      "extract",
+    ]);
+    expect(
+      report.cases.every((row: { verdict: string }) => row.verdict === "pass"),
+    ).toBe(true);
+    expect(report.models[0].total).toBe(3);
+    expect(report.models[0].medianLatencyMs).toBeGreaterThanOrEqual(0);
+  } finally {
+    await trap.close();
+  }
+});
+it("validates requests, persists replies and exports role text and metadata", async () => {
+  const stub = await startStubOpenRouter();
+  const store = makeStore(new Map());
+  const layer = Layer.mergeAll(
+    Layer.succeed(AppConfig, {
+      key: Redacted.make("dummy"),
+      baseUrl: stub.url,
+      model: "synthetic/local",
+    }),
+    Layer.succeed(ChatStore, store),
+    Limits.layer,
+  );
+  try {
+    const response = await Effect.runPromise(
+      chatProgram(request({ id, message })).pipe(Effect.provide(layer)),
+    );
+    const text = await response.text();
+    expect(text).toContain("Hello from the local provider.");
+    await viWait(async () => {
+      const saved = await Effect.runPromise(store.get(id));
+      return saved.some((m) => m.role === "assistant");
+    });
+    const exported = await Effect.runPromise(
+      exportProgram(id).pipe(Effect.provide(layer)),
+    );
+    const markdown = await exported.text();
+    expect(markdown).toContain("## User");
+    expect(markdown).toContain("Hello from the local provider.");
+    expect(markdown).toContain("requestedModel");
+    expect(markdown).toContain("tokens");
+    const bad = await Effect.runPromise(
+      exportProgram("bad").pipe(Effect.provide(layer)),
+    );
+    expect(bad.status).toBe(400);
+  } finally {
+    await stub.close();
+  }
+});
+async function viWait(predicate: () => Promise<boolean>) {
+  for (let i = 0; i < 100; i++) {
+    if (await predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  throw new Error("history not saved");
+}

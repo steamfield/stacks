@@ -1,0 +1,48 @@
+{
+  "project": "<qa-root>/project",
+  "stack": "react-router",
+  "added": ["openrouter-ai", "openrouter-chat"],
+  "alreadyApplied": [
+    "agent-ops",
+    "ci-github",
+    "claude-harness",
+    "effect-schema",
+    "effect",
+    "git-hooks"
+  ],
+  "written": [
+    ".agents/skills/openrouter-chat/SKILL.md",
+    "DESIGN.md",
+    "biome-plugins/styling.grit",
+    "docs/acceptance/openrouter-chat.md",
+    "docs/chat-turn.md",
+    "docs/guidance/openrouter-chat/ai-sdk.md",
+    "docs/guidance/openrouter-chat/index.md",
+    "docs/guidance/openrouter-chat/openrouter.md",
+    "docs/guidance/openrouter-chat/rate-limiting.md",
+    "docs/guidance/openrouter-chat/styling.md",
+    "docs/guidance/openrouter-chat/testing.md",
+    "docs/guidance/openrouter-chat/ui.md",
+    "docs/guidance/openrouter-chat/verification.md"
+  ],
+  "skipped": [],
+  "mergeNeeded": [],
+  "missingRequired": [],
+  "commandsKept": ["check", "e2e"],
+  "warnings": [],
+  "missingTools": [],
+  "name": { "value": "project", "source": "manifest" },
+  "createdManifest": false,
+  "tamperCheck": "full",
+  "stateRecord": true,
+  "digestRecorded": true,
+  "brief": ".stacks/BRIEF.md",
+  "briefWords": 3284,
+  "untrusted": [],
+  "handoff": {
+    "kind": "inside-agent",
+    "agent": "codex",
+    "untrusted": [],
+    "prompt": "Read .stacks/BRIEF.md and carry it out. It's your full task for this project; you're done when stacks verify passes."
+  }
+}

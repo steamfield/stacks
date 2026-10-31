@@ -1,0 +1,24 @@
+RUN  v5.0.5 <qa-root>/cloudflare-react-router
+
+ ❯ tests/scheduled.test.ts (2 tests | 1 failed) 4ms
+   × propagates rejected scheduled work 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/scheduled.test.ts > propagates rejected scheduled work
+Error: scheduled failure
+ ❯ tests/scheduled.test.ts:17:26
+     15| it("propagates rejected scheduled work", async () => {
+     16|   const controller = createScheduledController({ scheduledTime: new Da…
+     17|   work.mockRejectedValue(new Error("scheduled failure"));
+       |                          ^
+     18|   await expect(scheduled(controller, env)).rejects.toThrow("scheduled …
+     19| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 3 passed (4)
+   Start at  23:05:39
+   Duration  1.47s (transform 35%, tests 31%, import 20%, worker 14%)

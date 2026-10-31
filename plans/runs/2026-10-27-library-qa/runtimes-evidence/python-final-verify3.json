@@ -1,0 +1,136 @@
+{
+  "outcome": "green",
+  "scope": "full",
+  "steps": [
+    {
+      "name": "install",
+      "phase": "setup",
+      "layer": "install",
+      "command": "make install",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 98
+    },
+    {
+      "name": "git-hooks-install",
+      "phase": "setup",
+      "layer": "install",
+      "command": "lefthook install",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 29
+    },
+    {
+      "name": "lint",
+      "phase": "check",
+      "layer": "lint",
+      "command": "make lint",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 871
+    },
+    {
+      "name": "typecheck",
+      "phase": "check",
+      "layer": "typecheck",
+      "command": "make typecheck",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1405
+    },
+    {
+      "name": "test",
+      "phase": "check",
+      "layer": "test",
+      "command": "make test",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1407
+    },
+    {
+      "name": "api-contract",
+      "phase": "check",
+      "layer": "check",
+      "command": "make check-api",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 279
+    },
+    {
+      "name": "build",
+      "phase": "check",
+      "layer": "build",
+      "command": "make build",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 603
+    },
+    {
+      "name": "readme-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -s README.md && ! grep -n 'stacks:fill' README.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "agents-md-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -s AGENTS.md && ! grep -n 'stacks:fill' AGENTS.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 5
+    },
+    {
+      "name": "claude-readme-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f .claude/README.md || ! grep -n 'stacks:fill' .claude/README.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 3
+    },
+    {
+      "name": "git-hooks-validate",
+      "phase": "check",
+      "layer": "check",
+      "command": "lefthook validate",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 20
+    },
+    {
+      "name": "git-hooks-configured",
+      "phase": "check",
+      "layer": "check",
+      "command": "grep -Eq '^(pre-commit|commit-msg|pre-push):' lefthook.yml",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    },
+    {
+      "name": "api",
+      "phase": "serve",
+      "layer": "serve",
+      "command": "make dev-api",
+      "status": "passed",
+      "durationMs": 727
+    },
+    {
+      "name": "web",
+      "phase": "serve",
+      "layer": "serve",
+      "command": "make dev-web",
+      "status": "passed",
+      "durationMs": 635
+    }
+  ],
+  "totals": { "passed": 14, "failed": 0, "skipped": 0 },
+  "durationMs": 6094,
+  "secondsSinceCreated": 463,
+  "tamperCheck": "full",
+  "firstGreen": false,
+  "stateRecord": true
+}

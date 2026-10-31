@@ -1,0 +1,27 @@
+import { expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+import { minimatch } from 'minimatch';
+import { spawnSync } from 'node:child_process';
+const workflow = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
+const filters = parse(workflow.jobs.changes.steps.find((s: any) => s.id === 'filter').with.filters);
+function validate(f: Record<string, string[]>) {
+  const matches = (group: string, path: string) => f[group]?.some(pattern => minimatch(path, pattern));
+  return ['api', 'mobile'].every(group => ['bun.lock', 'package.json', 'bunfig.toml', '.node-version', 'drizzle.config.ts', '.github/workflows/ci.yml', 'packages/schemas/item.ts', 'apps/api/item.ts'].every(path => matches(group, path))) && matches('mobile', 'apps/mobile/item.ts');
+}
+test('workflow filters and aggregate semantics', () => {
+  expect(validate(filters)).toBe(true);
+  expect(validate({ ...filters, mobile: filters.mobile.filter((p: string) => p !== 'apps/api/**') })).toBe(false);
+  for (const name of ['api', 'mobile', 'bundle']) expect(workflow.jobs[name].if).toContain('needs.changes.outputs.');
+  expect(workflow.jobs['ci-ok'].if).toBe('always()');
+  const script = workflow.jobs['ci-ok'].steps[0].run;
+  const result = (state: string) => spawnSync('/bin/sh', ['-c', script], { env: { ...process.env, RESULTS: JSON.stringify({ changes: { result: 'success' }, api: { result: state } }) } }).status;
+  expect(result('success')).toBe(0); expect(result('skipped')).toBe(0);
+  expect(result('failure')).not.toBe(0); expect(result('cancelled')).not.toBe(0);
+  expect(workflow.jobs.api.steps.map((s: any) => s.run).filter(Boolean).slice(-2)).toEqual(['bun run db:check', 'bun run test:api']);
+  expect(workflow.jobs.mobile.steps.at(-1).run).toBe('bun run test:mobile');
+  expect(workflow.jobs.bundle.steps.slice(-2).map((s: any) => s.run)).toEqual(['bun run bundle', 'bun run expo:check']);
+  const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts;
+  for (const command of ['db:check', 'test:api', 'test:mobile', 'test:ci', 'bundle', 'expo:check']) expect(scripts[command]).toBeTruthy();
+  expect(workflow.jobs['ci-ok'].needs).toEqual(['changes', 'lint', 'typecheck', 'api', 'mobile', 'bundle']);
+});

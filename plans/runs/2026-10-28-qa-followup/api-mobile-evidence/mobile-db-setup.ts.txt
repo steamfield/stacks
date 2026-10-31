@@ -1,0 +1,44 @@
+import { afterAll, beforeAll } from 'bun:test';
+import { Client } from 'pg';
+import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+const base = new URL(process.env.DATABASE_URL!);
+const run = process.env.QA_RUN_ID!;
+if (!/^[a-z0-9_]{1,32}$/.test(run)) throw Error('invalid run id');
+const template = `qa_${run}_template`;
+const q = (s: string) => '"' + s + '"';
+const urlFor = (name: string) => { const url = new URL(base); url.pathname = name; return url.toString(); };
+export async function createTestDatabase(label: string, fail = false) {
+  if (!/^[a-z0-9_]{1,16}$/.test(label)) throw Error('invalid label');
+  const name = `qa_${run}_${label}_${randomUUID().replaceAll('-', '').slice(0, 10)}`;
+  const admin = new Client({ connectionString: base.toString() });
+  await admin.connect();
+  let created = false;
+  try {
+    await admin.query('select pg_advisory_lock(hashtext($1))', [template]);
+    try {
+      const existing = await admin.query('select 1 from pg_database where datname=$1', [template]);
+      if (!existing.rowCount) {
+        await admin.query(`create database ${q(template)}`);
+        const db = new Client({ connectionString: urlFor(template) });
+        try { await db.connect(); await db.query(await readFile('drizzle/0000_greedy_photon.sql', 'utf8')); } finally { await db.end(); }
+      }
+      await admin.query(`create database ${q(name)} template ${q(template)}`);
+      created = true;
+    } finally { await admin.query('select pg_advisory_unlock(hashtext($1))', [template]); }
+    if (fail) throw Error('intentional setup failure');
+    await admin.end();
+    return { name, url: urlFor(name), drop: async () => { const c = new Client({ connectionString: base.toString() }); await c.connect(); try { await c.query(`drop database ${q(name)}`); } finally { await c.end(); } } };
+  } catch (error) {
+    if (created) await admin.query(`drop database ${q(name)}`);
+    await admin.end();
+    throw error;
+  }
+}
+export function setupApiTest(label: string) {
+  let database: Awaited<ReturnType<typeof createTestDatabase>>;
+  let app: typeof import('../src/app.ts');
+  beforeAll(async () => { database = await createTestDatabase(label); process.env.DATABASE_URL = database.url; app = await import(`../src/app.ts?${database.name}`); });
+  afterAll(async () => { if (app) await app.close(); if (database) await database.drop(); });
+  return { get app() { return app.app; }, get database() { return database; } };
+}

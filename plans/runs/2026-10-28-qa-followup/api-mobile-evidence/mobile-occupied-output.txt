@@ -1,0 +1,3 @@
+[dev] API port :38500 is already in use. Stop its owner or choose another port.
+
+[dev] shutting down owned processes; Postgres stays up (bun run db:down to stop it)

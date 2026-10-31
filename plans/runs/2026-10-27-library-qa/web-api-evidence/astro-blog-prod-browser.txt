@@ -1,0 +1,54 @@
+### Browser `blog-qa` opened with pid 49729.
+### Ran Playwright code
+```js
+await page.goto('<local-url>/');
+```
+### Page
+- Page URL: <local-url>/
+- Page Title: Example Blog
+### Snapshot
+- [Snapshot](<snapshot>)
+### Page
+- Page URL: <local-url>/
+- Page Title: Example Blog
+### Snapshot
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - link "Example Blog" [ref=e3] [cursor=pointer]:
+      - /url: /
+  - main [ref=e4]:
+    - heading "Posts" [level=1] [ref=e5]
+    - list [ref=e6]:
+      - listitem [ref=e7]:
+        - link "Hello world" [ref=e8] [cursor=pointer]:
+          - /url: /hello
+        - paragraph [ref=e9]: A first published post.
+```
+### Ran Playwright code
+```js
+await page.goto('<local-url>/hello');
+```
+### Page
+- Page URL: <local-url>/hello
+- Page Title: Hello world
+### Snapshot
+- [Snapshot](<snapshot>)
+### Page
+- Page URL: <local-url>/hello
+- Page Title: Hello world
+### Snapshot
+```yaml
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - link "Example Blog" [ref=f1e3] [cursor=pointer]:
+      - /url: /
+  - main [ref=f1e4]:
+    - article [ref=f1e5]:
+      - heading "Hello world" [level=1] [ref=f1e6]
+      - paragraph [ref=f1e7]:
+        - text: By Site Author ·
+        - time [ref=f1e8]: 2026-01-01
+      - paragraph [ref=f1e10]: Welcome to the blog. This post is written in MDX.
+```
+Browser 'blog-qa' closed

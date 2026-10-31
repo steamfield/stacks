@@ -1,0 +1,38 @@
+[
+  {
+    "args": ["list", "stacks"],
+    "exit": 0,
+    "stdout": "Stacks\n  astro-api                unproven\n    A bun workspace with a Node HTTP API on Effect's HttpApi, a static Astro site with React islands and Tailwind, and a shared contract package holding the HttpApi definition, so islands call the API through a typed HttpApiClient; the API can also serve the built site.\n  astro-blog               proven 2026-10-27\n    A static Astro blog with MDX posts in a zod-validated content collection (draft/published/unlisted status), React islands, Tailwind with typography, sitemap and RSS, optional generated OG images, and vitest plus astro check.\n  cloudflare-react-router  unproven\n    Full-stack React Router on the local Workers runtime, typed bindings, JSON resource routes, a cron handler slot, Tailwind, Biome, and Workers integration tests.\n  go-cli                   proven 2026-10-27\n    A Go command-line tool with cobra commands, viper config (file, env, flags), structured errors with actionable suggestions, human and JSON output, testify tests with race detection and a coverage floor, and golangci-lint.\n  mobile-expo              unproven\n    Bun-workspace monorepo with an Expo Router app (NativeWind, TanStack Query), a Bun + Hono API (zod-openapi, Drizzle on Postgres), and a shared zod schemas package; the app reaches the API through a typed Hono client behind a hooks layer.\n  python-react             proven 2026-10-27\n    FastAPI backend (uv, ruff, mypy strict, pytest) plus a React single-page app (Vite, React Router in SPA mode, TanStack Query, Tailwind, shadcn/ui) that talks to the API through a typed client generated from its OpenAPI spec.\n  react-router             unproven\n    React Router framework mode with SSR, Effect services, typed HTTP errors, structured logs, Tailwind and shadcn, Vitest, and a health-route proving slice.\n  tauri-react              unproven\n    Tauri 2 desktop app with a Rust crate workspace behind a thin app shell, tauri-specta typed IPC, a React/Vite frontend that reaches Rust only through a transport facade with a mock for the browser and tests, Biome, Vitest, Playwright, clippy, and a crate-edge policy check.\n  typescript-api           unproven\n    A Node HTTP API on Effect's HttpApi, with schema-first REST resources, tagged errors mapped through one status table, structured request logs, a platform-free core that also runs as a web fetch handler, Vitest through real HTTP, and a health-route proving slice.\n  typescript-cli           proven 2026-10-27\n    A Bun-compiled TypeScript CLI with Effect commands and services, strict stdout/JSON contracts, lazy config, structured logs, Vitest, and compiled-binary tests.\n\nNext: stacks new astro-api my-project --sandbox\nNext: stacks list --json\n",
+    "stderr": ""
+  },
+  {
+    "args": ["show", "astro-blog", "--json"],
+    "exit": 0,
+    "stdout": "{\n  \"id\": \"astro-blog\",\n  \"lastRun\": {\n    \"date\": \"2026-10-27\",\n    \"result\": \"pass\",\n    \"agent\": \"claude\",\n    \"preset\": \"sandbox\",\n    \"fingerprint\": \"sha256:75f418775c9df9eca3ba96edea3002503449b3e7d4741dd41d6252c5fccfefdc\",\n    \"sameContent\": false\n  }\n}",
+    "stderr": ""
+  },
+  {
+    "args": ["show", "go-cli", "--json"],
+    "exit": 0,
+    "stdout": "{\n  \"id\": \"go-cli\",\n  \"lastRun\": {\n    \"date\": \"2026-10-27\",\n    \"result\": \"pass\",\n    \"agent\": \"claude\",\n    \"preset\": \"sandbox\",\n    \"fingerprint\": \"sha256:4e12cfc53d9c9611429c92d2c3c03b61c077e3e5d11cbe1e6903d95bb80b462e\",\n    \"sameContent\": false\n  }\n}",
+    "stderr": ""
+  },
+  {
+    "args": ["show", "python-react", "--json"],
+    "exit": 0,
+    "stdout": "{\n  \"id\": \"python-react\",\n  \"lastRun\": {\n    \"date\": \"2026-10-27\",\n    \"result\": \"pass\",\n    \"agent\": \"claude\",\n    \"preset\": \"sandbox\",\n    \"fingerprint\": \"sha256:d156a16538a2b00f4993fbdb1a484d081404e7d5766ce2d0c1b44f27708ed980\",\n    \"sameContent\": false\n  }\n}",
+    "stderr": ""
+  },
+  {
+    "args": ["show", "typescript-cli", "--json"],
+    "exit": 0,
+    "stdout": "{\n  \"id\": \"typescript-cli\",\n  \"lastRun\": {\n    \"date\": \"2026-10-27\",\n    \"result\": \"pass\",\n    \"agent\": \"claude\",\n    \"preset\": \"sandbox\",\n    \"fingerprint\": \"sha256:54e0b4b6284db94298550dc38cc16e683ba7d2b50ca85a85c3d8c8ba79a6d791\",\n    \"sameContent\": false\n  }\n}",
+    "stderr": ""
+  },
+  {
+    "args": ["new", "react-routr", "<qa-root>/cli-evidence/typo", "--json"],
+    "exit": 2,
+    "stdout": "",
+    "stderr": "{\"error\":{\"tag\":\"NotFound\",\"message\":\"Not found.\",\"retryable\":false,\"next\":\"use one of the ids above.\",\"details\":{\"suggestions\":[\"react-router\"],\"id\":\"react-routr\",\"kind\":\"stack\"}}}\n"
+  }
+]

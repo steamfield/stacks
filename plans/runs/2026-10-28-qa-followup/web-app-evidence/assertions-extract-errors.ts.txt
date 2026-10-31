@@ -1,0 +1,74 @@
+import { Effect, Layer, Redacted } from "effect";
+import { expect, it } from "vitest";
+import { AppConfig } from "../app/.server/config";
+import { extractProgram } from "../app/.server/extract";
+import { Limits } from "../app/.server/services/limits";
+import { startStubOpenRouter } from "./helpers/stub-openrouter";
+
+for (const [status, retryable] of [
+  [401, false],
+  [402, true],
+  [404, false],
+  [429, true],
+  [500, true],
+] as const)
+  it(`maps extraction provider ${status}`, async () => {
+    const stub = await startStubOpenRouter();
+    stub.failCompletions(status, 2);
+    try {
+      const layer = Layer.mergeAll(
+        Layer.succeed(AppConfig, {
+          key: Redacted.make("dummy"),
+          baseUrl: stub.url,
+          model: "synthetic/local",
+        }),
+        Limits.layer,
+      );
+      const request = new Request("<local-url>/api/extract", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: "Ada" }),
+      });
+      const response = await Effect.runPromise(
+        extractProgram(request).pipe(Effect.provide(layer)),
+      );
+      expect(response).toBeInstanceOf(Response);
+      expect((response as Response).status).toBe(502);
+      const body = await (response as Response).json();
+      expect(body.retryable).toBe(retryable);
+      if (status === 402) expect(body.message).toContain("credits");
+    } finally {
+      await stub.close();
+    }
+  });
+
+it("rejects invalid structured output with a safe non-retryable error", async () => {
+  const stub = await startStubOpenRouter();
+  stub.invalidExtract();
+  try {
+    const layer = Layer.mergeAll(
+      Layer.succeed(AppConfig, {
+        key: Redacted.make("dummy"),
+        baseUrl: stub.url,
+        model: "synthetic/local",
+      }),
+      Limits.layer,
+    );
+    const request = new Request("<local-url>/api/extract", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "Ada" }),
+    });
+    const response = await Effect.runPromise(
+      extractProgram(request).pipe(Effect.provide(layer)),
+    );
+    expect(response).toBeInstanceOf(Response);
+    expect((response as Response).status).toBe(502);
+    expect(await (response as Response).json()).toEqual({
+      message: "The model returned invalid output.",
+      retryable: false,
+    });
+  } finally {
+    await stub.close();
+  }
+});

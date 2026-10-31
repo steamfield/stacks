@@ -1,0 +1,26 @@
+bunx vitest run --coverage
+
+ RUN  v5.0.5 <qa-root>/astro-blog
+      Coverage enabled with v8
+
+
+ Test Files  5 passed (5)
+      Tests  9 passed (9)
+   Start at  23:03:14
+   Duration  333ms (environment 45%, setup 29%, transform 8%, import 7%, worker 6%, tests 5%)
+
+ % Coverage report from v8
+-----------------|---------|----------|---------|---------|-------------------
+File             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-----------------|---------|----------|---------|---------|-------------------
+All files        |   90.24 |    71.42 |   88.23 |   94.11 |
+ lib             |   89.18 |    71.42 |   85.71 |   93.33 |
+  analytics.ts   |   86.66 |    69.23 |   71.42 |   91.66 | 47-50
+-----------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 90.24% ( 37/41 )
+Branches     : 71.42% ( 20/28 )
+Functions    : 88.23% ( 15/17 )
+Lines        : 94.11% ( 32/34 )
+================================================================================

@@ -1,0 +1,133 @@
+{
+  "outcome": "green",
+  "scope": "full",
+  "steps": [
+    {
+      "name": "install",
+      "phase": "setup",
+      "layer": "install",
+      "command": "bun install",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 56
+    },
+    {
+      "name": "git-hooks-install",
+      "phase": "setup",
+      "layer": "install",
+      "command": "lefthook install",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 32
+    },
+    {
+      "name": "lint",
+      "phase": "check",
+      "layer": "lint",
+      "command": "bun run lint",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 142
+    },
+    {
+      "name": "typecheck",
+      "phase": "check",
+      "layer": "typecheck",
+      "command": "bun run typecheck",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 253
+    },
+    {
+      "name": "test",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run test",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 736
+    },
+    {
+      "name": "binary",
+      "phase": "check",
+      "layer": "test",
+      "command": "bun run e2e",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 845
+    },
+    {
+      "name": "readme-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -s README.md && ! grep -n 'stacks:fill' README.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "agents-md-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test -s AGENTS.md && ! grep -n 'stacks:fill' AGENTS.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "claude-readme-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f .claude/README.md || ! grep -n 'stacks:fill' .claude/README.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 5
+    },
+    {
+      "name": "harness-hooks",
+      "phase": "check",
+      "layer": "test",
+      "command": "test ! -d tests/hooks || node node_modules/vitest/vitest.mjs run tests/hooks",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    },
+    {
+      "name": "harness-doc-filled",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f docs/harness.md || ! grep -n 'stacks:fill' docs/harness.md",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    },
+    {
+      "name": "git-hooks-validate",
+      "phase": "check",
+      "layer": "check",
+      "command": "lefthook validate",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 24
+    },
+    {
+      "name": "git-hooks-configured",
+      "phase": "check",
+      "layer": "check",
+      "command": "grep -Eq '^(pre-commit|commit-msg|pre-push):' lefthook.yml",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 7
+    }
+  ],
+  "totals": {
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0
+  },
+  "durationMs": 2120,
+  "secondsSinceCreated": 602,
+  "tamperCheck": "full",
+  "firstGreen": false,
+  "stateRecord": true
+}

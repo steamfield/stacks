@@ -1,0 +1,25 @@
+import { expect, test } from 'bun:test';
+import { Client } from 'pg';
+import { createTestDatabase } from './setup.ts';
+test('failed setup drops its clone and reuses the migrated template', async () => {
+  const first = await createTestDatabase('first');
+  const client = new Client({ connectionString: first.url }); await client.connect();
+  expect((await client.query("select to_regclass('public.items') as name")).rows[0].name).toBe('items');
+  await client.end(); await first.drop();
+  await expect(createTestDatabase('fail', true)).rejects.toThrow('intentional setup failure');
+  const second = await createTestDatabase('second');
+  const check = new Client({ connectionString: second.url }); await check.connect();
+  expect((await check.query("select to_regclass('public.items') as name")).rows[0].name).toBe('items');
+  await check.end(); await second.drop();
+  const admin = new Client({ connectionString: process.env.DATABASE_URL }); await admin.connect();
+  expect((await admin.query("select datname from pg_database where datname like $1", [`qa_${process.env.QA_RUN_ID}_fail_%`])).rowCount).toBe(0);
+  await admin.end();
+});
+import { crawl } from './graph.ts';
+test('transitive graph catches hidden runtime dependencies with a type-only near miss', () => {
+  expect(crawl('apps/api/test/fixtures/bad/client.ts').violations).toHaveLength(1);
+  expect(crawl('apps/api/test/fixtures/near/client.ts').violations).toHaveLength(0);
+  expect(crawl('apps/api/test/fixtures/good/client.ts').seen.size).toBe(4);
+  expect(crawl('apps/api/src/client.ts').violations).toHaveLength(0);
+  expect(crawl('apps/api/test/fixtures/alias/client.ts').violations).toHaveLength(1);
+});

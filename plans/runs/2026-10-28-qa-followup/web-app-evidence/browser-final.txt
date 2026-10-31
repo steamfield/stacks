@@ -1,0 +1,18 @@
+[WebServer] (node:23342) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:23595) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 7 tests using 1 worker
+
+(node:24456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 e2e/chat.spec.ts:3:1 › model search changes request; streamed tool and export survive reload (968ms)
+  ✓  2 e2e/chat.spec.ts:48:1 › stop persists partial reply after reload (389ms)
+  ✓  3 e2e/chat.spec.ts:63:1 › stop persists pending tool state after reload (396ms)
+  ✓  4 e2e/chat.spec.ts:82:1 › copy uses writeText fallback and reports clipboard failure (425ms)
+  ✓  5 e2e/chat.spec.ts:120:1 › shows Retry only for a retryable provider error (427ms)
+  ✓  6 e2e/chat.spec.ts:139:1 › falls back to the configured model when discovery is unavailable (318ms)
+  ✓  7 e2e/chat.spec.ts:144:1 › ClipboardItem receives the export promise and copy is disabled while streaming (474ms)
+
+  7 passed (5.2s)

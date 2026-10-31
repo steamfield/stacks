@@ -1,0 +1,9 @@
+HTTP/1.1 200 OK
+Vary: Origin
+content-length: 15
+content-type: application/json
+Date: Wed, 28 Oct 2026 04:09:09 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"status":"ok"}home 200 text/html

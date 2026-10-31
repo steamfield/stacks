@@ -1,0 +1,12 @@
+{
+  "typescript-cli": {
+    "createdAt": "2026-10-28T03:34:56.723Z",
+    "firstGreenAt": "2026-10-28T03:43:52.605Z",
+    "firstTestPassAt": "2026-10-28T03:38:08.506Z"
+  },
+  "react-router": {
+    "createdAt": "2026-10-28T03:34:56.519Z",
+    "firstGreenAt": null,
+    "firstTestPassAt": "2026-10-28T03:36:11.345Z"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "source": "packages/cli/registry/stacks/mobile-expo/files/scripts/dev.sh.tmpl::reap",
+  "method": "Exact shipped reap function only, called against an owned ephemeral TCP listener started independently of the dev script; reap_all and pkill were never executed.",
+  "port": 49998,
+  "stdout": "[dev] killing dangling qa-owned-sacrificial-listener on :49998 (pid <owned-pid>)\n",
+  "stderr": "",
+  "listenerExit": {
+    "code": null,
+    "signal": "SIGTERM"
+  },
+  "conclusion": "The function terminated a listener without any checkout/process ownership record."
+}

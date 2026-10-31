@@ -1,0 +1,9 @@
+HTTP/1.1 404 Not Found
+date: Wed, 28 Oct 2026 04:01:08 GMT
+server: uvicorn
+content-length: 93
+content-type: application/json
+vary: Origin
+x-request-id: qa-request
+
+{"error":{"code":"HTTP_ERROR","message":"Not Found","details":null,"requestId":"qa-request"}}

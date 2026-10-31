@@ -1,0 +1,14 @@
+> install
+> git-hooks-install
+> lint
+> check
+> test
+> readme-filled
+> agents-md-filled
+> claude-readme-filled
+> git-hooks-validate
+> git-hooks-configured
+> web
+verify: green (full run; 11 passed, 0 failed, 1 skipped; 5.5s)
+
+  skipped  check     build                 skipped by default in this preset; --all runs it

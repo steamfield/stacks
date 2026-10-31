@@ -1,0 +1,49 @@
+type Frame = {
+  model?: string;
+  choices?: {
+    delta?: { content?: string; tool_calls?: unknown[] };
+    finish_reason?: string | null;
+  }[];
+};
+export function validateRecording(bodies: string[]) {
+  if (bodies.length !== 3)
+    throw new Error("Incomplete recording; fixtures not replaced");
+  const frames = bodies.map((body) => {
+    if (!body.includes("data: [DONE]")) throw new Error("Incomplete stream");
+    return body
+      .split("\n")
+      .filter((line) => line.startsWith("data: ") && !line.endsWith("[DONE]"))
+      .map((line) => JSON.parse(line.slice(6)) as Frame);
+  });
+  const hasText = (rows: Frame[]) =>
+    rows.some((row) =>
+      row.choices?.some((choice) => Boolean(choice.delta?.content)),
+    );
+  const finished = (rows: Frame[], reason: string) =>
+    rows.some((row) =>
+      row.choices?.some((choice) => choice.finish_reason === reason),
+    );
+  if (
+    !hasText(frames[0] ?? []) ||
+    !finished(frames[0] ?? [], "stop") ||
+    !frames[1]?.some((row) =>
+      row.choices?.some((choice) => Boolean(choice.delta?.tool_calls?.length)),
+    ) ||
+    !finished(frames[1] ?? [], "tool_calls") ||
+    !hasText(frames[2] ?? []) ||
+    !finished(frames[2] ?? [], "stop")
+  )
+    throw new Error("Incomplete recording; fixtures not replaced");
+  return (
+    frames
+      .flat()
+      .map((frame) => frame.model)
+      .find(Boolean) ?? null
+  );
+}
+export function chunks(body: string, size = 7): string[] {
+  const result: string[] = [];
+  for (let index = 0; index < body.length; index += size)
+    result.push(body.slice(index, index + size));
+  return result;
+}

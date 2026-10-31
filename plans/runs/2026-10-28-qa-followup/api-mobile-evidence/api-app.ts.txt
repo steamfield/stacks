@@ -1,0 +1,77 @@
+import { Cause, Context, Effect, Layer, Logger, Option, References, Schema } from 'effect';
+import { HttpEffect, HttpRouter, HttpServer, HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
+export class Health extends Context.Service<Health, { readonly check: Effect.Effect<{ readonly status: 'ok' }> }>()('qa/Health') {
+  static layer = Layer.succeed(Health, { check: Effect.succeed({ status: 'ok' as const }) });
+}
+export const apiErrorTable = {
+  BadInput: { status: 400, message: 'Invalid request', retryable: false },
+  NotFound: { status: 404, message: 'Not found', retryable: false },
+  UnsupportedMediaType: { status: 415, message: 'Unsupported media type', retryable: false },
+  Unavailable: { status: 503, message: 'Service unavailable', retryable: true },
+  Defect: { status: 500, message: 'Internal server error', retryable: false },
+} as const;
+class BadInput extends Schema.TaggedError<BadInput>()('BadInput', {}, { httpApiStatus: apiErrorTable.BadInput.status }) {}
+class NotFound extends Schema.TaggedError<NotFound>()('NotFound', {}, { httpApiStatus: apiErrorTable.NotFound.status }) {}
+class Unavailable extends Schema.TaggedError<Unavailable>()('Unavailable', {}, { httpApiStatus: apiErrorTable.Unavailable.status }) {}
+class UnsupportedMediaType extends Schema.TaggedError<UnsupportedMediaType>()('UnsupportedMediaType', {}, { httpApiStatus: apiErrorTable.UnsupportedMediaType.status }) {}
+export class HealthGroup extends HttpApiGroup.make('Health').add(
+  HttpApiEndpoint.get('health', '/healthz', { success: Schema.Struct({ status: Schema.Literal('ok') }) }),
+  HttpApiEndpoint.post('echo', '/v1/echo', { payload: Schema.Struct({ name: Schema.String }), success: Schema.Struct({ name: Schema.String }) }),
+  HttpApiEndpoint.get('query', '/v1/query/:id', { params: { id: Schema.Number }, query: { q: Schema.String }, success: Schema.Struct({ value: Schema.String }) }),
+  HttpApiEndpoint.get('defect', '/v1/defect', { success: Schema.Struct({ value: Schema.String }) }),
+  HttpApiEndpoint.get('encode', '/v1/encode', { success: Schema.Struct({ value: Schema.String }) }),
+  HttpApiEndpoint.get('failure', '/v1/failure/:kind', { params: { kind: Schema.String }, success: Schema.String, error: [BadInput, NotFound, Unavailable, UnsupportedMediaType] }),
+) {}
+export class Api extends HttpApi.make('qa').add(HealthGroup).annotate(HttpApi.QueryParseOptions, { onExcessProperty: 'error' }) {}
+const handlers = HttpApiBuilder.group(Api, 'Health', Effect.fn(function* (h) {
+  const health = yield* Health;
+  return h.handle('health', () => health.check)
+    .handle('echo', ({ payload }) => Effect.succeed(payload))
+    .handle('query', ({ query }) => Effect.succeed({ value: query.q }))
+    .handle('defect', () => Effect.die(new Error('SECRET_SENTINEL')))
+    .handle('encode', () => Effect.succeed({ value: 42 } as never))
+    .handle('failure', ({ params }) => {
+      switch (params.kind) {
+        case 'BadInput': return Effect.fail(new BadInput());
+        case 'NotFound': return Effect.fail(new NotFound());
+        case 'Unavailable': return Effect.fail(new Unavailable());
+        case 'UnsupportedMediaType': return Effect.fail(new UnsupportedMediaType());
+        default: return Effect.die(new Error('SECRET_SENTINEL'));
+      }
+    });
+})).pipe(Layer.provide(Health.layer));
+export const records: Array<Record<string, unknown>> = [];
+const logger = Logger.make((entry) => {
+  const annotations = entry.fiber.getRef(References.CurrentLogAnnotations);
+  const record: Record<string, unknown> = { time: entry.date.toISOString(), level: entry.logLevel.toLowerCase(), msg: String(entry.message[0]), detail: entry.message.slice(1) };
+  for (const [key, value] of Object.entries(annotations)) record[['time', 'level', 'msg', 'detail'].includes(key) ? `annotation_${key}` : key] = value;
+  records.push(record);
+});
+const envelope = (status: number) => {
+  const tag = (Object.keys(apiErrorTable) as Array<keyof typeof apiErrorTable>).find(key => apiErrorTable[key].status === status) ?? 'Defect';
+  const row = apiErrorTable[tag];
+  return HttpServerResponse.jsonUnsafe({ error: { tag, message: row.message, retryable: row.retryable } }, { status });
+};
+export const boundary = (effect: any) => Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const supplied = request.headers['x-request-id'];
+  const requestId = supplied && /^[a-zA-Z0-9_-]{1,64}$/.test(supplied) ? supplied : crypto.randomUUID();
+  const start = Date.now();
+  yield* HttpEffect.appendPreResponseHandler((_request, response) => Effect.gen(function* () {
+    if (response.status >= 400) response = envelope(response.status);
+    const route = yield* Effect.serviceOption(HttpRouter.RouteContext);
+    const path = Option.match(route, { onNone: () => 'unmatched', onSome: context => context.route.path });
+    yield* (request.url === '/healthz' ? Effect.logDebug('request') : Effect.logInfo('request')).pipe(Effect.annotateLogs({ method: request.method, path, status: response.status, duration: Date.now() - start, requestId }));
+    return HttpServerResponse.setHeader(response, 'x-request-id', requestId);
+  }));
+  return yield* Effect.tapCause(effect, (cause: Cause.Cause<unknown>) => Effect.gen(function* () {
+    const reason = cause.reasons[0];
+    const error = reason && (Cause.isDieReason(reason) ? reason.defect : Cause.isFailReason(reason) ? reason.error : undefined);
+    const e = error as { _tag?: string; kind?: string; reason?: { _tag?: string } } | undefined;
+    const expected = e?._tag === 'HttpApiSchemaError' && ['Params', 'Headers', 'Query', 'Payload'].includes(e.kind ?? '') || e?.reason?._tag === 'RouteNotFound';
+    if (!expected) yield* Effect.logError('defect').pipe(Effect.annotateLogs({ requestId, error: { name: 'Error', stack: error instanceof Error ? error.stack?.split('\n').slice(1) : [] } }));
+  }));
+}).pipe(Effect.provideService(Logger.CurrentLoggers, new Set([logger])), Effect.provideService(References.MinimumLogLevel, 'Debug'));
+export const app = HttpApiBuilder.layer(Api, { openapiPath: '/openapi.json' }).pipe(Layer.provide(handlers));
+export const web = () => HttpRouter.toWebHandler(app.pipe(Layer.provide(HttpServer.layerServices)), { disableLogger: true, middleware: boundary });

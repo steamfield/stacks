@@ -1,0 +1,131 @@
+import { Effect, Layer, Redacted } from "effect";
+import { expect, it } from "vitest";
+import { chatProgram } from "../app/.server/chat";
+import { AppConfig } from "../app/.server/config";
+import { extractProgram } from "../app/.server/extract";
+import { Limits } from "../app/.server/services/limits";
+import { ChatStore } from "../app/.server/services/store";
+import { startStubOpenRouter } from "./helpers/stub-openrouter";
+
+const id = "11111111-1111-4111-8111-111111111111";
+const message = {
+  id: "22222222-2222-4222-8222-222222222222",
+  role: "user",
+  parts: [{ type: "text", text: "Hello" }],
+};
+function request(body: unknown, type = "application/json") {
+  return new Request("<local-url>/api", {
+    method: "POST",
+    headers: { "content-type": type },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+}
+it("checks malformed JSON, content type, unknown model and bounds before streaming", async () => {
+  const stub = await startStubOpenRouter();
+  const layer = Layer.mergeAll(
+    Layer.succeed(AppConfig, {
+      key: Redacted.make("dummy"),
+      baseUrl: stub.url,
+      model: "example/model",
+      maxInput: 5,
+    }),
+    ChatStore.layerMemory,
+    Limits.layer,
+  );
+  try {
+    const statuses = await Effect.runPromise(
+      Effect.gen(function* () {
+        const invalid = yield* chatProgram(request("{"));
+        const media = yield* chatProgram(request("x", "text/plain"));
+        const long = yield* chatProgram(
+          request({
+            id,
+            message: {
+              ...message,
+              parts: [{ type: "text", text: "too long" }],
+            },
+          }),
+        );
+        const unknown = yield* chatProgram(
+          request({ id, message, model: "missing/model" }),
+        );
+        return [invalid, media, long, unknown];
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(statuses.map((x) => x.status)).toEqual([400, 415, 400, 400]);
+    for (const response of statuses)
+      expect((await response.json()).retryable).toBe(false);
+    expect(stub.chatRequests).toHaveLength(0);
+  } finally {
+    await stub.close();
+  }
+});
+it("rate-limits chat and extraction independently of stream slots", async () => {
+  const stub = await startStubOpenRouter();
+  const layer = Layer.mergeAll(
+    Layer.succeed(AppConfig, {
+      key: Redacted.make("dummy"),
+      baseUrl: stub.url,
+      model: "example/model",
+    }),
+    ChatStore.layerMemory,
+    Limits.layer,
+  );
+  try {
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const limits = yield* Limits;
+        for (let i = 0; i < 10; i++) yield* limits.take;
+        const chat = yield* chatProgram(request({ id, message }));
+        const extract = yield* extractProgram(request({ text: "Ada" }));
+        return [chat, extract];
+      }).pipe(Effect.provide(layer)),
+    );
+    for (const response of result) {
+      expect(response).toBeInstanceOf(Response);
+      expect((response as Response).status).toBe(429);
+      expect((response as Response).headers.get("retry-after")).toBe("6");
+      expect((await (response as Response).json()).retryable).toBe(true);
+    }
+    expect(stub.count()).toBe(0);
+  } finally {
+    await stub.close();
+  }
+});
+
+it("rejects excess concurrent streams and frees a released slot", async () => {
+  const stub = await startStubOpenRouter();
+  const layer = Layer.mergeAll(
+    Layer.succeed(AppConfig, {
+      key: Redacted.make("dummy"),
+      baseUrl: stub.url,
+      model: "example/model",
+    }),
+    ChatStore.layerMemory,
+    Limits.layer,
+  );
+  try {
+    const [response, replacement] = await Effect.runPromise(
+      Effect.gen(function* () {
+        const limits = yield* Limits;
+        const first = yield* limits.acquire;
+        const second = yield* limits.acquire;
+        const third = yield* limits.acquire;
+        const response = yield* chatProgram(request({ id, message }));
+        first?.();
+        const replacement = yield* limits.acquire;
+        replacement?.();
+        second?.();
+        third?.();
+        return [response, Boolean(replacement)] as const;
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBeTruthy();
+    expect((await response.json()).retryable).toBe(true);
+    expect(replacement).toBe(true);
+    expect(stub.chatRequests).toHaveLength(0);
+  } finally {
+    await stub.close();
+  }
+});

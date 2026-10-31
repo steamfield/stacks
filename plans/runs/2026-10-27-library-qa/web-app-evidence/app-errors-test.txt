@@ -1,0 +1,19 @@
+
+ RUN  v5.0.5 <qa-root>/project
+
+2026-10-28T04:27:23.131Z info request {"requestId":"4421e002-0ff3-4698-ad57-585d9b37be3b","method":"POST","path":"/api/chat","status":503,"durationMs":6,"time":"2026-10-28T04:27:23.131Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.132Z info request {"requestId":"ea19f9ee-4d65-4864-b5cd-be8346af585c","method":"POST","path":"/api/chat","status":400,"durationMs":0,"time":"2026-10-28T04:27:23.132Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.133Z info request {"requestId":"1e54f722-db44-4f83-96d7-576318173e59","method":"POST","path":"/api/chat","status":415,"durationMs":0,"time":"2026-10-28T04:27:23.133Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.133Z info request {"requestId":"812ea282-0432-419b-9018-af04efb513b3","method":"POST","path":"/api/chat","status":400,"durationMs":0,"time":"2026-10-28T04:27:23.133Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.145Z info request {"requestId":"5bd430c0-671a-468b-9694-e143debb6822","method":"GET","path":"/api/models","status":200,"durationMs":8,"time":"2026-10-28T04:27:23.145Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.146Z info request {"requestId":"57e85dc6-5c5a-418a-946d-843cc929b2a5","method":"POST","path":"/api/chat","status":400,"durationMs":1,"time":"2026-10-28T04:27:23.146Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.150Z info request {"requestId":"89f8fa58-bd40-4e2d-8f98-b994fd63822f","method":"POST","path":"/api/chat","status":200,"durationMs":4,"time":"2026-10-28T04:27:23.150Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.161Z info request {"requestId":"9c141757-94f0-41e0-acd8-227b8d653340","method":"GET","path":"/export","status":200,"durationMs":0,"time":"2026-10-28T04:27:23.161Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.165Z info request {"requestId":"5c176a83-2e77-4f1a-9eb5-5c9911dde716","method":"POST","path":"/api/chat","status":200,"durationMs":1,"time":"2026-10-28T04:27:23.165Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.185Z info request {"requestId":"8c87deb1-1b0f-479e-bc75-beb5d5e4b385","method":"POST","path":"/api/chat","status":200,"durationMs":3,"time":"2026-10-28T04:27:23.185Z","level":"info","msg":"request","detail":[]}
+2026-10-28T04:27:23.187Z info request {"requestId":"549010f5-3015-455a-95ae-5a36574c230f","method":"POST","path":"/api/chat","status":200,"durationMs":1,"time":"2026-10-28T04:27:23.187Z","level":"info","msg":"request","detail":[]}
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  23:27:22
+   Duration  343ms (import 44%, tests 23%, transform 17%, setup 15%, worker 1%)

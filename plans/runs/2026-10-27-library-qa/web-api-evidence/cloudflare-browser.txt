@@ -1,0 +1,19 @@
+### Browser `cf-qa` opened with pid 61171.
+### Ran Playwright code
+```js
+await page.goto('<local-url>/');
+```
+### Page
+- Page URL: <local-url>/
+### Snapshot
+- [Snapshot](<snapshot>)
+### Page
+- Page URL: <local-url>/
+### Snapshot
+```yaml
+- main [ref=e2]:
+  - heading "Welcome" [level=1] [ref=e3]
+  - paragraph [ref=e4]: The local Workers application is running.
+```
+### Events
+- New console entries: <snapshot> 'cf-qa' closed

@@ -1,0 +1,26 @@
+RUN  v5.0.5 <qa-root>/cloudflare-react-router
+      Coverage enabled with istanbul
+
+
+ Test Files  3 passed (3)
+      Tests  7 passed (7)
+   Start at  23:08:28
+   Duration  793ms (transform 47%, import 21%, worker 17%, tests 15%)
+
+ % Coverage report from istanbul
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   55.55 |      100 |   57.14 |   55.55 |
+ app/routes        |      50 |      100 |      50 |      50 |
+  home.tsx         |       0 |      100 |       0 |       0 | 2
+ workers           |   57.14 |      100 |      60 |   57.14 |
+  app.ts           |       0 |      100 |       0 |       0 | 4-11
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 55.55% ( 5/9 )
+Branches     : 100% ( 0/0 )
+Functions    : 57.14% ( 4/7 )
+Lines        : 55.55% ( 5/9 )
+================================================================================

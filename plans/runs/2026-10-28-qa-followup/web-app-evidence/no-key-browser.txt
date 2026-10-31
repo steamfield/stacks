@@ -1,0 +1,9 @@
+### Browser `web-followup` opened with pid 58473.
+### Ran Playwright code
+```js
+await page.goto('<local-url>/');
+```
+### Page
+- Page URL: <local-url>/c/5643e995-0f06-4cfa-99e6-9fa88eebd6e2
+### Snapshot
+- [Snapshot](.playwright-cli/page-2026-10-28T05-19-45-053Z.yml)

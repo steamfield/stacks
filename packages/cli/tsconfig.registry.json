@@ -9,6 +9,7 @@
       "registry/fragments/claude-harness/files",
       "registry/fragments/openrouter-chat-cli/adapters/claude",
       "registry/stacks/hono-api/adapters/claude",
+      "registry/stacks/nestjs-api/adapters/claude",
       "registry/stacks/nextjs/adapters/claude",
       "registry/stacks/nuxt/adapters/claude",
       "registry/stacks/react-router/adapters/claude",
@@ -55,6 +56,11 @@
     "registry/stacks/hono-api/files/*.ts",
     "registry/stacks/hono-api/files/src",
     "registry/stacks/hono-api/files/tests",
+    // NestJS, class-validator and Swagger are installed only in the API scaffold, and its
+    // decorators need the scaffold's experimentalDecorators; keep scripts and hooks checked.
+    "registry/stacks/nestjs-api/files/*.ts",
+    "registry/stacks/nestjs-api/files/src",
+    "registry/stacks/nestjs-api/files/tests",
     // tsdown is installed only in the library scaffold; its src/, tests and scripts stay checked.
     "registry/stacks/typescript-library/files/tsdown.config.ts",
     // The MCP SDK, zod and pino are installed only in the MCP scaffold; keep scripts and hooks checked.

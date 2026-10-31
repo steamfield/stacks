@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "nestjs-api",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A NestJS JSON API on Node with feature modules, dependency injection, class-validator DTOs and Swagger docs.",
+  "description": "Start a JSON API on NestJS, the framework that organizes a Node backend into modules, controllers and injectable services. Request bodies and queries are DTO classes checked by a global validation pipe, one exception filter turns every error into the same envelope with a request id, and Nest's JSON logger records one line per request. Swagger serves the OpenAPI document and docs page. An in-memory notes module shows list, get and create, with Vitest unit specs and Supertest contract tests on the real app module. Storage, accounts and deployment are left for you to add.",
+  "seoDescription": "A NestJS JSON API on Node with modules and DI, class-validator DTOs, Swagger OpenAPI docs and Vitest plus Supertest tests.",
+  "projectExamples": [
+    {
+      "title": "Backend for a growing product team",
+      "description": "An illustrative API that several developers extend one feature module at a time, each with its controller, service and tests. Add a database and sign-in before it holds real users' data."
+    },
+    {
+      "title": "Internal service other teams call",
+      "description": "An illustrative service with a Swagger document other teams generate clients from. Ship it as a container with the optional Docker fragment.",
+      "withFragments": [
+        "docker-deploy"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter server written in TypeScript on NestJS, a structured framework that splits a backend into modules, and answers apps with JSON data.",
+    "goodAt": [
+      "Backends that a team grows feature by feature",
+      "Checking every request and publishing Swagger docs",
+      "Logs that let you follow one failed request"
+    ],
+    "notGoodAt": [
+      "Web pages with screens; pick a web app stack such as Next.js.",
+      "Saving data for good; notes stay in memory until you add a database."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "start a nestjs api",
+    "nest backend with modules controllers and services",
+    "typescript api with dependency injection and decorators",
+    "nestjs rest api with swagger and class-validator"
+  ],
+  "useCases": [
+    "REST backends organized by feature module",
+    "JSON services for web and mobile clients"
+  ],
+  "synonyms": [
+    "NestJS",
+    "Nest",
+    "Nest.js",
+    "dependency injection",
+    "decorators",
+    "class-validator",
+    "Swagger",
+    "OpenAPI",
+    "Express",
+    "Angular-style backend",
+    "Node.js"
+  ],
+  "goodFor": [
+    "teams that want an opinionated structure",
+    "modules, controllers and injectable services"
+  ],
+  "notFor": [
+    "graphical interfaces",
+    "the smallest possible server"
+  ],
+  "caveats": [
+    "Notes live in memory and are lost on restart until you add a database.",
+    "The Nest CLI needs TypeScript's compiler API, so the project may use the previous TypeScript major."
+  ]
+}

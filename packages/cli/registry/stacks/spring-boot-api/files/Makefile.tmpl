@@ -1,0 +1,73 @@
+# {{project_name}} development commands.
+#
+# Adapt the recipes, but keep the target names. `stacks verify` calls install,
+# fmt-check, lint, compile, coverage, test-integration, build and serve; CI
+# calls `make ci`.
+
+JAR        := target/app.jar
+JAVA_MAJOR := $(strip $(shell cat .java-version 2>/dev/null))
+MVN        := ./mvnw -B -ntp
+
+# The JDK is the major in .java-version. JAVA_HOME wins when set (CI's
+# setup-java, a container); otherwise macOS's JDK registry, then Homebrew's
+# keg-only openjdk@<major>. Never Maven's default JDK: Homebrew's maven
+# depends on the newest openjdk, which is not the LTS this project targets.
+ifeq ($(strip $(JAVA_HOME)),)
+ifneq ($(JAVA_MAJOR),)
+JAVA_HOME := $(shell /usr/libexec/java_home -v "$(JAVA_MAJOR)" 2>/dev/null || \
+	{ home="$$(brew --prefix openjdk@$(JAVA_MAJOR) 2>/dev/null)/libexec/openjdk.jdk/Contents/Home"; \
+	  test -d "$$home" && echo "$$home"; })
+endif
+endif
+export JAVA_HOME
+
+.DEFAULT_GOAL := help
+.PHONY: help env install fmt fmt-check lint compile test coverage test-integration build serve ci clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-17s %s\n", $$1, $$2}'
+
+env: ## Check the JDK, the Maven wrapper and the pom.xml versions
+	@test -n "$(JAVA_MAJOR)" || { echo "No .java-version: write the JDK major to it (STACK.md Setup)." >&2; exit 1; }
+	@test -n "$$JAVA_HOME" || { echo "No JDK $(JAVA_MAJOR) found: brew install openjdk@$(JAVA_MAJOR), or set JAVA_HOME." >&2; exit 1; }
+	@test -x ./mvnw || { echo "No ./mvnw: run mvn -N wrapper:wrapper -Dtype=only-script once and commit mvnw, mvnw.cmd and .mvn/wrapper/." >&2; exit 1; }
+	@grep -q "<java.version>$(JAVA_MAJOR)</java.version>" pom.xml || { echo "pom.xml's <java.version> must be $(JAVA_MAJOR), the major in .java-version." >&2; exit 1; }
+	@! grep -nE '<[A-Za-z0-9_.-]+\.version></' pom.xml || { echo "Fill the empty pom.xml version properties above from Maven Central (STACK.md Setup)." >&2; exit 1; }
+
+install: env ## Check the toolchain and download dependencies and plugins
+	$(MVN) -q dependency:go-offline
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+
+fmt: env ## Format Java sources (Spotless, palantir-java-format)
+	$(MVN) -q spotless:apply
+
+fmt-check: env ## Fail if Spotless would change any Java source
+	$(MVN) -q spotless:check
+
+lint: env ## Maven Enforcer: JDK version, dependency convergence, duplicate declarations
+	$(MVN) -q validate
+
+compile: env ## Compile main and test code with Error Prone and NullAway
+	$(MVN) -q test-compile
+
+test: env ## Unit and slice tests (*Test)
+	$(MVN) test
+
+coverage: env ## Unit and slice tests with the JaCoCo line-coverage floor
+	$(MVN) verify -DskipITs
+
+test-integration: env ## Integration tests (*IT) against the app on a random port
+	$(MVN) verify -DskipUTs=true -Djacoco.skip=true
+
+build: env ## Executable jar at target/app.jar
+	$(MVN) -q package -DskipTests
+
+# exec replaces the shell, so SIGINT and SIGTERM reach the JVM directly.
+serve: build ## Build, then run the jar in the foreground until SIGINT or SIGTERM
+	exec "$${JAVA_HOME:+$$JAVA_HOME/bin/}java" -jar $(JAR)
+
+ci: fmt-check ## Everything CI runs (fmt-check, enforcer, every test, coverage, the jar)
+	$(MVN) verify
+
+clean: env ## Remove build output
+	$(MVN) -q clean

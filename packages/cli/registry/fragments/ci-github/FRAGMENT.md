@@ -58,6 +58,9 @@ Set up Go from go.mod. Use golangci-lint's official action with the version decl
 <!-- stacks:when tag=rust -->
 Rust: the runner's rustup installs the toolchain, components and targets `rust-toolchain.toml` records, so don't pass a toolchain action input that overrides the file. Cache `~/.cargo` and `target/` with a Cargo cache action keyed on `Cargo.lock`. A cargo subcommand a target needs (cargo-deny, say) comes from a prebuilt-binary installer action, not a `cargo install` that compiles it on every run.
 <!-- stacks:end -->
+<!-- stacks:when tag=java -->
+Java: `actions/setup-java` with `distribution: temurin`, `java-version-file: .java-version` and `cache: maven`, which sets `JAVA_HOME`, so the Makefile uses that JDK. Call the make targets, which run the committed `./mvnw`; never install Maven or call `mvn`. Maven runs in batch mode without transfer progress (`-B -ntp`, as the Makefile passes) so the log stays readable.
+<!-- stacks:end -->
 <!-- stacks:when tag=python -->
 Set up uv with cache and the project's .python-version. Invoke the relevant install/check/coverage targets for each filtered part.
 <!-- stacks:end -->

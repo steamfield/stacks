@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint)",
+      "Bash(bun run format)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run test)",
+      "Bash(bun run test *)",
+      "Bash(bun run test:e2e)",
+      "Bash(bun run test:e2e *)",
+      "Bash(bun run coverage)",
+      "Bash(bunx vitest run)",
+      "Bash(bunx vitest run *)",
+      "Bash(bun run build)",
+      "Bash(bun run check)",
+      "Bash(bunx nest info)",
+      "Bash(bunx nest g * --dry-run)",
+      "Bash(curl -s localhost:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl -si localhost:*)",
+      "Bash(curl -si http://localhost:*)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.env.local)"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-nestjs-api-commands.ts\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

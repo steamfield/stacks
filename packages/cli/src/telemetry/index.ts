@@ -5,7 +5,7 @@ import { Cause, Context, Effect, FileSystem, Layer, Option, Path, Schema } from 
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
 import { Allowlist } from "../core/allowlist";
-import { Registry, remoteRoots } from "../core/registry/registry";
+import { Registry } from "../core/registry/registry";
 import { defectTrace } from "../logging";
 import type { Consent, TelemetryFlush, TelemetryStatus } from "../schemas/telemetry";
 import { Host } from "../services/host";
@@ -84,7 +84,7 @@ export class Telemetry extends Context.Service<
     markFlushAfterOutput: Effect.Effect<void>;
     flushAfterOutput: Effect.Effect<void>;
     status: Effect.Effect<TelemetryStatus>;
-    recordScaffold: (input: ScaffoldFacts) => Effect.Effect<void>;
+    recordScaffold: (input: ScaffoldFacts, registry: Registry["Service"]) => Effect.Effect<void>;
     recordShow: (input: ShowFacts) => Effect.Effect<void>;
     recordError: (input: ErrorFacts) => Effect.Effect<void>;
     recordVerify: (record: RunRecord) => Effect.Effect<void>;
@@ -104,9 +104,6 @@ export class Telemetry extends Context.Service<
         const client = yield* HttpClient.HttpClient;
         const allowlist = yield* Allowlist;
         const files = yield* Effect.context<FileSystem.FileSystem | Path.Path>();
-        const registryContext = yield* Effect.context<
-          AppConfig | Host | FileSystem.FileSystem | Path.Path
-        >();
         const output = yield* Effect.serviceOption(Output);
         const store: Storage = {
           fs,
@@ -215,13 +212,13 @@ export class Telemetry extends Context.Service<
             ),
             undefined,
           );
-        const recordScaffold = (input: ScaffoldFacts) => {
+        const recordScaffold = (input: ScaffoldFacts, registry: Registry["Service"]) => {
           const facts: Effect.Effect<ScaffoldFacts, unknown> =
             input.type === "new"
               ? Effect.succeed(input)
               : completeAddFacts(input).pipe(
-                  Effect.provide(Layer.unwrap(Effect.map(remoteRoots, Registry.layer))),
-                  Effect.provideContext(registryContext),
+                  Effect.provideService(Registry, registry),
+                  Effect.provideContext(files),
                 );
           return safe(
             notify.pipe(

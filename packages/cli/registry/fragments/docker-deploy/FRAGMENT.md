@@ -42,7 +42,7 @@ A production image per deployable part and a workflow that publishes them, writt
 **Python API**: slim Python base matching `.python-version`; copy the uv binary from uv's official image; `uv sync --locked --no-dev --no-install-project`, copy source, sync again. Copy the venv to the runtime stage at the same path, put its `bin` on `PATH`, set `PYTHONUNBUFFERED=1` and `PYTHONDONTWRITEBYTECODE=1`, run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-api -->
-**One image**: the API is the repo root, so it gets one root `Dockerfile` instead of per-directory ones. The health check fetches `/health` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
+**One image**: the API is the repo root, so it gets one root `Dockerfile` instead of per-directory ones. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-react -->
 **React SPA**: build with bun, serve `build/client` from an unprivileged nginx or Caddy image with the `index.html` fallback, immutable caching for hashed assets, `no-cache` for `index.html`, a `/healthz` location, and a `/api` proxy if the API shares the origin.

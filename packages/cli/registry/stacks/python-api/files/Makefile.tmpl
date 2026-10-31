@@ -1,11 +1,12 @@
 # {{project_name}} development commands.
 #
 # A starting point: adapt the recipes to the project, but keep the target
-# names. `stacks verify` calls install, lint, typecheck, test, check-openapi
+# names. `stacks verify` calls install, lint, typecheck, coverage, check-openapi
 # and start. CI calls install, lint, typecheck, coverage and check-openapi.
 
 PORT_API ?= 8000
 API_HOST ?= 127.0.0.1
+TEST_WORKERS ?= auto
 export PORT_API
 
 .DEFAULT_GOAL := help
@@ -16,6 +17,7 @@ help: ## List targets
 
 install: ## uv sync (--locked when CI is set)
 	uv sync $(if $(CI),--locked)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
 
 lint: ## ruff check + ruff format --check
 	uv run ruff check . && uv run ruff format --check .
@@ -27,16 +29,16 @@ typecheck: ## mypy strict over app, tests and scripts
 	uv run mypy app tests scripts
 
 test: ## pytest (parallel)
-	uv run pytest -n auto
+	uv run pytest -n $(TEST_WORKERS)
 
 coverage: ## pytest with the coverage floor
-	uv run pytest -n auto --cov --cov-report=term-missing
+	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
 
 dev: ## Uvicorn with reload on PORT_API
-	uv run uvicorn app.main:app --reload --host $(API_HOST) --port $(PORT_API)
+	uv run uvicorn app.main:app --reload --no-access-log --host $(API_HOST) --port $(PORT_API)
 
 start: ## Uvicorn without reload on PORT_API, as production runs it
-	uv run uvicorn app.main:app --host $(API_HOST) --port $(PORT_API)
+	uv run uvicorn app.main:app --no-access-log --host $(API_HOST) --port $(PORT_API)
 
 openapi: ## Write the app's OpenAPI spec to openapi.json
 	uv run python -m scripts.dump_openapi openapi.json

@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import pool, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -31,14 +32,24 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN_ENV = "DB_TEST_RUN"
-PREFIX = "{{env_prefix}}".lower()[:20]
+PREFIX = "{{project_slug}}"[:20]
 LABEL = re.compile(r"^[a-z0-9_]{1,12}$")
+
+
+class DbTestServer(BaseSettings):
+    """Where db-test listens: the environment first, then the project's .env, as Compose reads it."""
+
+    model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
+
+    test_database_url: str = ""
+    port_db_test: int = 5433
 
 
 def admin_url() -> str:
     """The maintenance database on db-test (TEST_DATABASE_URL, default on PORT_DB_TEST)."""
-    raw = os.environ.get("TEST_DATABASE_URL") or (
-        f"postgresql://app:app@localhost:{os.environ.get('PORT_DB_TEST', '5433')}/postgres"
+    server = DbTestServer()
+    raw = server.test_database_url or (
+        f"postgresql://app:app@localhost:{server.port_db_test}/postgres"
     )
     return database_url(raw, make_url(raw).database or "postgres")
 
@@ -95,16 +106,21 @@ async def locked(connection: AsyncConnection, key: str) -> AsyncIterator[None]:
         await connection.execute(text("SELECT pg_advisory_unlock(hashtext(:key))"), {"key": key})
 
 
-def migrate_with_alembic(url: str) -> None:
-    """Run the real migrations on `url`, as `make db-migrate` does."""
-    result = subprocess.run(  # noqa: S603 - fixed argv, no shell
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "alembic.ini"), "upgrade", "head"],
+def alembic(url: str, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run an Alembic command against the database at `url`."""
+    return subprocess.run(  # noqa: S603 - fixed argv, no shell
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "alembic.ini"), *args],
         cwd=ROOT,
         env={**os.environ, "DATABASE_URL": url, "ENVIRONMENT": "test"},
         capture_output=True,
         text=True,
         check=False,
     )
+
+
+def migrate_with_alembic(url: str) -> None:
+    """Run the real migrations on `url`, as `make db-migrate` does."""
+    result = alembic(url, "upgrade", "head")
     if result.returncode != 0:
         msg = f"alembic upgrade head failed:\n{result.stderr}"
         raise RuntimeError(msg)

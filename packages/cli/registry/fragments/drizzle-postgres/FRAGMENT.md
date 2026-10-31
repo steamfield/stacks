@@ -24,7 +24,7 @@ verify:
   - name: compose-pinned
     phase: setup
     layer: check
-    run: "test -s compose.yaml && ! grep -n 'stacks:fill' compose.yaml"
+    run: "test -s compose.yaml && ! grep -n 'stacks:fill' compose.yaml && grep -Eq '^[[:space:]]*image: [^[:space:]:]+:(pg)?[0-9]' compose.yaml"
   - { name: db-up, phase: setup, layer: install, run: bun run db:up }
   - { name: db-migrate, phase: setup, layer: install, run: bun run db:migrate }
   - { name: test-db, layer: test, run: bun run test:db }
@@ -52,8 +52,8 @@ commands:
 - `src/lib/server/db/schema.ts` (the `items` table; loads under plain Node, so no `#lib` or `$app` imports), `db/index.ts` (lazy pool on `globalThis` reading `DATABASE_URL` from `$app/env/private`, short connect timeout, idle-error log without credentials, `isReady`) and `items-repository.ts` (`itemsRepository(db)`, mapping Postgres `23505` to `{ status: 'duplicate' }`).
 - `src/routes/api/ready/+server.ts`: 200 `{"status":"ready"}` or 503 `{"status":"unavailable"}`; the hook keeps that body.
 <!-- stacks:end -->
-- `drizzle.config.ts` (loads `.env.local` and `.env` itself; output overridable through `DRIZZLE_OUT`) and `scripts/db-check.ts`, the drift check: `drizzle-kit check`, then generation into a temporary copy of `drizzle/` that must gain nothing.
-- `tests/db/`: `databases.ts` (run-owned names, advisory locks, drops by recorded name only), `global-setup.ts` (one migrated template per run), `harness.ts` (`setupTestDatabase(label)`: a clone per file; read `t.db` inside tests), `harness.test.ts` (two concurrent runs, a failed migration) and `items-repository.test.ts` (round trip, duplicate, rollback, readiness up and down). `vitest.db.config.ts` runs them in Node.
+- `drizzle.config.ts` (loads `.env.local` and `.env` itself, set variables winning; `DATABASE_URL`, else the dev database on `PORT_DB`; output overridable through `DRIZZLE_OUT`) and `scripts/db-check.ts`, the drift check: `drizzle-kit check`, then generation into a temporary copy of `drizzle/` that must gain nothing.
+- `tests/db/`: `databases.ts` (run-owned names, advisory locks, drops by recorded name only; reads db-test's port from the environment, then `.env.local` and `.env`), `global-setup.ts` (one migrated template per run), `harness.ts` (`setupTestDatabase(label)`: a clone per file; read `t.db` inside tests), `harness.test.ts` (two concurrent runs, a failed migration) and `items-repository.test.ts` (round trip, duplicate, rollback, readiness up and down). `vitest.db.config.ts` runs them in Node.
 - `e2e/db-setup.ts`: Playwright's own database on `db-test`, migrated and seeded with the two items the page tests expect, dropped at the end.
 
 Read them before extending. Migrations are the only schema source: tests and verify run them and never push the schema. A crashed run's leftovers are reported, never dropped by prefix.
@@ -63,16 +63,16 @@ Read them before extending. Migrations are the only schema source: tests and ver
 1. Pin the `compose.yaml` image to the current major (`postgres:<major>-alpine`) and delete the `stacks:fill` line.
 2. Install the declared dependencies and check their peer ranges. Run `db:up`, then `db:generate` for the first migration; read the SQL and commit `drizzle/`. Add `drizzle/` to `.prettierignore`.
 3. Add the scripts: `db:up` is `docker compose up -d --wait db db-test`, `db:migrate` is `drizzle-kit migrate`, `db:generate` is `drizzle-kit generate`, `db:check` is `bun scripts/db-check.ts`, `db:down` is `docker compose stop db` (stopping `db-test` would discard a concurrent run's databases; nothing runs `down -v`), `test:db` is `vitest run --config vitest.db.config.ts`. Put `db:check` and `test:db` in `check` before `e2e`.
-4. Make the items service a thin layer over `defaultItemsRepository()`, keeping the async `listItems` and `addItem` exports. Map a duplicate to the existing field error, "An item with this name already exists.", and delete the in-memory store, its reset helper and `src/lib/server/items.test.ts`.
+4. Make the items service a thin layer over `defaultItemsRepository()`, keeping the async `listItems` and `addItem` exports. `addItem` returns the repository's `{ status: "duplicate" }`, and the action maps it to the name field error "An item with this name already exists.". Delete the in-memory store, its reset helper and `src/lib/server/items.test.ts`.
 5. Make `/api/health` liveness only: `{"status":"ok"}`, no database. Update its e2e schema, keep its status, no-store and request-ID assertions, add a spec that `/api/ready` returns `ready`, and say in README that health lost its item count.
 6. In `playwright.config.ts` set `globalSetup: "./e2e/db-setup.ts"` and give the web server `DATABASE_URL: databaseUrl(e2eDatabase())`, importing both. `e2e` needs `db:up` first.
-7. Extend `.env.example` with `DATABASE_URL` (port `PORT_DB`, database `app`), `TEST_DATABASE_URL` (port `PORT_DB_TEST`, database `postgres`), the ports and the `POSTGRES_*` values, keeping the existing lines.
+7. Extend `.env.example` with the ports, the `POSTGRES_*` values, and commented-out `# DATABASE_URL=` (port `PORT_DB`, database `app`) and `# TEST_DATABASE_URL=` (port `PORT_DB_TEST`, database `postgres`), keeping the existing lines. Outside production both URLs default from the ports, and a URL in `.env` would beat the port verify passes.
 
 <!-- stacks:when stack=nextjs -->
 The duplicate maps to the action's `INVALID_INPUT` state with a `name` field error. The page already renders per request; replace its "Items live in this server process" line. Once `test:db` covers the service, drop any base test that imported the in-memory store.
 <!-- stacks:end -->
 <!-- stacks:when stack=sveltekit -->
-Add `DATABASE_URL: { schema: z.string().optional() }` to `src/env.ts`, so the server starts without one and fails on the first query. Return the duplicate from the action as `fail(400, { name, errors: { name: "..." } })` and add a browser spec for it. In `src/routes/page.server.test.ts` keep only the invalid-input test (it never reaches the database); e2e covers load and write. `src/hooks.server.test.ts` already covers the readiness 503.
+Add `DATABASE_URL` and `PORT_DB`, each `{ schema: z.string().optional() }`, to `src/env.ts`: the server starts without them, development falls back to the Compose database on `PORT_DB`, and production fails on the first query. Return the duplicate from the action as `fail(400, { name, errors: { name: "..." } })` and add a browser spec for it. In `src/routes/page.server.test.ts` keep only the invalid-input test (it never reaches the database); e2e covers load and write. `src/hooks.server.test.ts` already covers the readiness 503.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->
@@ -87,4 +87,4 @@ Drizzle changes config shape, migration layout and migrator entry points between
 
 ## AGENTS.md
 
-A **Database** section: the two services and their ports, how a second checkout moves them, the `db:*` and `test:db` scripts, that migrations are the only schema source and run as an explicit step, how to add a migration (`db:generate`, read the SQL, commit), `setupTestDatabase(label)`, and readiness at `/api/ready`.
+A **Database** section: the two services and their ports, how a second checkout moves them, that `db:down` leaves `db-test` running (stop it with `docker compose stop db-test` when no test run needs it), the `db:*` and `test:db` scripts, that migrations are the only schema source and run as an explicit step, how to add a migration (`db:generate`, read the SQL, commit), `setupTestDatabase(label)`, and readiness at `/api/ready`.

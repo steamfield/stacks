@@ -30,12 +30,18 @@ const store: typeof globalThis & {
   database?: ReturnType<typeof createDatabase>;
 } = globalThis;
 
+// DATABASE_URL, or outside production the Compose dev database on PORT_DB, as drizzle.config.ts
+// builds it, so .env needs no URL that could disagree with the port.
+function databaseUrl(): string {
+  const url = process.env.DATABASE_URL;
+  if (url) return url;
+  if (process.env.NODE_ENV === "production")
+    throw new Error("DATABASE_URL is not set.");
+  return `postgres://app:app@localhost:${process.env.PORT_DB || "5432"}/app`;
+}
+
 export function database(): Database {
-  if (!store.database) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error("DATABASE_URL is not set.");
-    store.database = createDatabase(url);
-  }
+  store.database ??= createDatabase(databaseUrl());
   return store.database.db;
 }
 

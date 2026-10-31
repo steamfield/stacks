@@ -24,6 +24,5 @@ FROM gcr.io/distroless/static:nonroot
 COPY --from=build /out/server /server
 ENV HOST=0.0.0.0 PORT=8080
 EXPOSE 8080
-USER nonroot:nonroot
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD ["/server", "-healthcheck"]
 ENTRYPOINT ["/server"]

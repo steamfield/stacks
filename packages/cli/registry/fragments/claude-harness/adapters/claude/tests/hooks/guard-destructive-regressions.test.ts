@@ -14,7 +14,8 @@ const destructive = [
   'rm -rf "prefix"*',
 ];
 
-describe("destructive guard review regressions", () => {
+// Every case spawns the hook as a real process; under load that outlasts Vitest's 5 s default.
+describe("destructive guard review regressions", { timeout: 30_000 }, () => {
   it("denies a call when the TypeScript guard cannot load", () => {
     const project = makeFixture();
     try {

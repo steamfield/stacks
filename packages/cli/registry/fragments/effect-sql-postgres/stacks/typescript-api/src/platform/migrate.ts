@@ -1,11 +1,13 @@
 // db:migrate applies pending migrations to DATABASE_URL. db:check (--check) applies nothing and
 // fails when a migration file is missing from the index, or when the database's applied
-// migrations differ from the index (pending, unknown or renamed). Outside production a missing
-// DATABASE_URL means Compose's db on PORT_DB, the same fallback src/config.ts uses.
+// migrations differ from the index (pending, unknown or renamed). It is not a checksum: an edited
+// applied migration goes unnoticed. The URL is AppConfig's databaseUrl, as the server reads it.
 import { readdirSync } from "node:fs";
 import { NodeRuntime } from "@effect/platform-node";
-import { Cause, Effect, Logger, Redacted } from "effect";
+import { Cause, Effect, Logger } from "effect";
 import { Migrator, SqlClient } from "effect/sql";
+import { AppConfig } from "../config.ts";
+import { makeLogger } from "../logging.ts";
 import { loader, migrations } from "../migrations/index.ts";
 import { pgLayer } from "./database.ts";
 
@@ -49,24 +51,20 @@ const check = Effect.gen(function* () {
   yield* Effect.logInfo("migrations match the database");
 });
 
-function databaseUrl(env: NodeJS.ProcessEnv): Redacted.Redacted | undefined {
-  if (env.DATABASE_URL) return Redacted.make(env.DATABASE_URL);
-  if (env.NODE_ENV === "production") return undefined;
-  return Redacted.make(`postgres://app:app@localhost:${env.PORT_DB ?? "5432"}/app`);
-}
-
 const program = Effect.gen(function* () {
-  const url = databaseUrl(process.env);
-  if (!url) return yield* Effect.fail(new Error("DATABASE_URL is required in production"));
+  const { databaseUrl } = yield* AppConfig;
   const task = process.argv.includes("--check") ? check : migrate;
-  yield* task.pipe(Effect.provide(pgLayer(url, "migrate")));
+  yield* task.pipe(Effect.provide(pgLayer(databaseUrl, "migrate")));
 }).pipe(
   Effect.tapCause((cause) =>
     Cause.hasInterruptsOnly(cause)
       ? Effect.void
       : Effect.logError("failed: see the records above, check DATABASE_URL and run db:up"),
   ),
-  Effect.provide(Logger.layer([Logger.consoleJson])),
+  Effect.provide(AppConfig.layer),
+  Effect.provide(
+    Logger.layer([makeLogger((record) => process.stdout.write(`${JSON.stringify(record)}\n`))]),
+  ),
 );
 
 if (import.meta.main) NodeRuntime.runMain(program, { disableErrorReporting: true });

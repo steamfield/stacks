@@ -2,17 +2,22 @@
 // those names: nothing is listed or dropped by prefix, so a concurrent run keeps its databases.
 // Leftovers from a crashed run are for a person to remove.
 import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Client, Pool } from 'pg';
 
+// test:db and Playwright's setup run outside SvelteKit's env loading, so read the files here, as
+// Compose does. Variables already set (verify's PORT_DB_TEST, CI's TEST_DATABASE_URL) win.
+for (const file of ['.env.local', '.env']) if (existsSync(file)) process.loadEnvFile(file);
+
 // Postgres truncates identifiers at 63 bytes; prefix, run id, label and suffix stay well under.
-const PREFIX = '{{env_prefix}}'.toLowerCase().slice(0, 20);
+const PREFIX = '{{project_slug}}'.slice(0, 20);
 
 export function adminUrl(): string {
 	return (
-		process.env.TEST_DATABASE_URL ??
-		`postgres://app:app@localhost:${process.env.PORT_DB_TEST ?? '5433'}/postgres`
+		process.env.TEST_DATABASE_URL ||
+		`postgres://app:app@localhost:${process.env.PORT_DB_TEST || '5433'}/postgres`
 	);
 }
 
@@ -37,9 +42,10 @@ async function withAdmin<T>(task: (client: Client) => Promise<T>): Promise<T> {
 	try {
 		await client.connect();
 	} catch (error) {
-		throw new Error('Cannot reach db-test at TEST_DATABASE_URL; run bun run db:up first.', {
-			cause: error
-		});
+		throw new Error(
+			`Cannot reach db-test at ${new URL(adminUrl()).host}; run bun run db:up first.`,
+			{ cause: error }
+		);
 	}
 	try {
 		return await task(client);

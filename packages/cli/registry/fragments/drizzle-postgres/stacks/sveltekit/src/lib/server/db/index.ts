@@ -1,7 +1,8 @@
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { DATABASE_URL } from '$app/env/private';
+import { dev } from '$app/env';
+import { DATABASE_URL, PORT_DB } from '$app/env/private';
 import * as schema from './schema.ts';
 
 export function createDatabase(url: string) {
@@ -20,11 +21,16 @@ export type Database = ReturnType<typeof createDatabase>['db'];
 // database) and kept on globalThis so dev-server reloads reuse it.
 const store: typeof globalThis & { database?: ReturnType<typeof createDatabase> } = globalThis;
 
+// DATABASE_URL, or in development the Compose dev database on PORT_DB, as drizzle.config.ts
+// builds it, so .env needs no URL that could disagree with the port.
+function databaseUrl(): string {
+	if (DATABASE_URL) return DATABASE_URL;
+	if (!dev) throw new Error('DATABASE_URL is not set.');
+	return `postgres://app:app@localhost:${PORT_DB || '5432'}/app`;
+}
+
 export function database(): Database {
-	if (!store.database) {
-		if (!DATABASE_URL) throw new Error('DATABASE_URL is not set.');
-		store.database = createDatabase(DATABASE_URL);
-	}
+	store.database ??= createDatabase(databaseUrl());
 	return store.database.db;
 }
 

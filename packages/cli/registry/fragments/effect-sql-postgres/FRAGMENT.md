@@ -23,7 +23,7 @@ verify:
   - name: compose-pinned
     phase: setup
     layer: check
-    run: "test -s compose.yaml && ! grep -n 'stacks:fill' compose.yaml"
+    run: "test -s compose.yaml && ! grep -n 'stacks:fill' compose.yaml && grep -Eq '^[[:space:]]*image: [^[:space:]:]+:(pg)?[0-9]' compose.yaml"
   - { name: db-up, phase: setup, layer: install, run: bun run db:up }
   - { name: db-migrate, phase: setup, layer: install, run: bun run db:migrate }
   - { name: test-db, layer: test, run: bun run test:db }
@@ -48,11 +48,11 @@ Use Effect's own driver, `@effect/sql-pg`, not `pg`; if its peer range needs a n
 <!-- stacks:when stack=typescript-api -->
 - `src/platform/database.ts`: `pgLayer`, a lazy pool with short timeouts.
 - `src/migrations/`: `0001_items.ts` (`items`, unique `name`) and `index.ts`, the ordered list.
-- `src/platform/migrate.ts`: `db:migrate`; `--check` applies nothing and fails on an unlisted file or a database that disagrees.
-- `src/services/`: `Items` and `Readiness`, each with a memory layer, and their SQL layers (`items-sql.ts`, `readiness-sql.ts`) on the SQL client service. Rows decode through `src/schemas/items.ts`; a rejected row is a defect. `SqlError` maps once: `UniqueViolation` to `Conflict`, connection and timeouts to `Unavailable`, the rest to defects.
+- `src/platform/migrate.ts`: `db:migrate` on `AppConfig.databaseUrl`; `--check` applies nothing and fails on an unlisted file or a database that disagrees.
+- `src/services/`: `Items` and `Readiness`, each with a memory layer and a SQL layer (`*-sql.ts`). Rows decode through `src/schemas/items.ts`; a rejected row is a defect. `SqlError` maps once: `UniqueViolation` to `Conflict`, connection and timeouts to `Unavailable`, the rest to defects.
 - `src/api/` and `src/handlers/`: `ItemsGroup` (`/v1/items`) and `ReadinessGroup` (`/readyz`, `SELECT 1` within 2 seconds; `/healthz` stays database-free).
-- `src/platform/services.ts`: `sqlServices(pg)` and `DatabaseLive`, which reads `AppConfig.databaseUrl`.
-- `tests/items.test.ts`: the routes over memory. `tests/db/`: run-owned databases (one migrated template per run, drops by recorded name only), `testDatabase(label)` (a clone per file), and tests of the harness, migrate entry, `items` table, SQL layers and routes (409, `/readyz` 503 beside `/healthz` 200, a rejected row answering 500 without its data), run by `vitest.db.config.ts`.
+- `src/platform/services.ts`: `sqlServices(pg)` and `DatabaseLive`.
+- `tests/items.test.ts`: the routes over memory. `tests/db/` (run by `vitest.db.config.ts`): run-owned databases on the db-test that the environment or `.env` names, `testDatabase(label)` (a clone per file), and tests of the harness, migrate entry, `items` table, SQL layers and routes.
 <!-- stacks:end -->
 <!-- stacks:when stack=react-router,astro-fullstack -->
 Write the rest in the server code (`app/.server/` or `apps/api/src/`, with root scripts calling the api workspace's): a lazy pool, numbered migrations in an ordered list, a migrate entry whose `--check` applies nothing and fails on drift, and a `tests/db/` harness cloning a per-run migrated template for each file, dropping only names it created.
@@ -62,7 +62,7 @@ Write the rest in the server code (`app/.server/` or `apps/api/src/`, with root 
 
 1. Pin the `compose.yaml` image to the current major (`postgres:<major>-alpine`) and delete the `stacks:fill` line.
 2. Scripts: `db:up` is `docker compose up -d --wait db db-test`; `db:migrate` runs the migrate entry with Node's `--env-file-if-exists=.env`, `db:check` adds `--check`; `db:down` is `docker compose stop db` (stopping `db-test` would discard a concurrent run's databases); `test:db` is `vitest run --config vitest.db.config.ts`. Add `db:check` and `test:db` to `check`.
-3. Config: a redacted `DATABASE_URL`, required in production, else Compose's `db` on `PORT_DB`; add it, `TEST_DATABASE_URL` (database `postgres`), the ports and `POSTGRES_*` to `.env.example`. Exclude `tests/db/**` from `test` and database-only modules from coverage. Add `Conflict` (409, "Resource already exists.", not retryable) to the error table.
+3. Config: a redacted `DATABASE_URL`, required in production, else Compose's `db` on `PORT_DB`. `.env.example` gets the ports, `POSTGRES_*`, and commented-out `DATABASE_URL` and `TEST_DATABASE_URL` (database `postgres`): a URL in `.env` would beat the port verify passes. Exclude `tests/db/**` from `test` and database-only modules from coverage. Add `Conflict` (409, "Resource already exists.", not retryable) to the error table.
 <!-- stacks:when stack=typescript-api -->
 4. Wire the shipped files into the stack's own: `databaseUrl` in `AppConfig` (`src/config.ts`); export `ConflictResponse` and `UnavailableResponse` from `src/errors.ts`; add `ReadinessGroup` and `ItemsGroup` to `src/api.ts` and their handlers to `App`; the platform entry provides `DatabaseLive` to `App`; `testServer` and `capturedApp` take an optional services layer, defaulting to `Items.layerMemory` and `Readiness.layerMemory`. Coverage excludes `src/migrations/**`, `src/platform/{database,migrate,services}.ts` and `src/services/*-sql.ts`.
 <!-- stacks:end -->
@@ -72,7 +72,7 @@ Write the rest in the server code (`app/.server/` or `apps/api/src/`, with root 
 6. Test the routes over memory (201, 409, 400) and through the harness, including `/readyz` 503 beside `/healthz` 200 and a rejected row answering 500 without its data.
 <!-- stacks:end -->
 
-Migrations never run at startup. Add one as the next numbered module plus its index line; never edit an applied one.
+Migrations never run at startup. Add one as the next numbered module plus its index line; never edit an applied one: `--check` compares names, not contents, so it can't catch that.
 
 <!-- stacks:when with=ci-github -->
 ## CI

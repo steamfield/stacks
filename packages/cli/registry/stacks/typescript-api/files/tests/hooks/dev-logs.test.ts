@@ -350,9 +350,26 @@ describe("bun run dev", { timeout: 30_000 }, () => {
     dev.kill("SIGINT");
     await new Promise((resolve) => dev.on("close", resolve));
     for (const group of groups) {
-      await vi.waitFor(() => expect(() => process.kill(-group, 0)).toThrow(/ESRCH/));
+      await vi.waitFor(() => expect(() => process.kill(-group, 0)).toThrow(/ESRCH/), {
+        timeout: 10_000,
+        interval: 100,
+      });
     }
   }
+
+  /**
+   * The records dev.ts has finished writing. The file exists (empty) before the server prints,
+   * and a line can be mid-write, so only text up to the last newline is parsed: a partial or
+   * empty read means "not yet", never a JSON error.
+   */
+  const completeRecords = (file: string) => {
+    const text = readFileSync(file, "utf8");
+    return text
+      .slice(0, text.lastIndexOf("\n") + 1)
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
+  };
 
   it("records what the servers print in logs/dev.jsonl, minus the API's own records", async () => {
     const dev = await startDev({
@@ -363,23 +380,23 @@ describe("bun run dev", { timeout: 30_000 }, () => {
     });
     try {
       const file = join(project.dir, "logs/dev.jsonl");
-      await vi.waitFor(() => {
-        const messages = readFileSync(file, "utf8")
-          .trim()
-          .split("\n")
-          .map((line) => JSON.parse(line))
-          .filter((r) => !r.msg.startsWith("$ "));
-        expect(messages).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              source: "api",
-              level: "error",
-              msg: "SyntaxError: Unexpected token",
-            }),
-          ]),
-        );
-        expect(messages.some((r) => r.msg.includes("info request"))).toBe(false);
-      });
+      // Starting bun, then the stand-in server, can take seconds on a loaded machine.
+      await vi.waitFor(
+        () => {
+          const messages = completeRecords(file).filter((r) => !r.msg.startsWith("$ "));
+          expect(messages).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                source: "api",
+                level: "error",
+                msg: "SyntaxError: Unexpected token",
+              }),
+            ]),
+          );
+          expect(messages.some((r) => r.msg.includes("info request"))).toBe(false);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
     } finally {
       await stopDev(dev);
     }

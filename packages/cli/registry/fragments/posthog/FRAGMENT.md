@@ -22,7 +22,7 @@ Inert without a key, the normal state in dev, tests, CI and sandboxes.
 
 ## What stacks wrote
 
-`analytics.ts`, the only module that imports `posthog-js`, with `events.ts` (the event catalog) and a test beside them. `initAnalytics({ key, host })` takes env from its caller, loads nothing without a key or `window`, initializes once, and queues up to 50 earlier calls for replay. Its init options pin pageview, autocapture, recording and cookieless behaviour explicitly over `defaults: "latest"`. The test covers the no-key path, replay, the queue limit, single init and the installed SDK accepting the config offline. Read the code before extending it.
+`analytics.ts`, the only module that imports `posthog-js`, with `events.ts` (the event catalog) and a test beside them. `initAnalytics({ key, host })` takes env from its caller, loads nothing without a key or `window`, initializes once, and queues up to 50 earlier calls for replay. Its init options pin pageview, autocapture, recording and cookieless behaviour explicitly over `defaults: "latest"`. A failed SDK load (an ad blocker) turns analytics off instead of rejecting. The test covers the no-key path, replay, the queue limit, a failed load, single init and the installed SDK accepting the config offline, and checks that the entry file named below imports and calls `initAnalytics`: it fails until you wire it. Read the code before extending it.
 
 ## What to add
 
@@ -57,7 +57,7 @@ Replace `example_viewed` with real events as they appear; `track()` accepts cata
 
 ## Testing
 
-No verify step of its own, because the test command differs per stack: the stack's test step (`make test` on astro-blog and python-react, `bun run test` elsewhere) runs the shipped test.
+No verify step of its own, because the test command differs per stack: the stack's test step (`make test` on astro-blog and python-react, `bun run test` elsewhere) runs the shipped test, including its wiring check.
 
 ## AGENTS.md
 

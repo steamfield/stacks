@@ -15,7 +15,7 @@ merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that FastAPI, ruff, and mypy support (default). Setup writes it to .python-version and requires-python."
   - "Frontend package manager: bun (default), or npm/pnpm; swap every command consistently."
-  - "Database: none (default); add --with postgres for Postgres + SQLAlchemy + Alembic."
+  - "Database: the postgres fragment when it was selected, otherwise none (default; notes stay in memory, and `stacks add postgres` adds Postgres + SQLAlchemy + Alembic later)."
   - "Auth: none (default); leave a current-user dependency as the seam."
   - "Production SPA serving: static host on the API's origin behind a reverse proxy (default), or FastAPI serving the build."
   - "Commit the generated API client and openapi.json (default: yes)."
@@ -87,10 +87,10 @@ Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep bu
 
 ## Setup
 
-1. No project generator. In `backend/`, select the newest stable CPython supported by the declared packages with `uv python pin`, set matching `requires-python` in the shipped `pyproject.toml`, then `uv add` every backend dependency and `uv add --dev` every backend-dev dependency from deps. In `frontend/`, `bun add` every frontend dependency and `bun add --dev` every frontend-dev dependency. Install required peers too, including React's types, Node's types and Testing Library's DOM peer if the package manager leaves them out.
+1. No project generator. In `backend/`, select the newest stable CPython supported by the declared packages with `uv python pin`, set matching `requires-python` and ruff's target-version in the shipped `pyproject.toml`, then `uv add` every backend dependency and `uv add --dev` every backend-dev dependency from deps. In `frontend/`, `bun add` every frontend dependency and `bun add --dev` every frontend-dev dependency. Install required peers too, including React's types, Node's types and Testing Library's DOM peer if the package manager leaves them out.
 2. Run `make generate-api`: this writes `frontend/openapi.json`, orval's client/hooks/MSW handlers and zod schemas in `frontend/app/api/generated/`. These outputs depend on installed releases and are intentionally generated during Setup. Commit them with both lockfiles.
-3. Apply the selected fragments, including their edits to shipped entry points, then run `make install lint typecheck test build e2e check-api coverage`. Update shipped code or config the installed releases reject without dropping a rule, reducing coverage or weakening a check. The home test must use the real query provider and fetch boundary; Playwright must call the real backend.
-4. Record Python in `backend/.python-version` and `requires-python`, Bun in `frontend/package.json`'s `packageManager`, and Node in `.node-version`. Set ruff's target to that Python version. Copy `.env.example` to `.env` only when changing defaults.
+3. Apply the selected fragments, including their edits to shipped entry points, then run `make format` (a newer ruff target can rewrite syntax) and `make install lint typecheck test build e2e check-api coverage`. Update shipped code or config the installed releases reject without dropping a rule, reducing coverage or weakening a check. The home test must use the real query provider and fetch boundary; Playwright must call the real backend.
+4. Record Python in `backend/.python-version` and `requires-python`, Bun in `frontend/package.json`'s `packageManager`, and Node in `.node-version`. Copy `.env.example` to `.env` only when changing defaults.
 5. Fill the README's `stacks:fill` marker, then `stacks verify` until green. Fill the agent-ops instructions from the project as built.
 
 ## Conventions

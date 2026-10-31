@@ -41,23 +41,29 @@ export async function initAnalytics(
 ): Promise<void> {
   if (!config.key || typeof window === "undefined" || queue || client) return;
   queue = [];
-  const { default: posthog } = await load();
-  posthog.init(config.key, {
-    api_host: config.host || "https://us.i.posthog.com",
-    ...(config.uiHost ? { ui_host: config.uiHost } : {}),
-    // Explicit options below win over the defaults snapshot.
-    defaults: "latest",
-    person_profiles: "identified_only",
-    capture_pageview: "history_change",
-    cookieless_mode: config.cookieless ?? "always",
-    autocapture: config.autocapture ?? false,
-    disable_session_recording: !(config.recordSessions ?? false),
-    loaded: (instance) => {
-      client = instance;
-      for (const call of queue ?? []) call(instance);
-      queue = undefined;
-    },
-  });
+  try {
+    const { default: posthog } = await load();
+    posthog.init(config.key, {
+      api_host: config.host || "https://us.i.posthog.com",
+      ...(config.uiHost ? { ui_host: config.uiHost } : {}),
+      // Explicit options below win over the defaults snapshot.
+      defaults: "latest",
+      person_profiles: "identified_only",
+      capture_pageview: "history_change",
+      cookieless_mode: config.cookieless ?? "always",
+      autocapture: config.autocapture ?? false,
+      disable_session_recording: !(config.recordSessions ?? false),
+      loaded: (instance) => {
+        client = instance;
+        for (const call of queue ?? []) call(instance);
+        queue = undefined;
+      },
+    });
+  } catch {
+    // An ad blocker or a network failure stopped the SDK: drop the queue and
+    // leave analytics off, so later calls are no-ops and nothing rejects.
+    queue = undefined;
+  }
 }
 
 export function track(event: EventName, props?: EventProps): void {

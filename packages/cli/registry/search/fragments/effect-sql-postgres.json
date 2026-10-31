@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "effect-sql-postgres",
   "source": {
-    "digest": "sha256:334431b433d4c162b2c55f0726520fb896f587496c7f1023ae4873e988afb7d9",
+    "digest": "sha256:3479eb1e5ca9f67c9945b54c86cabc88d4eb32c622684f116eba4f268a3be608",
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,

@@ -1,5 +1,6 @@
-// drizzle-kit runs on Node outside Next's env loading, so it reads .env.local and .env itself.
-// Variables already set (verify's PORT_DB, CI's DATABASE_URL) win over the files.
+// drizzle-kit runs on Node outside Next's env loading, so it reads .env.local and .env here.
+// Variables already set win over the files, but a DATABASE_URL in a file would still beat the
+// PORT_DB verify passes, so .env.example leaves it commented out and the URL comes from PORT_DB.
 import { existsSync } from "node:fs";
 import { defineConfig } from "drizzle-kit";
 
@@ -15,7 +16,7 @@ export default defineConfig({
   verbose: true,
   dbCredentials: {
     url:
-      process.env.DATABASE_URL ??
-      `postgres://app:app@localhost:${process.env.PORT_DB ?? "5432"}/app`,
+      process.env.DATABASE_URL ||
+      `postgres://app:app@localhost:${process.env.PORT_DB || "5432"}/app`,
   },
 });

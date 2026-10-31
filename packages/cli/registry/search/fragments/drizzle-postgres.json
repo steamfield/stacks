@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "drizzle-postgres",
   "source": {
-    "digest": "sha256:c52644631c746de51d0c912f946dcd0be6c7560fdbd7e43bf58d4c5a3e212cab",
+    "digest": "sha256:fd2b1aabd80f414c7170c5b0be462350122ef3b6d2a3eb003639d24bc6975c68",
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,

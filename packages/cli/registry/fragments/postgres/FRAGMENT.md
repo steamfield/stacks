@@ -21,7 +21,7 @@ verify:
   - name: compose-pinned
     phase: setup
     layer: check
-    run: "test -s compose.yaml && ! grep -n 'stacks:fill' compose.yaml"
+    run: "test -s compose.yaml && ! grep -n 'stacks:fill' compose.yaml && grep -Eq '^[[:space:]]*image: [^[:space:]:]+:(pg)?[0-9]' compose.yaml"
   - { name: db-up, phase: setup, layer: install, run: make db-up }
   - { name: db-migrate, phase: setup, layer: install, run: make db-migrate }
   - { name: test-db, layer: test, run: make test-db }
@@ -30,7 +30,7 @@ verify:
 commands:
   db-up: Start db and db-test and wait until both are healthy
   db-migrate: Apply migrations to DATABASE_URL (in development it defaults to db on PORT_DB)
-  db-check: Fail if the models and the migrations disagree (alembic check against a database at head)
+  db-check: Fail if the models and the migrations disagree (alembic check on a throwaway db-test database the migrations built)
   test-db: Database tests, each file on its own database cloned from a migrated template
   db-down: Stop the dev database and keep its data; db-test keeps running
 ---
@@ -42,9 +42,9 @@ commands:
 `compose.yaml` runs `db` (named volume) and `db-test` (tmpfs), both on `127.0.0.1` with healthchecks. The Python project also has:
 
 - `app/db/`: `models.py` (`Base` with a constraint naming convention, `NoteRow`), `notes.py` (`SqlNotes`, the `NoteStore` on Postgres; a lost database is `ServiceUnavailable`) and `__init__.py` (`database_url`, `open_database`).
-- `app/api/ready.py`: the readiness route.
-- `alembic.ini` and `migrations/` (async `env.py`, `versions/0001_notes.py`).
-- `tests/db/`: `harness.py` (a per-run template migrated by `alembic upgrade head`, a clone per test file, drops by recorded name only), `conftest.py`, `test_harness.py` and `test_notes.py`.
+- `app/api/ready.py`: the readiness route; `tests/test_ready.py` checks it answers 503 without a database.
+- `alembic.ini` (ruff runs on new revisions) and `migrations/` (async `env.py`, `versions/0001_notes.py`).
+- `tests/db/`: `harness.py` (a per-run template migrated by `alembic upgrade head`, a clone per test file, drops by recorded name only; reads db-test's port from the environment, then `.env`), `drift.py` (`alembic check` on a fresh template, for `db-check`), `conftest.py`, `test_harness.py` and `test_notes.py`.
 
 Migrations are the only schema source; tests run them and never create tables from models.
 
@@ -61,9 +61,9 @@ Readiness is `GET /readyz`, beside `/healthz` and outside `/v1`.
 2. Add `sqlalchemy` with its `asyncio` extra (it pulls in greenlet), `asyncpg` and `alembic` with `uv add`, resolving current releases.
 3. `Settings` gains `database_url: SecretStr | None = None` and `port_db: int = 5432`. The shipped `app.db.database_url` uses `DATABASE_URL` when set, builds the Compose dev URL from `PORT_DB` in development only, raises in production, and returns `None` in tests, so the Docker-free suite keeps `MemoryNotes`.
 4. In the lifespan, enter `open_database(app.state.settings)`, store the result on `app.state.database`, and set `app.state.note_store` to `database.notes`, or `MemoryNotes()` when it's `None`. Mount `ready.router` beside the health router.
-5. In `pyproject.toml`: add `--ignore=tests/db` to pytest's `addopts` (`make test` stays Docker-free; an explicit `pytest tests/db` still collects them), and add `"app/db/*"` to coverage's `omit` (test-db covers it). The root `conftest.py`'s `isolated_environment` also deletes `DATABASE_URL`, beside the variables it already clears.
-6. Makefile targets matching `commands`: `db-up` is `docker compose up -d --wait db db-test`; `db-migrate` `uv run alembic upgrade head`; `db-check` `uv run alembic check`; `test-db` `uv run pytest tests/db -n $(TEST_WORKERS)`; `db-down` `docker compose stop db`. Add `db-new-migration` (`uv run alembic revision --autogenerate -m "$(NAME)"`) and `db-shell` (`docker compose exec db psql -U app app`).
-7. `.env.example` gets `PORT_DB`, `PORT_DB_TEST`, `DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app` and `TEST_DATABASE_URL=postgresql://app:app@localhost:5433/postgres`, beside the existing lines.
+5. In `pyproject.toml`: add `--ignore=tests/db` to pytest's `addopts` (`make test` stays Docker-free; an explicit `pytest tests/db` still collects them), and add `"app/db/*"` to coverage's `omit` (test-db covers it). For ruff, add `"sqlalchemy.orm.DeclarativeBase"` to `runtime-evaluated-base-classes` (SQLAlchemy reads `Mapped[...]` at runtime, so TC's unsafe fix breaks the models) and the per-file ignore `"migrations/**/*.py" = ["TC"]`. The root `conftest.py`'s `isolated_environment` also deletes `DATABASE_URL`, beside the variables it already clears.
+6. Makefile targets matching `commands`: `db-up` is `docker compose up -d --wait db db-test`; `db-migrate` `uv run alembic upgrade head`; `db-check` `uv run python -m tests.db.drift`; `test-db` `uv run pytest tests/db -n $(TEST_WORKERS)`; `db-down` `docker compose stop db`. Add `db-new-migration` (`uv run alembic revision --autogenerate -m "$(NAME)"`) and `db-shell` (`docker compose exec db psql -U app app`). The mypy target adds `migrations`.
+7. `.env.example` gets `PORT_DB` and `PORT_DB_TEST`, and commented-out `# DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app` and `# TEST_DATABASE_URL=postgresql://app:app@localhost:5433/postgres`: both default from the ports, and a URL copied into `.env` would beat the port verify passes.
 8. Regenerate the committed OpenAPI spec, since the readiness route is new.
 
 <!-- stacks:when stack=python-react -->
@@ -84,7 +84,7 @@ A second checkout sets its own `COMPOSE_PROJECT_NAME`, ports and URLs in `.env`,
 <!-- stacks:when with=ci-github -->
 ## CI
 
-In the job that runs the backend tests, add a Postgres service container with the same image and healthcheck, mapped to port 5432, and set `TEST_DATABASE_URL` to its `postgres` database. Run `make db-migrate db-check test-db`: the development URL default reaches the service on 5432.
+In the job that runs the backend tests, add a Postgres service container with the pinned image, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` all `app`, `--health-cmd "pg_isready -U app -d app"` and `ports: ["5432:5432"]`, and set `TEST_DATABASE_URL=postgresql://app:app@localhost:5432/postgres`. Run `make db-migrate db-check test-db`: the development URL default reaches the service on 5432.
 <!-- stacks:end -->
 
 ## AGENTS.md

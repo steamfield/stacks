@@ -2,6 +2,8 @@
 // those names: nothing is listed or dropped by prefix, so a concurrent run keeps its databases.
 // Leftovers from a crashed run are for a person to remove.
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { PgClient } from "@effect/sql-pg";
 import { Effect, Redacted } from "effect";
 import { Migrator, SqlClient } from "effect/sql";
@@ -9,14 +11,23 @@ import { loader } from "../../src/migrations/index.ts";
 import { pgLayer } from "../../src/platform/database.ts";
 
 // Postgres truncates identifiers at 63 bytes; prefix, run id, label and suffix stay well under.
-const PREFIX = "{{env_prefix}}".toLowerCase().slice(0, 20);
+const PREFIX = "{{project_slug}}".slice(0, 20);
+
+// test:db runs without the scripts' --env-file, so it reads db-test's address from .env the way
+// Compose does: a variable already set (verify's PORT_DB_TEST, CI's TEST_DATABASE_URL) wins.
+// Only these two names are read, so no credential from .env reaches the tests.
+const dotenv = existsSync(".env") ? parseEnv(readFileSync(".env", "utf8")) : {};
+const setting = (name: string) => process.env[name] || dotenv[name];
 
 export function adminUrl(): string {
   return (
-    process.env.TEST_DATABASE_URL ??
-    `postgres://app:app@localhost:${process.env.PORT_DB_TEST ?? "5433"}/postgres`
+    setting("TEST_DATABASE_URL") ||
+    `postgres://app:app@localhost:${setting("PORT_DB_TEST") || "5433"}/postgres`
   );
 }
+
+/** Where db-test is, for messages: host and port, never credentials. */
+export const adminHost = () => new URL(adminUrl()).host;
 
 export function databaseUrl(name: string): string {
   const url = new URL(adminUrl());
@@ -35,7 +46,7 @@ function withAdmin<A, E>(task: Effect.Effect<A, E, SqlClient.SqlClient>): Promis
     PgClient.makeClient({ url: Redacted.make(adminUrl()), connectTimeout: "5 seconds" }),
   );
   return Effect.runPromise(task.pipe(Effect.provide(client))).catch((error: unknown) => {
-    throw new Error("db-test failed or is unreachable at TEST_DATABASE_URL; run bun run db:up.", {
+    throw new Error(`db-test failed or is unreachable at ${adminHost()}; run bun run db:up.`, {
       cause: error,
     });
   });

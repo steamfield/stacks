@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "effect-otlp",
   "source": {
-    "digest": "sha256:7f3a75462b7299741e2f81cc09537ced4788ef582c6bb8f1d422ef8186d73702",
+    "digest": "sha256:a098d78797b6eae4d96c3a9f9928a34660898fb33740bff74cfc68a5553ebfad",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

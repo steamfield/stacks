@@ -14,7 +14,7 @@ decisions:
   - "Python version: the newest stable CPython that FastAPI, ruff, and mypy support (default). Setup writes it to .python-version and requires-python."
   - "Packaging: an unpackaged application with no build backend, deployed as source (default). If the service must ship as a wheel, add a build backend, a build target that builds and installs the wheel, and a verify step for it."
   - "Resource path prefix: /v1 (default), with /healthz and the OpenAPI document outside it."
-  - "Database: none (default; the example resource is in memory); add --with postgres for Postgres + SQLAlchemy + Alembic."
+  - "Database: the postgres fragment when it was selected, otherwise none (default; the example resource is in memory, and `stacks add postgres` adds Postgres + SQLAlchemy + Alembic later)."
   - "Auth: none (default); add a current-user dependency when authentication is needed."
   - "CORS: off (default); add it from settings only when a browser on another origin calls the API."
 env:
@@ -58,9 +58,9 @@ A working FastAPI app factory, validated settings, lifespan-owned in-memory note
 
 ## Setup
 
-1. No generator. Use the shipped `pyproject.toml`. `uv add` every runtime dependency (Uvicorn with its standard extra), then `uv add --dev` every dev dependency, resolving current releases.
-2. `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every linter, strict type checking, test and coverage floor. Do not replace the shipped rule sets with generated defaults.
-3. Record the chosen Python with `uv python pin` and set `project.requires-python` to match it. Set ruff's target-version to that Python. Record Python and uv versions in AGENTS.md.
+1. No generator. Use the shipped `pyproject.toml`. Pin the chosen Python with `uv python pin`, set `project.requires-python` and ruff's target-version to match it, then `uv add` every runtime dependency (Uvicorn with its standard extra) and `uv add --dev` every dev dependency, resolving current releases.
+2. `make format` (a newer target can rewrite syntax), then `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every linter, strict type checking, test and coverage floor. Do not replace the shipped rule sets with generated defaults.
+3. Record Python and uv versions in AGENTS.md.
 4. `make openapi`, then commit `openapi.json` with future route changes. Setup generates it because it embeds FastAPI's OpenAPI version. `make check-openapi` compares parsed JSON, not formatting.
 5. Fill README's `stacks:fill` marker and the selected fragments' agent guidance. Run `stacks verify` until green.
 

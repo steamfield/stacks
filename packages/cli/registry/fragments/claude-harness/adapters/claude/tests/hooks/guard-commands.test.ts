@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { bash, denyReason, makeFixture, runHook } from "../helpers/hooks";
 
-describe("shared package manager guard", () => {
+// Every case spawns the hook (and some spawn git) as real processes, which under a loaded
+// machine (parallel test runs, a pre-push gate) takes far longer than Vitest's 5 s default.
+const SPAWNS = { timeout: 30_000 };
+
+describe("shared package manager guard", SPAWNS, () => {
   it.each(["npm install", "pnpm add a", "yarn", "npm ci"])("denies %s", async (command) => {
     expect(denyReason(await runHook("PreToolUse", "block-destructive", bash(command)))).toContain(
       "bun owns",
@@ -20,7 +24,7 @@ describe("shared package manager guard", () => {
   );
 });
 
-describe("package manager guard follows the project's lockfile", () => {
+describe("package manager guard follows the project's lockfile", SPAWNS, () => {
   const withLockfile = async (lockfile: string, command: string) => {
     const project = makeFixture();
     try {
@@ -52,7 +56,7 @@ describe("package manager guard follows the project's lockfile", () => {
   });
 });
 
-describe("git and release commands only count where they run", () => {
+describe("git and release commands only count where they run", SPAWNS, () => {
   it.each([
     'git commit -m "docs: explain git reset --hard and git push --force"',
     "git commit -m 'chore: never git push --mirror from here'",
@@ -104,7 +108,7 @@ const destructive = [
   "printf x > /dev/sda",
 ];
 
-describe("destructive command guard through the wired shell entry", () => {
+describe("destructive command guard through the wired shell entry", SPAWNS, () => {
   it.each(destructive)("denies %s with one JSON response", async (command) => {
     const result = await runHook("PreToolUse", "block-destructive", bash(command));
     expect(result.code).toBe(0);

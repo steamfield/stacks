@@ -108,7 +108,7 @@ The shipped notes resource follows the REST rule. Record /v1, the shared envelop
 <!-- stacks:end -->
 
 <!-- stacks:when with=docker-deploy -->
-The distroless runtime has no shell or curl. Use the shipped `server -healthcheck` in an exec-form HEALTHCHECK; it fetches /healthz on PORT and is covered by integration tests. Set HOST=0.0.0.0 in the image.
+The integration tests cover `server -healthcheck`, the image's HEALTHCHECK; keep it working when /healthz or PORT handling changes.
 <!-- stacks:end -->
 
 ## Gotchas

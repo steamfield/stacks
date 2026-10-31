@@ -1,5 +1,5 @@
-// test:db: tests/db/ only, on Node, with the same credential-clearing setup as the base config,
-// which excludes tests/db/ from `test`.
+// test:db: tests/db/ only, on Node, with the same credential-clearing setup as the base config.
+// `test` skips tests/db/ once the base config excludes it (a Setup step).
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({

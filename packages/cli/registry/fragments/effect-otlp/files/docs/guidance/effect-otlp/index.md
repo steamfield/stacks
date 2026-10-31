@@ -24,7 +24,9 @@ On typescript-api and astro-fullstack the layer is platform-free (it needs only 
 
 On astro-fullstack only the API process is instrumented. The site and the contract never import the layer, and no OTEL variable is named with `PUBLIC_`, because Astro bakes those into the browser bundle.
 
-On react-router only server code is instrumented. The layer sits under `app/.server/`, which the server-import hook and the production build keep out of client code. The framework's production server doesn't dispose the `ManagedRuntime`, so register SIGTERM and SIGINT handlers in `runtime.ts` that dispose it (bounded by the shutdown timeout) and then exit. The development hot-reload dispose already closes the old runtime; make sure the new one doesn't start a second exporter before the old one has flushed.
+On react-router only server code is instrumented. The layer sits under `app/.server/`, which the server-import hook and the production build keep out of client code. In `runtime.ts`, build it on top of the stack's logger layer, never beside it in `Layer.mergeAll`: the stack installs its logger with `Logger.layer([...])`, which replaces the whole logger set, and the OTLP logger only merges into the set that exists when it is built. Side by side, whichever builds last wins and OTLP log export silently disappears. Write it as `observability.pipe(Layer.provideMerge(logging))` (check the name against the installed `Layer` declarations), and have a test assert both that the receiver gets a POST to `/v1/logs` and that the stack's logger still records the same line.
+
+The framework's production server doesn't dispose the `ManagedRuntime`, so register SIGTERM and SIGINT handlers in `runtime.ts` that dispose it, bounded by the shutdown timeout. Register them only in the production server: not under Vitest (`process.env.VITEST`) and not in Vite's dev SSR (`import.meta.hot` is set), where they would hijack the test runner's or dev server's own signal handling. `react-router-serve` installs its own handlers that close the server and let in-flight requests finish, so don't call `process.exit` straight away: exit only after the bounded dispose has settled, or let the process end by itself once the server has drained, with an unref'd timer as the forced exit. The development hot-reload dispose already closes the old runtime; make sure the new one doesn't start a second exporter before the old one has flushed.
 
 ## Configuration
 
@@ -39,7 +41,7 @@ Read these in the stack's `config.ts` with the other settings, and pass them to 
 | `OTEL_SDK_DISABLED` | `true` turns every exporter off, even with an endpoint | `false` |
 | `OTEL_EXPORTER_OTLP_TIMEOUT` | Milliseconds allowed for one export request | 10000 |
 
-`service.version` comes from the package version, and `deployment.environment.name` from `NODE_ENV` unless the resource attributes set it. Every trace is exported: Effect has no ratio sampler (only a minimum trace level), so README lists `OTEL_TRACES_SAMPLER` and `OTEL_TRACES_SAMPLER_ARG` as unsupported. The other standard variables (per-signal endpoints, protocol selection, batch tuning) are unsupported unless you wire and test them; say so in README rather than implying the whole specification works. An endpoint that isn't a valid URL fails startup visibly, like any other invalid setting. Empty strings count as unset.
+`service.version` comes from the package version when `package.json` has one (react-router's has none, so leave it out rather than inventing one), and `deployment.environment.name` from `NODE_ENV` unless the resource attributes set it. Every trace is exported: Effect has no ratio sampler (only a minimum trace level), so README lists `OTEL_TRACES_SAMPLER` and `OTEL_TRACES_SAMPLER_ARG` as unsupported. The other standard variables (per-signal endpoints, protocol selection, batch tuning) are unsupported unless you wire and test them; say so in README rather than implying the whole specification works. An endpoint that isn't a valid URL fails startup visibly, like any other invalid setting. Empty strings count as unset.
 
 ## Export limits
 
@@ -54,7 +56,12 @@ Exactly one server span per request. Effect's HTTP server middleware opens one b
 
 The middleware also records request and response headers; set `HttpMiddleware.TracerHeaderFilter` to an allowlist. Health probes (`/healthz`) create no span: `HttpMiddleware.layerTracerDisabledForUrls(["/healthz"])` or a `TracerDisabledWhen` predicate. Provide either where the Node server builds its request runtime, not only inside the route layer, and check both the Node listener and the web handler: a route-only setting can leave the server's own spans active, including on health probes.
 
-On React Router, a missing route or unsupported method can be answered without reaching a loader or action. Cover those responses at the request boundary or with a fallback route, and test them through the production server as well as direct route calls.
+On React Router, `http.route` needs the matched pattern, and `runRoute`/`runData` only receive the `request` (the stack's `http.ts` logs every non-health path as `/`). Two ways to get it, checked against the installed `react-router` types and its `docs/how-to/instrumentation.md`:
+
+- Pass the loader's or action's `pattern` argument (`LoaderFunctionArgs.pattern`, the un-interpolated route such as `/teams/:teamId`) through to `runRoute`/`runData` and name the span from it.
+- Or own the server span in an `instrumentations` export from `app/entry.server.tsx` (`bunx react-router reveal entry.server` creates the file): `handler.instrument({ request })` wraps every document and data request, and its result carries `statusCode` and `meta.pattern`. This also covers 404 and 405 responses that never reach a loader or action; `meta` is undefined for those, so name the span by method alone.
+
+Whichever you choose, a missing route or unsupported method can be answered without reaching a loader or action. Cover those responses at the request boundary or with a fallback route, and test them through the production server as well as direct route calls.
 
 Static assets served by the framework's production server before the router runs are not traced; don't replace that server to trace them.
 
@@ -64,9 +71,9 @@ A 5xx response or a defect sets the span's status to error (the server middlewar
 
 Outbound calls through Effect's HTTP client open a client span and propagate W3C trace context by default (`HttpClient.TracerPropagationEnabled`); don't add headers by hand.
 
-The stack's logger adds `traceId` and `spanId` to each record written while a span is active, as fields the logger owns beside `time`, `level` and `msg`. OTLP log export runs alongside the stack's logger, never instead of it, and sends the same sanitized records: the allowlisted `error` field, no bodies, no credentials.
+The stack's logger adds `traceId` and `spanId` to each record written while a span is active, as fields the logger owns beside `time`, `level` and `msg`. OTLP log export runs alongside the stack's logger, never instead of it: build the observability layer on top of the logger layer (`Layer.provideMerge`), because a `Logger.layer` built after the OTLP logger replaces it. It sends the same sanitized records: the allowlisted `error` field, no bodies, no credentials.
 
-Record one histogram, `http.server.request.duration`, in seconds, with `http.request.method`, `http.route`, `http.response.status_code` and, on failures, `error.type` as attributes. Request counts come from the histogram; add no separate counter. Status codes are low-cardinality; ids, raw paths and user input never become attributes, because each distinct value creates a new series in the backend.
+Record one histogram, `http.server.request.duration`, in seconds, with boundaries in seconds and the unit stated in its description (Effect 4's `Metric.histogram` takes `description`, `attributes` and `boundaries`, with no unit option; check the installed declaration), with `http.request.method`, `http.route`, `http.response.status_code` and, on failures, `error.type` as attributes. Request counts come from the histogram; add no separate counter. Status codes are low-cardinality; ids, raw paths and user input never become attributes, because each distinct value creates a new series in the backend.
 
 ## Safe errors
 
@@ -74,7 +81,7 @@ The stack's logs omit a defect's message because it can carry user input. Export
 
 ## Tests
 
-Build fresh layers and a fresh `ConfigProvider` per test; never read the test runner's environment. Go through real HTTP on the Node server, as the stack's contract tests do.
+Build fresh layers and a fresh `ConfigProvider` per test; never read the test runner's environment. Go through real HTTP. On typescript-api and astro-fullstack, use the Node server, as the stack's contract tests do. React-router has no HTTP contract tests (`http.test.ts` calls loaders directly), so put a `node:http` server on an ephemeral loopback port in front of the route module's real `loader`/`action` (building the `Request` from the incoming message and passing the matched `pattern`), or in front of `createRequestHandler` from `react-router` over the built server; both keep the request on a real socket.
 
 1. **Span nesting and isolation.** Install an in-memory tracer (a small tracer that records ended spans in an array). One request produces a server span with a child span from a service call. Two concurrent requests produce two traces, each child under its own parent.
 2. **Failed request.** A route that dies with a defect whose message contains a marker string ends its server span with error status. Run the same request with the loopback receiver below and assert the marker bytes never appear in any received body.

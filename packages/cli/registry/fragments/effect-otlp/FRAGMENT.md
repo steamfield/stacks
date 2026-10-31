@@ -40,7 +40,7 @@ One `observability.ts` layer, provided where the server builds its runtime:
 `apps/api/src/observability.ts`, provided by `apps/api/src/platform/node.ts`. The test is `apps/api/tests/telemetry.test.ts` in the `api` Vitest project. The site and the contract never import it, and no OTEL variable gets the `PUBLIC_` prefix.
 <!-- stacks:end -->
 <!-- stacks:when stack=react-router -->
-`app/.server/observability.ts`, added to `AppLayer` in `runtime.ts`. The test is `tests/telemetry.test.ts`. Only `app/.server/` imports it, so no exporter setting reaches the browser bundle. The framework's server doesn't dispose the runtime on exit: dispose it on SIGTERM and SIGINT, bounded by the shutdown timeout, so the last batch is sent.
+`app/.server/observability.ts`, built on top of the logger layer in `runtime.ts`'s `AppLayer` (`Layer.provideMerge(logging)`), never beside it: the stack's `Logger.layer` replaces the logger set, so a sibling OTLP logger silently exports nothing. The test is `tests/telemetry.test.ts`. Only `app/.server/` imports it, so no exporter setting reaches the browser bundle. The framework's server doesn't dispose the runtime on exit: in production only (not under Vitest or Vite's dev server), dispose it on SIGTERM and SIGINT, bounded by the shutdown timeout, so the last batch is sent.
 <!-- stacks:end -->
 
 Add a `test:telemetry` package script running the stack's Vitest command on that file. The layer:
@@ -61,7 +61,6 @@ Verify's `telemetry` step runs `test:telemetry`. Build fresh layers and one expo
 - An in-test HTTP server on an ephemeral loopback port receives an export containing a synthetic span.
 - With the endpoint on a closed loopback port, the request still succeeds and shutdown finishes within its timeout.
 - With the endpoint unset, an HTTP client that fails the test on any call is never called.
-
 
 ## AGENTS.md
 

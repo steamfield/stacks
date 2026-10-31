@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "java-library",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Java library for other JVM code, built with Maven as a module with tested Javadoc examples, an API check and Maven Central-ready jars.",
+  "description": "Write a reusable Java library whose public API is one exported package in a JPMS module. Every public member has Javadoc whose examples run as tests, failures are records callers can switch over, and NullAway checks nullness at compile time. A separate consumer project builds against the installed jar on the module path, japicmp fails the build on a change that breaks callers, and the build makes the sources and Javadoc jars Maven Central requires. The shipped slug parser is the example to replace with your own API; publishing to Maven Central stays a person's step.",
+  "seoDescription": "A Java library recipe for Maven Central: a JPMS module, Javadoc with tested examples, NullAway, a consumer project and japicmp compatibility checks.",
+  "projectExamples": [
+    {
+      "title": "Parser for a company file format",
+      "description": "Replace the slug type with a parser that returns typed values and a record per kind of failure, with generated-input tests for every rule. The format's rules are custom work."
+    },
+    {
+      "title": "Shared domain types for several JVM services",
+      "description": "Publish value types and validation that several Java services depend on, with the API check guarding each release. Publishing needs the team's own Maven Central account."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for reusable Java code that other Java programs add as a dependency, ready to publish on Maven Central, the main Java package registry.",
+    "goodAt": [
+      "Sharing tested code between Java projects",
+      "Documentation whose examples are checked on every build",
+      "Catching changes that would break the code calling it"
+    ],
+    "notGoodAt": [
+      "A program people run themselves; choose the Java command-line or API stack.",
+      "Android or Kotlin-first projects, which usually build with Gradle."
+    ]
+  },
+  "platforms": [],
+  "productKinds": [
+    "library"
+  ],
+  "languages": [
+    "java"
+  ],
+  "requests": [
+    "start a Java library to publish on Maven Central",
+    "reusable Java package other JVM projects depend on as a Maven dependency",
+    "a Java SDK jar with Javadoc and a check that releases don't break callers",
+    "java module with module-info that exports only its public API"
+  ],
+  "useCases": [
+    "publishing a library to Maven Central",
+    "shared Java code across projects",
+    "a JVM SDK for a service"
+  ],
+  "synonyms": [
+    "Maven artifact",
+    "Maven Central",
+    "Sonatype",
+    "JPMS",
+    "Javadoc",
+    "japicmp",
+    "jar library"
+  ],
+  "goodFor": [
+    "documented public APIs",
+    "binary compatibility",
+    "semver discipline"
+  ],
+  "notFor": [
+    "a terminal user interface"
+  ],
+  "caveats": [
+    "Needs a JDK, and Maven once to create the Maven wrapper.",
+    "Publishing needs the author's own Maven Central account and signing key."
+  ]
+}

@@ -96,6 +96,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
 | `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
 | `java-cli` | Java CLI on picocli and Maven: one shaded runnable jar, layered TOML config, an exit-code table with suggestions, text or JSON output, Logback logs on stderr, Error Prone and NullAway, tests against the packaged jar | |
+| `java-library` | Java library for Maven Central: a JPMS module exporting one package, Javadoc with doclint and examples run as tests, NullAway, a consumer project built against the installed jar, a japicmp API check, sources and Javadoc jars | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nestjs-api` | NestJS JSON API on Node: feature modules, class-validator DTOs behind a global pipe, one error envelope from an exception filter, request ids, JSON logs, Swagger, Vitest unit specs and Supertest contract tests | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |

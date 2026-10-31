@@ -26,7 +26,7 @@
       "css": { "parser": { "tailwindDirectives": true } }
     },
     {
-      "includes": ["registry/**/*.svelte", "registry/**/*.astro"],
+      "includes": ["registry/**/*.svelte", "registry/**/*.astro", "registry/**/*.vue"],
       "linter": {
         "rules": {
           "correctness": { "noUnusedImports": "off", "noUnusedVariables": "off" },
@@ -38,6 +38,7 @@
       "includes": [
         "registry/stacks/astro-blog/files/**",
         "registry/stacks/nextjs/files/**",
+        "registry/stacks/nuxt/files/**",
         "registry/stacks/sveltekit/files/**"
       ],
       "formatter": { "enabled": false },

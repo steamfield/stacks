@@ -1,0 +1,59 @@
+[project]
+name = "{{project_slug}}"
+version = "0.1"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+# makemigrations writes these; they are never hand-edited or reformatted.
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TC", "PTH", "ERA", "PL", "RUF", "S", "T20", "DJ"]
+ignore = ["E501", "PLR0913"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["accounts", "config", "core", "notes", "tests"]
+
+[tool.ruff.lint.flake8-type-checking]
+# Django reads model and form classes at runtime; keep their imports out of TYPE_CHECKING.
+runtime-evaluated-base-classes = ["django.db.models.Model", "django.forms.Form", "django.forms.ModelForm"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["S101", "S106", "S603", "S607", "PLR2004", "ARG", "TC"]
+"**/test_*.py" = ["S101", "S106", "S603", "S607", "PLR2004", "ARG", "TC"]
+
+[tool.mypy]
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+plugins = ["mypy_django_plugin.main"]
+exclude = ['/migrations/', '^\.venv/', '^staticfiles/', '^var/']
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+addopts = "--strict-markers --strict-config -ra"
+norecursedirs = [".*", "staticfiles", "static", "templates", "var", "docs"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["."]
+branch = true
+parallel = true
+omit = [".venv/*", "**/migrations/*", "**/test_*.py", "tests/*", "manage.py"]
+
+[tool.coverage.report]
+fail_under = 85
+exclude_also = ["if TYPE_CHECKING:"]
+
+[tool.djlint]
+profile = "django"
+max_line_length = 100
+extend_exclude = "staticfiles,var"
+# Search-engine meta tags are a public site's choice, not every page's.
+ignore = "H030,H031"

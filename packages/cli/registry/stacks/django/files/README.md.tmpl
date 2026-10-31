@@ -1,0 +1,46 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this site does and who uses it. -->
+
+A server-rendered Django web app, served by gunicorn with static files from whitenoise and data in SQLite.
+
+## Quickstart
+
+Requires [uv](https://docs.astral.sh/uv/) and make.
+
+```bash
+make install
+make dev          # http://127.0.0.1:8000 with reload and DEBUG on
+```
+
+Create an admin login with `uv run python manage.py createsuperuser`, then open http://127.0.0.1:8000/admin/.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `make dev` | Migrate, then run the development server with reload |
+| `make start` | Production settings: collectstatic, migrate, then gunicorn |
+| `make lint` / `make format` | Check / fix Python and template lint and formatting |
+| `make typecheck` | mypy strict with the Django plugin |
+| `make test` / `make coverage` | Tests, and tests with the coverage floor |
+| `make makemigrations` | Write migrations after a model change |
+| `make check-deploy` | Django's deployment checklist with production settings |
+
+Run `make help` for the full list. Settings are environment variables; `.env.example` lists them.
+
+## Layout
+
+```
+config/     settings, env parsing, logging, urls, wsgi, gunicorn
+core/       request logging middleware, health view
+accounts/   the custom user model
+notes/      the example app: model, admin, form, views, templates
+templates/  base layout and the 404 and 500 pages
+static/     project CSS
+tests/      page tests through Django's test client
+```
+
+## License
+
+Copyright (c) {{year}} {{author}}

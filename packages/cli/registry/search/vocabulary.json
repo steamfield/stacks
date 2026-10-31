@@ -23,7 +23,7 @@
   },
   "languages": {
     "typescript": ["typescript", "ts", "javascript", "js", "node", "npm"],
-    "python": ["python", "fastapi"],
+    "python": ["python", "fastapi", "django"],
     "go": [
       "golang",
       "in go",

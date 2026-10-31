@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -39,10 +39,16 @@ A production image per deployable part and a workflow that publishes them, writt
 - `.dockerignore`: `.git`, `.env*`, `node_modules`, virtualenvs, caches, test and build output.
 
 <!-- stacks:when tag=python -->
-**Python API**: slim Python base matching `.python-version`; copy the uv binary from uv's official image; `uv sync --locked --no-dev --no-install-project`, copy source, sync again. Copy the venv to the runtime stage at the same path, put its `bin` on `PATH`, set `PYTHONUNBUFFERED=1` and `PYTHONDONTWRITEBYTECODE=1`, run uvicorn on `0.0.0.0` with proxy headers.
+**Python**: slim Python base matching `.python-version`; copy the uv binary from uv's official image; `uv sync --locked --no-dev --no-install-project`, copy source, sync again. Copy the venv to the runtime stage at the same path, put its `bin` on `PATH`, set `PYTHONUNBUFFERED=1` and `PYTHONDONTWRITEBYTECODE=1`.
+<!-- stacks:end -->
+<!-- stacks:when stack=python-api,python-react -->
+Run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-api -->
 **One image**: the API is the repo root, so it gets one root `Dockerfile` instead of per-directory ones. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
+<!-- stacks:end -->
+<!-- stacks:when stack=django -->
+**Django**: one root `Dockerfile`, built as above and served by gunicorn: `CMD ["gunicorn", "-c", "config/gunicorn.py"]` with `DJANGO_ENV=production`, `WEB_HOST=0.0.0.0` and `PORT_WEB` set and exposed. The build stage runs `python manage.py collectstatic --noinput` with `DJANGO_ENV=production` and a throwaway `DJANGO_SECRET_KEY` on that `RUN` line only; the runtime stage copies `staticfiles/`, which whitenoise serves. The real key comes from the runtime environment. Migrations are a release step (`docker run --rm --env-file .env <image> python manage.py migrate --noinput` before the new image takes traffic), never part of `CMD`. SQLite lives on a mounted volume (`DJANGO_DB_PATH=/data/db.sqlite3`, the directory owned by the image's uid), one container at a time. The health check requests `/healthz` with Python's `urllib`, sending the first `DJANGO_ALLOWED_HOSTS` entry (default `localhost`) as the `Host` header, since Django answers other hosts with a 400. `.dockerignore` also excludes `tests/`, `var/` and `staticfiles/`.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-react -->
 **React SPA**: build with bun, serve `build/client` from an unprivileged nginx or Caddy image with the `index.html` fallback, immutable caching for hashed assets, `no-cache` for `index.html`, a `/healthz` location, and a `/api` proxy if the API shares the origin.

@@ -179,7 +179,7 @@ Before planning, `add` performs the same tamper check as `verify`. Changed steps
 
 ```sh
 stacks verify                 # every step, from the project root or any directory below it
-  --only lint,test                 # only these check and serve steps (repeatable or comma-separated); setup and teardown still run
+  --only lint,test                 # named check and serve steps, even when the preset skips them by default (repeatable or comma-separated); setup and teardown still run
   --skip-tag slow                  # leave out steps with this tag (repeatable or comma-separated)
   --all                            # also run steps skipped by default (prod steps in a --sandbox project)
   --accept-changes                 # a person only: record the steps as they are now, then run them

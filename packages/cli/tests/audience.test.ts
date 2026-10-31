@@ -231,10 +231,9 @@ describe("verify for an agent", () => {
       "Next: fix the code or config these steps exercise, not the steps, then run stacks verify again.",
       "",
     ]);
-    // One `> name` event line per started step, then the failure; the report carries Next.
-    expect(agent.stderr).toBe(
-      "> install\n> lint\n> unit\nVerify failed.\n  Failed: lint (step, exit 1)\n",
-    );
+    // One `> name` event line per started step, then the failure; the report lists the failed
+    // steps and carries Next.
+    expect(agent.stderr).toBe("> install\n> lint\n> unit\nVerify failed.\n");
     const human = await run(root, [], terminal);
     expect(human.status).toBe(5);
     expect(human.stdout).toMatch(/\n {2}passed {3}setup {5}install/);

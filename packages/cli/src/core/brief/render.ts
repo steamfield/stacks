@@ -3,6 +3,7 @@ import { APP_TAG, DEFAULT_STEP_TIMEOUT, withStepDefaults } from "@steamfield/sta
 import { METADATA_DIR } from "../../project-layout";
 import type { ComposedStep, Composition, MissingTool } from "../compose/compose";
 import type { Entry } from "../registry/entry";
+import { envPrefix, slug } from "../scaffold/slug";
 import { nest } from "./headings";
 import { collapsePaths } from "./paths";
 import * as T from "./text";
@@ -105,6 +106,7 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
     // 3. Facts.
     fixed(
       T.facts.stack(oneLine(stack.meta.name), stack.id),
+      T.facts.project(slug(context.project), envPrefix(slug(context.project))),
       T.facts.fragments(base.map((fragment) => fragment.id)),
       ...(app ? [T.facts.app(oneLine(app.meta.name), app.id)] : []),
       T.facts.preset(sandbox),

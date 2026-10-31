@@ -315,16 +315,16 @@ describe("naming options", () => {
       const result = success(await invoke(home, [dir, "--name", "myAPIServer2", "--json"]));
       expect(result.project).toBe(join(home, dir));
       expect(readFileSync(join(home, dir, "README.md"), "utf8")).toContain(
-        "# myAPIServer2\n\n- slug: my-api-server-2\n- env: MY_API_SERVER_2_PORT\n",
+        "# myAPIServer2\n\n- slug: my-api-server2\n- env: MY_API_SERVER2_PORT\n",
       );
-      expect(existsSync(join(home, "my-api-server-2"))).toBe(false);
+      expect(existsSync(join(home, "my-api-server2"))).toBe(false);
     },
   );
 
   test.each([
     ["@acme/web-app", "web-app"],
     ["Café Déjà Vu", "cafe-deja-vu"],
-    ["myAPIServer2", "my-api-server-2"],
+    ["myAPIServer2", "my-api-server2"],
     ["日本語", "project"],
     ["2048", "2048"],
   ])("name %j selects directory %j in preview and real creation [3.1c#8]", async (name, dir) => {

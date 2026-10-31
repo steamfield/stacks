@@ -1,6 +1,6 @@
 import type { Manifest, Outcome } from "@steamfield/stacks-format";
 import { Cause, Clock, Effect, Exit, FileSystem } from "effect";
-import { AGENT_MARKER_NAMES, AppConfig } from "../../config";
+import { AGENT_MARKER_NAMES, AppConfig, CLI_SETTING_NAMES } from "../../config";
 import type { StepResult, VerifyResult } from "../../schemas/verify";
 import { stepFinished, stepStarted } from "./events";
 import { type PlannedStep, planVerify, type SelectOptions } from "./plan";
@@ -47,8 +47,11 @@ export const runVerify = (
       .realPath(project.root)
       .pipe(Effect.orElseSucceed(() => project.root));
     // The captured environment wins over the manifest's defaults (`PORT_WEB=5187 verify`), and no
-    // agent marker reaches a step: it must behave the same whoever ran verify.
-    const env = { ...project.manifest.env, ...config.childEnv(AGENT_MARKER_NAMES) };
+    // agent marker or CLI setting reaches a step unless the manifest supplies it.
+    const env = {
+      ...project.manifest.env,
+      ...config.childEnv([...AGENT_MARKER_NAMES, ...CLI_SETTING_NAMES]),
+    };
     const context = { root: project.root, realRoot, env };
     const started = yield* Clock.currentTimeMillis;
     const results = new Map<string, StepResult>();

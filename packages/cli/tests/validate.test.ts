@@ -143,7 +143,7 @@ test("human mode groups findings by entry, prints sizes and a total, and suggest
   stack(root, "clean");
   const result = await run([root], { host: terminal });
   expect(result.status).toBe(0);
-  expect(result.stdout).toContain(`Validated ${root}: 1 stack, 0 fragments`);
+  expect(result.stdout).toContain(`Validated ${root}\n`);
   expect(result.stdout).toMatch(/Sizes \(words\)\n {2}clean body +\d+ \/ 2,000\n/);
   expect(result.stdout).toMatch(/clean \(sandbox\) +[\d,]+ \/ 6,000 {3}fixed [\d,]+\n/);
   expect(result.stdout).toContain("1 stack, 0 fragments: 0 errors, 0 warnings, 1 note");
@@ -1543,6 +1543,19 @@ it.effect("validate --help documents the path and every flag", () =>
   }),
 );
 
+test.each(["agent", "human"])(
+  "%s validation of one fragment prints its entry counts once",
+  async (audience) => {
+    const root = temp();
+    const entry = fragment(root, "checked");
+    const result = await run([entry], { host: audience === "human" ? terminal : {} });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.match(/0 stacks, 1 fragment/g)).toHaveLength(1);
+    expect(result.stdout).toContain("0 stacks, 1 fragment: 0 errors");
+  },
+);
+
 test("for an agent, no size table when every size is within budget; JSON keeps every size", async () => {
   const root = temp();
   stack(root, "clean");
@@ -1551,7 +1564,7 @@ test("for an agent, no size table when every size is within budget; JSON keeps e
   expect(agent.stderr).toBe("");
   expect(agent.stdout).toBe(
     [
-      "Validated .: 1 stack, 0 fragments",
+      "Validated .",
       "",
       "stack clean",
       "  note     search-missing  search/stacks/clean.json: No search card; add a reviewed sidecar for search discovery.",
@@ -1590,19 +1603,19 @@ test("for an agent, the root is relative to the working directory, and absolute 
   const root = join(home, "my registry");
   stack(root, "clean");
   const inside = await run([root], { home });
-  expect(inside.stdout).toMatch(/^Validated my registry: 1 stack, 0 fragments\n/);
+  expect(inside.stdout).toMatch(/^Validated my registry\n/);
   const outside = await run([root]);
-  expect(outside.stdout.startsWith(`Validated ${root}: 1 stack`)).toBe(true);
+  expect(outside.stdout.startsWith(`Validated ${root}\n`)).toBe(true);
   // Real paths that differ from the given one (/var and /private/var on macOS) still nest.
   const real = await run([realpathSync(root)], { home });
-  expect(real.stdout).toMatch(/^Validated my registry: 1 stack/);
+  expect(real.stdout).toMatch(/^Validated my registry\n/);
   const linked = join(temp(), "link");
   symlinkSync(home, linked);
   const viaLink = await run([root], { home: linked });
-  expect(viaLink.stdout).toMatch(/^Validated my registry: 1 stack/);
+  expect(viaLink.stdout).toMatch(/^Validated my registry\n/);
   // A human and --json keep the absolute root.
   const human = await run([root], { home, host: terminal });
-  expect(human.stdout.startsWith(`Validated ${root}: 1 stack`)).toBe(true);
+  expect(human.stdout.startsWith(`Validated ${root}\n`)).toBe(true);
   const json = await report([root], { home });
   expect(json.report.root).toBe(root);
 });

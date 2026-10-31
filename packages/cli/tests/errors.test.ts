@@ -378,7 +378,7 @@ test.each([
         next: "fix the code or config these steps exercise, not the steps, then run stacks verify again.",
       },
     });
-  else expect(last).toBe("Verify failed.");
+  else expect(result.stderr.trimEnd().split("\n").at(-1)).toBe("Verify failed.");
 });
 test.each([[["--json"]], [[]]])(
   "BadInput (no kept result) leaves stdout empty after a result was written, with %j",

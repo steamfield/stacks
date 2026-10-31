@@ -706,19 +706,11 @@ function configGuide(error: InvalidConfig, invocation: string): FailureGuide {
   );
 }
 
+/** No detail lines: the verify report on stdout already lists each failed step. */
 function verifyFailedGuide(error: VerifyFailed, invocation: string): FailureGuide {
   const failed = error.details?.failed ?? [];
   return guide(
-    failed.length
-      ? [
-          `Failed: ${failed
-            .map(
-              (step) =>
-                `${printable(step.name)} (${step.failureKind}${step.exitCode === undefined ? "" : `, exit ${step.exitCode}`})`,
-            )
-            .join(", ")}`,
-        ]
-      : [],
+    [],
     verifyNext(
       "failed",
       invocation,

@@ -15,16 +15,18 @@
  * python-react changed that day for its shipped backend and frontend proving slice.
  * python-react changed again that day for Biome frontend linting and formatting.
  * All six changed on 2026-10-31 because previews now say tools' PATH was not checked.
+ * All six changed again that day for the brief's project slug and env prefix line and the
+ * bundled fragment audit's fragment and stack edits; they await a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:d9273a87707aeeba67cbdf3d18d96f4cbe199ecaf4a9e6b52934edc5384ff42b",
-  "astro-blog:sandbox": "sha256:d9e1dc3515cb1471953c464f0949c990078fe46bbb039a8f65bb5cae8edb8cff",
-  "go-cli:default": "sha256:a1540239ff24b7e5fb0a1033a023d1c31519d75aa8a2d015aecea3e357cf7fdd",
-  "go-cli:sandbox": "sha256:b4d7e455f0b4ff18421a4ae084cacfba9d6cfa93613320377e3abde83ae529b7",
-  "python-react:default": "sha256:049419540a1184da783249b596ce16da5d02288c333b29a8588a82bc6a92fc57",
-  "python-react:sandbox": "sha256:3fa3e3f333f1352605065ef86aed74443f9cf2f092254b9e36cd93f093e277bf",
+  "astro-blog:default": "sha256:0fce841a958c2b3907cf13c0441cca42cd9078602e8374f902b3e2acde64f1a7",
+  "astro-blog:sandbox": "sha256:f13fc46d3fe9e78075bcdad64cfc7aa999bc8cebeb9043a9508d136b1ba8ae1e",
+  "go-cli:default": "sha256:bc8488e8a1cae79e8d225d636047e9aa8f82bd47603e61d15ca82ea8614a405b",
+  "go-cli:sandbox": "sha256:6b7fe055493416c191b69ab9d5638777fb8b280671b46e268756345d4aba4ea6",
+  "python-react:default": "sha256:7e140e294130489f7ed62fa757fc5de57df2860dc9edd9c1465e2d420015630e",
+  "python-react:sandbox": "sha256:b4824ca38494c0fb4819d563a7fc23caf5649be53007544e458acd89ebb024f0",
 };

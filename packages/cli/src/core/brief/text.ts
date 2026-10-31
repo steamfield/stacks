@@ -13,6 +13,8 @@ export const title = (project: string, stack: string) => `# Build ${project}: ${
 
 export const facts = {
   stack: (name: string, id: string) => `- Stack: ${name} (${code(id)})`,
+  project: (slug: string, prefix: string) =>
+    `- Project slug: ${code(slug)}; env prefix: ${code(prefix)}`,
   fragments: (ids: ReadonlyArray<string>) =>
     `- Fragments: ${ids.length ? ids.map(code).join(", ") : "none"}`,
   app: (name: string, id: string) => `- Application: ${name} (${code(id)}), built after the base`,

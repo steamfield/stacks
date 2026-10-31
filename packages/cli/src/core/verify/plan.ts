@@ -24,8 +24,9 @@ export type VerifyPlan = {
 
 /**
  * Orders the steps and applies the selection flags. `--only` and `--skip-tag` make the scope
- * `partial`; `skipByDefault` steps (`prod` under `--sandbox`) run only with `--all`, which keeps the
- * scope `full`. An `--only` name that is no check or serve step is `BadInput`, listing those names.
+ * `partial`; `skipByDefault` steps (`prod` under `--sandbox`) run with `--all` or an explicit
+ * `--only` name. `--all` keeps the scope `full`. An `--only` name that is no check or serve step
+ * is `BadInput`, listing those names.
  */
 export function planVerify(
   manifestSteps: ReadonlyArray<ManifestStep>,
@@ -48,7 +49,7 @@ export function planVerify(
   const skipped = new Map<string, string>();
   for (const step of steps) {
     const tag = step.tags.find((item) => options.skipTags.includes(item));
-    if (step.skipByDefault && !options.all)
+    if (step.skipByDefault && !options.all && !options.only.includes(step.name))
       skipped.set(step.name, "skipped by default in this preset; --all runs it");
     else if (
       options.only.length &&

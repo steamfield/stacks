@@ -1,5 +1,7 @@
 ---
 paths:
+  - "src/**/*.test.ts"
+  - "src/**/*.test.tsx"
   - "tests/**"
   - "e2e/**"
   - "vitest.config.*"

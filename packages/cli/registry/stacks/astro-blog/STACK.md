@@ -6,10 +6,10 @@ name: Astro blog
 description: A static Astro blog with MDX posts in a zod-validated content collection (draft/published/unlisted status), React islands, Tailwind with typography, sitemap and RSS, optional generated OG images, and vitest plus astro check.
 tags: [typescript, astro, react, web, static, blog, content, mdx, make, bun, node]
 deps:
-  site: [astro, "@astrojs/mdx", "@astrojs/react", "@astrojs/sitemap", "@astrojs/rss", react, react-dom, tailwindcss, "@tailwindcss/vite", "@tailwindcss/typography", clsx, tailwind-merge]
+  site: [astro, "@astrojs/mdx", "@astrojs/react", "@astrojs/sitemap", "@astrojs/rss", react, react-dom, tailwindcss, "@tailwindcss/vite", "@tailwindcss/typography"]
   site-dev: ["@astrojs/check", typescript, "@types/react", "@types/react-dom", vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/dom", "@testing-library/jest-dom", yaml, prettier, prettier-plugin-astro]
   og-images: [satori, "@resvg/resvg-js"]
-tools: [bun, make, git]
+tools: [bun, node, make, git]
 decisions:
   - "Production site URL for canonical links, sitemap, and RSS (default: https://example.com)."
   - "Generated Open Graph images per post with satori (default: off; a static image in public/)."
@@ -52,76 +52,60 @@ commands:
 
 # Astro blog
 
-A static blog: MDX posts validated by a zod schema (a bad post fails the build), thin `.astro` pages, React components and islands.
+## What stacks wrote
+
+A static blog with a validated MDX collection, a published post, base and post layouts, index and reading routes, RSS, a filtered sitemap, a React reading-state island, Tailwind typography, the error page, tooling and tests. The post proves the publishing pipeline through the generated pages and feeds; read the code before extending it.
 
 ## Layout
 
-```
-astro.config.mjs, tsconfig.json, vitest.config.ts, Makefile
-scripts/new-article.mjs      scaffolds a draft post
-public/                      favicon, default OG image, robots.txt
-src/content.config.ts        blog collection: glob loader + schema
-src/content/schema.ts        zod frontmatter schema (importable by tests)
-src/content/blog/*.mdx       posts; filename is the slug
-src/config.ts                site title, description, author, nav
-src/layouts/BaseLayout.astro HTML shell: meta, OG tags, theme script
-src/pages/                   index.astro, [slug].astro, 404.astro, rss.xml.ts, og/[slug].png.ts (if OG on)
-src/components/              React .tsx only, each with a colocated .test.tsx
-src/lib/posts.ts             pure over given entries: published, routable, slugFor(), reading time
-src/lib/collection.ts        the only `astro:content` import; feeds posts.ts
-src/styles/global.css        Tailwind entry, typography plugin, theme tokens
-```
+New posts go in `src/content/blog/`; reusable UI in `src/components/` as React, with Astro reserved for layouts and routes. `src/lib/posts.ts` owns pure publication rules; `src/lib/collection.ts` loads content for pages and feeds. `src/config.ts` owns public site metadata. Read `docs/DEVELOPMENT.md` for visibility, canonical URLs, command behavior and optional generated social images.
 
 ## Setup
 
-1. Run create-astro (`bunx create-astro@latest`; `bun create` swallows its `--yes`) non-interactively into a temp directory (for example `.astro-init/`) with the minimal template and without its AI/agent files, git init, or install. Skipping the AI files (a `--no-ai`-style flag in current versions) avoids an `AGENTS.md`/`CLAUDE.md` collision with the ones already here. Move its files to the root without overwriting: merge its `.gitignore` entries, discard its README, set `package.json` `name` to the project slug, then delete the temp dir.
-2. `bun install`, then `astro add` mdx, react, sitemap non-interactively. Add Tailwind the way `astro add` currently does (its Vite plugin) and enable the typography plugin the way the installed Tailwind expects.
-3. Add `@astrojs/rss`, `@astrojs/check`, and the test deps. Set `packageManager` in `package.json` to the installed bun version.
-4. Write the config, schema, `lib/posts.ts`, layout, pages, components, and two sample posts (one `published`, one `draft`).
-5. Write `scripts/new-article.mjs`, `vitest.config.ts`, and the tests; fill the README's `stacks:fill` markers.
-6. Run `stacks verify` until it passes.
+1. Add the declared `site` dependencies with `bun add` and `site-dev` dependencies with `bun add -d`, resolving current releases within their peer ranges. Install `og-images` dependencies only if that decision is on. No generator is needed: keep the shipped `package.json` and source.
+2. Run `make install lint check test build`. Where an installed release rejects shipped code or config, update it for that release without dropping a check or rule. Keep Astro's strict preset, the test ambient types, Node environments for tests that load Astro APIs, and the Vitest config type reference.
+3. Apply the decisions in `src/config.ts` and `astro.config.mjs`. Update build assertions when changing the example post or URL policy. For trailing slashes, keep page links, canonicals, RSS and sitemap in agreement; the shipped default is file output without trailing slashes.
+4. Record the installed Bun in `packageManager`, Node in `.node-version`, and any compatibility workaround with its removal condition in AGENTS.md.
+5. Fill README's `stacks:fill` markers, finish the selected fragments and AGENTS.md, run `make format`, then `stacks verify` until green.
 
 ## Conventions
 
-- **Minimal Astro.** The only `.astro` files are `BaseLayout.astro` and page routes, which load content and render React components. Every reusable component is `.tsx`. Add `client:*` only where interactivity is needed.
-- **Schema.** `schema.ts` exports the zod object (import `z` from `astro/zod`); `content.config.ts` wraps it with the `glob` loader over `src/content/blog/**/*.{md,mdx}`. Fields: `title`, `description`, `date` (coerced), `updated?`, `author`, `tags` (default `[]`), `status` (`draft` | `published` | `unlisted`, default `published`), `cover?`, `ogImage?`. `unlisted` renders at its URL but stays out of the index, sitemap, and RSS.
-- **One place decides visibility.** `lib/posts.ts` (pure, so unit tests need no content layer): `publishedPosts(entries)` (published, newest first), `routablePosts(entries, dev)` (published + unlisted, plus drafts when `dev`), `slugFor(entry)` (filename minus extension; strip it defensively, since the loader's id may keep it). `lib/collection.ts` wraps them as `getPublishedPosts()` and `getRoutablePosts()` (passing `import.meta.env.DEV`). Pages, RSS, OG, and sitemap all use these.
-- **Sitemap** filters drafts, unlisted, and `og/` routes. The config can't import `astro:content`, so read status from the MDX frontmatter directly.
-- **Canonical and OG URLs** come from the route (`/`, `/<slug>`), never `Astro.url.pathname`, which ends in `.html` under file-style output.
-- **RSS** lists published posts newest first. With `trailingSlash: "never"`, pass `trailingSlash: false` to `@astrojs/rss` so item links match.
-- **OG images (if on)**: 1200x630 card via satori + resvg, fonts loaded from `src/assets/fonts/` (never fetched at build), published and unlisted posts only.
-- **Styling.** Tailwind; post bodies use `prose` with dark variants; an inline head script prevents a theme flash.
-- **New posts.** `make new-article SLUG=my-post TITLE="My post"` exports both as env vars; `new-article.mjs` reads `process.env.SLUG`/`TITLE`, validates the slug (lowercase, digits, hyphens), refuses to overwrite, and writes a schema-valid `status: "draft"` post. Env vars avoid shell-quoting bugs with titles that contain quotes.
-
-## Tool configuration
-
-- **astro.config.mjs**: `output: "static"`, `site`, `trailingSlash` and `build.format` per the decision, integrations mdx, react, sitemap (filtered), Tailwind in `vite.plugins`, Shiki with light and dark themes.
-- **tsconfig.json**: Astro's strict preset, `jsx: "react-jsx"`, `jsxImportSource: "react"`, `@/*` -> `src/*`, and `types` with `vitest/globals` and `@testing-library/jest-dom` so `astro check` accepts the tests.
-- **vitest.config.ts**: built with Astro's `getViteConfig()` (with `/// <reference types="vitest/config" />`); `happy-dom`, `globals: true`, a setup file importing jest-dom's vitest matchers, include `src/**/*.test.{ts,tsx}`, v8 coverage, and every vendor key (`PUBLIC_POSTHOG_KEY`) set to `""` in `test.env`.
-- **Prettier** with the Astro plugin: `make format` writes, `make lint` checks. `.prettierignore` covers build output, `.stacks/` and `.claude/`.
+- Keep publication decisions in `posts.ts`; the sitemap reads real YAML with the same schema before the content layer exists. Unlisted posts render but stay out of the index, RSS and sitemap. Drafts render only in dev.
+- Canonical and OG URLs use explicit route paths, never the build's HTML filename. Keep new routes consistent with the RSS trailing-slash setting.
+- Reusable components are React. Add `client:*` only for interactive islands; the rest renders as static HTML.
+- New frontmatter fields belong in the shared schema and schema tests. `make new-article` uses exclusive writes and env vars so quoted titles cannot become shell code.
+- Post bodies keep Tailwind's `prose` and dark variants; the inline head script applies the system theme before paint.
 
 ## Testing
 
-- `make check` (astro check) type-checks and validates content.
-- vitest: `lib/posts.ts` logic against in-memory entries (a test file whose imports reach `astro:content` starts with `// @vitest-environment node`, since happy-dom makes it client-side); the schema (valid passes, missing title and unknown status fail); and a test that parses every post's frontmatter with a real YAML parser (the `yaml` package, not a regex: Prettier rewrites quotes) and validates it with the schema.
-- Testing Library per component (post list omits drafts, post layout renders heading and metadata).
-- `make build` is the integration test (every route, RSS, sitemap, OG).
+`make test` runs pure post selection tests, schema validation of every real post through YAML, component tests with Testing Library and the new-article process test. Keep tests next to source where possible. A new route also gets a build assertion: `make build` renders the real site and checks post metadata, the hydrated-island markup, RSS, sitemap and the error page. `make check` runs Astro's checker without an install prompt. `make coverage` runs the same tests with V8 coverage.
 
 ## Commands
 
-The shipped Makefile (`make help`): install, dev, lint, check, test, coverage (vitest with coverage), build, preview, new-article, format, clean. Adapt recipes, keep names, mirror in AGENTS.md.
+The shipped Makefile (`make help`) has install, dev, lint, check, test, coverage, build, preview, new-article, format and clean. Keep the names and mirror them in AGENTS.md.
 <!-- stacks:when with=ci-github -->
 
-**CI.** Bun's setup action reads the `packageManager` field in `package.json`; set it to the bun version you installed. Then `make install` (frozen when `CI` is set), `make lint`, `make check`, `make coverage` (or `make test` if the coverage decision is no), and `make build`.
+CI reads Bun from `packageManager` and Node from `.node-version`, then runs `make install` (frozen under CI), `make lint`, `make check`, `make coverage` (or `make test` if coverage was declined) and `make build`.
+<!-- stacks:end -->
+<!-- stacks:when with=posthog -->
+
+Add the analytics module and its one head initialization to the shipped `BaseLayout.astro`; keep vendor keys empty in the test config. The reading island needs no analytics to work.
+<!-- stacks:end -->
+<!-- stacks:when with=cloudflare-pages -->
+
+Deploy the shipped static `dist/`; keep Pages headers and redirects under `public/` and align redirects with the URL decision. No Astro server adapter is needed.
+<!-- stacks:end -->
+<!-- stacks:when with=claude-harness -->
+
+Include `.claude/hooks/` in Astro checking and retain `tests/hooks/**/*.test.ts` in Vitest. Those hook tests need the Node environment; set a per-file environment directive when adding them.
 <!-- stacks:end -->
 
 ## Gotchas
 
-- Astro can background both dev and preview under an agent. The Makefile passes `--ignore-lock` to both to keep them foreground; stop the process you started with Ctrl+C or its owned process handle. For an Astro-managed background server from this checkout, use `bunx astro dev stop` or `bunx astro preview stop`, respectively.
-- `make check` refuses missing `@astrojs/check` or TypeScript before invoking Astro, whose install prompt can otherwise exit 0 without checking. Add both as project dev dependencies before verification; use their compatible current releases.
-- `@astrojs/check` can lag the newest TypeScript major. If `astro check` rejects the installed TypeScript, install the previous major and record it under Build workarounds.
-- Bare `vitest` is watch mode in a TTY; scripts use `vitest run`.
-- `astro.config.mjs` runs before the content layer, so it can't use `getCollection`.
-- If content types look stale after a schema change, delete `.astro/`.
-- Only `PUBLIC_` env vars reach client code, baked in at build time. Draft visibility keys off `import.meta.env.DEV`, never a custom env var.
-- satori supports flexbox, not grid, and needs TTF/OTF/WOFF fonts, not WOFF2.
+- Astro can background dev and preview under an agent. The Makefile passes `--ignore-lock` to both so verify owns the foreground process. Stop only that process; Astro-managed background instances use `bunx astro dev stop` or `bunx astro preview stop`.
+- `make check` refuses missing `@astrojs/check` or TypeScript before invoking Astro, whose install prompt can exit successfully without checking.
+- `@astrojs/check` can lag a TypeScript release. Resolve the newest TypeScript inside the checker's supported peer range, and remove the workaround when the checker supports the new release.
+- Bare `vitest` watches in a TTY; keep `vitest run` in recipes.
+- Astro config runs before `astro:content`; don't query the collection there.
+- Delete `.astro/` if collection types look stale. Only `PUBLIC_` env vars reach browser bundles; draft visibility uses `import.meta.env.DEV`.
+- satori supports flexbox and local TTF, OTF or WOFF fonts, not grid or WOFF2. See the development doc before enabling generated images.

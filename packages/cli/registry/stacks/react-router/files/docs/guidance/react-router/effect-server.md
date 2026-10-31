@@ -7,13 +7,13 @@ Load the project's `effect` skill before writing Effect code or looking up an Ef
 ## Services and the runtime
 
 - A service is a `Context.Service` class in `services/` with its layers as statics (`static readonly layer`, plus `layerMemory` when tests need fresh state). Add it to `AppLayer` in `runtime.ts`; never build a second runtime for app code.
-- `runtime.ts` owns the one `ManagedRuntime`. It's settable so tests can swap in one built from test layers, and in dev it disposes the previous runtime (kept on `globalThis`) before building a new one on hot reload. Don't cache service instances outside the runtime.
+- `runtime.ts` owns one lazy `ManagedRuntime`. Tests replace it through `setRuntime`, restore the previous runtime and dispose their replacement. Vite's hot-dispose callback releases the development runtime. The slice is stateless; don't cache service instances outside the runtime.
 - Long-lived in-memory state (an in-memory store, rate-limiter buckets) lives on `globalThis` in dev so hot reload doesn't wipe it.
 - Services depend on other services through the context (`yield* OtherService`), never by providing another service's layer inside a constructor.
 
 ## Config and errors
 
-- Every env var is read in `config.ts` through Effect Config; empty counts as unset. Secrets are redacted values. Nothing else touches `process.env`.
+- Application env vars are read in `config.ts` through Effect Config; empty counts as unset. Secrets are redacted values. Launch scripts and test configuration own their process settings, such as the server port.
 - Expected failures are tagged errors in `errors.ts`. Each maps to one HTTP status and one retryability in `runRoute` (`http.ts`, through `statusFor` and `retryableFor`). Add the error and both mappings together, and give it a user-safe message.
 - Unexpected failures are defects: `runRoute` logs them once and returns a generic 500. Don't catch and swallow them earlier, and don't turn a defect into a tagged error to make it "handled".
 
@@ -35,4 +35,6 @@ Load the project's `effect` skill before writing Effect code or looking up an Ef
 
 ## Logging
 
-`Effect.logInfo` / `logWarning` / `logError` with annotations, not `console.*`. `logging.ts` formats them: one line per record in the terminal, JSON lines in `logs/server.jsonl` (dev) and on stdout (production). Annotation keys become top-level JSON keys, so use stable camelCase names and don't reuse `time`, `level`, `msg`, `detail`, or `error`. `runRoute`/`runData` already log one `request` line per call and annotate everything under them with `requestId`; don't add per-route access logging. Never log message content, prompts, request bodies, or API keys, and don't log whole third-party error objects (SDK errors can carry the request body): pass the error as a log argument and `logging.ts` keeps only its name, message, status, and stack.
+`Effect.logInfo` / `logWarning` / `logError` with annotations, not `console.*`. `logging.ts` formats them: one line per record in the terminal, JSON lines in `logs/server.jsonl` (dev) and on stdout (production). Annotation keys become top-level JSON keys, so use stable camelCase names and don't reuse `time`, `level`, `msg`, `detail`, or `error`. `runRoute`/`runData` already log one `request` line per call and annotate everything under them with `requestId`; don't add per-route access logging. Never log message content, prompts, request bodies, or API keys. Attach unexpected errors under the `defect` annotation: the formatter keeps their class and stack frames, excluding messages and arbitrary properties. Other object-valued log arguments are redacted.
+
+These are the application's structured records. The production framework server, `@react-router/serve`, separately emits a plain-text access log containing query strings. If a project puts sensitive values in URLs, replace the convenience server with its own server using the Node adapter and configure access logging there.

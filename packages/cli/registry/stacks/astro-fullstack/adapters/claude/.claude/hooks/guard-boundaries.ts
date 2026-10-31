@@ -30,7 +30,7 @@ function codeLines(written: string): string[] {
 /** Which workspace's src/ the file is in, and its path under src/; else undefined. The last match
  * wins, so a checkout under .claude/worktrees/ resolves to its own workspace. */
 function targetOf(filePath: string): Target | undefined {
-  if (!/\.tsx?$/.test(filePath)) return undefined;
+  if (!/\.tsx?$/.test(filePath) || /\.test\.tsx?$/.test(filePath)) return undefined;
   const abs = isAbsolute(filePath) ? filePath : resolve(projectRoot(), filePath);
   const matches = [
     ...abs.matchAll(/(?:^|\/)(packages\/contract|apps\/api|apps\/web)\/src\/(.+)$/g),

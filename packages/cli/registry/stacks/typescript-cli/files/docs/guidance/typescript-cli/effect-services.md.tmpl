@@ -1,41 +1,29 @@
 # Services, config, errors (Effect)
 
-Everything outside `src/bin.ts` and declared platform paths is plain Effect that runs on Node (vitest) and on Bun (the binary) unchanged. When the project skill does not exist, use installed declarations first, compiled source for behavior next, then that major's docs and changelog. After core compilation, create the project's `effect` skill from those verified APIs. When it exists, load it before changes and maintain it on upgrades.
+Everything outside bin.ts and explicit platform paths runs unchanged on Node and Bun. When the project skill does not exist, use installed declarations first, source for behavior next, then that release's docs. After core compilation, write the project's Effect skill from the APIs you verified; load and maintain it on upgrades.
 
 ## Services and layers
 
-- A service is a `Context.Service` class in `src/services/` with id `"{{project_slug}}/<Name>"` and its layers as statics: `static readonly layer` for the app, plus a test variant named by what differs (`layerMemory`) only where a test needs one. Add it to `AppLayer` in `src/runtime.ts`.
-- `AppLayer` never builds platform services. `FileSystem`, `Path`, `Stdio`, `Terminal`, `HttpClient`, and `Host` come from outside: `BunServices` in `src/bin.ts`, `NodeServices` and a test `Stdio` in `tests/helpers/cli.ts`. A service that needs the platform yields the abstract service (`yield* FileSystem.FileSystem`), never a Bun or Node API.
-- One process, one run: there is no hot reload and no `globalThis` state. A layer is built once per invocation. Caches live inside the layer's closure.
-- Services depend on other services through the context (`yield* OtherService`), never by providing another service's layer inside a constructor. Yield dependencies in the layer constructor, not in each method, so methods return `Effect<A, E, never>`.
-- Building a layer must not read config that can fail. `AppConfig.load` is lazy and cached: a service yields `AppConfig` in its constructor and runs `load` inside the method that needs settings. That's what keeps `--help`, `--version`, and `doctor` working with a broken config file.
+The shipped Host, Output, Logging and AppConfig are namespaced Context.Service classes with static layers. AppLayer in runtime.ts builds no platform services. BunServices and Host enter through bin.ts; tests provide NodeServices and captured process writers.
+
+Capture dependencies in layer constructors. Methods close over them, with no hidden provides or nested runtime. Building a layer does not decode application config: AppConfig.load is lazy and cached. Each invocation builds fresh layers, so config, buffered output and logs never leak across runs. Own resources with Effect scopes and observe child failures at their owner.
 
 ## Config
 
-- Every env var is read in `src/config.ts` through Effect Config; empty counts as unset. Secrets are `Config.Redacted`. Only `config.ts` and `src/bin.ts` touch `process.env`; the `guard-boundaries` hook denies it anywhere else.
-- `AppConfig.load` layers env over the optional `$XDG_CONFIG_HOME/{{project_slug}}/config.json`, decoded with a closed `ConfigFile` schema (excess properties are an error, so a typo is `InvalidConfig`). A secret never comes from the file: `ConfigFile` has no field for one.
-- Paths, logging and output resolve independently of a failing optional file. Valid file logLevel still participates below env; blank env is absent. A bad level falls back safely and doctor reports the config problem. Independent logging resolution must not silently ignore valid file settings.
-- A new var goes in `config.ts`, `.env.example`, and the README table. Project-owned vars are prefixed `{{env_prefix}}_`.
+Only config.ts reads environment settings (bin.ts passes its process env). Empty and whitespace-only strings count as absent. Project-owned settings use the {{env_prefix}}_ prefix. ConfigProvider.fromEnvRecord supplies Effect Config reads.
 
-## Errors and exit codes
+The optional config file is schema-decoded with excess properties rejected. Env greeting wins over file greeting, then the default. A malformed file is reported by doctor, never treated as a valid empty file; only NotFound means absent. Paths and logging resolve independently of a failed application load. File logLevel applies beneath LOG_LEVEL; invalid levels use the safe warn fallback. New settings need a schema, precedence tests, .env.example and README entries.
 
-- Expected failures are `Schema.TaggedError` classes in `src/errors.ts`, each with a user-safe `message`. `exitCodeFor` and `retryableFor` switch exhaustively on the tag, so a new error needs a decision in both. The codes are in `cli.md`.
-- Anything else is a defect: `main` logs it once with `Effect.logError` and prints a generic message (exit 1). Don't catch and swallow defects earlier, and don't turn one into a tagged error to make it "handled". Platform errors that mean a broken data dir are defects (`Effect.orDie`); ones the user can fix are tagged (`PermissionDenied`, exit 6).
-- `Effect.catch` catches typed failures only; defects and interruption need `Effect.catchCause`. `Effect.promise` and a throw inside `Effect.sync` are defects: wrap third-party promises with `Effect.tryPromise({ try, catch })` (pass its `signal` through) and throwing code with `Effect.try`, mapping to a tagged error. Fail with `return yield* new SomeError({...})`.
+## Failures and runtimes
 
-## Retry, timeout, limits
+Expected failures are Schema.TaggedError classes. The error table is exhaustive over the class union and holds fixed public messages, exit codes and retryability. Main owns the single error envelope. Defects get a generic error and one defect log; never serialize raw causes or third-party error objects.
 
-- Non-streaming calls to a third party use `Effect.retry` with a jittered exponential schedule capped at two retries (`Schedule.max([exponential.jittered, recurs(2)])` in the installed names) and `Effect.timeoutOrElse`, retrying only what can succeed on retry (an upstream error marked `retryable`). The HTTP client has no retries of its own, so there is one retry layer.
-- A streaming call is not retried once anything has reached stdout: a retry would print it twice. The command that adds streaming says how it is bounded.
-- Limits come from Config or schemas and are enforced before or during the call, never after.
-- Time comes from `Clock`, not `Date.now()`, in anything a test drives with `TestClock`.
+Use Effect.try/tryPromise to map expected thrown failures. Effect.catch handles typed failures; only a boundary with a policy for defects and interruption uses catchCause. Log sinks are best effort and warn once; application failures remain failures. The String Config reads with defaults use orDie only because a flat string env record cannot fail that decoding.
 
-## Runtimes and callbacks
-
-- `src/bin.ts` runs one program with the Bun runtime's main runner, error reporting disabled, and a teardown that sets the exit code. Don't add a second runner, a `ManagedRuntime`, or `Effect.runPromise` inside Effect code: it drops the context, interruption, and log annotations.
-- At a non-Effect boundary (a callback, an adapter that wants promises), capture `yield* Effect.context<R>()` and use `Effect.runPromiseWith(context)`, `Effect.runForkWith(context)`, or `Stream.toAsyncIterableWith(context)`. A forked program ends in `Effect.catchCause(... Effect.logError ...)`: a failing forked fiber prints nothing otherwise.
-- `Layer.effect` handles scoped constructors (finalizers register on the layer's scope); there is no `Layer.scoped`. A resource that must be released on Ctrl+C (a temp file, a terminal mode) is `Effect.acquireRelease` inside `Effect.scoped`.
+runInvocation is the sole promise runner. Interrupted runtime exits map to 130. Scopes close on every outcome. Do not introduce another runtime in a callback; capture runtime context at a genuine foreign callback boundary when a later feature needs it.
 
 ## Logging
 
-`Effect.logInfo` / `logWarning` / `logError` with annotations, never `console.*` (denied in `src/`). `src/logging.ts` formats records: pretty or JSON lines on stderr, JSON lines appended to `{{env_prefix}}_LOG_FILE` (`logs/cli.jsonl` under `bun run dev`), never stdout. Annotation keys become top-level JSON keys, so use stable camelCase names and don't reuse `time`, `level`, `msg`, `detail`, or `error`. `main` logs one `command` line per invocation (command, flag names, exitCode, durationMs, runId, errorTag); don't add per-command access logging. A failed file sink warns once and never fails the command. Never log prompt or reply text, argument or flag values, or the key, and don't log whole third-party error objects: pass the error as a log argument and `logging.ts` keeps only its name, message, status, and stack.
+Use Effect logging with fixed message names and scalar annotations. logging.ts creates UTC records with lowercase level, msg and detail, protects reserved fields and redacts secret-looking keys and object values. It appends JSONL to {{env_prefix}}_LOG_FILE when set, with every log on stderr too; --json forces JSON stderr. A sink failure cannot fail the command.
+
+New network integrations own their timeout and retry policy: at most two retries with jittered backoff, retryable failures only, never after streaming output. Time-based programs use Effect Clock so TestClock can drive them.

@@ -96,13 +96,7 @@ test("adding CLI chat supplies a helper accepted by the prescribed base formatte
     agents: ["codex"],
     fragments: ["openrouter-chat-cli"],
   });
-  const config = join(home, "biome.json");
-  writeFileSync(
-    config,
-    JSON.stringify({
-      formatter: { indentStyle: "space", indentWidth: 2, lineWidth: 100 },
-    }),
-  );
+  const config = join(project, "biome.json");
   const file = join(project, "scripts/lib/stub-pid.ts");
   const source = readFileSync(file, "utf8");
   const formatted = spawnSync(
@@ -126,10 +120,6 @@ test("absent optional hook tests cannot set the first test milestone", async () 
     without: ["git-hooks"],
     env,
   });
-  writeFileSync(
-    join(project, "package.json"),
-    JSON.stringify({ name: "qa-project", private: true }),
-  );
   const before = readManifestAt(project);
   const result = await runCli(["verify", "--only", "harness-hooks", "--json"], {
     home,
@@ -160,30 +150,28 @@ test("real passing tests still set the test-command milestone without changing t
     env,
   });
   const runner = join(import.meta.dirname, "../node_modules/vitest/vitest.mjs");
+  const packageFile = join(project, "package.json");
+  const pkg = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
+    JSON.parse(readFileSync(packageFile, "utf8")),
+  );
+  const scripts = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.String))(
+    pkg.scripts,
+  );
   writeFileSync(
-    join(project, "package.json"),
+    packageFile,
     JSON.stringify({
-      name: "qa-project",
-      private: true,
-      type: "module",
-      scripts: { test: `node ${JSON.stringify(runner)} run tests/health.test.ts --maxWorkers 1` },
+      ...pkg,
+      scripts: {
+        ...scripts,
+        test: `node ${JSON.stringify(runner)} run --config tests/milestone.config.ts app/.server/logging.test.ts --maxWorkers 1`,
+      },
     }),
   );
   symlinkSync(join(import.meta.dirname, "../node_modules"), join(project, "node_modules"), "dir");
-  mkdirSync(join(project, "tests"));
+  // Exercise shipped behavior with this checkout's tools, without React/Vite dependencies.
   writeFileSync(
-    join(project, "tests/health.test.ts"),
-    `import { createServer } from "node:http";
-import { test, expect } from "vitest";
-test("HTTP health response is observable", async () => {
-  const server = createServer((_, response) => response.end(JSON.stringify({ status: "ok" })));
-  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-  try {
-    const response = await fetch("http://127.0.0.1:" + server.address().port);
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "ok" });
-  } finally { await new Promise(resolve => server.close(resolve)); }
-});\n`,
+    join(project, "tests/milestone.config.ts"),
+    'export default { test: { environment: "node" } };\n',
   );
   const before = readManifestAt(project);
   const result = await runCli(["verify", "--only", "test", "--json"], {

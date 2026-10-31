@@ -30,6 +30,8 @@ test.each(cases)("$stack ships tooling tests for $agent", async ({ stack, agent 
     [
       join(result.project, "node_modules/vitest/vitest.mjs"),
       "run",
+      "--config",
+      join(import.meta.dirname, "fixtures/native-adapters/vitest-hooks.config.ts"),
       "tests/hooks/dev-logs.test.ts",
       "-t",
       "outputRecord",

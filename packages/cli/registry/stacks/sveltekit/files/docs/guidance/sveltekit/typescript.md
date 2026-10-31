@@ -7,8 +7,8 @@ Only the things that are easy to get wrong here.
 - `tsconfig.json` extends the config SvelteKit generates on `svelte-kit sync`. Keep the `extends` and add strictness flags (`noUncheckedIndexedAccess`) and include entries; don't set `paths` or `rootDirs` yourself, since the kit owns them and warns when they're overridden.
 - `bun run typecheck` syncs first, then runs `svelte-check`, which checks `.svelte` files as well as `.ts`. Plain `tsc` skips `.svelte` files, so its silence proves nothing about components.
 - Route modules import their types from `./$types`, which sync generates per route. A missing `$types` module means sync hasn't run since the route changed.
-- Keep the TypeScript major the generator chose. svelte-check uses TypeScript's JavaScript API; check its peer range before raising TypeScript.
-- Imports use the generator's lib alias or a relative path. Check the installed generator's output for the alias name instead of writing one from memory.
+- Resolve the newest TypeScript inside SvelteKit, svelte-check and typescript-eslint's peer ranges. These tools need the compiler's JavaScript API.
+- Imports use the shipped package's `#lib/*` mapping or a relative path.
 
 ## Places strict mode still gives you `any`
 

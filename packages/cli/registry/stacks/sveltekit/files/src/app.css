@@ -1,0 +1,19 @@
+:root {
+	font-family: system-ui, sans-serif;
+	color: #242424;
+	background: #fafafa;
+}
+main {
+	max-width: 42rem;
+	margin: 3rem auto;
+	padding: 0 1rem;
+}
+form {
+	display: grid;
+	gap: 0.75rem;
+}
+input,
+button {
+	font: inherit;
+	padding: 0.5rem;
+}

@@ -43,62 +43,45 @@ commands:
   prepare: Install project hooks outside CI
 ---
 
-# TypeScript CLI with Effect
+## What stacks wrote
 
-Read `docs/guidance/typescript-cli/index.md` before implementation; it supplies the shared guidance for every selected agent.
-
-Implement `docs/acceptance/typescript-cli.md`; verify separately runs its config/logging regression, asserting emitted records and file/env/default precedence rather than only accepting a logLevel field.
-
-One CLI compiled with `bun build --compile`. Effect owns commands, services, errors, configuration, and logging; Effect's CLI module defines the command tree. `doctor` and `--version` are the proving slice. The base has no model provider, TUI, installer, update command, or release workflow.
-
-## Layout
-
-`src/bin.ts` is the Bun entry and `src/main.ts` is platform-free invocation logic. `cli.ts` holds commands; `commands/doctor.ts` is thin; `core/` holds programs; `services/` holds Output and Host; `config.ts`, `errors.ts`, `logging.ts`, `runtime.ts`, and `version.ts` own those boundaries. Schemas live in `src/schemas/`. `tests/helpers/cli.ts` exports `runCli`, `ndjson`, and temporary-directory helpers. Vitest tests live in `tests/`, Bun binary checks in `e2e/`. Shipped development and preparation scripts live in `scripts/`; build.ts is written against the installed Bun API.
+A Bun-compiled CLI with one `doctor` command: `src/bin.ts` supplies the platform, `main.ts` owns the output/error boundary, and `config.ts`, `logging.ts`, `services/` and `schemas/` carry the shared contracts. The `greeting` setting proves file/env/default precedence through human and JSON results. Source tests, config/logging regressions, compiled-binary tests, tool configs and reference docs ship with it; read the code before extending it.
 
 ## Setup
 
-Create package metadata, TypeScript/Biome/Vitest configuration, and scripts from the requirements below. Record the installed Bun packageManager and current Node LTS, and pin `@types/node` to the `.node-version` major (a bare add picks the newest). Install compatible Effect packages together and check peer ranges. The CLI module ships inside the `effect` package (find its path in the exports map); never add the separate Effect 3 CLI package. Check imports against the installed exports and type declarations and record them in the generated Effect skill. Implement `doctor` through the real command parser, services, output/error boundary, and logging; implement `--version` from package metadata. Doctor reports version, platform, whether compiled, paths, and config errors without failing on a broken optional config file. Test human and JSON output, then compile the binary and exercise it with no user credentials or configuration.
+1. Add every declared app and dev dependency with `bun add` and `bun add -d`, resolving current compatible releases together. Check Effect's current exports and peer ranges; its CLI module is part of `effect`, never the separate legacy CLI package. Select current Node LTS and use its major for `@types/node`.
+2. Run `bun run check`. Where the installed releases reject a shipped API or config key, update the shipped code or config to that release while preserving every check and lint rule. No generator is needed.
+3. Record Node LTS in `.node-version` and `engines.node`, and installed Bun in `packageManager`. Record necessary compatibility workarounds and their removal conditions under Build workarounds in AGENTS.md.
+4. Fill README's markers with the actual commands, config defaults and architecture. Fill AGENTS.md and the selected harness docs before adding features. Follow the selected fragments, then run `stacks verify` until green.
 
-Fill README and AGENTS with the base commands and architecture. The Claude adapter requires claude-harness because stack guards import its helpers. Add app and distribution features only when their fragments are selected.
+Read `docs/guidance/typescript-cli/index.md` before changing the corresponding code. The config/logging acceptance matrix in `docs/acceptance/typescript-cli.md` is implemented by `tests/config-logging.test.ts` and runs separately in verify.
 
-## Runtime, config, and errors
+## Layout and conventions
 
-Each service is a namespaced Context.Service class with static layers; dependencies are captured in constructors, and a layer build never reads configuration that can fail. AppLayer combines application services; BunServices and Host enter only through bin.ts, NodeServices through tests. One invocation builds one layer and runs one program. Caches live in that layer, not global state. Dispose scopes on every outcome. Capture runtime context at non-Effect callbacks and observe forked failures; do not construct extra runtimes. Non-streaming calls to a third party use `Effect.retry` with a jittered exponential schedule capped at two retries, plus `Effect.timeoutOrElse`, and retry only errors marked retryable; the HTTP client has no retries of its own, so there is one retry layer.
+- New commands follow `commands/doctor.ts`: thin Effect CLI handlers calling programs in `core/`, with schemas in `schemas/` and results through Output. Add them to `cli.ts`.
+- Services are namespaced Context.Service classes with static layers. Yield dependencies in constructors; call lazy config only inside the methods that need it. State belongs to one invocation. `runtime.ts` composes AppLayer; only `bin.ts` supplies BunServices, Host and process writers, while tests supply NodeServices.
+- `config.ts` layers environment over a closed optional config file. New settings get schema validation, a precedence test, and entries in `.env.example` and README. Paths and logging stay usable when application config is broken; doctor reports the problem.
+- Extend `errors.ts` with a tagged class and an exhaustive error-table row. Preserve stable exit codes and safe messages; defects remain generic failures. Add upstream/retry policies only with an upstream integration.
+- Output buffers stdout until success. Results, help and version belong there; failures leave it empty and render once on stderr. `--json` returns one JSON value, with a final stderr error envelope on failure. JSON logs on stderr precede that envelope. EPIPE exits quietly.
+- Use Effect logging with scalar annotations. `logging.ts` owns UTC JSON records, reserved names, secret-key redaction, and the best-effort file sink. Never log argument values, payloads, credentials or raw third-party errors.
+- Keep core code platform-free. Both the shipped Grit plugin and Claude's guards enforce Bun, environment, schema and stdout boundaries. Keep those rules when adapting tool configs.
 
-Read env only in config.ts (and the entry's required environment normalization), with Effect Config and empty strings treated as absent. AppConfig is lazy, cached, and layers env over a closed schema for `$XDG_CONFIG_HOME/<slug>/config.json`. Parse it only inside commands that need it, so help/version/doctor survive invalid configuration. Read paths, output, and logging settings independently; an invalid log level falls back safely. New settings go in config, stack-owned `.env.example`, and README. Use prefixed LOG_FORMAT, LOG_FILE, and DATA_DIR variables; keep development data under `.dev/data`.
+## Testing and commands
 
-Tagged errors carry fixed safe messages and explicit retryability. Map every tag exhaustively to an exit code: usage/bad input/not found 2, not configured/invalid config 3, upstream unavailable 4, invalid model output 5, permission denied 6, interrupted 130, defect 1. Keep mappings stable and test them. Defects log their cause once at main and produce a generic safe error; never catch them just to report success.
+`src/*.test.ts` tests pure contracts; `tests/cli.test.ts` drives the real parser and invocation boundary with temporary files and real Node services. `tests/config-logging.test.ts` asserts emitted and suppressed records, precedence, sink failure and isolation. `e2e/binary.test.ts` starts the compiled artifact with a clean environment and proves file-only logging, env overrides, safe errors and disabled dotenv autoload. A new command extends the argv-level and binary contracts. No mocks of project services.
 
-## Output and invocation contract
-
-Output is the only application writer. Stdout carries results only, stderr carries notes/errors/logs. Human commands print readable results; `--json` emits one machine-readable result or a documented NDJSON stream for streaming commands added later. On failure stdout remains empty; stderr has a safe human diagnostic or one JSON `{ error: { tag, message, retryable } }` body. Under `--json`, stderr logs are JSON lines too and the error body is the last stderr line. Parse errors, help, and version obey the same contract; detect --json before parsing can fail. No ANSI on nonterminal stdout. A closed pipe (EPIPE) ends quietly as a BrokenPipe interruption, not a defect.
-
-The command framework's Console may print usage errors to stdout. Capture its output and flush to stdout only for successful help/version outcomes; render failures through main on stderr. `Command.runWith(root, { version, renderErrors: false })(argv)` is the per-argv entry point, so tests inject argv. A bare root command with subcommands needs a handler failing with `CliError.ShowHelp` with empty `errors`: help, exit 0. Disable duplicate runtime error reporting and replace loggers at the outer boundary. Bin supplies stdout/stderr writers, Host (platform, executable path, compiled flag), and the process exit. Core code uses Effect FileSystem/Path/Stdio/HttpClient, never Bun globals; all ordinary programs run unchanged under Node tests. Optional platform adapters declare their boundary explicitly.
-
-## Logging and dev script
-
-A custom logger converts input to a testable LogEntry, then emits UTC `time`, lowercase `level`, `msg`, annotations, `detail`, and an allowlisted cause (name/message/status/stack). Avoid collisions with reserved fields. Never log prompt or reply text, argument or flag values, or secrets such as API keys, and never whole third-party error objects. All logs go to stderr; optionally append JSONL to the configured file. A failed sink warns once and cannot fail the command. Log one `command` record with duration and outcome; annotate child logs with an invocation id. Respect NO_COLOR and keep JSON free of ANSI.
-
-The shipped dev script runs bin.ts, defaults LOG_LEVEL to info, appends logs/cli.jsonl, copies noninteractive stderr to logs/cli.log, rotates oversized logs, and uses checkout-local data. Preserve terminal behavior whenever stdin/stdout are terminals; interactive adapters may own stderr. Forward arguments, signals, and exit status. The session hook reports Bun version mismatch and only newly appended warning/error logs.
-
-## Tool configuration and tests
-
-Biome starts from current generated config with recommended checks, import/export type discipline, organized imports, two spaces, double quotes, width 100, VCS ignores, and the base boundaries Grit plugin. Current Biome also formats Markdown, so scope `files.includes` to code and JSON and leave docs alone. Strict TypeScript includes unchecked index access, verbatim modules, no emit, and explicit Bun/Node-compatible types. Include src, tests, e2e, scripts, and adapter hooks. Check Grit against the installed Biome syntax and preserve each rule when adapting it.
-
-Vitest runs on Node and excludes e2e. Its setup clears credentials and uses temporary HOME/XDG/config/data directories; it does not read user .env. `runCli` invokes the real command tree with injected Output/Host/platform layers and captures status/stdout/stderr; no module mocks. Test help/version, unknown flags, missing arguments, human/JSON doctor, invalid config, error mappings, log shape, sink failure, runtime isolation, and stdout remaining empty on failure. Include shipped hook tests when the Claude adapter exists.
-
-`test` calls test:unit; `test:unit` is Vitest run, watch and coverage use that runner explicitly. Bun is reserved for `bun test ./e2e` after a host build. Keep its configuration/preload isolated so it cannot accidentally collect Vitest tests or load real credentials. Binary tests spawn the artifact with an environment built from scratch and verify version, compiled doctor, JSON shape, usage errors, and exit codes. These checks must pass without optional app or release fragments.
-
-Build with Bun compile, minification, linked sourcemap removed from final output, and dotenv/bunfig autoload disabled; write dist/<slug>. Version comes from package metadata bundled into the artifact. `prepare` runs the shipped helper; `check` runs lint, typecheck, test, and e2e. Clean only generated project output.
+The shipped package scripts are the command contract: `dev`, `build`, `lint`, `format`, `typecheck`, `test`, `test:unit`, `test:watch`, `coverage`, `e2e`, `check`, `clean`, `prepare`. Vitest runs on Node; Bun runs only scoped compiled-binary tests. `scripts/dev.ts` keeps logs under `logs/` and data under `.dev/data`; it preserves terminal behavior, arguments and status.
 
 <!-- stacks:when with=git-hooks -->
 The shipped `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install` (skipped when `CI` is set, lefthook is missing, or `lefthook.yml` doesn't exist yet, and non-fatal when it fails, for example outside a git checkout), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->
-CI uses Bun's packageManager and Node's .node-version, installs frozen dependencies, then lint/typecheck/coverage and binary e2e. Upload logs and coverage on failure. Optional apps and release fragments contribute their own extra checks.
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and binary e2e. Upload logs and coverage on failure; keep optional app/release checks separate.
 <!-- stacks:end -->
 
 ## Gotchas
 
-Never force Vitest onto Bun or run unscoped `bun test`; the runner choice is part of the architecture. Bun may load .env in source commands, so isolate test environment before loading application code. A compiled binary must not autoload local config files. Check installed Effect APIs, TypeScript options, and Bun compile options rather than relying on old examples. Record every necessary workaround and its removal condition: if `Runtime.Teardown` is still declared over `Exit<E, A>` while `Exit` is `Exit<A, E>`, the cast in bin.ts goes under Build workarounds. The Effect service model remains mandatory even when its optional testing fragment is excluded.
+Never force Vitest onto Bun or run unscoped `bun test`. Bun source commands can autoload .env; both runners load the shipped isolation helper before application code, and binary tests construct env from scratch. The compiled build explicitly disables dotenv and bunfig autoload.
+
+Check installed Effect APIs, TypeScript options and Bun compile flags before adapting them. The entry uses the promise runner and maps interrupted exits to 130, avoiding runtime teardown type assertions. Dispose scopes on every outcome and never start another runtime inside Effect code. The Effect service model stays mandatory even without its testing fragment.

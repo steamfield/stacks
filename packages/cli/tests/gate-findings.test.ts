@@ -31,21 +31,30 @@ test("go-cli gives a module path to fall back on instead of stopping to ask for 
   expect(text).toMatch(/If neither exists, keep the bare `<project-slug>`/);
 });
 
-test("astro-blog names a create-astro command whose --yes reaches create-astro", async () => {
+test("astro-blog ships the generator output without a create-astro invocation", async () => {
   const text = await brief("astro-blog");
   // `bun create astro -y`: bun takes -y itself and fails with "Invalid Argument '-y'".
   expect(text).not.toContain("`bun create astro`");
-  expect(text).toContain("`bunx create-astro@latest`");
+  expect(text).not.toContain("bunx create-astro");
+  expect(JSON.parse(await astroFile("package.json")).name).toBe("app");
+  expect(await astroFile("astro.config.mjs")).toContain("integrations:");
 });
 
 test("astro-blog says tests importing astro:content run in the node environment", async () => {
-  expect(await brief("astro-blog")).toMatch(/astro:content[^\n]*@vitest-environment node/);
+  expect(await astroFile("src/content/schema.test.ts")).toMatch(/^\/\/ @vitest-environment node/);
+  expect(await astroFile("docs/DEVELOPMENT.md")).toContain("astro:content");
 });
 
 test.each(["astro-blog", "python-react"])(
   "%s keeps Prettier off .stacks/ and .claude/",
   async (stack) => {
-    expect(await brief(stack)).toMatch(/`\.prettierignore`[^\n]*`\.stacks\/`[^\n]*`\.claude\/`/);
+    if (stack === "astro-blog") {
+      const ignored = await astroFile(".prettierignore");
+      expect(ignored).toContain(".stacks/");
+      expect(ignored).toContain(".claude/");
+    } else {
+      expect(await brief(stack)).toMatch(/`\.prettierignore`[^\n]*`\.stacks\/`[^\n]*`\.claude\/`/);
+    }
   },
 );
 
@@ -71,7 +80,10 @@ test("agent-ops says a formatter alone doesn't count as the linter lint-on-write
 test("astro-blog lists Testing Library's dom peer and the test types tsconfig needs", async () => {
   const text = await brief("astro-blog");
   expect(text).toContain(" @testing-library/dom,");
-  expect(text).toMatch(/tsconfig\.json[^\n]*`vitest\/globals`[^\n]*`@testing-library\/jest-dom`/);
+  expect(JSON.parse(await astroFile("tsconfig.json")).compilerOptions.types).toEqual([
+    "vitest/globals",
+    "@testing-library/jest-dom",
+  ]);
 });
 
 test("go-cli's main passes the version variables to cli.Execute itself", () => {
@@ -113,6 +125,11 @@ async function scaffold(stack: string) {
   return join(home.path, "app");
 }
 const dirs: ReturnType<typeof tempDir>[] = [];
+let astroProject: Promise<string> | undefined;
+async function astroFile(path: string) {
+  astroProject ??= scaffold("astro-blog");
+  return readFileSync(join(await astroProject, path), "utf8");
+}
 afterAll(() => {
   for (const dir of dirs.splice(0)) dir.cleanup();
 });
@@ -161,19 +178,19 @@ test("python-react's Makefile runs dump_openapi as the module the brief names", 
 });
 
 test("astro-blog keeps astro:content out of the post logic the unit tests cover", async () => {
-  expect(await brief("astro-blog")).toMatch(
-    /src\/lib\/collection\.ts +the only `astro:content` import/,
-  );
+  expect(await astroFile("src/lib/posts.ts")).not.toContain("astro:content");
+  expect(await astroFile("src/lib/collection.ts")).toContain('from "astro:content"');
 });
 
 test("astro-blog builds canonical URLs without file-style output's .html", async () => {
-  expect(await brief("astro-blog")).toContain(
-    "never `Astro.url.pathname`, which ends in `.html` under file-style output",
-  );
+  const layout = await astroFile("src/layouts/BaseLayout.astro");
+  expect(layout).toContain("new URL(path, site.url)");
+  expect(layout).not.toContain("Astro.url.pathname");
+  expect(await astroFile("src/layouts/PostLayout.astro")).toContain("slugFor(post)");
 });
 
 test("astro-blog's vitest.config.ts references vitest's config types", async () => {
-  expect(await brief("astro-blog")).toContain('`/// <reference types="vitest/config" />`');
+  expect(await astroFile("vitest.config.ts")).toContain('/// <reference types="vitest/config" />');
 });
 
 test("CI triggers on the branch the new repo is actually on, not an assumed main", async () => {
@@ -183,9 +200,14 @@ test("CI triggers on the branch the new repo is actually on, not an assumed main
 });
 
 test("astro-blog names the pure post functions in posts.ts and the getters in collection.ts", async () => {
-  const text = await brief("astro-blog");
-  expect(text).toMatch(/`lib\/posts\.ts`[^\n]*`publishedPosts\(entries\)`/);
-  expect(text).toMatch(/`lib\/collection\.ts`[^\n]*`getPublishedPosts\(\)`/);
+  expect(await astroFile("src/lib/posts.ts")).toMatch(/export function publishedPosts/);
+  expect(await astroFile("src/lib/posts.ts")).toMatch(/export function routablePosts/);
+  expect(await astroFile("src/lib/collection.ts")).toMatch(
+    /export async function getPublishedPosts\(\)/,
+  );
+  expect(await astroFile("src/lib/collection.ts")).toMatch(
+    /export async function getRoutablePosts\(\)/,
+  );
 });
 
 test("astro-blog allows make new-article, so the agent needn't edit .claude/settings.json", async () => {

@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "astro-fullstack",
   "source": {
-    "digest": "sha256:33c768e15d711f1340d17ec8bb4396e4dbc798dd12f664d581ac0a2092a49899",
+    "digest": "sha256:96e76afaa38db58c756f6f78ade755d3213e7dd39c668d12d9f09548217488f7",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A static website with interactive components and a separate HTTP API sharing one typed contract.",
   "description": "Start with pages built ahead of time and add React islands where the page needs fresh API data. A Bun workspace keeps the Astro site, Node API and shared Effect HTTP contract separate, while the typed client catches contract changes on both sides. The base proves the connection with a health-status island. Product resources, authentication and storage are work you add after that slice.",

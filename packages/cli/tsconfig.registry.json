@@ -18,5 +18,34 @@
     ],
     "allowImportingTsExtensions": true
   },
-  "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"]
+  "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
+  "exclude": [
+    // Astro/React and browser dependencies are checked in the fresh blog scaffold.
+    "registry/stacks/astro-blog/files/*.ts",
+    "registry/stacks/astro-blog/files/src",
+    "registry/stacks/astro-blog/files/tests",
+    // Astro/React/Vite and browser types are installed only in the fresh scaffold.
+    // Keep apps/api, packages/contract, scripts and hook tests checked here.
+    "registry/stacks/astro-fullstack/files/apps/web",
+    // Only the Bun entry imports @effect/platform-bun (not installed in this checkout).
+    "registry/stacks/typescript-cli/files/src/bin.ts",
+    // React Router/React/Vite and DOM types belong to the scaffold's dependencies.
+    // Keep its scripts/ and adapter hooks checked by this project.
+    "registry/stacks/react-router/files/*.ts",
+    "registry/stacks/react-router/files/app",
+    "registry/stacks/react-router/files/tests",
+    "registry/stacks/react-router/files/e2e",
+    // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
+    "registry/stacks/nextjs/files/*.ts",
+    "registry/stacks/nextjs/files/next-env.d.ts",
+    "registry/stacks/nextjs/files/src",
+    "registry/stacks/nextjs/files/tests",
+    "registry/stacks/nextjs/files/e2e",
+    // SvelteKit's $app/*, ./$types and browser dependencies resolve only in the scaffold.
+    // Keep prepare/e2e scripts and adapter hook tests checked here.
+    "registry/stacks/sveltekit/files/*.ts",
+    "registry/stacks/sveltekit/files/src",
+    "registry/stacks/sveltekit/files/tests",
+    "registry/stacks/sveltekit/files/e2e"
+  ]
 }

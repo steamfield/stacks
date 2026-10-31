@@ -1,0 +1,27 @@
+{
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "app/.server/**/*.ts",
+    ".react-router/types/**/*",
+    ".claude/hooks/**/*.ts"
+  ],
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client", "@testing-library/jest-dom"],
+    "rootDirs": [".", "./.react-router/types"],
+    "paths": { "~/*": ["./app/*", "./.react-router/types/app/*"] },
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

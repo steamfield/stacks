@@ -90,6 +90,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `go-htmx` | Server-rendered Go web app: templ components generated through `go tool`, a vendored htmx, forms validated on the server with inline errors, HTML and htmx-header tests | |
 | `go-cli` | Go CLI: cobra, viper config, structured errors, human and JSON output, golangci-lint | |
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
+| `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
 | `python-api` | FastAPI service managed with uv: in-process pytest, structured request logs, one error envelope, an OpenAPI drift check | |
@@ -97,11 +98,13 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `python-react` | FastAPI backend and a React SPA talking through a client generated from the OpenAPI spec | |
 | `react-router` | React Router framework mode with SSR, Effect services, typed HTTP errors, Tailwind and shadcn | `openrouter-chat` |
 | `react-vite` | Browser-only React app on Vite, built to static files: React Router, TanStack Query over a zod-checked fetch client, Vitest with MSW and Playwright | |
+| `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |
 | `rust-cli` | Rust CLI: clap, layered TOML config, coded errors with exit statuses, human and JSON output, strict clippy, binary tests | |
 | `sveltekit` | SvelteKit on the Node adapter: server load functions, zod-validated form actions, svelte-check, Vitest and Playwright | |
 | `tauri-react` | Tauri desktop app: Rust crates behind a thin shell, typed IPC, a React frontend with a mock transport | |
 | `typescript-api` | Node HTTP API on Effect's HttpApi: REST resource conventions, one error-status table, request logs, a core that also runs as a fetch handler | |
 | `typescript-cli` | Bun-compiled TypeScript CLI on Effect with typed errors, safe output and logs | `openrouter-chat-cli` |
+| `typescript-library` | TypeScript npm package: ESM and bundled declarations from tsdown, publint and Are the Types Wrong, a packed-tarball consumer test | |
 
 A stack pulls in default fragments (CI, git hooks, agent guardrails and so on); `stacks list` shows which, and `--without <fragment>` leaves one out. Apps are fragments that add a working feature on top of a stack. You can write your own stacks and fragments: see [Authoring a stack or fragment](docs/authoring.md).
 

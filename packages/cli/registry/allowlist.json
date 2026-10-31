@@ -4,6 +4,7 @@
   "names": {
     "npm": [
       "@ai-sdk/react",
+      "@arethetypeswrong/cli",
       "@astrojs/check",
       "@astrojs/mdx",
       "@astrojs/react",
@@ -23,6 +24,7 @@
       "@faker-js/faker",
       "@fontsource-variable/inter",
       "@fontsource-variable/jetbrains-mono",
+      "@hono/node-server",
       "@hono/zod-openapi",
       "@openrouter/ai-sdk-provider",
       "@openrouter/sdk",
@@ -91,12 +93,15 @@
       "next",
       "orval",
       "pg",
+      "pino",
+      "pino-pretty",
       "postcss",
       "postgres",
       "posthog-js",
       "prettier",
       "prettier-plugin-astro",
       "prettier-plugin-svelte",
+      "publint",
       "react",
       "react-dom",
       "react-native",
@@ -113,6 +118,7 @@
       "svelte-check",
       "tailwind-merge",
       "tailwindcss",
+      "tsdown",
       "typescript",
       "typescript-eslint",
       "vite",
@@ -166,6 +172,7 @@
     "crates": [
       "anyhow",
       "assert_cmd",
+      "axum",
       "clap",
       "serde",
       "serde_json",
@@ -178,6 +185,8 @@
       "thiserror",
       "tokio",
       "toml",
+      "tower",
+      "tower-http",
       "tracing",
       "tracing-subscriber"
     ]

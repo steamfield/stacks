@@ -1,0 +1,60 @@
+# {{project_name}}
+
+<!-- stacks:fill: one sentence on what the package does and who calls it -->
+
+## Install
+
+```sh
+npm install {{project_slug}}
+```
+
+ESM only: load it with `import`, or with `require()` on a Node version that loads ES modules synchronously. Types are included.
+
+## API
+
+Every export is listed here. A change to this list is a release decision: a new export is a minor release, a removed or renamed one is a major release.
+
+### `slugify(input, options?)`
+
+Turns text into a URL-safe slug. Accents are dropped and anything that isn't a letter or digit separates words.
+
+```ts
+import { slugify } from "{{project_slug}}";
+
+slugify("Crème Brûlée, 2 ways!"); // "creme-brulee-2-ways"
+slugify("Hello World", { separator: "_", lowercase: false }); // "Hello_World"
+```
+
+`SlugifyOptions`:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `separator` | `"-"` | One character, not a letter, digit or space, put between words |
+| `maxLength` | `80` | Longest slug returned, cut at a word boundary where possible |
+| `lowercase` | `true` | Lowercase the result |
+
+Throws `LibraryError` (below). An unknown option key is an error, not ignored.
+
+### `safeSlugify(input, options?)`
+
+The same, returning `Result<string>`: `{ ok: true, value }` or `{ ok: false, error }`, where `error` is the `LibraryError` `slugify` would throw. Anything else still throws.
+
+### `LibraryError` and `isLibraryError(value)`
+
+The one error the package throws on purpose. `error.code` is a `LibraryErrorCode`, `error.field` names the argument or option at fault, never its value.
+
+| Code | When |
+| --- | --- |
+| `invalid_input` | `input` isn't a string |
+| `invalid_option` | an option has a bad value or an unknown key (`field` names it) |
+| `empty_result` | the input has no letters or digits |
+
+Use `isLibraryError(error)` rather than `instanceof` when an app may have two copies of the package installed.
+
+## Development
+
+<!-- stacks:fill: requirements (Bun, Node), bun install, the package scripts (build, lint, lint:package, typecheck, test, test:consumer, coverage, check) with a single-file test example, and the toolchain versions recorded at setup -->
+
+## Releasing
+
+<!-- stacks:fill: how a release is cut (version bump, changelog, who runs npm publish and from where); the package stays "private" until the maintainer decides to publish -->

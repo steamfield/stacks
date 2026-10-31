@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "hono-api",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A plain TypeScript JSON API on Hono, served by Node, with zod-checked routes that publish an OpenAPI document.",
+  "description": "Start a JSON API in plain TypeScript with Hono running on Node. Each route is declared once with zod schemas, which both validate requests and generate the OpenAPI document. The starter covers validated settings, one error envelope with request ids, pino JSON logs that leave out bodies and secrets, a body size limit, clean shutdown, and an in-memory notes resource that shows list, get and create. Vitest calls the app in process and over a real port. Storage, accounts and deployment are left for you to add.",
+  "seoDescription": "A Hono JSON API on Node with zod validation, generated OpenAPI, pino logs and Vitest contract tests.",
+  "projectExamples": [
+    {
+      "title": "Backend for a small web or mobile app",
+      "description": "An illustrative JSON API a front end calls for its records, documented by its own OpenAPI file. Add a database and sign-in before it holds real users' data."
+    },
+    {
+      "title": "Internal service with a typed contract",
+      "description": "An illustrative service other teams call from their own code, generating clients from its OpenAPI document. Ship it as a container with the optional Docker fragment.",
+      "withFragments": [
+        "docker-deploy"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter server written in TypeScript that answers requests from apps with JSON data, built on Hono, a small and fast web toolkit, and run by Node.",
+    "goodAt": [
+      "Backends that web or phone apps call for data",
+      "Checking every request and describing the API for other developers",
+      "Logs that let you follow one failed request"
+    ],
+    "notGoodAt": [
+      "Web pages with screens; pick a web app stack such as Next.js.",
+      "Saving data for good; notes stay in memory until you add a database."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "start a hono api on node",
+    "rest api on hono without effect",
+    "json backend with zod validation and openapi docs",
+    "lightweight express alternative for node"
+  ],
+  "useCases": [
+    "REST backends",
+    "JSON services for web and mobile clients"
+  ],
+  "synonyms": [
+    "Hono",
+    "Express alternative",
+    "Fastify alternative",
+    "zod-openapi",
+    "OpenAPI",
+    "Swagger",
+    "pino",
+    "Node.js",
+    "web standards fetch handler"
+  ],
+  "goodFor": [
+    "routes and validation declared once",
+    "contract tests without a running server"
+  ],
+  "notFor": [
+    "graphical interfaces"
+  ],
+  "caveats": [
+    "Notes live in memory and are lost on restart until you add a database.",
+    "Runs on Node; Bun and Workers hosts aren't set up."
+  ]
+}

@@ -1,0 +1,54 @@
+// API boundaries: Node stays in the entry and server modules, every route goes through
+// createRoute, and logs go through pino.
+language js
+
+or {
+  or {
+    JsModuleSource() as $src,
+    `import($src)`
+  } where {
+    $filename <: r".*/src/.*",
+    or {
+      and {
+        $src <: r"[\"'](?:node:[^\"']+|bun|bun:[^\"']*|@hono/node-server[^\"']*)[\"']",
+        $filename <: not r".*/src/(?:main|server)\.ts",
+        register_diagnostic(span=$src, message="Node and the Node server belong in src/server.ts and src/main.ts; keep the app a platform-free fetch handler.")
+      },
+      and {
+        $src <: r"[\"']zod(?:/[^\"']*)?[\"']",
+        register_diagnostic(span=$src, message="Import z from @hono/zod-openapi, so schemas carry .openapi() metadata and share one zod instance.")
+      }
+    }
+  },
+  or {
+    `process.$x`,
+    `globalThis.process`
+  } as $p where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/main\.ts",
+    register_diagnostic(span=$p, message="Only src/main.ts reads process (env, signals); pass parsed config down instead.")
+  },
+  `console.$m($args)` as $c where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$c, message="Log with the pino logger from src/logging.ts, never console.")
+  },
+  `new OpenAPIHono($args)` as $n where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/router\.ts",
+    register_diagnostic(span=$n, message="Build routers with createRouter() from src/router.ts; its validation hook turns bad input into the error envelope.")
+  },
+  `$app.$m($path, $handler)` as $r where {
+    $m <: r"get|post|put|patch|delete|all|on",
+    $path <: r"[\"'`]/.*",
+    $filename <: r".*/src/routes/.*",
+    register_diagnostic(span=$r, message="Declare the route with createRoute() and register it with .openapi(), so validation and /openapi.json can't drift.")
+  },
+  or {
+    `$c.req.json()`,
+    `$c.req.parseBody($args)`,
+    `$c.req.text()`
+  } as $b where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$b, message="Declare the body in createRoute() and read it with c.req.valid(); the validator parses it and answers bad input with the error envelope.")
+  }
+}

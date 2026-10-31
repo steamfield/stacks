@@ -34,9 +34,15 @@
       "Graphical apps with windows and buttons; choose a web or desktop stack."
     ]
   },
-  "platforms": ["cli"],
-  "productKinds": ["cli-tool"],
-  "languages": ["rust"],
+  "platforms": [
+    "cli"
+  ],
+  "productKinds": [
+    "cli-tool"
+  ],
+  "languages": [
+    "rust"
+  ],
   "requests": [
     "start a new Rust utility with clap subcommands",
     "a fast single binary with subcommands and a TOML config file",
@@ -44,8 +50,22 @@
     "Rust program that prints JSON for other scripts to read",
     "replace a slow shell script with a compiled Rust program"
   ],
-  "useCases": ["command-line automation", "configurable utilities"],
-  "synonyms": ["clap", "cargo", "single binary", "subcommands"],
-  "goodFor": ["configuration precedence", "exit codes", "integration tests against the binary"],
-  "notFor": ["a terminal user interface"]
+  "useCases": [
+    "command-line automation",
+    "configurable utilities"
+  ],
+  "synonyms": [
+    "clap",
+    "cargo",
+    "single binary",
+    "subcommands"
+  ],
+  "goodFor": [
+    "configuration precedence",
+    "exit codes",
+    "integration tests against the binary"
+  ],
+  "notFor": [
+    "a terminal user interface"
+  ]
 }

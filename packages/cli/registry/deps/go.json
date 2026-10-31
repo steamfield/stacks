@@ -83,7 +83,7 @@
         "reviewedAt": "2026-10-29"
       }
     },
-    "go.yaml.in/yaml/v3": {
+    "go.yaml.in/yaml": {
       "whatItIs": "go-yaml, a library for the Go programming language that reads and writes YAML, a plain-text format for settings files.",
       "goodAt": [
         "Reading a settings file into the program's own types",

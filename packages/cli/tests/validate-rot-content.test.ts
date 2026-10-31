@@ -18,6 +18,110 @@ const space = rotWorkspace();
 afterEach(() => space.cleanup());
 const validate = (root: string) => validateRot(root, { home: space.temp() });
 
+const pom = (body: string) => `<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <version>0.1.0-SNAPSHOT</version>
+  ${body}
+</project>`;
+
+test.each(
+  ["pom.xml", "pom.xml.tmpl"].flatMap((name) => [
+    [
+      name,
+      "<dependencies><dependency><version>1.2.3</version></dependency></dependencies>",
+      "1.2.3",
+    ],
+    [
+      name,
+      "<build><plugins><plugin><configuration><release>21</release></configuration></plugin></plugins></build>",
+      "21",
+    ],
+    [name, "<properties><maven.compiler.release>21</maven.compiler.release></properties>", "21"],
+    [name, "<properties><maven.compiler.source>21</maven.compiler.source></properties>", "21"],
+    [name, "<properties><maven.compiler.target>21</maven.compiler.target></properties>", "21"],
+    [name, "<properties><spring-boot.version>3.4.0</spring-boot.version></properties>", "3.4.0"],
+    [name, "<parent><version>3.4.0</version></parent>", "3.4.0"],
+  ]),
+)("a shipped %s flags a literal Maven value: %s", async (name, body, literal) => {
+  const root = space.temp();
+  ship(stack(root), `files/${name}`, pom(body));
+  const { report } = await validate(root);
+  findingsAre(report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+    [
+      "version-sensitive-file",
+      "warning",
+      {
+        file: `stacks/sample/files/${name}`,
+        text: [`contains ${literal}; remove the version and let the agent pick current versions`],
+      },
+    ],
+  ]);
+});
+
+test.each(["pom.xml", "pom.xml.tmpl"])(
+  "%s exempts Maven metadata, project versions and references",
+  async (name) => {
+    const root = space.temp();
+    ship(
+      stack(root),
+      `files/${name}`,
+      pom(`
+    <dependencies><dependency><version>\${dependency.version}</version></dependency></dependencies>
+    <properties><spring-boot.version>\${boot.version}</spring-boot.version>
+      <maven.compiler.release>\${java.version}</maven.compiler.release></properties>
+    <build><plugins><plugin><configuration><release>\${java.version}</release></configuration></plugin></plugins></build>
+    <!-- <version>9.9.9</version> -->
+  `),
+    );
+    findingsAre((await validate(root)).report.findings, [
+      ...missingSearchNotes({ stacks: ["sample"] }),
+    ]);
+  },
+);
+
+test("a self-closing POM section does not absorb the project's version", async () => {
+  const root = space.temp();
+  ship(
+    stack(root),
+    "files/pom.xml",
+    `<project>
+    <properties/>
+    <version>0.1.0-SNAPSHOT</version>
+    <profiles><profile><properties><java.version>\${java.release}</java.version></properties></profile></profiles>
+  </project>`,
+  );
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+  ]);
+});
+
+test.each([
+  ["build.gradle", 'version "1.2.3"'],
+  ["build.gradle.kts", 'version "1.2.3"'],
+  ["settings.gradle", 'plugins { id "example.plugin" version "1.2.3" }'],
+  ["settings.gradle.kts", 'plugins { id("example.plugin") version "1.2.3" }'],
+  ["gradle/libs.versions.toml", '[versions]\nexample = "1.2.3"'],
+  [
+    ".mvn/wrapper/maven-wrapper.properties",
+    "distributionUrl=https://example.com/apache-maven-3.9.9-bin.zip",
+  ],
+  [
+    "gradle/wrapper/gradle-wrapper.properties",
+    "distributionUrl=https://services.gradle.org/distributions/gradle-8.14.3-bin.zip",
+  ],
+])("a shipped Java build file %s flags existing version literals", async (name, text) => {
+  const root = space.temp();
+  ship(stack(root), `files/${name}`, text);
+  const { report } = await validate(root);
+  findingsAre(report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+    ["version-sensitive-file", "warning", { file: `stacks/sample/files/${name}` }],
+  ]);
+});
+
 test("a listed fragment's undeclared collision uses the existing composition check [2.2#1]", async () => {
   const root = space.temp();
   stack(root, "conflicting", "fragments:\n  default: [base]\n  optional: [extra]");

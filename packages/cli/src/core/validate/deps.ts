@@ -8,6 +8,7 @@ import {
 import { Clock, Effect, FileSystem, Path, Schema } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { countWords } from "../brief/words";
+import { goAllowlistKey } from "../deps";
 import { readSearchFile } from "../search/sidecar";
 import { versionedPlain } from "./search";
 import { type Check, finding, type View } from "./view";
@@ -115,8 +116,11 @@ function missingFindings(
 ) {
   const findings: Finding[] = [];
   for (const entry of view.entries)
-    for (const name of Object.values(entry.meta.deps).flat()) {
-      const ecosystem = owners.get(name)?.[0];
+    for (const dependency of Object.values(entry.meta.deps).flat()) {
+      const goKey = goAllowlistKey(dependency);
+      const ecosystem =
+        owners.get(dependency)?.[0] ?? (owners.get(goKey)?.includes("go") ? "go" : undefined);
+      const name = ecosystem === "go" ? goKey : dependency;
       if (ecosystem && !present.has(`${ecosystem}/${name}`))
         findings.push(
           finding(entry, {

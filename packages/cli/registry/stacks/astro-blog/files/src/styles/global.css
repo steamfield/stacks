@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+  a {
+    @apply underline-offset-4 hover:underline;
+  }
+}
+
+/* Shiki emits inline light colors and dark-theme CSS variables. */
+.dark .astro-code,
+.dark .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}

@@ -1,0 +1,23 @@
+---
+import { render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import PostLayout from "../layouts/PostLayout.astro";
+import { getRoutablePosts } from "../lib/collection";
+import { slugFor } from "../lib/posts";
+
+export async function getStaticPaths() {
+  return (await getRoutablePosts()).map((post) => ({
+    params: { slug: slugFor(post) },
+    props: { post },
+  }));
+}
+interface Props {
+  post: CollectionEntry<"blog">;
+}
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<PostLayout post={post}>
+  <Content />
+</PostLayout>

@@ -11,14 +11,15 @@
  * The 0.6.0 version in the brief changed all six again on 2026-10-30.
  * The shipped-files ground rule (update stale shipped files, never pin older versions) changed
  * all six on 2026-10-31, and go-cli changed again that day for its shipped proving slice.
+ * astro-blog changed again that day for its shipped blog, config and tests.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:459773df1d3b4b4fbf951d1a31b3ca8c974753d0636a0bda75d142b5a4e2bfde",
-  "astro-blog:sandbox": "sha256:58f88f68bf14a87d63f92b8d36a7fc7cd14abcd119232d8ced1534f504e29dd4",
+  "astro-blog:default": "sha256:43d6cfe011cc36271c904fb76fe6bb140453199b00308a8fbcd3762ab6fc76b3",
+  "astro-blog:sandbox": "sha256:ff6b070b0699468566e4fcc204056937f8f8b06e27ae4d4a2cd301fba1cd25d2",
   "go-cli:default": "sha256:409ba8d13b314025615c9d1a695963e8dfb913fe496a204eefd7b2d4c0447d62",
   "go-cli:sandbox": "sha256:95cc2b2f94070c6fc2228941697e9ed145e785372647b1237db8059657da91d9",
   "python-react:default": "sha256:922cfafa28c52ddb3ac7b36923e91744cd9a33bcd7326d9317056cf2852f469b",

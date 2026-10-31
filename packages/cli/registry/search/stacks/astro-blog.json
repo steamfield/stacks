@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "astro-blog",
   "source": {
-    "digest": "sha256:47b5c63179c5055191d79fc84d2c8ec605fb28194b08fd4f0ab29c20d6dd7021",
+    "digest": "sha256:b80eddd00d423e436518a1eec71a89d603fdc5362600f66c8de5a078f4a9ecde",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "A static blog with file-based posts, draft and unlisted publishing, RSS and a sitemap.",
   "description": "Publish articles as MDX files with checked metadata and explicit draft, published and unlisted states. Astro builds the reading pages, RSS feed and sitemap; React islands handle the interactions you choose to add. The recipe includes post scaffolding and optional generated social images. Hosting is separate: select cloudflare-pages if you want its deployment workflow.",

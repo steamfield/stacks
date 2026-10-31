@@ -1,0 +1,21 @@
+{
+  "include": ["worker-configuration.d.ts", "app/**/*", "workers/**/*", ".react-router/types/**/*"],
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "@cloudflare/vitest-plugin/types"],
+    "rootDirs": [".", "./.react-router/types"],
+    "paths": { "~/*": ["./app/*", "./.react-router/types/app/*"] },
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

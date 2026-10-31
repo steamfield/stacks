@@ -7,7 +7,7 @@ description: A full-stack React Router app on Cloudflare Workers with server ren
 tags: [typescript, react, web, fullstack, cloudflare, workers, scripts, bun, node]
 deps:
   app: [react, react-dom, react-router, tailwindcss, "@tailwindcss/vite"]
-  dev: ["@react-router/dev", "@cloudflare/vite-plugin", wrangler, vite, typescript, "@biomejs/biome", vitest, "@cloudflare/vitest-plugin", "@types/node", "@types/react", "@types/react-dom"]
+  dev: ["@react-router/dev", "@cloudflare/vite-plugin", wrangler, vite, typescript, "@biomejs/biome", vitest, "@cloudflare/vitest-plugin", "@vitest/coverage-istanbul", "@types/node", "@types/react", "@types/react-dom"]
 tools: [bun, node, git]
 decisions:
   - "Package manager (default: bun)."
@@ -22,6 +22,7 @@ verify:
   - { name: lint, layer: lint, run: bun run lint }
   - { name: typecheck, layer: typecheck, run: bun run typecheck }
   - { name: test, layer: test, run: bun run test }
+  - { name: coverage, layer: test, run: bun run coverage }
   - { name: build, layer: build, run: bun run build }
   - name: web
     phase: serve
@@ -38,39 +39,50 @@ commands:
   lint: Check owned source with Biome
   format: Apply Biome formatting and safe fixes
   test: Run local Workers integration tests
-  coverage: Run tests with the supported Workers coverage provider
+  coverage: Run Workers tests with Istanbul coverage and the framework HTTP tests
   check: Run lint, typecheck, tests, and production build
 ---
 
-# React Router on Cloudflare Workers
+## What stacks wrote
 
-One SSR application with resource routes for JSON APIs. Development and integration tests run in the local Workers runtime without an account, token, or network service. The proving slice is a minimal page and `/healthz`, plus an independently testable scheduled-handler slot. Application-specific APIs and storage stay outside this stack.
+A Workers entry, React Router root layout and safe error boundary, a page whose loader reads the public `GREETING` binding, JSON `/healthz`, and a harmless scheduled-handler slot. The slice includes adjacent Workers tests, real HTTP tests of the built framework, Tailwind, strict TypeScript, Biome, Vite, Wrangler and Vitest configs, plus development and deployment docs. Read the code before extending it.
+
+## Layout
+
+Register new routes in `app/routes.ts`, put their modules in `app/routes/`, and keep server services in `app/.server/`. `workers/app.ts` is the Worker boundary. `workers/scheduled.ts` owns scheduled work and is the separate unit-test entry. Read `docs/DEVELOPMENT.md` for bindings, logging and test boundaries, and `docs/DEPLOYMENT.md` before adding deployment.
 
 ## Setup
 
-1. Read Cloudflare's current React Router framework guide and Workers Vitest integration guide. Run the official create-cloudflare React Router generator non-interactively in a temporary directory, with deployment and git initialization disabled. Merge its application files into this scaffold; preserve the shipped README and agent files, merge ignores, and remove the temporary directory afterward. Do not deploy or create cloud resources.
-2. Use the generator's compatible React Router, Vite, and Cloudflare plugin dependencies. Install Tailwind, Biome, TypeScript, and Cloudflare's supported Vitest Workers integration; resolve its peer ranges before selecting Vitest. Prefer the integration package the current docs recommend if it supersedes the package named in deps. Record necessary dependency constraints in AGENTS.md under Build workarounds.
-3. Set the package name and Bun packageManager; record the supported Node runtime in `.node-version` and engines. Keep SSR enabled, configure Tailwind through its Vite plugin, and preserve the generator's Cloudflare Vite environment wiring.
-4. Implement the routes, scheduled handler, and tests below. Fill the README, AGENTS.md, and selected adapter documents from the finished project. Run verify and the full check command.
+1. Add every declared app dependency with `bun add` and dev dependency with `bun add -d`, resolving current releases within the Cloudflare integration's peer ranges. Use the declared `@cloudflare/vitest-plugin` and `@vitest/coverage-istanbul`; keep the coverage provider `istanbul` because Workers cannot collect native V8 coverage. No generator is needed.
+2. Set the Worker name in `wrangler.jsonc` to the project slug. Add `compatibility_date` using the newest date supported by both installed local runtimes, in Wrangler's date format; it is deliberately absent from the shipped config. Start with today; if the test runtime rejects it, use the newest supported date its error reports. Keep the Cloudflare Vite plugin's `ssr` environment wiring, SSR enabled and Tailwind's Vite plugin. Do not deploy or provision resources.
+3. Run `bun run typecheck` to generate binding and route types, then lint, test, coverage and build. If the installed releases reject shipped code or config, update it to those releases without dropping checks, rules, tests or coverage floors. Generated `worker-configuration.d.ts` stays ignored and is never hand-edited. Run `bun run format` after editing setup metadata.
+4. Record the supported Node runtime in `.node-version` and `engines.node`, and current Bun in `packageManager`. Vitest and Wrangler run on Node. Put necessary compatibility constraints in AGENTS.md under Build workarounds with a removal condition.
+5. Fill README, AGENTS.md and selected adapter documents from the finished project, including CI and pending Cloudflare setup. Run `stacks verify` and `bun run check` until green.
 
-## Runtime and layout
+## Conventions
 
-Use `app/root.tsx`, `app/routes.ts`, and `app/routes/` for the React Router application, `app/.server/` for server services, and `workers/app.ts` for the Worker entry. Keep a minimal index page. `/healthz` is a real resource loader returning JSON `{"status":"ok"}`; it must execute inside the Workers runtime. Use the generator's current typed-binding access pattern (the Workers environment import or request context), and pass the execution context explicitly when required. No binding or secret is serialized into loader data or bundled into browser code.
+- Loaders receive typed bindings through `context.get(cloudflareContext)`; return only public page data. Keep binding validation in `app/.server/` like `greeting.ts`. Worker code never reads `process.env`.
+- Use the shipped root boundary's fixed messages. Exception details, URLs, secrets and the full environment never go into HTML or logs. `workers/app.ts` logs fixed request fields and `app/entry.server.tsx` owns server error logging.
+- Local secrets go in ignored `.dev.vars`, public configuration in Wrangler vars. Workers use web APIs, never log files, child processes or a Node HTTP server.
+- Scheduled work accepts bindings and scheduled time, and propagates rejections. Use `waitUntil` only when its lifetime semantics fit the operation. Leave cron triggers unset until the application chooses a job and schedule.
 
-The Worker exports both `fetch` (delegating to React Router) and `scheduled`. Delegate scheduled work to a named, independently testable function that accepts bindings and the scheduled time. The base implementation is a harmless no-op; leave production cron triggers unset until the application chooses a schedule. Test invocation and rejected work propagation. Use `waitUntil` for background work only when its lifetime semantics fit the operation; don't silently swallow failures.
+## Testing and commands
 
-Bindings come from Wrangler configuration and generated types, never `process.env` in Worker code. Local secrets belong in ignored `.dev.vars`; public configuration belongs in Wrangler vars. Log structured records to console with safe fixed fields. Workers do not write log files, spawn processes, or use a Node HTTP server. Node is only a development-tool runtime.
+The shipped scripts are the command contract: `dev`, `build`, `typecheck`, `lint`, `format`, `test`, `coverage` and `check`. Typecheck generates Worker and route types before strict `tsc`, including unchecked-index checks and no emit. Keep Biome's recommended rules, organized imports, Tailwind parser and generated-output exclusions when adapting it.
 
-## Tool configuration and tests
+`test` and `coverage` build first. Vitest runs adjacent binding and scheduled-work tests in the local Workers runtime; its Node project starts local Wrangler against the built Worker and tests the page, resource route, error boundary, CSS and scheduled export over HTTP. Extend both boundaries for new routes and services. Tests need no account or credentials, own their temporary persistence and stop their servers. Coverage instruments the service and scheduled work with Istanbul; HTTP tests prove framework wiring. Never substitute a response stub, `bun test` or `--bun`.
 
-Describe configs for installed tools rather than copying stale examples. Wrangler points at the Worker entry and browser assets, uses a supported compatibility date and only required compatibility flags. Install Wrangler locally and invoke it through `bunx wrangler`. Generate binding types with Wrangler and route types with React Router before strict TypeScript checking, including unchecked-index checks and no emit. Ignore generated bindings, route types, build output, `.wrangler/`, secrets, and dependencies as appropriate.
+<!-- stacks:when with=cloudflare-d1 -->
+The shipped `/healthz` loader already returns the healthy JSON shape. Extend it with the fragment's real Drizzle query before returning that response; preserve its framework HTTP test. Add DB to Wrangler, regenerate types, and adapt the HTTP tests' isolated persistence setup to apply local migrations before either test server starts.
+<!-- stacks:end -->
 
-Biome checks owned TypeScript, JSX, JSON, and CSS with recommended rules, organized imports, two spaces, double quotes, width 100, and Tailwind syntax enabled. Exclude generated runtime declarations and output from formatting and linting.
+<!-- stacks:when with=ci-github -->
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and build through the shipped scripts. Keep deployment separate per `docs/DEPLOYMENT.md`.
+<!-- stacks:end -->
 
-Run tests through Vitest with Cloudflare's Workers integration, using local bindings and the current supported coverage provider. Cover the resource loader's JSON/status, a request reaching the built framework Worker, the minimal page, and the scheduled handler. Framework virtual modules may not resolve in the Workers test pool: build first and test the generated Worker entry in an isolated test configuration, or use a dedicated test Worker for services plus a real local-server HTTP integration test for the framework. Never replace the framework request test with a static response stub. Tests must be repeatable without credentials, and must stop any server they start. Do not force Vite or Vitest to run under Bun or substitute `bun test` for Vitest.
+## Gotchas
 
-## CI and deployment
-
-CI runs frozen install and the project's check/coverage commands with the project's Node and Bun runtimes. Local verification includes the production build; it needs no deployment credentials.
-
-Document a separate deployment workflow that runs only after successful CI for the exact tested default-branch commit, uses least-privilege permissions and SHA-pinned actions, builds before deploying with local Wrangler, and requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Do not deploy from fork pull requests. Cloud resources, credentials, domain attachment, and enabling cron belong under Pending user actions. Creating this project never provisions them.
+- Framework virtual modules do not belong in the unit Workers pool. Keep its separate scheduled entry and the real HTTP test of the built framework.
+- Cloudflare bindings are not Node environment variables. Never expose secrets through `VITE_` variables or serialize the environment into loader data.
+- Regenerate types after adding bindings or routes. Ignore generated declarations, route types, build output, `.wrangler/`, secrets and dependencies.
+- Deployment requires the user's Cloudflare account and credentials. Cloud resources, domains, production bindings and enabling cron belong under Pending user actions.

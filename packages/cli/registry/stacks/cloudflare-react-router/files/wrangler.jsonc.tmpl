@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "{{project_slug}}",
+  "main": "workers/app.ts",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "binding": "ASSETS", "directory": "build/client" },
+  "vars": { "GREETING": "Hello from Workers" },
+  "observability": { "enabled": true }
+}

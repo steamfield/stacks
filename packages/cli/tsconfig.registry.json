@@ -20,6 +20,12 @@
   },
   "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"],
   "exclude": [
+    // Workers, React Router, Vite and generated binding types belong to the fresh scaffold.
+    "registry/stacks/cloudflare-react-router/files/*.ts",
+    "registry/stacks/cloudflare-react-router/files/**/*.d.ts",
+    "registry/stacks/cloudflare-react-router/files/app",
+    "registry/stacks/cloudflare-react-router/files/workers",
+    "registry/stacks/cloudflare-react-router/files/tests",
     // Astro/React and browser dependencies are checked in the fresh blog scaffold.
     "registry/stacks/astro-blog/files/*.ts",
     "registry/stacks/astro-blog/files/src",

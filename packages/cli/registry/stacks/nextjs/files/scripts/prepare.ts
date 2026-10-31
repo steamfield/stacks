@@ -13,7 +13,9 @@ if (!process.env.CI) {
   const lefthook = existsSync("lefthook.yml")
     ? spawnSync("lefthook", ["install"], { stdio: "inherit" })
     : undefined;
-  if ((lefthook?.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+  if (
+    (lefthook?.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
+  ) {
     console.log(
       "lefthook not found: git hooks not installed (brew install lefthook, then bun install)",
     );
@@ -28,9 +30,13 @@ if (!process.env.CI) {
 
   // Downloads Chromium the first time; a no-op after that. Skipped until Playwright is installed.
   if (existsSync("node_modules/.bin/playwright")) {
-    const playwright = spawnSync("node_modules/.bin/playwright", ["install", "chromium"], {
-      stdio: "inherit",
-    });
+    const playwright = spawnSync(
+      "node_modules/.bin/playwright",
+      ["install", "chromium"],
+      {
+        stdio: "inherit",
+      },
+    );
     if (playwright.error || playwright.status !== 0) {
       console.log(
         "Couldn't install Chromium for bun run e2e; retry with: bunx playwright install chromium",

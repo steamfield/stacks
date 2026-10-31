@@ -80,7 +80,11 @@ stacks show effect --kind fragment  # look among fragments only, for an id a sta
 
 `show <id>` reviews a stack or fragment without starting a process: metadata, every guidance branch, commands, verify steps and shipped output paths, including adapters for every agent. `--json` returns `ShowReport`. Bundled and index stacks receive recorded run evidence; `sameContent` compares the current composition fingerprint with that run. Other origins get `lastRun: null`.
 
-When a search card has `plain` copy, `show` prints its definition, strengths, first project example and limits before the technical description. JSON includes `plain` and any bundled `dependencyCards` for the entry's dependencies. Human output expands application dependencies with their definitions.
+For a stack, dependency lines include its required and default fragments and everything those fragments require, using the same pinned fragment snapshots and local overrides as scaffolding. Packages declared only by fragments name their sources, such as `pgx (from postgres)`. Optional fragments that add packages get an `Optional dependencies (with <id>):` line.
+
+JSON adds `dependencyRollup`: `included` holds rows with `role`, `name`, `stack` and declaring `fragments`; `optional` holds each optional `fragment` and its additional `deps` rows. The existing `deps` field stays the entry's own frontmatter. Fragments have no rollup. A missing or rejected optional fragment is left out.
+
+When a search card has `plain` copy, `show` prints its definition, strengths, first project example and limits before the technical description. JSON includes `plain` and any bundled `dependencyCards` for the entry's dependencies, including a stack's included and optional fragment dependencies. Human output expands application dependencies with their definitions.
 
 ### Published stats
 

@@ -3,6 +3,7 @@ export { DependencyAllowlist, Ecosystem } from "./allowlist.js";
 export { AuthorsFile, authorKey, GitHubLogin } from "./authors.js";
 export { BundlePath, bundleDigest, canonicalBundle, EntryBundle } from "./bundle.js";
 export { Columnar } from "./columnar.js";
+export { DependencyRollup, RolledDependency, stackDependencies } from "./deps/rollup.js";
 export { DependencyCard, DependencyCardFile, DependencyCards } from "./deps/schema.js";
 export { DirectoryData } from "./directory.js";
 export {

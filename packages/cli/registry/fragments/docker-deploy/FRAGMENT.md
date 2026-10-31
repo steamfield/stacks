@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api, spring-boot-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api, spring-boot-api, quarkus-api]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -72,7 +72,7 @@ Run uvicorn on `0.0.0.0` with proxy headers.
 **Rust**: build in the official Rust image for the `rust-toolchain.toml` toolchain, its Debian release named by tag suffix (`-slim-<codename>`) to match the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; copy the binary out of the cache-mounted `target/` in the same `RUN`. The runtime is the nonroot distroless `cc` image for that Debian release, since the binary links against its glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary's own probe flag (`--healthcheck`: requests the health endpoint, exits 0 or 1).
 <!-- stacks:end -->
 <!-- stacks:when tag=java -->
-**Java**: build in the Temurin JDK image for `.java-version`'s major, copying `mvnw`, `.mvn/` and `pom.xml` before `src/`, with a cache mount on `/root/.m2`, then `./mvnw -B -ntp package -DskipTests`. Run only the jar on the same major's Temurin JRE with `HOST=0.0.0.0`; the `HEALTHCHECK` runs `java -jar <jar> --healthcheck`, with a start period for JVM startup.
+**Java**: build in the Temurin JDK image for `.java-version`'s major, copying `mvnw`, `.mvn/` and `pom.xml` before `src/`, with a cache mount on `/root/.m2`, then `./mvnw -B -ntp package -DskipTests`. Run only the jar (for Quarkus, the whole `target/quarkus-app/` directory and its `quarkus-run.jar`) on the same major's Temurin JRE with `HOST=0.0.0.0`; the `HEALTHCHECK` runs `java -jar <jar> --healthcheck`, with a start period for JVM startup.
 <!-- stacks:end -->
 
 <!-- stacks:when with=postgres -->

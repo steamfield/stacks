@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "quarkus-api",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Java JSON web service on Quarkus and Maven with one error format, request logs, readiness checks and null checks at compile time.",
+  "description": "Write a Java HTTP service on Quarkus with Quarkus REST and Maven. One in-memory notes resource proves the shape: create, read and paged list routes, strict JSON input, and one error envelope for bad input, misses, wrong methods and unexpected failures, all from a single error table. Request ids, JSON access logs, a validated config mapping, readiness and liveness checks and an OpenAPI document come wired. The build formats code, catches nullness bugs and common mistakes at compile time, enforces a coverage floor, checks the layering with ArchUnit and runs the packaged app in its own process for integration tests. It runs on the JVM; a native executable and a database are left for the project to add.",
+  "seoDescription": "A Quarkus REST API recipe in Java with Maven, one JSON error envelope, request ids and logs, SmallRye Health, NullAway and Error Prone, and @QuarkusTest tests.",
+  "projectExamples": [
+    {
+      "title": "Container-first catalog service",
+      "description": "Illustrative: replace notes with catalog items that other services read over HTTP, with readiness checks for an orchestrator. Persistence and access control are work the project still has to add."
+    },
+    {
+      "title": "Small event intake endpoint in an image",
+      "description": "Illustrative: accept events as JSON, validate them and log each request with its id. Storage and delivery are custom work; docker-deploy builds and publishes the image.",
+      "withFragments": [
+        "docker-deploy"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter web service written in Java on Quarkus, a framework built for containers, that answers requests with JSON data, clear error replies and readiness checks.",
+    "goodAt": [
+      "Backends that run in containers or Kubernetes and must start quickly",
+      "Teams that already run Java and want the Quarkus way of doing it",
+      "Services that must report every error in one consistent format"
+    ],
+    "notGoodAt": [
+      "Projects that need a database or sign-in from the start; you add both yourself.",
+      "Teams that already standardize on Spring; use the Spring Boot API stack instead."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [
+    "api"
+  ],
+  "languages": [
+    "java"
+  ],
+  "requests": [
+    "build a REST API with Quarkus",
+    "a Quarkus JSON service built with Maven",
+    "Kubernetes-native Java microservice with readiness checks",
+    "JAX-RS endpoints on Quarkus with consistent JSON error replies",
+    "Java service that starts fast in a container"
+  ],
+  "useCases": [
+    "cloud-native JSON services",
+    "container-first backends",
+    "Kubernetes services"
+  ],
+  "synonyms": [
+    "Quarkus",
+    "Quarkus REST",
+    "RESTEasy Reactive",
+    "Jakarta REST",
+    "JAX-RS",
+    "MicroProfile",
+    "SmallRye",
+    "Vert.x"
+  ],
+  "goodFor": [
+    "one error envelope",
+    "compile-time null checks",
+    "@QuarkusTest and packaged-app tests"
+  ],
+  "notFor": [],
+  "caveats": [
+    "Needs a JDK and Maven installed once to create the Maven wrapper; after that the wrapper downloads Maven itself.",
+    "Runs in JVM mode; a native executable needs GraalVM or Mandrel and is not set up.",
+    "The first build downloads every dependency and plugin, which takes a few minutes."
+  ]
+}

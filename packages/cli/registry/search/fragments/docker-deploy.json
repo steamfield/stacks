@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "docker-deploy",
   "source": {
-    "digest": "sha256:10d1389373d69c5797c732d65eca66ffcaa3ce3471e132b3429ac8b22574d96b",
+    "digest": "sha256:6c35ec6264e9eb59caf09407c8bc53ec96f810acd15430b08ec33b3e913ca1e5",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,

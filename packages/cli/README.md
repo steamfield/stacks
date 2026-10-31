@@ -104,6 +104,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `python-data` | Python data pipeline and notebooks managed with uv: Polars transforms from raw CSV to Parquet with explicit schemas and a rejects file, a DuckDB query over the output, a fixture compared with expected frames, marimo notebooks linted, typechecked and run | |
 | `python-library` | Typed Python library for PyPI: a src layout with `py.typed`, an exception hierarchy, a public-API test, Hypothesis properties, tests on the oldest supported Python, and the built wheel installed and type-checked in a clean environment | |
 | `python-react` | FastAPI backend and a React SPA talking through a client generated from the OpenAPI spec | |
+| `quarkus-api` | Java JSON API on Quarkus REST and Maven in JVM mode: one error envelope from exception mappers, request ids and JSON logs, a validated config mapping, readiness checks and OpenAPI, Error Prone and NullAway, ArchUnit layering, `@QuarkusTest` tests and the packaged app tested as its own process | |
 | `react-router` | React Router framework mode with SSR, Effect services, typed HTTP errors, Tailwind and shadcn | `openrouter-chat` |
 | `react-vite` | Browser-only React app on Vite, built to static files: React Router, TanStack Query over a zod-checked fetch client, Vitest with MSW and Playwright | |
 | `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |

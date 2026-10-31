@@ -33,10 +33,14 @@ stdin. The user origin is the destination and cannot be a copy source.
   Anything that would be wrong after the next major release belongs here, not in a
   shipped configuration. Replace a stale fact with a durable rule, a discovery step
   against current official docs, or a verify step that asks the tool.
-- `files/` holds stable starter content. Store dotfiles literally, such as
-  `files/.gitignore`. Put version-sensitive configuration requirements in prose for
-  the agent to generate. Adapter files live under `adapters/claude/`, `codex/`,
-  `opencode/` or `cursor/`.
+- `files/` holds everything the project needs except versions: source, tests,
+  configs and docs from the working project. Leave out dependency versions and ranges,
+  `packageManager`, `engines`, `go` directives, action refs, versioned `$schema` URLs and
+  generator flags; `validate` warns on them in config files. Ship only what a verify step
+  exercises, so a file that goes stale fails verify instead of passing silently. Store
+  dotfiles literally, such as `files/.gitignore`. Name a `biome.json` `biome.json.tmpl`,
+  so this repository's Biome doesn't read it as a nested config. Adapter files live under
+  `adapters/claude/`, `codex/`, `opencode/` or `cursor/`.
 
 Use snake_case keys: `schema_version`, `applies_to`, `requires_tools`, `needs_own_repo`.
 An app is a fragment with `category: app`; fill its `applies_to` with a stack id or tag.

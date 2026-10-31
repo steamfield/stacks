@@ -203,12 +203,12 @@ test.each([
   "playwright.config.ts",
   "orval.config.ts",
 ])(
-  "shipping %s warns, including adapter files and dropped template suffixes [2.2#1]",
+  "shipping a pinned version in %s warns, including adapter files and dropped template suffixes [2.2#1]",
   async (name) => {
     const root = space.temp();
     const entry = stack(root);
-    ship(entry, `files/${name}`, "\n");
-    ship(entry, `adapters/codex/nested/${name}.tmpl`, "\n");
+    ship(entry, `files/${name}`, 'version = "1.2.3"\n');
+    ship(entry, `adapters/codex/nested/${name}.tmpl`, 'version = "1.2.3"\n');
     ship(entry, "files/README.md", "# Project\n");
     const { report } = await validate(root);
     findingsAre(report.findings, [
@@ -216,12 +216,16 @@ test.each([
       [
         "version-sensitive-file",
         "warning",
-        { entry: "sample", file: `stacks/sample/files/${name}` },
+        { entry: "sample", file: `stacks/sample/files/${name}`, text: ["1.2.3"] },
       ],
       [
         "version-sensitive-file",
         "warning",
-        { entry: "sample", file: `stacks/sample/adapters/codex/nested/${name}.tmpl` },
+        {
+          entry: "sample",
+          file: `stacks/sample/adapters/codex/nested/${name}.tmpl`,
+          text: ["1.2.3"],
+        },
       ],
     ]);
     expect(report.findings.map((f) => f.file).sort()).toEqual(
@@ -233,6 +237,94 @@ test.each([
     );
   },
 );
+
+test.each([
+  ["package.json", '{"name":"sample","type":"module","scripts":{"check":"true"}}'],
+  ["package.json.tmpl", '{"name":"{{project_slug}}","type":"module"}'],
+  ["tsconfig.json", '{"compilerOptions":{"strict":true}}'],
+  [".golangci.yml", 'version: "2"\n'],
+  ["biome.json.tmpl", '{"formatter":{"enabled":true}}'],
+  ["src/index.ts", 'export const version = "1.2.3";\n'],
+  [".github/workflows/ci.yml", `if: \${{ github.run_number > 1 && github.run_number < 5 }}\n`],
+  ["biome.jsonc", '// "engines": intentionally omitted\n{"formatter":{"enabled":true}}'],
+  ["biome.jsonc", '/* {"packageManager":"omitted"} */\n{"formatter":{"enabled":true}}'],
+  ["biome.jsonc", JSON.stringify({ description: 'The "engines": key is intentionally omitted' })],
+])("shipping version-free config or uninspected source %s passes", async (name, text) => {
+  const root = space.temp();
+  const entry = stack(root);
+  ship(entry, `files/${name}`, text);
+  const { report } = await validate(root);
+  findingsAre(report.findings, [...missingSearchNotes({ stacks: ["sample"] })]);
+});
+
+test.each([
+  ["package.json", '{"dependencies":{"effect":"1.2.3"}}', "1.2.3"],
+  ["package.json", '{"dependencies":{"effect":"^4.0.0"}}', "^4.0.0"],
+  ["package.json", '{"dependencies":{"effect":"~1.2"}}', "~1.2"],
+  ["package.json", '{"dependencies":{"effect":">=22"}}', ">=22"],
+  ["package.json", '{"dependencies":{"effect":"<=4.0"}}', "<=4.0"],
+  ["package.json", '{"dependencies":{"effect":">4"}}', ">4"],
+  ["package.json", '{"dependencies":{"effect":"<5"}}', "<5"],
+  ["package.json", '{"packageManager":"bun@1.2.3"}', '"packageManager"'],
+  ["package.json", '{"engines":{"node":"22"}}', '"engines"'],
+  ["go.mod", "module example.com/sample\n\ngo 1.24\n", "go 1.24"],
+  ["go.mod", "module example.com/sample\n\ntoolchain go1.24\n", "toolchain go1.24"],
+  [".github/workflows/ci.yml", "steps:\n  - uses: actions/checkout@v4\n", "actions/checkout@v4"],
+  [
+    ".github/workflows/ci.yml",
+    "steps:\n  - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567\n",
+    "actions/checkout@0123456789abcdef0123456789abcdef01234567",
+  ],
+  ["biome.json", '{"$schema":"https://biomejs.dev/schemas/2.1.0/schema.json"}', "2.1.0"],
+  [
+    "biome.jsonc",
+    '{"$schema":"https://example.com/schema.json","engines":{"node":"22"}}',
+    '"engines"',
+  ],
+  ["biome.jsonc", '// Previously used 1.2.3\n{"formatter":{"enabled":true}}', "1.2.3"],
+  ["package.json.tmpl", '{"name":"{{project_slug}}","dependencies":{"effect":"^4.0.0"}}', "^4.0.0"],
+])("shipping a version literal in %s warns once: %s", async (name, text, literal) => {
+  const root = space.temp();
+  const entry = stack(root);
+  ship(entry, `files/${name}`, text);
+  const { report } = await validate(root);
+  findingsAre(report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+    [
+      "version-sensitive-file",
+      "warning",
+      {
+        entry: "sample",
+        file: `stacks/sample/files/${name}`,
+        text: [literal, "remove", "agent", "current"],
+      },
+    ],
+  ]);
+});
+
+test("a file with several version literals names only the first in source order", async () => {
+  const root = space.temp();
+  const entry = stack(root);
+  ship(
+    entry,
+    "files/package.json",
+    '{"dependencies":{"effect":"~4","other":"1.2.3"},"engines":{"node":">=22"}}',
+  );
+  const { report } = await validate(root);
+  findingsAre(report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+    [
+      "version-sensitive-file",
+      "warning",
+      { entry: "sample", file: "stacks/sample/files/package.json", text: ["~4"] },
+    ],
+  ]);
+  const versionFinding = report.findings.find(
+    (finding) => finding.check === "version-sensitive-file",
+  );
+  expect(versionFinding?.message).not.toContain("1.2.3");
+  expect(versionFinding?.message).not.toContain("engines");
+});
 
 test.each(["body", "decisions", "markdown"])(
   "pinned versions in %s warn without matching IPv4 addresses or fenced examples [2.2#1]",

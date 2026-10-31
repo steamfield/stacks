@@ -1,100 +1,103 @@
 // Base platform, schema, environment, and stdout boundaries.
 language js
 
-or {
-  or {
-    JsModuleSource() as $src,
-    `import($src)`
-  } where {
-    $filename <: r".*/src/.*",
+$node where {
+  $filename <: not r".*/packages/cli/registry/.*",
+  $node <: or {
     or {
-      and {
-        $src <: r"[\"'](?:bun|bun:[^\"']*|@effect/platform-bun[^\"']*)[\"']",
-        $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
-        register_diagnostic(span=$src, message="Platform code belongs in bin.ts or an explicit platform adapter; use Effect services elsewhere.")
-      },
-      and {
-        $src <: r"[\"'](?:node:child_process|child_process|node:process|@effect/platform-node[^\"']*)[\"']",
-        $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
-        register_diagnostic(span=$src, message="Node process APIs belong in bin.ts or src/platform/; use the Processes service elsewhere.")
-      },
-      and {
-        $src <: r"[\"'](?:zod|zod/[^\"']*|@effect/schema[^\"']*)[\"']",
-        register_diagnostic(span=$src, message="Use Schema from effect at project-owned boundaries.")
-      }
-    }
-  },
-  `process.$m($args)` as $p where {
-    $m <: r"^(?:kill|on|once|off|addListener|removeListener|prependListener|prependOnceListener|exit)$",
-    $filename <: r".*/src/.*",
-    $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
-    register_diagnostic(span=$p, message="Node process APIs belong in bin.ts or src/platform/; use the Processes service elsewhere.")
-  },
-  `console.$m($args)` as $c where {
-    $filename <: r".*/src/.*",
-    register_diagnostic(span=$c, message="Results use Output; diagnostics use the logger, never console.")
-  },
-  `process.env` as $e where {
-    $filename <: r".*/src/.*",
-    $filename <: not r".*/src/(?:config|bin)\.ts",
-    register_diagnostic(span=$e, message="Read environment in config.ts.")
-  },
-  `import.meta.$property` as $location where {
-    $property <: r"^(?:url|dirname|filename)$",
-    $filename <: r".*/src/.*",
-    $filename <: not r".*/src/bin\.ts",
-    register_diagnostic(span=$location, message="Resolve paths from the module location only in bin.ts; pass them through Host.")
-  },
-  `process.stdout` as $o where {
-    $filename <: r".*/src/.*",
-    $filename <: not r".*/src/bin\.ts",
-    register_diagnostic(span=$o, message="Only bin.ts supplies the stdout writer; use Output.")
-  },
-  `process.stderr` as $o where {
-    $filename <: r".*/src/.*",
-    $filename <: not r".*/src/(?:bin|logging|config)\.ts",
-    register_diagnostic(span=$o, message="Use Output.note or the logger for diagnostics.")
-  },
-  `Bun.$x` as $b where {
-    $filename <: r".*/src/.*",
-    $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
-    register_diagnostic(span=$b, message="The Bun global belongs to the explicit platform boundary.")
-  },
-  or {
-    JsModuleSource() as $src,
-    `import($src)`
-  } where {
-    $filename <: r".*/src/(?:core|services)/.*",
-    $src <: r"[\"']\.[^\"']*[\"']",
-    $path = trim(string=$src, trim_chars="\"'"),
-    $resolved = resolve(path=$path),
-    $resolved <: r".*/src/(?:platform|commands)/.*",
-    not {
-      $filename <: r".*/src/services/processes\.ts$",
-      $resolved <: r".*/src/platform/process(?:\.ts)?$",
-      $src <: within `import $bindings from $src`
-    },
-    register_diagnostic(span=$src, message="Core and services cannot import platform or commands; use an injected service or move orchestration to commands.")
-  },
-  or {
-    JsModuleSource() as $src,
-    `import($src)`
-  } where {
-    $filename <: r".*/src/(?:core|services)/.*",
-    $src <: r"[\"'](?:node:[^\"']*|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|sea|sqlite|stream|string_decoder|sys|test|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/[^\"']*)?)[\"']",
-    not {
+      JsModuleSource() as $src,
+      `import($src)`
+    } where {
+      $filename <: r".*/src/.*",
       or {
         and {
-          $filename <: r".*/src/core/(?:manifest|fingerprint|search/digest)\.ts$",
-          $src <: r"[\"']node:crypto[\"']"
+          $src <: r"[\"'](?:bun|bun:[^\"']*|@effect/platform-bun[^\"']*)[\"']",
+          $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
+          register_diagnostic(span=$src, message="Platform code belongs in bin.ts or an explicit platform adapter; use Effect services elsewhere.")
         },
-        and { $filename <: r".*/src/services/output\.ts$", $src <: r"[\"']node:util[\"']" },
         and {
-          $filename <: r".*/src/core/scaffold/write\.ts$",
-          $src <: r"[\"']node:fs/promises[\"']"
+          $src <: r"[\"'](?:node:child_process|child_process|node:process|@effect/platform-node[^\"']*)[\"']",
+          $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
+          register_diagnostic(span=$src, message="Node process APIs belong in bin.ts or src/platform/; use the Processes service elsewhere.")
+        },
+        and {
+          $src <: r"[\"'](?:zod|zod/[^\"']*|@effect/schema[^\"']*)[\"']",
+          register_diagnostic(span=$src, message="Use Schema from effect at project-owned boundaries.")
         }
       }
     },
-    register_diagnostic(span=$src, message="Core and services use Effect services for Node APIs; use the named utility allowance only in its owning file.")
+    `process.$m($args)` as $p where {
+      $m <: r"^(?:kill|on|once|off|addListener|removeListener|prependListener|prependOnceListener|exit)$",
+      $filename <: r".*/src/.*",
+      $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
+      register_diagnostic(span=$p, message="Node process APIs belong in bin.ts or src/platform/; use the Processes service elsewhere.")
+    },
+    `console.$m($args)` as $c where {
+      $filename <: r".*/src/.*",
+      register_diagnostic(span=$c, message="Results use Output; diagnostics use the logger, never console.")
+    },
+    `process.env` as $e where {
+      $filename <: r".*/src/.*",
+      $filename <: not r".*/src/(?:config|bin)\.ts",
+      register_diagnostic(span=$e, message="Read environment in config.ts.")
+    },
+    `import.meta.$property` as $location where {
+      $property <: r"^(?:url|dirname|filename)$",
+      $filename <: r".*/src/.*",
+      $filename <: not r".*/src/bin\.ts",
+      register_diagnostic(span=$location, message="Resolve paths from the module location only in bin.ts; pass them through Host.")
+    },
+    `process.stdout` as $o where {
+      $filename <: r".*/src/.*",
+      $filename <: not r".*/src/bin\.ts",
+      register_diagnostic(span=$o, message="Only bin.ts supplies the stdout writer; use Output.")
+    },
+    `process.stderr` as $o where {
+      $filename <: r".*/src/.*",
+      $filename <: not r".*/src/(?:bin|logging|config)\.ts",
+      register_diagnostic(span=$o, message="Use Output.note or the logger for diagnostics.")
+    },
+    `Bun.$x` as $b where {
+      $filename <: r".*/src/.*",
+      $filename <: not r".*/src/(?:bin\.ts|platform/.*)",
+      register_diagnostic(span=$b, message="The Bun global belongs to the explicit platform boundary.")
+    },
+    or {
+      JsModuleSource() as $src,
+      `import($src)`
+    } where {
+      $filename <: r".*/src/(?:core|services)/.*",
+      $src <: r"[\"']\.[^\"']*[\"']",
+      $path = trim(string=$src, trim_chars="\"'"),
+      $resolved = resolve(path=$path),
+      $resolved <: r".*/src/(?:platform|commands)/.*",
+      not {
+        $filename <: r".*/src/services/processes\.ts$",
+        $resolved <: r".*/src/platform/process(?:\.ts)?$",
+        $src <: within `import $bindings from $src`
+      },
+      register_diagnostic(span=$src, message="Core and services cannot import platform or commands; use an injected service or move orchestration to commands.")
+    },
+    or {
+      JsModuleSource() as $src,
+      `import($src)`
+    } where {
+      $filename <: r".*/src/(?:core|services)/.*",
+      $src <: r"[\"'](?:node:[^\"']*|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|sea|sqlite|stream|string_decoder|sys|test|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:/[^\"']*)?)[\"']",
+      not {
+        or {
+          and {
+            $filename <: r".*/src/core/(?:manifest|fingerprint|search/digest)\.ts$",
+            $src <: r"[\"']node:crypto[\"']"
+          },
+          and { $filename <: r".*/src/services/output\.ts$", $src <: r"[\"']node:util[\"']" },
+          and {
+            $filename <: r".*/src/core/scaffold/write\.ts$",
+            $src <: r"[\"']node:fs/promises[\"']"
+          }
+        }
+      },
+      register_diagnostic(span=$src, message="Core and services use Effect services for Node APIs; use the named utility allowance only in its owning file.")
+    }
   }
 }

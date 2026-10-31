@@ -181,7 +181,7 @@ That paragraph appears in the brief only when `ci-github` is part of the project
 
 ### Files and adapters
 
-`files/` holds starter content the agent shouldn't have to rewrite: a `.gitignore`, shared scripts, hook code. Files are stored under their real names, so `files/.gitignore` becomes `.gitignore`. A file ending in `.tmpl` is a template, and a small fixed set of variables is filled in: `{{project_name}}`, `{{project_slug}}`, `{{env_prefix}}`, `{{package_scope}}`, `{{author}}` and `{{year}}`. Everything else is copied byte for byte.
+`files/` holds the parts of the project the agent shouldn't have to write: source for the proving slice, its tests, tool configs, a `.gitignore`, shared scripts, hook code. None of it names a version; the agent installs current releases and updates the shipped files to them. Files are stored under their real names, so `files/.gitignore` becomes `.gitignore`. A file ending in `.tmpl` is a template, and a small fixed set of variables is filled in: `{{project_name}}`, `{{project_slug}}`, `{{env_prefix}}`, `{{package_scope}}`, `{{author}}` and `{{year}}`. Everything else is copied byte for byte.
 
 `adapters/<agent>/` holds files for one coding agent: Claude Code settings under `adapters/claude/`, Codex config under `adapters/codex/`, and so on for `opencode` and `cursor`. Only the agents you target (`--agents`, default `claude`) get their adapter files. Every target gets `AGENTS.md`.
 

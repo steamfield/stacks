@@ -11,6 +11,7 @@ import {
 } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
+import { goAllowlistKey } from "../src/core/deps";
 import { ShowReport } from "../src/schemas/show";
 import { ValidateReport } from "../src/schemas/validate";
 import { rawBundle } from "./fixtures/index/harness";
@@ -265,6 +266,30 @@ test("a used bundled dependency needs a card and clears when one is added [4.5f#
   expect(selected(await validate(home, root))).toEqual([]);
 });
 
+test("Go import suffixes resolve to dependency cards by their allowlist key", async () => {
+  const { home, root } = setup("deps:\n  app: [example.com/mod/v2]");
+  await stamp(root, ref);
+  allowlist(root, { go: ["example.com/mod"] });
+  const missing = selected(await validate(home, root));
+  expect(missing.map(({ check, severity, message }) => ({ check, severity, message }))).toEqual([
+    {
+      check: "deps-missing",
+      severity: "warning",
+      message: "go/example.com/mod has no dependency card.",
+    },
+  ]);
+  cards(root, "go", { "example.com/mod": dependency() });
+  expect(selected(await validate(home, root))).toEqual([]);
+});
+
+test("a non-Go dependency keeps its trailing version-like path", async () => {
+  const { home, root } = setup("deps:\n  app: [example.com/mod/v2]");
+  await stamp(root, ref);
+  allowlist(root, { npm: ["example.com/mod/v2"], go: ["example.com/mod"] });
+  cards(root, "npm", { "example.com/mod/v2": dependency() });
+  expect(selected(await validate(home, root))).toEqual([]);
+});
+
 test("old reviews are notes and drafts are warnings [4.5f#10]", async () => {
   const { home, root } = setup();
   await stamp(root, ref);
@@ -446,7 +471,7 @@ test("every bundled entry has plain copy, every used dependency has a card, and 
     for (const names of Object.values(shown.deps))
       for (const name of names) {
         const matched = (["npm", "pypi", "go", "crates"] as const).filter((ecosystem) => {
-          return allow.names[ecosystem].includes(name);
+          return allow.names[ecosystem].includes(ecosystem === "go" ? goAllowlistKey(name) : name);
         });
         expect(matched, name).toHaveLength(1);
         const ecosystem = matched[0];
@@ -454,11 +479,43 @@ test("every bundled entry has plain copy, every used dependency has a card, and 
         const file = Schema.decodeUnknownSync(DependencyCardFile)(
           readJson(join(root, "deps", `${ecosystem}.json`)),
         );
-        expect(file.cards[name], `${ecosystem}/${name}`).toBeDefined();
+        const key = ecosystem === "go" ? goAllowlistKey(name) : name;
+        expect(file.cards[key], `${ecosystem}/${key}`).toBeDefined();
       }
   }
   // Whole-registry validation and one show per entry can exceed the default 5 s on shared hosts.
 }, 30_000);
+
+test("show go-cli includes the canonical go-yaml card and preserves its full import path", async () => {
+  const root = join(import.meta.dirname, "../registry");
+  const home = space.dir();
+  const result = await runCli(["show", "go-cli", "--json"], {
+    home,
+    env: quiet,
+    host: { registry: root },
+  });
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stderr).toBe("");
+  const report = Schema.decodeUnknownSync(ShowReport)(JSON.parse(result.stdout));
+  const { DependencyCardFile } = await import("@steamfield/stacks-format");
+  const file = Schema.decodeUnknownSync(DependencyCardFile)(readJson(join(root, "deps/go.json")));
+  expect(report.deps.cli).toContain("go.yaml.in/yaml/v3");
+  expect(file.cards["go.yaml.in/yaml"]).toBeDefined();
+  expect(report.dependencyCards?.["go/go.yaml.in/yaml"]).toEqual(file.cards["go.yaml.in/yaml"]);
+  const text = await runCli(["show", "go-cli"], { home, env: quiet, host: { registry: root } });
+  expect(text.status, text.stderr).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toMatch(/^Dependencies \(cli\): .*go\.yaml\.in\/yaml\/v3$/m);
+});
+
+test("human Go app descriptions match canonical cards and retain full import paths", async () => {
+  const { home, root } = setup("deps:\n  app: [go.yaml.in/yaml/v3]");
+  await sidecar(root);
+  cards(root, "go", { "go.yaml.in/yaml": dependency("A Go YAML reader.") });
+  expect(await show(home, root, [], true)).toMatch(
+    /^ {2}go\.yaml\.in\/yaml\/v3: A Go YAML reader\.$/m,
+  );
+});
 
 test("scoped npm and Go module names keep their exact card keys [4.5f#18]", async () => {
   const { home, root } = setup('deps:\n  app: ["@tanstack/react-query", "github.com/jackc/pgx"]');

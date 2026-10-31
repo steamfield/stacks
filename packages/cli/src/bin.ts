@@ -60,14 +60,17 @@ const packagedFiles = Layer.effect(
       readFile: (file: string) => Effect.flatMap(resolve(file), fs.readFile),
       readFileString: (file: string, encoding?: string) =>
         Effect.flatMap(resolve(file), (at) => fs.readFileString(at, encoding)),
-      readDirectory: (file: string) =>
+      readDirectory: (...args: Parameters<typeof fs.readDirectory>) =>
         fs
-          .readDirectory(file)
+          .readDirectory(...args)
           .pipe(
             Effect.map((names) =>
-              escapedPaths.has(`${file}/.gitignore`)
-                ? names.map((name) => (name === ".gitignore.stacks" ? ".gitignore" : name))
-                : names,
+              names.map((name) =>
+                name.endsWith(".gitignore.stacks") &&
+                escapedPaths.has(`${args[0]}/${name.slice(0, -".stacks".length)}`)
+                  ? name.slice(0, -".stacks".length)
+                  : name,
+              ),
             ),
           ),
     };

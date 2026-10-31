@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -62,5 +63,43 @@ test("the installed package finds skills/ beside dist/, including after relocati
     expect(existsSync(join(home, ".claude"))).toBe(false);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the installed package copies every stacks-author reference", async () => {
+  const home = mkdtempSync(join(tmpdir(), "stacks-author-binary-"));
+  try {
+    const child = Bun.spawn([binary, "skill", "install", "stacks-author", "--json"], {
+      cwd: home,
+      env: {
+        HOME: home,
+        XDG_CONFIG_HOME: join(home, "config"),
+        NO_COLOR: "1",
+        LOG_LEVEL: "none",
+        PATH: scratchPath,
+      },
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr, status] = await Promise.all([
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+      child.exited,
+    ]);
+    expect(status).toBe(0);
+    expect(stderr).toBe("");
+
+    const source = join(packageRoot, "skills", "stacks-author");
+    const installed = join(home, ".claude", "skills", "stacks-author");
+    const references = readdirSync(join(source, "references")).sort();
+    expect(references.length).toBeGreaterThan(0);
+    const files = ["SKILL.md", ...references.map((name) => `references/${name}`)];
+    expect(JSON.parse(stdout).files.map((file: { path: string }) => file.path)).toEqual(files);
+    for (const file of files) {
+      expect(readFileSync(join(installed, file))).toEqual(readFileSync(join(source, file)));
+    }
+  } finally {
+    rmSync(home, { recursive: true, force: true });
   }
 });

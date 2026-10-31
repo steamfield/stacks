@@ -1,0 +1,79 @@
+// Package tasks is the proving payload's domain: plain data, no UI imports.
+package tasks
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type Status string
+
+const (
+	Todo  Status = "todo"
+	Doing Status = "doing"
+	Done  Status = "done"
+)
+
+type Task struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status Status `json:"status"`
+	Notes  string `json:"notes,omitempty"`
+}
+
+// Sample is what the program shows when no tasks file is configured.
+func Sample() []Task {
+	return []Task{
+		{ID: "T-1", Title: "Write the README", Status: Doing, Notes: "Say what the tool does and how to run it."},
+		{ID: "T-2", Title: "Add a second screen", Status: Todo, Notes: "Follow the detail view: a model, its keys and a golden frame."},
+		{ID: "T-3", Title: "Set up releases", Status: Done},
+	}
+}
+
+// Load reads a JSON array of tasks from path, or returns Sample when path is
+// empty. It does I/O, so the UI calls it from a tea.Cmd, never from Update.
+func Load(ctx context.Context, path string) ([]Task, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, apperrors.Wrap(apperrors.Interrupted, "load tasks", "Run the command again.", err)
+	}
+	if path == "" {
+		return Sample(), nil
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // The path is the user's own --tasks setting.
+	if err != nil {
+		return nil, apperrors.Wrap(apperrors.IO, "read tasks file "+path, "Check that the file exists and is readable, or unset --tasks.", err)
+	}
+	var list []Task
+	if err := json.Unmarshal(data, &list); err != nil {
+		return nil, apperrors.Wrap(apperrors.InvalidData, "decode tasks file "+path, "The file must be a JSON array of {id, title, status, notes} objects.", err)
+	}
+	if err := Validate(list); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// Validate checks ids, titles and statuses.
+func Validate(list []Task) error {
+	seen := make(map[string]bool, len(list))
+	for i, task := range list {
+		at := fmt.Sprintf("task %d", i+1)
+		switch {
+		case strings.TrimSpace(task.ID) == "":
+			return apperrors.New(apperrors.InvalidData, at+" has no id", "Give every task a unique id.")
+		case seen[task.ID]:
+			return apperrors.New(apperrors.InvalidData, at+" repeats id "+task.ID, "Give every task a unique id.")
+		case strings.TrimSpace(task.Title) == "":
+			return apperrors.New(apperrors.InvalidData, at+" has no title", "Give every task a title.")
+		case task.Status != Todo && task.Status != Doing && task.Status != Done:
+			return apperrors.New(apperrors.InvalidData, fmt.Sprintf("%s has status %q", at, task.Status), "Use todo, doing or done.")
+		}
+		seen[task.ID] = true
+	}
+	return nil
+}

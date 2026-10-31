@@ -1,0 +1,55 @@
+package log
+
+import (
+	"bytes"
+	"encoding/json"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestNewFiltersByLevel(t *testing.T) {
+	var out bytes.Buffer
+	logger := New(&out, slog.LevelInfo)
+	logger.Debug("hidden")
+	assert.Empty(t, out.String())
+	logger.With("tasks", 3).Info("loaded")
+	var record map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &record))
+	assert.Equal(t, "loaded", record["msg"])
+	assert.Equal(t, "INFO", record["level"])
+	assert.InDelta(t, 3, record["tasks"], 0)
+}
+
+func TestOpenAppendsToFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "app.log")
+	for range 2 {
+		logger, closeLog, err := Open(path, slog.LevelInfo)
+		require.NoError(t, err)
+		logger.Info("started")
+		require.NoError(t, closeLog())
+	}
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, 2, bytes.Count(data, []byte(`"msg":"started"`)))
+}
+
+func TestOpenWithoutPathDiscards(t *testing.T) {
+	logger, closeLog, err := Open("", slog.LevelDebug)
+	require.NoError(t, err)
+	logger.Info("nowhere")
+	require.NoError(t, closeLog())
+}
+
+func TestOpenFailure(t *testing.T) {
+	_, _, err := Open(filepath.Join(t.TempDir(), "missing", "app.log"), slog.LevelInfo)
+	var failure *apperrors.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, apperrors.IO, failure.Code)
+}

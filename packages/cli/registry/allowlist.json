@@ -143,6 +143,10 @@
       "uvicorn"
     ],
     "go": [
+      "charm.land/bubbles",
+      "charm.land/bubbletea",
+      "charm.land/lipgloss",
+      "github.com/charmbracelet/x/exp/teatest",
       "github.com/jackc/pgx",
       "github.com/pressly/goose",
       "github.com/spf13/cobra",

@@ -1,0 +1,86 @@
+//go:build integration
+
+package integration
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+// Every case runs the built binary with stdin from /dev/null and stdout a
+// pipe, the way an agent's shell or CI runs it. It must never wait for keys.
+func TestBinaryWithoutTerminal(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		code   int
+		stdout string
+		stderr string
+		json   bool
+	}{
+		{name: "help", args: []string{"--help"}, stdout: "Usage: " + config.Binary},
+		{name: "version", args: []string{"--version"}, stdout: config.Binary + " version dev"},
+		{name: "JSON version", args: []string{"--version", "--json"}, stdout: `"version":"dev"`, json: true},
+		{name: "falls back to text", stdout: "T-1  doing   Write the README"},
+		{name: "no-tui", args: []string{"--no-tui"}, stdout: "T-3  done    Set up releases"},
+		{name: "JSON tasks", args: []string{"--json"}, stdout: `"title":"Add a second screen"`, json: true},
+		{name: "tasks file", args: []string{"--tasks", "tasks.json"}, stdout: "A   todo    From a file"},
+		{name: "unknown flag", args: []string{"--nope"}, code: 2, stderr: "INVALID_INPUT"},
+		{name: "bad tasks file", args: []string{"--tasks", "bad.json"}, code: 1, stderr: "INVALID_DATA"},
+		{name: "JSON error", args: []string{"--json", "--tasks", "missing.json"}, code: 1, stderr: `"code":"IO"`, json: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "tasks.json"), []byte(`[{"id":"A","title":"From a file","status":"todo"}]`), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.json"), []byte(`[{"id":"A"}]`), 0o600))
+			cmd := exec.Command(binary, tt.args...)
+			cmd.Dir = dir
+			cmd.Env = []string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "NO_COLOR=1"}
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr // cmd.Stdin stays nil: /dev/null
+			err := cmd.Run()
+			if tt.code == 0 {
+				require.NoError(t, err, stderr.String())
+				assert.Contains(t, stdout.String(), tt.stdout)
+				assert.Empty(t, stderr.String())
+				if tt.json {
+					assert.True(t, json.Valid(stdout.Bytes()), stdout.String())
+				}
+				return
+			}
+			var exit *exec.ExitError
+			require.ErrorAs(t, err, &exit)
+			assert.Equal(t, tt.code, exit.ExitCode())
+			assert.Empty(t, stdout.String())
+			assert.Contains(t, stderr.String(), tt.stderr)
+			if tt.json {
+				assert.True(t, json.Valid(stderr.Bytes()), stderr.String())
+			} else {
+				assert.Contains(t, stderr.String(), "Suggestion: ")
+			}
+		})
+	}
+}
+
+func TestLogFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "app.log")
+	cmd := exec.Command(binary)
+	cmd.Env = []string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), config.EnvPrefix + "_LOG_FILE=" + path, config.EnvPrefix + "_LOG_LEVEL=debug"}
+	out, err := cmd.Output()
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), `"msg"`, "logs never reach stdout")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"msg":"start"`)
+}

@@ -1168,8 +1168,16 @@
       "pool": "no-match",
       "split": "tune",
       "query": "a cli with a good TUI experience",
-      "noMatch": true,
+      "first": {
+        "kind": "stack",
+        "id": "go-tui"
+      },
       "relevant": [
+        {
+          "kind": "stack",
+          "id": "go-tui",
+          "grade": 2
+        },
         {
           "kind": "stack",
           "id": "go-cli",

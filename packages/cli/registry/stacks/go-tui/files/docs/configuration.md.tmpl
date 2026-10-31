@@ -1,0 +1,35 @@
+# Configuration
+
+Settings come from flags and environment variables. Flags win; an empty or
+blank variable uses the default. The program doesn't load `.env` files;
+`.env.example` lists every variable.
+
+| Flag | Variable | Default | Validation |
+|---|---|---|---|
+| `--tasks FILE` | `{{env_prefix}}_TASKS` | empty: the built-in sample | Readable JSON array of `{id, title, status, notes}`; ids unique, titles non-empty, status `todo`, `doing` or `done` |
+| `--log-file FILE` | `{{env_prefix}}_LOG_FILE` | empty: no logs | Its directory must exist; the file is created with mode 0600 and appended to |
+| `--log-level LEVEL` | `{{env_prefix}}_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `--no-tui` | | off | Print the tasks as text and exit |
+| `--json` | | off | Print `{"tasks": [...]}` and exit; errors become `{"error": {...}}` on stderr |
+| `--version` | | | Print the version (JSON with `--json`) |
+| `--help` | | | Print usage |
+
+`NO_COLOR` (any value) turns colors off in the UI; Bubble Tea's renderer
+handles it, as it does the terminal's color profile.
+
+## Exit status
+
+| Status | When |
+|---|---|
+| 0 | Success, including `--help` and `--version` |
+| 1 | Config, data, I/O or internal failure, including a load failure shown in the UI |
+| 2 | Bad flags or arguments |
+| 130 | Interrupted by a signal while the UI ran |
+
+Every failure prints its code, the message and a `Suggestion:` line on stderr.
+
+## Adding a setting
+
+Give it a flag in `internal/config` with the environment variable as its
+default, validate it in `Load`, and add a row to `TestLoadPrecedence`, this
+file, the README table and `.env.example`.

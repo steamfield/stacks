@@ -1,0 +1,165 @@
+// Package ui is the full-screen program: one root Model whose Update handles
+// messages and whose View renders the current screen. Update and View do no
+// I/O; anything slow runs in a tea.Cmd and comes back as a message.
+package ui
+
+import (
+	"log/slog"
+
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+
+	"{{project_slug}}/internal/tasks"
+	"{{project_slug}}/internal/theme"
+)
+
+type screen int
+
+const (
+	loading screen = iota
+	browsing
+	detail
+	failed
+)
+
+// LoadFunc fetches the tasks. It runs inside a tea.Cmd, off the Update loop.
+type LoadFunc func() ([]tasks.Task, error)
+
+// loadedMsg carries the result of LoadFunc back into Update.
+type loadedMsg struct {
+	tasks []tasks.Task
+	err   error
+}
+
+type Model struct {
+	load   LoadFunc
+	logger *slog.Logger
+	theme  theme.Theme
+	keys   keyMap
+	help   help.Model
+	list   list.Model
+	screen screen
+	open   tasks.Task
+	err    error
+	width  int
+	height int
+}
+
+// New builds the root model. Nothing is loaded until the program runs Init.
+func New(load LoadFunc, logger *slog.Logger) Model {
+	m := Model{load: load, logger: logger, keys: newKeyMap(), help: help.New()}
+	m.list = list.New(nil, list.NewDefaultDelegate(), 0, 0)
+	m.list.Title = "Tasks"
+	m.list.SetStatusBarItemName("task", "tasks")
+	m.list.DisableQuitKeybindings()
+	m.list.AdditionalShortHelpKeys = func() []key.Binding { return []key.Binding{m.keys.Open, m.keys.Quit} }
+	m.list.AdditionalFullHelpKeys = m.list.AdditionalShortHelpKeys
+	m.applyTheme(theme.New(true))
+	return m
+}
+
+// Err is the load failure, if any; the caller turns it into the exit status.
+func (m Model) Err() error { return m.err }
+
+func (m *Model) applyTheme(t theme.Theme) {
+	m.theme = t
+	m.list.Styles = t.List
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles = t.Item
+	m.list.SetDelegate(delegate)
+	m.help.Styles = t.Help
+}
+
+func (m Model) Init() tea.Cmd {
+	load, logger := m.load, m.logger
+	return func() tea.Msg {
+		found, err := load()
+		if err != nil {
+			logger.Error("load tasks", "error", err)
+		} else {
+			logger.Info("loaded tasks", "count", len(found))
+		}
+		return loadedMsg{tasks: found, err: err}
+	}
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		m.list.SetSize(msg.Width, msg.Height)
+		m.help.SetWidth(msg.Width)
+		return m, nil
+	case tea.BackgroundColorMsg:
+		m.applyTheme(theme.New(msg.IsDark()))
+		return m, nil
+	case loadedMsg:
+		return m.loaded(msg)
+	case tea.KeyPressMsg:
+		return m.keyPress(msg)
+	}
+	if m.screen == browsing {
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+	}
+	return m, nil
+}
+
+func (m Model) loaded(msg loadedMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.screen, m.err = failed, msg.err
+		return m, nil
+	}
+	items := make([]list.Item, len(msg.tasks))
+	for i, task := range msg.tasks {
+		items[i] = item{task}
+	}
+	m.screen = browsing
+	return m, m.list.SetItems(items)
+}
+
+func (m Model) keyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if key.Matches(msg, m.keys.ForceQuit) {
+		return m, tea.Quit
+	}
+	switch m.screen {
+	case browsing:
+		// While a filter is being typed, every key belongs to the list.
+		if m.list.FilterState() != list.Filtering {
+			switch {
+			case key.Matches(msg, m.keys.Quit):
+				return m, tea.Quit
+			case key.Matches(msg, m.keys.Open):
+				if selected, ok := m.list.SelectedItem().(item); ok {
+					m.open, m.screen = selected.Task, detail
+				}
+				return m, nil
+			}
+		}
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+	case detail:
+		switch {
+		case key.Matches(msg, m.keys.Back):
+			m.screen = browsing
+		case key.Matches(msg, m.keys.Quit):
+			return m, tea.Quit
+		}
+	case loading, failed:
+		if key.Matches(msg, m.keys.Quit, m.keys.Back) {
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+// item adapts a task to the list's DefaultItem.
+type item struct{ tasks.Task }
+
+func (i item) Title() string       { return i.Task.Title }
+func (i item) Description() string { return i.ID + " · " + string(i.Status) }
+func (i item) FilterValue() string { return i.Task.Title }

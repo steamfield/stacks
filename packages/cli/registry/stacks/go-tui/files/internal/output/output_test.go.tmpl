@@ -1,0 +1,57 @@
+package output
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/tasks"
+)
+
+func TestTasksText(t *testing.T) {
+	var out bytes.Buffer
+	require.NoError(t, Tasks(&out, false, tasks.Sample()))
+	assert.Equal(t, "ID   STATUS  TITLE\nT-1  doing   Write the README\nT-2  todo    Add a second screen\nT-3  done    Set up releases\n", out.String())
+}
+
+func TestTasksJSON(t *testing.T) {
+	var out bytes.Buffer
+	require.NoError(t, Tasks(&out, true, nil))
+	assert.JSONEq(t, `{"tasks":[]}`, out.String())
+	out.Reset()
+	require.NoError(t, Tasks(&out, true, tasks.Sample()))
+	var document struct{ Tasks []tasks.Task }
+	require.NoError(t, json.Unmarshal(out.Bytes(), &document))
+	assert.Equal(t, tasks.Sample(), document.Tasks)
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("closed") }
+
+func TestRenderWriteFailure(t *testing.T) {
+	err := Render(failingWriter{}, false, nil, "text")
+	var failure *apperrors.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, apperrors.IO, failure.Code)
+}
+
+func TestError(t *testing.T) {
+	known := apperrors.New(apperrors.InvalidData, "task 1 has no id", "Give every task a unique id.")
+	var out bytes.Buffer
+	Error(&out, false, known)
+	assert.Equal(t, "INVALID_DATA: task 1 has no id\nSuggestion: Give every task a unique id.\n", out.String())
+
+	out.Reset()
+	Error(&out, true, known)
+	assert.JSONEq(t, `{"error":{"code":"INVALID_DATA","message":"task 1 has no id","suggestion":"Give every task a unique id."}}`, out.String())
+
+	out.Reset()
+	Error(&out, true, errors.New("boom"))
+	assert.Contains(t, out.String(), `"code":"INTERNAL"`)
+}

@@ -1,0 +1,49 @@
+# Development
+
+Initialize with `go mod init {{project_slug}}`, then resolve the modules, add
+templ's CLI as a tool and fetch htmx:
+
+```sh
+go get github.com/a-h/templ github.com/stretchr/testify github.com/PuerkitoBio/goquery
+go get -tool github.com/a-h/templ/cmd/templ
+make htmx
+make generate
+go mod tidy
+make install
+```
+
+`go tool templ` runs the CLI at the version go.mod records, the same version as
+the runtime library, so generated code always matches it. Upgrade both with
+`go get -tool github.com/a-h/templ/cmd/templ@latest`, then `make generate`.
+
+`make htmx` reads the newest release from npm's `latest` tag and downloads its
+`htmx.min.js`; `HTMX_VERSION=<version> make htmx` fetches a specific one.
+Commit the file and record its version in AGENTS.md. The binary embeds it, so
+the build fails until it exists.
+
+If the project chooses a remote module path, change it with `go mod edit
+-module <path>` and replace `{{project_slug}}/` imports in every Go file.
+Install golangci-lint using its official instructions, and write its installed
+version to `.golangci-lint-version`.
+
+```sh
+make generate-check templ-fmt-check htmx-check fmt-check vet lint build test test-integration
+go test -race -run TestHTMXPostWithErrorsRetargetsTheForm ./internal/web/
+make coverage
+```
+
+After editing a `.templ` file, run `make generate` (the Claude hook does it on
+save) and commit the `.templ` and `_templ.go` files together. `make fmt`
+formats `.templ` files with `templ fmt` and hand-written Go with gofmt and
+goimports; it never touches `_templ.go`.
+
+Component tests render a component into a buffer and query it with goquery.
+Handler tests run the real handler under `httptest.NewServer` with redirects
+disabled and assert status, `HX-*` headers and the HTML. Tagged integration
+tests build the server once in TestMain, start it on PORT=0, read its address
+from the JSON logs and stop it with SIGINT and SIGTERM. Everything runs with
+the race detector, which needs cgo and a C compiler.
+
+Fill README and the selected fragments' AGENTS, hook and CI guidance before
+the final `stacks verify`. The default hooks and workflow are supplied by
+their fragments; this slice does not write their files.

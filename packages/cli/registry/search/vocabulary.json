@@ -22,7 +22,7 @@
     "library": ["library", "npm package", "python package", "crate", "sdk"]
   },
   "languages": {
-    "typescript": ["typescript", "ts", "javascript", "js", "node"],
+    "typescript": ["typescript", "ts", "javascript", "js", "node", "npm"],
     "python": ["python", "fastapi"],
     "go": [
       "golang",

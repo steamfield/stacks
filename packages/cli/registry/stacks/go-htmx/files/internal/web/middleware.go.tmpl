@@ -1,0 +1,163 @@
+package web
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"log/slog"
+	"net/http"
+	"regexp"
+	"runtime/debug"
+	"strings"
+	"time"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type requestIDKey struct{}
+
+func RequestID(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey{}).(string)
+	return id
+}
+
+var validRequestID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func identify(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("X-Request-Id")
+		if !validRequestID.MatchString(id) {
+			var random [16]byte
+			if _, err := rand.Read(random[:]); err != nil {
+				renderError(w, r, apperrors.Wrap(apperrors.Internal, "request id", err), logger)
+				return
+			}
+			id = hex.EncodeToString(random[:])
+		}
+		w.Header().Set("X-Request-Id", id)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey{}, id)))
+	})
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	status, bytes int
+}
+
+func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *responseWriter) WriteHeader(status int) {
+	if w.status != 0 {
+		return
+	}
+	if status >= 200 {
+		w.status = status
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *responseWriter) Write(data []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	n, err := w.ResponseWriter.Write(data)
+	w.bytes += n
+	return n, err
+}
+
+// accessLog writes one record per request. Health checks and static files log
+// at debug so page traffic stays readable.
+func accessLog(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		out := &responseWriter{ResponseWriter: w}
+		defer func() {
+			status := out.status
+			if status == 0 {
+				status = http.StatusOK
+			}
+			level := slog.LevelInfo
+			if r.Pattern == "GET /healthz" || strings.HasPrefix(r.Pattern, "GET /static/") {
+				level = slog.LevelDebug
+			}
+			logger.Log(r.Context(), level, "request", "method", r.Method, "route", r.Pattern,
+				"status", status, "htmx", isHTMX(r), "duration_ms", time.Since(started).Milliseconds(),
+				"bytes", out.bytes, "request_id", RequestID(r.Context()))
+		}()
+		next.ServeHTTP(out, r)
+	})
+}
+
+func recoverPanic(next http.Handler, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if value := recover(); value != nil {
+				if value == http.ErrAbortHandler {
+					panic(value)
+				}
+				logger.Error("panic", "panic", value, "stack", string(debug.Stack()), "request_id", RequestID(r.Context()))
+				// A response already sent cannot be replaced; abort the connection instead.
+				if out, ok := w.(*responseWriter); ok && out.status != 0 {
+					panic(http.ErrAbortHandler)
+				}
+				renderError(w, r, apperrors.New(apperrors.Internal, "panic"), logger)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+// secureHeaders sets the headers every response carries. The policy allows only
+// same-origin scripts and styles, which is why the htmx config turns off eval
+// and its injected indicator styles.
+func secureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "same-origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// crossOrigin rejects cross-site form posts (CSRF) with the standard library's
+// Sec-Fetch-Site and Origin checks, rendering the error page on a block.
+func crossOrigin(next http.Handler, logger *slog.Logger) http.Handler {
+	protection := http.NewCrossOriginProtection()
+	protection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Warn("cross-origin request blocked", "method", r.Method, "path", r.URL.Path, "request_id", RequestID(r.Context()))
+		renderError(w, r, apperrors.New(apperrors.Forbidden, "cross-origin request"), logger)
+	}))
+	return protection.Handler(next)
+}
+
+// Keep ServeMux's 404/405 decision and Allow header, replacing its text body
+// with the error page.
+type missWriter struct {
+	http.ResponseWriter
+	request  *http.Request
+	logger   *slog.Logger
+	replaced bool
+}
+
+func (w *missWriter) WriteHeader(status int) {
+	if status == http.StatusNotFound || status == http.StatusMethodNotAllowed {
+		w.replaced = true
+		code := apperrors.NotFound
+		if status == http.StatusMethodNotAllowed {
+			code = apperrors.MethodNotAllowed
+		}
+		w.Header().Del("Content-Length")
+		w.Header().Del("Content-Type")
+		renderError(w.ResponseWriter, w.request, apperrors.New(code, "mux miss"), w.logger)
+		return
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *missWriter) Write(data []byte) (int, error) {
+	if w.replaced {
+		return len(data), nil
+	}
+	return w.ResponseWriter.Write(data)
+}

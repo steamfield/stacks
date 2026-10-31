@@ -1,0 +1,32 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this crate does and who it's for. This file is also the crate's front page on docs.rs. -->
+
+## Usage
+
+<!-- stacks:fill The `cargo add` line people should run, in a bash code block. -->
+
+```rust
+use crate_name::{Error, Rules, Slug};
+
+fn main() -> Result<(), Error> {
+    let slug: Slug = "hello-world".parse()?;
+    assert_eq!(slug.as_str(), "hello-world");
+
+    let short = Rules::with_max_len(5)?;
+    assert!(short.parse("hello-world").is_err());
+    Ok(())
+}
+```
+
+Every `rust` block in this file runs as a doctest, so keep the examples compiling.
+
+## Features
+
+- `serde`: `Serialize` and `Deserialize` for `Slug`, as a string that is validated when read.
+
+## License
+
+Licensed under either of Apache License, Version 2.0 or MIT license, at your option.
+
+Copyright (c) {{year}} {{author}}

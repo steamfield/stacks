@@ -1,0 +1,138 @@
+// Package web is the HTTP boundary: routes, middleware, form handling and the
+// mapping from domain errors to pages.
+package web
+
+import (
+	"errors"
+	"io/fs"
+	"log/slog"
+	"net/http"
+	"strings"
+
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/notes"
+	"{{project_slug}}/internal/views"
+	"{{project_slug}}/static"
+)
+
+// maxFormBytes bounds a posted form; a larger body is a 413 page.
+const maxFormBytes = 64 << 10
+
+func NewHandler(store notes.Store, logger *slog.Logger) http.Handler {
+	mux := http.NewServeMux()
+	endpoint := func(handle func(http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if err := handle(w, r); err != nil {
+				renderError(w, r, err, logger)
+			}
+		}
+	}
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write([]byte("ok\n"))
+	})
+	mux.Handle("GET /static/", staticFiles(logger))
+	mux.HandleFunc("GET /{$}", endpoint(func(w http.ResponseWriter, r *http.Request) error {
+		items, err := store.List(r.Context())
+		if err != nil {
+			return storeError(err)
+		}
+		render(w, r, http.StatusOK, views.NotesPage(viewNotes(items), views.Form{}), logger)
+		return nil
+	}))
+	mux.HandleFunc("POST /notes", endpoint(func(w http.ResponseWriter, r *http.Request) error {
+		input, err := readForm(w, r)
+		if err != nil {
+			return err
+		}
+		note, err := store.Create(r.Context(), input)
+		var failure *apperrors.Error
+		if errors.As(err, &failure) && failure.Code == apperrors.Invalid {
+			return invalidForm(w, r, store, views.Form{Title: input.Title, Body: input.Body, Errors: failure.Fields}, logger)
+		}
+		if err != nil {
+			return storeError(err)
+		}
+		if isHTMX(r) {
+			render(w, r, http.StatusOK, views.NoteCreated(viewNote(note)), logger)
+			return nil
+		}
+		// Post/redirect/get, so a reload doesn't post the form again.
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return nil
+	}))
+	boundary := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := mux.Handler(r); pattern == "" {
+			mux.ServeHTTP(&missWriter{ResponseWriter: w, request: r, logger: logger}, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	})
+	return identify(accessLog(recoverPanic(secureHeaders(crossOrigin(boundary, logger)), logger), logger), logger)
+}
+
+// readForm parses a bounded urlencoded form body into the domain input.
+func readForm(w http.ResponseWriter, r *http.Request) (notes.Input, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
+	if err := r.ParseForm(); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return notes.Input{}, apperrors.Wrap(apperrors.PayloadTooLarge, "form body", err)
+		}
+		return notes.Input{}, apperrors.Wrap(apperrors.BadInput, "parse form", err)
+	}
+	return notes.Input{Title: r.PostForm.Get("title"), Body: r.PostForm.Get("body")}, nil
+}
+
+// invalidForm answers 422 with the form and its field errors. htmx gets only the
+// form, retargeted over the one on the page; a plain post gets the whole page.
+func invalidForm(w http.ResponseWriter, r *http.Request, store notes.Store, form views.Form, logger *slog.Logger) error {
+	if isHTMX(r) {
+		w.Header().Set("HX-Retarget", "#"+views.FormID)
+		w.Header().Set("HX-Reswap", "outerHTML")
+		render(w, r, http.StatusUnprocessableEntity, views.NoteForm(form, false), logger)
+		return nil
+	}
+	items, err := store.List(r.Context())
+	if err != nil {
+		return storeError(err)
+	}
+	render(w, r, http.StatusUnprocessableEntity, views.NotesPage(viewNotes(items), form), logger)
+	return nil
+}
+
+// staticFiles serves the embedded assets. Directories and missing files get the
+// 404 page rather than a listing.
+func staticFiles(logger *slog.Logger) http.Handler {
+	files := http.StripPrefix("/static/", http.FileServerFS(static.FS))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		info, err := fs.Stat(static.FS, strings.TrimPrefix(r.URL.Path, "/static/"))
+		if err != nil || info.IsDir() {
+			renderError(w, r, apperrors.New(apperrors.NotFound, "static file"), logger)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		files.ServeHTTP(w, r)
+	})
+}
+
+func storeError(err error) error {
+	var failure *apperrors.Error
+	if errors.As(err, &failure) {
+		return err
+	}
+	return apperrors.Wrap(apperrors.Unavailable, "store unavailable", err)
+}
+
+func viewNote(note notes.Note) views.Note {
+	return views.Note{ID: note.ID, Title: note.Title, Body: note.Body, CreatedAt: note.CreatedAt}
+}
+
+func viewNotes(items []notes.Note) []views.Note {
+	out := make([]views.Note, 0, len(items))
+	for _, note := range items {
+		out = append(out, viewNote(note))
+	}
+	return out
+}

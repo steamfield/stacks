@@ -1,0 +1,116 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes, but keep the target names.
+# `stacks verify` calls install, generate-check, templ-fmt-check, htmx-check, fmt-check, vet,
+# lint, build, tidy-check, test, test-integration and serve, and CI should call the same targets
+# (golangci-lint's own action is the one exception). templ is a `go tool` dependency in go.mod,
+# so the CLI and the runtime library always share one version.
+
+BIN      := server
+PKG      := ./cmd/$(BIN)
+MODULE   := $(shell go list -m 2>/dev/null)
+VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS  := -s -w -X main.version=$(VERSION)
+COVERAGE_MIN ?= 60
+HTMX_FILE := static/vendor/htmx.min.js
+# The release `make htmx` downloads: npm's latest dist-tag unless set.
+HTMX_VERSION ?= $(shell curl -fsSL https://registry.npmjs.org/htmx.org/latest | grep -o '"version":"[^"]*"' | head -n 1 | cut -d'"' -f4)
+
+# Dev tools installed with `go install` land here; it may not be on PATH.
+GOBIN_DIR := $(shell go env GOBIN)
+ifeq ($(strip $(GOBIN_DIR)),)
+GOBIN_DIR := $(shell go env GOPATH | cut -d: -f1)/bin
+endif
+GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo $(GOBIN_DIR)/golangci-lint)
+GOIMPORTS     := $(shell command -v goimports 2>/dev/null || echo $(GOBIN_DIR)/goimports)
+GO_DIRS       := cmd internal static tests
+
+.DEFAULT_GOAL := help
+.PHONY: help install generate generate-check templ-fmt-check htmx htmx-check build serve vet lint lint-fix fmt fmt-check tidy-check test test-integration coverage vuln ci clean
+
+# Fails when golangci-lint is missing; warns when it differs from .golangci-lint-version.
+define require_golangci_lint
+@[ -x "$(GOLANGCI_LINT)" ] || { echo "golangci-lint not found. Install it: https://golangci-lint.run/welcome/install/"; exit 1; }
+@if [ -f .golangci-lint-version ]; then want="$$(sed 's/^v//' .golangci-lint-version | tr -d '[:space:]')"; \
+	"$(GOLANGCI_LINT)" --version | grep -q "$$want" || echo "warning: golangci-lint differs from .golangci-lint-version ($$want); CI uses that version" >&2; fi
+endef
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+install: ## Download modules and install dev tools that are missing
+	go mod download
+	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+
+generate: ## Regenerate the *_templ.go files from the .templ components
+	go tool templ generate -log-level warn
+
+generate-check: ## Fail if a *_templ.go file is missing or differs from its .templ source
+	@go tool templ generate -check -log-level error || { echo "Generated templ code is stale or was edited by hand. Run: make generate"; exit 1; }
+
+templ-fmt-check: ## Fail if templ fmt would change any .templ file
+	@bad=""; for f in $$(find internal -name '*.templ'); do \
+		go tool templ fmt -log-level error -stdout "$$f" | cmp -s - "$$f" || bad="$$bad $$f"; done; \
+	if [ -n "$$bad" ]; then echo "Unformatted templ files:$$bad. Run: make fmt"; exit 1; fi
+
+htmx: ## Download htmx (HTMX_VERSION, default npm's latest) into static/vendor/
+	@test -n "$(HTMX_VERSION)" || { echo "Could not read htmx's latest version from the npm registry"; exit 1; }
+	@mkdir -p $(dir $(HTMX_FILE))
+	curl -fsSL -o $(HTMX_FILE) https://cdn.jsdelivr.net/npm/htmx.org@$(HTMX_VERSION)/dist/htmx.min.js
+	@echo "htmx $(HTMX_VERSION) -> $(HTMX_FILE). Commit it and record the version in AGENTS.md."
+
+htmx-check: ## Fail unless the vendored htmx file is present and is htmx
+	@test -s $(HTMX_FILE) && grep -q 'htmx' $(HTMX_FILE) || { echo "$(HTMX_FILE) is missing or empty. Run: make htmx"; exit 1; }
+
+build: ## Build bin/server with version info (templates and static files are embedded)
+	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)
+
+# exec replaces the shell, so SIGINT and SIGTERM reach the server directly.
+serve: build ## Build, then run the server in the foreground until SIGINT or SIGTERM
+	exec ./bin/$(BIN)
+
+vet: ## Type-check every package, including tagged integration tests (go vet)
+	go vet -tags integration ./...
+
+lint: ## Run golangci-lint
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run
+
+lint-fix: ## Run golangci-lint with --fix
+	$(require_golangci_lint)
+	"$(GOLANGCI_LINT)" run --fix
+
+fmt: ## Format .templ files, then hand-written Go code
+	go tool templ fmt internal
+	gofmt -w $$(find $(GO_DIRS) -name '*.go' ! -name '*_templ.go')
+	"$(GOIMPORTS)" -local "$(MODULE)" -w $$(find $(GO_DIRS) -name '*.go' ! -name '*_templ.go')
+
+fmt-check: ## Fail if gofmt or goimports would change any hand-written Go file
+	@files="$$(find $(GO_DIRS) -name '*.go' ! -name '*_templ.go')"; \
+	out="$$(gofmt -l $$files)" || exit $$?; imports="$$("$(GOIMPORTS)" -local "$(MODULE)" -l $$files)" || exit $$?; \
+	if [ -n "$$out$$imports" ]; then echo "Unformatted files:"; printf '%s\n%s\n' "$$out" "$$imports" | sort -u; exit 1; fi
+
+tidy-check: ## Fail if go mod tidy would change go.mod or go.sum
+	@go mod tidy -diff || { echo "go.mod or go.sum is out of date. Run: go mod tidy"; exit 1; }
+
+test: ## Unit, component and handler tests with the race detector
+	go test -race ./...
+
+test-integration: ## Build the binary, run it on a free port, load pages and post forms, stop it with signals
+	@find tests/integration -type f -name '*_test.go' -exec grep -l '^func Test' {} \; | grep -q . || { echo "test-integration: no tests under tests/integration"; exit 1; }
+	go test -race -tags integration ./tests/integration/...
+
+coverage: ## Race-enabled tests with a coverage floor
+	go test -race -covermode=atomic -coverprofile=coverage.out ./...
+	@total=$$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%","",$$3); print $$3}'); \
+	echo "Total coverage: $$total% (minimum $(COVERAGE_MIN)%)"; \
+	awk -v t="$$total" -v m="$(COVERAGE_MIN)" 'BEGIN { exit (t + 0 < m + 0) }' || { echo "Coverage below $(COVERAGE_MIN)%"; exit 1; }
+
+vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+ci: generate-check templ-fmt-check htmx-check fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs
+
+clean: ## Remove build and coverage output
+	rm -rf bin/ coverage.out coverage.html

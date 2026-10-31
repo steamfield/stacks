@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "go-htmx",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A server-rendered Go web app with templ components and htmx, where forms validate on the server and pages update without a JavaScript build.",
+  "description": "Start a Go web app that renders HTML on the server. templ turns typed components into Go code, run through go tool, and a check fails when the generated code is stale. htmx, downloaded once and embedded in the binary, swaps parts of the page. One notes page proves the shape: its form posts with htmx and gets back the new item, invalid input comes back as the form with inline errors and a 422, and the same form works as a plain post without JavaScript. Request logging, an error page, cross-site post protection and graceful shutdown are wired in, and tests assert on the rendered HTML. The recipe picks no database, sign-in or CSS framework.",
+  "seoDescription": "A Go web app recipe with templ components, htmx partial updates, server-side form validation, HTML tests and graceful shutdown, with no Node toolchain.",
+  "projectExamples": [
+    {
+      "title": "Internal admin dashboard",
+      "description": "Illustrative: replace the notes page with tables and edit forms for an internal team, keeping server-side validation and partial updates. A database and sign-in are work the project still has to add."
+    },
+    {
+      "title": "Containerised small business site with a contact form",
+      "description": "Illustrative: a few pages and a form that answers inline, shipped as one container image whose health check needs no shell. docker-deploy builds and publishes the image.",
+      "withFragments": [
+        "docker-deploy"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter Go website where the server builds every page as HTML and a small script updates parts of the page, so there is no JavaScript build step.",
+    "goodAt": [
+      "Forms and pages that check input on the server",
+      "Internal tools and dashboards kept in one Go program",
+      "Interactive pages without a separate frontend app"
+    ],
+    "notGoodAt": [
+      "Rich client-side apps that work offline; choose react-vite or react-router.",
+      "JSON APIs for other programs; choose go-api.",
+      "Projects that need a database or sign-in from the start; you add both yourself."
+    ]
+  },
+  "platforms": [
+    "web",
+    "server"
+  ],
+  "productKinds": [
+    "web-app",
+    "fullstack"
+  ],
+  "languages": [
+    "go"
+  ],
+  "requests": [
+    "go htmx web app with templ components",
+    "golang website that renders HTML on the server",
+    "web app with forms and partial page updates but no JavaScript build",
+    "GOTH stack project: Go, templ and htmx",
+    "server-side rendered Go admin pages with inline form validation"
+  ],
+  "useCases": [
+    "server-rendered web apps",
+    "internal tools and admin pages",
+    "forms with server-side validation"
+  ],
+  "synonyms": [
+    "htmx",
+    "templ",
+    "a-h/templ",
+    "GOTH stack",
+    "hypermedia",
+    "server-side rendering",
+    "SSR",
+    "html templates",
+    "golang web",
+    "progressive enhancement",
+    "no SPA"
+  ],
+  "goodFor": [
+    "type-checked HTML components",
+    "partial page swaps",
+    "inline form errors",
+    "HTML assertions in tests"
+  ],
+  "notFor": [
+    "Svelte"
+  ],
+  "caveats": [
+    "Race-enabled tests need cgo and a C compiler on every machine and CI runner.",
+    "Setup downloads htmx from a CDN once; the committed copy is what ships, so upgrading it is a deliberate step."
+  ]
+}

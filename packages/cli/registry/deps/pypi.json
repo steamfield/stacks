@@ -99,6 +99,22 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "hypothesis": {
+      "whatItIs": "Hypothesis, a Python testing library that invents many inputs for a test, including awkward ones a person wouldn't think of, and shrinks any failure to the simplest example.",
+      "goodAt": [
+        "Checking a rule that holds for every input, like reading back what was written",
+        "Finding unusual inputs that crash code which handles text or numbers"
+      ],
+      "notGoodAt": ["Checking one exact expected answer; a plain pytest example test is clearer."],
+      "example": "For a date parser, it tries thousands of strange dates and reports the shortest one that breaks it.",
+      "homepage": "https://hypothesis.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "mypy": {
       "whatItIs": "mypy, a checker that reads the notes a Python project adds about what kind of data each value holds, and reports mismatches before the program runs.",
       "goodAt": [

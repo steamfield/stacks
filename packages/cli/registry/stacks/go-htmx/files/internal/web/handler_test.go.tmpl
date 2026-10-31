@@ -1,0 +1,265 @@
+package web
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/notes"
+)
+
+type harness struct {
+	server *httptest.Server
+	client *http.Client
+	logs   *bytes.Buffer
+}
+
+func newHarness(t *testing.T, store notes.Store) *harness {
+	t.Helper()
+	logs := &bytes.Buffer{}
+	server := httptest.NewServer(NewHandler(store, applog.New(logs, slog.LevelDebug)))
+	t.Cleanup(server.Close)
+	client := server.Client()
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &harness{server: server, client: client, logs: logs}
+}
+
+type page struct {
+	status int
+	header http.Header
+	body   string
+	doc    *goquery.Document
+}
+
+func (h *harness) do(t *testing.T, req *http.Request) page {
+	t.Helper()
+	res, err := h.client.Do(req)
+	require.NoError(t, err)
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(data))
+	require.NoError(t, err)
+	return page{status: res.StatusCode, header: res.Header, body: string(data), doc: doc}
+}
+
+func (h *harness) get(t *testing.T, path string) page {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, h.server.URL+path, nil)
+	require.NoError(t, err)
+	return h.do(t, req)
+}
+
+func (h *harness) post(t *testing.T, form url.Values, headers map[string]string) page {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, h.server.URL+"/notes", strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	return h.do(t, req)
+}
+
+var htmx = map[string]string{"HX-Request": "true"}
+
+func assertHTML(t *testing.T, p page) {
+	t.Helper()
+	assert.Equal(t, "text/html; charset=utf-8", p.header.Get("Content-Type"))
+	assert.Equal(t, "no-store", p.header.Get("Cache-Control"))
+	assert.Contains(t, p.header.Get("Content-Security-Policy"), "default-src 'self'")
+	assert.Equal(t, "nosniff", p.header.Get("X-Content-Type-Options"))
+	assert.NotEmpty(t, p.header.Get("X-Request-Id"))
+}
+
+func TestNotesPage(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	p := h.get(t, "/")
+	require.Equal(t, http.StatusOK, p.status)
+	assertHTML(t, p)
+	assert.True(t, strings.HasPrefix(p.body, "<!doctype html>"), "full page starts with the doctype")
+	assert.Equal(t, 1, p.doc.Find("form#note-form").Length())
+	assert.Equal(t, 0, p.doc.Find("ul#notes > li").Length())
+}
+
+func TestHTMXPostReturnsFragments(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	p := h.post(t, url.Values{"title": {"  Groceries  "}, "body": {"milk"}}, htmx)
+	require.Equal(t, http.StatusOK, p.status, p.body)
+	assertHTML(t, p)
+	assert.NotContains(t, p.body, "<html", "an htmx response is a fragment")
+	assert.Empty(t, p.header.Get("HX-Retarget"))
+	item := p.doc.Find("li[id^=note-]")
+	require.Equal(t, 1, item.Length())
+	assert.Equal(t, "Groceries", item.Find("h2").Text())
+	form := p.doc.Find("form#note-form")
+	assert.Equal(t, "true", form.AttrOr("hx-swap-oob", ""))
+	assert.Empty(t, form.Find("input#title").AttrOr("value", ""))
+
+	full := h.get(t, "/")
+	assert.Equal(t, "Groceries", full.doc.Find("ul#notes > li h2").Text())
+}
+
+func TestHTMXPostWithErrorsRetargetsTheForm(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	p := h.post(t, url.Values{"title": {"   "}, "body": {"keep this"}}, htmx)
+	require.Equal(t, http.StatusUnprocessableEntity, p.status)
+	assertHTML(t, p)
+	assert.Equal(t, "#note-form", p.header.Get("HX-Retarget"))
+	assert.Equal(t, "outerHTML", p.header.Get("HX-Reswap"))
+	assert.NotContains(t, p.body, "<html")
+	form := p.doc.Find("form#note-form")
+	require.Equal(t, 1, form.Length())
+	_, oob := form.Attr("hx-swap-oob")
+	assert.False(t, oob)
+	assert.Equal(t, "Enter a title.", form.Find("#title-error").Text())
+	assert.Equal(t, "true", form.Find("input#title").AttrOr("aria-invalid", ""))
+	assert.Equal(t, "keep this", form.Find("textarea#body").Text())
+	assert.Equal(t, 0, h.get(t, "/").doc.Find("ul#notes > li").Length(), "nothing was stored")
+}
+
+func TestPlainPostRedirectsOrRendersThePage(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	p := h.post(t, url.Values{"title": {"Without JavaScript"}}, nil)
+	assert.Equal(t, http.StatusSeeOther, p.status)
+	assert.Equal(t, "/", p.header.Get("Location"))
+	assert.Equal(t, "Without JavaScript", h.get(t, "/").doc.Find("ul#notes > li h2").Text())
+
+	p = h.post(t, url.Values{"title": {""}}, nil)
+	require.Equal(t, http.StatusUnprocessableEntity, p.status)
+	assertHTML(t, p)
+	assert.Empty(t, p.header.Get("HX-Retarget"))
+	assert.Equal(t, "Notes", p.doc.Find("title").Text(), "a plain post gets the whole page")
+	assert.Equal(t, "Enter a title.", p.doc.Find("#title-error").Text())
+	assert.Equal(t, 1, p.doc.Find("ul#notes > li").Length(), "existing notes still show")
+}
+
+func TestCrossOriginPostIsBlocked(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	for name, headers := range map[string]map[string]string{
+		"sec-fetch-site": {"Sec-Fetch-Site": "cross-site"},
+		"origin":         {"Origin": "https://evil.example"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := h.post(t, url.Values{"title": {"forged"}}, headers)
+			assert.Equal(t, http.StatusForbidden, p.status)
+			assertHTML(t, p)
+			assert.Equal(t, "Request blocked", p.doc.Find("h1").Text())
+		})
+	}
+	same := h.post(t, url.Values{"title": {"mine"}}, map[string]string{"Sec-Fetch-Site": "same-origin", "HX-Request": "true"})
+	assert.Equal(t, http.StatusOK, same.status)
+	assert.Equal(t, 1, h.get(t, "/").doc.Find("ul#notes > li").Length(), "only the same-origin post was stored")
+}
+
+func TestRequestFailures(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	for _, tt := range []struct {
+		name, method, path, body, contentType string
+		status                                int
+		title                                 string
+	}{
+		{"unknown page", "GET", "/missing", "", "", 404, "Page not found"},
+		{"wrong method", "DELETE", "/notes", "", "", 405, "Method not allowed"},
+		{"bad form", "POST", "/notes", "title=%zz", "application/x-www-form-urlencoded", 400, "Bad request"},
+		{"form too large", "POST", "/notes", "title=" + strings.Repeat("a", maxFormBytes+1), "application/x-www-form-urlencoded", 413, "Request too large"},
+		{"static directory", "GET", "/static/vendor/", "", "", 404, "Page not found"},
+		{"missing asset", "GET", "/static/missing.js", "", "", 404, "Page not found"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), tt.method, h.server.URL+tt.path, strings.NewReader(tt.body))
+			require.NoError(t, err)
+			req.Header.Set("X-Request-Id", "req-"+strings.ReplaceAll(tt.name, " ", "-"))
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			p := h.do(t, req)
+			assert.Equal(t, tt.status, p.status)
+			assertHTML(t, p)
+			assert.Equal(t, tt.title, p.doc.Find("h1").Text())
+			assert.Equal(t, "req-"+strings.ReplaceAll(tt.name, " ", "-"), p.doc.Find(".request-id code").Text())
+			if tt.status == 405 {
+				assert.Contains(t, p.header.Get("Allow"), "POST")
+			}
+		})
+	}
+}
+
+type failingStore struct{ notes.Store }
+
+func (failingStore) List(context.Context) ([]notes.Note, error) {
+	return nil, errors.New("database password=secret unreachable")
+}
+
+func TestStoreFailureHidesTheCause(t *testing.T) {
+	h := newHarness(t, failingStore{notes.NewMemory()})
+	p := h.get(t, "/")
+	assert.Equal(t, http.StatusServiceUnavailable, p.status)
+	assert.Equal(t, "Service unavailable", p.doc.Find("h1").Text())
+	assert.NotContains(t, p.body, "secret")
+	assert.Contains(t, h.logs.String(), "database password=secret unreachable")
+}
+
+func TestPanicRendersTheErrorPage(t *testing.T) {
+	logs := &bytes.Buffer{}
+	logger := applog.New(logs, slog.LevelDebug)
+	handler := identify(accessLog(recoverPanic(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("boom")
+	}), logger), logger), logger)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/", nil))
+	assert.Equal(t, http.StatusInternalServerError, res.Code)
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "Something went wrong", doc.Find("h1").Text())
+	assert.NotContains(t, doc.Text(), "boom")
+	assert.Contains(t, logs.String(), `"panic":"boom"`)
+}
+
+func TestStaticAssetsAndHealth(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	for path, contentType := range map[string]string{
+		"/static/app.css":            "text/css; charset=utf-8",
+		"/static/vendor/htmx.min.js": "text/javascript; charset=utf-8",
+	} {
+		p := h.get(t, path)
+		assert.Equal(t, http.StatusOK, p.status, path)
+		assert.Equal(t, contentType, p.header.Get("Content-Type"), path)
+		assert.Equal(t, "public, max-age=3600", p.header.Get("Cache-Control"), path)
+		assert.NotEmpty(t, p.body, path)
+	}
+	health := h.get(t, "/healthz")
+	assert.Equal(t, http.StatusOK, health.status)
+	assert.Equal(t, "ok\n", health.body)
+}
+
+func TestAccessLog(t *testing.T) {
+	h := newHarness(t, notes.NewMemory())
+	h.post(t, url.Values{"title": {"logged"}, "body": {"private body"}}, htmx)
+	var records []map[string]any
+	for line := range strings.Lines(h.logs.String()) {
+		var record map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &record))
+		records = append(records, record)
+	}
+	require.NotEmpty(t, records)
+	last := records[len(records)-1]
+	assert.Equal(t, "request", last["msg"])
+	assert.Equal(t, "POST /notes", last["route"])
+	assert.InDelta(t, 200, last["status"], 0)
+	assert.Equal(t, true, last["htmx"])
+	assert.NotContains(t, h.logs.String(), "private body", "bodies stay out of logs")
+}

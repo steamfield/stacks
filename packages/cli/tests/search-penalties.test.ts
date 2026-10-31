@@ -15,6 +15,7 @@ test("SaaS with Postgres and auth ranks a web app ahead of the mobile stack", as
   ]);
   expect([
     "cloudflare-react-router",
+    "django",
     "react-router",
     "python-react",
     "nextjs",

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "rust-cli",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Rust command-line tool built as one binary, with clap commands, TOML settings, coded errors and human or JSON output.",
+  "description": "Write a Rust utility with clap subcommands and typed settings layered from defaults, TOML files, environment variables and flags. Each failure has a code, a fix suggestion and an exit status, printed as text or as JSON. Strict clippy lints, rustfmt and cargo-deny checks are set up, and tests run the built binary. The shipped config show command is the example to copy; your tool's own commands and any release packaging are still yours to add.",
+  "seoDescription": "A Rust CLI recipe with clap subcommands, layered TOML configuration, coded errors with exit statuses, JSON output and binary tests.",
+  "projectExamples": [
+    {
+      "title": "Log file summarizer",
+      "description": "Add a command that reads log files and prints counts per level, as a table for people or JSON for scripts. Reuse the settings layers for default paths."
+    },
+    {
+      "title": "Repository policy checker",
+      "description": "Add commands that check a repository against rules kept in a TOML file and exit nonzero on a violation, so CI can run the tool."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a terminal program written in the Rust language, compiled into one file that runs without anything else installed.",
+    "goodAt": [
+      "Commands that read settings from files, environment variables and flags",
+      "Output for people to read, or in a structured form scripts can parse",
+      "Error messages with a code, a fix and a distinct exit status"
+    ],
+    "notGoodAt": [
+      "Full-screen terminal screens with menus and panels; that needs a terminal interface stack.",
+      "Graphical apps with windows and buttons; choose a web or desktop stack."
+    ]
+  },
+  "platforms": ["cli"],
+  "productKinds": ["cli-tool"],
+  "languages": ["rust"],
+  "requests": [
+    "start a new Rust utility with clap subcommands",
+    "a fast single binary with subcommands and a TOML config file",
+    "Rust program where every error has an exit code and a suggested fix",
+    "Rust program that prints JSON for other scripts to read",
+    "replace a slow shell script with a compiled Rust program"
+  ],
+  "useCases": ["command-line automation", "configurable utilities"],
+  "synonyms": ["clap", "cargo", "single binary", "subcommands"],
+  "goodFor": ["configuration precedence", "exit codes", "integration tests against the binary"],
+  "notFor": ["a terminal user interface"]
+}

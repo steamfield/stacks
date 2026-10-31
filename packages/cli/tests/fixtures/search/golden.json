@@ -379,6 +379,11 @@
       "relevant": [
         {
           "kind": "stack",
+          "id": "python-cli",
+          "grade": 2
+        },
+        {
+          "kind": "stack",
           "id": "go-cli",
           "grade": 2
         },
@@ -1177,6 +1182,11 @@
       "relevant": [
         {
           "kind": "stack",
+          "id": "python-cli",
+          "grade": 1
+        },
+        {
+          "kind": "stack",
           "id": "go-cli",
           "grade": 1
         },
@@ -1192,7 +1202,16 @@
       "pool": "no-match",
       "split": "tune",
       "query": "a command line tool in Python",
+      "first": {
+        "kind": "stack",
+        "id": "python-cli"
+      },
       "relevant": [
+        {
+          "kind": "stack",
+          "id": "python-cli",
+          "grade": 2
+        },
         {
           "kind": "stack",
           "id": "go-cli",

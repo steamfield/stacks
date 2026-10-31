@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Page not found{% endblock %}
+{% block content %}
+    <h1>Page not found</h1>
+    <p>
+        There is nothing at this address. <a href="{% url 'notes:index' %}">Go to the home page</a>.
+    </p>
+{% endblock content %}

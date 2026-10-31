@@ -1,0 +1,67 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes to the project, but keep the target
+# names. `stacks verify` calls install, lint, typecheck, coverage,
+# check-migrations, check-deploy, build and start. CI calls install, lint,
+# typecheck, coverage, check-migrations and check-deploy.
+
+PORT_WEB ?= 8000
+WEB_HOST ?= 127.0.0.1
+TEST_WORKERS ?= auto
+export PORT_WEB WEB_HOST
+
+MANAGE := uv run python manage.py
+# Production settings for local runs. Without DJANGO_SECRET_KEY each command gets a random
+# throwaway key, so nothing insecure is ever fixed in a file; a real deploy sets its own.
+PROD := DJANGO_ENV=production DJANGO_SECRET_KEY="$${DJANGO_SECRET_KEY:-$$(uv run python -c 'import secrets; print(secrets.token_urlsafe(50))')}"
+
+.DEFAULT_GOAL := help
+.PHONY: help install lint format typecheck test coverage makemigrations check-migrations migrate check-deploy build dev start clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+install: ## uv sync (--locked when CI is set), then git hooks outside CI
+	uv sync $(if $(CI),--locked)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
+
+lint: ## ruff check + ruff format --check + djlint on templates
+	uv run ruff check . && uv run ruff format --check . && uv run djlint . --lint && uv run djlint . --check
+
+format: ## ruff format + ruff check --fix + djlint --reformat
+	uv run ruff format . && uv run ruff check --fix . && uv run djlint . --reformat
+
+typecheck: ## mypy strict with the Django plugin
+	uv run mypy .
+
+test: ## pytest (parallel) against a real test database
+	uv run pytest -n $(TEST_WORKERS)
+
+coverage: ## pytest with the branch coverage floor
+	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
+
+makemigrations: ## Write migrations for model changes
+	$(MANAGE) makemigrations
+
+check-migrations: ## Fail when a model change has no migration (run make makemigrations)
+	$(MANAGE) makemigrations --check --dry-run
+
+migrate: ## Apply migrations to the local development database
+	$(MANAGE) migrate
+
+check-deploy: ## Django's deployment checklist with production settings; warnings fail
+	$(PROD) $(MANAGE) check --deploy --fail-level WARNING
+
+build: ## collectstatic: hashed, compressed static files into staticfiles/
+	$(PROD) $(MANAGE) collectstatic --noinput --clear
+
+dev: ## runserver with reload and DEBUG on PORT_WEB
+	$(MANAGE) migrate
+	$(MANAGE) runserver $(WEB_HOST):$(PORT_WEB)
+
+start: build ## Production settings: migrate, then gunicorn on PORT_WEB over plain HTTP
+	$(PROD) $(MANAGE) migrate --noinput
+	$(PROD) DJANGO_SECURE_SSL_REDIRECT="$${DJANGO_SECURE_SSL_REDIRECT:-0}" exec uv run gunicorn -c config/gunicorn.py
+
+clean: ## Remove caches, coverage and collected static files
+	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage .coverage.* staticfiles

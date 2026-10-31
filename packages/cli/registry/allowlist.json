@@ -132,8 +132,13 @@
       "alembic",
       "asgi-lifespan",
       "asyncpg",
+      "django",
+      "django-stubs",
+      "django-stubs-ext",
+      "djlint",
       "fastapi",
       "greenlet",
+      "gunicorn",
       "httpx",
       "hypothesis",
       "mypy",
@@ -142,6 +147,7 @@
       "pytest",
       "pytest-asyncio",
       "pytest-cov",
+      "pytest-django",
       "pytest-randomly",
       "pytest-xdist",
       "ruff",
@@ -149,7 +155,8 @@
       "structlog",
       "twine",
       "typer",
-      "uvicorn"
+      "uvicorn",
+      "whitenoise"
     ],
     "go": [
       "charm.land/bubbles",

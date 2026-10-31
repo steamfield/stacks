@@ -36,7 +36,7 @@
       "go release",
       "go releases"
     ],
-    "rust": ["rust"],
+    "rust": ["rust", "rustlang", "cargo", "axum"],
     "swift": ["swift", "swiftui"],
     "kotlin": ["kotlin"],
     "java": ["java", "jvm", "spring boot", "springboot", "maven", "quarkus"]

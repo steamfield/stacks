@@ -146,6 +146,9 @@
       "charm.land/bubbles",
       "charm.land/bubbletea",
       "charm.land/lipgloss",
+      "connectrpc.com/connect",
+      "connectrpc.com/grpchealth",
+      "connectrpc.com/grpcreflect",
       "github.com/charmbracelet/x/exp/teatest",
       "github.com/jackc/pgx",
       "github.com/pressly/goose",
@@ -153,7 +156,8 @@
       "github.com/spf13/viper",
       "github.com/stretchr/testify",
       "go.yaml.in/yaml",
-      "golang.org/x/term"
+      "golang.org/x/term",
+      "google.golang.org/protobuf"
     ],
     "crates": [
       "anyhow",

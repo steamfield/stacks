@@ -1,0 +1,55 @@
+package rpc
+
+import (
+	"context"
+	"errors"
+
+	"connectrpc.com/connect/v2"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+type errorRow struct {
+	code connect.Code
+	// message is sent for server faults; client faults send the domain
+	// error's own message, which domain code writes for callers.
+	message string
+	fault   bool
+}
+
+const internalMessage = "internal error"
+
+// errorTable is the one mapping from domain error codes to RPC status codes.
+// A new domain code gets a row here and a case in TestErrorTable.
+var errorTable = map[string]errorRow{
+	apperrors.BadInput:    {code: connect.CodeInvalidArgument},
+	apperrors.NotFound:    {code: connect.CodeNotFound},
+	apperrors.Unavailable: {code: connect.CodeUnavailable, message: "service unavailable", fault: true},
+	apperrors.Internal:    {code: connect.CodeInternal, message: internalMessage, fault: true},
+}
+
+// toStatus turns a handler's error into the error the caller sees, and reports
+// whether it is the server's fault (and so worth logging with its cause).
+func toStatus(err error) (*connect.Error, bool) {
+	var public *connect.Error
+	if errors.As(err, &public) {
+		return public, false
+	}
+	switch {
+	case errors.Is(err, context.Canceled):
+		return connect.NewError(connect.CodeCanceled, "request canceled"), false
+	case errors.Is(err, context.DeadlineExceeded):
+		return connect.NewError(connect.CodeDeadlineExceeded, "deadline exceeded"), false
+	}
+	row := errorTable[apperrors.Internal]
+	var failure *apperrors.Error
+	if errors.As(err, &failure) {
+		if known, ok := errorTable[failure.Code]; ok {
+			row = known
+		}
+		if !row.fault {
+			return connect.NewError(row.code, failure.Message).WithCause(err), false
+		}
+	}
+	return connect.NewError(row.code, row.message).WithCause(err), true
+}

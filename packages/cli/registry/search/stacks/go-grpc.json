@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "go-grpc",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Go gRPC service defined in Protocol Buffers and served with Connect, so one port answers gRPC, gRPC-Web and JSON over HTTP.",
+  "description": "Start a Go RPC service from a .proto contract. buf lints the schema, catches breaking changes and generates the Go code, all run through go tool, and a check fails when the generated code is stale. One notes service with create and get calls proves the shape: interceptors log each call and turn domain errors into gRPC status codes, panics and internal faults hide their cause, the standard health service and server reflection are registered, and the server drains and stops cleanly on SIGTERM. Tests call the real server over a loopback connection with every protocol. The recipe picks no database, authentication or TLS; put TLS at the proxy or load balancer.",
+  "seoDescription": "A Go gRPC recipe on Connect with buf code generation, protobuf lint and breaking checks, health and reflection services and graceful shutdown.",
+  "projectExamples": [
+    {
+      "title": "Internal pricing service",
+      "description": "Illustrative: replace the notes service with quote and price lookups that other backend services call over gRPC. A database and service-to-service authentication are work the project still has to add."
+    },
+    {
+      "title": "Containerised RPC backend",
+      "description": "Illustrative: ship the service as a container whose health check calls the gRPC health service. docker-deploy builds and publishes the image; TLS stays at the load balancer.",
+      "withFragments": ["docker-deploy"]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter Go service that other programs call through a typed contract file, which generates the code both sides use, with health checks and a clean shutdown.",
+    "goodAt": [
+      "Services that other backend services call with typed requests and replies",
+      "Changing a shared contract while catching changes that would break callers",
+      "Answering both gRPC clients and plain JSON requests on one port"
+    ],
+    "notGoodAt": [
+      "Public JSON APIs with hand-designed URLs; choose go-api.",
+      "Projects that need a database or sign-in from the start; you add both yourself."
+    ]
+  },
+  "platforms": ["server"],
+  "productKinds": ["api"],
+  "languages": ["go"],
+  "requests": [
+    "build a gRPC service in Go from a proto file",
+    "golang protobuf server with buf generate and lint",
+    "Connect RPC backend that serves gRPC-Web and JSON too",
+    "detect breaking changes to my protobuf schema in CI",
+    "Go microservice that other services call over gRPC"
+  ],
+  "useCases": ["service-to-service RPC", "internal gRPC services", "protobuf contracts"],
+  "synonyms": [
+    "grpc",
+    "gRPC",
+    "protobuf",
+    "protocol buffers",
+    "proto",
+    "connect-go",
+    "connectrpc",
+    "buf",
+    "grpc-go alternative",
+    "RPC server",
+    "remote procedure call",
+    "grpc-web"
+  ],
+  "goodFor": ["generated client and server code", "schema lint and breaking checks", "server reflection", "graceful shutdown"],
+  "notFor": [],
+  "caveats": [
+    "Race-enabled tests need cgo and a C compiler on every machine and CI runner.",
+    "The breaking-change check compares against a main branch, so it needs one with the proto files committed."
+  ]
+}

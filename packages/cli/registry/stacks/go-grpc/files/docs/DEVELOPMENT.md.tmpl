@@ -1,0 +1,58 @@
+# Development
+
+Initialize with `go mod init {{project_slug}}`, then resolve the modules by
+their import paths (the `/v2` suffixes are part of them) and add the code
+generators as `go tool` dependencies, plugins before buf:
+
+```sh
+go get connectrpc.com/connect/v2 connectrpc.com/grpchealth/v2 connectrpc.com/grpcreflect/v2 google.golang.org/protobuf
+go get github.com/stretchr/testify
+go get -tool google.golang.org/protobuf/cmd/protoc-gen-go connectrpc.com/connect/v2/cmd/protoc-gen-connect-go
+go get -tool github.com/bufbuild/buf/cmd/buf
+make generate
+go mod tidy
+make install
+```
+
+buf may raise `google.golang.org/protobuf` to the version it needs, sometimes
+a pseudo-version; protoc-gen-go comes from that same module, so the generator
+and runtime stay matched. If the project chooses a remote module path, change
+it with `go mod edit -module <path>`, replace `{{project_slug}}/` in every Go
+import and in `buf.gen.yaml`'s `go_package_prefix`, then `make generate`.
+
+Install golangci-lint using its official instructions and write its installed
+version to `.golangci-lint-version`.
+
+```sh
+make generate-check buf-lint fmt-check tidy-check vet lint build test test-integration
+go test -race -run TestNotesOverEveryProtocol/grpc ./internal/rpc/
+make coverage
+```
+
+## Generated code
+
+`make generate` runs `go tool buf generate`, which deletes and rewrites `gen/`.
+`make generate-check` generates into a temporary directory and diffs it with
+`gen/`, so a stale or hand-edited file fails verify and CI. Commit `proto/` and
+`gen/` together. `make fmt` and `make fmt-check` skip `gen/`: the generators'
+import grouping differs from `goimports -local`, and reformatting it would fail
+`generate-check`. golangci-lint skips it by its generated-file header.
+
+`make buf-lint` runs `buf lint` (STANDARD rules) and `buf format`. `make
+breaking` compares `proto/` with `main`; on a fresh repository with no commits
+there is nothing to compare, so it isn't a verify step. In CI, pass the pull
+request's base: `make breaking BREAKING_AGAINST='.git#branch=origin/main'`
+after a checkout with full history.
+
+## Tests
+
+Unit and RPC tests run with the race detector; it requires cgo and a C
+compiler. `internal/rpc/server_test.go` serves the real handler on a loopback
+port and calls it over gRPC, gRPC-Web and the Connect protocol. Tagged
+integration tests build `cmd/server` once, start it with PORT=0, read the
+address from its JSON logs, call it over gRPC and Connect, run `-healthcheck`
+and stop it with SIGINT and SIGTERM.
+
+`make serve` builds `bin/server` and runs it in the foreground. `make vuln`
+runs govulncheck. A standard-library advisory needs a patched Go toolchain,
+recorded in go.mod, rather than a disabled check.

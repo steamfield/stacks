@@ -1,0 +1,105 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/grpchealth/v2"
+
+	"{{project_slug}}/internal/config"
+	applog "{{project_slug}}/internal/log"
+	"{{project_slug}}/internal/notes"
+	"{{project_slug}}/internal/rpc"
+)
+
+var version = "dev"
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx, stop, os.Args[1:], os.Stdout)
+	stop()
+	if err != nil {
+		applog.New(os.Stdout, slog.LevelError).Error("startup or shutdown failed", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context, stop context.CancelFunc, args []string, stdout io.Writer) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if len(args) == 1 && args[0] == "-healthcheck" {
+		return healthcheck(ctx, cfg)
+	}
+	if len(args) != 0 {
+		return fmt.Errorf("unknown arguments; only -healthcheck is supported")
+	}
+	logger := applog.New(stdout, cfg.LogLevel)
+	listener, err := net.Listen("tcp", net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)))
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+	service := rpc.New(notes.NewMemory(), logger, rpc.Options{Reflection: cfg.Reflection})
+	server := rpc.NewHTTPServer(service.Handler())
+	served := make(chan error, 1)
+	go func() { served <- server.Serve(listener) }()
+	logger.Info("listening", "address", listener.Addr().String(), "version", version, "reflection", cfg.Reflection)
+	select {
+	case err := <-served:
+		return fmt.Errorf("serve: %w", err)
+	case <-ctx.Done():
+		stop()
+	}
+	logger.Info("shutting down")
+	service.Drain()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		if closeErr := server.Close(); closeErr != nil {
+			logger.Error("close server", "error", closeErr)
+		}
+		return fmt.Errorf("shutdown: %w", err)
+	}
+	if err := <-served; !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("serve: %w", err)
+	}
+	logger.Info("stopped")
+	return nil
+}
+
+// healthcheck asks the running server's grpc.health.v1 service over gRPC, as an
+// orchestrator's probe would, and fails unless the process reports SERVING.
+// A distroless image has no shell or grpc_health_probe, so its HEALTHCHECK runs
+// `server -healthcheck`.
+func healthcheck(ctx context.Context, cfg config.Config) error {
+	host := cfg.Host
+	switch host {
+	case "0.0.0.0":
+		host = "127.0.0.1"
+	case "::":
+		host = "::1"
+	}
+	transport := connecthttp.NewTransport(rpc.NewH2CClient(2*time.Second),
+		"http://"+net.JoinHostPort(host, strconv.Itoa(cfg.Port)), connecthttp.WithGRPC())
+	res, err := grpchealth.NewClient(connect.NewClient(transport)).Check(ctx, &grpchealth.CheckRequest{})
+	if err != nil {
+		return fmt.Errorf("healthcheck: %w", err)
+	}
+	if res.Status != grpchealth.StatusServing {
+		return fmt.Errorf("healthcheck: %s", res.Status)
+	}
+	return nil
+}

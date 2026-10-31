@@ -32,6 +32,7 @@ const INTERRUPTED = "the run was interrupted";
  * and serve steps; every check runs. Each stage tears down in its own finalizer before the next
  * stage starts. A base failure skips every app step. `onFinished` runs in the run's finalizer,
  * so an interrupted run still tears down and records its outcome before the command ends.
+ * Other exceptional exits tear down without recording.
  */
 export const runVerify = (
   project: VerifyProject,
@@ -111,15 +112,17 @@ export const runVerify = (
       ).pipe(
         Effect.onExit((exit) =>
           Effect.gen(function* () {
-            const interrupted = Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause);
+            const interrupted = Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause);
             if (interrupted) yield* interruptStage;
             yield* Effect.forEach(
               steps.filter((step) => step.phase === "teardown"),
               runOne,
               { discard: true },
             );
-            const outcome = stageOutcome(steps, interrupted);
-            stages = { ...stages, [stage]: outcome };
+            if (Exit.isSuccess(exit) || interrupted) {
+              const outcome = stageOutcome(steps, interrupted);
+              stages = { ...stages, [stage]: outcome };
+            }
           }),
         ),
       );
@@ -174,11 +177,12 @@ export const runVerify = (
       yield* runApp;
       return yield* result(false);
     }).pipe(
-      Effect.onExit((exit) =>
-        Exit.isSuccess(exit)
-          ? onFinished(exit.value)
-          : result(Cause.hasInterrupts(exit.cause)).pipe(Effect.flatMap(onFinished)),
-      ),
+      Effect.onExit((exit) => {
+        if (Exit.isSuccess(exit)) return onFinished(exit.value);
+        if (Cause.hasInterruptsOnly(exit.cause))
+          return result(true).pipe(Effect.flatMap(onFinished));
+        return Effect.void;
+      }),
     );
   });
 

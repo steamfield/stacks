@@ -1,108 +1,49 @@
-import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
-import { extname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { Layer } from "effect";
-import { Effect } from "effect";
-import { McpServer } from "effect/ai";
-import { cliPath } from "./config";
+import { Effect, Layer, Schema } from "effect";
+import { McpSchema, McpServer } from "effect/ai";
+import { decodeCli } from "./decode";
+import { CliRunner } from "./run";
 
-export const GUIDE_RESOURCE_URI = "stacks://guide";
+const AuthorTopics = Schema.Struct({ topics: Schema.Array(Schema.String) });
 
-function captureGuide(): string {
-  try {
-    return execFileSync("bun", [cliPath, "guide"], {
-      encoding: "utf8",
-      timeout: 10_000,
-    }).trim();
-  } catch (error) {
-    return `Failed to capture guide: ${error instanceof Error ? error.message : String(error)}`;
-  }
-}
-
-export const GUIDE_TEXT: string = captureGuide();
-
-export interface SkillResource {
-  readonly uri: string;
-  readonly name: string;
-  readonly description: string;
-  readonly body: string;
-}
-
-function parseFrontmatter(
-  text: string,
-): { name: string; description: string; body: string } | null {
-  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text);
-  if (match === null || match[1] === undefined || match[2] === undefined) return null;
-  const frontmatter = match[1];
-  const body = match[2];
-  let name = "";
-  let description = "";
-  for (const line of frontmatter.split("\n")) {
-    const nameMatch = /^name:\s*(.+)$/.exec(line);
-    if (nameMatch !== null && nameMatch[1] !== undefined) {
-      name = nameMatch[1].trim();
-      continue;
-    }
-    const descMatch = /^description:\s*(.+)$/.exec(line);
-    if (descMatch !== null && descMatch[1] !== undefined) {
-      description = descMatch[1].trim();
-    }
-  }
-  if (name === "") return null;
-  return { name, description, body };
-}
-
-function loadSkills(): SkillResource[] {
-  const here = fileURLToPath(new URL(".", import.meta.url));
-  const skillsDir = resolve(here, "../skills");
-  let files: string[];
-  try {
-    files = readdirSync(skillsDir);
-  } catch {
-    return [];
-  }
-  const skills: SkillResource[] = [];
-  for (const file of files) {
-    if (extname(file) !== ".md") continue;
-    const fullPath = resolve(skillsDir, file);
-    try {
-      const text = readFileSync(fullPath, "utf8");
-      const parsed = parseFrontmatter(text);
-      if (parsed === null) continue;
-      skills.push({
-        uri: `skill://${parsed.name}`,
-        name: parsed.name,
-        description: parsed.description,
-        body: parsed.body,
-      });
-    } catch {}
-  }
-  return skills;
-}
-
-export const SKILL_RESOURCES: SkillResource[] = loadSkills();
-
-export const guideResourceLayer = McpServer.resource({
-  uri: GUIDE_RESOURCE_URI,
-  name: "guide",
-  description: "The stacks agent guide: the list, new, verify loop and the rules.",
-  mimeType: "text/markdown",
-  content: Effect.succeed(GUIDE_TEXT),
-});
-
-export function buildResourceLayers(): Layer.Layer<never>[] {
-  const layers: Layer.Layer<never>[] = [guideResourceLayer];
-  for (const skill of SKILL_RESOURCES) {
-    layers.push(
+export const resourceLayer = Layer.unwrap(
+  Effect.gen(function* () {
+    const runner = yield* CliRunner;
+    const read = Effect.fn("resources.read")(function* (args: ReadonlyArray<string>) {
+      const output = yield* runner.run(args);
+      if (output.exit !== 0) {
+        return yield* new McpSchema.InternalError({
+          message: output.stderr.trim() || `CLI exited ${output.exit}`,
+        });
+      }
+      return output.stdout;
+    });
+    const topics = Effect.fn("resources.topics")(function* (input: string) {
+      const output = yield* runner.run(["guide", "author", "--json"]);
+      const { result } = yield* decodeCli(AuthorTopics, output, "guide author");
+      return result.topics.filter((topic) => topic.startsWith(input));
+    });
+    return Layer.mergeAll(
       McpServer.resource({
-        uri: skill.uri,
-        name: skill.name,
-        description: skill.description,
+        uri: "stacks://guide",
+        name: "guide",
+        description: "The CLI's guide. It also names commands this server does not expose.",
         mimeType: "text/markdown",
-        content: Effect.succeed(skill.body),
+        content: read(["guide"]),
+      }),
+      McpServer.resource({
+        uri: "stacks://guide/author",
+        name: "author",
+        description: "The CLI's guide to writing and submitting stacks and fragments.",
+        mimeType: "text/markdown",
+        content: read(["guide", "author"]),
+      }),
+      McpServer.resource`stacks://guide/author/${McpSchema.param("topic", Schema.String)}`({
+        name: "author-topic",
+        description: "An authoring reference from the CLI.",
+        mimeType: "text/markdown",
+        completion: { topic: topics },
+        content: (_uri, topic) => read(["guide", "author", topic]),
       }),
     );
-  }
-  return layers;
-}
+  }),
+);

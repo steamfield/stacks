@@ -1,160 +1,102 @@
-import { Effect, Schema } from "effect";
+import { Effect, FileSystem, type Path, Ref, Result, Schema } from "effect";
+import { McpSchema, McpServer } from "effect/ai";
+import { decodeCli } from "./decode";
 import { CliFailure } from "./errors";
-import { type CliOutput, CliRunner } from "./run";
-import { CliErrorEnvelope, ListResult, NewResult, VerifyResult } from "./schemas/cli";
-import type {
-  ListParams,
-  ListSuccess,
-  NewParams,
-  NewSuccess,
-  VerifyParams,
-  VerifySuccess,
-} from "./schemas/tools";
+import { CliRunner } from "./run";
+import { ListResult, NewResult, VerifyEvent, VerifyResult } from "./schemas/cli";
+import type { ListParams, NewParams, VerifyParams } from "./schemas/tools";
 import { toolkit } from "./toolkit";
 
-function parseEnvelope(stderr: string, exit: number): CliFailure {
-  const trimmed = stderr.trim();
-  const lastLine = trimmed.split("\n").pop() ?? trimmed;
-  try {
-    const decoded = Schema.decodeUnknownSync(CliErrorEnvelope)(JSON.parse(lastLine));
-    return new CliFailure({
-      message: decoded.error.message,
-      tag: decoded.error.tag,
-      details: decoded.error.details ?? {},
-      exitCode: exit,
-    });
-  } catch {
-    return new CliFailure({
-      message: `CLI exited with code ${exit}`,
-      tag: "CliError",
-      details: { stderr },
-      exitCode: exit,
-    });
-  }
-}
-
-function logCall(
-  tool: string,
-  target: string,
-  durationMs: number,
-  exit: number,
-): Effect.Effect<void> {
-  return Effect.logInfo(`tool=${tool} target=${target} duration=${durationMs}ms exit=${exit}`);
-}
-
-export const listHandler = (
-  params: ListParams,
-): Effect.Effect<ListSuccess, CliFailure, CliRunner> =>
-  Effect.gen(function* () {
-    const runner = yield* CliRunner;
-    const start = Date.now();
-    const output: CliOutput = yield* runner.run(["list"]);
-    const elapsed = Date.now() - start;
-    const target = params.kind ?? "all";
-    if (output.exit !== 0) {
-      const failure = parseEnvelope(output.stderr, output.exit);
-      yield* logCall("stacks_list", target, elapsed, output.exit);
-      return yield* Effect.fail(failure);
-    }
-    const decoded = Schema.decodeUnknownSync(ListResult)(JSON.parse(output.stdout));
-    let entries = decoded.entries;
-    if (params.kind !== undefined) {
-      entries = entries.filter((e) => e.kind === params.kind);
-    }
-    yield* logCall("stacks_list", target, elapsed, output.exit);
-    return { entries } satisfies ListSuccess;
-  });
-
-function newArgs(params: NewParams): string[] {
-  const args = ["new", params.stack];
-  if (params.dir !== undefined) {
-    args.push(params.dir);
-  }
-  const sandbox = params.sandbox ?? true;
-  if (sandbox) {
-    args.push("--sandbox");
-  }
-  args.push("--no-launch");
-  if (params.with !== undefined) {
-    for (const frag of params.with) {
-      args.push("--with", frag);
-    }
-  }
-  if (params.without !== undefined) {
-    for (const frag of params.without) {
-      args.push("--without", frag);
-    }
-  }
-  return args;
-}
-
-export const newHandler = (params: NewParams): Effect.Effect<NewSuccess, CliFailure, CliRunner> =>
-  Effect.gen(function* () {
-    const runner = yield* CliRunner;
-    const start = Date.now();
-    const output: CliOutput = yield* runner.run(newArgs(params));
-    const elapsed = Date.now() - start;
-    if (output.exit !== 0) {
-      const failure = parseEnvelope(output.stderr, output.exit);
-      yield* logCall("stacks_new", params.stack, elapsed, output.exit);
-      return yield* Effect.fail(failure);
-    }
-    const decoded = Schema.decodeUnknownSync(NewResult)(JSON.parse(output.stdout));
-    yield* logCall("stacks_new", params.stack, elapsed, output.exit);
-    return {
-      project: decoded.project,
-      stack: decoded.stack,
-      fragments: decoded.fragments,
-      agents: decoded.agents,
-      written: decoded.written,
-      briefWords: decoded.briefWords,
-      handoff: decoded.handoff,
-    } satisfies NewSuccess;
-  });
-
-export const verifyHandler = (
-  params: VerifyParams,
-): Effect.Effect<VerifySuccess, CliFailure, CliRunner> =>
-  Effect.gen(function* () {
-    const runner = yield* CliRunner;
-    const cwd = params.dir ?? process.cwd();
-    const start = Date.now();
-    const output: CliOutput = yield* runner.run(["verify"], { cwd });
-    const elapsed = Date.now() - start;
-    if (output.exit === -1) {
-      yield* logCall("stacks_verify", cwd, elapsed, output.exit);
-      return yield* Effect.fail(
-        new CliFailure({
-          message: output.stderr,
-          tag: "CliError",
-          details: {},
-          exitCode: output.exit,
-        }),
-      );
-    }
-    try {
-      const decoded = Schema.decodeUnknownSync(VerifyResult)(JSON.parse(output.stdout));
-      yield* logCall("stacks_verify", cwd, elapsed, output.exit);
-      return {
-        outcome: decoded.outcome,
-        totals: decoded.totals,
-        durationMs: decoded.durationMs,
-        steps: decoded.steps.map((s) => ({
-          name: s.name,
-          status: s.status,
-          ...(s.exitCode !== undefined ? { exitCode: s.exitCode } : {}),
-          durationMs: s.durationMs,
-        })),
-      } satisfies VerifySuccess;
-    } catch {
-      const failure = parseEnvelope(output.stderr, output.exit);
-      yield* logCall("stacks_verify", cwd, elapsed, output.exit);
-      return yield* Effect.fail(failure);
-    }
-  });
-
-export const handlerLayer = toolkit.toLayer({
-  stacks_list: listHandler,
-  stacks_new: newHandler,
-  stacks_verify: verifyHandler,
+export const listHandler = Effect.fn("handlers.list")(function* (params: ListParams) {
+  const runner = yield* CliRunner;
+  const output = yield* runner.run([
+    "list",
+    ...(params.group === undefined ? [] : [params.group]),
+    "--json",
+  ]);
+  return (yield* decodeCli(ListResult, output, "list")).result;
 });
+
+function newArgs(params: NewParams): ReadonlyArray<string> {
+  return [
+    "new",
+    "--no-launch",
+    "--json",
+    ...(params.preset === undefined ? [] : [`--preset=${params.preset}`]),
+    ...(params.with ?? []).map((id) => `--with=${id}`),
+    ...(params.without ?? []).map((id) => `--without=${id}`),
+    "--",
+    params.stack,
+    params.dir,
+  ];
+}
+
+export const newHandler = Effect.fn("handlers.new")(function* (params: NewParams) {
+  const runner = yield* CliRunner;
+  const output = yield* runner.run(newArgs(params));
+  return (yield* decodeCli(NewResult, output, "new")).result;
+});
+
+const verifyDirectory = Effect.fn("handlers.verifyDirectory")(function* (dir: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const invalid = (detail: string) =>
+    new CliFailure({
+      tag: "InvalidArgument",
+      cliMessage: `Cannot verify ${dir}: ${detail}`,
+      next: `Pass an existing project directory as dir: ${dir}.`,
+      retryable: false,
+    });
+  const stat = yield* fs.stat(dir).pipe(Effect.mapError((error) => invalid(error.message)));
+  if (stat.type !== "Directory") return yield* invalid("not a directory");
+  return yield* fs.realPath(dir).pipe(Effect.mapError((error) => invalid(error.message)));
+});
+
+export const verifyHandler = Effect.fn("handlers.verify")(function* (
+  params: VerifyParams,
+  onStderrLine?: (line: string) => Effect.Effect<void>,
+) {
+  const runner = yield* CliRunner;
+  const cwd = yield* verifyDirectory(params.dir);
+  const output = yield* runner.run(["verify", "--json"], {
+    cwd,
+    ...(onStderrLine === undefined ? {} : { onStderrLine }),
+  });
+  const decoded = yield* decodeCli(VerifyResult, output, "verify");
+  return { ...decoded.result, ...(decoded.next === undefined ? {} : { next: decoded.next }) };
+});
+
+export const forwardVerifyProgress = Effect.fn("handlers.forwardVerifyProgress")(function* (
+  send: (update: { readonly progress: number; readonly message: string }) => Effect.Effect<void>,
+) {
+  const counter = yield* Ref.make(0);
+  return Effect.fn("handlers.verifyProgress")(function* (line: string) {
+    const decoded = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(VerifyEvent))(
+      line,
+    ).pipe(Effect.result);
+    if (Result.isFailure(decoded) || decoded.success.event !== "step-finished") return;
+    const progress = yield* Ref.updateAndGet(counter, (value) => value + 1);
+    yield* send({ progress, message: `${decoded.success.name}: ${decoded.success.status}` });
+  });
+});
+
+export const handlerLayer = toolkit.toLayer(
+  Effect.gen(function* () {
+    const services = yield* Effect.context<CliRunner | FileSystem.FileSystem | Path.Path>();
+    const server = yield* McpServer.McpServer;
+    return {
+      stacks_list: (params) => listHandler(params).pipe(Effect.provideContext(services)),
+      stacks_new: (params) => newHandler(params).pipe(Effect.provideContext(services)),
+      stacks_verify: Effect.fn("handlers.verifyRequest")(function* (params) {
+        const request = yield* McpSchema.McpRequestContext;
+        const token = request.requestMetadata?.progressToken;
+        const onStderrLine =
+          typeof token === "string" || typeof token === "number"
+            ? yield* forwardVerifyProgress((update) =>
+                server.notifications["notifications/progress"]({ progressToken: token, ...update }),
+              )
+            : undefined;
+        return yield* verifyHandler(params, onStderrLine).pipe(Effect.provideContext(services));
+      }),
+    };
+  }),
+);

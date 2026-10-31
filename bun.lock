@@ -51,19 +51,23 @@
     },
     "packages/mcp": {
       "name": "@steamfield/stacks-mcp",
-      "version": "0.0.0",
+      "version": "0.1.0",
+      "bin": {
+        "stacks-mcp": "dist/server.js",
+      },
       "dependencies": {
-        "@effect/platform-node": "catalog:",
         "@steamfield/stacks": "workspace:*",
-        "effect": "catalog:",
       },
       "devDependencies": {
         "@biomejs/biome": "catalog:",
+        "@effect/platform-node": "catalog:",
         "@effect/vitest": "catalog:",
         "@modelcontextprotocol/sdk": "catalog:",
+        "@steamfield/stacks-format": "workspace:*",
         "@types/bun": "catalog:",
         "@types/node": "catalog:",
         "@vitest/coverage-v8": "catalog:",
+        "effect": "catalog:",
         "typescript": "catalog:",
         "vitest": "catalog:",
       },

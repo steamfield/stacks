@@ -1,4 +1,4 @@
-// Publishes @steamfield/stacks-format, then @steamfield/stacks, at the versions in their
+// Publishes @steamfield/stacks-format, @steamfield/stacks, then @steamfield/stacks-mcp at their
 // package.json files, from a clean detached worktree of origin/main, then tags v<cli version>.
 // A person runs it (`bun run release`, or `bun run release -- --dry-run` to pack and check
 // without publishing or tagging); packages/format/README.md, "Publishing", has the steps it wraps.
@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const PACKAGES = ["format", "cli"] as const;
+const PACKAGES = ["format", "cli", "mcp"] as const;
 const dryRun = process.argv.includes("--dry-run");
 const root = join(import.meta.dirname, "..");
 

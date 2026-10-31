@@ -45,7 +45,11 @@ it.effect(
         node: process.execPath,
         bun: null,
       });
-      expect(JSON.parse(readFileSync(record, "utf8")).env).toEqual(env);
+      // macOS adds __CF_USER_TEXT_ENCODING to every child's environment, even an explicit one.
+      const { __CF_USER_TEXT_ENCODING: _, ...childEnv } = JSON.parse(
+        readFileSync(record, "utf8"),
+      ).env;
+      expect(childEnv).toEqual(env);
     }),
 );
 

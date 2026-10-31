@@ -1,0 +1,97 @@
+package notes
+
+import (
+	"context"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestValidate(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		input  Input
+		fields []string
+	}{
+		{"valid", Input{Title: "  Groceries ", Body: " milk "}, nil},
+		{"missing title", Input{Title: "   "}, []string{"title"}},
+		{"long title", Input{Title: strings.Repeat("a", MaxTitle+1)}, []string{"title"}},
+		{"long body", Input{Title: "ok", Body: strings.Repeat("é", MaxBody+1)}, []string{"body"}},
+		{"both", Input{Body: strings.Repeat("b", MaxBody+1)}, []string{"title", "body"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cleaned, err := Validate(tt.input)
+			if tt.fields == nil {
+				require.NoError(t, err)
+				assert.Equal(t, Input{Title: "Groceries", Body: "milk"}, cleaned)
+				return
+			}
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, apperrors.Invalid, failure.Code)
+			for _, field := range tt.fields {
+				assert.NotEmpty(t, failure.Fields[field], field)
+			}
+			assert.Len(t, failure.Fields, len(tt.fields))
+		})
+	}
+}
+
+func TestMemoryListsNewestFirst(t *testing.T) {
+	store := NewMemory()
+	first, err := store.Create(t.Context(), Input{Title: "first"})
+	require.NoError(t, err)
+	second, err := store.Create(t.Context(), Input{Title: "second", Body: "body"})
+	require.NoError(t, err)
+	assert.NotEqual(t, first.ID, second.ID)
+	items, err := store.List(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []Note{second, first}, items)
+	items[0].Title = "changed"
+	again, err := store.List(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, "second", again[0].Title, "List returns a copy")
+}
+
+func TestMemoryRejectsInvalidInput(t *testing.T) {
+	store := NewMemory()
+	_, err := store.Create(t.Context(), Input{})
+	var failure *apperrors.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, apperrors.Invalid, failure.Code)
+	items, err := store.List(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, items)
+}
+
+func TestMemoryHonorsCancellation(t *testing.T) {
+	store := NewMemory()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := store.Create(ctx, Input{Title: "late"})
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = store.List(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestMemoryIsSafeForConcurrentUse(t *testing.T) {
+	store := NewMemory()
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Go(func() {
+			_, err := store.Create(t.Context(), Input{Title: "note"})
+			assert.NoError(t, err)
+			_, err = store.List(t.Context())
+			assert.NoError(t, err)
+		})
+	}
+	wg.Wait()
+	items, err := store.List(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, items, 20)
+}

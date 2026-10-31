@@ -1,0 +1,20 @@
+# Code generation for proto/ into gen/ (buf config format v2).
+# Plugins run through `go tool`, so their versions come from go.mod: generation
+# is offline, needs no Buf account, and protoc-gen-go always matches the
+# google.golang.org/protobuf runtime, protoc-gen-connect-go the Connect runtime.
+version: v2
+clean: true
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: {{project_slug}}/gen
+plugins:
+  - local: [go, tool, protoc-gen-go]
+    out: gen
+    opt: paths=source_relative
+  - local: [go, tool, protoc-gen-connect-go]
+    out: gen
+    opt: paths=source_relative
+inputs:
+  - directory: proto

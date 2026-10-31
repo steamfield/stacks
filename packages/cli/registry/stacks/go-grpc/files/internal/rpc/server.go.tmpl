@@ -1,0 +1,106 @@
+// Package rpc is the RPC boundary: the Connect server with its interceptors,
+// the generated service handlers, health checking, reflection and the HTTP
+// server that speaks gRPC, gRPC-Web and the Connect protocol on one port.
+package rpc
+
+import (
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/connect/v2/connectinprocess"
+	"connectrpc.com/grpchealth/v2"
+	"connectrpc.com/grpcreflect/v2"
+
+	"{{project_slug}}/gen/notes/v1/notesv1connect"
+	"{{project_slug}}/internal/notes"
+)
+
+// maxMessageBytes caps a decoded request message.
+const maxMessageBytes = 1 << 20
+
+type Options struct {
+	// Reflection registers gRPC server reflection (v1 and v1alpha).
+	Reflection bool
+}
+
+// Server holds the HTTP handler for every RPC route plus /healthz, and the
+// health checker that shutdown flips to NOT_SERVING.
+type Server struct {
+	handler http.Handler
+	health  *grpchealth.StaticChecker
+}
+
+func New(store notes.Store, logger *slog.Logger, opts Options) *Server {
+	rpcServer := connect.NewServer(logCalls(logger), recoverPanics(logger), mapErrors(logger))
+	notesv1connect.RegisterNoteServiceHandler(rpcServer, &noteService{store: store})
+	health := grpchealth.NewStaticChecker(notesv1connect.NoteServiceName)
+	grpchealth.Register(rpcServer, health)
+	if opts.Reflection {
+		grpcreflect.Register(rpcServer)
+	}
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, rpcServer, connecthttp.WithReadMaxBytes(maxMessageBytes))
+	// /healthz asks the registered grpc.health.v1 service in process, so plain
+	// HTTP probes (stacks verify, a load balancer) see the same status gRPC
+	// health clients do.
+	healthClient := grpchealth.NewClient(connect.NewClient(connectinprocess.New(rpcServer)))
+	mux.Handle("GET /healthz", healthz(healthClient, logger))
+	return &Server{handler: mux, health: health}
+}
+
+func (s *Server) Handler() http.Handler { return s.handler }
+
+// Drain reports NOT_SERVING for the process and every service, so health
+// clients stop routing here while in-flight calls finish.
+func (s *Server) Drain() {
+	s.health.SetStatus("", grpchealth.StatusNotServing)
+	s.health.SetStatus(notesv1connect.NoteServiceName, grpchealth.StatusNotServing)
+}
+
+func healthz(client *grpchealth.Client, logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		status := http.StatusOK
+		res, err := client.Check(r.Context(), &grpchealth.CheckRequest{})
+		if err != nil {
+			logger.ErrorContext(r.Context(), "health check failed", "error", err)
+			res = &grpchealth.CheckResponse{Status: grpchealth.StatusUnknown}
+		}
+		if res.Status != grpchealth.StatusServing {
+			status = http.StatusServiceUnavailable
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(status)
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": res.Status.String()}); err != nil {
+			logger.ErrorContext(r.Context(), "write health response", "error", err)
+		}
+	})
+}
+
+// NewHTTPServer serves handler over HTTP/1.1 and cleartext HTTP/2 (h2c). gRPC
+// needs HTTP/2; without TLS, only UnencryptedHTTP2 provides it. Read and write
+// timeouts are left unset because they would cut streaming RPCs, including
+// reflection; clients set deadlines per call.
+func NewHTTPServer(handler http.Handler) *http.Server {
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+	return &http.Server{
+		Handler:           handler,
+		Protocols:         protocols,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+}
+
+// NewH2CClient is an HTTP client that speaks cleartext HTTP/2 only, as gRPC
+// clients do against a plaintext server.
+func NewH2CClient(timeout time.Duration) *http.Client {
+	protocols := new(http.Protocols)
+	protocols.SetUnencryptedHTTP2(true)
+	return &http.Client{Timeout: timeout, Transport: &http.Transport{Protocols: protocols}}
+}

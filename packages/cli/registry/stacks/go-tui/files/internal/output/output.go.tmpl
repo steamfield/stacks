@@ -1,0 +1,77 @@
+// Package output writes the non-interactive results: text or JSON on stdout,
+// errors on stderr. The full-screen UI never uses it.
+package output
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"text/tabwriter"
+
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/tasks"
+)
+
+// Render writes value as one JSON document when asJSON is set, otherwise the text.
+func Render(w io.Writer, asJSON bool, value any, text string) error {
+	var err error
+	if asJSON {
+		err = json.NewEncoder(w).Encode(value)
+	} else {
+		_, err = io.WriteString(w, text)
+	}
+	if err != nil {
+		return apperrors.Wrap(apperrors.IO, "write output", "Check the output destination and retry.", err)
+	}
+	return nil
+}
+
+// Tasks renders the task list in either mode. JSON is {"tasks": [...]}.
+func Tasks(w io.Writer, asJSON bool, list []tasks.Task) error {
+	if list == nil {
+		list = []tasks.Task{}
+	}
+	document := struct {
+		Tasks []tasks.Task `json:"tasks"`
+	}{Tasks: list}
+	return Render(w, asJSON, document, Table(list))
+}
+
+// Table is the plain-text list: one task per line, aligned columns.
+func Table(list []tasks.Task) string {
+	var out bytes.Buffer
+	tw := tabwriter.NewWriter(&out, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tSTATUS\tTITLE")
+	for _, task := range list {
+		fmt.Fprintf(tw, "%s\t%s\t%s\n", task.ID, task.Status, task.Title)
+	}
+	_ = tw.Flush() // Writes to a bytes.Buffer cannot fail.
+	return out.String()
+}
+
+// Error writes err to w: {"error":{"code","message","suggestion"}} in JSON
+// mode, otherwise "CODE: message" and a Suggestion line.
+func Error(w io.Writer, asJSON bool, err error) {
+	var failure *apperrors.Error
+	if !errors.As(err, &failure) {
+		failure = apperrors.Wrap(apperrors.Internal, "unexpected failure", "Run again with --log-file and read the log.", err)
+	}
+	if asJSON {
+		document := struct {
+			Error struct {
+				Code       string `json:"code"`
+				Message    string `json:"message"`
+				Suggestion string `json:"suggestion"`
+			} `json:"error"`
+		}{}
+		document.Error.Code = failure.Code
+		document.Error.Message = failure.Error()
+		document.Error.Suggestion = failure.Suggestion
+		// stderr itself may be closed; there is nowhere left to report that.
+		_ = json.NewEncoder(w).Encode(document)
+		return
+	}
+	fmt.Fprintf(w, "%s: %s\nSuggestion: %s\n", failure.Code, failure.Error(), failure.Suggestion)
+}

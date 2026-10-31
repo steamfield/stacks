@@ -1,0 +1,205 @@
+//go:build integration
+
+package integration
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"syscall"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
+	"connectrpc.com/grpchealth/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	notesv1 "{{project_slug}}/gen/notes/v1"
+	"{{project_slug}}/gen/notes/v1/notesv1connect"
+	"{{project_slug}}/internal/rpc"
+)
+
+type runningServer struct {
+	cmd     *exec.Cmd
+	address string
+	exited  chan struct{}
+	err     error
+	logs    []map[string]any
+	scanErr error
+}
+
+func startServer(t *testing.T, host string) *runningServer {
+	t.Helper()
+	server := &runningServer{cmd: exec.Command(binary), exited: make(chan struct{})}
+	server.cmd.Env = []string{"HOST=" + host, "PORT=0", "LOG_LEVEL=debug", "SHUTDOWN_TIMEOUT=2s"}
+	server.cmd.Dir = t.TempDir()
+	stdout, err := server.cmd.StdoutPipe()
+	require.NoError(t, err)
+	var stderr bytes.Buffer
+	server.cmd.Stderr = &stderr
+	require.NoError(t, server.cmd.Start())
+	ready := make(chan string, 1)
+	// Keep reading through process exit. Wait only after draining StdoutPipe.
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			var record map[string]any
+			if err := json.Unmarshal(scanner.Bytes(), &record); err != nil {
+				server.scanErr = err
+				continue
+			}
+			server.logs = append(server.logs, record)
+			if record["msg"] == "listening" {
+				if address, ok := record["address"].(string); ok {
+					ready <- address
+				}
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			server.scanErr = err
+		}
+		server.err = server.cmd.Wait()
+		close(server.exited)
+	}()
+	t.Cleanup(func() {
+		select {
+		case <-server.exited:
+		default:
+			_ = server.cmd.Process.Kill()
+			select {
+			case <-server.exited:
+			case <-time.After(5 * time.Second):
+				t.Error("server did not exit after kill")
+			}
+		}
+	})
+	select {
+	case server.address = <-ready:
+	case <-server.exited:
+		t.Fatalf("server exited before listening: %v, %s", server.err, stderr.String())
+	case <-time.After(10 * time.Second):
+		t.Fatal("server did not report listening")
+	}
+	return server
+}
+
+func (s *runningServer) stop(t *testing.T, signal os.Signal) {
+	t.Helper()
+	require.NoError(t, s.cmd.Process.Signal(signal))
+	select {
+	case <-s.exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("shutdown did not finish")
+	}
+	require.NoError(t, s.err)
+	require.NoError(t, s.scanErr)
+}
+
+func healthcheck(t *testing.T, env ...string) error {
+	t.Helper()
+	probe := exec.Command(binary, "-healthcheck")
+	probe.Env = env
+	out, err := probe.CombinedOutput()
+	if err != nil {
+		t.Logf("healthcheck output: %s", out)
+	}
+	return err
+}
+
+// The built binary answers the generated client over gRPC (HTTP/2 without
+// TLS) and the Connect protocol (HTTP/1.1) on one port, reports health over
+// gRPC and plain HTTP, and drains on SIGTERM or SIGINT.
+func TestRPCAndSignalShutdown(t *testing.T) {
+	for _, signal := range []os.Signal{syscall.SIGTERM, os.Interrupt} {
+		t.Run(signal.String(), func(t *testing.T) {
+			server := startServer(t, "127.0.0.1")
+			base := "http://" + server.address
+			grpcClient := notesv1connect.NewNoteServiceClient(connect.NewClient(
+				connecthttp.NewTransport(rpc.NewH2CClient(5*time.Second), base, connecthttp.WithGRPC())))
+			connectClient := notesv1connect.NewNoteServiceClient(connect.NewClient(
+				connecthttp.NewTransport(&http.Client{Timeout: 5 * time.Second}, base, connecthttp.WithProtoJSON())))
+
+			created, err := grpcClient.CreateNote(t.Context(), &notesv1.CreateNoteRequest{Title: "integration", Body: "from the binary"})
+			require.NoError(t, err)
+			got, err := connectClient.GetNote(t.Context(), &notesv1.GetNoteRequest{Id: created.GetNote().GetId()})
+			require.NoError(t, err)
+			assert.Equal(t, "from the binary", got.GetNote().GetBody())
+			_, err = grpcClient.CreateNote(t.Context(), &notesv1.CreateNoteRequest{})
+			assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+			health := grpchealth.NewClient(connect.NewClient(
+				connecthttp.NewTransport(rpc.NewH2CClient(5*time.Second), base, connecthttp.WithGRPC())))
+			res, err := health.Check(t.Context(), &grpchealth.CheckRequest{})
+			require.NoError(t, err)
+			assert.Equal(t, grpchealth.StatusServing, res.Status)
+			response, err := http.Get(base + "/healthz")
+			require.NoError(t, err)
+			body, err := io.ReadAll(response.Body)
+			require.NoError(t, response.Body.Close())
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, response.StatusCode)
+			assert.JSONEq(t, `{"status":"serving"}`, string(body))
+			_, port, err := net.SplitHostPort(server.address)
+			require.NoError(t, err)
+			require.NoError(t, healthcheck(t, "PORT="+port))
+
+			server.stop(t, signal)
+			var messages []string
+			for _, record := range server.logs {
+				messages = append(messages, record["msg"].(string))
+			}
+			assert.Contains(t, messages, "rpc")
+			assert.Contains(t, messages, "shutting down")
+			assert.Equal(t, "stopped", messages[len(messages)-1])
+		})
+	}
+}
+
+func TestHealthcheckBindAddresses(t *testing.T) {
+	for _, host := range []string{"::1", "0.0.0.0", "::"} {
+		t.Run(host, func(t *testing.T) {
+			server := startServer(t, host)
+			_, port, err := net.SplitHostPort(server.address)
+			require.NoError(t, err)
+			require.NoError(t, healthcheck(t, "HOST="+host, "PORT="+port))
+			server.stop(t, syscall.SIGTERM)
+		})
+	}
+}
+
+func TestStartupFailures(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+	for _, tt := range []struct {
+		name      string
+		args, env []string
+		message   string
+	}{
+		{"config", nil, []string{"PORT=invalid"}, "PORT"},
+		{"occupied port", nil, []string{"HOST=127.0.0.1", "PORT=" + port}, "listen"},
+		{"arguments", []string{"unknown"}, nil, "unknown arguments"},
+		{"failed healthcheck", []string{"-healthcheck"}, []string{"PORT=0"}, "healthcheck"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command(binary, tt.args...)
+			cmd.Env = append([]string{}, tt.env...)
+			out, err := cmd.CombinedOutput()
+			var exit *exec.ExitError
+			require.ErrorAs(t, err, &exit)
+			assert.Equal(t, 1, exit.ExitCode())
+			var record map[string]any
+			require.NoError(t, json.Unmarshal(out, &record))
+			assert.Contains(t, record["error"], tt.message)
+		})
+	}
+}

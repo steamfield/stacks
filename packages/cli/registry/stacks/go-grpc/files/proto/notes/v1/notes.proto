@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package notes.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// NoteService stores short text notes. It is the proving service: replace it
+// with the project's first real service, keeping the tests' shape.
+service NoteService {
+  // CreateNote validates and stores a note, returning it with its id.
+  rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse) {}
+
+  // GetNote returns one note by id. It has no side effects, so Connect clients
+  // may call it with HTTP GET.
+  rpc GetNote(GetNoteRequest) returns (GetNoteResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// Note is one stored note.
+message Note {
+  // Server-assigned, opaque id.
+  string id = 1;
+  // 1 to 200 characters after trimming spaces.
+  string title = 2;
+  // At most 10000 characters.
+  string body = 3;
+  google.protobuf.Timestamp create_time = 4;
+}
+
+message CreateNoteRequest {
+  string title = 1;
+  string body = 2;
+}
+
+message CreateNoteResponse {
+  Note note = 1;
+}
+
+message GetNoteRequest {
+  string id = 1;
+}
+
+message GetNoteResponse {
+  Note note = 1;
+}

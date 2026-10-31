@@ -22,7 +22,7 @@
     "library": ["library", "npm package", "python package", "crate", "sdk"]
   },
   "languages": {
-    "typescript": ["typescript", "ts", "javascript", "js", "node"],
+    "typescript": ["typescript", "ts", "javascript", "js", "node", "npm"],
     "python": ["python", "fastapi"],
     "go": [
       "golang",
@@ -34,9 +34,12 @@
       "go binaries",
       "go tool",
       "go release",
-      "go releases"
+      "go releases",
+      "go library",
+      "go package",
+      "go module"
     ],
-    "rust": ["rust"],
+    "rust": ["rust", "rustlang", "cargo", "axum"],
     "swift": ["swift", "swiftui"],
     "kotlin": ["kotlin"],
     "java": ["java", "jvm", "spring boot", "springboot", "maven", "quarkus"]

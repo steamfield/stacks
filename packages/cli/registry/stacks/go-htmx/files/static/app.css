@@ -1,0 +1,106 @@
+:root {
+  color-scheme: light dark;
+  --text: #1c1d1f;
+  --muted: #5d6068;
+  --surface: #ffffff;
+  --page: #f4f4f2;
+  --border: #d7d8db;
+  --accent: #2459c4;
+  --danger: #b3261e;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e8e8ea;
+    --muted: #a3a6ad;
+    --surface: #1d1f23;
+    --page: #141518;
+    --border: #3a3d44;
+    --accent: #8fb1ff;
+    --danger: #ff8a80;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+form,
+#notes > li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+input,
+textarea {
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--page);
+  color: inherit;
+}
+
+[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: var(--accent);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+form.htmx-request button {
+  opacity: 0.6;
+}
+
+#notes {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+#notes:empty::after {
+  content: "No notes yet.";
+  color: var(--muted);
+}
+
+#notes h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+time,
+.request-id {
+  color: var(--muted);
+  font-size: 0.875rem;
+}

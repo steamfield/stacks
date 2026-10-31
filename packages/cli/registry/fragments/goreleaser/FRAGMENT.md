@@ -6,7 +6,7 @@ category: release
 name: GoReleaser
 description: Tag-driven releases for a Go binary with GoReleaser, covering cross-platform builds with version ldflags, archives, checksums, a conventional-commit changelog, a GitHub release workflow, and optional Homebrew publishing.
 tags: [go, release, goreleaser]
-applies_to: [go-cli]
+applies_to: [go-cli, go-tui]
 requires_tools: [goreleaser]
 tools: [goreleaser]
 decisions:
@@ -34,6 +34,10 @@ Add tag-driven releases. Pushing `vX.Y.Z` builds every target, attaches archives
 - **Changelog**: sorted ascending, excluding `docs:`, `test:`, `chore:`, and `ci:` commits (the git-hooks fragment enforces conventional commits, which makes this useful).
 - **Snapshot**: a version template for snapshot builds that marks them clearly as non-releases.
 - **Homebrew (if on)**: use whichever Homebrew publisher the current GoReleaser recommends (it has moved from formulas toward casks), pointing at the user's tap repo, with the token read from a `HOMEBREW_TAP_TOKEN` env var. On macOS, unsigned binaries get quarantined; add the post-install hook GoReleaser documents for removing the quarantine attribute, or document the manual step.
+<!-- stacks:when stack=go-tui -->
+
+go-tui has the same layout: `main.go` at the root with `main.version`, `main.commit` and `main.date`, set by the Makefile's `build` target, and `dist/` already in `.gitignore`. It has no `completion` command, so leave out the completions hook.
+<!-- stacks:end -->
 
 **Release workflow** `.github/workflows/release.yml`:
 - Trigger on `push` of tags matching `v*`.

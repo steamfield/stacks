@@ -1,0 +1,42 @@
+[package]
+name = "{{project_slug}}"
+edition.workspace = true
+publish = false
+
+# The library holds every module so tests/ can import the router; the binary
+# (src/main.rs, named after the package) only reads the process and calls it.
+[lib]
+name = "api"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+# One package at the root, inside a workspace, so a second crate joins without
+# moving this one. `cargo add` writes [dependencies] here.
+[workspace]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# The library is this service's own code, not a published API: its public
+# items exist for tests/, so library-documentation lints don't apply.
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"

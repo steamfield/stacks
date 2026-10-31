@@ -1,0 +1,10 @@
+# Build output, including the .crate files `cargo package` writes
+/target/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db

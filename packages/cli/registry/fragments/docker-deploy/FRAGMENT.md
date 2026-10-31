@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -50,11 +50,17 @@ A production image per deployable part and a workflow that publishes them, writt
 <!-- stacks:when stack=typescript-api -->
 **Node API**: one root `Dockerfile`. Build the bundle with bun in the build stage; the runtime stage is the official slim Node image matching `.node-version` with only `dist/`, no `node_modules` or source, running `node` on the bundle with `NODE_ENV=production`, so it logs JSON to stdout and never writes `logs/`. The health check fetches `/healthz` with Node's own `fetch`.
 <!-- stacks:end -->
+<!-- stacks:when stack=hono-api -->
+**Node API**: one root `Dockerfile`. The build stage installs frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only `package.json` (its `"type": "module"` marks the bundle as ESM) and `dist/main.js` (the bundle includes its dependencies, so no `node_modules`), running `node dist/main.js` with `PORT_API` set and exposed. The health check fetches `/healthz` with Node's own `fetch`. Logs are JSON on stdout.
+<!-- stacks:end -->
 <!-- stacks:when stack=astro-fullstack -->
 **API and site**: one root `Dockerfile`, one image. The build stage installs the workspace frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only the API bundle and `apps/web/dist`, `STATIC_DIR` pointing at the copied site and `NODE_ENV=production`. The health check fetches `/healthz` with Node's own `fetch`.
 <!-- stacks:end -->
 <!-- stacks:when tag=go -->
 **Go**: `CGO_ENABLED=0` with version ldflags in the official Go image, static binary copied into a distroless nonroot runtime.
+<!-- stacks:end -->
+<!-- stacks:when tag=rust -->
+**Rust**: build in the official Rust image for the toolchain `rust-toolchain.toml` records, its Debian release named by tag suffix (`-slim-<codename>`) so it can't drift from the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; a cache-mounted `target/` isn't in the layer, so copy the binary out of it in the same `RUN`. Copy only the binary into the nonroot variant of the distroless `cc` image for that same Debian release, since the binary links against the build image's glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary itself with a probe flag the app ships (`--healthcheck`, which requests the health endpoint and exits 0 or 1).
 <!-- stacks:end -->
 
 <!-- stacks:when with=postgres -->

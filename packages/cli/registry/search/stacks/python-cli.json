@@ -34,17 +34,43 @@
       "A single file that runs without Python installed; choose the Go CLI stack."
     ]
   },
-  "platforms": ["cli"],
-  "productKinds": ["cli-tool"],
-  "languages": ["python"],
+  "platforms": [
+    "cli"
+  ],
+  "productKinds": [
+    "cli-tool"
+  ],
+  "languages": [
+    "python"
+  ],
   "requests": [
     "build a Python command line tool people install with uv tool or pipx",
     "write a typer cli with subcommands and a json output flag",
     "a python script I can turn into a proper installable command",
     "let users set defaults in a config file and override them with env vars"
   ],
-  "useCases": ["command-line automation", "developer tooling", "scriptable utilities"],
-  "synonyms": ["typer", "click", "argparse", "console script", "pipx", "uv tool", "python terminal tool"],
-  "goodFor": ["configuration precedence", "exit codes", "JSON output for scripts", "wheel packaging"],
-  "notFor": ["terminal user interface", "terminal ui"]
+  "useCases": [
+    "command-line automation",
+    "developer tooling",
+    "scriptable utilities"
+  ],
+  "synonyms": [
+    "typer",
+    "click",
+    "argparse",
+    "console script",
+    "pipx",
+    "uv tool",
+    "python terminal tool"
+  ],
+  "goodFor": [
+    "configuration precedence",
+    "exit codes",
+    "JSON output for scripts",
+    "wheel packaging"
+  ],
+  "notFor": [
+    "terminal user interface",
+    "terminal ui"
+  ]
 }

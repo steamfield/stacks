@@ -1,0 +1,88 @@
+package app
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+type result struct {
+	code           int
+	stdout, stderr string
+}
+
+func run(t *testing.T, env map[string]string, args ...string) result {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	streams := Streams{
+		Stdin:  strings.NewReader(""), // not a terminal, so the UI never starts
+		Stdout: &stdout,
+		Stderr: &stderr,
+		Getenv: func(key string) string { return env[key] },
+	}
+	code := Main(t.Context(), args, streams, Build{Version: "1.2.3", Commit: "abc", Date: "today"})
+	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
+}
+
+func TestWithoutTerminalPrintsText(t *testing.T) {
+	got := run(t, nil)
+	assert.Equal(t, 0, got.code, got.stderr)
+	assert.Contains(t, got.stdout, "T-1  doing   Write the README")
+	assert.Empty(t, got.stderr)
+}
+
+func TestJSON(t *testing.T) {
+	got := run(t, nil, "--json")
+	require.Equal(t, 0, got.code, got.stderr)
+	var document struct{ Tasks []struct{ ID string } }
+	require.NoError(t, json.Unmarshal([]byte(got.stdout), &document))
+	assert.Len(t, document.Tasks, 3)
+}
+
+func TestVersionAndHelp(t *testing.T) {
+	assert.Equal(t, result{stdout: config.Binary + " version 1.2.3 (commit abc, built today)\n"}, run(t, nil, "--version"))
+	assert.JSONEq(t, `{"version":"1.2.3","commit":"abc","date":"today"}`, run(t, nil, "--version", "--json").stdout)
+	help := run(t, nil, "--help")
+	assert.Equal(t, 0, help.code)
+	assert.Contains(t, help.stdout, "Usage: "+config.Binary)
+}
+
+func TestFailuresMapToExitCodes(t *testing.T) {
+	usage := run(t, nil, "--bogus")
+	assert.Equal(t, 2, usage.code)
+	assert.Empty(t, usage.stdout)
+	assert.Contains(t, usage.stderr, "INVALID_INPUT: parse flags")
+	assert.Contains(t, usage.stderr, "Suggestion: Run "+config.Binary+" --help")
+
+	missing := run(t, nil, "--json", "--tasks", filepath.Join(t.TempDir(), "none.json"))
+	assert.Equal(t, 1, missing.code)
+	var document struct {
+		Error struct{ Code, Message, Suggestion string }
+	}
+	require.NoError(t, json.Unmarshal([]byte(missing.stderr), &document))
+	assert.Equal(t, "IO", document.Error.Code)
+	assert.NotEmpty(t, document.Error.Suggestion)
+
+	level := run(t, map[string]string{config.EnvPrefix + "_LOG_LEVEL": "loud"})
+	assert.Equal(t, 1, level.code)
+	assert.Contains(t, level.stderr, "CONFIG:")
+}
+
+func TestLogsGoToTheLogFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "app.log")
+	got := run(t, map[string]string{config.EnvPrefix + "_LOG_FILE": path})
+	require.Equal(t, 0, got.code, got.stderr)
+	assert.Empty(t, got.stderr)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"msg":"start"`)
+	assert.Contains(t, string(data), `"mode":"text"`)
+}

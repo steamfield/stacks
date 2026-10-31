@@ -1,0 +1,24 @@
+// Browser app boundaries: one network client, one config reader, one logger.
+language js
+
+or {
+  or {
+    `fetch($args)`,
+    `globalThis.fetch($args)`,
+    `window.fetch($args)`
+  } as $f where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/api/.*",
+    register_diagnostic(span=$f, message="Call the API through src/api/client.ts, so every request gets the base URL, response decoding, ApiError and logging.")
+  },
+  `import.meta.env` as $e where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/config\.ts",
+    register_diagnostic(span=$e, message="Only src/config.ts reads import.meta.env; add the setting to its schema and pass the parsed value down.")
+  },
+  `console.$m($args)` as $c where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*/src/logging\.ts",
+    register_diagnostic(span=$c, message="Log through the logger from src/logging.ts (useServices().logger in components), so records keep one shape and the level setting applies.")
+  }
+}

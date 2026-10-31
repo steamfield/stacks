@@ -19,6 +19,76 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "assert_cmd": {
+      "whatItIs": "assert_cmd, a library for the Rust programming language that runs a built command-line program in a test and checks what it printed and how it exited.",
+      "goodAt": [
+        "Testing a command-line tool the way a person or script would run it",
+        "Checking a program's exit status and its printed output together"
+      ],
+      "notGoodAt": [
+        "Testing one function inside the program; an ordinary unit test does that faster."
+      ],
+      "example": "A test runs the tool with a missing settings file and checks that it exits with an error and prints a hint on how to fix it.",
+      "homepage": "https://github.com/assert-rs/assert_cmd",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "axum": {
+      "whatItIs": "axum, a library for the Rust programming language that builds web servers: it matches each incoming request to the code that answers it.",
+      "goodAt": [
+        "Web services that answer requests with JSON data",
+        "Reading request bodies, addresses and settings into typed values"
+      ],
+      "notGoodAt": ["Pages people click through, with templates and forms; use a web app stack."],
+      "example": "When a phone app asks the service for a list of notes, axum sends the request to the code that loads them and returns them as JSON.",
+      "homepage": "https://github.com/tokio-rs/axum",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "clap": {
+      "whatItIs": "clap, a library for the Rust programming language that reads the words and options typed after a command-line program's name.",
+      "goodAt": [
+        "Turning a program's commands and options into typed values",
+        "Writing the help text and error messages for wrong options"
+      ],
+      "notGoodAt": [
+        "Full-screen terminal screens with menus and panels; that needs a terminal interface library."
+      ],
+      "example": "When someone types the tool's name with --help, they get a list of its commands and options without the developer writing that text by hand.",
+      "homepage": "https://github.com/clap-rs/clap",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "proptest": {
+      "whatItIs": "proptest, a library for the Rust programming language that tests code with many generated inputs and, when one fails, shrinks it to the simplest failing case.",
+      "goodAt": [
+        "Checking a rule holds for every input, not just a few examples",
+        "Finding odd inputs a person wouldn't think to write down"
+      ],
+      "notGoodAt": [
+        "Checking one exact expected result; an ordinary example test reads more clearly."
+      ],
+      "example": "A test tries thousands of made-up names and checks that each one the code accepts comes back out exactly as it went in.",
+      "homepage": "https://github.com/proptest-rs/proptest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "serde": {
       "whatItIs": "serde, a library for the Rust programming language that converts data between saved text formats and the program's own data shapes.",
       "goodAt": [
@@ -166,6 +236,56 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "toml": {
+      "whatItIs": "toml, a library for the Rust programming language that reads and writes settings files in the TOML format.",
+      "goodAt": [
+        "Reading a program's settings file into typed values",
+        "Reporting the line where a settings file has a mistake"
+      ],
+      "notGoodAt": ["Merging settings from several places; the program decides which source wins."],
+      "example": "When a settings file has a typo in a key name, the tool stops and names the key and the line it was on.",
+      "homepage": "https://github.com/toml-rs/toml",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "tower": {
+      "whatItIs": "tower, a library for the Rust programming language that wraps a server's request handling in reusable steps, such as time limits.",
+      "goodAt": [
+        "Giving every request the same time limit or retry rule",
+        "Calling a server's routes directly in tests, without a network"
+      ],
+      "notGoodAt": [
+        "Answering web requests on its own; it works under a web framework such as axum."
+      ],
+      "example": "When a request takes longer than ten seconds, the service stops it and answers that it is busy instead of leaving the caller waiting.",
+      "homepage": "https://github.com/tower-rs/tower",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "tower-http": {
+      "whatItIs": "tower-http, a library for the Rust programming language with ready-made web server steps such as request ids, request logs and crash recovery.",
+      "goodAt": [
+        "Giving each request an id and logging how it ended",
+        "Turning a crash in one request into an error reply instead of a dropped connection"
+      ],
+      "notGoodAt": ["Deciding which code answers a request; that is the web framework's job."],
+      "example": "Every reply from the service carries a request id, and the log line for that request has the same id, so a support ticket can be traced.",
+      "homepage": "https://github.com/tower-rs/tower-http",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "tracing": {

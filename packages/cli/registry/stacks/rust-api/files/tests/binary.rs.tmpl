@@ -1,0 +1,145 @@
+//! The built binary as a process: it starts on a free port, logs where it
+//! listens, answers `--healthcheck`, and exits 0 after SIGINT or SIGTERM.
+
+use std::io::{self, BufRead, BufReader, Read};
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+const BIN: &str = env!("CARGO_BIN_EXE_{{project_slug}}");
+
+/// A server child process, its port, and the rest of its stderr.
+struct Server {
+    child: Child,
+    port: u16,
+    logs: Option<JoinHandle<String>>,
+}
+
+impl Server {
+    /// Everything the server wrote to stderr after `listening`, once it exited.
+    fn logs(&mut self) -> String {
+        self.logs
+            .take()
+            .and_then(|logs| logs.join().ok())
+            .unwrap_or_default()
+    }
+}
+
+// A failed assertion must not leave a server running (and holding the test
+// harness's pipes open), so dropping a Server kills it.
+impl Drop for Server {
+    fn drop(&mut self) {
+        if matches!(self.child.try_wait(), Ok(None)) {
+            drop(self.child.kill());
+            drop(self.child.wait());
+        }
+    }
+}
+
+/// Start the binary on PORT=0 and read stderr until the `listening` record.
+fn start() -> io::Result<Server> {
+    let mut child = Command::new(BIN)
+        .env_clear()
+        .env("HOST", "127.0.0.1")
+        .env("PORT", "0")
+        .env("RUST_LOG", "info")
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| io::Error::other("no stderr"))?;
+    let mut lines = BufReader::new(stderr);
+    let mut line = String::new();
+    let port = loop {
+        line.clear();
+        if lines.read_line(&mut line)? == 0 {
+            return Err(io::Error::other("server exited before listening"));
+        }
+        let record: serde_json::Value = serde_json::from_str(&line)?;
+        if record["fields"]["message"] == "listening" {
+            let addr = record["fields"]["addr"].as_str().unwrap_or_default();
+            let port = addr.rsplit(':').next().unwrap_or_default();
+            break port.parse().map_err(io::Error::other)?;
+        }
+    };
+    // Keep draining stderr so a full pipe never blocks the server.
+    let logs = std::thread::spawn(move || {
+        let mut rest = String::new();
+        drop(lines.read_to_string(&mut rest));
+        rest
+    });
+    Ok(Server {
+        child,
+        port,
+        logs: Some(logs),
+    })
+}
+
+fn healthcheck(port: u16) -> io::Result<ExitStatus> {
+    Command::new(BIN)
+        .arg("--healthcheck")
+        .env_clear()
+        .env("PORT", port.to_string())
+        .stderr(Stdio::null())
+        .status()
+}
+
+fn signal(child: &Child, name: &str) -> io::Result<()> {
+    let status = Command::new("kill")
+        .args([format!("-{name}"), child.id().to_string()])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(io::Error::other(format!("kill -{name} failed")))
+    }
+}
+
+fn wait(child: &mut Child, limit: Duration) -> io::Result<ExitStatus> {
+    let start = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return Ok(status);
+        }
+        if start.elapsed() > limit {
+            child.kill()?;
+            return Err(io::Error::other("server did not exit in time"));
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn serves_answers_the_healthcheck_and_stops_on_each_signal() {
+    for name in ["TERM", "INT"] {
+        let mut server = start().unwrap();
+        assert!(healthcheck(server.port).unwrap().success(), "SIG{name}");
+        signal(&server.child, name).unwrap();
+        let status = wait(&mut server.child, Duration::from_secs(10)).unwrap();
+        assert_eq!(status.code(), Some(0), "SIG{name}");
+        let logs = server.logs();
+        assert!(logs.contains("\"stopped\""), "SIG{name}: {logs}");
+        assert!(!healthcheck(server.port).unwrap().success(), "SIG{name}");
+    }
+}
+
+#[test]
+fn bad_settings_and_arguments_exit_before_serving() {
+    let run = |args: &[&str], port: &str| {
+        Command::new(BIN)
+            .args(args)
+            .env_clear()
+            .env("PORT", port)
+            .output()
+            .unwrap()
+    };
+    let bad_port = run(&[], "eighty");
+    assert_eq!(bad_port.status.code(), Some(3));
+    let stderr = String::from_utf8_lossy(&bad_port.stderr);
+    assert!(stderr.starts_with("error[INVALID_SETTING]"), "{stderr}");
+    assert!(stderr.contains("PORT"), "{stderr}");
+    assert_eq!(run(&["--nope"], "0").status.code(), Some(2));
+}

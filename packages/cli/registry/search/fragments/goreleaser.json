@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "goreleaser",
   "source": {
-    "digest": "sha256:2d91592918f75dee2bcf42e130af402a3441ee0eec4dc2e6c287d2a0934b6b87",
+    "digest": "sha256:59277a97ed379c06da57061bf68df1333380e4c9d0dde49fbfd2efd51d157be6",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,

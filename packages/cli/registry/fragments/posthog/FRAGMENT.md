@@ -6,7 +6,7 @@ category: vendor
 name: PostHog analytics
 description: PostHog analytics in the web client, disabled when no key is set so tests, CI, and sandboxes need no account, with a typed event catalog and a pre-init buffer.
 tags: [analytics, vendor, web]
-applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, python-react, react-router]
+applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, python-react, react-router, react-vite]
 deps:
   web: [posthog-js]
 decisions:
@@ -36,6 +36,16 @@ VITE_PUBLIC_POSTHOG_KEY=
 VITE_PUBLIC_POSTHOG_HOST=
 ```
 **Module**: `frontend/app/lib/analytics.ts`, `initAnalytics()` called once from the root component's effect. Route changes don't reload the page: use the SDK's history-change pageview mode if the installed version has one, otherwise disable automatic pageviews and capture `$pageview` from an effect keyed on the router location.
+<!-- stacks:end -->
+<!-- stacks:when stack=react-vite -->
+**Env.** Append to `.env.example`, empty, under a comment saying analytics is off while the key is empty:
+```
+VITE_PUBLIC_POSTHOG_KEY=
+VITE_PUBLIC_POSTHOG_HOST=
+```
+Add both to `src/config.ts`'s schema as optional strings (only that file reads `import.meta.env`, and lint enforces it).
+
+**Module**: `src/analytics.ts`. `main.tsx` calls `initAnalytics()` once with the parsed key, host and logger; the overflow warning goes through the logger, since only `src/logging.ts` may use `console`. Route changes don't reload the page: use the SDK's history-change pageview mode if the installed version has one, otherwise disable automatic pageviews and capture `$pageview` from an effect in `src/app/layout.tsx` keyed on the router location. In `e2e/`, abort requests to the PostHog host beside the API routes.
 <!-- stacks:end -->
 
 **One analytics module** owns the SDK and exports `initAnalytics()`, `track(event, props?)`, `identify(id, traits?)`, `reset()`. Nothing else imports `posthog-js`. Env vars are `<public prefix>POSTHOG_KEY`/`_HOST` in the framework's client-visible prefix, empty in `.env.example`.

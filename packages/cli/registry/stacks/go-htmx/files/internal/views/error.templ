@@ -1,0 +1,13 @@
+package views
+
+// Error is the page for every failed request; it never shows a cause.
+templ Error(page ErrorPage) {
+	@Layout(page.Title) {
+		<h1>{ page.Title }</h1>
+		<p>{ page.Message }</p>
+		if page.RequestID != "" {
+			<p class="request-id">Request ID: <code>{ page.RequestID }</code></p>
+		}
+		<p><a href="/">Back to notes</a></p>
+	}
+}

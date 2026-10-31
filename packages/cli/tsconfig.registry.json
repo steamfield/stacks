@@ -8,13 +8,16 @@
       "registry/fragments/claude-harness/adapters/claude",
       "registry/fragments/claude-harness/files",
       "registry/fragments/openrouter-chat-cli/adapters/claude",
+      "registry/stacks/hono-api/adapters/claude",
       "registry/stacks/nextjs/adapters/claude",
       "registry/stacks/react-router/adapters/claude",
+      "registry/stacks/react-vite/adapters/claude",
       "registry/stacks/sveltekit/adapters/claude",
       "registry/stacks/tauri-react/adapters/claude",
       "registry/stacks/typescript-api/adapters/claude",
       "registry/stacks/typescript-api/files",
-      "registry/stacks/typescript-cli/adapters/claude"
+      "registry/stacks/typescript-cli/adapters/claude",
+      "registry/stacks/typescript-library/adapters/claude"
     ],
     "allowImportingTsExtensions": true
   },
@@ -41,6 +44,17 @@
     "registry/stacks/react-router/files/app",
     "registry/stacks/react-router/files/tests",
     "registry/stacks/react-router/files/e2e",
+    // React, Vite, MSW, zod and DOM types belong to the SPA scaffold; keep scripts and hooks checked.
+    "registry/stacks/react-vite/files/*.ts",
+    "registry/stacks/react-vite/files/src",
+    "registry/stacks/react-vite/files/tests",
+    "registry/stacks/react-vite/files/e2e",
+    // Hono, zod and pino are installed only in the API scaffold; keep scripts and hooks checked.
+    "registry/stacks/hono-api/files/*.ts",
+    "registry/stacks/hono-api/files/src",
+    "registry/stacks/hono-api/files/tests",
+    // tsdown is installed only in the library scaffold; its src/, tests and scripts stay checked.
+    "registry/stacks/typescript-library/files/tsdown.config.ts",
     // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
     "registry/stacks/nextjs/files/*.ts",
     "registry/stacks/nextjs/files/next-env.d.ts",

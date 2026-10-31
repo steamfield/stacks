@@ -1,0 +1,75 @@
+package notes
+
+import (
+	"context"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestMemory(t *testing.T) {
+	store := NewMemory()
+	note, err := store.Create(t.Context(), Input{Title: "  first  ", Body: "body"})
+	require.NoError(t, err)
+	assert.Equal(t, "first", note.Title)
+	assert.NotEmpty(t, note.ID)
+	assert.False(t, note.CreatedAt.IsZero())
+	got, err := store.Get(t.Context(), note.ID)
+	require.NoError(t, err)
+	assert.Equal(t, note, got)
+	_, err = store.Get(t.Context(), "missing")
+	var failure *apperrors.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, apperrors.NotFound, failure.Code)
+}
+
+func TestValidation(t *testing.T) {
+	store := NewMemory()
+	for _, input := range []Input{
+		{},
+		{Title: " \t "},
+		{Title: strings.Repeat("界", 201)},
+		{Title: "ok", Body: strings.Repeat("界", 10001)},
+	} {
+		t.Run(input.Title, func(t *testing.T) {
+			_, err := store.Create(t.Context(), input)
+			var failure *apperrors.Error
+			require.ErrorAs(t, err, &failure)
+			assert.Equal(t, apperrors.BadInput, failure.Code)
+		})
+	}
+	_, err := store.Create(t.Context(), Input{Title: strings.Repeat("界", 200), Body: strings.Repeat("界", 10000)})
+	require.NoError(t, err)
+}
+
+func TestConcurrentMemory(t *testing.T) {
+	store := NewMemory()
+	var workers sync.WaitGroup
+	for range 20 {
+		workers.Go(func() {
+			note, err := store.Create(t.Context(), Input{Title: "concurrent"})
+			if !assert.NoError(t, err) {
+				return
+			}
+			_, err = store.Get(t.Context(), note.ID)
+			assert.NoError(t, err)
+		})
+	}
+	workers.Wait()
+	assert.Len(t, store.notes, 20)
+}
+
+func TestCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	store := NewMemory()
+	_, err := store.Create(ctx, Input{Title: "cancelled"})
+	assert.ErrorIs(t, err, context.Canceled)
+	_, err = store.Get(ctx, "missing")
+	assert.ErrorIs(t, err, context.Canceled)
+}

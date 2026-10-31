@@ -55,6 +55,9 @@ Set up Node from .node-version where present, or the project's documented runtim
 <!-- stacks:when tag=go -->
 Set up Go from go.mod. Use golangci-lint's official action with the version declared by the project for installation/cache, then its documented checks.
 <!-- stacks:end -->
+<!-- stacks:when tag=rust -->
+Rust: the runner's rustup installs the toolchain, components and targets `rust-toolchain.toml` records, so don't pass a toolchain action input that overrides the file. Cache `~/.cargo` and `target/` with a Cargo cache action keyed on `Cargo.lock`. A cargo subcommand a target needs (cargo-deny, say) comes from a prebuilt-binary installer action, not a `cargo install` that compiles it on every run.
+<!-- stacks:end -->
 <!-- stacks:when tag=python -->
 Set up uv with cache and the project's .python-version. Invoke the relevant install/check/coverage targets for each filtered part.
 <!-- stacks:end -->

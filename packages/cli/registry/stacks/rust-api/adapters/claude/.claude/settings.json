@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make fmt)",
+      "Bash(make fmt-check)",
+      "Bash(make clippy)",
+      "Bash(make lint)",
+      "Bash(make check)",
+      "Bash(make test)",
+      "Bash(make build)",
+      "Bash(make audit)",
+      "Bash(make ci)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo check *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo test *)",
+      "Bash(cargo build *)",
+      "Bash(cargo tree *)",
+      "Bash(cargo metadata *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-cargo-generated.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

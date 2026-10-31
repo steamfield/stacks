@@ -1,0 +1,45 @@
+package rpc
+
+import (
+	"context"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	notesv1 "{{project_slug}}/gen/notes/v1"
+	"{{project_slug}}/gen/notes/v1/notesv1connect"
+	"{{project_slug}}/internal/notes"
+)
+
+// noteService implements the generated NoteServiceHandler. It converts between
+// protobuf messages and the domain, and returns domain errors unchanged:
+// mapErrors turns them into status codes.
+type noteService struct {
+	// Methods added to the .proto answer CodeUnimplemented until written here.
+	notesv1connect.UnimplementedNoteServiceHandler
+	store notes.Store
+}
+
+func (s *noteService) CreateNote(ctx context.Context, req *notesv1.CreateNoteRequest) (*notesv1.CreateNoteResponse, error) {
+	note, err := s.store.Create(ctx, notes.Input{Title: req.GetTitle(), Body: req.GetBody()})
+	if err != nil {
+		return nil, err
+	}
+	return &notesv1.CreateNoteResponse{Note: toProto(note)}, nil
+}
+
+func (s *noteService) GetNote(ctx context.Context, req *notesv1.GetNoteRequest) (*notesv1.GetNoteResponse, error) {
+	note, err := s.store.Get(ctx, req.GetId())
+	if err != nil {
+		return nil, err
+	}
+	return &notesv1.GetNoteResponse{Note: toProto(note)}, nil
+}
+
+func toProto(note notes.Note) *notesv1.Note {
+	return &notesv1.Note{
+		Id:         note.ID,
+		Title:      note.Title,
+		Body:       note.Body,
+		CreateTime: timestamppb.New(note.CreatedAt),
+	}
+}

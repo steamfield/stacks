@@ -1,6 +1,122 @@
 {
   "formatVersion": 1,
   "cards": {
+    "charm.land/bubbles": {
+      "whatItIs": "Bubbles, a set of ready-made parts for Bubble Tea terminal apps in the Go programming language, such as lists, text inputs and help lines.",
+      "goodAt": [
+        "Adding a scrollable list a person can search by typing",
+        "Showing which keys do what at the bottom of the screen"
+      ],
+      "notGoodAt": ["Running the app or drawing the screen; Bubble Tea does that."],
+      "example": "A terminal app shows a list of open tickets that the user narrows down by typing part of a title.",
+      "homepage": "https://github.com/charmbracelet/bubbles",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "charm.land/bubbletea": {
+      "whatItIs": "Bubble Tea, a library for the Go programming language for apps that fill the terminal window and react to each key a person presses.",
+      "goodAt": [
+        "Building a full-screen terminal app with several screens",
+        "Keeping the screen in step with the app's data as keys arrive"
+      ],
+      "notGoodAt": ["Commands that print a result and exit; a command library such as cobra fits."],
+      "example": "A person browses a list of tasks in the terminal with the arrow keys and opens one to read its notes.",
+      "homepage": "https://github.com/charmbracelet/bubbletea",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "charm.land/lipgloss": {
+      "whatItIs": "Lip Gloss, a library for the Go programming language that adds colors, borders and spacing to text shown in a terminal.",
+      "goodAt": [
+        "Giving terminal text colors, bold titles and boxes",
+        "Lining up text in columns and panels"
+      ],
+      "notGoodAt": ["Handling key presses or screens; Bubble Tea does that."],
+      "example": "A terminal app shows a task's title in bold purple and its status in green when it is done.",
+      "homepage": "https://github.com/charmbracelet/lipgloss",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "connectrpc.com/connect": {
+      "whatItIs": "Connect, a library for the Go programming language that serves and calls remote procedures defined in Protocol Buffers, answering gRPC, gRPC-Web and plain JSON requests on one port.",
+      "goodAt": [
+        "Building a gRPC service on Go's standard web server",
+        "Letting browsers and curl call the same methods as gRPC clients",
+        "Generating typed clients and server interfaces from a schema file"
+      ],
+      "notGoodAt": [
+        "Plain JSON APIs designed around URLs and resources; a REST API stack fits better."
+      ],
+      "example": "A billing service exposes a CreateInvoice method that other Go services call over gRPC and a web page calls with JSON.",
+      "homepage": "https://connectrpc.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "connectrpc.com/grpchealth": {
+      "whatItIs": "grpchealth, a Connect add-on that answers the standard gRPC health check, so load balancers and orchestrators can ask whether the service is ready.",
+      "homepage": "https://github.com/connectrpc/grpchealth-go",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "connectrpc.com/grpcreflect": {
+      "whatItIs": "grpcreflect, a Connect add-on that lets tools such as grpcurl ask a running gRPC service which methods it has, without the schema files.",
+      "homepage": "https://github.com/connectrpc/grpcreflect-go",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "github.com/a-h/templ": {
+      "whatItIs": "templ, a library and code generator for the Go programming language that turns HTML components written in .templ files into Go functions, so the compiler checks every page's data.",
+      "goodAt": [
+        "Building web pages from small reusable components",
+        "Catching a missing or misnamed value in a page when the code compiles",
+        "Escaping user text in HTML automatically"
+      ],
+      "notGoodAt": [
+        "Pages that run mostly in the browser; a JavaScript framework such as React fits better."
+      ],
+      "example": "An order page is a component that takes an order and its line items, and the build fails if the page uses a field the order doesn't have.",
+      "homepage": "https://templ.guide",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "github.com/charmbracelet/x/exp/teatest": {
+      "whatItIs": "teatest, an experimental test helper that runs a Bubble Tea terminal app without a terminal, sends it key presses and checks what it shows.",
+      "homepage": "https://github.com/charmbracelet/x/tree/main/exp/teatest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "github.com/jackc/pgx": {
       "whatItIs": "pgx, a library for the Go programming language that reads and writes records in a PostgreSQL database.",
       "goodAt": [
@@ -31,6 +147,16 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "github.com/PuerkitoBio/goquery": {
+      "whatItIs": "goquery, a Go library that reads an HTML page and finds parts of it with CSS selectors, often used to check pages in tests.",
+      "homepage": "https://github.com/PuerkitoBio/goquery",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "github.com/spf13/cobra": {
@@ -113,6 +239,22 @@
         "model": "claude-opus-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-31"
+      }
+    },
+    "google.golang.org/protobuf": {
+      "whatItIs": "The official Go library for Protocol Buffers, a compact data format whose messages are described in schema files and turned into Go types.",
+      "goodAt": [
+        "Sending structured messages between services in a small binary form",
+        "Keeping old and new versions of a message readable by each other"
+      ],
+      "notGoodAt": ["Data people read or edit by hand; JSON or YAML is easier there."],
+      "example": "An order service and a shipping service exchange order messages defined once in a shared schema file.",
+      "homepage": "https://protobuf.dev",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     }
   }

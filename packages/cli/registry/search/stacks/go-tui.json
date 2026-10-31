@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "go-tui",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A full-screen Go terminal app on Bubble Tea with keyboard navigation, styled screens and rendered frames checked against snapshots.",
+  "description": "Start a Go terminal app that takes over the window, built on Bubble Tea with Bubbles components and Lip Gloss styles. A task list loads in the background, filters as you type and opens into a detail screen. Tests send key presses to the model and compare each screen with a saved golden frame, and the binary prints text or JSON when no terminal is attached, so scripts and coding agents can run it. Replace the task list with your own data and screens; add goreleaser to publish binaries.",
+  "seoDescription": "A Go terminal UI recipe on Bubble Tea with Bubbles and Lip Gloss, golden-frame tests and a text or JSON fallback when no terminal is attached.",
+  "projectExamples": [
+    {
+      "title": "Log browser for a local service",
+      "description": "Load log lines from a file in a command, show them in a filterable list, and open one entry with its fields on a detail screen."
+    },
+    {
+      "title": "Release dashboard with published binaries",
+      "description": "Show recent builds and their status in the terminal, then add goreleaser to ship the tool as archives on tagged GitHub releases.",
+      "withFragments": [
+        "goreleaser"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for an interactive program that fills the terminal window, written in the Go language, where people move around with the keyboard.",
+    "goodAt": [
+      "Browsing and filtering lists of records from the keyboard",
+      "Tools that switch between several screens in one terminal window",
+      "Printing the same data as plain text when run in a script"
+    ],
+    "notGoodAt": [
+      "Commands that just take options, print a result and exit; choose go-cli.",
+      "Apps with windows and mouse-driven buttons; choose a desktop stack."
+    ]
+  },
+  "platforms": [
+    "cli"
+  ],
+  "productKinds": [
+    "cli-tool"
+  ],
+  "languages": [
+    "go"
+  ],
+  "requests": [
+    "build a full-screen terminal app in Go with keyboard navigation",
+    "a Bubble Tea app with a filterable list and a detail view",
+    "check every rendered TUI screen against a saved golden frame",
+    "an interactive TUI that still prints JSON when its output is piped"
+  ],
+  "useCases": [
+    "interactive terminal tools",
+    "keyboard-driven dashboards",
+    "record browsers"
+  ],
+  "synonyms": [
+    "bubble tea",
+    "bubbletea",
+    "bubbles",
+    "lip gloss",
+    "lipgloss",
+    "ncurses alternative",
+    "tui",
+    "text user interface",
+    "terminal user interface",
+    "teatest",
+    "tview alternative"
+  ],
+  "goodFor": [
+    "keyboard navigation",
+    "golden frame snapshots",
+    "single static binary",
+    "list and detail screens"
+  ],
+  "notFor": [
+    "graphical desktop windows",
+    "subcommands"
+  ],
+  "caveats": [
+    "The full-screen interface needs a real terminal; without one the binary prints text or JSON instead."
+  ]
+}

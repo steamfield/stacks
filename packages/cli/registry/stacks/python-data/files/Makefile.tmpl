@@ -1,0 +1,57 @@
+# {{project_name}} development commands.
+#
+# A starting point: adapt the recipes to the project, but keep the target
+# names. `stacks verify` calls install, lint, typecheck, coverage,
+# pipeline-check and notebooks, and CI should call the same targets.
+
+BIN := {{project_slug}}
+TEST_WORKERS ?= auto
+FIXTURE := data/fixtures/orders.csv
+EXPECTED := data/fixtures/expected
+# MF001 asks for the marimo version line the editor writes when it saves a notebook.
+MARIMO_CHECK := uv run marimo check --strict --ignore MF001
+
+.DEFAULT_GOAL := help
+.PHONY: help install lint format typecheck test coverage pipeline pipeline-check notebooks clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
+
+install: ## uv sync (--locked when CI is set), then git hooks outside CI
+	uv sync $(if $(CI),--locked)
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
+
+lint: ## ruff check + ruff format --check + marimo check
+	uv run ruff check . && uv run ruff format --check . && $(MARIMO_CHECK) notebooks
+
+format: ## ruff format + ruff check --fix
+	uv run ruff format . && uv run ruff check --fix .
+
+# marimo writes cells without return annotations, so notebooks allow unannotated
+# functions; strict mode still checks every cell body.
+typecheck: ## mypy strict over src and tests, then the notebooks
+	uv run mypy src tests
+	uv run mypy --allow-untyped-defs --allow-incomplete-defs notebooks
+
+test: ## pytest (parallel)
+	uv run pytest -n $(TEST_WORKERS)
+
+coverage: ## pytest with the branch coverage floor
+	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
+
+pipeline: ## Run the pipeline on data/raw into data/processed
+	uv run $(BIN) run
+
+pipeline-check: ## Run the pipeline on the fixture into a temp dir and compare with the expected output
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	uv run $(BIN) run --input $(FIXTURE) --output "$$tmp" && \
+	uv run $(BIN) compare "$$tmp" $(EXPECTED)
+
+notebooks: ## Run every notebook headlessly (marimo export html into a temp dir)
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
+	for notebook in notebooks/*.py; do \
+		uv run marimo export html "$$notebook" -o "$$tmp/$$(basename "$$notebook" .py).html" || exit 1; \
+	done
+
+clean: ## Remove caches and coverage output
+	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage .coverage.* notebooks/__marimo__

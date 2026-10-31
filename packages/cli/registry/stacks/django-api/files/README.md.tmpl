@@ -1,0 +1,48 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this API does and who calls it. -->
+
+A JSON API on Django and Django REST Framework, served by gunicorn with data in SQLite, an admin for staff and a committed OpenAPI schema.
+
+## Quickstart
+
+Requires [uv](https://docs.astral.sh/uv/) and make.
+
+```bash
+make install
+make dev          # http://127.0.0.1:8000 with reload and DEBUG on
+curl -s -X POST http://127.0.0.1:8000/v1/notes -H 'Content-Type: application/json' -d '{"title":"First"}'
+curl -s http://127.0.0.1:8000/v1/notes
+```
+
+The schema is at `/openapi.json` and in `openapi.json`. Create an admin login with `uv run python manage.py createsuperuser`, then open http://127.0.0.1:8000/admin/.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `make dev` | Migrate, then run the development server with reload |
+| `make start` | Production settings: collectstatic, migrate, then gunicorn |
+| `make lint` / `make format` | Check / fix lint and formatting |
+| `make typecheck` | mypy strict with the Django and DRF plugins |
+| `make test` / `make coverage` | Tests, and tests with the coverage floor |
+| `make makemigrations` | Write migrations after a model change |
+| `make openapi` | Regenerate `openapi.json` after an API change |
+| `make check-deploy` | Django's deployment checklist with production settings |
+
+Run `make help` for the full list. Settings are environment variables; `.env.example` lists them.
+
+## Layout
+
+```
+config/     settings, env parsing, logging, urls, wsgi, gunicorn
+core/       error table and handler, API bases, request middleware, health view
+accounts/   the custom user model
+notes/      the example resource: model, admin, serializer, viewset, routes
+tests/      API tests through DRF's test client
+docs/       architecture, HTTP contract, development
+```
+
+## License
+
+Copyright (c) {{year}} {{author}}

@@ -1,0 +1,80 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - gocritic
+    - gocyclo
+    - misspell
+    - unconvert
+    - unparam
+    - gosec
+    - revive
+    - nolintlint
+    - forbidigo
+    - errorlint
+    - gochecknoinits
+    - gochecknoglobals
+  settings:
+    # A library returns errors and leaves output and logging to the program
+    # that imports it. Examples and tests may print.
+    forbidigo:
+      forbid:
+        - pattern: ^(fmt\.Print(f|ln)?|print|println)$
+          msg: Library code doesn't print. Return an error, or a value the caller can print.
+        - pattern: ^os\.(Stdout|Stderr|Exit)$
+          msg: Library code leaves the process's streams and exit status to the program that imports it.
+        - pattern: ^(log|slog)\.\w+$
+          msg: Library code doesn't log through the global loggers. Return an error; accept a *slog.Logger only if the caller asks for logs.
+    gocritic:
+      enabled-tags: [diagnostic, performance]
+      disabled-checks: [hugeParam]
+    gocyclo:
+      min-complexity: 30
+    # All gosec rules remain enabled; there are no global security exclusions.
+    revive:
+      rules:
+        # exported and package-comments are the doc check: every exported name
+        # and the package carry a comment that starts with the name.
+        - name: exported
+          arguments: [checkPrivateReceivers, sayRepetitiveInsteadOfStutters]
+        - name: package-comments
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: strict
+    # No presets: the comments preset would hide the exported-comment check.
+    presets: []
+    rules:
+      - path: _test\.go$
+        linters: [gocyclo, gosec, errcheck, unparam, forbidigo, gochecknoglobals]
+
+formatters:
+  enable: [gofmt, goimports]
+  exclusions:
+    generated: strict

@@ -1,0 +1,36 @@
+// Package consumer_test uses the library the way another module does: only
+// exported names, through the module path. make consumer copies this file into
+// a throwaway module that requires this one, where internal/ packages can't be
+// imported and an unexported name doesn't compile.
+package consumer_test
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"{{project_slug}}"
+)
+
+func TestConsumer(t *testing.T) {
+	d, err := libname.Parse("1w1d")
+	if err != nil || d != 8*24*time.Hour {
+		t.Fatalf("Parse(1w1d) = %v, %v", d, err)
+	}
+	if got := libname.Format(d); got != "1w1d" {
+		t.Errorf("Format = %q, want 1w1d", got)
+	}
+
+	p, err := libname.New(libname.WithMax(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Parse("2h")
+	var perr *libname.ParseError
+	if !errors.Is(err, libname.ErrRange) || !errors.As(err, &perr) || perr.Offset != 0 {
+		t.Errorf("Parse past the maximum: %v", err)
+	}
+	if _, err := libname.New(libname.WithMax(0)); !errors.Is(err, libname.ErrInvalidOption) {
+		t.Errorf("New(WithMax(0)) error = %v, want ErrInvalidOption", err)
+	}
+}

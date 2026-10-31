@@ -1,0 +1,41 @@
+# Development
+
+Initialize the module with `go mod init {{project_slug}}`, or with the intended
+remote module path, replacing `{{project_slug}}` in the Go imports. The library
+itself needs no modules. The API checker is a dev tool tracked in `tools.mod`,
+a second module file, so it never reaches `go.mod`:
+
+```sh
+go mod init -modfile=tools.mod "$(go list -m)"
+go get -modfile=tools.mod -tool golang.org/x/exp/cmd/apidiff
+make install
+```
+
+Install golangci-lint using its official instructions and write its installed
+version to `.golangci-lint-version`. Run `make help` for every target.
+
+```sh
+make fmt-check tidy-check vet lint test fuzz consumer coverage
+go test -race -run 'TestParseErrors/1y' .
+go test -run '^$' -fuzz '^FuzzParse$' -fuzztime 30s .
+```
+
+## Tests
+
+- `duration_test.go` and `internal/lex/lex_test.go`: table tests for every
+  path, each error checked with `errors.Is` and `errors.As`.
+- `example_test.go`: the documentation examples. `go test` runs each one and
+  compares its output with the `// Output:` comment.
+- `fuzz_test.go`: properties that hold for any input. `make test` runs the
+  seeds; `make fuzz` searches for FUZZTIME per target and saves a failing input
+  under `testdata/fuzz/`, where it stays as a regression case.
+- `tests/consumer`: calls the library as another module would. `make consumer`
+  copies it into a temporary module that requires this one, so an unexported
+  or `internal/` name fails to compile there.
+
+## API baseline
+
+`api/baseline.export` holds the exported API of the last release, written by
+`make api-baseline` with apidiff. `make api-check` fails on any incompatible
+change since then. Record the first baseline once the checks pass; after that it
+moves only at a release (`docs/releasing.md`).

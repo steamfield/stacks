@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, nestjs-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -45,10 +45,16 @@ A production image per deployable part and a workflow that publishes them, writt
 Run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-api -->
-**One image**: the API is the repo root, so it gets one root `Dockerfile` instead of per-directory ones. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
+**One image**: one root `Dockerfile`, since the API is the repo root. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
+<!-- stacks:end -->
+<!-- stacks:when stack=django,django-api -->
+**Django**: one root `Dockerfile`, built as above and served by gunicorn: `CMD ["gunicorn", "-c", "config/gunicorn.py"]` with `DJANGO_ENV=production`. The build stage runs `python manage.py collectstatic --noinput` with `DJANGO_ENV=production` and a throwaway `DJANGO_SECRET_KEY` on that `RUN` line only (the real key comes from the runtime environment); the runtime stage copies `staticfiles/`, which whitenoise serves. Migrations are a release step (`docker run --rm --env-file .env <image> python manage.py migrate --noinput` before the new image takes traffic), never in `CMD`. SQLite lives on a mounted volume (`DJANGO_DB_PATH=/data/db.sqlite3`, the directory owned by the image's uid), one container at a time. The health check requests `/healthz` with Python's `urllib`, sending the first `DJANGO_ALLOWED_HOSTS` entry (default `localhost`) as the `Host` header, since Django answers other hosts with a 400. `.dockerignore` also excludes `tests/`, `var/` and `staticfiles/`.
 <!-- stacks:end -->
 <!-- stacks:when stack=django -->
-**Django**: one root `Dockerfile`, built as above and served by gunicorn: `CMD ["gunicorn", "-c", "config/gunicorn.py"]` with `DJANGO_ENV=production`, `WEB_HOST=0.0.0.0` and `PORT_WEB` set and exposed. The build stage runs `python manage.py collectstatic --noinput` with `DJANGO_ENV=production` and a throwaway `DJANGO_SECRET_KEY` on that `RUN` line only; the runtime stage copies `staticfiles/`, which whitenoise serves. The real key comes from the runtime environment. Migrations are a release step (`docker run --rm --env-file .env <image> python manage.py migrate --noinput` before the new image takes traffic), never part of `CMD`. SQLite lives on a mounted volume (`DJANGO_DB_PATH=/data/db.sqlite3`, the directory owned by the image's uid), one container at a time. The health check requests `/healthz` with Python's `urllib`, sending the first `DJANGO_ALLOWED_HOSTS` entry (default `localhost`) as the `Host` header, since Django answers other hosts with a 400. `.dockerignore` also excludes `tests/`, `var/` and `staticfiles/`.
+Set `WEB_HOST=0.0.0.0` and `PORT_WEB` in the image and expose that port.
+<!-- stacks:end -->
+<!-- stacks:when stack=django-api -->
+Set `API_HOST=0.0.0.0` and `PORT_API` in the image and expose that port. `.dockerignore` also excludes `openapi.json`.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-react -->
 **React SPA**: build with bun, serve `build/client` from an unprivileged nginx or Caddy image with the `index.html` fallback, immutable caching for hashed assets, `no-cache` for `index.html`, a `/healthz` location, and a `/api` proxy if the API shares the origin.
@@ -69,7 +75,7 @@ Run uvicorn on `0.0.0.0` with proxy headers.
 **Go**: `CGO_ENABLED=0` with version ldflags in the official Go image, static binary copied into a distroless nonroot runtime.
 <!-- stacks:end -->
 <!-- stacks:when tag=rust -->
-**Rust**: build in the official Rust image for the toolchain `rust-toolchain.toml` records, its Debian release named by tag suffix (`-slim-<codename>`) so it can't drift from the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; a cache-mounted `target/` isn't in the layer, so copy the binary out of it in the same `RUN`. Copy only the binary into the nonroot variant of the distroless `cc` image for that same Debian release, since the binary links against the build image's glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary itself with a probe flag the app ships (`--healthcheck`, which requests the health endpoint and exits 0 or 1).
+**Rust**: build in the official Rust image for the `rust-toolchain.toml` toolchain, its Debian release named by tag suffix (`-slim-<codename>`) to match the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; copy the binary out of the cache-mounted `target/` in the same `RUN`. The runtime is the nonroot distroless `cc` image for that Debian release, since the binary links against its glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary's own probe flag (`--healthcheck`: requests the health endpoint, exits 0 or 1).
 <!-- stacks:end -->
 
 <!-- stacks:when with=postgres -->

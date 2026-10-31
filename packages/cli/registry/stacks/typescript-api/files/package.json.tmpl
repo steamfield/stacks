@@ -1,0 +1,24 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "dev:server": "node --env-file-if-exists=.env --watch src/platform/node.ts",
+    "dev:bg": "bun scripts/dev-bg.ts start",
+    "logs": "bun scripts/logs.ts",
+    "dev:status": "bun scripts/dev-bg.ts status",
+    "dev:stop": "bun scripts/dev-bg.ts stop",
+    "build": "bun build src/platform/node.ts --target=node --format=esm --packages=bundle --env=disable --outdir=dist",
+    "start": "node --env-file-if-exists=.env dist/node.js",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tools.json",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "clean": "rm -rf dist coverage logs",
+    "prepare": "bun scripts/prepare.ts"
+  }
+}

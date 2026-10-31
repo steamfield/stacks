@@ -7,7 +7,7 @@ description: A Node HTTP API on Effect's HttpApi, with schema-first REST resourc
 tags: [typescript, api, effect, node, bun, scripts]
 deps:
   app: [effect, "@effect/platform-node"]
-  dev: [typescript, "@biomejs/biome", vitest, "@vitest/coverage-v8", "@types/node"]
+  dev: [typescript, "@biomejs/biome", vitest, "@vitest/coverage-v8", "@types/node", "@types/bun"]
 tools: [bun, node, git]
 decisions:
   - "Node version: current LTS (default), recorded in .node-version and engines.node; Node runs the server and Vitest, Bun installs and runs scripts."
@@ -57,22 +57,20 @@ commands:
 
 Read `docs/guidance/typescript-api/index.md` before implementation; it supplies the shared guidance for every selected agent.
 
-Build `GET /healthz` through config, logging, a service and the error table. Keep the core platform-free so the same app also runs as a web fetch handler.
+The proving slice is already written: `GET /healthz` through config, logging, a service and the error table, a payload-taking `POST /v1/health-checks/live` for decode and media-type cases, `/openapi.json`, and `tests/http-contract.test.ts` covering the acceptance matrix on both transports. Keep the core platform-free so the same app also runs as a web fetch handler.
 
 ## Layout
 
-`src/api.ts` is the `HttpApi` definition, composed from one group per resource in `src/api/<resource>.ts`. `src/handlers/<resource>.ts` implements each group. Domain programs and services live in `src/services/`; boundary schemas in `src/schemas/`, one dependency-free file per domain re-exported from `index.ts`. `config.ts`, `errors.ts` and `logging.ts` own those boundaries. `app.ts` builds the platform-free app from the api, its handlers and `AppLayer`. `src/platform/node.ts` is the only entry: it serves `app.ts` with Effect's Node HTTP server, owns the port and graceful shutdown, and is the only module importing `@effect/platform-node` or `node:*`. Tests live in `tests/`, helpers in `tests/helpers/`. Shipped `scripts/dev.ts`, `dev-bg.ts`, `dev-pid.ts` and `prepare.ts` own development process management. Logs live in ignored `logs/`.
+`src/api.ts` is the `HttpApi` definition, composed from one group per resource in `src/api/<resource>.ts`. `src/handlers/<resource>.ts` implements each group. Domain programs and services live in `src/services/`; boundary schemas in `src/schemas/`, one dependency-free file per domain re-exported from `index.ts`. `config.ts`, `errors.ts` and `logging.ts` own those boundaries. `app.ts` builds the platform-free app and the global request middleware. `src/platform/node.ts` is the only entry and the only module importing `@effect/platform-node` or `node:*`. Tests live in `tests/`, helpers in `tests/helpers/`; `tests/helpers/failures.ts` holds test-only routes that the contract suite mounts. Shipped `scripts/` own development process management. Logs live in ignored `logs/`. A new resource copies the health files' shape.
 
 Read `docs/api-foundation.md` for lint, testing and development requirements.
 
 ## Setup
 
-1. Write `package.json` with the project name, `"type": "module"`, the current Bun `packageManager`, Node LTS in `.node-version` and `engines.node`, and the declared scripts. Install compatible dependencies together, checking peer ranges; pin `@types/node` to the `.node-version` major (a bare add picks the newest).
-2. Generate TypeScript and Biome config from the requirements below, checked against the installed versions.
-3. Confirm Node runs TypeScript source directly: `node src/platform/node.ts` with type stripping. If the installed Node still needs a flag for it, put the flag in the scripts and record it under Build workarounds.
-4. Implement the proving slice: a `Health` service, a `HealthGroup` (identifier `Health`, in `src/api/health.ts`) with `GET /healthz` returning `{"status":"ok"}`, its handler, the error table, config, logging, `app.ts` and the Node entry. The route touches no external service, and invalid config fails startup visibly.
-5. Write the integration tests below, then the build: one Node ESM bundle in `dist/` that `start` runs without `node_modules`.
-6. Fill README and AGENTS for this base before adding any resource.
+1. Add the declared dependencies with `bun add` and `bun add -d` together, letting them resolve to current compatible versions and checking peer ranges; pin `@types/node` to the `.node-version` major (a bare add picks the newest). Write Node LTS to `.node-version` and `engines.node`, and the current Bun to `packageManager`.
+2. Run lint, typecheck, test and build. The shipped `package.json` scripts, `tsconfig*.json`, `biome.json`, `vitest.config.ts`, `src/` and `tests/` were written against an earlier Effect release: where the installed one renamed or moved an API, update the code to it, following `effect-api.md` to find the current mechanism; never loosen a test to fit.
+3. If the installed Node can't run `node src/platform/node.ts` without a flag, add it to the scripts and record it under Build workarounds.
+4. Fill README and AGENTS for this base before adding any resource.
 
 ## Runtime and boundaries
 
@@ -90,7 +88,7 @@ The shipped dev wrapper copies terminal output to `logs/dev.log`, rotates prior 
 
 ## Tool configuration and tests
 
-Follow `docs/guidance/typescript-api/tooling.md` for Biome, TypeScript and Vitest configuration. Implement `docs/acceptance/typescript-api.md`; verify independently runs its HTTP contract test. Use real layers and HTTP boundaries per `docs/guidance/typescript-api/testing.md` and run hook tests for every target agent.
+`docs/guidance/typescript-api/tooling.md` explains the shipped Biome, TypeScript and Vitest configuration; keep its requirements when adapting them. `tests/http-contract.test.ts` implements `docs/acceptance/typescript-api.md`, and verify runs it separately; extend its table for each new endpoint. Use real layers and HTTP boundaries per `docs/guidance/typescript-api/testing.md` and run hook tests for every target agent.
 
 <!-- stacks:when with=ci-github -->
 CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and the build. Upload logs and coverage on failure. No external credentials are needed.
@@ -98,7 +96,7 @@ CI sets up Bun from packageManager and Node from .node-version, installs frozen 
 
 ## Commands and gotchas
 
-Wire the declared scripts to Node, Biome, Vitest and the shipped helpers; `logs` runs `scripts/logs.ts`, `dev:status` runs `scripts/dev-bg.ts status`. Agents query these before restarting. `start` runs the bundle with Node's optional env-file support and reads `PORT_API`, else `PORT`, else 3000. `build` bundles with Bun targeting Node, without inlining env, so the bundle reads env at runtime. `prepare` invokes `scripts/prepare.ts`; `dev:bg` and `dev:stop` invoke `scripts/dev-bg.ts start` and `stop`. `check` runs lint, typecheck, test and build. `clean` removes only generated project output. Document command names, logs and hook ownership in AGENTS, plus a Debugging section with `jq` queries over `logs/server.jsonl` (one request by `requestId`, errors only, slow requests).
+The shipped `package.json` wires every declared script; agents query `logs` and `dev:status` before restarting. `start` reads `PORT_API`, else `PORT`, else 3000, and `build` doesn't inline env, so the bundle reads it at runtime. Document command names, logs and hook ownership in AGENTS, plus a Debugging section with `jq` queries over `logs/server.jsonl` (one request by `requestId`, errors only, slow requests).
 
 <!-- stacks:when with=git-hooks -->
 The shipped `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install` (skipped when `CI` is set, lefthook is missing, or `lefthook.yml` doesn't exist yet, and non-fatal when it fails, for example outside a git checkout), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.

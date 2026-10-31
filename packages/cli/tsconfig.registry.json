@@ -15,7 +15,8 @@
       "registry/stacks/typescript-api/adapters/claude",
       "registry/stacks/typescript-api/files",
       "registry/stacks/typescript-cli/adapters/claude"
-    ]
+    ],
+    "allowImportingTsExtensions": true
   },
   "include": ["registry/**/*.ts", "registry/**/.claude/hooks/*.ts"]
 }

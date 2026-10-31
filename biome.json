@@ -9,6 +9,7 @@
     "ignoreUnknown": false,
     "includes": ["**"]
   },
+  "plugins": ["./biome-plugins/no-cross-package-imports.grit"],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

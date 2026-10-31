@@ -130,6 +130,14 @@
         "message": "No search card; add a reviewed sidecar for search discovery."
       },
       {
+        "check": "fragment-no-verify",
+        "severity": "note",
+        "kind": "fragment",
+        "entry": "chosen",
+        "file": "fragments/chosen/FRAGMENT.md",
+        "message": "This fragment has no verify step; add a check for its deliverable, or explain in its body why it cannot be checked."
+      },
+      {
         "check": "symlink",
         "severity": "error",
         "kind": "fragment",
@@ -158,8 +166,8 @@
         "entryKind": "stack",
         "entry": "base",
         "preset": "default",
-        "words": 726,
-        "fixedWords": 724,
+        "words": 735,
+        "fixedWords": 733,
         "limit": 6000
       },
       {
@@ -167,8 +175,8 @@
         "entryKind": "stack",
         "entry": "base",
         "preset": "sandbox",
-        "words": 767,
-        "fixedWords": 765,
+        "words": 776,
+        "fixedWords": 774,
         "limit": 6000
       }
     ]

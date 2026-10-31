@@ -59,10 +59,11 @@
   ],
   "goodFor": [
     "stopping replies while preserving partial text",
-    "local browser tests without paid requests"
+    "offline development without paid model requests"
   ],
   "notFor": [
     "terminal interfaces",
+    "end-to-end test setup for an existing app",
     "private user accounts without added authentication"
   ]
 }

@@ -82,7 +82,8 @@ test("text preview failures explain their findings on stderr and keep stdout equ
   const home = space.dir();
   const registry = space.dir();
   stack(registry);
-  fragment(registry, "bad-decision", "decisions: [Undecided]");
+  // No verify step, so the report also carries a note text modes must leave out.
+  fragment(registry, "bad-decision", "decisions: [Undecided]\nverify: []");
   const args = ["validate", "--brief", "sample", "--with", "bad-decision"];
   const json = await runCli([...args, "--json"], { home, env: quiet, host: { registry } });
   expect(json.status).toBe(2);
@@ -90,7 +91,6 @@ test("text preview failures explain their findings on stderr and keep stdout equ
   expect(JSON.parse(json.stderr)).toMatchObject({ error: { tag: "ValidationFailed" } });
   const report = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(json.stdout));
   expect(report.findings.map(({ check, severity }) => [check, severity])).toEqual([
-    ["verify-run-duplicate", "note"],
     ["decision-default", "error"],
     ["fragment-no-verify", "note"],
   ]);

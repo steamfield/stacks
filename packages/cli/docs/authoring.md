@@ -102,8 +102,8 @@ Templates, merge rules and security checks apply to overlays too. Keep
 `stacks:when` and `stacks:end` in entry bodies: shipped files reject them.
 `stacks:fill` remains legal.
 
-Verify steps check; they never generate source (no generate, `--write` or `--fix`
-in a verify step). Validation notes fragments without verify steps and repeated
+Verify steps check; they never generate source (no generator, and no write or fix
+mode of a tool, in a verify step). Validation notes fragments without verify steps and repeated
 commands in a composition, and budgets add briefs with each admitted stack and none.
 
 ## Add a search card

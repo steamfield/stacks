@@ -17,7 +17,10 @@ import { workspace } from "./helpers/verify";
 const space = workspace();
 afterEach(() => space.release());
 
-test("copying a bundled entry preserves its card bytes and refuses a second write [4.5b#19]", async () => {
+// Three validate runs over a copied entry, each about 1.5 s on an idle host.
+test("copying a bundled entry preserves its card bytes and refuses a second write [4.5b#19]", {
+  timeout: 15_000,
+}, async () => {
   const home = space.dir();
   const ref = { kind: "stack", id: "mobile-expo" } as const;
   const root = join(home, "config/stacks");

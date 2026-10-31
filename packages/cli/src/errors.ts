@@ -949,7 +949,7 @@ function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
 /**
  * The one stderr line a `--json` failure ends with (`Output.error`). `next` is the failure's one
  * next action (`failureGuide`), the same text the text modes print after `Next:`; `details` is the
- * tag's closed details struct.
+ * tag's closed details struct. `rollback` names paths whose restoration or removal did not finish.
  */
 export const ErrorEnvelope = Schema.Struct({
   error: Schema.Struct({
@@ -957,6 +957,7 @@ export const ErrorEnvelope = Schema.Struct({
     message: Schema.String,
     retryable: Schema.Boolean,
     next: Schema.optionalKey(Schema.String),
+    rollback: Schema.optionalKey(Schema.Struct({ incomplete: Schema.Array(Schema.String) })),
     details: Schema.optionalKey(
       Schema.Union([
         UpstreamUnavailableDetails,

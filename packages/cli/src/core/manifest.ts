@@ -1,15 +1,6 @@
 import { createHash } from "node:crypto";
 import { Manifest, type ManifestStep, withStepDefaults } from "@steamfield/stacks-format";
-import {
-  Clock,
-  Effect,
-  FileSystem,
-  Option,
-  Path,
-  type PlatformError,
-  Random,
-  Schema,
-} from "effect";
+import { Clock, Effect, FileSystem, Path, type PlatformError, Random, Schema } from "effect";
 import { InvalidConfig, NotFound, PermissionDenied } from "../errors";
 import { MANIFEST_PATH } from "../project-layout";
 import { VERSION } from "../version";
@@ -152,7 +143,11 @@ export const readManifest = (
  */
 export const locateManifest = (
   start: string,
-): Effect.Effect<{ root: string; path: string }, NotFound, FileSystem.FileSystem | Path.Path> =>
+): Effect.Effect<
+  { root: string; path: string },
+  NotFound | PermissionDenied,
+  FileSystem.FileSystem | Path.Path
+> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
@@ -160,8 +155,16 @@ export const locateManifest = (
     let dir = from;
     while (true) {
       const candidate = path.join(dir, MANIFEST_PATH);
-      const info = yield* Effect.option(fs.stat(candidate));
-      if (Option.isSome(info) && info.value.type === "File") return { root: dir, path: candidate };
+      const info = yield* fs
+        .stat(candidate)
+        .pipe(
+          Effect.catch((error) =>
+            isMissing(error)
+              ? Effect.succeed(undefined)
+              : Effect.fail(new PermissionDenied({ details: { reason: "read", path: candidate } })),
+          ),
+        );
+      if (info?.type === "File") return { root: dir, path: candidate };
       const parent = path.dirname(dir);
       if (parent === dir) break;
       dir = parent;

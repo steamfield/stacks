@@ -10,6 +10,7 @@ import { validate } from "../validate/index";
 import { AUTHORS_FILE, assemble, type PlannedEntry, REGISTRY_PATH } from "./assemble";
 import { pullRequestBody, title } from "./body";
 import { kindDir, resolveEntries } from "./entries";
+import { writePermission } from "./filesystem";
 import {
   cloneUpstream,
   commit,
@@ -188,9 +189,13 @@ export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptio
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const temp = yield* fs
-        .makeTempDirectoryScoped({ prefix: "stacks-submit-" })
-        .pipe(Effect.orDie);
+      const temp = yield* writePermission(
+        fs.makeTempDirectoryScoped({ prefix: "stacks-submit-" }),
+        (error) =>
+          "pathOrDescriptor" in error.reason && typeof error.reason.pathOrDescriptor === "string"
+            ? path.dirname(error.reason.pathOrDescriptor)
+            : undefined,
+      );
       const tools = yield* preflight(temp);
       const clone = path.join(temp, "upstream");
       yield* cloneUpstream(tools, { repo: options.repo, cwd: temp, dest: clone });
@@ -220,7 +225,7 @@ export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptio
       if (options.dryRun)
         return { ...result, prUrl: null, reused: false, body } satisfies SubmitResult;
       const bodyFile = path.join(temp, "body.md");
-      yield* fs.writeFileString(bodyFile, body).pipe(Effect.orDie);
+      yield* writePermission(fs.writeFileString(bodyFile, body), bodyFile);
       const opened = yield* publish(tools, {
         repo: options.repo,
         clone,

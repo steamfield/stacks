@@ -136,8 +136,8 @@ works.
 `source.digest` is the `searchSourceDigest` of the entry's decoded metadata and
 body. Set `by: "author"` for a handwritten card, or `by: "drafted"` with `model`
 and `promptVersion` for a model draft. `reviewedAt` is a review date (`YYYY-MM-DD`)
-or null for an unread draft. Maintainers can compute the baseline and review stamp
-with the checkout's maintainer restamp operation after reading the card (see
+or null for an unread draft. Maintainers set the baseline and review stamp with
+the checkout's maintainer approval operation after reading the card (see
 `docs/maintaining.md` in the repository).
 
 `validate` reports invalid, orphaned, missing, stale, unreviewed and oversized cards.

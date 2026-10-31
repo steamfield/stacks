@@ -42,7 +42,7 @@ Restamping is yours when you changed the entry and not its card. Reread the card
 
 A card you write or rewrite is a draft: `source.by: "drafted"`, `model` set to your model id, `promptVersion` set to `PROMPT_VERSION` from `scripts/decorate/prompt.ts`, `reviewedAt: null`, and a placeholder `source.digest` (`sha256:` and 64 zeros). If you change any card field, reset `source` to a draft as above.
 
-The pending user action for a draft is: read the card, then run `bun run decorate --approve <id>` and `bun run decorate --restamp <id>` from `packages/cli` (approval doesn't refresh the digest).
+The pending user action for a draft is one command: read the card, then run `bun run decorate --approve <id>` from `packages/cli`. Approval also stamps the card against the current entry, so no restamp follows it; when a model draft's entry changed after drafting, it says so.
 
 ## Testing the card
 

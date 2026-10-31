@@ -1,6 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -38,11 +46,14 @@ case "$(basename "$0")" in
   tar) exit 0 ;;
   npm)
     if [ "$1" = "whoami" ]; then echo maintainer; exit 0; fi
-    if [ "$1" = "publish" ]; then exit 99; fi
+    if [ "$1" = "publish" ]; then
+      if [ "$FAKE_PUBLISH_OK" = 1 ]; then touch "$FAKE_LOG.published"; exit 0; fi
+      exit 99
+    fi
     if [ "$1 $3" = "view version" ]; then
       if [ "$FAKE_VERSION_LOOKUP_FAIL" = 1 ]; then echo 'registry unavailable' >&2; exit 1; fi
       case "$2" in
-        ${formatSpec}) if [ "$FAKE_FORMAT_PUBLISHED" = 1 ]; then echo ${formatPackage.version}; exit 0; fi ;;
+        ${formatSpec}) if [ "$FAKE_FORMAT_PUBLISHED" = 1 ] || [ -e "$FAKE_LOG.published" ]; then echo ${formatPackage.version}; exit 0; fi ;;
         ${cliSpec}) if [ "$FAKE_CLI_PUBLISHED" = 1 ]; then echo ${cliPackage.version}; exit 0; fi ;;
       esac
       echo 'npm error code E404' >&2; exit 1
@@ -73,10 +84,18 @@ function run(
     formatPublished?: boolean;
     cliPublished?: boolean;
     dryRun?: boolean;
+    formatOnly?: boolean;
+    publishSucceeds?: boolean;
+    extraArgs?: string[];
   } = {},
 ) {
   const log = join(dir, "commands.log");
-  const result = spawnSync(bun, [script, ...(options.dryRun === false ? [] : ["--dry-run"])], {
+  const flags = [
+    ...(options.dryRun === false ? [] : ["--dry-run"]),
+    ...(options.formatOnly ? ["--format-only"] : []),
+    ...(options.extraArgs ?? []),
+  ];
+  const result = spawnSync(bun, [script, ...flags], {
     encoding: "utf8",
     env: {
       HOME: dir,
@@ -87,9 +106,10 @@ function run(
       FAKE_VERSION_LOOKUP_FAIL: options.versionLookupFails ? "1" : "0",
       FAKE_FORMAT_PUBLISHED: options.formatPublished === false ? "0" : "1",
       FAKE_CLI_PUBLISHED: options.cliPublished ? "1" : "0",
+      FAKE_PUBLISH_OK: options.publishSucceeds ? "1" : "0",
     },
   });
-  return { ...result, commands: readFileSync(log, "utf8") };
+  return { ...result, commands: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
 
 describe("release dry run", () => {
@@ -139,5 +159,45 @@ describe("release dry run", () => {
       `${cliSpec} is already on npm, but its tarball integrity differs`,
     );
     expect(result.commands).not.toContain("npm publish");
+  });
+});
+
+describe("format-only release", () => {
+  it("packs and would publish only the format package, with no CLI tag or pack", () => {
+    const result = run({ formatOnly: true, formatPublished: false });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain(`would publish ${formatSpec}`);
+    expect(result.stderr).toContain(`dry run packed ${formatSpec}; nothing published`);
+    expect(result.stderr).not.toContain(cliPackage.name.concat("@"));
+    expect(result.commands).not.toContain("refs/tags");
+    expect(result.commands).not.toContain("pack telemetry: 1");
+    expect(result.commands).not.toContain(`npm view ${cliSpec}`);
+    expect(result.commands).not.toContain("npm publish");
+  });
+
+  it("publishes the format package, waits for the registry and creates no tag", () => {
+    const result = run({
+      formatOnly: true,
+      formatPublished: false,
+      dryRun: false,
+      publishSucceeds: true,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.commands).toContain("npm publish dist/pack/steamfield-stacks-format-");
+    expect(result.commands).not.toContain("git tag");
+    expect(result.commands).not.toContain("git push");
+  });
+
+  it("refuses an unknown argument before doing anything", () => {
+    const result = run({ dryRun: false, extraArgs: ["--format_only"] });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unknown argument --format_only");
+    expect(result.commands).toBe("");
+  });
+
+  it("skips a format version already published with the same tarball", () => {
+    const result = run({ formatOnly: true });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain(`would skip ${formatSpec}`);
   });
 });

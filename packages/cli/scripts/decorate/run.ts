@@ -11,6 +11,9 @@ import { type Budget, draft } from "./client";
 import { type DecorateConfig, estimateUsd } from "./config";
 import { buildPrompt, EXAMPLE_CARDS, PROMPT_VERSION, recipeReferences } from "./prompt";
 
+/** The placeholder digest a hand-written draft carries until it is stamped (`search-card.md`). */
+const DRAFT_DIGEST = `sha256:${"0".repeat(64)}`;
+
 const save = Effect.fn("decorate.save")(function* (root: string, card: SearchMetadata) {
   const fs = yield* FileSystem.FileSystem;
   const file = sidecarPath(card);
@@ -50,15 +53,17 @@ const review = Effect.fn("decorate.review")(function* (options: {
   if (card.kind !== entry.kind || card.id !== entry.id)
     return yield* Effect.fail(new Error(`${entry.id}: sidecar identity does not match.`));
   const reviewedAt = new Date(yield* Clock.currentTimeMillis).toISOString().slice(0, 10);
-  yield* save(options.root, {
-    ...card,
-    source: {
-      ...card.source,
-      reviewedAt,
-      ...(options.restamp ? { digest: searchSourceDigest(entry) } : {}),
-    },
-  });
-  yield* Console.log(`${options.restamp ? "Restamped" : "Approved"} ${entry.kind}/${entry.id}.`);
+  // Approval stamps the card against the entry as it stands too: the person approving read it
+  // against that entry, so one command clears a draft.
+  const digest = searchSourceDigest(entry);
+  if (!options.restamp && card.source.digest !== digest && card.source.digest !== DRAFT_DIGEST)
+    yield* Console.log(
+      `${entry.kind}/${entry.id}: the entry changed since this card was stamped; approval stamps it against the current entry.`,
+    );
+  yield* save(options.root, { ...card, source: { ...card.source, reviewedAt, digest } });
+  yield* Console.log(
+    `${options.restamp ? "Restamped" : "Approved and restamped"} ${entry.kind}/${entry.id}.`,
+  );
 });
 
 const selectedEntries = Effect.fn("decorate.select")(function* (options: Options) {

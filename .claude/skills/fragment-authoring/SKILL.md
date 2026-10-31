@@ -40,7 +40,7 @@ From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind fragm
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgment, and the pending user actions:
 
-- card approval and restamp, for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
+- card approval (`bun run decorate --approve <id>`, which also restamps), for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
 - any stack whose `fragments` lists should offer it
 - a bench run with the fragment, `bun run bench <stack> --with <id> --agent claude` from `packages/cli`, for an app or any fragment that changes what verify runs
 - if the fragment is in a stack's default composition, that the stack's `runs.json` proof is now stale

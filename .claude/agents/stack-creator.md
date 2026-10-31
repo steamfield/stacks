@@ -66,5 +66,5 @@ Write the report to the scratchpad path your caller gives (or a scratchpad path 
 - a table of the search requests you ran, the top three results and tiers for each, and whether the order is right
 - proposed golden judgments, phrased differently from the card's `requests`, as tune candidates
 - cards you restamped after an entry edit
-- pending user actions: approve and restamp a new or rewritten card, add the entry to any stack's `fragments` lists, the bench run the skill names, and any `runs.json` proof your edits staled
+- pending user actions: approve a new or rewritten card (`bun run decorate --approve <id>`, which also restamps it), add the entry to any stack's `fragments` lists, the bench run the skill names, and any `runs.json` proof your edits staled
 - assumptions you made and anything you couldn't verify

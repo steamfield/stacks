@@ -25,6 +25,7 @@ linger() { trap 'kill "$s" 2>/dev/null; exit 143' TERM; sleep 30 & s=$!; wait "$
 args_file="$FAKE_ARGS"
 [ "$1 $2" = "exec resume" ] && [ -n "$FAKE_HANDOFF" ] && args_file="$FAKE_ARGS.handoff"
 printf '%s\\n' "$@" > "$args_file"
+printf '%s\\n' "\${DELEGATE_MODEL-unset}" > "$FAKE_ARGS.model"
 while [ $# -gt 0 ]; do
   case "$1" in
     --output-last-message) last="$2"; shift ;;
@@ -175,6 +176,93 @@ describe("delegate.sh", () => {
     expect(result.stdout).toContain(
       "outside the contract's May change:\n  (no May change entry)\n",
     );
+  });
+
+  describe("the default model", () => {
+    const model = (slug: string, visibility = "list") => ({ slug, visibility });
+    const cache = (models: unknown) => {
+      mkdirSync(join(root, ".codex"), { recursive: true });
+      writeFileSync(
+        join(root, ".codex", "models_cache.json"),
+        typeof models === "string" ? models : JSON.stringify({ models }),
+      );
+    };
+    const chosen = (env: Record<string, string> = {}) => {
+      const result = run([contract, "--worktree", worktree, "--write"], env);
+      expect(result.status, result.stderr).toBe(0);
+      const args = readFileSync(join(root, "args.txt"), "utf8").split("\n");
+      const exported = readFileSync(join(root, "args.txt.model"), "utf8").trim();
+      return { args, exported, stdout: result.stdout, stderr: result.stderr };
+    };
+
+    it("is the newest sol model Codex lists, and Codex's commands see it", () => {
+      cache([
+        model("gpt-6.1-sol"),
+        model("gpt-6.10-sol"),
+        model("gpt-6.2-sol"),
+        model("gpt-6-sol"),
+      ]);
+      const { args, exported, stdout } = chosen();
+      expect(args).toContain("gpt-6.10-sol");
+      expect(exported).toBe("gpt-6.10-sol");
+      expect(stdout).toContain("delegate:  codex gpt-6.10-sol (");
+    });
+
+    it("ignores hidden models, variants and other families", () => {
+      cache([
+        model("gpt-6.1-sol"),
+        model("gpt-7-sol", "hide"),
+        model("gpt-7-sol-mini"),
+        model("gpt-7-terra"),
+        model("codex-auto-review"),
+        model("gpt-8-sol\n"),
+      ]);
+      expect(chosen().exported).toBe("gpt-6.1-sol");
+    });
+
+    it("skips a malformed entry without dropping the rest of the cache", () => {
+      cache([{ slug: null, visibility: "list" }, "gpt-9-sol", model("gpt-6.2-sol")]);
+      expect(chosen().exported).toBe("gpt-6.2-sol");
+    });
+
+    it("falls back to the pinned model quietly when there is no cache", () => {
+      const { exported, stderr } = chosen();
+      expect(exported).toBe("gpt-6.1-sol");
+      expect(stderr).not.toContain("models_cache.json");
+    });
+
+    // One script run per case: each spawns the script and a fake codex, which a busy gate host
+    // makes slow enough that several in one test can pass the per-test timeout.
+    it.each([
+      ["not JSON", "not json"],
+      ["no model list", "{}"],
+      ["a model list that isn't one", JSON.stringify({ models: "x" })],
+      ["no sol model", JSON.stringify({ models: [model("gpt-7-terra")] })],
+    ])("says so when a cache with %s sends it to the pinned model", (_, contents) => {
+      cache(contents);
+      const { exported, stderr } = chosen();
+      expect(exported).toBe("gpt-6.1-sol");
+      expect(stderr).toContain(
+        `no listed sol model read from ${join(root, ".codex", "models_cache.json")}; using gpt-6.1-sol`,
+      );
+    });
+
+    it("reads the cache under CODEX_HOME when it is set", () => {
+      const home = join(root, "codex-home");
+      mkdirSync(home);
+      writeFileSync(
+        join(home, "models_cache.json"),
+        JSON.stringify({ models: [model("gpt-8-sol")] }),
+      );
+      expect(chosen({ CODEX_HOME: home }).exported).toBe("gpt-8-sol");
+    });
+
+    it("yields to DELEGATE_MODEL", () => {
+      cache([model("gpt-9-sol")]);
+      const { args, exported } = chosen({ DELEGATE_MODEL: "gpt-6-sol" });
+      expect(args).toContain("gpt-6-sol");
+      expect(exported).toBe("gpt-6-sol");
+    });
   });
 
   it("is read-only without --write and takes the model from the environment", () => {

@@ -1,11 +1,11 @@
 ---
-description: Execute a design or task as the orchestrator, delegating the coding to Codex (gpt-6.1-sol, high effort, fast mode)
+description: Execute a design or task as the orchestrator, delegating the coding to Codex (the newest sol model Codex lists, high effort, fast mode)
 argument-hint: <design file or task description>
 ---
 
 # Execute a design with Codex
 
-Load `ce:executing-plans`, then the `delegate` skill, then `ce:architecting-systems` (rules/architecture.md asks for it before executing a design across several units). $ARGUMENTS is the design or task description, as a file path or inline text; call it the design below. Execute it as `ce:executing-plans` describes, with these changes: you are the orchestrator and never the implementer, its sub-agents are Codex delegates run through `scripts/delegate.sh` (model, effort and service tier default to `gpt-6.1-sol`, the newest sol model, `high` and `priority`, Codex's fast mode), and where it differs from this repo, the repo wins. The design's sections and its acceptance tests are the units to group.
+Load `ce:executing-plans`, then the `delegate` skill, then `ce:architecting-systems` (rules/architecture.md asks for it before executing a design across several units). $ARGUMENTS is the design or task description, as a file path or inline text; call it the design below. Execute it as `ce:executing-plans` describes, with these changes: you are the orchestrator and never the implementer, its sub-agents are Codex delegates run through `scripts/delegate.sh` (model, effort and service tier default to the newest sol model Codex lists, which the script reads from Codex's model cache, `high` and `priority`, Codex's fast mode), and where it differs from this repo, the repo wins. The design's sections and its acceptance tests are the units to group.
 
 Pick a short slug for the work, `<name>` below, for the integration branch and worktree.
 

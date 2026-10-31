@@ -8,9 +8,12 @@
 # what it learned. The script never commits: the orchestrator (Claude) reviews the diff,
 # refactors, runs the gate and owns the commit. .claude/skills/delegate/SKILL.md is the workflow.
 #
-# Model and effort: DELEGATE_MODEL (default gpt-6.1-sol), DELEGATE_EFFORT (default high). The
-# default is always the newest sol model: when Codex lists a newer one, bump it here and in the
-# delegate skill, its contract templates and /execute:codex.
+# Model and effort: DELEGATE_MODEL (default: the newest sol model Codex lists), DELEGATE_EFFORT
+# (default high). The default is read from Codex's model cache (${CODEX_HOME:-~/.codex}/
+# models_cache.json): the highest-versioned listed `gpt-<version>-sol`. Without a usable cache it
+# is FALLBACK_MODEL below, so bump that when a newer sol model ships. The chosen model is exported
+# as DELEGATE_MODEL, which the contract templates' review command uses; the digest names it, so a
+# run that fails on a model the cache lists but Codex can't run shows which one to override.
 # Service tier: DELEGATE_SERVICE_TIER (default priority, Codex's fast mode: about twice the speed
 # for more usage; `default` turns it off). Codex drops a tier the model doesn't offer.
 # Wall clock: DELEGATE_TIMEOUT_SECS (default 3600). Run it in the background from Claude; a
@@ -38,7 +41,30 @@ set -uo pipefail
 
 PREAMBLE="You are working in a git worktree for an orchestrator that reviews, refactors and commits your work, so leave your changes uncommitted and don't push. Work in this worktree, not the main checkout. Run the checks the contract names. End with the hand-off report the contract asks for; if it asks for none, end with the files you changed, each check you ran with its result, what the orchestrator should look closer at, and open questions."
 
-MODEL="${DELEGATE_MODEL:-gpt-6.1-sol}"
+FALLBACK_MODEL="gpt-6.1-sol"
+
+MODEL_CACHE="${CODEX_HOME:-$HOME/.codex}/models_cache.json"
+
+# The newest sol model Codex lists in its model cache, or nothing when the cache is missing,
+# unreadable or lists none. Hidden models, variants (`-sol-mini`) and malformed entries are
+# skipped one by one, so an odd entry doesn't hide the rest.
+newest_sol_model() {
+    [ -r "$MODEL_CACHE" ] || return 0
+    jq -r '[.models? // [] | if type == "array" then .[] else empty end | objects
+            | select(.visibility == "list" and (.slug | type) == "string"
+                     and (.slug | test("^gpt-[0-9]+(\\.[0-9]+)*-sol\\z")))
+            | {slug, version: (.slug | ltrimstr("gpt-") | rtrimstr("-sol") | split(".") | map(tonumber))}]
+           | sort_by(.version) | last | .slug // empty' "$MODEL_CACHE" 2>/dev/null
+}
+
+MODEL="${DELEGATE_MODEL:-$(newest_sol_model)}"
+if [ -z "$MODEL" ]; then
+    MODEL="$FALLBACK_MODEL"
+    # A cache that is there but yields nothing means the fallback may be stale: say so.
+    [ -e "$MODEL_CACHE" ] &&
+        echo "delegate.sh: no listed sol model read from $MODEL_CACHE; using $FALLBACK_MODEL" >&2
+fi
+export DELEGATE_MODEL="$MODEL"
 EFFORT="${DELEGATE_EFFORT:-high}"
 SERVICE_TIER="${DELEGATE_SERVICE_TIER:-priority}"
 TIMEOUT_SECS="${DELEGATE_TIMEOUT_SECS:-3600}"

@@ -27,7 +27,7 @@ A new entry's PR stays a draft, and CI stays red until a maintainer finishes the
 
 - Check that the login in `authors.json` is the PR author.
 - Review `files/` and `adapters/` for security. Hooks and agent settings run in other people's projects.
-- Review the search card, then approve and restamp it.
+- Review the search card, then approve it (`bun run decorate --approve <id>` from `packages/cli`, which also restamps it).
 - Add new packages to `registry/allowlist.json` and write their dependency cards.
 - Add golden search queries (starting from your proposals) and check that existing rankings don't shift.
 - Run the entry through the bench: a headless agent builds it from an empty directory and stacks verifies the result.

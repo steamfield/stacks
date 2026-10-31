@@ -17,11 +17,14 @@ every command from the repository root unless it says otherwise.
 version commit is on `main`. It refuses a dirty tree, a HEAD other than `origin/main`, or an
 existing tag. It packs both packages in a temporary detached worktree of `origin/main`, publishes
 this package first, waits up to 10 minutes for the registry to serve both versions, then tags
-`v<cli version>` and pushes the tag. If you publish format alone first so the hosted API can use
-it, `release` skips that exact version when the published tarball integrity matches its fresh pack;
-a mismatch or lookup failure stops the release. `bun run release:dry-run` packs both and shows
-which it would skip or publish, including the CLI's embedded telemetry endpoint, without logging
-in, publishing or tagging. The steps below are what it runs.
+`v<cli version>` and pushes the tag. To publish format alone first so the hosted API can use it,
+run `bun run release:format`: the same checks, pack and publish for this package only, with no
+tag (the CLI tag checks are skipped too). A later `release` skips that exact version when the
+published tarball integrity matches its fresh pack; a mismatch or lookup failure stops the
+release. `bun run release:dry-run` packs both and shows which it would skip or publish, including
+the CLI's embedded telemetry endpoint, without logging in, publishing or tagging
+(`bun run release:format -- --dry-run` does the same for format alone). The steps below are what
+it runs.
 
 1. Log in once per machine, and check the account:
 

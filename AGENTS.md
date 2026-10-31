@@ -55,7 +55,7 @@ Root commands run from the repo root and fan out to every workspace package (`bu
 | `bun run check` | Lint, typecheck, test, e2e: the gate |
 | `bun run clean` | Each package's generated output |
 | `bun run prepare` | Install hooks outside CI |
-| `bun run release` / `release:dry-run` | A maintainer's step, never an agent's: publish `@steamfield/stacks-format`, then `@steamfield/stacks`, from `origin/main`, and tag `v<version>` (packages/format/README.md, "Publishing"). It packs and checks both before publishing either, skips a version already on npm only when its `dist.integrity` matches the fresh tarball, and packs the CLI with `STACKS_PUBLISH_TELEMETRY=1`, the only build that embeds the official telemetry endpoint. The dry run packs both and publishes nothing |
+| `bun run release` / `release:dry-run` / `release:format` | A maintainer's step, never an agent's: publish `@steamfield/stacks-format`, then `@steamfield/stacks`, from `origin/main`, and tag `v<version>` (packages/format/README.md, "Publishing"). It packs and checks both before publishing either, skips a version already on npm only when its `dist.integrity` matches the fresh tarball, and packs the CLI with `STACKS_PUBLISH_TELEMETRY=1`, the only build that embeds the official telemetry endpoint. The dry run packs both and publishes nothing. `release:format` (`--format-only`) publishes the format package alone, with no tag, for a format version the hosted API needs before a CLI release; when handing a publish to the maintainer, give that one command |
 
 In `packages/cli/` (run there):
 

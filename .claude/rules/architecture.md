@@ -22,7 +22,7 @@ Code comments cite these points by number.
 
 ## Package boundaries
 
-Code two packages share goes in its own package under `packages/`, extracted when the second package needs it and not before. Never import from another package's `src/`.
+Code two packages share goes in its own package under `packages/`, extracted when the second package needs it and not before. Never import from another package's `src/`; the root `biome-plugins/no-cross-package-imports.grit` enforces it and names each package, so a new package is added there.
 
 ## Shared contracts
 

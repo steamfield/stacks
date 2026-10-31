@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@effect/platform-bun": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
     "@types/bun": "catalog:",

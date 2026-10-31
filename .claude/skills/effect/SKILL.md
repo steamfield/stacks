@@ -5,7 +5,7 @@ description: Load before changing CLI programs, services, configuration, schemas
 
 # Effect 4 in this CLI
 
-Checked against effect, @effect/platform-bun, @effect/platform-node and @effect/vitest 4.0.6. Recheck with each dependency bump.
+Checked against effect, @effect/platform-node and @effect/vitest 4.0.6. Recheck with each dependency bump.
 
 The authoritative sources are the installed package, in this order: its declarations, its own agent guide (`node_modules/effect/AGENTS.md`) and its worked examples (`node_modules/effect/ai-docs/src/`), resolved from `packages/cli`. Web pages, blog posts and model memory mix Effect 3 with 4.0 prereleases. Before using a name you didn't see in this repo's code, confirm it exists: `node --input-type=module -e 'import * as E from "effect"; console.log("catchAll" in E.Effect)'` from `packages/cli`.
 
@@ -29,7 +29,7 @@ The authoritative sources are the installed package, in this order: its declarat
 
 ## Entry points
 
-`Effect`, `Context`, `Layer`, `Schema`, `Config`, `FileSystem`, `Path`, `Clock`, `Random`, `Result`, `Exit`, `Cause` from `effect`; `Command`, `Flag`, `CliError` from `effect/cli`; `FetchHttpClient` from `effect/http`; `TestClock` from `effect/testing`; `BunServices` from @effect/platform-bun, `NodeServices` from @effect/platform-node (only `bin.ts`, `src/platform/` and tests); `it`, `assert`, `layer` from @effect/vitest. The CLI, HTTP and socket modules are marked unstable; check their declarations rather than assuming a shape.
+`Effect`, `Context`, `Layer`, `Schema`, `Config`, `FileSystem`, `Path`, `Clock`, `Random`, `Result`, `Exit`, `Cause` from `effect`; `Command`, `Flag`, `CliError` from `effect/cli`; `FetchHttpClient` from `effect/http`; `TestClock` from `effect/testing`; `NodeServices` from @effect/platform-node (only `bin.ts`, `src/platform/` and tests); `it`, `assert`, `layer` from @effect/vitest. The CLI, HTTP and socket modules are marked unstable; check their declarations rather than assuming a shape.
 
 ## Services and layers
 

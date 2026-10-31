@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { Effect } from "effect";
+import { canonicalJson } from "./canonical-json";
 import type { Composition } from "./compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "./compose/files";
-import { canonicalJson } from "./manifest";
 
 /** Hash the composed inputs and shipped files, excluding project settings and fixed CLI prose. */
 export const fingerprint = (composition: Composition) =>

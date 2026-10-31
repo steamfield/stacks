@@ -3,7 +3,7 @@ import { Effect, FileSystem, Path, type PlatformError } from "effect";
 /** Stage under the target's parent so the final rename stays on one filesystem. */
 export const replaceFile = (
   target: string,
-  text: string,
+  text: string | Uint8Array,
   options?: { mode?: number },
 ): Effect.Effect<void, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> =>
   Effect.scoped(
@@ -15,10 +15,13 @@ export const replaceFile = (
         prefix: ".write-",
       });
       const temporary = path.join(directory, "value");
-      yield* fs.writeFileString(temporary, text, {
+      const writeOptions: { flag: "wx"; mode?: number } = {
         flag: "wx",
         ...(options?.mode === undefined ? {} : { mode: options.mode }),
-      });
+      };
+      yield* typeof text === "string"
+        ? fs.writeFileString(temporary, text, writeOptions)
+        : fs.writeFile(temporary, text, writeOptions);
       yield* fs.rename(temporary, target);
     }),
   );

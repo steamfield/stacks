@@ -191,7 +191,7 @@ export function main(
       // The command's own records go first, so a failure's `Next:` line ends human stderr.
       const quiet = output.audience !== "human";
       yield* logging.flush(settings, quiet);
-      const written = yield* settleOutput(observed.error, invocation);
+      const written = yield* settleOutput(observed.error, invocation, reported.state.rollback);
       if (written.closed) return 0;
       yield* (yield* Telemetry).flushAfterOutput;
       const { error, unwritten } = written;
@@ -303,6 +303,7 @@ const flushKeptResult = Effect.gen(function* () {
 const writeFailure = (
   error: AppError,
   invocation: string,
+  rollback: ReadonlyArray<string>,
 ): Effect.Effect<WriteOutcome, never, Output> =>
   Effect.gen(function* () {
     const output = yield* Output;
@@ -311,7 +312,7 @@ const writeFailure = (
     const keep = keepsResult(error);
     const unwritten = keep ? yield* flushKeptResult : undefined;
     if (!keep) yield* output.clear;
-    const written = yield* Effect.exit(output.error(error, invocation));
+    const written = yield* Effect.exit(output.error(error, invocation, rollback));
     if (Exit.isSuccess(written)) return { error, unwritten };
     if (
       !keep &&
@@ -324,7 +325,7 @@ const writeFailure = (
     // The details didn't encode against their closed schema: report a defect instead.
     error = new Defect();
     const defect = defectTrace(Cause.squash(written.cause));
-    yield* output.error(error, invocation).pipe(Effect.ignoreCause);
+    yield* output.error(error, invocation, rollback).pipe(Effect.ignoreCause);
     return { error, defect, unwritten };
   });
 
@@ -341,8 +342,11 @@ const flushSuccess = (invocation: string): Effect.Effect<WriteOutcome, never, Ou
     return { error, defect };
   });
 
-const settleOutput = (error: AppError | undefined, invocation: string) =>
-  error ? writeFailure(error, invocation) : flushSuccess(invocation);
+const settleOutput = (
+  error: AppError | undefined,
+  invocation: string,
+  rollback: ReadonlyArray<string>,
+) => (error ? writeFailure(error, invocation, rollback) : flushSuccess(invocation));
 
 /**
  * Whether the summary record is an expected failure's, which goes to the log file only: stderr

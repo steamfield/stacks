@@ -6,6 +6,8 @@ export type InvocationState = {
   status: number | undefined;
   /** Scalar fields added to the `command` log record, such as `handoff` and `agent`. */
   fields: Record<string, string>;
+  /** Paths whose old bytes could not be restored or new state record could not be removed. */
+  rollback: string[];
 };
 
 /** Per-invocation facts a command hands back to `main`; `main` builds a fresh one every run. */
@@ -19,10 +21,11 @@ export class Invocation extends Context.Service<
     exitWith: (status: number) => Effect.Effect<void>;
     /** Adds fields to the `command` log record. Never argument values, paths or prompt text. */
     annotate: (fields: Record<string, string>) => Effect.Effect<void>;
+    rollbackIncomplete: (path: string) => Effect.Effect<void>;
   }
 >()("stacks/Invocation") {
   static make = () => {
-    const state: InvocationState = { status: undefined, fields: {} };
+    const state: InvocationState = { status: undefined, fields: {}, rollback: [] };
     return {
       state,
       layer: Layer.succeed(Invocation, {
@@ -33,6 +36,10 @@ export class Invocation extends Context.Service<
         annotate: (fields) =>
           Effect.sync(() => {
             Object.assign(state.fields, fields);
+          }),
+        rollbackIncomplete: (path) =>
+          Effect.sync(() => {
+            state.rollback.push(path);
           }),
       }),
     };

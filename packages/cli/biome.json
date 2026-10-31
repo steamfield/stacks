@@ -20,6 +20,30 @@
           "style": { "noNestedTernary": "off" }
         }
       }
+    },
+    {
+      "includes": ["registry/**/*.css"],
+      "css": { "parser": { "tailwindDirectives": true } }
+    },
+    {
+      "includes": ["registry/**/*.svelte", "registry/**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": { "noUnusedImports": "off", "noUnusedVariables": "off" },
+          "style": { "useImportType": "off", "useConst": "off" }
+        }
+      }
+    },
+    {
+      "includes": [
+        "registry/stacks/astro-blog/files/**",
+        "registry/stacks/nextjs/files/**",
+        "registry/stacks/sveltekit/files/**",
+        "registry/stacks/python-react/files/frontend/**"
+      ],
+      "formatter": { "enabled": false },
+      "linter": { "enabled": false },
+      "assist": { "enabled": false }
     }
   ]
 }

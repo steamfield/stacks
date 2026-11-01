@@ -10,7 +10,6 @@ plan is written to the demo-first proposal (D23).
 Restored on 2026-10-30 from the deleted planning tree. The dated status notes below
 are historical snapshots, not a fresh assessment of the current release.
 
-- [Architecture foundations RFC](architecture-foundations-rfc.md): draft for review.
 - [Completed plans](archive/README.md): executed phases and completed submission
   tasks, archived with their original caveats.
 - Draft, partial, blocked, and deferred work remains in this folder and its active

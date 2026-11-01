@@ -51,6 +51,10 @@ Add a `test:telemetry` package script running the stack's Vitest command on that
 - Flushes in the shutdown scope with its own timeout.
 
 Each request gets exactly one server span, named `{method} {route}` and carrying the request id; 5xx and defects mark it as an error, and health probes aren't traced. Request metrics are one `http.server.request.duration` histogram, never labelled with ids. Log records gain `traceId` and `spanId`; `x-request-id` and the `request` log line stay. Exported spans and logs carry no bodies, credentials or defect messages.
+<!-- stacks:when mode=add -->
+
+The OTLP layer is a log sink too: only what goes through Effect's logger is exported. Before wiring it, look for logging outside Effect's logger (pino, winston, bunyan, direct `console.*` calls in server code). If you find any, tell the user before going on: OTLP adds a second log pipeline, those lines won't reach the collector, and moving them onto `Effect.log*` would consolidate the two. Ask whether to consolidate. Never remove or replace the existing logger without a yes, and record the answer under Pending user actions or Deferred.
+<!-- stacks:end -->
 
 ## Testing and verify
 

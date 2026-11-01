@@ -6,6 +6,8 @@ export type AgentAdapter = {
   readonly binary: string;
   readonly versionArgs: ReadonlyArray<string>;
   readonly auth: { readonly env: string; readonly obtain: string };
+  /** Used when --model is absent; without one the agent picks its own default. */
+  readonly defaultModel?: string;
   readonly headlessArgs: (prompt: string, model?: string) => ReadonlyArray<string>;
   readonly readResult: (tail: string) => {
     ended: "exit" | "error";
@@ -35,6 +37,8 @@ export const agents: readonly AgentAdapter[] = [
     binary: "claude",
     versionArgs: ["--version"],
     auth: { env: "CLAUDE_CODE_OAUTH_TOKEN", obtain: "claude setup-token" },
+    // The cheapest Claude model; --model overrides it for a stack that needs a stronger one.
+    defaultModel: "haiku",
     headlessArgs: (prompt, model) => [
       "-p",
       prompt,

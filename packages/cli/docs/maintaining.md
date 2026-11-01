@@ -16,7 +16,7 @@ The package must be clean before a run. The bench writes its run note under `pla
 
 Auth is `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or `CODEX_ACCESS_TOKEN` as documented by `codex login --with-access-token`. Codex also accepts the invoking user's `codex login`: when no token is set, the bench copies only `$HOME/.codex/auth.json` into the fresh home with mode 0600 and removes it when the agent exits, before verification, even with `--keep` or on interruption. Global Codex settings, instructions and MCP servers are never copied. Only the selected token reaches the agent when token auth is used. The fresh `HOME` and project are not a security boundary: local runs give the agent full permissions. Child processes get `DO_NOT_TRACK=1`. Fake-agent tests need no account or real token.
 
-Use `--model <id>` with either adapter to select a model, for example `--agent codex --model gpt-6.1-terra`. The id accepts letters, digits, `.`, `-` and `_`, with no leading `-`. Without it, the agent chooses its default. Run notes record the credential route and model; ledger records keep their existing format.
+Use `--model <id>` with either adapter to select a model, for example `--agent codex --model gpt-6.1-terra`. The id accepts letters, digits, `.`, `-` and `_`, with no leading `-`. Without it, Claude runs `haiku`, its cheapest model, and Codex chooses its own default; pass `--model` (`--model opus`, say) when a stack needs a stronger agent. Ledger records don't store the model, so a Haiku pass counts as the same proof as any other. Run notes record the credential route and model; ledger records keep their existing format.
 
 ## The ledger
 

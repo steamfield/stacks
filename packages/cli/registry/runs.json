@@ -1147,6 +1147,176 @@
       "interventions": 0,
       "note": "plans/runs/2026-10-28-python-react-3.md",
       "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-01",
+      "stack": "astro-blog",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.316",
+      "mode": "headless",
+      "repoCommit": "609db9a9fe3f41cb59ee84d145521c5c86ea5fb6",
+      "cli": "0.6.0",
+      "fingerprint": "sha256:4c8df7fed2851734c3f1ca4c990de0c61087552fb2543adbcaef9c196a6f6e35",
+      "briefWords": 3778,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-01T19:52:26.126Z",
+        "cli": "0.6.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 9256,
+        "secondsSinceCreated": 255,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 112
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 38
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 400
+          },
+          {
+            "name": "check",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2838
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 972
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2728
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 12
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 430
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 14
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 30
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 24
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 122
+          },
+          {
+            "name": "web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 1505
+          }
+        ]
+      },
+      "verifyRuns": 3,
+      "minutesToGreen": 3.2613,
+      "minutesToFirstTest": 2.20875,
+      "agentMinutes": 4.00665,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-01-astro-blog.md",
+      "hooksFired": [
+        "block-destructive.sh",
+        "detect-secrets.sh",
+        "format-changed.sh",
+        "lint-on-write.sh",
+        "session-start.sh"
+      ]
     }
   ]
 }

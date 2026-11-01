@@ -14,7 +14,7 @@ export const run = (prepared: Prepared) =>
     yield* fs.remove(debug, { force: true });
     const prompt = `${agentPrompt(prepared.cli)} Read ${path.join(bench, "BENCH.md")} first for the bench rules.`;
     const args = [
-      ...adapter.headlessArgs(prompt, prepared.options.model),
+      ...adapter.headlessArgs(prompt, prepared.options.model ?? adapter.defaultModel),
       ...(adapter.debugLog?.args.length ? [...adapter.debugLog.args, debug] : []),
     ];
     const result = yield* runAgent(prepared, args, debug);

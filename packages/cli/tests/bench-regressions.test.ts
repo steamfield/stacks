@@ -117,6 +117,19 @@ test("Claude receives the selected model and records token credentials", async (
   expect(readFileSync(join(f.root, note), "utf8")).toContain("| Credentials | token |");
 }, 60_000);
 
+test("Claude defaults to Haiku and names it in the note", async () => {
+  const f = benchFixture(space, compiled);
+  passed(await f.invoke(["--agent", "claude"]));
+  const args = f.observe().args;
+  expect(args.slice(args.indexOf("--model"), args.indexOf("--model") + 2)).toEqual([
+    "--model",
+    "haiku",
+  ]);
+  const note = f.ledger()[0]?.note;
+  if (!note) throw new Error("Missing run note");
+  expect(readFileSync(join(f.root, note), "utf8")).toContain("| Model | haiku |");
+}, 60_000);
+
 test("the default model adds no flag and is named in the note", async () => {
   const f = benchFixture(space, compiled);
   passed(await f.invoke(["--agent", "codex"]));

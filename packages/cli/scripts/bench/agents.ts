@@ -37,7 +37,7 @@ export const agents: readonly AgentAdapter[] = [
     binary: "claude",
     versionArgs: ["--version"],
     auth: { env: "CLAUDE_CODE_OAUTH_TOKEN", obtain: "claude setup-token" },
-    // The cheapest model that finishes a stack from its brief; --model overrides it.
+    // The cheapest Claude model; --model overrides it for a stack that needs a stronger one.
     defaultModel: "haiku",
     headlessArgs: (prompt, model) => [
       "-p",

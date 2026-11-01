@@ -1,0 +1,40 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this library does and who calls it. -->
+
+## Install
+
+<!-- stacks:fill The Maven dependency (groupId, artifactId {{project_slug}}, version) once it is on Maven Central, and the Gradle line if wanted. -->
+
+On the module path, add `requires app;` to your `module-info.java`.
+
+## Usage
+
+```java
+import app.Slug;
+
+Slug slug = Slug.parse("release-notes");
+```
+
+<!-- stacks:fill The two or three calls people make most, with one line each on what they do. -->
+
+The Javadoc (`make docs`, or the `-javadoc.jar` on Maven Central) documents every public type with examples. [docs/public-api.md](docs/public-api.md) lists the exports and what counts as a breaking change.
+
+## Development
+
+Requires the JDK named in `.java-version` (on macOS, `brew install openjdk@<major>`; the Makefile finds it) and make. Maven comes from the committed wrapper, `./mvnw`.
+
+| Command | What it does |
+|---|---|
+| `make test` | Unit, property and example tests |
+| `make docs` | Javadoc, failing on any doclint warning |
+| `make build` | The jar, sources jar and Javadoc jar under `target/` |
+| `make test-consumer` | Builds a separate project against the installed jar |
+| `make api-check` | Fails on an incompatible change since the last release |
+| `make ci` | Everything CI runs |
+
+Releasing is a person's step: [docs/releasing.md](docs/releasing.md).
+
+## License
+
+MIT. Copyright (c) {{year}} {{author}}

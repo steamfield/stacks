@@ -200,6 +200,11 @@ formatter_for() {
     case "$f" in *,* | *'\E'*) return 1 ;; esac
     cfg=$(find_up "$dir" mvnw) || return 1
     [ -x "$cfg/mvnw" ] && [ -f "$cfg/pom.xml" ] || return 1
+    # Never run a wrapper from above the project (or the agent's worktree).
+    case "$cfg/" in
+    "$root"/*) ;;
+    *) [ -n "$cwd" ] && case "$cfg/" in "$cwd"/*) true ;; *) false ;; esac || return 1 ;;
+    esac
     printf 'spotless\t%s\n' "$cfg"
     ;;
   *) return 1 ;;

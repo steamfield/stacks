@@ -1,0 +1,49 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this app does and who it's for. -->
+
+## Install
+
+<!-- stacks:fill A bash code block with the install command people should use (`cargo install --path .` until there's a release). -->
+
+Or build from source:
+
+```bash
+make build
+./target/release/{{project_slug}}
+```
+
+## Usage
+
+Run `{{project_slug}}` in a terminal for the full-screen UI. Press `?` for its keys and `q` to quit.
+
+<!-- stacks:fill What a person does in the UI, in two or three lines. -->
+
+Without a terminal (a pipe, a script, CI) it prints instead and exits:
+
+```bash
+{{project_slug}} --no-tui          # an aligned text table
+{{project_slug}} --json | jq .     # {"tasks": [...]}
+{{project_slug}} --tasks tasks.json
+```
+
+See [docs/configuration.md](docs/configuration.md) for flags, environment variables and exit statuses.
+
+## Development
+
+Requires rustup (the toolchain comes from `rust-toolchain.toml`) and make.
+
+| Command | What it does |
+|---|---|
+| `make build` | Release binary in `target/release/` |
+| `make test` | Unit, frame snapshot, event loop and binary tests |
+| `make snapshots` | Rewrite frame snapshots after a deliberate view change |
+| `make lint` | rustfmt check and clippy with warnings denied |
+| `make audit` | cargo-deny: advisories, licenses, sources |
+| `make ci` | Everything CI runs |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
+
+## License
+
+Copyright (c) {{year}} {{author}}

@@ -219,8 +219,12 @@
       "assert_cmd",
       "axum",
       "clap",
+      "insta",
+      "js-sys",
       "proptest",
+      "ratatui",
       "serde",
+      "serde-wasm-bindgen",
       "serde_json",
       "specta",
       "specta-typescript",
@@ -234,7 +238,9 @@
       "tower",
       "tower-http",
       "tracing",
-      "tracing-subscriber"
+      "tracing-subscriber",
+      "wasm-bindgen",
+      "wasm-bindgen-test"
     ]
   }
 }

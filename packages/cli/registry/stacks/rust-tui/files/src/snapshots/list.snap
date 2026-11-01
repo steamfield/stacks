@@ -1,0 +1,15 @@
+---
+source: src/ui.rs
+---
+"┌ Tasks ───────────────────────────────────────────────────────────────────────┐"
+"│/ to filter                                                                   │"
+"│  T-1  doing   Write the README                                               │"
+"│> T-2  todo    Add a second screen                                            │"
+"│  T-3  done    Set up releases                                                │"
+"│                                                                              │"
+"│                                                                              │"
+"│                                                                              │"
+"│                                                                              │"
+"│                                                                              │"
+"└──────────────────────────────────────────────────────────────────────────────┘"
+"↑/k previous  ↓/j next  enter open  / filter  esc clear filter  ? help  q quit  "

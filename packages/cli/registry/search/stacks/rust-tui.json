@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "rust-tui",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A full-screen Rust terminal app on Ratatui with a list and detail screen, snapshot-tested frames and a text and JSON fallback.",
+  "description": "Start a keyboard-driven terminal app in Rust. Ratatui draws, crossterm reads keys through Ratatui's re-export, and the state that decides what's on screen is plain Rust changed only by actions, so tests drive it without a terminal. Every binding lives in one table that feeds the footer and help overlay. Each screen renders into Ratatui's test backend and is compared with an insta snapshot, the event loop runs headless over scripted keys, and the built binary is tested with no terminal, where it prints text or JSON instead of hanging. The task list is the example to replace with your own data.",
+  "seoDescription": "A Ratatui terminal UI recipe in Rust with separate state, keys and drawing, insta frame snapshots, panic-safe terminal restore and a text and JSON fallback.",
+  "projectExamples": [
+    {
+      "title": "Log viewer",
+      "description": "Replace the task list with lines from a log file, filter them as you type and open one entry in the detail screen."
+    },
+    {
+      "title": "Queue dashboard for a local service",
+      "description": "Show jobs from a JSON export in the list, with their state and errors in the detail screen, and print the same data as JSON for scripts."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a Rust program that fills the terminal window with screens you move through by keyboard, like a text-based app.",
+    "goodAt": [
+      "Keyboard-driven tools that people keep open in a terminal",
+      "Screens checked by tests that compare saved copies of each view",
+      "Still printing plain text or JSON when run from a script"
+    ],
+    "notGoodAt": [
+      "A command that prints a result and exits; choose the Rust command-line stack.",
+      "Windows with buttons and a mouse; choose a desktop app stack such as Tauri."
+    ]
+  },
+  "platforms": [
+    "cli"
+  ],
+  "productKinds": [
+    "cli-tool"
+  ],
+  "languages": [
+    "rust"
+  ],
+  "requests": [
+    "build a ratatui app with a list screen and a detail view",
+    "full-screen rust terminal app with keyboard navigation and a help popup",
+    "snapshot test every ratatui frame with insta",
+    "a rust terminal interface that prints JSON when piped instead of hanging"
+  ],
+  "useCases": [
+    "keyboard-driven terminal tools",
+    "terminal dashboards"
+  ],
+  "synonyms": [
+    "ratatui",
+    "tui-rs",
+    "crossterm",
+    "cursive alternative"
+  ],
+  "goodFor": [
+    "keyboard-driven screens",
+    "frame snapshot tests"
+  ],
+  "notFor": [
+    "graphical desktop windows",
+    "subcommands"
+  ]
+}

@@ -1,0 +1,15 @@
+---
+source: src/ui.rs
+---
+"┌ T-2 ─────────────────────────────────────────────────────────────────────────┐"
+"│Add a second screen                                                           │"
+"│Status: todo                                                                  │"
+"│                                                                              │"
+"│Follow the detail screen: a mode, its keys, a draw function and a snapshot.   │"
+"│                                                                              │"
+"│                                                                              │"
+"│                                                                              │"
+"│                                                                              │"
+"│                                                                              │"
+"└──────────────────────────────────────────────────────────────────────────────┘"
+"esc back  ? help  q quit                                                        "

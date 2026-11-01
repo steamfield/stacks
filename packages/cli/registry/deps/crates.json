@@ -71,6 +71,24 @@
         "reviewedAt": null
       }
     },
+    "insta": {
+      "whatItIs": "insta, a library for the Rust programming language that saves a test's output to a file and fails the test when the output later changes.",
+      "goodAt": [
+        "Checking large outputs, like a whole screen of text, without typing them out",
+        "Showing exactly what changed so a person can accept or reject it"
+      ],
+      "notGoodAt": [
+        "Deciding whether new output is right; a person still has to read each change."
+      ],
+      "example": "A test draws the app's main screen and compares it with the saved copy, so a moved column or missing line fails before anyone ships it.",
+      "homepage": "https://insta.rs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "proptest": {
       "whatItIs": "proptest, a library for the Rust programming language that tests code with many generated inputs and, when one fails, shrinks it to the simplest failing case.",
       "goodAt": [
@@ -82,6 +100,25 @@
       ],
       "example": "A test tries thousands of made-up names and checks that each one the code accepts comes back out exactly as it went in.",
       "homepage": "https://github.com/proptest-rs/proptest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "ratatui": {
+      "whatItIs": "ratatui, a library for the Rust programming language that draws full-screen text interfaces in a terminal: lists, panels, tables and popups.",
+      "goodAt": [
+        "Keyboard-driven apps that fill the terminal window",
+        "Laying out panels that adapt to the window's size"
+      ],
+      "notGoodAt": [
+        "Graphical windows with a mouse-first design; that needs a desktop app framework.",
+        "Simple commands that print a result and exit; a command-line parser alone is enough."
+      ],
+      "example": "A task list fills the terminal, the arrow keys move between tasks, and Enter opens one in a detail panel.",
+      "homepage": "https://ratatui.rs",
       "source": {
         "by": "drafted",
         "model": "claude-opus-5-5",

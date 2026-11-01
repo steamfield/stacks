@@ -1,89 +1,98 @@
 # RFC: stacks declare their fragments; fragments stop listing stacks
 
-Status: DRAFT 2026-11-01, awaiting one devils-advocate review.
+Status: REVIEWED 2026-11-01 by one devils-advocate pass (its findings are applied below and summarized at the end). Not yet scheduled.
 
 ## Problem
 
-A fragment says which stacks it fits in `applies_to`, as stack ids or tags (`core/compose/selection.ts::fitsStack`, with a copy in `packages/format/src/search/rank.ts::fits`). Fourteen of the 23 bundled fragments use stack ids. For every one of them the admitted set is exactly the set of stacks that already list the fragment in `fragments.required`, `default` or `optional`. The fragment's list is a hand-written reverse dependency.
+A fragment says which stacks it fits in `applies_to`, as stack ids or tags (`core/compose/selection.ts::fitsStack`, with a copy in `packages/format/src/search/rank.ts::fits`). Sixteen of the 23 bundled fragments use stack ids (14 fragments and both apps). For every one of them the admitted set is exactly the set of stacks that already list the fragment in `fragments.required`, `default` or `optional`, which the review confirmed entry by entry. The fragment's list is a hand-written reverse dependency.
 
-That list makes the relationship N×M. Adding the 27 stacks in `plans/stack-expansion-rfc-2026-10-31.md` meant editing `claude-harness` and `rest-api` to add ids, and `docker-deploy` and `goreleaser` would have needed the same. Each such edit is expensive beyond the line itself:
+That makes the relationship N×M. Adding the 27 stacks in `plans/stack-expansion-rfc-2026-10-31.md` meant editing `claude-harness` and `rest-api` to add ids, and `docker-deploy` and `goreleaser` would have needed the same. Each such edit costs more than the line:
 
-- `fingerprint.ts::fingerprint` hashes each composed entry's decoded frontmatter, so adding one id to `claude-harness` changes the fingerprint of every stack composing it and stales those `runs.json` proofs.
-- `core/search/digest.ts::searchSourceDigest` covers decoded metadata, so the fragment's reviewed search card goes `search-stale` and needs a maintainer restamp (five cards on 2026-11-01).
+- `fingerprint.ts::fingerprintFromFiles` hashes each composed entry's `canonicalJson(meta)`, so one id added to `claude-harness` changes the fingerprint of every stack composing it and stales those `runs.json` proofs.
+- `core/search/digest.ts::searchSourceDigest` hashes the same meta, so the fragment's reviewed search card goes `search-stale` and needs a maintainer restamp (five cards on 2026-11-01).
 - The edit lands in an entry owned by someone other than the person adding the stack.
 
-The list exists because the alternative failed. Before the fragment audit (`plans/archive/fragment-audit-2026-10-31.md`, finding 3, D4, D5), `claude-harness` admitted `[node, bun]` and `rest-api` admitted `[api]`, and those tags let in stacks the fragments couldn't serve (mobile-expo's jest, python-react's nested frontend, envelopes the rule contradicted). So the audit replaced tags with ids. A tag said what a stack is, not whether it met the fragment's assumptions.
+The list exists because the alternative failed. Before the fragment audit (`plans/archive/fragment-audit-2026-10-31.md`, finding 3, D4, D5), `claude-harness` admitted `[node, bun]` and `rest-api` admitted `[api]`, and those tags let in stacks the fragments couldn't serve. A tag said what a stack is, not whether it met the fragment's assumptions, so the audit replaced tags with ids.
 
-The reverse case matters too: a new fragment shouldn't need a manual audit of every stack to find where it belongs.
+This RFC removes the frontmatter edit for fragments that ship nothing per stack (`claude-harness`, `rest-api`, `clerk`, `bun-release`, `cloudflare-*`, `effect-otlp`, `goreleaser`, `openrouter-ai`). A fragment with per-stack overlays or `stacks:when stack=` branches (`docker-deploy`, `postgres`, `posthog`, `effect-sql-postgres`, `drizzle-postgres`) still needs a per-stack edit inside the fragment, because those files implement the fragment for one host; what goes away for them is only the `applies_to` line, and D4 makes that edit checked rather than optional.
 
 ## Constraints
 
-- `packages/format` contracts change additively (`.claude/rules/format/format.md`); `FragmentMeta` and the search ranker are shared with the hosted API.
-- Admission is not trust. Trust stays `registry.ts::trustOf` by origin (architecture rule, trust model); nothing here runs anything.
-- Registry-wide passes belong in `validate` and tests, never on a per-entry command path (AGENTS.md, "Code structure").
-- Existing user and project entries with id lists keep working unchanged.
+- `packages/format` changes are additive (`.claude/rules/format/format.md`): new optional keys, and existing exports keep their output for inputs that don't use the new keys. `FragmentMeta` and the ranker are shared with the hosted API.
+- Decoded meta feeds fingerprints and search digests, so a new key must be absent when unset (`Schema.optionalKey`, AGENTS.md "Schemas"), or every entry's fingerprint changes.
+- Admission is not trust. Trust stays `registry.ts::trustOf` by origin; nothing here runs anything.
+- Registry-wide passes belong in `validate` and tests, never on a per-entry command path; no command may download extra bundles to decide fit.
 
 ## Convention
 
-Dependency systems put each side of the relationship in one place. The dependent declares what it uses (npm `dependencies`, Debian `Depends`, a Bazel target's `deps`). The provider declares constraints on capabilities, never a list of its dependents (npm `peerDependencies` ranges, Debian `Provides` and virtual packages, OSGi `Require-Capability`, Bazel `target_compatible_with` over `constraint_value`s, Kubernetes `nodeSelector` over node labels). The reverse list is derived when someone needs it (`apt-cache rdepends`, `npm ls`), never authored.
+Dependency systems put each side of the relationship in one place. The dependent declares what it uses (npm `dependencies`, Debian `Depends`). The provider declares constraints on capabilities, never a list of its dependents (npm `peerDependencies` ranges, Debian `Provides`, OSGi `Require-Capability`, Bazel `target_compatible_with`, Kubernetes `nodeSelector`). The reverse list is derived when needed (`apt-cache rdepends`), never authored. A declared dependency doesn't override the provider's constraint: npm still checks a peer range when the dependent installs the package.
 
-This repo already has both halves. `fragments.required|default|optional` is the dependent's declaration. Stack `tags` with a fragment's `applies_to` is the capability constraint, and `effect` and `effect-schema` already use it correctly (`applies_to: [effect]`, the audit's D4). The id lists are the one piece that breaks the convention. This RFC removes them and adds no new kind of relationship.
+This repo already has both halves: `fragments.required|default|optional` is the dependent's declaration, and stack `tags` with `applies_to` is the capability constraint (`effect` and `effect-schema` use `applies_to: [effect]`, the audit's D4). The id lists are the piece that breaks the convention, because they encode "only these dependents" as a provider-side list. This RFC adds one way for a provider to say "only dependents that declare me", the role Kubernetes taints and tolerations play, and adds no new relationship.
 
 ## Design
 
-D1. One admission rule, owned by `packages/format`. A fragment F fits a stack S when any of these holds:
+D1. `FragmentMeta` gains `listedOnly: Schema.optionalKey(Schema.Boolean)`, encoded `listed_only`, absent unless set. A `listed_only` fragment fits a stack that lists it in `fragments.required`, `default` or `optional`, plus any stack its non-empty `applies_to` matches. Every other fragment keeps today's rule exactly: `applies_to` matches the stack's id or a tag, and empty fits any stack. A listing never overrides `applies_to` for a fragment that isn't `listed_only`, so `optional-fits` and the add-mode `applies_to` conflict stay as they are for those.
 
-1. S lists F in `fragments.required`, `default` or `optional`;
-2. F's `applies_to` names S's id or one of S's tags;
-3. F's `applies_to` is empty and F is not `listed_only` (D2).
+A fragment pulled in through another fragment's `requires` is admitted when its requirer is (the `requires` edge is a declared dependency too). So a stack listing `openrouter-chat-cli` needn't also list `openrouter-ai` and `claude-harness` to admit them.
 
-It is exported as `fragmentFits(fragment: FragmentMeta & { id }, stack: { id, meta: StackMeta })` from `packages/format/src/index.ts`, beside the entry schemas, and replaces `selection.ts::fitsStack` and `rank.ts::fits`. Every current caller of `fitsStack` takes the stack entry it already has: `compose/selection.ts`, `list.ts`, `show.ts`, `prompting.ts`, `validate/compose-each.ts`, `compositions.ts`, `conditionals-reach.ts`, `files.ts` (overlay fit), `add-compositions.ts`. A stack that's absent keeps today's behavior: `add` with no known recorded stack fits everything (`selection.ts`, "`!stack ||`").
+The `FragmentMeta` app filter becomes "an app names at least one stack or tag, or is `listed_only`".
 
-D2. `FragmentMeta` gains `listedOnly: Boolean` (encoded `listed_only`, decoding default `false`), the same shape as `needsOwnRepo`. With `listed_only: true` and an empty `applies_to`, F fits only the stacks that list it. With `listed_only: true` and a non-empty `applies_to`, F fits listing stacks plus the matches. `listed_only` with no effect (a non-empty `applies_to` that already matches every listing stack) is legal. The app rule in `FragmentMeta`'s filter becomes "an app must name at least one stack or tag, or be `listed_only`".
+D2. One fit function, owned by `packages/format`: `fragmentFits(fragment, stack)`, where the fragment is `{ id, meta: FragmentMeta }` and the stack is `{ id, tags, listed: ReadonlyArray<string> }`, `listed` being the union of its three fragment lists. It replaces `selection.ts::fitsStack` and `rank.ts::fits`. For a fragment without `listed_only`, its output equals `fitsStack`'s for every input, which a property test pins, so `rank`'s output is unchanged for every existing input.
 
-D3. Migration of the bundled fragments, with no change in admission:
+D3. Each caller gets the listing from data it already has, with additive fields where it has none:
+
+- Compose (`selection.ts`), validate (`compose-each.ts`, `compositions.ts`, `conditionals-reach.ts`, `files.ts`, `add-compositions.ts`) and `prompting.ts::pickNew` hold the full stack entry; they read `meta.fragments`.
+- `list.ts::projectChoices` and the add picker work on `ListRow`s. `ListRow` (`schemas/list.ts`) gains `listedOnly` on fragments and `fragments` (the union) on stacks, both optional keys, filled from the entries `list` already loads.
+- `show.ts::selectionMetadata` filters `Registry.catalog` rows. `CatalogEntry` gains the stack's listing for bundled, user and project entries (read with the entry it already decodes). For index stacks, `IndexEntry` (`packages/format/src/index-schema.ts`) gains an optional `fragments` union, written by `build:index`; an index without it makes `show` print that index stacks weren't checked rather than fetch bundles.
+- `rank` reads `fragments` from the stack records it is given. The index's `v1/search.json` already publishes each entry's decoded meta beside its card (`scripts/index/search.ts`), so the hosted ranker has the listings with no change to what it receives.
+- Add with no known recorded stack keeps fitting everything, and keeps its one warning: `checkFit` warns `with_not_applicable` when `applies_to` is non-empty or the fragment is `listed_only`.
+
+D4. Overlays and `stack=` branches. `validate/files.ts::overlayStackFinding` and `conditionals-reach.ts` use `fragmentFits`. New check, `overlay-missing` (error): a fragment that ships any `stacks/<id>/` overlay must ship one for every stack that fits it, so a listing can't silently admit a stack the fragment has no files for. A stack outside the bundled registry (user or project) that wants such a fragment must also have the overlay, which means a copy of the fragment in that registry (`create fragment --from bundled`) or a bundled change; `stacks submit` of a stack alone can't add one. The authoring docs say so.
+
+D5. Output keeps meaning what it says. `applies_to: []` keeps meaning "fits any stack" in every output. `ListRow`, `SearchHit` (`packages/format/src/search/schema.ts`) and `ShowReport` gain `listedOnly`, and their human and agent text (`list-report.ts`, including the app line and the apps `Next:` hint, `search/report.ts`, `show-report.ts`) prints "Applies to: stacks that list it" (plus any ids or tags) for a `listed_only` fragment. `stacks schema list` and `stacks schema search` pick the fields up through `RESULT_SCHEMAS`.
+
+D6. A new fragment's review queue comes from validate. A note, `fits-unlisted`, prints one line per fragment whose non-empty `applies_to` admits stacks that don't list it, naming them. It never fails a run and stays silent for empty `applies_to`.
+
+D7. Migration of the bundled fragments, with no change in admission:
 
 | Fragment | Today | After |
 | --- | --- | --- |
 | bun-release, claude-harness, clerk, cloudflare-d1, cloudflare-pages, docker-deploy, drizzle-postgres, effect-otlp, effect-sql-postgres, goreleaser, openrouter-ai, postgres, posthog, rest-api | stack ids equal to the listing stacks | `listed_only: true`, `applies_to: []` |
+| openrouter-chat, openrouter-chat-cli (apps) | one stack id | unchanged |
 | effect, effect-schema | `[effect]` | unchanged |
-| openrouter-chat, openrouter-chat-cli (apps) | one stack id | unchanged (apps name their host) |
 | agent-ops, ce-plugin, ci-github, git-hooks, rr | `[]` | unchanged |
 
-A test computes the full fragment × stack admission matrix for the bundled registry before and after and asserts it is identical, so the migration is a pure refactor. Where a fragment's body or overlays show a real capability need (claude-harness runs root vitest, rest-api needs JSON routes), the fragment may later swap `listed_only` for a trait tag; that's a per-fragment decision for its owner, not part of this change.
-
-D4. Overlays and `stack=` branches follow D1. `validate/files.ts::overlayStackFinding` and `conditionals-reach.ts` accept a stack admitted by listing, so a stack that opts in to docker-deploy lists it and adds `fragments/docker-deploy/stacks/<id>/`, with no edit to the fragment's frontmatter. The per-pair files stay inside the fragment: they implement the fragment's contract for one host, the fragment's bundle digest covers them, and its owner reviews them.
-
-D5. Search. A fragment inherits languages and platforms from the stacks it fits (`rank.ts`, the `platforms`/`languages` penalty and the "applies to" `notFor` penalty), so the ranker uses `fragmentFits` over the stack records it already has. A `listed_only` fragment inherits from its listing stacks rather than opting out as `applies_to: []` does today. The hosted API picks this up from the same format release.
-
-D6. A new fragment's audit queue comes from validate. A note, `fits-unlisted`, prints one line per fragment with a non-empty `applies_to`, naming the stacks its tags admit that don't list it. It never fails a run (severity note), stays silent for empty `applies_to`, and gives the author and maintainer the review list that today requires reading every stack.
-
-D7 (separate phase, may be dropped). Tags that `applies_to` relies on must be true. `add/tags.ts::inferTags` already derives `make`, `scripts`, `bun`, `node`, `typescript`, `go`, `python`, `rust` and `monorepo` from repository files. Split it into a pure function over a path set (with the package manifest's text) and the existing filesystem adapter, and have validate run the pure function over each stack's neutral composed snapshot (`compose/files.ts::composeFilesWithNeutral`): a stack that declares one of those tags its files contradict, or ships files implying one it doesn't declare, gets a warning. That makes the derivable tags trustworthy as constraints and keeps add mode and new mode on one vocabulary. Descriptive tags (`web`, `api`, `cli`) stay unchecked.
+Before the migration, a script writes the full fragment × stack admission matrix of the bundled registry to a committed fixture; after it, a test recomputes the matrix with `fragmentFits` and asserts it equals the fixture. `tests/bundled-compositions.test.ts` drops its own `fits` for `fragmentFits`, so its per-stack `--with` runs and `writeFragment` stay on admitted stacks. The 14 fragments' meta changes once (new key, emptied list): every default composition containing one of them (about 21 stacks; `claude-harness` alone is listed by 14) gets a new fingerprint, and the 14 search cards need a restamp.
 
 ## What doesn't change
 
-The manifest, run records, `fingerprint`'s algorithm, the bundle format, trust, `--with` and `--without` semantics (an unlisted `listed_only` fragment named with `--with` warns `with_not_applicable` as an unmatched one does now), the `requires` closure, and `requires_tools`.
+Fit for every fragment that doesn't set `listed_only`, which includes every existing user and project entry; the manifest, run records, `fingerprint`'s algorithm and the bundle format; trust; `--with`/`--without` semantics; `requires_tools`.
 
 ## Costs
 
-- Migrating 14 fragments' frontmatter changes their decoded metadata once: every default composition with one of them gets a new fingerprint (ledger proofs stale, a bench re-run per stack) and their search cards need a maintainer restamp. Doing it in the same release as other brief changes keeps it to one round.
-- `@steamfield/stacks-format` needs a release before the CLI that uses `fragmentFits` (`bun run release:format` is the maintainer's step), and stacks-api adopts it to keep server ranking identical.
-- A fragment's owner loses the veto over which stacks list it. A stack could list a fragment whose assumptions it breaks. For default fragments the stack's own fresh-scaffold `verify` catches it; for optional ones only the composed brief is checked (`validate` composes each optional), which is today's level too. Reviewing a stack's `fragments.*` lists becomes part of reviewing the stack.
+- The one-time fingerprint and card churn in D7: ledger proofs for about 21 stacks go stale and need a bench re-run, and 14 cards need a maintainer restamp. Landing it with another brief-changing release keeps it to one round.
+- Release order: `@steamfield/stacks-format` with `listedOnly`, `fragmentFits`, the `SearchHit` and `IndexEntry` fields (`bun run release:format`, a maintainer step); stacks-api adopts it; then the CLI release; then the index redeploy. Older format decoders reject `listed_only` as an unknown key (`entry.ts` decodes with `onExcessProperty: "error"`). The index protects older CLIs through `minCli`; a project registry shared over git with someone on an older CLI gets those fragments rejected until they update, which is the same rule as any new key.
+- A fragment owner loses the veto over which stacks list a `listed_only` fragment. For default fragments the stack's own fresh-scaffold `verify` catches a bad pairing; for optional ones only the composed brief is checked, the same level as today. Reviewing a stack's `fragments.*` lists becomes part of reviewing the stack. Fragments with overlays keep the veto through D4.
 
 ## Alternatives considered
 
-- Keep id lists. N×M edits, frontmatter churn in entries the editor doesn't own, and a stale ledger for every stack using the fragment on each addition.
-- Tags only, as before the audit. Already tried; descriptive tags admitted stacks the fragments couldn't serve.
-- Per-fragment opt-in tags on stacks (a stack adds tag `claude-harness`). No schema change, but it repeats the listing inside the stack and puts fragment ids into the `tags` field, which search scores (`rank.ts::fieldsFor`, weight 1).
-- Stack-side overlays (`stacks/<id>/with/<fragment>/`). Moves the per-pair files to the stack, but splits a fragment's implementation across entries, so the fragment's bundle digest and review no longer cover its own files.
-- A general provides/requires capability vocabulary with all-of matching. No bundled fragment needs a conjunction today; it would be a new contract surface for no current case.
+- Keep id lists: N×M edits, churn in entries the editor doesn't own, stale proofs on every addition.
+- Tags only, as before the audit: tried, and descriptive tags admitted stacks the fragments couldn't serve.
+- A listing admits any fragment, ignoring `applies_to`: simpler, but it lets a stack bypass a real capability constraint (`effect`), which no dependency system allows.
+- CLI-only first step: let a listing admit the id-list fragments with no format field, leaving the id lists as harmless subsets. It removes the N×M edit for new stacks without format churn, but the lists keep shipping, still look authoritative and drift; and with no field, "fits only listing stacks" can't be told apart from "fits these ids". A reasonable interim if the format release has to wait.
+- Per-fragment opt-in tags on stacks: repeats the listing inside the stack and puts fragment ids into `tags`, which search scores (`rank.ts::fieldsFor`).
+- Stack-side overlays: moves per-pair files into stacks, splitting a fragment's implementation across entries so its bundle digest and review no longer cover its own files.
+- Checking tags against shipped files (inferring `make`, `bun`, `node` from the neutral snapshot): dropped after review. The snapshot has no lockfile or `packageManager`, `python-react` has no root `package.json`, and `rust-wasm` ships only a Makefile while tagged `node`, so most findings would be false.
 
 ## Work
 
-1. Format: `listedOnly` on `FragmentMeta` with the app rule; `fragmentFits` exported with unit and property tests (listing, ids, tags, empty, `listed_only`); `rank.ts` on `fragmentFits` with a test that a `listed_only` fragment inherits its listing stacks' languages.
-2. CLI: replace `fitsStack` at every caller; `validate` checks per D4 and the `fits-unlisted` note per D6; `show`/`list` "Applies to" text renders "stacks that list it" for `listed_only`.
-3. Registry: the D3 migration, the admission-matrix test, card restamps listed as a maintainer step.
-4. Docs: `packages/cli/docs/authoring.md`, `skills/stacks-author/references/fragment.md`, `anatomy.md` and `search-card.md`, and the repo's `fragment-authoring` and `stack-authoring` skills ("Tags are a compatibility contract").
-5. D7 as its own change after 1 to 4 land.
+1. Format: `listedOnly` (optional key) on `FragmentMeta` with the app rule; `fragmentFits` with unit tests and a property test against the old rule for fragments without `listedOnly`; `rank` on `fragmentFits` with a test that a `listed_only` fragment inherits its listing stacks' languages; optional `listedOnly` on `SearchHit` and `fragments` on `IndexEntry`.
+2. CLI: `fragmentFits` at every caller (D3); `ListRow`, `CatalogEntry` and `ShowReport` fields; `checkFit`'s no-stack warning; validate's `overlay-missing` error and `fits-unlisted` note; text output per D5; `build:index` writes `IndexEntry.fragments`.
+3. Registry: the matrix fixture first, then the D7 migration, `bundled-compositions.test.ts` on `fragmentFits`, card restamps listed as a maintainer step.
+4. Docs: `packages/cli/docs/authoring.md`, `skills/stacks-author/references/fragment.md`, `anatomy.md` and `search-card.md`, the committed copies under `packages/cli/plugin/skills/`, `scripts/decorate/prompt.ts`'s "empty fits anywhere" instruction, and the repo's `fragment-authoring` and `stack-authoring` skills ("Tags are a compatibility contract").
 
-Tests through `runCli`: `new` with a listing stack composes a `listed_only` fragment; `add <fragment>` into a project whose recorded stack doesn't list it fails as `with_not_applicable` does today; `add` with no recorded stack still admits; `validate` on a registry where a stack lists a fragment with no matching `applies_to` reports no `optional-fits` error; the matrix test above.
+Tests through `runCli`: `new` with a listing stack composes a `listed_only` fragment and one pulled in by `requires`; `add <listed_only fragment>` into a project whose recorded stack doesn't list it is a `ComposeConflict` with reason `applies_to`, as an unmatched id is today; `add` with no recorded stack admits and warns; a stack listing `effect` without the `effect` tag still fails `optional-fits`; `list --json` doesn't offer a `listed_only` fragment for an unlisting stack; `overlay-missing` fires for a listing stack with no overlay; the matrix test.
+
+## Review record
+
+The devils-advocate pass confirmed the audit table and the `fitsStack` caller list, and raised: listing overriding `applies_to` for every fragment (now `listed_only` only, D1); a decoding default changing every fingerprint (now an optional key); three callers without the listing (D3); overlay fragments still needing a fragment edit and a listing skipping the overlay (narrowed Problem, D4 `overlay-missing`); `applies_to: []` changing meaning in public output (D5); the bundled-compositions test and a matrix that can't be recomputed after migration (D7 fixture); the lost no-stack warning, `requires` closures, add-mode wording, release order, and false positives in tag checking (dropped). Its question about the hosted ranker is answered in D3: `v1/search.json` carries entry meta.

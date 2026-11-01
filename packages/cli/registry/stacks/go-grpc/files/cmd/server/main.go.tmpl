@@ -63,8 +63,11 @@ func run(ctx context.Context, stop context.CancelFunc, args []string, stdout io.
 	case <-ctx.Done():
 		stop()
 	}
-	logger.Info("shutting down")
+	logger.Info("shutting down", "drain_delay", cfg.DrainDelay.String())
+	// Health checks answer NOT_SERVING for DRAIN_DELAY while the listener still
+	// accepts calls, so probes see it before the port closes.
 	service.Drain()
+	time.Sleep(cfg.DrainDelay)
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {

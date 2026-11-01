@@ -44,15 +44,31 @@ func TestLayoutLoadsHTMXWithItsConfig(t *testing.T) {
 	// htmx uses the first rule that matches, so 422 must come before [45]..
 	position := map[string]int{}
 	swaps := map[string]bool{}
+	errs := map[string]bool{}
 	for i, rule := range config.ResponseHandling {
 		position[rule.Code] = i
 		swaps[rule.Code] = rule.Swap
+		errs[rule.Code] = rule.Error
 	}
 	require.Contains(t, position, "422")
 	require.Contains(t, position, "[45]..")
 	assert.Less(t, position["422"], position["[45].."])
 	assert.True(t, swaps["422"], "422 responses swap")
-	assert.False(t, swaps["[45].."], "other errors don't swap")
+	assert.True(t, swaps["[45].."], "other errors swap, into the alert region they retarget to")
+	assert.True(t, errs["[45].."], "and still count as errors")
+	alert := doc.Find("#" + AlertID)
+	require.Equal(t, 1, alert.Length(), "the layout has the region htmx errors swap into")
+	assert.Equal(t, "alert", alert.AttrOr("role", ""))
+}
+
+func TestErrorAlert(t *testing.T) {
+	doc := render(t, ErrorAlert(ErrorPage{Status: 503, Title: "Service unavailable", Message: "Try again shortly.", RequestID: "req-1"}))
+	assert.Equal(t, 0, doc.Find("html head title").Length(), "an alert is a fragment")
+	assert.Contains(t, doc.Find("p").First().Text(), "Service unavailable")
+	assert.Contains(t, doc.Find("p").First().Text(), "Try again shortly.")
+	assert.Equal(t, "req-1", doc.Find(".request-id code").Text())
+	without := render(t, ErrorAlert(ErrorPage{Status: 500, Title: "Something went wrong", Message: "Try again."}))
+	assert.Equal(t, 0, without.Find(".request-id").Length())
 }
 
 func TestNotesPageListsNotesNewestFirst(t *testing.T) {
@@ -109,6 +125,9 @@ func TestNoteCreatedSwapsTheFormOutOfBand(t *testing.T) {
 	form := doc.Find("form#note-form")
 	assert.Equal(t, "true", form.AttrOr("hx-swap-oob", ""))
 	assert.Empty(t, form.Find("input#title").AttrOr("value", ""))
+	alert := doc.Find("#" + AlertID)
+	assert.Equal(t, "true", alert.AttrOr("hx-swap-oob", ""), "a new note clears the last error")
+	assert.Equal(t, "alert", alert.AttrOr("role", ""))
 	assert.Equal(t, 0, doc.Find("html head title").Length(), "a fragment has no layout")
 }
 

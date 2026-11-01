@@ -35,10 +35,10 @@ type runningServer struct {
 	scanErr error
 }
 
-func startServer(t *testing.T, host string) *runningServer {
+func startServer(t *testing.T, host string, env ...string) *runningServer {
 	t.Helper()
 	server := &runningServer{cmd: exec.Command(binary), exited: make(chan struct{})}
-	server.cmd.Env = []string{"HOST=" + host, "PORT=0", "LOG_LEVEL=debug", "SHUTDOWN_TIMEOUT=2s"}
+	server.cmd.Env = append([]string{"HOST=" + host, "PORT=0", "LOG_LEVEL=debug", "SHUTDOWN_TIMEOUT=2s"}, env...)
 	server.cmd.Dir = t.TempDir()
 	stdout, err := server.cmd.StdoutPipe()
 	require.NoError(t, err)
@@ -160,6 +160,26 @@ func TestRPCAndSignalShutdown(t *testing.T) {
 			assert.Equal(t, "stopped", messages[len(messages)-1])
 		})
 	}
+}
+
+// With DRAIN_DELAY set, a stopping server keeps its port open and answers
+// NOT_SERVING for that long, so a load balancer's probe sees it go.
+func TestDrainDelayKeepsReportingNotServing(t *testing.T) {
+	server := startServer(t, "127.0.0.1", "DRAIN_DELAY=2s")
+	require.NoError(t, server.cmd.Process.Signal(syscall.SIGTERM))
+	// A new connection a second in, as the next probe would open.
+	time.Sleep(time.Second)
+	client := &http.Client{Timeout: time.Second, Transport: &http.Transport{DisableKeepAlives: true}}
+	response, err := client.Get("http://" + server.address + "/healthz")
+	require.NoError(t, err, "the port closed during DRAIN_DELAY")
+	require.NoError(t, response.Body.Close())
+	assert.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
+	select {
+	case <-server.exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("shutdown did not finish")
+	}
+	require.NoError(t, server.err)
 }
 
 func TestHealthcheckBindAddresses(t *testing.T) {

@@ -27,7 +27,7 @@ type row struct {
 // in TestTable.
 var table = map[string]row{
 	InvalidInput: {exit: 2, public: true},
-	Config:       {exit: 2, public: true},
+	Config:       {exit: 1, public: true},
 	Internal:     {exit: 1},
 }
 

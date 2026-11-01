@@ -11,7 +11,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	for _, key := range []string{"HOST", "PORT", "LOG_LEVEL", "SHUTDOWN_TIMEOUT", "REFLECTION"} {
+	for _, key := range []string{"HOST", "PORT", "LOG_LEVEL", "SHUTDOWN_TIMEOUT", "DRAIN_DELAY", "REFLECTION"} {
 		t.Setenv(key, "")
 	}
 	cfg, err := Load()
@@ -23,7 +23,8 @@ func TestLoad(t *testing.T) {
 	for _, tt := range []struct{ key, value string }{
 		{"PORT", "invalid"}, {"PORT", "-1"}, {"PORT", "65536"}, {"HOST", "invalid"},
 		{"LOG_LEVEL", "verbose"}, {"SHUTDOWN_TIMEOUT", "bad"}, {"SHUTDOWN_TIMEOUT", "0s"},
-		{"SHUTDOWN_TIMEOUT", "-1s"}, {"REFLECTION", "maybe"},
+		{"SHUTDOWN_TIMEOUT", "-1s"}, {"DRAIN_DELAY", "soon"}, {"DRAIN_DELAY", "-1s"},
+		{"REFLECTION", "maybe"},
 	} {
 		t.Run(tt.key+"="+tt.value, func(t *testing.T) {
 			t.Setenv(tt.key, tt.value)
@@ -35,6 +36,7 @@ func TestLoad(t *testing.T) {
 	t.Setenv("HOST", "::1")
 	t.Setenv("PORT", "0")
 	t.Setenv("SHUTDOWN_TIMEOUT", "250ms")
+	t.Setenv("DRAIN_DELAY", "5s")
 	t.Setenv("REFLECTION", "false")
 	for _, level := range []string{"debug", "info", "warn", "error"} {
 		t.Run(level, func(t *testing.T) {
@@ -44,6 +46,7 @@ func TestLoad(t *testing.T) {
 			assert.Equal(t, 0, cfg.Port)
 			assert.Equal(t, "::1", cfg.Host)
 			assert.Equal(t, 250*time.Millisecond, cfg.ShutdownTimeout)
+			assert.Equal(t, 5*time.Second, cfg.DrainDelay)
 			assert.False(t, cfg.Reflection)
 			assert.Equal(t, strings.ToUpper(level), cfg.LogLevel.String())
 		})

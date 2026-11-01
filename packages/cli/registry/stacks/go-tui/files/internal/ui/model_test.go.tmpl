@@ -115,11 +115,27 @@ func TestOpenAndGoBack(t *testing.T) {
 func TestQuit(t *testing.T) {
 	_, cmd := send(t, ready(t, sample), press("q")...)
 	quits(t, cmd)
-	m, _ := send(t, ready(t, sample), press("enter")...)
-	_, cmd = send(t, m, press("ctrl+c")...)
-	quits(t, cmd)
 	_, cmd = send(t, New(sample, discard), press("q")...)
 	quits(t, cmd)
+}
+
+// ctrl+c is an interrupt, not a quit, on every screen: the program stops with
+// tea.ErrInterrupted, which the app maps to exit status 130.
+func TestCtrlCInterrupts(t *testing.T) {
+	opened, _ := send(t, ready(t, sample), press("enter")...)
+	filtering, _ := send(t, ready(t, sample), press("/")...)
+	for name, m := range map[string]Model{
+		"loading":   New(sample, discard),
+		"list":      ready(t, sample),
+		"detail":    opened,
+		"filtering": filtering,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, cmd := send(t, m, press("ctrl+c")...)
+			require.NotNil(t, cmd)
+			assert.Equal(t, tea.InterruptMsg{}, cmd())
+		})
+	}
 }
 
 func TestFilter(t *testing.T) {

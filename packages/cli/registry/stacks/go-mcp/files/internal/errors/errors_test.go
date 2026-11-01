@@ -17,7 +17,7 @@ func TestTable(t *testing.T) {
 		fault   bool
 	}{
 		{name: "invalid input", err: New(InvalidInput, "unknown unit"), exit: 2, message: "unknown unit"},
-		{name: "config", err: New(Config, "bad level"), exit: 2, message: "bad level"},
+		{name: "config", err: New(Config, "bad level"), exit: 1, message: "bad level"},
 		{name: "internal keeps its cause private", err: Wrap(Internal, "read table", io.ErrUnexpectedEOF), exit: 1, message: InternalMessage, fault: true},
 		{name: "wrapped twice", err: fmt.Errorf("convert: %w", New(InvalidInput, "kinds differ")), exit: 2, message: "kinds differ"},
 		{name: "unknown code", err: New("SOMETHING", "secret detail"), exit: 1, message: InternalMessage, fault: true},

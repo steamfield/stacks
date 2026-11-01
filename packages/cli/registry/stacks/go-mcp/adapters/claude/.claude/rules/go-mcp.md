@@ -14,7 +14,7 @@ paths:
 - Tool descriptions are prompts for another model: say when to call it, what it needs and what it returns, with one example call. Tool names are snake_case.
 - Domain code (`internal/convert` and its siblings) returns `internal/errors` values and never imports the SDK. A caller's mistake is `InvalidInput` with a message that tells the model how to fix the call; anything else is a server fault and the model sees only a fixed message.
 - A tool failure is a result with `isError`, never a protocol error and never a panic.
-- Every tool gets list and call tests over `mcp.NewInMemoryTransports` in `server_test.go`, covering success and each error path. To try the built server, run `make call`; piped JSON-RPC gets no reply.
+- Every tool gets list and call tests over `mcp.NewInMemoryTransports` in `server_test.go`, covering success and each error path. To try the built server, run `make call`; JSON-RPC piped or redirected into it gets no reply.
 - Import only `github.com/modelcontextprotocol/go-sdk/mcp`. Examples online often use mark3labs/mcp-go or pre-1.0 SDK APIs; read `go doc github.com/modelcontextprotocol/go-sdk/mcp` instead.
 
 See the project's `AGENTS.md` for commands and the remaining conventions.

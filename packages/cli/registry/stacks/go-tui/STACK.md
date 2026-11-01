@@ -8,7 +8,7 @@ tags: [go, tui, make]
 deps:
   tui: [charm.land/bubbletea/v2, charm.land/bubbles/v2, charm.land/lipgloss/v2, golang.org/x/term]
   test: [github.com/stretchr/testify, github.com/charmbracelet/x/exp/teatest/v2]
-tools: [go, make, git, golangci-lint]
+tools: [go, make, git, golangci-lint, jq]
 decisions:
   - "Module path: github.com/<owner>/<project-slug> (default), owner from `gh api user -q .login` or the git remote, never the author's display name. If neither exists, keep the bare `<project-slug>` the shipped imports use and list the path under decisions to revisit."
   - "Binary name: the project slug (default; the Makefile's BIN)."
@@ -75,7 +75,7 @@ The shipped code follows these; new code keeps to them.
 
 - **Two front ends, one decision.** `app.Run` starts the UI only when neither `--no-tui` nor `--json` is set and stdin and stdout are both terminals. Every new feature that shows data also prints it through `internal/output` in text and JSON.
 - **Update and View do no I/O.** Loading, saving, network calls and timers run in a `tea.Cmd` that returns a message. Inject what the command needs (as `ui.New` takes a `LoadFunc`) so tests pass a fake.
-- **Keys.** Every binding the model handles is in `keys.go` with `key.WithHelp` and shows in its screen's help. While the list is filtering, keys go to the list; only ctrl+c quits.
+- **Keys.** Every binding the model handles is in `keys.go` with `key.WithHelp` and shows in its screen's help. While the list is filtering, keys go to the list; only ctrl+c stops the program.
 - **Styles** come from `internal/theme`, built for a dark or light background from Bubble Tea's `BackgroundColorMsg`. No colors inline, no `NO_COLOR` checks: the renderer downsamples to the terminal's profile and honors `NO_COLOR`.
 - **Logging**: the `*slog.Logger` from `internal/log`, passed down. It writes JSON to `--log-file` or nowhere; never stdout or stderr, which belong to the UI.
 - **Errors**: return `internal/errors` values with an UPPER_SNAKE code and a suggestion. `ExitCode` is the one mapping (usage 2, interrupted 130, everything else 1); only `main` calls `os.Exit`. A load failure shown on screen still exits 1 through `Model.Err()`.
@@ -91,7 +91,7 @@ Test the model as a state machine: build it with `New`, send `tea.WindowSizeMsg`
 The shipped Makefile (`make help`) has install, build, vet, lint, lint-fix, fmt, fmt-check, tidy-check, test, test-integration, coverage, golden, vuln, smoke, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with a single-test command such as `go test -race -run TestFrames/detail ./internal/ui/`. No target starts the UI.
 
 <!-- stacks:when with=agent-ops -->
-The stack's Claude settings allow its non-destructive make checks and go test, and `.claude/hooks/guard-tui.sh` denies hand edits to golden files and running anything under `script`, `unbuffer`, `tmux` or `screen`; its tests in `tests/hooks` run with `make test`. List the hook in `.claude/README.md`. Add allow rules only for new commands.
+The stack's Claude settings allow its non-destructive make checks and go test, and `.claude/hooks/guard-tui.sh` denies hand edits to golden files and running anything under `script`, `unbuffer`, `tmux`, `screen`, `expect` or Python's `pty` module, however the command is quoted, prefixed or wrapped in `sh -c`. It needs jq and denies every call without it. Its tests in `tests/hooks` run with `make test` and fail without jq. List the hook in `.claude/README.md`. Add allow rules only for new commands.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->
@@ -105,7 +105,9 @@ CI reads Go from go.mod and runs `make install`, `make fmt-check`, `make tidy-ch
 ## Gotchas
 
 - Bubble Tea opens `/dev/tty` when stdin isn't a terminal, so `app < file` or a pipe still takes over the terminal and hangs an agent's shell. The terminal check in `app.Run` must stay before `tea.NewProgram`.
-- Never run the UI under `script`, `unbuffer`, `tmux` or `screen` to "see" it; the session hangs waiting for keys. Use the tests, `--no-tui` or `--json`, or ask the user.
+- Never run the UI under `script`, `unbuffer`, `tmux`, `screen`, `expect` or `pty.spawn` to "see" it; the session hangs waiting for keys. Use the tests, `--no-tui` or `--json`, or ask the user.
+- ctrl+c returns `tea.Interrupt`, not `tea.Quit`, so `Run` reports `tea.ErrInterrupted` and the app exits 130; `q` is the normal quit with 0.
+- `make vuln` can fail on a fresh project when the installed Go's standard library has a published advisory that the app reaches. Set go.mod's `toolchain` directive to the patched release instead of raising `go`.
 - Most examples online are v1 (`github.com/charmbracelet/bubbletea`, `View() string`, `tea.KeyMsg` with `msg.Type`). v2 returns `tea.View`, sends `tea.KeyPressMsg`, and sets the alternate screen with `View.AltScreen`. Mixing v1 and v2 imports compiles into two incompatible APIs.
 - Lip Gloss v2 renders full ANSI styles regardless of the terminal; the program's renderer downsamples them. Golden frames therefore hold escape codes, compared escaped, and are the same on every machine.
 - `golden.RequireEqual` (through `teatest.RequireEqualOutput`) registers the `-update` flag. Don't define another `-update` flag in a package that imports teatest; the test binary panics.

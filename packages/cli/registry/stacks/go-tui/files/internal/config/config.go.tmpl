@@ -55,7 +55,9 @@ func value(v, fallback string) string {
 	return v
 }
 
-// Load parses args over the environment and validates the result.
+// Load parses args over the environment and validates the result. On an
+// error the returned Config holds only JSON, as far as the flags were parsed,
+// so the caller can report the error in the format asked for.
 func Load(args []string, getenv func(string) string) (Config, error) {
 	var s settings
 	fs := flags(getenv, &s)
@@ -63,14 +65,14 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		if errors.Is(err, flag.ErrHelp) {
 			return Config{Help: true}, nil
 		}
-		return Config{}, apperrors.Wrap(apperrors.InvalidInput, "parse flags", "Run "+Binary+" --help to list the flags.", err)
+		return Config{JSON: s.json}, apperrors.Wrap(apperrors.InvalidInput, "parse flags", "Run "+Binary+" --help to list the flags.", err)
 	}
 	if fs.NArg() > 0 {
-		return Config{}, apperrors.New(apperrors.InvalidInput, "unexpected argument "+fs.Arg(0), "Run "+Binary+" --help; it takes flags only.")
+		return Config{JSON: s.json}, apperrors.New(apperrors.InvalidInput, "unexpected argument "+fs.Arg(0), "Run "+Binary+" --help; it takes flags only.")
 	}
 	cfg := Config{TasksFile: s.tasks, NoTUI: s.noTUI, JSON: s.json, LogFile: s.logFile, Version: s.version}
 	if err := cfg.LogLevel.UnmarshalText([]byte(s.logLevel)); err != nil || !knownLevel(cfg.LogLevel) {
-		return Config{}, apperrors.New(apperrors.Config, fmt.Sprintf("log level %q is not debug, info, warn or error", s.logLevel), "Set --log-level or "+EnvPrefix+"_LOG_LEVEL to one of them.")
+		return Config{JSON: s.json}, apperrors.New(apperrors.Config, fmt.Sprintf("log level %q is not debug, info, warn or error", s.logLevel), "Set --log-level or "+EnvPrefix+"_LOG_LEVEL to one of them.")
 	}
 	return cfg, nil
 }

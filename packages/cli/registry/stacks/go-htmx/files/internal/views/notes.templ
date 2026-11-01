@@ -80,8 +80,9 @@ templ NoteItem(note Note) {
 }
 
 // NoteCreated answers an htmx post: the new note for the list, and an empty
-// form that replaces the submitted one out of band.
+// form and alert region that replace the ones on the page out of band.
 templ NoteCreated(note Note) {
 	@NoteItem(note)
 	@NoteForm(Form{}, true)
+	@clearAlert()
 }

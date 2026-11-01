@@ -37,6 +37,7 @@ func TestBinaryWithoutTerminal(t *testing.T) {
 		{name: "unknown flag", args: []string{"--nope"}, code: 2, stderr: "INVALID_INPUT"},
 		{name: "bad tasks file", args: []string{"--tasks", "bad.json"}, code: 1, stderr: "INVALID_DATA"},
 		{name: "JSON error", args: []string{"--json", "--tasks", "missing.json"}, code: 1, stderr: `"code":"IO"`, json: true},
+		{name: "JSON error with --json=true", args: []string{"--json=true", "--tasks", "missing.json"}, code: 1, stderr: `"code":"IO"`, json: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

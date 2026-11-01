@@ -14,6 +14,7 @@ import (
 
 func TestErrorTable(t *testing.T) {
 	cause := errors.New("connection refused")
+	downstream := connect.NewError(connect.CodeNotFound, "sku 42 missing in table prices_v3")
 	for _, tt := range []struct {
 		name    string
 		err     error
@@ -30,6 +31,9 @@ func TestErrorTable(t *testing.T) {
 		{"canceled", context.Canceled, connect.CodeCanceled, "request canceled", false},
 		{"deadline", fmt.Errorf("store: %w", context.DeadlineExceeded), connect.CodeDeadlineExceeded, "deadline exceeded", false},
 		{"connect errors pass through", connect.NewError(connect.CodeResourceExhausted, "message too large"), connect.CodeResourceExhausted, "message too large", false},
+		// A downstream call's error inside a server fault is a cause, not a status.
+		{"server fault wrapping a downstream connect error", apperrors.Wrap(apperrors.Internal, "price lookup", downstream), connect.CodeInternal, "internal error", true},
+		{"wrapped downstream connect error", fmt.Errorf("price lookup: %w", downstream), connect.CodeInternal, "internal error", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			public, fault := toStatus(tt.err)
@@ -37,6 +41,7 @@ func TestErrorTable(t *testing.T) {
 			assert.Equal(t, tt.message, public.Message())
 			assert.Equal(t, tt.fault, fault)
 			assert.NotContains(t, public.Error(), "connection refused")
+			assert.NotContains(t, public.Error(), "prices_v3")
 		})
 	}
 	for code := range errorTable {

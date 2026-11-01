@@ -24,7 +24,7 @@ handles it, as it does the terminal's color profile.
 | 0 | Success, including `--help` and `--version` |
 | 1 | Config, data, I/O or internal failure, including a load failure shown in the UI |
 | 2 | Bad flags or arguments |
-| 130 | Interrupted by a signal while the UI ran |
+| 130 | Interrupted while the UI ran: ctrl+c, or a signal |
 
 Every failure prints its code, the message and a `Suggestion:` line on stderr.
 

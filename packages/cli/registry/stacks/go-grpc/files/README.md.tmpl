@@ -31,6 +31,7 @@ Settings come from environment variables only. See [docs/configuration.md](docs/
 | `PORT` | `8080` | Port to listen on (`0` picks a free one) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `SHUTDOWN_TIMEOUT` | `10s` | How long in-flight calls get after a stop signal |
+| `DRAIN_DELAY` | `0s` | How long health checks report NOT_SERVING before the port closes |
 | `REFLECTION` | `true` | Serve gRPC server reflection |
 
 ## Development

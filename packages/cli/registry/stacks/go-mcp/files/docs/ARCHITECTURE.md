@@ -15,7 +15,8 @@ anything serves, builds the logger on stderr and runs the server on the
 transport it is given: `mcp.StdioTransport` in the binary, pipes in tests. The
 server stops when the client closes stdin or a signal arrives; both exit 0.
 Startup errors print one line on stderr and exit with the status
-`internal/errors` maps them to (2 for a bad flag or setting).
+`internal/errors` maps them to (2 for a bad flag or argument, 1 for a bad
+setting or anything else).
 
 `internal/config` is the only package reading flags and environment
 variables (flags over `<PREFIX>_*` variables over defaults).

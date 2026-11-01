@@ -7,8 +7,10 @@
 
 MODULE       := $(shell go list -m 2>/dev/null)
 COVERAGE_MIN ?= 80
-# How long make fuzz runs each fuzz target, on top of its seed corpus.
+# How long make fuzz runs each fuzz target, on top of its seed corpus. Recipes read it from
+# the environment, never pasted into the shell, and make fuzz checks it is a positive limit.
 FUZZTIME     ?= 10s
+export FUZZTIME
 # The exported API of the last release, compared by make api-check.
 API_BASELINE := api/baseline.export
 # Dev tools tracked in tools.mod, so they never enter go.mod and the build lists of
@@ -69,10 +71,14 @@ test: ## Unit tests, examples and fuzz seeds with the race detector
 	go test -race ./...
 
 fuzz: ## Run every fuzz target for FUZZTIME (default 10s) each; a failing input lands in testdata/fuzz/
-	@found=0; for pkg in $$(go list ./...); do \
+	@case "$$FUZZTIME" in \
+		[1-9]*[smhx]) case "$$FUZZTIME" in *[!0-9smhx]*) bad=1 ;; *) bad= ;; esac ;; \
+		*) bad=1 ;; esac; \
+	[ -z "$$bad" ] || { echo "FUZZTIME must be a positive duration or count such as 10s, 2m or 500x"; exit 1; }; \
+	found=0; for pkg in $$(go list ./...); do \
 		for target in $$(go test -list '^Fuzz' "$$pkg" | grep '^Fuzz'); do \
-			found=1; echo "go test -run '^$$' -fuzz '^$$target$$' -fuzztime $(FUZZTIME) $$pkg"; \
-			go test -run '^$$' -fuzz "^$$target\$$" -fuzztime $(FUZZTIME) "$$pkg" || exit 1; \
+			found=1; echo "go test -run '^$$' -fuzz '^$$target$$' -fuzztime $$FUZZTIME $$pkg"; \
+			go test -run '^$$' -fuzz "^$$target\$$" -fuzztime "$$FUZZTIME" "$$pkg" || exit 1; \
 		done; \
 	done; [ "$$found" = 1 ] || { echo "fuzz: no fuzz targets found"; exit 1; }
 

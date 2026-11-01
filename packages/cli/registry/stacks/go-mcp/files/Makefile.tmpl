@@ -14,8 +14,10 @@ DATE     ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS  := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 COVERAGE_MIN ?= 80
 # make call TOOL=convert_units ARGS='{"value": 5, "from": "km", "to": "mi"}'; no TOOL lists them.
+# The recipe reads both from the environment, so their text never becomes shell code.
 TOOL ?=
 ARGS ?= {}
+export TOOL ARGS
 
 # Dev tools installed with `go install` land here; it may not be on PATH.
 GOBIN_DIR := $(shell go env GOBIN)
@@ -89,7 +91,8 @@ smoke: build ## Run --version, then start bin/ over stdio and list its tools
 	go run ./cmd/mcpcall ./bin/$(BIN)
 
 call: build ## List the tools, or call TOOL with ARGS (JSON), over stdio
-	go run ./cmd/mcpcall $(if $(TOOL),-call '$(TOOL)' -args '$(ARGS)') ./bin/$(BIN)
+	@if [ -n "$$TOOL" ]; then go run ./cmd/mcpcall -call "$$TOOL" -args "$$ARGS" ./bin/$(BIN); \
+	else go run ./cmd/mcpcall ./bin/$(BIN); fi
 
 ci: fmt-check tidy-check lint coverage test-integration vuln build smoke ## Everything CI runs
 

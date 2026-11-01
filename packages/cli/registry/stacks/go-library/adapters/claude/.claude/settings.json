@@ -9,7 +9,6 @@
       "Bash(make tidy-check)",
       "Bash(make test)",
       "Bash(make fuzz)",
-      "Bash(make fuzz *)",
       "Bash(make consumer)",
       "Bash(make api-check)",
       "Bash(make coverage)",
@@ -27,11 +26,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Edit|Write|MultiEdit|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-library.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-library.sh\" || exit 2",
             "timeout": 10
           }
         ]

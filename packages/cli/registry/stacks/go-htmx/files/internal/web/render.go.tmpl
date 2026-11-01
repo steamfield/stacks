@@ -70,8 +70,16 @@ func renderError(w http.ResponseWriter, r *http.Request, err error, logger *slog
 		logger.Error("request failed", "code", code, "error", err, "request_id", RequestID(r.Context()))
 	}
 	page := views.ErrorPage{Status: row.status, Title: row.title, Message: row.message, RequestID: RequestID(r.Context())}
+	component := views.Error(page)
+	if isHTMX(r) {
+		// htmx would swap a whole page into the form's target; send the
+		// message into the layout's alert region instead.
+		w.Header().Set("HX-Retarget", "#"+views.AlertID)
+		w.Header().Set("HX-Reswap", "innerHTML")
+		component = views.ErrorAlert(page)
+	}
 	var body bytes.Buffer
-	if renderErr := views.Error(page).Render(r.Context(), &body); renderErr != nil {
+	if renderErr := component.Render(r.Context(), &body); renderErr != nil {
 		logger.Error("render error page", "error", renderErr)
 		http.Error(w, row.message, row.status)
 		return

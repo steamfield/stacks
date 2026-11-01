@@ -16,13 +16,13 @@ func TestValidate(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		input  Input
-		fields []string
+		fields map[string]string
 	}{
 		{"valid", Input{Title: "  Groceries ", Body: " milk "}, nil},
-		{"missing title", Input{Title: "   "}, []string{"title"}},
-		{"long title", Input{Title: strings.Repeat("a", MaxTitle+1)}, []string{"title"}},
-		{"long body", Input{Title: "ok", Body: strings.Repeat("é", MaxBody+1)}, []string{"body"}},
-		{"both", Input{Body: strings.Repeat("b", MaxBody+1)}, []string{"title", "body"}},
+		{"missing title", Input{Title: "   "}, map[string]string{"title": "Enter a title."}},
+		{"long title", Input{Title: strings.Repeat("a", MaxTitle+1)}, map[string]string{"title": "Use at most 200 characters for the title."}},
+		{"long body", Input{Title: "ok", Body: strings.Repeat("é", MaxBody+1)}, map[string]string{"body": "Use at most 10,000 characters for the note."}},
+		{"both", Input{Body: strings.Repeat("b", MaxBody+1)}, map[string]string{"title": "Enter a title.", "body": "Use at most 10,000 characters for the note."}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cleaned, err := Validate(tt.input)
@@ -34,12 +34,15 @@ func TestValidate(t *testing.T) {
 			var failure *apperrors.Error
 			require.ErrorAs(t, err, &failure)
 			assert.Equal(t, apperrors.Invalid, failure.Code)
-			for _, field := range tt.fields {
-				assert.NotEmpty(t, failure.Fields[field], field)
-			}
-			assert.Len(t, failure.Fields, len(tt.fields))
+			assert.Equal(t, tt.fields, failure.Fields)
 		})
 	}
+}
+
+// The limits are inclusive: exactly MaxTitle and MaxBody characters are valid.
+func TestValidateAcceptsTheLimits(t *testing.T) {
+	_, err := Validate(Input{Title: strings.Repeat("é", MaxTitle), Body: strings.Repeat("語", MaxBody)})
+	require.NoError(t, err)
 }
 
 func TestMemoryListsNewestFirst(t *testing.T) {

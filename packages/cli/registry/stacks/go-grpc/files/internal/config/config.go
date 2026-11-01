@@ -14,6 +14,10 @@ type Config struct {
 	Port            int
 	LogLevel        slog.Level
 	ShutdownTimeout time.Duration
+	// DrainDelay is how long the server keeps answering NOT_SERVING after a
+	// shutdown signal before it stops accepting connections, so health probes
+	// see it and route new calls elsewhere.
+	DrainDelay time.Duration
 	// Reflection serves gRPC server reflection, so grpcurl and buf curl can list
 	// and describe the services without the .proto files.
 	Reflection bool
@@ -51,6 +55,10 @@ func Load() (Config, error) {
 	cfg.ShutdownTimeout, err = time.ParseDuration(value("SHUTDOWN_TIMEOUT", "10s"))
 	if err != nil || cfg.ShutdownTimeout <= 0 {
 		return Config{}, fmt.Errorf("SHUTDOWN_TIMEOUT must be a positive Go duration")
+	}
+	cfg.DrainDelay, err = time.ParseDuration(value("DRAIN_DELAY", "0s"))
+	if err != nil || cfg.DrainDelay < 0 {
+		return Config{}, fmt.Errorf("DRAIN_DELAY must be a Go duration of zero or more")
 	}
 	cfg.Reflection, err = strconv.ParseBool(value("REFLECTION", "true"))
 	if err != nil {

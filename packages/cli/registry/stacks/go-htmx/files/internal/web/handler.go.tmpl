@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	apperrors "{{project_slug}}/internal/errors"
 	"{{project_slug}}/internal/notes"
@@ -15,8 +16,11 @@ import (
 	"{{project_slug}}/static"
 )
 
-// maxFormBytes bounds a posted form; a larger body is a 413 page.
-const maxFormBytes = 64 << 10
+// maxFormBytes bounds a posted form; a larger body is a 413 page. It fits the
+// longest valid note: each character is up to utf8.UTFMax bytes, and
+// urlencoding writes each non-ASCII byte as three (%XX), plus room for the
+// field names and separators.
+const maxFormBytes = (notes.MaxTitle+notes.MaxBody)*utf8.UTFMax*3 + 1<<10
 
 func NewHandler(store notes.Store, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()

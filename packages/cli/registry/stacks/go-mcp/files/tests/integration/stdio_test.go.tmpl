@@ -156,7 +156,7 @@ func TestFlags(t *testing.T) {
 		{name: "version", args: []string{"--version"}, stdout: config.Binary + " version dev"},
 		{name: "help", args: []string{"--help"}, stdout: "Usage: " + config.Binary},
 		{name: "unknown flag", args: []string{"--nope"}, code: 2, stderr: "parse flags"},
-		{name: "bad level", env: []string{config.EnvPrefix + "_LOG_LEVEL=loud"}, code: 2, stderr: `log level "loud"`},
+		{name: "bad level", env: []string{config.EnvPrefix + "_LOG_LEVEL=loud"}, code: 1, stderr: `log level "loud"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

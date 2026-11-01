@@ -54,8 +54,9 @@ func New(store notes.Store, logger *slog.Logger, opts Options) *Server {
 
 func (s *Server) Handler() http.Handler { return s.handler }
 
-// Drain reports NOT_SERVING for the process and every service, so health
-// clients stop routing here while in-flight calls finish.
+// Drain reports NOT_SERVING for the process and every service. The server
+// keeps accepting calls for DRAIN_DELAY afterwards (cmd/server), so health
+// clients that probe in that window stop routing here before the port closes.
 func (s *Server) Drain() {
 	s.health.SetStatus("", grpchealth.StatusNotServing)
 	s.health.SetStatus(notesv1connect.NoteServiceName, grpchealth.StatusNotServing)

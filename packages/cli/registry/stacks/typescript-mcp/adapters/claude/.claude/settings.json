@@ -12,7 +12,7 @@
       "Bash(bun run build)",
       "Bash(bun run smoke)",
       "Bash(bun run check)",
-      "Bash(bunx mcp-inspector --cli *)"
+      "Bash(node_modules/.bin/mcp-inspector --cli *)"
     ],
     "deny": ["Read(./.env)", "Read(./.env.local)"]
   },

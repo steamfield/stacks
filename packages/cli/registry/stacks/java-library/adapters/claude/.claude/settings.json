@@ -13,12 +13,7 @@
       "Bash(make jar-check)",
       "Bash(make test-consumer)",
       "Bash(make api-check)",
-      "Bash(make ci)",
-      "Bash(./mvnw -q test *)",
-      "Bash(./mvnw test *)",
-      "Bash(./mvnw -q spotless:apply *)",
-      "Bash(./mvnw dependency:tree *)",
-      "Bash(./mvnw -q dependency:tree *)"
+      "Bash(make ci)"
     ]
   },
   "hooks": {

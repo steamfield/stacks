@@ -25,7 +25,7 @@ version to `.golangci-lint-version`.
 
 ```sh
 make generate-check buf-lint fmt-check tidy-check vet lint build test test-integration
-go test -race -run TestNotesOverEveryProtocol/grpc ./internal/rpc/
+go test -race -run TestGetNoteOverHTTPGet ./internal/rpc/
 make coverage
 ```
 

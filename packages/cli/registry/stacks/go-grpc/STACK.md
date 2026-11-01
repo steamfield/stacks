@@ -105,7 +105,7 @@ Tagged integration tests build the binary once in TestMain, start it on PORT=0 a
 
 ## Commands
 
-The shipped Makefile (`make help`) holds every declared command. Mirror them in AGENTS.md with a single-test command such as `go test -race -run TestNotesOverEveryProtocol/grpc ./internal/rpc/`. Run `make serve` in the background when needed and stop only the pid you started. `docs/rpc-api.md` has curl and `go tool buf curl` examples.
+The shipped Makefile (`make help`) holds every declared command. Mirror them in AGENTS.md with a single-test command such as `go test -race -run TestGetNoteOverHTTPGet ./internal/rpc/` (a subtest filter on `TestNotesOverEveryProtocol` fails, since the parent checks every protocol's log records). Run `make serve` in the background when needed and stop only the pid you started. `docs/rpc-api.md` has curl and `go tool buf curl` examples.
 
 <!-- stacks:when with=agent-ops -->
 The stack's Claude settings allow its non-destructive make targets, go test and `go tool buf lint|format|breaking`. `.claude/hooks/guard-grpc.sh` denies edits under `gen/`, `buf` or `protoc` run other than through `go tool` (wrappers, paths, npx and `go run` included), and Connect v1 module paths in `go get`, `go install` or `go mod edit`; without jq it blocks every call and names jq. Its tests in `tests/hooks` run with `make test`. `.claude/skills/add-rpc` walks through adding a method. List the hook and skill in `.claude/README.md`. Add allow rules only for new commands.

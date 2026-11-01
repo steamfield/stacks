@@ -424,9 +424,11 @@ test("an adapter that cannot read hooks records unknown rather than an empty lis
 }, 60_000);
 
 test.for([
+  // With no --agent the bench always runs Codex, whichever agent's shell started it.
   { env: { CODEX_THREAD_ID: "fixture-thread" }, flag: [], agent: "codex" },
-  { env: { AI_AGENT: "other-tool" }, flag: [], agent: "claude" },
-  { env: {}, flag: [], agent: "claude" },
+  { env: { CLAUDECODE: "1" }, flag: [], agent: "codex" },
+  { env: { AI_AGENT: "other-tool" }, flag: [], agent: "codex" },
+  { env: {}, flag: [], agent: "codex" },
   { env: { CODEX_THREAD_ID: "fixture-thread" }, flag: ["--agent", "claude"], agent: "claude" },
   { env: { CLAUDECODE: "1" }, flag: ["--agent", "codex"], agent: "codex" },
 ])(
@@ -434,7 +436,7 @@ test.for([
   { timeout: 60_000 },
   async ({ env, flag, agent }, { space }) => {
     const f = benchFixture(space, compiled);
-    passed(await f.invoke(flag, { env }));
+    passed(await f.invoke(flag, { env, benchDefaultAgent: flag.length === 0 }));
     expect(record(f)).toMatchObject({ agent, agentVersion: "1.2.3" });
     const observed = f.observe(agent);
     expect(observed.args[0]).toBe(agent === "codex" ? "exec" : "-p");

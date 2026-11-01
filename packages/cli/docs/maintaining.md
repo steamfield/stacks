@@ -7,18 +7,18 @@ This page is for maintainers: proving bundled stacks with the bench, recording r
 The bench is how a bundled stack earns its historical pass: a real coding agent builds the stack headlessly from an empty directory, and stacks verifies the result independently.
 
 ```sh
-bun run bench <stack> --agent claude --keep
+bun run bench <stack> --keep
 ```
 
 It builds the dev binary, installs it with the working registry into a throwaway prefix, scaffolds the stack, runs the agent headlessly and verifies independently. `--cli <binary>` skips the build; `--preset default` uses defaults instead of sandbox, `--with a,b` adds fragments, `--max-minutes 60` sets the time limit, and `--no-record` skips the ledger and run note. `--existing <kept-root>` continues matching content and adds one intervention.
 
-To bench every stack `validate` reports as unproven or changed since its last green run (`ledger-unproven`, `ledger-changed`), run `bun run bench:pending`, which passes its other arguments to each run (`bun run bench:pending --agent claude`) and runs them one at a time; `--list` prints the stacks without running anything.
+To bench every stack `validate` reports as unproven or changed since its last green run (`ledger-unproven`, `ledger-changed`), run `bun run bench:pending`, which passes its other arguments to each run (`bun run bench:pending --max-minutes 30`) and runs them one at a time; `--list` prints the stacks without running anything.
 
 The package must be clean before a run, apart from `registry/runs.json`, so uncommitted records from earlier runs don't block the next. The bench writes its run note under `plans/runs/` at the repository root (creating the directory if needed) and appends to `registry/runs.json`. Read every generated note and its ledger record before committing; a green verify can still need relabeling as `partial` after review. The bench never commits anything.
 
 Auth is `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or `CODEX_ACCESS_TOKEN` as documented by `codex login --with-access-token`. Codex also accepts the invoking user's `codex login`: when no token is set, the bench copies only `$HOME/.codex/auth.json` into the fresh home with mode 0600 and removes it when the agent exits, before verification, even with `--keep` or on interruption. Global Codex settings, instructions and MCP servers are never copied. Only the selected token reaches the agent when token auth is used. The fresh `HOME` and project are not a security boundary: local runs give the agent full permissions. Child processes get `DO_NOT_TRACK=1`. Fake-agent tests need no account or real token.
 
-Use `--model <id>` with either adapter to select a model, for example `--agent codex --model gpt-6.1-terra`. The id accepts letters, digits, `.`, `-` and `_`, with no leading `-`. Without it, Claude runs `haiku`, its cheapest model, and Codex chooses its own default; pass `--model` (`--model opus`, say) when a stack needs a stronger agent. Ledger records don't store the model, so a Haiku pass counts as the same proof as any other. Run notes record the credential route and model; ledger records keep their existing format.
+The bench runs Codex on `gpt-6.1-terra` at medium reasoning effort unless told otherwise, whichever agent the bench itself was started from, so every proof comes from the same setup. `--agent claude` runs Claude Code on `haiku` instead. `--model <id>` selects another model for either adapter (`--model opus`, say, when a stack needs a stronger agent); the id accepts letters, digits, `.`, `-` and `_`, with no leading `-`. `--effort minimal|low|medium|high|xhigh` sets Codex's reasoning effort and is refused for Claude. Ledger records don't store the model or effort, so any pass counts as the same proof. Run notes record the credential route, model and effort; ledger records keep their existing format.
 
 ## The ledger
 

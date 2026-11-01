@@ -297,9 +297,14 @@ export function benchFixture(space: ReturnType<typeof workspace>, compiled?: () 
       signal?: AbortSignal;
       adapters?: readonly AgentAdapter[];
       date?: string;
+      /** Leave out the fixture's `--agent claude`, to exercise the bench's own default agent. */
+      benchDefaultAgent?: boolean;
     } = {},
   ) => {
     const { runBench } = await import("../../scripts/bench");
+    // Most tests observe the fake Claude agent, so the fixture names it unless a test picks one.
+    const agent =
+      options.benchDefaultAgent || args.includes("--agent") ? [] : ["--agent", "claude"];
     const output = Output.memory("agent");
     const platform = Layer.mergeAll(
       NodeServices.layer,
@@ -309,7 +314,12 @@ export function benchFixture(space: ReturnType<typeof workspace>, compiled?: () 
     );
     const status = await runInvocation(
       runBench(
-        ["sample", ...(compiled && !args.includes("--cli") ? ["--cli", compiled()] : []), ...args],
+        [
+          "sample",
+          ...(compiled && !args.includes("--cli") ? ["--cli", compiled()] : []),
+          ...agent,
+          ...args,
+        ],
         options.adapters,
       ).pipe(
         observeChildren,

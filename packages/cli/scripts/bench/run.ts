@@ -1,6 +1,7 @@
 import { Duration, Effect, FileSystem, Path } from "effect";
 import { agentPrompt } from "../../src/core/handoff";
 import { Processes } from "../../src/services/processes";
+import { effortOf } from "./agents";
 import { shellArg, snapshot } from "./files";
 import type { Prepared } from "./prepare";
 
@@ -15,6 +16,7 @@ export const run = (prepared: Prepared) =>
     const prompt = `${agentPrompt(prepared.cli)} Read ${path.join(bench, "BENCH.md")} first for the bench rules.`;
     const args = [
       ...adapter.headlessArgs(prompt, prepared.options.model ?? adapter.defaultModel),
+      ...effortArgs(prepared),
       ...(adapter.debugLog?.args.length ? [...adapter.debugLog.args, debug] : []),
     ];
     const result = yield* runAgent(prepared, args, debug);
@@ -48,6 +50,11 @@ export const run = (prepared: Prepared) =>
   });
 
 export type AgentRun = Effect.Success<ReturnType<typeof run>>;
+
+function effortArgs({ adapter, options }: Prepared): ReadonlyArray<string> {
+  const effort = effortOf(adapter, options.effort);
+  return effort && adapter.effortArgs ? adapter.effortArgs(effort) : [];
+}
 
 const runAgent = (prepared: Prepared, args: readonly string[], debug: string) =>
   Effect.gen(function* () {

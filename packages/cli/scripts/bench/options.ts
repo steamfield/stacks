@@ -5,8 +5,9 @@ const usage = `Usage: bun scripts/bench.ts <stack> [options]
 
 --with <a,b>          Add fragments
 --preset <preset>     sandbox (default) or default
---agent <agent>       claude or codex (default: detected agent, else claude)
---model <id>          Agent model (default: haiku for claude, the agent's own for codex); letters, digits, ., -, _
+--agent <agent>       codex (default) or claude
+--model <id>          Agent model (default: gpt-6.1-terra for codex, haiku for claude); letters, digits, ., -, _
+--effort <level>      Codex reasoning effort: minimal, low, medium, high or xhigh (default: medium)
 --max-minutes <n>     Agent wall-clock limit, including fractional minutes (default: 60)
 --cli <entry.mjs>     Install this Node entry and its sibling cli.mjs instead of building
 --existing <dir>      Continue a kept bench root with matching composition
@@ -31,6 +32,7 @@ export const options = (args: readonly string[]) =>
           preset: { type: "string", default: "sandbox" },
           agent: { type: "string" },
           model: { type: "string" },
+          effort: { type: "string" },
           "max-minutes": { type: "string", default: "60" },
           cli: { type: "string" },
           existing: { type: "string" },
@@ -47,6 +49,7 @@ export const options = (args: readonly string[]) =>
       if (preset !== "sandbox" && preset !== "default")
         throw new Error("--preset must be sandbox or default");
       const model = modelId(values.model);
+      const effort = effortLevel(values.effort);
       const minutes = Number(values["max-minutes"]);
       if (!Number.isFinite(minutes) || minutes <= 0)
         throw new Error("--max-minutes must be a positive number");
@@ -56,6 +59,7 @@ export const options = (args: readonly string[]) =>
         preset,
         agent: values.agent,
         model,
+        effort,
         minutes,
         cli: values.cli,
         existing: values.existing,
@@ -65,6 +69,17 @@ export const options = (args: readonly string[]) =>
     },
     catch: (error) => (error instanceof Error ? error : new Error("Invalid bench arguments")),
   });
+
+const EFFORTS = ["minimal", "low", "medium", "high", "xhigh"] as const;
+export type Effort = (typeof EFFORTS)[number];
+
+const isEffort = (value: string): value is Effort =>
+  (EFFORTS as ReadonlyArray<string>).includes(value);
+
+function effortLevel(value: string | undefined): Effort | undefined {
+  if (value === undefined || isEffort(value)) return value;
+  throw new Error(`--effort must be one of ${EFFORTS.join(", ")}`);
+}
 
 function modelId(value: string | undefined): string | undefined {
   if (value !== undefined && !/^[A-Za-z0-9._][A-Za-z0-9._-]*$/.test(value))
@@ -78,6 +93,7 @@ export type Options = {
   preset: "sandbox" | "default";
   agent: string | undefined;
   model: string | undefined;
+  effort: Effort | undefined;
   minutes: number;
   cli: string | undefined;
   existing: string | undefined;

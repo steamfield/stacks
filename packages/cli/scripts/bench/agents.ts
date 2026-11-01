@@ -1,5 +1,6 @@
 import type { AgentId } from "@steamfield/stacks-format";
 import { Result, Schema } from "effect";
+import type { Effort } from "./options";
 
 export type AgentAdapter = {
   readonly id: AgentId;
@@ -8,7 +9,11 @@ export type AgentAdapter = {
   readonly auth: { readonly env: string; readonly obtain: string };
   /** Used when --model is absent; without one the agent picks its own default. */
   readonly defaultModel?: string;
+  /** Used when --effort is absent, for an agent with `effortArgs`. */
+  readonly defaultEffort?: Effort;
   readonly headlessArgs: (prompt: string, model?: string) => ReadonlyArray<string>;
+  /** Present only for an agent that takes a reasoning effort; `--effort` is refused otherwise. */
+  readonly effortArgs?: (effort: Effort) => ReadonlyArray<string>;
   readonly readResult: (tail: string) => {
     ended: "exit" | "error";
     subtype?: string;
@@ -29,6 +34,11 @@ const Json = Schema.fromJsonString(Schema.Unknown);
 const CodexEvent = Schema.fromJsonString(Schema.Struct({ type: Schema.String }));
 const structured = (line: string) =>
   line.trimStart().startsWith("{") || line.trimStart().startsWith("[");
+
+/** The effort a run uses: the flag, else the agent's default; none for an agent without one. */
+export function effortOf(adapter: AgentAdapter, effort: Effort | undefined): Effort | undefined {
+  return adapter.effortArgs ? (effort ?? adapter.defaultEffort) : undefined;
+}
 
 // Flags checked with Claude Code 2.1.311 and codex-cli 0.164.0 help, 2026-10-27.
 export const agents: readonly AgentAdapter[] = [
@@ -81,6 +91,9 @@ export const agents: readonly AgentAdapter[] = [
     binary: "codex",
     versionArgs: ["--version"],
     auth: { env: "CODEX_ACCESS_TOKEN", obtain: "codex login --with-access-token" },
+    // The maintainer's chosen bench setup; --model and --effort override it.
+    defaultModel: "gpt-6.1-terra",
+    defaultEffort: "medium",
     headlessArgs: (prompt, model) => [
       "exec",
       prompt,
@@ -88,6 +101,8 @@ export const agents: readonly AgentAdapter[] = [
       "--dangerously-bypass-approvals-and-sandbox",
       ...(model === undefined ? [] : ["--model", model]),
     ],
+    // `-c` values are TOML, so the level is a quoted string.
+    effortArgs: (effort) => ["-c", `model_reasoning_effort="${effort}"`],
     readResult: (tail) => {
       let ended: "exit" | "error" = "error";
       let turns = 0;

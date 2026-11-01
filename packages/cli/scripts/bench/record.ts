@@ -3,6 +3,7 @@ import { appendRecord } from "../../src/core/ledger";
 import { within } from "../../src/core/scaffold/write";
 import { LedgerRecord } from "../../src/schemas/ledger";
 import { Output } from "../../src/services/output";
+import { effortOf } from "./agents";
 import type { Prepared } from "./prepare";
 import type { AgentRun } from "./run";
 import { classify, type Verified } from "./verify";
@@ -63,6 +64,10 @@ type NoteContext = {
   row: LedgerRecord;
   result: ReturnType<typeof classify>;
 };
+const modelLabel = ({ options, adapter }: Prepared) =>
+  options.model ?? adapter.defaultModel ?? "agent default";
+const effortLabel = ({ options, adapter }: Prepared) =>
+  effortOf(adapter, options.effort) ?? "agent default";
 const renderNote = ({ prepared, agent, verified, row, result }: NoteContext) =>
   Effect.gen(function* () {
     const path = yield* Path.Path;
@@ -83,7 +88,8 @@ const renderNote = ({ prepared, agent, verified, row, result }: NoteContext) =>
 | CLI | Compiled dev binary stacks@${row.cli}, installed with the working registry |
 | Agent | ${row.agent === "claude" ? "Claude Code" : row.agent} ${row.agentVersion}, headless; ${prepared.agentChoice} |
 | Credentials | ${prepared.credentials.route} |
-| Model | ${prepared.options.model ?? prepared.adapter.defaultModel ?? "agent default"} |
+| Model | ${modelLabel(prepared)} |
+| Effort | ${effortLabel(prepared)} |
 | Target agents | \`${row.agent}\` |
 | Brief size | \`briefWords\` ${row.briefWords}, \`fixedWords\` ${prepared.fixedWords} |
 | Times | first passing \`test\`-layer step ${minutes(row.minutesToFirstTest)} min; first green \`verify\` ${minutes(row.minutesToGreen)} min |

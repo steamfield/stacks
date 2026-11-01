@@ -130,14 +130,64 @@ test("Claude defaults to Haiku and names it in the note", async () => {
   expect(readFileSync(join(f.root, note), "utf8")).toContain("| Model | haiku |");
 }, 60_000);
 
-test("the default model adds no flag and is named in the note", async () => {
+// The bench's fixed setup, so every proof comes from the same agent: Codex, terra, medium effort.
+test("with no agent flags the bench runs Codex on gpt-6.1-terra at medium effort", async () => {
   const f = benchFixture(space, compiled);
-  passed(await f.invoke(["--agent", "codex"]));
-  expect(f.observe("codex").args).not.toContain("--model");
+  passed(await f.invoke([], { benchDefaultAgent: true }));
+  const args = f.observe("codex").args;
+  expect(args.slice(args.indexOf("--model"), args.indexOf("--model") + 2)).toEqual([
+    "--model",
+    "gpt-6.1-terra",
+  ]);
+  expect(args.slice(args.indexOf("-c"), args.indexOf("-c") + 2)).toEqual([
+    "-c",
+    'model_reasoning_effort="medium"',
+  ]);
   const note = f.ledger()[0]?.note;
   if (!note) throw new Error("Missing run note");
-  expect(readFileSync(join(f.root, note), "utf8")).toContain("| Model | agent default |");
+  const markdown = readFileSync(join(f.root, note), "utf8");
+  expect(markdown).toContain("| Model | gpt-6.1-terra |");
+  expect(markdown).toContain("| Effort | medium |");
+  expect(markdown).toContain("bench default");
 }, 60_000);
+
+test("--effort overrides Codex's default effort and is named in the note", async () => {
+  const f = benchFixture(space, compiled);
+  passed(await f.invoke(["--agent", "codex", "--effort", "high"]));
+  const args = f.observe("codex").args;
+  expect(args.slice(args.indexOf("-c"), args.indexOf("-c") + 2)).toEqual([
+    "-c",
+    'model_reasoning_effort="high"',
+  ]);
+  const note = f.ledger()[0]?.note;
+  if (!note) throw new Error("Missing run note");
+  expect(readFileSync(join(f.root, note), "utf8")).toContain("| Effort | high |");
+}, 60_000);
+
+test("Claude takes no effort flag and the note says so", async () => {
+  const f = benchFixture(space, compiled);
+  passed(await f.invoke(["--agent", "claude"]));
+  expect(f.observe().args).not.toContain("-c");
+  const note = f.ledger()[0]?.note;
+  if (!note) throw new Error("Missing run note");
+  expect(readFileSync(join(f.root, note), "utf8")).toContain("| Effort | agent default |");
+}, 60_000);
+
+test.each([
+  { args: ["--agent", "codex", "--effort", "extreme"], message: /--effort must be/ },
+  { args: ["--agent", "claude", "--effort", "medium"], message: /--effort.*codex/ },
+])(
+  "an effort the agent can't take is refused before anything runs: $args",
+  async ({ args, message }) => {
+    const f = benchFixture(space, compiled);
+    const result = await f.invoke(args);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(message);
+    expect(existsSync(join(f.registry, "runs.json"))).toBe(false);
+  },
+  60_000,
+);
 
 test("missing Codex credentials name both login routes before writing anything", async () => {
   const f = benchFixture(space, compiled);

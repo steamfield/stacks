@@ -36,11 +36,12 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
     const config = yield* AppConfig;
     const processes = yield* Processes;
     const captured = config.childEnv([]);
-    const detected = yield* config.agent;
-    const chosen = chosenAgent(options, adapters, detected);
+    const chosen = chosenAgent(options);
     const findAgent = Effect.gen(function* () {
       const adapter = adapters.find((a) => a.id === chosen);
       if (!adapter) return yield* Effect.fail(new Error(`Unsupported agent: ${chosen}`));
+      if (options.effort && !adapter.effortArgs)
+        return yield* Effect.fail(new Error("--effort applies to --agent codex only"));
       const credentials = yield* resolveCredentials(adapter, captured, fs, path);
       const found = yield* processes.which(adapter.binary);
       if (Option.isNone(found))
@@ -323,7 +324,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
       fixedWords,
       previousNote,
       ...(yield* runEvidence),
-      agentChoice: agentChoice(options.agent, detected === chosen),
+      agentChoice: agentChoice(options),
     };
   });
 
@@ -351,12 +352,13 @@ const resolveCredentials = (
     );
   });
 
-function agentChoice(explicit: Options["agent"], detected: boolean): string {
-  if (explicit) return "explicit --agent";
-  if (detected) return "detected agent marker";
-  return "default fallback to claude";
+/** Every bench run uses one agent setup unless --agent says otherwise, so proofs compare. */
+const DEFAULT_AGENT = "codex";
+
+function chosenAgent(options: Options): string {
+  return options.agent ?? DEFAULT_AGENT;
 }
 
-function chosenAgent(options: Options, adapters: readonly AgentAdapter[], detected: string) {
-  return options.agent ?? (adapters.some((a) => a.id === detected) ? detected : "claude");
+function agentChoice(options: Options): string {
+  return options.agent ? "explicit --agent" : "bench default";
 }

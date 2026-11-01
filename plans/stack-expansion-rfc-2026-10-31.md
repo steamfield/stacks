@@ -1,7 +1,10 @@
 # RFC: 27 new bundled stacks across TypeScript, Python, Go, Rust and Java
 
-Status: APPROVED FOR EXECUTION 2026-10-31 after one devils-advocate review (corrections listed at
-the end). Branch `feat/stack-expansion`.
+Status: EXECUTED 2026-11-01. All 27 stacks landed with a fresh-scaffold proof (green `verify` and
+`verify --all`), adapters and drafted search cards. Review fixes are partial: Go and Python mostly
+applied, TypeScript and Java only the first fixes, Rust unreviewed. Pending maintainer steps:
+card approval, allowlist and dependency-card review, golden judgments and a bench run per stack.
+Approved 2026-10-31 after one devils-advocate review (corrections listed at the end).
 
 The bundled registry has 14 stacks: 11 TypeScript (counting `python-react`'s frontend and
 `tauri-react`'s), 2 Python, 2 Go, 1 Rust and no Java. This RFC adds 27, taking TypeScript to 17,

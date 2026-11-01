@@ -1,7 +1,8 @@
 # Archived plans
 
 Restored and organized on 2026-10-30. The 55 phase plans below are marked
-EXECUTED in their status notes. The two standalone reports record executed work;
+EXECUTED in their status notes. The two standalone reports and the architecture
+foundations RFC (archived 2026-10-31) record executed work;
 the six submission tasks are marked Done in the submission tracker (R4 delegates
 its production walkthrough to R5).
 
@@ -75,6 +76,10 @@ R13, release, submission, and judging operations. See the [active index](../READ
 | Phase 4.5f: Plain-language metadata | [phase-4.5f-plain-language-metadata.md](phases/phase-4.5f-plain-language-metadata-2026-10-30.md) |
 | Metadata decoration | [metadata-decoration.md](metadata-decoration-2026-10-30.md) |
 | Manual library QA closure | [qa-gap-closure.md](qa-gap-closure-2026-10-30.md) |
+| Architecture foundations RFC | [architecture-foundations-rfc.md](architecture-foundations-rfc-2026-10-31.md) |
+| Proving slices in every bundled stack | [stack-slices.md](stack-slices-2026-10-31.md) |
+| stacks-api architecture RFC | [stacks-api-architecture-rfc.md](stacks-api-architecture-rfc-2026-10-31.md) |
+| Agent friction fixes | [agent-friction-fixes-rfc.md](agent-friction-fixes-rfc-2026-10-31.md) |
 | R0. Release baseline, in-flight work and demo scope | [r0-baseline.md](submission-readiness/r0-baseline-2026-10-30.md) |
 | R1. Search and guidance an agent can follow | [r1-search-contracts.md](submission-readiness/r1-search-contracts-2026-10-30.md) |
 | R2. Seed data that looks right on the site | [r2-seed.md](submission-readiness/r2-seed-2026-10-30.md) |

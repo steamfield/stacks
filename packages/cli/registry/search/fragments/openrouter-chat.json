@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-01"
   },
   "summary": "Add browser chat with streaming replies, model selection, server history, tool calls, usage costs and Markdown export.",
   "description": "Add the reference browser chat application to react-router. It includes streamed replies, model selection, a deterministic time tool, contact extraction and Markdown export, with usage metadata and local browser tests. History lives on the server in memory by default; SQLite is an implementation choice for restart persistence. There is no authentication: possessing a chat URL grants access. Configure an OpenRouter key for live requests.",

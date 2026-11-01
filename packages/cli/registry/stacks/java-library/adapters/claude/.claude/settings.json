@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make env)",
+      "Bash(make fmt)",
+      "Bash(make fmt-check)",
+      "Bash(make lint)",
+      "Bash(make compile)",
+      "Bash(make test)",
+      "Bash(make coverage)",
+      "Bash(make docs)",
+      "Bash(make build)",
+      "Bash(make jar-check)",
+      "Bash(make test-consumer)",
+      "Bash(make api-check)",
+      "Bash(make ci)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-maven.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

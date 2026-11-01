@@ -786,6 +786,53 @@ describe("advisory hooks never get in the way [1.6d#6]", () => {
     expect(read("scripts/stray.rs")).toBe("fn main() {}\n");
   });
 
+  test("format-changed.sh runs Spotless once through the Maven wrapper for the session's Java files and skips Java outside a Maven project", async () => {
+    const project = await scaffold("astro-blog");
+    const write = (file: string, text: string, mode = 0o644) => {
+      mkdirSync(join(project, file, ".."), { recursive: true });
+      writeFileSync(join(project, file), text);
+      chmodSync(join(project, file), mode);
+    };
+    // A wrapper that logs where and how it ran instead of starting Maven.
+    const wrapper = `#!/bin/sh\nprintf '%s %s\\n' "$PWD" "$*" >> "${join(project, "mvnw-calls")}"\n`;
+    write("svc/pom.xml", "<project/>\n");
+    write("svc/mvnw", wrapper, 0o755);
+    write("svc/src/main/java/app/A.java", "class A {}\n");
+    write("svc/src/test/java/app/B.java", "class B {}\n");
+    write("svc/src/main/java/app/Untouched.java", "class Untouched {}\n");
+    // Near misses: a wrapper with no pom.xml beside it, and Java with no wrapper
+    // above it inside the project, though a Maven project encloses the project.
+    write("lib/mvnw", wrapper, 0o755);
+    write("lib/src/C.java", "class C {}\n");
+    write("scripts/Stray.java", "class Stray {}\n");
+    write("../pom.xml", "<project/>\n");
+    write("../mvnw", wrapper, 0o755);
+    const written = [
+      "svc/src/main/java/app/A.java",
+      "svc/src/test/java/app/B.java",
+      "lib/src/C.java",
+      "scripts/Stray.java",
+    ];
+    for (const file of written)
+      expect({
+        file,
+        ...allowed(
+          runHook(project, "lint-on-write.sh", postWritePayload(project, file, "java-session")),
+        ),
+      }).toEqual({ file, ...ALLOW });
+    const stop = runHook(project, "format-changed.sh", {
+      ...recorded.Stop,
+      session_id: "java-session",
+    });
+    expect(allowed(stop)).toEqual(ALLOW);
+    // The hooks compare physical paths (/var is /private/var on macOS).
+    const real = realpathSync(project);
+    const quoted = (file: string) => `\\Q${join(real, file)}\\E`;
+    expect(readFileSync(join(project, "mvnw-calls"), "utf8")).toBe(
+      `${join(real, "svc")} -q -B spotless:apply -DspotlessFiles=${quoted("svc/src/main/java/app/A.java")},${quoted("svc/src/test/java/app/B.java")}\n`,
+    );
+  });
+
   test("lint-on-write.sh caps the diagnostics it returns at 60 lines [1.6d#6]", async () => {
     const project = await scaffold("astro-blog");
     // One line over the cap exercises truncation without encoding 200 lines in bash 3.2.

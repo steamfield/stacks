@@ -1,0 +1,50 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this MCP server lets an agent do, and which hosts it is for. -->
+
+An [MCP](https://modelcontextprotocol.io) server on stdio. An MCP host (Claude Code, Claude Desktop, an IDE) starts the binary and calls its tools over stdin and stdout.
+
+## Tools
+
+One row per tool; the add-tool workflow updates this table.
+
+| Tool | What it does |
+|---|---|
+| `convert_units` | Converts a length or mass between units (`{"value": 5, "from": "km", "to": "mi"}`) |
+
+## Use it from a host
+
+```bash
+make build
+claude mcp add {{project_slug}} -- "$PWD/bin/{{project_slug}}"
+```
+
+Other hosts take the same command in their MCP server config; see [docs/hosts.md](docs/hosts.md).
+
+## Configuration
+
+Flags override environment variables; a host sets the variables in the server's `env` entry. See [docs/configuration.md](docs/configuration.md).
+
+| Flag | Variable | Default | Meaning |
+|---|---|---|---|
+| `--log-level` | `{{env_prefix}}_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`; logs are JSON on stderr |
+| `--version` | | | Print the version and exit |
+
+## Development
+
+Requires Go, make, a C compiler (for the race detector) and [golangci-lint](https://golangci-lint.run/).
+
+| Command | What it does |
+|---|---|
+| `make build` | Build `bin/{{project_slug}}` |
+| `make test` | Unit tests and protocol tests over in-memory transports |
+| `make test-integration` | Drive the built server over stdio as a host would |
+| `make call` | List the tools, or `make call TOOL=<name> ARGS='<json>'` to call one |
+| `make lint` | golangci-lint, including the no-stdout rule |
+| `make ci` | Everything CI runs |
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## License
+
+Copyright (c) {{year}} {{author}}

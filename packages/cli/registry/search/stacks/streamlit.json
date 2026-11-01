@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "streamlit",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Streamlit data app in Python: sidebar filters, metrics, an Altair chart and a table over a CSV, tested with AppTest.",
+  "description": "Start an interactive data app in Python on Streamlit. One page reads a CSV with an explicit Polars schema, sidebar filters narrow it, and the page shows totals, a monthly Altair chart and the matching rows. The filtering and totals live in a small package with unit tests, and Streamlit's AppTest runs the page in the tests to prove a filter change moves the numbers. uv and make run the checks, and verify starts the headless server and checks its health endpoint. Sign-in, a database and hosting are left for you to add.",
+  "seoDescription": "A Streamlit recipe in Python: filters, metrics and Altair charts over a Polars dataset, with AppTest page tests and a headless server check.",
+  "projectExamples": [
+    {
+      "title": "Regional sales dashboard",
+      "description": "An illustrative page where the sales team picks regions and products to see revenue, order counts and a monthly chart from the weekly export."
+    },
+    {
+      "title": "Support ticket explorer",
+      "description": "An illustrative internal app that swaps the sample for ticket data, filters by team and priority and charts open tickets per week, shipped as a container.",
+      "withFragments": [
+        "docker-deploy"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a small web page, written only in Python, where colleagues filter a data file and see totals and charts update.",
+    "goodAt": [
+      "Internal dashboards for people who don't write code",
+      "Turning an analysis into a page others can explore",
+      "Charts and tables that change with each filter"
+    ],
+    "notGoodAt": [
+      "Public sites with custom design; choose a web app stack.",
+      "Cleaning large data files on a schedule; choose a data pipeline stack."
+    ]
+  },
+  "platforms": [
+    "web"
+  ],
+  "productKinds": [],
+  "languages": [
+    "python"
+  ],
+  "requests": [
+    "build a streamlit app to explore our sales data",
+    "explore a dataset in python with filters, metrics and charts",
+    "share a data analysis as a web page people can filter",
+    "python data app with plots that update when I change a widget"
+  ],
+  "useCases": [
+    "internal reporting",
+    "data exploration",
+    "KPI tracking",
+    "interactive charts"
+  ],
+  "synonyms": [
+    "streamlit",
+    "data app",
+    "altair",
+    "polars",
+    "plotly dash alternative",
+    "gradio alternative",
+    "data visualization",
+    "interactive charts",
+    "AppTest",
+    "KPI",
+    "widgets",
+    "st.cache_data"
+  ],
+  "goodFor": [
+    "pages written only in Python",
+    "widget-driven filters",
+    "page tests without a browser",
+    "cached data loading"
+  ],
+  "notFor": []
+}

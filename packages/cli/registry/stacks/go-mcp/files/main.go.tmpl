@@ -1,0 +1,20 @@
+package main
+
+import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"{{project_slug}}/internal/app"
+)
+
+// Set by ldflags in the Makefile's build target (and by GoReleaser, if added).
+var version, commit, date = "dev", "none", "unknown"
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := app.Main(ctx, os.Args[1:], app.Std(), app.Build{Version: version, Commit: commit, Date: date})
+	stop()
+	os.Exit(code)
+}

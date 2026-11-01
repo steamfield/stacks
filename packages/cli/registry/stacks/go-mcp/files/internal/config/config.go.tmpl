@@ -1,0 +1,85 @@
+package config
+
+import (
+	"bytes"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"log/slog"
+	"strings"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+// Binary is the server's name: the MCP implementation name clients show, the
+// binary under bin/ and the name in usage text.
+const Binary = "{{project_slug}}"
+const EnvPrefix = "{{env_prefix}}"
+
+// Config is everything the server reads from flags and the environment.
+// Precedence: defaults < environment < flags. An MCP host passes settings as
+// environment variables in its server entry, so every flag has one.
+type Config struct {
+	LogLevel slog.Level
+	Version  bool
+	Help     bool
+}
+
+type settings struct {
+	logLevel string
+	version  bool
+}
+
+func flags(getenv func(string) string, s *settings) *flag.FlagSet {
+	fs := flag.NewFlagSet(Binary, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.StringVar(&s.logLevel, "log-level", value(getenv(EnvPrefix+"_LOG_LEVEL"), "info"), "debug, info, warn or error (env "+EnvPrefix+"_LOG_LEVEL); logs go to stderr")
+	fs.BoolVar(&s.version, "version", false, "print the version and exit")
+	return fs
+}
+
+func value(v, fallback string) string {
+	if strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	return v
+}
+
+// Load parses args over the environment and validates the result.
+func Load(args []string, getenv func(string) string) (Config, error) {
+	var s settings
+	fs := flags(getenv, &s)
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return Config{Help: true}, nil
+		}
+		return Config{}, apperrors.Wrap(apperrors.InvalidInput, "parse flags (run "+Binary+" --help)", err)
+	}
+	if fs.NArg() > 0 {
+		return Config{}, apperrors.New(apperrors.InvalidInput, "unexpected argument "+fs.Arg(0)+"; "+Binary+" takes flags only")
+	}
+	cfg := Config{Version: s.version}
+	if err := cfg.LogLevel.UnmarshalText([]byte(s.logLevel)); err != nil || !knownLevel(cfg.LogLevel) {
+		return Config{}, apperrors.New(apperrors.Config, fmt.Sprintf("log level %q is not debug, info, warn or error (--log-level or %s_LOG_LEVEL)", s.logLevel, EnvPrefix))
+	}
+	return cfg, nil
+}
+
+func knownLevel(l slog.Level) bool {
+	switch l {
+	case slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError:
+		return true
+	}
+	return false
+}
+
+// Usage is the --help text.
+func Usage(getenv func(string) string) string {
+	var out bytes.Buffer
+	fs := flags(getenv, &settings{})
+	fs.SetOutput(&out)
+	fmt.Fprintf(&out, "Usage: %s [flags]\n\nAn MCP server on stdio. An MCP host (Claude Code, an IDE) starts it and talks\nJSON-RPC over stdin and stdout; it exits when stdin closes.\n\nFlags:\n", Binary)
+	fs.PrintDefaults()
+	return out.String()
+}

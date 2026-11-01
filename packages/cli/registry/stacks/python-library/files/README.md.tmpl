@@ -1,0 +1,47 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this library does and who it's for. -->
+
+## Install
+
+```bash
+pip install {{project_slug}}    # or: uv add {{project_slug}}
+```
+
+<!-- stacks:fill The supported Python versions, matching requires-python in pyproject.toml. -->
+
+## Usage
+
+```python
+from datetime import timedelta
+
+import package_name
+
+package_name.parse_duration("1h30m")  # timedelta(seconds=5400)
+package_name.format_duration(timedelta(seconds=90))  # "1m30s"
+```
+
+Every error the library raises derives from `Error`. See
+[docs/api.md](https://github.com/OWNER/REPO/blob/main/docs/api.md) for the full API.
+
+<!-- stacks:fill Replace OWNER/REPO with the repository's path; PyPI shows this README, where relative links break. -->
+
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) and make.
+
+| Command | What it does |
+|---|---|
+| `make install` | Create `.venv` and install the library and its dev tools |
+| `make lint` / `make format` | Check / fix lint and formatting (ruff) |
+| `make typecheck` | mypy strict |
+| `make coverage` | Tests with the branch coverage floor |
+| `make test-min` | Tests on the oldest supported Python |
+| `make build` | Build the sdist and wheel and check their metadata |
+| `make smoke` | Install the wheel in a clean environment, import it and type-check against it |
+
+Run `make help` for the full list. Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+MIT. Copyright (c) {{year}} {{author}}

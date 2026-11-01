@@ -6,7 +6,7 @@ category: release
 name: GoReleaser
 description: Tag-driven releases for a Go binary with GoReleaser, covering cross-platform builds with version ldflags, archives, checksums, a conventional-commit changelog, a GitHub release workflow, and optional Homebrew publishing.
 tags: [go, release, goreleaser]
-applies_to: [go-cli, go-tui]
+applies_to: [go-cli, go-tui, go-mcp]
 requires_tools: [goreleaser]
 tools: [goreleaser]
 decisions:
@@ -37,6 +37,10 @@ Add tag-driven releases. Pushing `vX.Y.Z` builds every target, attaches archives
 <!-- stacks:when stack=go-tui -->
 
 go-tui has the same layout: `main.go` at the root with `main.version`, `main.commit` and `main.date`, set by the Makefile's `build` target, and `dist/` already in `.gitignore`. It has no `completion` command, so leave out the completions hook.
+<!-- stacks:end -->
+<!-- stacks:when stack=go-mcp -->
+
+go-mcp has the same layout: `main.go` at the root with `main.version`, `main.commit` and `main.date`, set by the Makefile's `build` target, and `dist/` already in `.gitignore`. Build only `.`, not the `cmd/mcpcall` dev client, and leave out the completions hook. In `docs/hosts.md`, point hosts at the installed binary.
 <!-- stacks:end -->
 
 **Release workflow** `.github/workflows/release.yml`:

@@ -6,7 +6,7 @@ category: deploy
 name: Docker images + GHCR
 description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, rust-api]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api, spring-boot-api, spring-boot-web, quarkus-api, streamlit]
 requires_tools: [docker]
 tools: [docker]
 decisions:
@@ -39,10 +39,19 @@ A production image per deployable part and a workflow that publishes them, writt
 - `.dockerignore`: `.git`, `.env*`, `node_modules`, virtualenvs, caches, test and build output.
 
 <!-- stacks:when tag=python -->
-**Python API**: slim Python base matching `.python-version`; copy the uv binary from uv's official image; `uv sync --locked --no-dev --no-install-project`, copy source, sync again. Copy the venv to the runtime stage at the same path, put its `bin` on `PATH`, set `PYTHONUNBUFFERED=1` and `PYTHONDONTWRITEBYTECODE=1`, run uvicorn on `0.0.0.0` with proxy headers.
+**Python**: slim Python base matching `.python-version`; copy the uv binary from uv's official image; `uv sync --locked --no-dev --no-install-project`, copy source, sync again. Copy the venv to the runtime stage at the same path, put its `bin` on `PATH`, set `PYTHONUNBUFFERED=1` and `PYTHONDONTWRITEBYTECODE=1`.
+<!-- stacks:end -->
+<!-- stacks:when stack=python-api,python-react -->
+Run uvicorn on `0.0.0.0` with proxy headers.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-api -->
-**One image**: the API is the repo root, so it gets one root `Dockerfile` instead of per-directory ones. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
+**One image**: one root `Dockerfile`, since the API is the repo root. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
+<!-- stacks:end -->
+<!-- stacks:when stack=django,django-api -->
+**Django**: one root `Dockerfile` served by gunicorn, with migrations as a release step; the stack's own deploy section has the specifics.
+<!-- stacks:end -->
+<!-- stacks:when stack=streamlit -->
+**Streamlit**: one root `Dockerfile` running `streamlit run app.py` headless on `0.0.0.0`, health-checked on `/_stcore/health`; the stack's own deploy section has the specifics.
 <!-- stacks:end -->
 <!-- stacks:when stack=python-react -->
 **React SPA**: build with bun, serve `build/client` from an unprivileged nginx or Caddy image with the `index.html` fallback, immutable caching for hashed assets, `no-cache` for `index.html`, a `/healthz` location, and a `/api` proxy if the API shares the origin.
@@ -53,6 +62,9 @@ A production image per deployable part and a workflow that publishes them, writt
 <!-- stacks:when stack=hono-api -->
 **Node API**: one root `Dockerfile`. The build stage installs frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only `package.json` (its `"type": "module"` marks the bundle as ESM) and `dist/main.js` (the bundle includes its dependencies, so no `node_modules`), running `node dist/main.js` with `PORT_API` set and exposed. The health check fetches `/healthz` with Node's own `fetch`. Logs are JSON on stdout.
 <!-- stacks:end -->
+<!-- stacks:when stack=nestjs-api -->
+**NestJS API**: one root `Dockerfile`. `nest build` doesn't bundle, so a Bun deps stage runs `bun install --frozen-lockfile --production`; the build stage installs frozen and runs `bun run build`; both pass `--ignore-scripts` (`prepare` needs `scripts/`). The runtime stage is the official slim Node image matching `.node-version` with `package.json`, those `node_modules` and `dist/`, running `node dist/main.js` with `PORT_API` set and exposed.
+<!-- stacks:end -->
 <!-- stacks:when stack=astro-fullstack -->
 **API and site**: one root `Dockerfile`, one image. The build stage installs the workspace frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only the API bundle and `apps/web/dist`, `STATIC_DIR` pointing at the copied site and `NODE_ENV=production`. The health check fetches `/healthz` with Node's own `fetch`.
 <!-- stacks:end -->
@@ -60,7 +72,10 @@ A production image per deployable part and a workflow that publishes them, writt
 **Go**: `CGO_ENABLED=0` with version ldflags in the official Go image, static binary copied into a distroless nonroot runtime.
 <!-- stacks:end -->
 <!-- stacks:when tag=rust -->
-**Rust**: build in the official Rust image for the toolchain `rust-toolchain.toml` records, its Debian release named by tag suffix (`-slim-<codename>`) so it can't drift from the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; a cache-mounted `target/` isn't in the layer, so copy the binary out of it in the same `RUN`. Copy only the binary into the nonroot variant of the distroless `cc` image for that same Debian release, since the binary links against the build image's glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary itself with a probe flag the app ships (`--healthcheck`, which requests the health endpoint and exits 0 or 1).
+**Rust**: build in the official Rust image for the `rust-toolchain.toml` toolchain, its Debian release named by tag suffix (`-slim-<codename>`) to match the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; copy the binary out of the cache-mounted `target/` in the same `RUN`. The runtime is the nonroot distroless `cc` image for that Debian release, since the binary links against its glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary's own probe flag (`--healthcheck`: requests the health endpoint, exits 0 or 1).
+<!-- stacks:end -->
+<!-- stacks:when tag=java -->
+**Java**: build in the Temurin JDK image for `.java-version`'s major, copying `mvnw`, `.mvn/` and `pom.xml` before `src/`, with a cache mount on `/root/.m2`, then `./mvnw -B -ntp package -DskipTests`. Run only the jar (for Quarkus, the whole `target/quarkus-app/` directory and its `quarkus-run.jar`) on the same major's Temurin JRE with `HOST=0.0.0.0`; the `HEALTHCHECK` runs `java -jar <jar> --healthcheck`, with a start period for JVM startup.
 <!-- stacks:end -->
 
 <!-- stacks:when with=postgres -->

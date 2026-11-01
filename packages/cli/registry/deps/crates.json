@@ -89,6 +89,24 @@
         "reviewedAt": null
       }
     },
+    "js-sys": {
+      "whatItIs": "js-sys, a library for the Rust programming language that lets Rust compiled to WebAssembly use JavaScript's built-in objects, such as errors, arrays and JSON.",
+      "goodAt": [
+        "Creating real JavaScript errors and objects from Rust code",
+        "Reading the keys and values of an object JavaScript passed in"
+      ],
+      "notGoodAt": [
+        "Web page features such as the document or fetch; a separate browser library covers those."
+      ],
+      "example": "When the Rust code rejects an input, it throws a normal JavaScript error that the web page's code can catch and read.",
+      "homepage": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "proptest": {
       "whatItIs": "proptest, a library for the Rust programming language that tests code with many generated inputs and, when one fails, shrinks it to the simplest failing case.",
       "goodAt": [
@@ -140,6 +158,22 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "serde-wasm-bindgen": {
+      "whatItIs": "serde-wasm-bindgen, a library for the Rust programming language that turns JavaScript objects into Rust data and back, for Rust compiled to WebAssembly.",
+      "goodAt": [
+        "Reading an options object a JavaScript caller passes",
+        "Returning Rust results to JavaScript as plain objects and arrays"
+      ],
+      "notGoodAt": ["Rejecting keys it doesn't expect; the code has to check those itself."],
+      "example": "A web page passes { maxLength: 10 } to a function written in Rust, and the Rust code receives it as a typed settings record.",
+      "homepage": "https://github.com/RReverser/serde-wasm-bindgen",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "serde_json": {
@@ -355,6 +389,42 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "wasm-bindgen": {
+      "whatItIs": "wasm-bindgen, a library for the Rust programming language that lets Rust compiled to WebAssembly and JavaScript call each other, with TypeScript types for the JavaScript side.",
+      "goodAt": [
+        "Offering Rust functions and classes to JavaScript code with typed signatures",
+        "Passing text, numbers and objects between Rust and JavaScript"
+      ],
+      "notGoodAt": [
+        "Packaging the result for npm by itself; wasm-pack runs it and writes the package."
+      ],
+      "example": "A web page calls slugify(\"Hello World\") from an npm package, and the work runs as fast compiled Rust inside the browser.",
+      "homepage": "https://github.com/wasm-bindgen/wasm-bindgen",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "wasm-bindgen-test": {
+      "whatItIs": "wasm-bindgen-test, a testing library for the Rust programming language that runs tests compiled to WebAssembly inside Node or a browser.",
+      "goodAt": [
+        "Testing Rust code where JavaScript will actually run it",
+        "Checking the values and errors JavaScript receives from Rust"
+      ],
+      "notGoodAt": [
+        "Fast checks of plain logic; ordinary Rust tests run those without WebAssembly."
+      ],
+      "example": "A test calls the package's function with a JavaScript object and checks that a bad option comes back as an error with the right code.",
+      "homepage": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/test",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     }
   }

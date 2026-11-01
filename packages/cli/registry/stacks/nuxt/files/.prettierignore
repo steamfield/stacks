@@ -1,0 +1,15 @@
+# Generated output
+.nuxt/
+.output/
+.data/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+bun.lock
+
+# Static assets, copied as they are
+/public/
+
+# Written and read by stacks
+.stacks/

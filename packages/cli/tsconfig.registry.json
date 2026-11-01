@@ -9,7 +9,9 @@
       "registry/fragments/claude-harness/files",
       "registry/fragments/openrouter-chat-cli/adapters/claude",
       "registry/stacks/hono-api/adapters/claude",
+      "registry/stacks/nestjs-api/adapters/claude",
       "registry/stacks/nextjs/adapters/claude",
+      "registry/stacks/nuxt/adapters/claude",
       "registry/stacks/react-router/adapters/claude",
       "registry/stacks/react-vite/adapters/claude",
       "registry/stacks/sveltekit/adapters/claude",
@@ -17,7 +19,8 @@
       "registry/stacks/typescript-api/adapters/claude",
       "registry/stacks/typescript-api/files",
       "registry/stacks/typescript-cli/adapters/claude",
-      "registry/stacks/typescript-library/adapters/claude"
+      "registry/stacks/typescript-library/adapters/claude",
+      "registry/stacks/typescript-mcp/adapters/claude"
     ],
     "allowImportingTsExtensions": true
   },
@@ -53,14 +56,30 @@
     "registry/stacks/hono-api/files/*.ts",
     "registry/stacks/hono-api/files/src",
     "registry/stacks/hono-api/files/tests",
+    // NestJS, class-validator and Swagger are installed only in the API scaffold, and its
+    // decorators need the scaffold's experimentalDecorators; keep scripts and hooks checked.
+    "registry/stacks/nestjs-api/files/*.ts",
+    "registry/stacks/nestjs-api/files/src",
+    "registry/stacks/nestjs-api/files/tests",
     // tsdown is installed only in the library scaffold; its src/, tests and scripts stay checked.
     "registry/stacks/typescript-library/files/tsdown.config.ts",
+    // The MCP SDK, zod and pino are installed only in the MCP scaffold; keep scripts and hooks checked.
+    "registry/stacks/typescript-mcp/files/*.ts",
+    "registry/stacks/typescript-mcp/files/src",
+    "registry/stacks/typescript-mcp/files/tests",
     // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
     "registry/stacks/nextjs/files/*.ts",
     "registry/stacks/nextjs/files/next-env.d.ts",
     "registry/stacks/nextjs/files/src",
     "registry/stacks/nextjs/files/tests",
     "registry/stacks/nextjs/files/e2e",
+    // Nuxt auto-imports, Vue, zod and test-utils resolve only in the scaffold; keep scripts and hooks checked.
+    "registry/stacks/nuxt/files/*.ts",
+    "registry/stacks/nuxt/files/app",
+    "registry/stacks/nuxt/files/server",
+    "registry/stacks/nuxt/files/shared",
+    "registry/stacks/nuxt/files/tests",
+    "registry/stacks/nuxt/files/e2e",
     // SvelteKit's $app/*, ./$types and browser dependencies resolve only in the scaffold.
     // Keep prepare/e2e scripts and adapter hook tests checked here.
     "registry/stacks/sveltekit/files/*.ts",

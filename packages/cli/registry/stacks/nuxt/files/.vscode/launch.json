@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug dev server",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bun run dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug current test file",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bun run test ${relativeFile}",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

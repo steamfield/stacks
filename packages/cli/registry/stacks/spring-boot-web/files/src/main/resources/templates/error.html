@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<!--/* Every error page: `code` is the ErrorCode row; its title and message are fixed text. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+    <head>
+        <title th:text="${code.title}">Error</title>
+    </head>
+    <body>
+        <main>
+            <h1 th:text="${code.title}">Error</h1>
+            <p th:text="${code.message}">What went wrong.</p>
+            <p><a href="/" th:href="@{/}">Go to the home page</a></p>
+        </main>
+    </body>
+</html>

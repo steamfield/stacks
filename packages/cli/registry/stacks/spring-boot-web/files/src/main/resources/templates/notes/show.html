@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: page(~{::title}, ~{::main})}">
+    <head>
+        <title th:text="${note.title}">Note</title>
+    </head>
+    <body>
+        <main>
+            <article class="card">
+                <h1 th:text="${note.title}">Title</h1>
+                <p class="body" th:if="${!#strings.isEmpty(note.body)}" th:text="${note.body}">Body</p>
+            </article>
+            <p><a href="/" th:href="@{/}">All notes</a></p>
+        </main>
+    </body>
+</html>

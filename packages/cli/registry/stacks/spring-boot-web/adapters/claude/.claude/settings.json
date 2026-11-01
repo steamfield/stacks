@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make env)",
+      "Bash(make fmt)",
+      "Bash(make fmt-check)",
+      "Bash(make lint)",
+      "Bash(make compile)",
+      "Bash(make test)",
+      "Bash(make coverage)",
+      "Bash(make test-integration)",
+      "Bash(make build)",
+      "Bash(make ci)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-spring-web.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -117,6 +117,7 @@ test("kind and limit reach the API and merged lists obey tier before score [4.5e
     officialHit("rust-cli", { tier: "partial", score: 0.98 }),
     officialHit("rust-tui", { tier: "partial", score: 0.98 }),
     officialHit("python-cli", { tier: "partial", score: 0.98 }),
+    officialHit("java-cli", { tier: "partial", score: 0.98 }),
   ]);
   server.answer(body);
   const value = decoded(

@@ -1,0 +1,36 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this service does and who calls it. -->
+
+## Run
+
+```bash
+make serve
+curl http://127.0.0.1:8080/q/health/ready
+```
+
+`make serve` builds the application into `target/quarkus-app/` and runs it in the foreground until Ctrl+C. Settings come from the environment; see [docs/configuration.md](docs/configuration.md).
+
+## API
+
+<!-- stacks:fill The resources this service exposes, one line each, and who calls them. -->
+
+[docs/http-api.md](docs/http-api.md) has the routes, the error envelope and the status table. The running service serves its OpenAPI document at `/q/openapi`.
+
+## Development
+
+Requires the JDK named in `.java-version` (on macOS, `brew install openjdk@<major>`; the Makefile finds it) and make. Maven comes from the committed wrapper, `./mvnw`.
+
+| Command | What it does |
+|---|---|
+| `make build` | The application in `target/quarkus-app/` |
+| `make test` | Unit tests and `@QuarkusTest` HTTP tests |
+| `make test-integration` | The packaged application as its own process, over real HTTP |
+| `make fmt` | Format with Spotless |
+| `make ci` | Everything CI runs |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
+
+## License
+
+Copyright (c) {{year}} {{author}}

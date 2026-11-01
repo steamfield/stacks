@@ -1,0 +1,80 @@
+package web
+
+import (
+	"bytes"
+	"errors"
+	"log/slog"
+	"net/http"
+
+	"github.com/a-h/templ"
+
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/views"
+)
+
+type errorRow struct {
+	status         int
+	title, message string
+}
+
+// errorTable is the one place a domain error code becomes a status and the
+// text a person sees. Causes go to the log, never to the page.
+var errorTable = map[string]errorRow{
+	apperrors.Invalid:          {422, "Check the form", "Some fields need attention."},
+	apperrors.BadInput:         {400, "Bad request", "The request could not be read."},
+	apperrors.Forbidden:        {403, "Request blocked", "Cross-origin form posts are not allowed."},
+	apperrors.NotFound:         {404, "Page not found", "There is nothing at this address."},
+	apperrors.MethodNotAllowed: {405, "Method not allowed", "This address does not accept that method."},
+	apperrors.PayloadTooLarge:  {413, "Request too large", "The form was too large to accept."},
+	apperrors.Internal:         {500, "Something went wrong", "The server hit an unexpected error. Try again."},
+	apperrors.Unavailable:      {503, "Service unavailable", "The service is not available right now. Try again shortly."},
+}
+
+// isHTMX reports whether htmx sent the request, so the response is a fragment.
+func isHTMX(r *http.Request) bool { return r.Header.Get("HX-Request") == "true" }
+
+// render writes a component with the status. It renders into a buffer first, so
+// a failing component becomes the error page instead of half a response.
+func render(w http.ResponseWriter, r *http.Request, status int, component templ.Component, logger *slog.Logger) {
+	var body bytes.Buffer
+	if err := component.Render(r.Context(), &body); err != nil {
+		renderError(w, r, apperrors.Wrap(apperrors.Internal, "render", err), logger)
+		return
+	}
+	write(w, status, body.Bytes(), logger)
+}
+
+func write(w http.ResponseWriter, status int, body []byte, logger *slog.Logger) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if w.Header().Get("Cache-Control") == "" {
+		w.Header().Set("Cache-Control", "no-store")
+	}
+	w.WriteHeader(status)
+	if _, err := w.Write(body); err != nil {
+		logger.Error("write response", "error", err)
+	}
+}
+
+// renderError renders the error page for err. Server faults log their cause.
+func renderError(w http.ResponseWriter, r *http.Request, err error, logger *slog.Logger) {
+	code := apperrors.Internal
+	var failure *apperrors.Error
+	if errors.As(err, &failure) {
+		code = failure.Code
+	}
+	row, ok := errorTable[code]
+	if !ok {
+		code, row = apperrors.Internal, errorTable[apperrors.Internal]
+	}
+	if row.status >= 500 {
+		logger.Error("request failed", "code", code, "error", err, "request_id", RequestID(r.Context()))
+	}
+	page := views.ErrorPage{Status: row.status, Title: row.title, Message: row.message, RequestID: RequestID(r.Context())}
+	var body bytes.Buffer
+	if renderErr := views.Error(page).Render(r.Context(), &body); renderErr != nil {
+		logger.Error("render error page", "error", renderErr)
+		http.Error(w, row.message, row.status)
+		return
+	}
+	write(w, row.status, body.Bytes(), logger)
+}

@@ -1,0 +1,87 @@
+package views
+
+import "time"
+
+// NotesPage is the full page: the form and every note, newest first.
+templ NotesPage(notes []Note, form Form) {
+	@Layout("Notes") {
+		<h1>Notes</h1>
+		@NoteForm(form, false)
+		<ul id={ ListID } aria-live="polite">
+			for _, note := range notes {
+				@NoteItem(note)
+			}
+		</ul>
+	}
+}
+
+// NoteForm posts with htmx and still works as a plain form without JavaScript.
+// oob marks it as an out-of-band swap that replaces the form already on the page.
+templ NoteForm(form Form, oob bool) {
+	<form
+		id={ FormID }
+		action="/notes"
+		method="post"
+		hx-post="/notes"
+		hx-target={ "#" + ListID }
+		hx-swap="afterbegin"
+		novalidate
+		if oob {
+			hx-swap-oob="true"
+		}
+	>
+		@field("title", "Title", form) {
+			<input
+				id="title"
+				name="title"
+				type="text"
+				value={ form.Title }
+				maxlength="200"
+				required
+				if form.Errors["title"] != "" {
+					aria-invalid="true"
+					aria-describedby="title-error"
+				}
+			/>
+		}
+		@field("body", "Note", form) {
+			<textarea
+				id="body"
+				name="body"
+				rows="4"
+				if form.Errors["body"] != "" {
+					aria-invalid="true"
+					aria-describedby="body-error"
+				}
+			>{ form.Body }</textarea>
+		}
+		<button type="submit">Add note</button>
+	</form>
+}
+
+templ field(name, label string, form Form) {
+	<div class="field">
+		<label for={ name }>{ label }</label>
+		{ children... }
+		if message := form.Errors[name]; message != "" {
+			<p class="field-error" id={ name + "-error" }>{ message }</p>
+		}
+	</div>
+}
+
+templ NoteItem(note Note) {
+	<li id={ "note-" + note.ID }>
+		<h2>{ note.Title }</h2>
+		if note.Body != "" {
+			<p>{ note.Body }</p>
+		}
+		<time datetime={ note.CreatedAt.Format(time.RFC3339) }>{ note.CreatedAt.Format("2 Jan 2006 15:04 MST") }</time>
+	</li>
+}
+
+// NoteCreated answers an htmx post: the new note for the list, and an empty
+// form that replaces the submitted one out of band.
+templ NoteCreated(note Note) {
+	@NoteItem(note)
+	@NoteForm(Form{}, true)
+}

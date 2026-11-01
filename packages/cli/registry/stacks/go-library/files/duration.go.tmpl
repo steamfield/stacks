@@ -1,0 +1,156 @@
+package libname
+
+import (
+	"fmt"
+	"math"
+	"strings"
+	"time"
+
+	"{{project_slug}}/internal/lex"
+)
+
+// Day and Week are the units this package adds to the [time] package's.
+const (
+	Day  = 24 * time.Hour
+	Week = 7 * Day
+)
+
+// MaxDuration is the default maximum: the longest [time.Duration], about 292
+// years.
+const MaxDuration time.Duration = math.MaxInt64
+
+// Parser reads durations within its limits. The zero value is not ready to
+// use; get one from [New]. A Parser is safe for concurrent use.
+type Parser struct {
+	max time.Duration
+}
+
+// Option changes one setting of a [Parser] made by [New].
+type Option func(*Parser)
+
+// WithMax sets the longest duration the parser accepts, in either direction.
+// Longer input fails with [ErrRange]. max must be positive.
+func WithMax(maxDuration time.Duration) Option {
+	return func(p *Parser) { p.max = maxDuration }
+}
+
+// New returns a Parser with opts applied over the defaults ([MaxDuration]).
+// It returns an error wrapping [ErrInvalidOption] when an option can't apply.
+func New(opts ...Option) (*Parser, error) {
+	p := &Parser{max: MaxDuration}
+	for _, opt := range opts {
+		opt(p)
+	}
+	if p.max <= 0 {
+		return nil, fmt.Errorf("libname: WithMax(%v): %w: the maximum must be positive", p.max, ErrInvalidOption)
+	}
+	return p, nil
+}
+
+// Max returns the longest duration p accepts.
+func (p *Parser) Max() time.Duration { return p.max }
+
+// Parse reads s with the default options. See [Parser.Parse].
+func Parse(s string) (time.Duration, error) {
+	return (&Parser{max: MaxDuration}).Parse(s)
+}
+
+// Parse reads s as an optional "-" followed by one or more parts, each a
+// whole number and a unit (w, d, h, m, s or ms), with no spaces: "1w2d",
+// "90m", "-1h30m". Repeated units add up.
+//
+// Every error is a [*ParseError] wrapping [ErrSyntax], or [ErrRange] when the
+// total is longer than the parser's maximum.
+func (p *Parser) Parse(s string) (time.Duration, error) {
+	text, start := s, 0
+	if strings.HasPrefix(s, "-") {
+		text, start = s[1:], 1
+	}
+	parts, err := lex.Split(text)
+	if err != nil {
+		kind := ErrSyntax
+		if err.Overflow {
+			kind = ErrRange
+		}
+		return 0, &ParseError{Input: s, Offset: start + err.Offset, Reason: err.Reason, Err: kind}
+	}
+	var total time.Duration
+	for _, part := range parts {
+		unit, ok := unitValue(part.Unit)
+		if !ok {
+			return 0, &ParseError{
+				Input:  s,
+				Offset: start + part.UnitOffset,
+				Reason: fmt.Sprintf("unknown unit %q; use w, d, h, m, s or ms", part.Unit),
+				Err:    ErrSyntax,
+			}
+		}
+		if part.Value > int64((p.max-total)/unit) {
+			return 0, &ParseError{
+				Input:  s,
+				Offset: start + part.Offset,
+				Reason: "longer than the maximum, " + Format(p.max),
+				Err:    ErrRange,
+			}
+		}
+		total += time.Duration(part.Value) * unit
+	}
+	if start == 1 {
+		total = -total
+	}
+	return total, nil
+}
+
+// Format writes d in the notation [Parse] reads, largest unit first and
+// without zero parts: Format(36*time.Hour) is "1d12h". It drops anything
+// below a millisecond, and a duration shorter than that is "0s".
+func Format(d time.Duration) string {
+	var b strings.Builder
+	if d < 0 {
+		b.WriteByte('-')
+	}
+	// Division truncates toward zero, so a negative d gives negative counts and
+	// remainders; negating a count can't overflow, even for the most negative d.
+	for _, u := range units() {
+		n := d / u.value
+		if n == 0 {
+			continue
+		}
+		if n < 0 {
+			n = -n
+		}
+		fmt.Fprintf(&b, "%d%s", int64(n), u.name)
+		d %= u.value
+	}
+	if b.Len() <= 1 {
+		return "0s"
+	}
+	return b.String()
+}
+
+type unit struct {
+	name  string
+	value time.Duration
+}
+
+// units lists every unit, largest first, which is the order Format writes. It
+// is a function rather than a package variable so no state is shared.
+func units() [6]unit {
+	return [6]unit{
+		{"w", Week},
+		{"d", Day},
+		{"h", time.Hour},
+		{"m", time.Minute},
+		{"s", time.Second},
+		{"ms", time.Millisecond},
+	}
+}
+
+func unitValue(name string) (time.Duration, bool) {
+	for _, u := range units() {
+		if u.name == name {
+			return u.value, true
+		}
+	}
+	return 0, false
+}

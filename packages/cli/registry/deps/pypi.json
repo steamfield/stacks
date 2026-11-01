@@ -17,6 +17,22 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "altair": {
+      "whatItIs": "Altair, a Python library for drawing charts by saying which columns go on which axis, rather than placing each mark by hand.",
+      "goodAt": [
+        "Bar, line and scatter charts straight from a table of data",
+        "Interactive charts inside a notebook"
+      ],
+      "notGoodAt": ["Live dashboards for many viewers; use a dashboard tool for that."],
+      "example": "When the notebook has revenue per region, one short line of code turns it into a bar chart with labeled axes.",
+      "homepage": "https://altair-viz.github.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "asgi-lifespan": {
       "whatItIs": "A Python test helper that runs a web app's startup and shutdown steps, so tests use an app that is fully set up.",
       "goodAt": [
@@ -51,6 +67,122 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "django": {
+      "whatItIs": "Django, a Python framework for building websites whose pages are made on the server, with a database layer, a ready-made admin area, forms and page templates included.",
+      "goodAt": [
+        "Building a website where people sign in, fill in forms and see saved records",
+        "Giving staff an admin area to browse and edit the stored data"
+      ],
+      "notGoodAt": [
+        "Pages that update live without reloading; pair it with htmx or a JavaScript framework."
+      ],
+      "example": "When someone submits a sign-up form with a missing email, the page comes back with the form still filled in and a note next to the empty field.",
+      "homepage": "https://www.djangoproject.com/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "django-stubs": {
+      "whatItIs": "Type descriptions for Django and a plugin that lets mypy, a type checker, understand Django's models, settings and querysets.",
+      "homepage": "https://github.com/typeddjango/django-stubs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "django-stubs-ext": {
+      "whatItIs": "A small runtime helper from django-stubs that lets code write Django's generic classes with a type in brackets, such as a form for one model.",
+      "homepage": "https://github.com/typeddjango/django-stubs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "djangorestframework": {
+      "whatItIs": "Django REST framework, an add-on for Django that turns its stored records into a service other programs and apps talk to, sending and receiving data instead of web pages.",
+      "goodAt": [
+        "Letting a phone app or website read and save records kept in Django",
+        "Checking incoming data and naming each field that is wrong"
+      ],
+      "notGoodAt": ["Websites whose pages are made on the server; plain Django does that."],
+      "example": "When a phone app sends a new note without a title, the service answers with an error naming the title instead of saving it.",
+      "homepage": "https://www.django-rest-framework.org/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "djangorestframework-stubs": {
+      "whatItIs": "Type descriptions for Django REST framework and a plugin that lets mypy, a type checker, understand its serializers and views.",
+      "homepage": "https://github.com/typeddjango/djangorestframework-stubs",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "djlint": {
+      "whatItIs": "djLint, a tool that checks and tidies the HTML page templates of Django and similar frameworks.",
+      "goodAt": [
+        "Keeping page templates consistently indented and formatted",
+        "Flagging template mistakes such as missing attributes or unclosed tags"
+      ],
+      "notGoodAt": ["Checking Python code; use Ruff for that."],
+      "example": "When someone saves a template with uneven indentation, the check fails and the format command lines it up again.",
+      "homepage": "https://djlint.com/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "drf-spectacular": {
+      "whatItIs": "drf-spectacular, a tool that writes a machine-readable description of a Django REST framework service (an OpenAPI file) listing every address, the data each accepts and what it returns.",
+      "goodAt": [
+        "Giving other teams an exact, up-to-date list of what the service accepts",
+        "Generating client code for apps that call the service"
+      ],
+      "notGoodAt": [
+        "Services built without Django REST framework; each framework has its own tool."
+      ],
+      "example": "When a developer renames a field, the regenerated file shows the change, so callers learn about it before it ships.",
+      "homepage": "https://drf-spectacular.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "duckdb": {
+      "whatItIs": "DuckDB, a database that runs inside a Python program with no server, for asking questions of data files in SQL.",
+      "goodAt": [
+        "Running SQL directly over Parquet and CSV files on a laptop",
+        "Fast totals, rankings and joins over millions of rows"
+      ],
+      "notGoodAt": [
+        "Many people saving changes at once; use a server database such as PostgreSQL."
+      ],
+      "example": "When someone asks which products earned the most last month, one SQL query over the saved files lists them in order.",
+      "homepage": "https://duckdb.org/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "fastapi": {
       "whatItIs": "FastAPI, a Python toolkit for building the server side of a website or phone app, the part that answers each request it receives.",
       "goodAt": [
@@ -83,6 +215,24 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "gunicorn": {
+      "whatItIs": "Gunicorn, a program that runs a Python website on a server and hands each incoming request to one of several copies of the app.",
+      "goodAt": [
+        "Running a Django or Flask site in production",
+        "Restarting a crashed copy of the app while the others keep answering"
+      ],
+      "notGoodAt": [
+        "Serving secure HTTPS connections itself; put a proxy or load balancer in front."
+      ],
+      "example": "When several visitors load pages at the same moment, each request goes to a free copy of the app, so nobody waits behind a slow page.",
+      "homepage": "https://gunicorn.org/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "httpx": {
       "whatItIs": "httpx, a Python library that lets a program send web requests to other services, either one at a time or in the background.",
       "goodAt": [
@@ -99,6 +249,38 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "hypothesis": {
+      "whatItIs": "Hypothesis, a Python testing library that invents many inputs for a test, including awkward ones a person wouldn't think of, and shrinks any failure to the simplest example.",
+      "goodAt": [
+        "Checking a rule that holds for every input, like reading back what was written",
+        "Finding unusual inputs that crash code which handles text or numbers"
+      ],
+      "notGoodAt": ["Checking one exact expected answer; a plain pytest example test is clearer."],
+      "example": "For a date parser, it tries thousands of strange dates and reports the shortest one that breaks it.",
+      "homepage": "https://hypothesis.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "marimo": {
+      "whatItIs": "marimo, a Python notebook for exploring data, saved as a plain Python file that reruns the affected cells whenever a value changes.",
+      "goodAt": [
+        "Exploring data with tables and charts that stay in step with the code",
+        "Notebooks that can be reviewed, checked and run like any other Python file"
+      ],
+      "notGoodAt": ["Long-running scheduled jobs; run those as a pipeline command instead."],
+      "example": "When an analyst changes the date filter at the top, every table and chart below it updates to match without rerunning cells by hand.",
+      "homepage": "https://marimo.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "mypy": {
       "whatItIs": "mypy, a checker that reads the notes a Python project adds about what kind of data each value holds, and reports mismatches before the program runs.",
       "goodAt": [
@@ -113,6 +295,32 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "polars": {
+      "whatItIs": "Polars, a fast Python library for working with tables of data, such as filtering rows, joining tables and adding up totals.",
+      "goodAt": [
+        "Cleaning and summarizing tables with millions of rows on one computer",
+        "Reading and writing CSV and Parquet files with the column types spelled out"
+      ],
+      "notGoodAt": ["Data spread across many machines; use a warehouse or Spark for that."],
+      "example": "When a month of sales exports arrives, the pipeline drops broken rows and totals revenue per region in seconds.",
+      "homepage": "https://pola.rs/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "pyarrow": {
+      "whatItIs": "The Python version of Apache Arrow, a shared in-memory table format that lets data tools such as DuckDB and Polars hand tables to each other without copying.",
+      "homepage": "https://arrow.apache.org/docs/python/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "pydantic": {
@@ -185,6 +393,16 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "pytest-django": {
+      "whatItIs": "A pytest plugin that sets up Django for tests and gives each test that asks for it a fresh test database.",
+      "homepage": "https://pytest-django.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "pytest-randomly": {
       "whatItIs": "Runs pytest tests in a shuffled order to catch tests that only pass in one order, and fixes random choices so failures can be repeated.",
       "homepage": "https://github.com/pytest-dev/pytest-randomly",
@@ -237,6 +455,24 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "streamlit": {
+      "whatItIs": "Streamlit, a Python library that turns a script into an interactive web page with filters, charts and tables, without writing any HTML or JavaScript.",
+      "goodAt": [
+        "Internal dashboards and data apps built by people who know Python",
+        "Sharing an analysis as a page others can filter and explore"
+      ],
+      "notGoodAt": [
+        "Public sites with custom design or many visitors; use a web framework for those."
+      ],
+      "example": "When the sales team wants this month's numbers, they open the page, pick their region and see revenue and a chart update at once.",
+      "homepage": "https://streamlit.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "structlog": {
@@ -297,6 +533,22 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "whitenoise": {
+      "whatItIs": "WhiteNoise, a Python library that lets a web app send its own stylesheets, scripts and images, compressed and cached, without a separate file server.",
+      "goodAt": [
+        "Serving a Django site's stylesheets and images from the app itself",
+        "Letting browsers keep those files cached until they change"
+      ],
+      "notGoodAt": ["Files people upload to the site; store those with a file storage service."],
+      "example": "When a visitor opens a second page, the browser reuses the stylesheet it already downloaded instead of fetching it again.",
+      "homepage": "https://whitenoise.readthedocs.io/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     }
   }

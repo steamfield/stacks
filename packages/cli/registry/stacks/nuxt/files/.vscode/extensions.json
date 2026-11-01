@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "oven.bun-vscode",
+    "editorconfig.editorconfig",
+    "yoavbls.pretty-ts-errors",
+    "usernamehw.errorlens",
+    "mikestead.dotenv"
+  ],
+  "unwantedRecommendations": ["biomejs.biome"]
+}

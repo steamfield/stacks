@@ -286,6 +286,74 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "@modelcontextprotocol/client": {
+      "whatItIs": "The official TypeScript library for connecting to MCP servers, the programs that give AI assistants tools to call.",
+      "goodAt": [
+        "Testing an MCP server the way an AI assistant would use it",
+        "Calling another MCP server's tools from your own program"
+      ],
+      "notGoodAt": ["Building the server itself; that is @modelcontextprotocol/server."],
+      "example": "A test starts the server, asks which tools it offers and calls one, checking the reply.",
+      "homepage": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@modelcontextprotocol/inspector": {
+      "whatItIs": "A developer tool for trying out an MCP server, from a web page or the command line, without an AI assistant.",
+      "goodAt": [
+        "Listing a server's tools and calling one by hand",
+        "Checking that a server's tool descriptions work with other clients"
+      ],
+      "notGoodAt": ["Running in production; it is for development only."],
+      "example": "Before sharing a server, the developer lists its tools from the command line and calls each one.",
+      "homepage": "https://github.com/modelcontextprotocol/inspector",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@modelcontextprotocol/server": {
+      "whatItIs": "The official TypeScript library for building MCP servers, programs that give AI assistants such as Claude tools they can call.",
+      "goodAt": [
+        "Letting an AI assistant use your data or service through named tools",
+        "Describing each tool's inputs so the assistant calls it correctly"
+      ],
+      "notGoodAt": ["Ordinary web APIs for apps and browsers; use a web API library such as Hono."],
+      "example": "A team's assistant calls a tool on the server to look up an order and gets back its status.",
+      "homepage": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nuxt/eslint": {
+      "whatItIs": "A Nuxt add-on that sets up ESLint, a tool that flags likely mistakes in code, with rules that match the project's Nuxt folders.",
+      "homepage": "https://eslint.nuxt.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nuxt/test-utils": {
+      "whatItIs": "Helpers for testing a Nuxt app, which run page parts inside a small copy of the app so its built-in features work in tests.",
+      "homepage": "https://nuxt.com/docs/getting-started/testing",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "@openrouter/ai-sdk-provider": {
       "whatItIs": "Lets the AI SDK, a JavaScript toolkit for AI features, use models from OpenRouter.",
       "goodAt": [
@@ -713,6 +781,16 @@
         "model": "codex/gpt-6-sol",
         "promptVersion": 1,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "@vue/test-utils": {
+      "whatItIs": "The official helpers for testing Vue components: put one on a test page, click and type in it, and check what it shows.",
+      "homepage": "https://test-utils.vuejs.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "@xterm/headless": {
@@ -1154,6 +1232,25 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "nuxt": {
+      "whatItIs": "Nuxt, a framework for building websites and web apps with Vue, including the server code that answers page and data requests.",
+      "goodAt": [
+        "Building a web app with several pages, forms and its own data routes",
+        "Showing a page the server has already filled with data, so it appears quickly"
+      ],
+      "notGoodAt": [
+        "Storing data by itself; connect a database for records that must last.",
+        "Phone apps; use Expo, a toolkit for building phone apps."
+      ],
+      "example": "When a visitor opens the booking page, the server fills in the open time slots before the page reaches the browser.",
+      "homepage": "https://nuxt.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "orval": {
@@ -1614,6 +1711,42 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "vue": {
+      "whatItIs": "Vue, a tool for building the parts of a web page that respond to users, written as components that keep their layout, behavior and style together.",
+      "goodAt": [
+        "Building forms, lists and menus that update when a user acts",
+        "Splitting a page into small parts that can be reused and tested"
+      ],
+      "notGoodAt": ["Serving pages or storing data by itself; add Nuxt and a database for that."],
+      "example": "When a shopper types in the search box, the list of products below narrows at once, without a reload.",
+      "homepage": "https://vuejs.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "vue-router": {
+      "whatItIs": "The official page-address handling for Vue apps, which shows the right page for each address; Nuxt uses it under the hood.",
+      "homepage": "https://router.vuejs.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "vue-tsc": {
+      "whatItIs": "A command-line checker that reports TypeScript errors in Vue components and the code around them.",
+      "homepage": "https://github.com/vuejs/language-tools/tree/master/packages/tsc",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "wrangler": {
       "whatItIs": "A command-line tool for running and publishing small server programs on Cloudflare Workers.",
       "goodAt": [
@@ -1678,6 +1811,216 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "@nestjs/core": {
+      "whatItIs": "The heart of NestJS, a framework for building servers in TypeScript that splits the code into modules and hands each part what it needs.",
+      "goodAt": [
+        "Larger backends that several developers work on at once",
+        "Servers where every feature follows the same layout"
+      ],
+      "notGoodAt": [
+        "Tiny services with a couple of routes; a lighter toolkit such as Hono is simpler."
+      ],
+      "example": "When a team adds an invoices feature, it gets its own module with the same parts as every other feature.",
+      "homepage": "https://nestjs.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/common": {
+      "whatItIs": "The shared building blocks of NestJS, such as the markers that turn a class into a route handler or a service.",
+      "homepage": "https://docs.nestjs.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/platform-express": {
+      "whatItIs": "Lets a NestJS server answer web requests through Express, the long-standing web server library for Node.",
+      "homepage": "https://docs.nestjs.com",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/config": {
+      "whatItIs": "Reads a NestJS server's settings, such as its port, from the environment and a local .env file, and checks them at startup.",
+      "goodAt": [
+        "Stopping a server at startup when a setting is wrong",
+        "Giving every part of the server the same settings"
+      ],
+      "notGoodAt": ["Keeping secrets safe on its own; use the host's secret storage for that."],
+      "example": "When someone sets the port to a word instead of a number, the server refuses to start and names the setting.",
+      "homepage": "https://docs.nestjs.com/techniques/configuration",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/swagger": {
+      "whatItIs": "Describes a NestJS server's endpoints in an OpenAPI document, a standard description of an API, and serves a page to try them.",
+      "goodAt": [
+        "Showing other developers every endpoint and the data it takes",
+        "Producing a file that tools turn into ready-made client code"
+      ],
+      "notGoodAt": ["Checking requests by itself; the server's validation does that."],
+      "example": "When a mobile developer needs to know what creating a note takes, they open the docs page and try it there.",
+      "homepage": "https://docs.nestjs.com/openapi/introduction",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/cli": {
+      "whatItIs": "The NestJS command line tool, which builds the server and writes new modules, controllers and services in the framework's layout.",
+      "homepage": "https://docs.nestjs.com/cli/overview",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/schematics": {
+      "whatItIs": "The templates the NestJS command line tool uses when it writes new modules, controllers and services.",
+      "homepage": "https://github.com/nestjs/schematics",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@nestjs/testing": {
+      "whatItIs": "Helpers for testing NestJS code, which build a small copy of the server's modules so a test can use or replace their parts.",
+      "homepage": "https://docs.nestjs.com/fundamentals/testing",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "reflect-metadata": {
+      "whatItIs": "Lets code record notes about its own classes, which NestJS reads to work out what each part needs.",
+      "homepage": "https://github.com/microsoft/reflect-metadata",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "rxjs": {
+      "whatItIs": "A library for handling values that arrive over time, such as events, which NestJS uses inside its request handling.",
+      "homepage": "https://rxjs.dev",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "class-validator": {
+      "whatItIs": "Checks the data a request sends against rules written on a TypeScript class, such as a required title of at most 200 characters.",
+      "goodAt": [
+        "Rejecting bad input before it reaches the server's logic",
+        "Telling a caller which field was wrong and why"
+      ],
+      "notGoodAt": [
+        "Checking data with no class behind it; a schema library such as zod fits better."
+      ],
+      "example": "When an app sends a note with an empty title, the server answers with an error naming the title field.",
+      "homepage": "https://github.com/typestack/class-validator",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "class-transformer": {
+      "whatItIs": "Turns plain request data into instances of TypeScript classes, so their checking rules and default values apply.",
+      "homepage": "https://github.com/typestack/class-transformer",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@types/express": {
+      "whatItIs": "Type definitions for Express, so TypeScript can check code that uses its requests and responses.",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "supertest": {
+      "whatItIs": "Sends real web requests to a server inside a test and checks the answers, without starting it by hand.",
+      "goodAt": [
+        "Checking each endpoint's status codes, headers and data",
+        "Testing the whole server path from request to response"
+      ],
+      "notGoodAt": ["Testing pages in a browser; use a browser testing tool for that."],
+      "example": "When a developer changes how notes are created, a test posts a note and checks the server answers with the new note.",
+      "homepage": "https://github.com/ladjs/supertest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "@types/supertest": {
+      "whatItIs": "Type definitions for supertest, so TypeScript can check tests that use it.",
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/supertest",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "oxlint": {
+      "whatItIs": "A fast checker for JavaScript and TypeScript that points out likely bugs, such as a forgotten await, before the code runs.",
+      "goodAt": [
+        "Catching common mistakes in seconds, even in large projects",
+        "Running on every save or commit without slowing work down"
+      ],
+      "notGoodAt": ["Tidying spacing and line breaks; use a formatter such as Prettier."],
+      "example": "When a developer forgets to wait for a save to finish, the checker flags the line before the change is merged.",
+      "homepage": "https://oxc.rs/docs/guide/usage/linter",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
+    "oxlint-tsgolint": {
+      "whatItIs": "Adds checks to oxlint that need TypeScript's understanding of the code, such as finding an unawaited promise.",
+      "homepage": "https://github.com/oxc-project/tsgolint",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     }
   }

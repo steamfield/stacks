@@ -1,0 +1,30 @@
+# Configuration
+
+`internal/config` reads every setting. Precedence: defaults, then environment
+variables, then flags. The server never loads a `.env` file: a host passes
+variables in the `env` entry of its server config, and a shell exports them.
+
+| Flag | Variable | Default | Validation |
+|---|---|---|---|
+| `--log-level` | `{{env_prefix}}_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` (any case) |
+| `--version` | | off | Prints the version and exits |
+| `--help` | | off | Prints usage and exits |
+
+A blank variable counts as unset. An unknown flag, a positional argument or
+an invalid value exits 2 with one line on stderr naming the setting.
+
+## Logs
+
+JSON on stderr, one record per line. At `info` the server logs `serving`, one
+`request` record per tool call (method, tool, duration, whether it was a tool
+error), any server fault with its cause, and `stopped` with the reason. At
+`debug` it also logs list and discovery requests. The SDK's own records come
+through at `warn` and above, tagged `"component":"mcp-sdk"`. Arguments and
+results are never logged.
+
+## Adding a setting
+
+Add the flag and its `{{env_prefix}}_*` variable in `internal/config`, with a
+default and validation, a precedence row in `TestLoadPrecedence`, a rejection
+row in `TestLoadRejects`, a line in `.env.example` and a row in the table
+above and in the README.

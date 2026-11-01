@@ -1,0 +1,47 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this web app does and who uses it. -->
+
+## Run it
+
+```bash
+make serve
+open http://127.0.0.1:8080/
+```
+
+The server renders HTML with templ, updates parts of the page with htmx, logs JSON to stdout and stops cleanly on Ctrl+C or SIGTERM. Forms work without JavaScript too.
+
+## Pages
+
+<!-- stacks:fill A table of the routes (method, path, what it renders or does), including /healthz and /static/, and which ones answer htmx requests with a fragment. -->
+
+## Configuration
+
+Settings come from environment variables only. See [docs/configuration.md](docs/configuration.md).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HOST` | `127.0.0.1` | Address to listen on (`0.0.0.0` in a container) |
+| `PORT` | `8080` | Port to listen on (`0` picks a free one) |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+| `SHUTDOWN_TIMEOUT` | `10s` | How long in-flight requests get after a stop signal |
+
+## Development
+
+Requires Go, make, curl, a C compiler (for the race detector) and [golangci-lint](https://golangci-lint.run/). templ runs through `go tool`, so it needs no separate install.
+
+| Command | What it does |
+|---|---|
+| `make generate` | Regenerate `*_templ.go` from the `.templ` components |
+| `make serve` | Build and run the server in the foreground |
+| `make test` | Unit, component and handler tests with the race detector |
+| `make test-integration` | Run the built binary, load pages and post forms, including signal shutdown |
+| `make lint` | golangci-lint |
+| `make htmx` | Download the latest htmx release into `static/vendor/` |
+| `make ci` | Everything CI runs |
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup and scoped tests, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for where code goes, and [docs/pages.md](docs/pages.md) for how pages, forms and htmx responses behave.
+
+## License
+
+Copyright (c) {{year}} {{author}}

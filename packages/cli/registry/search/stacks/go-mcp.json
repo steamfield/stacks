@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "go-mcp",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Go MCP server that gives Claude Code and other AI hosts your own tools, built as one binary they start over stdio.",
+  "description": "Start a Model Context Protocol server in Go on the official Go library. One unit-conversion tool proves the shape: its input and output are Go structs whose JSON Schemas the library derives, arguments are checked before the handler runs, and a caller's mistake comes back as a tool error the model can read and fix, while server faults and panics hide their cause and go to the log. Logs are JSON on stderr and a lint rule keeps prints off stdout, which belongs to the protocol. Tests call the tools through a real client in memory and by starting the built binary, and a dev client calls tools from the shell. It ships no remote HTTP transport, authentication or storage.",
+  "seoDescription": "A Go MCP server recipe on the official Go library: typed stdio tools with JSON Schemas from structs, readable tool errors and protocol tests.",
+  "projectExamples": [
+    {
+      "title": "Internal docs lookup for a coding assistant",
+      "description": "Illustrative: replace the conversion tool with search and fetch tools over the team's docs, so Claude Code can look things up. Access control and indexing are still the project's work."
+    },
+    {
+      "title": "Released MCP server binary",
+      "description": "Illustrative: publish the server as a binary for each platform, so teammates add it to their host with one command. goreleaser builds the archives on each tag.",
+      "withFragments": [
+        "goreleaser"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter Go program that AI coding assistants such as Claude Code run in the background to call tools you write, like a plugin.",
+    "goodAt": [
+      "Giving an AI assistant actions or lookups written in Go",
+      "Shipping those tools as one file with nothing else to install",
+      "Testing each tool the way an assistant would call it"
+    ],
+    "notGoodAt": [
+      "A shared server many people reach over the internet; this one runs on each machine.",
+      "Chat apps that call a language model; choose a stack built for AI chat."
+    ]
+  },
+  "platforms": [
+    "server"
+  ],
+  "productKinds": [],
+  "languages": [
+    "go"
+  ],
+  "requests": [
+    "build an MCP server in Go so Claude Code can call my tools",
+    "golang model context protocol server over stdio",
+    "write MCP tools in Go with JSON schemas from structs",
+    "let Claude call our internal API through tools written in Go",
+    "test a Go MCP server with an in-memory client"
+  ],
+  "useCases": [
+    "MCP servers in Go",
+    "custom tools for AI coding assistants",
+    "Claude Code integrations"
+  ],
+  "synonyms": [
+    "MCP",
+    "Model Context Protocol",
+    "MCP server",
+    "MCP tools",
+    "go-sdk",
+    "mcp-go alternative",
+    "stdio server",
+    "JSON-RPC",
+    "agent tools",
+    "tool calling"
+  ],
+  "goodFor": [
+    "typed tool inputs",
+    "tool errors a model can act on",
+    "one static binary"
+  ],
+  "notFor": [
+    "AI chat"
+  ],
+  "caveats": [
+    "Stdio only: each host starts its own copy, and a shared remote server needs the HTTP transport.",
+    "Race-enabled tests need cgo and a C compiler on every machine and CI runner."
+  ]
+}

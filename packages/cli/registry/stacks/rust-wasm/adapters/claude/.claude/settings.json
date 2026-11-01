@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make fmt)",
+      "Bash(make fmt-check)",
+      "Bash(make clippy)",
+      "Bash(make lint)",
+      "Bash(make test)",
+      "Bash(make test-wasm)",
+      "Bash(make build)",
+      "Bash(make pack)",
+      "Bash(make typecheck-js)",
+      "Bash(make test-js)",
+      "Bash(make audit)",
+      "Bash(make ci)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo check *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo test *)",
+      "Bash(cargo tree *)",
+      "Bash(cargo metadata *)",
+      "Bash(wasm-pack build *)",
+      "Bash(wasm-pack test *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-rust-wasm.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

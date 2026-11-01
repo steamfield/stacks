@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "ci-github",
   "source": {
-    "digest": "sha256:157b7a775850b05b1d90db4b5c9464091d10ce38a0cd6cd16ae1b006f4a56adf",
+    "digest": "sha256:b20acb9046dbb1f29374731eef1c690dd3e73d15158439e2de8bdc00877aae00",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,

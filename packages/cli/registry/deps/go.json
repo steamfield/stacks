@@ -88,6 +88,25 @@
         "reviewedAt": null
       }
     },
+    "github.com/a-h/templ": {
+      "whatItIs": "templ, a library and code generator for the Go programming language that turns HTML components written in .templ files into Go functions, so the compiler checks every page's data.",
+      "goodAt": [
+        "Building web pages from small reusable components",
+        "Catching a missing or misnamed value in a page when the code compiles",
+        "Escaping user text in HTML automatically"
+      ],
+      "notGoodAt": [
+        "Pages that run mostly in the browser; a JavaScript framework such as React fits better."
+      ],
+      "example": "An order page is a component that takes an order and its line items, and the build fails if the page uses a field the order doesn't have.",
+      "homepage": "https://templ.guide",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "github.com/charmbracelet/x/exp/teatest": {
       "whatItIs": "teatest, an experimental test helper that runs a Bubble Tea terminal app without a terminal, sends it key presses and checks what it shows.",
       "homepage": "https://github.com/charmbracelet/x/tree/main/exp/teatest",
@@ -114,6 +133,25 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "github.com/modelcontextprotocol/go-sdk": {
+      "whatItIs": "The official Model Context Protocol (MCP) library for the Go programming language, for building servers that give AI assistants tools to call, and clients that call them.",
+      "goodAt": [
+        "Giving Claude Code or an IDE assistant tools written in Go",
+        "Describing each tool's inputs from a Go struct, so the assistant gets a checked form",
+        "Testing a server and client in one process without starting either"
+      ],
+      "notGoodAt": [
+        "Ordinary web APIs that people or other services call; a Go API stack fits better."
+      ],
+      "example": "A team's Go server gives their coding assistant a tool that looks up an order by number, and the assistant calls it while answering a support question.",
+      "homepage": "https://github.com/modelcontextprotocol/go-sdk",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
+      }
+    },
     "github.com/pressly/goose": {
       "whatItIs": "goose, a tool and library for the Go programming language that records changes to a database's tables and applies them in order.",
       "goodAt": [
@@ -128,6 +166,16 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "github.com/PuerkitoBio/goquery": {
+      "whatItIs": "goquery, a Go library that reads an HTML page and finds parts of it with CSS selectors, often used to check pages in tests.",
+      "homepage": "https://github.com/PuerkitoBio/goquery",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": null
       }
     },
     "github.com/spf13/cobra": {

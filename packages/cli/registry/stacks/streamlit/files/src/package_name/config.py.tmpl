@@ -1,0 +1,39 @@
+"""Settings: defaults, then a .env file, then environment variables."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Literal
+
+from pydantic import ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from package_name.errors import AppError, ErrorCode
+
+APP_TITLE = "{{project_name}}"
+ENV_PREFIX = "{{env_prefix}}_"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix=ENV_PREFIX, env_file=".env", extra="forbid", frozen=True
+    )
+
+    data_path: Path = Path("data/sample.csv")
+    log_level: Literal["debug", "info", "warning", "error"] = "info"
+    log_format: Literal["console", "json"] = "console"
+
+
+def load_settings() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as error:
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in issue['loc'])}: {issue['msg']}"
+            for issue in error.errors()
+        )
+        raise AppError(
+            ErrorCode.CONFIG,
+            f"invalid configuration: {problems}",
+            f"Fix the {ENV_PREFIX}* variable in the environment or .env.",
+        ) from error

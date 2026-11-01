@@ -1,0 +1,47 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this package does and who it's for. wasm-pack copies this file into the npm package, so it is also the npm page. -->
+
+## Install
+
+<!-- stacks:fill The install line people should run (npm, bun or pnpm), in a bash code block, and the bundlers or runtimes the package is tested with. -->
+
+## Usage
+
+```ts
+import { Slugger, slugify, type SlugError } from "{{project_slug}}";
+
+slugify("Hello, World!"); // "hello-world"
+slugify("Hello brave new world", { separator: "_", maxLength: 11 }); // "hello_brave"
+
+try {
+  slugify("   ");
+} catch (error) {
+  console.log((error as SlugError).code); // "empty_input"
+}
+
+// A Slugger holds WebAssembly memory: `using` frees it at the end of the block.
+{
+  using headings = new Slugger();
+  headings.slug("Intro"); // "intro"
+  headings.slug("Intro"); // "intro-2"
+}
+```
+
+The package is ES modules that import the `.wasm` file directly, which bundlers (Vite with a WebAssembly plugin, webpack, Rollup) and current Node load.
+
+## Errors
+
+Every function throws an `Error` named `SlugError` with a stable `code`:
+
+| Code | When |
+| --- | --- |
+| `empty_input` | The input is empty or only whitespace |
+| `empty_result` | The input has no letters or digits |
+| `invalid_option` | An option is unknown, has the wrong type or is out of range; `field` names it |
+
+## License
+
+Licensed under either of Apache License, Version 2.0 or MIT license, at your option.
+
+Copyright (c) {{year}} {{author}}

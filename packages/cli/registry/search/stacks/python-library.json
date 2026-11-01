@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "python-library",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A typed Python library other code imports, packaged for PyPI with uv, tested on the oldest and newest supported Python.",
+  "description": "Write a Python library with a small typed public API, an exception hierarchy callers can catch in one place, and a py.typed marker so users get type hints. uv and make run ruff, strict mypy and pytest with Hypothesis properties on the newest and oldest supported Python, build the wheel and sdist, check them with twine and install the wheel in a clean environment. Replace the sample duration parser with your own API; uploading to PyPI stays a step you run yourself.",
+  "seoDescription": "A Python library recipe with a typed public API, py.typed, Hypothesis tests on old and new Python, and a wheel checked from a clean install.",
+  "projectExamples": [
+    {
+      "title": "Config value parsers",
+      "description": "Grow the sample into a small package of parsers for sizes, rates and durations that several internal services share, each with round-trip properties."
+    },
+    {
+      "title": "API client package",
+      "description": "Wrap a company's HTTP API in a typed client other teams install from PyPI, after agreeing on the one runtime dependency it needs for requests."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for reusable Python code that other programs install and import, rather than a program people run directly.",
+    "goodAt": [
+      "Sharing tested code between projects as an installable package",
+      "Giving users type hints and clear errors they can catch",
+      "Proving the package installs and works before you publish it"
+    ],
+    "notGoodAt": [
+      "A tool people run from the terminal; choose the Python CLI stack.",
+      "A web service; choose the Python API stack."
+    ]
+  },
+  "platforms": [],
+  "productKinds": [
+    "library"
+  ],
+  "languages": [
+    "python"
+  ],
+  "requests": [
+    "create a python package I can publish to pypi",
+    "start a reusable typed python library with a py.typed marker",
+    "an importable python module other projects pip install",
+    "python sdk with an exception hierarchy and property-based tests"
+  ],
+  "useCases": [
+    "shared internal packages",
+    "open source Python packages",
+    "typed SDKs"
+  ],
+  "synonyms": [
+    "pypi package",
+    "python package",
+    "pip package",
+    "wheel",
+    "sdist",
+    "src layout",
+    "uv_build",
+    "hatchling"
+  ],
+  "goodFor": [
+    "public API stability",
+    "supported Python range",
+    "packaging checks",
+    "Hypothesis property tests"
+  ],
+  "notFor": []
+}

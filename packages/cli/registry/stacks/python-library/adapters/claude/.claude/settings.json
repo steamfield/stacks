@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make lint)",
+      "Bash(make format)",
+      "Bash(make typecheck)",
+      "Bash(make test)",
+      "Bash(make coverage)",
+      "Bash(make test-min)",
+      "Bash(make build)",
+      "Bash(make smoke)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run ruff check *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-python-library.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

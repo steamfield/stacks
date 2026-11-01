@@ -1,0 +1,27 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this app shows and who uses it. -->
+
+## Usage
+
+```bash
+make dev      # http://127.0.0.1:8501, rerunning the page on every save
+```
+
+<!-- stacks:fill Where the data comes from and how it gets into the app. -->
+
+Settings come from `{{env_prefix}}_*` environment variables or a `.env` file (see `.env.example`). `PORT_WEB` and `WEB_HOST` choose where `make dev` and `make start` listen.
+
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) and make.
+
+| Command | What it does |
+|---|---|
+| `make install` | Create `.venv` and install the project and its dev tools |
+| `make lint` / `make format` | Check / fix lint and formatting (ruff) |
+| `make typecheck` | mypy strict over `app.py`, the package and the tests |
+| `make coverage` | Tests, including the page through Streamlit's AppTest, with the coverage floor |
+| `make start` | Serve the app as a deploy would |
+
+Run `make help` for the full list. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the modules.

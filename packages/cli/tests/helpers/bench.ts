@@ -51,7 +51,8 @@ export type Scenario =
   | "no-notes"
   | "version-error"
   | "malformed"
-  | "nonzero";
+  | "nonzero"
+  | "read-only-cache";
 
 function onDate(date: string | undefined) {
   return <A, E, R>(program: Effect.Effect<A, E, R>) =>
@@ -169,7 +170,7 @@ export function benchFixture(space: ReturnType<typeof workspace>, compiled?: () 
     frontmatter: minimal(
       "stack",
       "sample",
-      `fragments:\n  optional: [extra]\nenv:\n  PORT_BENCH: "4321"\nverify:\n  - name: files\n    layer: test\n    run: node -e 'const fs = require("node:fs"); for (const f of ["one.txt", "two.txt"]) if (!fs.existsSync(f)) process.exit(1)'`,
+      `fragments:\n  optional: [extra]\nenv:\n  PORT: "8080"\n  PORT_BENCH: "4321"\nverify:\n  - name: files\n    layer: test\n    run: node -e 'const fs = require("node:fs"); for (const f of ["one.txt", "two.txt"]) if (!fs.existsSync(f)) process.exit(1)'`,
     ),
     body: "# Build\n\nWrite one.txt and two.txt, then run verify.\n",
   });

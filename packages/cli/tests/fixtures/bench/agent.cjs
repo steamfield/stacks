@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const { spawn, spawnSync } = require("node:child_process");
-const { readFileSync, writeFileSync, rmSync } = require("node:fs");
+const { chmodSync, mkdirSync, readFileSync, writeFileSync, rmSync } = require("node:fs");
 const { dirname, join } = require("node:path");
 const config = JSON.parse(readFileSync(`${__filename}.json`, "utf8"));
 const args = process.argv.slice(2);
@@ -48,7 +48,15 @@ if (config.scenario === "block") {
     manifest.verify[0].run = "true";
     writeFileSync(file, JSON.stringify(manifest));
   }
-  if (scenario === "success" || scenario === "no-notes") {
+  if (scenario === "read-only-cache") {
+    // Go's module cache: files and directories without write permission, inside HOME.
+    const dir = join(process.env.HOME, "go/pkg/mod/example.com/mod@v1.0.0");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "go.mod"), "module example.com/mod\n");
+    chmodSync(join(dir, "go.mod"), 0o444);
+    chmodSync(dir, 0o555);
+  }
+  if (["success", "no-notes", "read-only-cache"].includes(scenario)) {
     const wrapper = join(dirname(cwd), "bench", "verify");
     const verified = spawnSync(wrapper, ["--json"], { cwd, env: process.env });
     if (verified.error) throw verified.error;

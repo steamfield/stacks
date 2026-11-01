@@ -1,4 +1,13 @@
-import { Clock, Duration, Effect, FileSystem, Option, Path, Schema } from "effect";
+import {
+  Clock,
+  Duration,
+  Effect,
+  FileSystem,
+  Option,
+  Path,
+  type PlatformError,
+  Schema,
+} from "effect";
 import { AppConfig, type Environment } from "../../src/config";
 import { type ComposeOptions, compose } from "../../src/core/compose/compose";
 import { fingerprint } from "../../src/core/fingerprint";
@@ -161,10 +170,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
             ...(captured.TMPDIR ? { directory: captured.TMPDIR } : {}),
             prefix: "stacks-bench-",
           }),
-          (directory) =>
-            options.keep
-              ? Effect.void
-              : fs.remove(directory, { recursive: true }).pipe(Effect.orDie),
+          (directory) => (options.keep ? Effect.void : removeRoot(fs, directory)),
         );
         // The real path, so every path the agent is given matches what `pwd` prints there
         // (macOS's TMPDIR is under /var, a symlink to /private/var).
@@ -177,8 +183,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
     const workspace = yield* openWorkspace;
     const { root, ports, previousNote } = workspace;
     let fixedWords = workspace.fixedWords;
-    if (options.existing && !options.keep)
-      yield* Effect.addFinalizer(() => fs.remove(root, { recursive: true }).pipe(Effect.orDie));
+    if (options.existing && !options.keep) yield* Effect.addFinalizer(() => removeRoot(fs, root));
     const home = path.join(root, "home");
     const prefix = path.join(root, "prefix");
     const cli = path.join(prefix, "bin/stacks");
@@ -194,7 +199,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
     });
     const allocatePorts = Effect.gen(function* () {
       for (const key of Object.keys(composition.env)
-        .filter((key) => key.startsWith("PORT_"))
+        .filter((key) => key === "PORT" || key.startsWith("PORT_"))
         .sort()) {
         let port: string;
         do {
@@ -351,6 +356,28 @@ const resolveCredentials = (
       ),
     );
   });
+
+/**
+ * Removes a throwaway root. Toolchains leave read-only directories behind (Go's module cache
+ * under HOME), so a failed removal makes every real directory in the root writable, symlinks
+ * untouched, and tries once more. The failed removal may have deleted part of the tree already,
+ * so an entry gone by the time the walk reaches it is skipped.
+ */
+function removeRoot(fs: FileSystem.FileSystem, root: string) {
+  const remove = fs.remove(root, { recursive: true });
+  const gone = (error: PlatformError.PlatformError) =>
+    error.reason._tag === "NotFound" ? Effect.void : Effect.fail(error);
+  const makeWritable = (path: string): Effect.Effect<void, PlatformError.PlatformError> =>
+    Effect.gen(function* () {
+      if ((yield* fs.lstat(path)).type !== "Directory") return;
+      yield* fs.chmod(path, 0o700);
+      for (const name of yield* fs.readDirectory(path)) yield* makeWritable(`${path}/${name}`);
+    }).pipe(Effect.catch(gone));
+  return remove.pipe(
+    Effect.catch(() => makeWritable(root).pipe(Effect.andThen(remove))),
+    Effect.orDie,
+  );
+}
 
 /** Every bench run uses one agent setup unless --agent says otherwise, so proofs compare. */
 const DEFAULT_AGENT = "codex";

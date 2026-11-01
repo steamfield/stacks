@@ -217,6 +217,10 @@ test("the agent sees only the selected fake token and a fresh home [2.0b#6]", as
   expect(env.PORT_BENCH).toMatch(/^\d+$/);
   expect(Number(env.PORT_BENCH)).toBeGreaterThan(0);
   expect(Number(env.PORT_BENCH)).toBeLessThan(65536);
+  // A bare PORT (go-api, spring-boot-api) is a port too, so a busy 8080 can't fail the serve step.
+  expect(env.PORT).toMatch(/^\d+$/);
+  expect(env.PORT).not.toBe("8080");
+  expect(env.PORT).not.toBe(env.PORT_BENCH);
   for (const call of f
     .cliCalls()
     .filter((call) => ["new", "verify"].some((command) => call.args.includes(command))))
@@ -258,6 +262,18 @@ test("an earlier run's uncommitted ledger doesn't block the next run", async ({ 
   passed(await f.invoke([]));
   expect(f.ledger()).toHaveLength(2);
 }, 120_000);
+
+test("a read-only module cache in the fresh HOME is still removed after the run", async ({
+  space,
+}) => {
+  const f = benchFixture(space, compiled);
+  f.configure("read-only-cache");
+  passed(await f.invoke([]));
+  const home = f.observe().env.HOME;
+  if (!home) throw new Error("Missing agent HOME");
+  expect(existsSync(dirname(home))).toBe(false);
+  expect(f.ledger()).toHaveLength(1);
+}, 60_000);
 
 test("no-record still runs the full bench and writes neither ledger nor note [2.0b#8]", async ({
   space,

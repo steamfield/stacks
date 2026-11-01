@@ -470,4 +470,5 @@ test("changing body text stales only its card and restamp changes only the revie
       await validateSearch(f.registry, { home: join(f.root, "home"), bundled: true }),
     ).filter(({ check }) => check === "search-stale"),
   ).toEqual([]);
-}, 30_000);
+  // Validates the whole bundled registry twice: about 12 s alone, more than 30 s on a loaded gate.
+}, 60_000);

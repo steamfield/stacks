@@ -249,12 +249,19 @@ export async function fixture(temporary: string) {
   git("commit", "--quiet", "-m", "fixture: registry");
   const commit = git("rev-parse", "HEAD");
   const out = join(root, "-published output café");
-  const invoke = (args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) =>
+  const invoke = (
+    args: string[],
+    options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout?: number } = {},
+  ) =>
     new Promise<{ status: number; stdout: string; stderr: string }>((resolve, reject) => {
       execFile(
         "bun",
         ["--no-env-file", "--config=/dev/null", join(cli, "scripts/build-index.ts"), ...args],
-        { cwd: options.cwd ?? cli, env: { ...env, ...options.env }, timeout: 20_000 },
+        {
+          cwd: options.cwd ?? cli,
+          env: { ...env, ...options.env },
+          timeout: options.timeout ?? 20_000,
+        },
         (error, stdout, stderr) => {
           if (error === null) resolve({ status: 0, stdout, stderr });
           else if (typeof error.code === "number") resolve({ status: error.code, stdout, stderr });

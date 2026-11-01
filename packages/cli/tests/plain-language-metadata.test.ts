@@ -483,8 +483,9 @@ test("every bundled entry has plain copy, every used dependency has a card, and 
         expect(file.cards[key], `${ecosystem}/${key}`).toBeDefined();
       }
   }
-  // Whole-registry validation and one show per entry can exceed the default 5 s on shared hosts.
-}, 30_000);
+  // Whole-registry validation and one show per entry take about 11 s for 41 stacks, and more than
+  // 30 s on a loaded gate host.
+}, 60_000);
 
 test("show go-cli includes the canonical go-yaml card and preserves its full import path", async () => {
   const root = join(import.meta.dirname, "../registry");

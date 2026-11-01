@@ -176,7 +176,7 @@ const program = Effect.gen(function* () {
   const lexical = lexicalRank(entries, data.vocabulary);
   yield* Console.log(report("Lexical", golden, lexical));
   if (!options.embeddings) {
-    yield* Console.log(queryReport(golden, [{ label: "Lexical", rank: lexical }]));
+    yield* writeReport(queryReport(golden, [{ label: "Lexical", rank: lexical }]));
     return;
   }
   const vectors = yield* Effect.tryPromise({
@@ -209,13 +209,20 @@ const program = Effect.gen(function* () {
   };
   yield* Console.log("\nFused ranks use RRF (k=60); tiers remain lexical for this experiment.");
   yield* Console.log(report("Fused", golden, fused));
-  yield* Console.log(
+  yield* writeReport(
     queryReport(golden, [
       { label: "Lexical", rank: lexical },
       { label: "Fused", rank: fused },
     ]),
   );
 });
+// Past the pipe buffer (64 KiB), Bun dropped the rest of a Console.log once the script ended, so
+// the long per-query report waits for its write to finish.
+function writeReport(text: string) {
+  return Effect.callback<void>((resume) => {
+    process.stdout.write(`${text}\n`, () => resume(Effect.void));
+  });
+}
 process.exitCode = await Effect.runPromise(
   program.pipe(
     Effect.provide(Registry.layer([{ origin: "bundled", path: root }])),

@@ -252,6 +252,13 @@ test.for(["token", "dirty"])(
   },
 );
 
+test("an earlier run's uncommitted ledger doesn't block the next run", async ({ space }) => {
+  const f = benchFixture(space, compiled);
+  passed(await f.invoke([]));
+  passed(await f.invoke([]));
+  expect(f.ledger()).toHaveLength(2);
+}, 120_000);
+
 test("no-record still runs the full bench and writes neither ledger nor note [2.0b#8]", async ({
   space,
 }) => {

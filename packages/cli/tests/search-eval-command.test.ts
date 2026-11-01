@@ -65,7 +65,7 @@ function evaluateCommand(home: string, args: string[], env: NodeJS.ProcessEnv) {
             ...env,
           },
           stdio: ["ignore", "pipe", "pipe"],
-          timeout: 25_000,
+          timeout: 60_000,
         },
       );
       const stdout: Buffer[] = [];
@@ -84,7 +84,8 @@ function evaluateCommand(home: string, args: string[], env: NodeJS.ProcessEnv) {
   );
 }
 
-// A real child plus embedding a complete registry can exceed Vitest's default five seconds.
+// A real child plus embedding a complete registry takes about 25 s with the 41-stack registry and
+// longer under a loaded gate.
 test("eval compares lexical and fused metrics, calls embeddings only when requested [4.5c#13]", async () => {
   const golden = Schema.decodeUnknownSync(GoldenSet)(
     readJson(join(cliRoot, "tests/fixtures/search/golden.json")),
@@ -179,4 +180,4 @@ test("eval compares lexical and fused metrics, calls embeddings only when reques
       server.close((error) => (error ? reject(error) : resolve())),
     );
   }
-}, 30_000);
+}, 150_000);

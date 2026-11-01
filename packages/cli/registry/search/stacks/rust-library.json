@@ -52,6 +52,7 @@
     "shared Rust code across projects"
   ],
   "synonyms": [
+    "rust sdk",
     "crate",
     "lib.rs",
     "rustdoc",

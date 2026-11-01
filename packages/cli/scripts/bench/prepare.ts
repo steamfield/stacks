@@ -82,7 +82,12 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
     if (!agentVersion) return yield* Effect.fail(new Error("Agent version is empty"));
     const repo = yield* exec(["git", "rev-parse", "--show-toplevel"]);
     const repoCommit = yield* exec(["git", "rev-parse", "HEAD"], repo);
-    const dirty = yield* exec(["git", "status", "--porcelain", "--", "packages/cli/"], repo);
+    // The ledger is the bench's own output, so an earlier run's uncommitted records don't block
+    // the next one; any other change would make the recorded commit lie about what ran.
+    const dirty = yield* exec(
+      ["git", "status", "--porcelain", "--", "packages/cli/", ":!packages/cli/registry/runs.json"],
+      repo,
+    );
     if (dirty) return yield* Effect.fail(new Error("Uncommitted changes under packages/cli/"));
     const packageRoot = path.join(repo, "packages/cli");
     const registry = path.join(packageRoot, "registry");

@@ -220,7 +220,12 @@ test("the bundled registry's current entries build a signed directory [4.2c#5]",
   // The fixture has no release tags, so a removal row's last published content can't resolve.
   writeFileSync(join(f.registry, "removed.json"), '{ "schemaVersion": 1, "entries": {} }\n');
   commitAt(f, "2026-11-06T12:00:00Z", "fixture: bundled registry");
-  await buildDirectory(f);
+  // Building every bundled entry takes about 10 s alone and longer under a loaded gate.
+  succeeded(
+    await f.invoke(["--out", f.out, "--previous", "none", "--key", privateKey], {
+      timeout: 55_000,
+    }),
+  );
   const directory = await readDirectory(f.out);
   expect(directory.removed).toEqual([]);
   // The bundled ledger proves no stack today, so the index may be empty; the rows still match.

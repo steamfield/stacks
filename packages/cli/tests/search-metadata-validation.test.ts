@@ -156,7 +156,7 @@ test("180 text words warn without treating long text as invalid [4.5b#7]", {
 test.each([
   { caveats: ["one", "two", "three", "four"] },
   { caveats: [Array.from({ length: 30 }, () => "word").join(" ")] },
-])("caveat limits warn: %j [4.5b#13c]", async (overrides) => {
+])("caveat limits warn: %j [4.5b#13c]", { timeout: 15_000 }, async (overrides) => {
   const f = setup();
   put(cardPath(f.root, sample), JSON.stringify({ ...(await stamp(f.root, sample)), ...overrides }));
   expect(rows(await validateSearch(f.root, f))).toEqual([
@@ -171,13 +171,20 @@ test.each([
   { goodFor: Array.from({ length: 5 }, (_, n) => `use ${n}`) },
   { notFor: Array.from({ length: 5 }, (_, n) => `avoid ${n}`) },
   { languages: ["typescript", "python", "go", "rust"] },
-])("field counts warn without rejecting text: %j [4.5b#7]", async (overrides) => {
-  const f = setup();
-  put(cardPath(f.root, sample), JSON.stringify({ ...(await stamp(f.root, sample)), ...overrides }));
-  expect(rows(await validateSearch(f.root, f))).toEqual([
-    { check: "search-size", severity: "warning", kind: "stack", entry: "sample" },
-  ]);
-});
+])(
+  "field counts warn without rejecting text: %j [4.5b#7]",
+  { timeout: 15_000 },
+  async (overrides) => {
+    const f = setup();
+    put(
+      cardPath(f.root, sample),
+      JSON.stringify({ ...(await stamp(f.root, sample)), ...overrides }),
+    );
+    expect(rows(await validateSearch(f.root, f))).toEqual([
+      { check: "search-size", severity: "warning", kind: "stack", entry: "sample" },
+    ]);
+  },
+);
 
 test("caveats are optional and empty fragment capabilities decode [4.5b#13c] [4.5b#13d]", async () => {
   const { SearchMetadata } = await import("@steamfield/stacks-format");

@@ -1688,6 +1688,438 @@
           "grade": 2
         }
       ]
+    },
+    {
+      "id": "stack-django-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "batteries-included python framework site with an admin backend",
+      "first": { "kind": "stack", "id": "django" },
+      "relevant": [{ "kind": "stack", "id": "django", "grade": 2 }]
+    },
+    {
+      "id": "stack-django-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "server-side rendered python pages with database models and HTML forms",
+      "first": { "kind": "stack", "id": "django" },
+      "relevant": [{ "kind": "stack", "id": "django", "grade": 2 }]
+    },
+    {
+      "id": "stack-django-api-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "build a REST API with Django",
+      "first": { "kind": "stack", "id": "django-api" },
+      "relevant": [{ "kind": "stack", "id": "django-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-django-api-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "drf api",
+      "first": { "kind": "stack", "id": "django-api" },
+      "relevant": [{ "kind": "stack", "id": "django-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-grpc-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "grpc service in go",
+      "first": { "kind": "stack", "id": "go-grpc" },
+      "relevant": [{ "kind": "stack", "id": "go-grpc", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-grpc-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "protobuf rpc backend written in golang",
+      "first": { "kind": "stack", "id": "go-grpc" },
+      "relevant": [{ "kind": "stack", "id": "go-grpc", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-htmx-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "go web app with server rendered html and htmx",
+      "first": { "kind": "stack", "id": "go-htmx" },
+      "relevant": [{ "kind": "stack", "id": "go-htmx", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-htmx-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "golang website using templ components",
+      "first": { "kind": "stack", "id": "go-htmx" },
+      "relevant": [{ "kind": "stack", "id": "go-htmx", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-library-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "write a golang library with godoc examples",
+      "first": { "kind": "stack", "id": "go-library" },
+      "relevant": [{ "kind": "stack", "id": "go-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-library-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "go module without a main package",
+      "first": { "kind": "stack", "id": "go-library" },
+      "relevant": [{ "kind": "stack", "id": "go-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-mcp-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "mcp server in go",
+      "first": { "kind": "stack", "id": "go-mcp" },
+      "relevant": [{ "kind": "stack", "id": "go-mcp", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-mcp-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "give my coding assistant tools written in golang",
+      "first": { "kind": "stack", "id": "go-mcp" },
+      "relevant": [{ "kind": "stack", "id": "go-mcp", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-tui-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "terminal ui in go with bubble tea",
+      "first": { "kind": "stack", "id": "go-tui" },
+      "relevant": [{ "kind": "stack", "id": "go-tui", "grade": 2 }]
+    },
+    {
+      "id": "stack-go-tui-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "interactive golang tui that reacts to each keypress",
+      "first": { "kind": "stack", "id": "go-tui" },
+      "relevant": [{ "kind": "stack", "id": "go-tui", "grade": 2 }]
+    },
+    {
+      "id": "stack-hono-api-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "hono json server with openapi spec",
+      "first": { "kind": "stack", "id": "hono-api" },
+      "relevant": [{ "kind": "stack", "id": "hono-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-hono-api-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "hono api with zod request validation",
+      "first": { "kind": "stack", "id": "hono-api" },
+      "relevant": [{ "kind": "stack", "id": "hono-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-java-cli-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "picocli command line app",
+      "first": { "kind": "stack", "id": "java-cli" },
+      "relevant": [{ "kind": "stack", "id": "java-cli", "grade": 2 }]
+    },
+    {
+      "id": "stack-java-cli-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "java terminal utility packaged as a jar",
+      "first": { "kind": "stack", "id": "java-cli" },
+      "relevant": [{ "kind": "stack", "id": "java-cli", "grade": 2 }]
+    },
+    {
+      "id": "stack-java-library-1",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "shareable java code that other services pull in via maven",
+      "first": { "kind": "stack", "id": "java-library" },
+      "relevant": [{ "kind": "stack", "id": "java-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-java-library-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "library in java with javadoc",
+      "first": { "kind": "stack", "id": "java-library" },
+      "relevant": [{ "kind": "stack", "id": "java-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-nestjs-api-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "start a NestJS API",
+      "first": { "kind": "stack", "id": "nestjs-api" },
+      "relevant": [{ "kind": "stack", "id": "nestjs-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-nestjs-api-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "a TypeScript backend with dependency injection, modules and controllers",
+      "first": { "kind": "stack", "id": "nestjs-api" },
+      "relevant": [{ "kind": "stack", "id": "nestjs-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-nuxt-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "vue.js app with ssr",
+      "first": { "kind": "stack", "id": "nuxt" },
+      "relevant": [{ "kind": "stack", "id": "nuxt", "grade": 2 }]
+    },
+    {
+      "id": "stack-nuxt-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "vuejs full stack web app",
+      "first": { "kind": "stack", "id": "nuxt" },
+      "relevant": [{ "kind": "stack", "id": "nuxt", "grade": 2 }]
+    },
+    {
+      "id": "stack-python-cli-1",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "a terminal command in Python that teammates install with pipx",
+      "first": { "kind": "stack", "id": "python-cli" },
+      "relevant": [{ "kind": "stack", "id": "python-cli", "grade": 2 }]
+    },
+    {
+      "id": "stack-python-cli-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "python command line tool with typer and subcommands",
+      "first": { "kind": "stack", "id": "python-cli" },
+      "relevant": [{ "kind": "stack", "id": "python-cli", "grade": 2 }]
+    },
+    {
+      "id": "stack-python-data-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "turn messy csv exports into clean parquet files",
+      "first": { "kind": "stack", "id": "python-data" },
+      "relevant": [{ "kind": "stack", "id": "python-data", "grade": 2 }]
+    },
+    {
+      "id": "stack-python-data-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "local sql analytics over data files with duckdb and polars",
+      "first": { "kind": "stack", "id": "python-data" },
+      "relevant": [{ "kind": "stack", "id": "python-data", "grade": 2 }]
+    },
+    {
+      "id": "stack-python-library-1",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "ship a reusable module to PyPI for other teams",
+      "first": { "kind": "stack", "id": "python-library" },
+      "relevant": [{ "kind": "stack", "id": "python-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-python-library-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "open source python library",
+      "first": { "kind": "stack", "id": "python-library" },
+      "relevant": [{ "kind": "stack", "id": "python-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-quarkus-api-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "quarkus rest service",
+      "first": { "kind": "stack", "id": "quarkus-api" },
+      "relevant": [{ "kind": "stack", "id": "quarkus-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-quarkus-api-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "quarkus microservice compiled to a native binary",
+      "first": { "kind": "stack", "id": "quarkus-api" },
+      "relevant": [{ "kind": "stack", "id": "quarkus-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-react-vite-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "react single page app with vite",
+      "first": { "kind": "stack", "id": "react-vite" },
+      "relevant": [{ "kind": "stack", "id": "react-vite", "grade": 2 }]
+    },
+    {
+      "id": "stack-react-vite-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "client-side react frontend with no server rendering",
+      "first": { "kind": "stack", "id": "react-vite" },
+      "relevant": [{ "kind": "stack", "id": "react-vite", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-api-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "http backend written in rust",
+      "first": { "kind": "stack", "id": "rust-api" },
+      "relevant": [{ "kind": "stack", "id": "rust-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-api-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "rust server that stops cleanly on sigterm",
+      "first": { "kind": "stack", "id": "rust-api" },
+      "relevant": [{ "kind": "stack", "id": "rust-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-cli-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "clap based command line program in rust",
+      "first": { "kind": "stack", "id": "rust-cli" },
+      "relevant": [{ "kind": "stack", "id": "rust-cli", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-cli-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "rust binary that reads settings from a toml file and env vars",
+      "first": { "kind": "stack", "id": "rust-cli" },
+      "relevant": [{ "kind": "stack", "id": "rust-cli", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-library-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "rust sdk",
+      "first": { "kind": "stack", "id": "rust-library" },
+      "relevant": [{ "kind": "stack", "id": "rust-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-library-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "a rust parser crate",
+      "first": { "kind": "stack", "id": "rust-library" },
+      "relevant": [{ "kind": "stack", "id": "rust-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-tui-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "terminal dashboard for my rust project using ratatui",
+      "first": { "kind": "stack", "id": "rust-tui" },
+      "relevant": [{ "kind": "stack", "id": "rust-tui", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-tui-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "rust app that draws panels in the terminal with crossterm",
+      "first": { "kind": "stack", "id": "rust-tui" },
+      "relevant": [{ "kind": "stack", "id": "rust-tui", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-wasm-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "ship a webassembly build of my rust code to npm",
+      "first": { "kind": "stack", "id": "rust-wasm" },
+      "relevant": [{ "kind": "stack", "id": "rust-wasm", "grade": 2 }]
+    },
+    {
+      "id": "stack-rust-wasm-2",
+      "pool": "product",
+      "split": "holdout",
+      "query": "image processing in the browser with rust",
+      "first": { "kind": "stack", "id": "rust-wasm" },
+      "relevant": [{ "kind": "stack", "id": "rust-wasm", "grade": 2 }]
+    },
+    {
+      "id": "stack-spring-boot-api-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "spring boot service for our JVM team",
+      "first": { "kind": "stack", "id": "spring-boot-api" },
+      "relevant": [{ "kind": "stack", "id": "spring-boot-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-spring-boot-api-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "java microservice on spring mvc",
+      "first": { "kind": "stack", "id": "spring-boot-api" },
+      "relevant": [{ "kind": "stack", "id": "spring-boot-api", "grade": 2 }]
+    },
+    {
+      "id": "stack-spring-boot-web-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "java server-rendered pages with thymeleaf",
+      "first": { "kind": "stack", "id": "spring-boot-web" },
+      "relevant": [{ "kind": "stack", "id": "spring-boot-web", "grade": 2 }]
+    },
+    {
+      "id": "stack-spring-boot-web-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "spring mvc site with forms and htmx",
+      "first": { "kind": "stack", "id": "spring-boot-web" },
+      "relevant": [{ "kind": "stack", "id": "spring-boot-web", "grade": 2 }]
+    },
+    {
+      "id": "stack-streamlit-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "streamlit page for browsing survey results",
+      "first": { "kind": "stack", "id": "streamlit" },
+      "relevant": [{ "kind": "stack", "id": "streamlit", "grade": 2 }]
+    },
+    {
+      "id": "stack-streamlit-2",
+      "pool": "product",
+      "split": "holdout",
+      "query": "web page in python where coworkers slice a spreadsheet and see charts",
+      "first": { "kind": "stack", "id": "streamlit" },
+      "relevant": [{ "kind": "stack", "id": "streamlit", "grade": 2 }]
+    },
+    {
+      "id": "stack-typescript-library-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "starter for a reusable npm module written in TypeScript",
+      "first": { "kind": "stack", "id": "typescript-library" },
+      "relevant": [{ "kind": "stack", "id": "typescript-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-typescript-library-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "set up a TS package that ships type definitions to the npm registry",
+      "first": { "kind": "stack", "id": "typescript-library" },
+      "relevant": [{ "kind": "stack", "id": "typescript-library", "grade": 2 }]
+    },
+    {
+      "id": "stack-typescript-mcp-1",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "set up a model context protocol server my coding agent can talk to",
+      "first": { "kind": "stack", "id": "typescript-mcp" },
+      "relevant": [{ "kind": "stack", "id": "typescript-mcp", "grade": 2 }]
+    },
+    {
+      "id": "stack-typescript-mcp-2",
+      "pool": "platform",
+      "split": "holdout",
+      "query": "an mcp server written in typescript for cursor",
+      "first": { "kind": "stack", "id": "typescript-mcp" },
+      "relevant": [{ "kind": "stack", "id": "typescript-mcp", "grade": 2 }]
     }
   ]
 }

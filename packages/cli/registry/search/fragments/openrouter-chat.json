@@ -64,6 +64,7 @@
   "notFor": [
     "terminal interfaces",
     "end-to-end test setup for an existing app",
+    "e2e browser tests",
     "private user accounts without added authentication"
   ]
 }

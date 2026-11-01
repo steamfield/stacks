@@ -44,7 +44,8 @@ test("an add request does not show stacks matched only by its constraint", async
 test("TUI exclusions name the matched rule in JSON, agent and human output", async () => {
   const opts = options(space.dir());
   const request = "a cli with a good TUI experience";
-  const { value } = await searched(request, opts, ["--local"]);
+  // Several TUI stacks now rank above the CLI stacks, so widen past the default five.
+  const { value } = await searched(request, opts, ["--local", "--limit", "20"]);
   for (const id of ["go-cli", "typescript-cli"])
     expect(hit(value.stacks, id).penalties).toContainEqual({
       kind: "notFor",

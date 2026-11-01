@@ -34,6 +34,16 @@ def denial(tool_input: dict[str, str]) -> str:
         "python -m pip install duckdb",
         "uv pip install altair",
         "cd x && pip3 install .",
+        "uv run pip install x",
+        "uv run python -m pip install x",
+        ".venv/bin/pip install x",
+        "python3.13 -m pip install x",
+        "pip3.13 install x",
+        "pip --disable-pip-version-check install x",
+        "sudo pip install x",
+        "env PIP_NO_INPUT=1 pip install x",
+        "bash -c 'pip install x'",
+        '"pip" install x',
     ],
 )
 def test_pip_install_is_denied(command: str) -> None:
@@ -46,6 +56,13 @@ def test_pip_install_is_denied(command: str) -> None:
         "marimo edit notebooks/explore.py",
         "uv run marimo run notebooks/explore.py",
         "make x; marimo new",
+        "uvx marimo edit nb.py",
+        "python -m marimo edit",
+        "uv run python -m marimo edit nb.py",
+        "uv run --with x marimo edit",
+        "marimo -q edit nb.py",
+        "timeout 5 marimo run nb.py",
+        "uv run marimo tutorial intro",
     ],
 )
 def test_marimo_servers_are_denied(command: str) -> None:
@@ -60,6 +77,12 @@ def test_marimo_servers_are_denied(command: str) -> None:
         "uv run marimo check notebooks",
         "uv run marimo export html notebooks/explore.py -o /tmp/x.html",
         "cp /tmp/export/orders.csv data/raw/",
+        "uv run marimo export html-wasm notebooks/explore.py -o out",
+        "uv run python notebooks/explore.py",
+        "echo marimo edit",
+        "uv pip list",
+        "pipx install ruff",
+        "echo pip install x",
     ],
 )
 def test_other_commands_pass(command: str) -> None:

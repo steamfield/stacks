@@ -11,11 +11,13 @@ class ErrorCode(StrEnum):
     INTERRUPTED = "INTERRUPTED"
 
 
+# One status per code, so a caller can tell a bad config from a crash. A new code takes the next
+# free number; keep these.
 EXIT_CODES: dict[ErrorCode, int] = {
-    ErrorCode.CONFIG: 1,
-    ErrorCode.INVALID_INPUT: 2,
-    ErrorCode.IO: 1,
     ErrorCode.INTERNAL: 1,
+    ErrorCode.INVALID_INPUT: 2,
+    ErrorCode.CONFIG: 3,
+    ErrorCode.IO: 4,
     ErrorCode.INTERRUPTED: 130,
 }
 

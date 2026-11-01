@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# PreToolUse (Bash|Edit|Write): migrations come from makemigrations and committed ones never
-# change, uv.lock stays generated, and dependencies go through uv add.
+# PreToolUse (Bash|Edit|Write): migrations come from makemigrations and shipped or committed ones
+# never change, uv.lock stays generated, and dependencies go through uv add.
 set -euo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 
@@ -17,8 +17,17 @@ deny() {
 
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
 if [ -n "$command" ]; then
-  # pip, pip3, python -m pip and uv pip, at the start of a line or after ; & | or (.
-  pip_install='(^|[;&|(])[[:space:]]*((uv|python3?[[:space:]]+-m)[[:space:]]+)?pip3?[[:space:]]+install([[:space:]]|$)'
+  # A command starts a line or follows ; & | ( ` $( or sh -c; it may be quoted and sit behind
+  # VAR=value, sudo, env, nice, exec, command, timeout 30, uv run --flags or uvx.
+  q="[\"']?"
+  start='(^|[;&|(`]|\$\(|[[:space:]]-c[[:space:]]+)[[:space:]]*\$?'"$q"
+  assign='[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+'
+  flags='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
+  wrapper="(sudo|command|exec|nice|env|uvx|uv[[:space:]]+run|timeout${flags}[[:space:]]+[0-9][^[:space:]]*)${flags}[[:space:]]+(${assign})*"
+  prefix="${start}(${assign})*(${wrapper})*${q}"
+  python='([^[:space:]]*/)?python[0-9.]*[[:space:]]+-m[[:space:]]+'
+  # pip, pip3.12, a venv's pip, python -m pip and uv pip, with any flags before install.
+  pip_install="${prefix}(uv[[:space:]]+pip|(${python}|([^[:space:]]*/)?)pip[0-9.]*)${q}${flags}[[:space:]]+install([[:space:]]|$)"
   if printf '%s\n' "$command" | grep -Eq "$pip_install"; then
     deny "pip install bypasses pyproject.toml and uv.lock. Use uv add <package> (uv add --dev for tools)."
   fi
@@ -54,7 +63,14 @@ case "$rel" in
     if [ ! -e "$root/$rel" ]; then
       deny "Migrations are generated: change the model and run make makemigrations. For a data migration, run uv run python manage.py makemigrations --empty <app> --name <what_it_does>, then edit that new file."
     fi
-    if git -C "$root" ls-files --error-unmatch -- "$rel" >/dev/null 2>&1; then
+    # The shipped migrations are protected before the first commit too; a later one once a
+    # commit holds it, so a freshly generated (or only staged) migration can still be fixed.
+    case "$rel" in
+      accounts/migrations/0001_initial.py | notes/migrations/0001_initial.py)
+        deny "$rel shipped with the project and may already be applied to a database. Leave it as it is: change the model and run make makemigrations to add a new migration."
+        ;;
+    esac
+    if git -C "$root" cat-file -e "HEAD:$rel" 2>/dev/null; then
       deny "$rel is committed and may already be applied to a database. Leave it as it is: change the model and run make makemigrations to add a new migration."
     fi
     ;;

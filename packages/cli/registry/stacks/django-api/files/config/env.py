@@ -6,6 +6,7 @@ a new setting gets a field here, a test in `config/test_env.py` and a line in `.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast, get_args
@@ -33,10 +34,12 @@ VARIABLES = (
     "DJANGO_SECURE_SSL_REDIRECT",
     "DJANGO_HSTS_SECONDS",
     "DJANGO_BEHIND_TLS_PROXY",
+    "DJANGO_ANON_RATE",
     "LOG_LEVEL",
     "LOG_FORMAT",
 )
 
+_RATE = re.compile(r"[1-9][0-9]{0,8}/(second|minute|hour|day)")
 _TRUE = frozenset({"1", "true", "yes", "on"})
 _FALSE = frozenset({"0", "false", "no", "off"})
 
@@ -52,6 +55,7 @@ class Env:
     secure_ssl_redirect: bool
     hsts_seconds: int
     behind_tls_proxy: bool
+    anon_rate: str
     log_level: LogLevel
     log_format: LogFormat
 
@@ -83,6 +87,7 @@ def load(environ: Mapping[str, str], base_dir: Path) -> Env:
         secure_ssl_redirect=_bool(environ, "DJANGO_SECURE_SSL_REDIRECT", default=production),
         hsts_seconds=_seconds(environ, "DJANGO_HSTS_SECONDS", default=3600 if production else 0),
         behind_tls_proxy=_bool(environ, "DJANGO_BEHIND_TLS_PROXY", default=False),
+        anon_rate=_rate(environ, "DJANGO_ANON_RATE", default="60/minute"),
         log_level=cast("LogLevel", _choice(environ, "LOG_LEVEL", get_args(LogLevel), "INFO")),
         log_format=cast(
             "LogFormat",
@@ -120,9 +125,19 @@ def _seconds(environ: Mapping[str, str], name: str, *, default: int) -> int:
     value = _raw(environ, name)
     if value is None:
         return default
-    if not value.isdigit():
+    # isascii: isdigit alone accepts digits such as "²" that int() rejects.
+    if not (value.isascii() and value.isdigit()):
         raise ImproperlyConfigured(f"{name} must be a whole number of seconds.")
     return int(value)
+
+
+def _rate(environ: Mapping[str, str], name: str, *, default: str) -> str:
+    value = _raw(environ, name)
+    if value is None:
+        return default
+    if not _RATE.fullmatch(value):
+        raise ImproperlyConfigured(f"{name} must be <requests>/<second|minute|hour|day>.")
+    return value
 
 
 def _list(environ: Mapping[str, str], name: str, default: tuple[str, ...]) -> tuple[str, ...]:

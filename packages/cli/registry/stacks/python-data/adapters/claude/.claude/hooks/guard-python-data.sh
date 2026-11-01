@@ -17,15 +17,24 @@ deny() {
 
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
 if [ -n "$command" ]; then
-  # At the start of a line or after ; & | or (, optionally behind uv run.
-  start='(^|[;&|(])[[:space:]]*'
-  pip_install="${start}((uv|python3?[[:space:]]+-m)[[:space:]]+)?pip3?[[:space:]]+install([[:space:]]|$)"
-  marimo_server="${start}(uv[[:space:]]+run[[:space:]]+)?marimo[[:space:]]+(edit|run|new)([[:space:]]|$)"
+  # A command starts a line or follows ; & | ( ` $( or sh -c; it may be quoted and sit behind
+  # VAR=value, sudo, env, nice, exec, command, timeout 30, uv run --flags or uvx.
+  q="[\"']?"
+  start='(^|[;&|(`]|\$\(|[[:space:]]-c[[:space:]]+)[[:space:]]*\$?'"$q"
+  assign='[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+'
+  flags='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
+  wrapper="(sudo|command|exec|nice|env|uvx|uv[[:space:]]+run|timeout${flags}[[:space:]]+[0-9][^[:space:]]*)${flags}[[:space:]]+(${assign})*"
+  prefix="${start}(${assign})*(${wrapper})*${q}"
+  python='([^[:space:]]*/)?python[0-9.]*[[:space:]]+-m[[:space:]]+'
+  # pip, pip3.12, a venv's pip, python -m pip and uv pip, with any flags before install.
+  pip_install="${prefix}(uv[[:space:]]+pip|(${python}|([^[:space:]]*/)?)pip[0-9.]*)${q}${flags}[[:space:]]+install([[:space:]]|$)"
+  # marimo or python -m marimo, with global flags before the subcommand.
+  marimo_server="${prefix}(${python})?marimo${flags}[[:space:]]+(edit|run|new|tutorial)([[:space:]]|$)"
   if printf '%s\n' "$command" | grep -Eq "$pip_install"; then
     deny "pip install bypasses pyproject.toml and uv.lock. Use uv add <package> (uv add --dev for tools)."
   fi
   if printf '%s\n' "$command" | grep -Eq "$marimo_server"; then
-    deny "marimo edit, run and new start a server that waits for a browser. Run make notebooks to execute the notebooks headlessly, and ask the user to open the editor."
+    deny "marimo edit, run, new and tutorial start a server that waits for a browser. Run make notebooks to execute the notebooks headlessly, and ask the user to open the editor."
   fi
   exit 0
 fi

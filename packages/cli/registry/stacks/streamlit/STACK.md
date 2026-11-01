@@ -8,7 +8,7 @@ tags: [python, web, data, make]
 deps:
   runtime: [streamlit, polars, altair, pydantic, pydantic-settings, structlog]
   dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist]
-tools: [uv, make, git]
+tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that Streamlit and Polars both publish wheels for (default). Setup writes .python-version and requires-python."
@@ -71,7 +71,8 @@ The shipped code follows these; new code keeps to them.
 - `app.py` draws; the package decides. A filter, total or chart spec is a function in `metrics.py` or `charts.py` with a unit test, called from the page.
 - Every widget has an explicit `key`, which AppTest and session state use.
 - Slow work in the page sits behind `st.cache_data` (frames, values) or `st.cache_resource` (clients, connections), keyed by its arguments. The package stays cache-free so tests see fresh results.
-- Columns are declared in `SALES_SCHEMA`; nothing is inferred. A column change updates the schema, `data/sample.csv` and the tests together.
+- Columns are declared in `SALES_SCHEMA`; nothing is inferred, and an empty, unreadable or incomplete file is a `DATA_SCHEMA` error. A column change updates the schema, `data/sample.csv` and the tests together.
+- Money stays `pl.Decimal` (`Summary.revenue` is a `Decimal`); `charts.py` casts to float only for drawing.
 - Expected failures are `AppError` with a code in `HEADINGS`; the page shows the heading, message and suggestion and stops. Unexpected exceptions reach Streamlit, which shows viewers a generic message and logs the traceback.
 - Settings come from `config.Settings` (`<PREFIX>_*` variables and `.env`); `PORT_WEB` and `WEB_HOST` are the Makefile's. Secrets come from the environment.
 

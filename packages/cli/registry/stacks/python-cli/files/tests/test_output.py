@@ -14,10 +14,16 @@ class Terminal(io.StringIO):
         return True
 
 
-def test_every_error_code_has_an_exit_status() -> None:
+def test_every_error_code_has_its_own_exit_status() -> None:
     assert set(EXIT_CODES) == set(ErrorCode)
-    assert FAILURE.exit_code == 1
-    assert CliError(ErrorCode.INVALID_INPUT, "bad", "fix").exit_code == 2
+    assert EXIT_CODES == {
+        ErrorCode.INTERNAL: 1,
+        ErrorCode.INVALID_INPUT: 2,
+        ErrorCode.CONFIG: 3,
+        ErrorCode.IO: 4,
+        ErrorCode.INTERRUPTED: 130,
+    }
+    assert FAILURE.exit_code == 3
 
 
 def test_human_result_goes_to_stdout(capsys: pytest.CaptureFixture[str]) -> None:

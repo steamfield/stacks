@@ -8,7 +8,7 @@ tags: [python, cli, make]
 deps:
   runtime: [typer, pydantic, pydantic-settings, structlog]
   dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, twine]
-tools: [uv, make, git]
+tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that Typer, ruff and mypy support (default). Setup writes .python-version and requires-python."

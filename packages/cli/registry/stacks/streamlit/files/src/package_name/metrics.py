@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 import polars as pl
 
@@ -17,7 +18,7 @@ class Filters:
 
 @dataclass(frozen=True)
 class Summary:
-    revenue: float
+    revenue: Decimal
     orders: int
     units: int
 
@@ -37,8 +38,9 @@ def apply_filters(frame: pl.DataFrame, filters: Filters) -> pl.DataFrame:
 
 
 def summarize(frame: pl.DataFrame) -> Summary:
+    revenue = frame.get_column("revenue").sum()
     return Summary(
-        revenue=float(frame.get_column("revenue").sum()),
+        revenue=revenue if isinstance(revenue, Decimal) else Decimal(0),
         orders=frame.height,
         units=int(frame.get_column("units").sum()),
     )
@@ -53,5 +55,5 @@ def revenue_by_month(frame: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def format_money(amount: float) -> str:
+def format_money(amount: Decimal) -> str:
     return f"${amount:,.2f}"

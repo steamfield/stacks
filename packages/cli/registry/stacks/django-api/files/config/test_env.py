@@ -19,6 +19,7 @@ def test_development_defaults() -> None:
     assert env.database_path == BASE / "var/db.sqlite3"
     assert env.secure_ssl_redirect is False
     assert env.hsts_seconds == 0
+    assert env.anon_rate == "60/minute"
     assert env.log_level == "INFO"
     assert env.log_format == "console"
 
@@ -48,6 +49,10 @@ def test_production_refuses_debug() -> None:
         ("DJANGO_ENV", "staging"),
         ("DJANGO_DEBUG", "maybe"),
         ("DJANGO_HSTS_SECONDS", "-1"),
+        ("DJANGO_HSTS_SECONDS", "²"),
+        ("DJANGO_ANON_RATE", "60"),
+        ("DJANGO_ANON_RATE", "0/minute"),
+        ("DJANGO_ANON_RATE", "10/week"),
         ("LOG_LEVEL", "info"),
         ("LOG_FORMAT", "xml"),
     ],
@@ -64,9 +69,11 @@ def test_lists_and_paths() -> None:
             "DJANGO_CSRF_TRUSTED_ORIGINS": "https://example.com",
             "DJANGO_DB_PATH": "/data/app.sqlite3",
             "DJANGO_BEHIND_TLS_PROXY": "yes",
+            "DJANGO_ANON_RATE": "1000/hour",
         },
         BASE,
     )
+    assert env.anon_rate == "1000/hour"
     assert env.allowed_hosts == ("example.com", "www.example.com")
     assert env.csrf_trusted_origins == ("https://example.com",)
     assert env.database_path == Path("/data/app.sqlite3")

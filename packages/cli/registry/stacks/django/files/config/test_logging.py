@@ -26,9 +26,10 @@ def test_production_records_are_json_lines() -> None:
     assert record["timestamp"].endswith("Z")
 
 
-def test_json_tracebacks_carry_frames_but_no_locals() -> None:
-    record = json.loads(render(json_output=True, exc_info=True))
-    (error,) = record["exception"]
+def test_json_tracebacks_carry_frames_but_no_message_or_locals() -> None:
+    line = render(json_output=True, exc_info=True)
+    (error,) = json.loads(line)["exception"]
+    assert "secret value" not in line
     assert error["exc_type"] == "RuntimeError"
     assert error["frames"]
     assert all("locals" not in frame for frame in error["frames"])

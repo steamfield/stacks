@@ -17,14 +17,25 @@ deny() {
 
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
 if [ -n "$command" ]; then
-  # At the start of a line or after ; & | or (, optionally behind uv run.
-  start='(^|[;&|(])[[:space:]]*'
-  pip_install="${start}((uv|python3?[[:space:]]+-m)[[:space:]]+)?pip3?[[:space:]]+install([[:space:]]|$)"
-  server="${start}((uv[[:space:]]+run[[:space:]]+)?streamlit[[:space:]]+(run|hello)|make[[:space:]]+(dev|start))([[:space:]]|$)"
+  # A command starts a line or follows ; & | ( ` $( or sh -c; it may be quoted and sit behind
+  # VAR=value, sudo, env, nice, exec, command, timeout 30, uv run --flags or uvx.
+  q="[\"']?"
+  start='(^|[;&|(`]|\$\(|[[:space:]]-c[[:space:]]+)[[:space:]]*\$?'"$q"
+  assign='[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+'
+  flags='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
+  wrapper="(sudo|command|exec|nice|env|uvx|uv[[:space:]]+run|timeout${flags}[[:space:]]+[0-9][^[:space:]]*)${flags}[[:space:]]+(${assign})*"
+  prefix="${start}(${assign})*(${wrapper})*${q}"
+  python='([^[:space:]]*/)?python[0-9.]*[[:space:]]+-m[[:space:]]+'
+  # pip, pip3.12, a venv's pip, python -m pip and uv pip, with any flags before install.
+  pip_install="${prefix}(uv[[:space:]]+pip|(${python}|([^[:space:]]*/)?)pip[0-9.]*)${q}${flags}[[:space:]]+install([[:space:]]|$)"
+  # streamlit or python -m streamlit, with global flags before the subcommand.
+  streamlit_server="${prefix}(${python})?streamlit${flags}[[:space:]]+(run|hello)([[:space:]]|$)"
+  # make dev or make start, also with flags (-C .) or other targets before them.
+  make_server="${prefix}make${flags}([[:space:]]+[^-[:space:];&|][^[:space:];&|]*)*[[:space:]]+(dev|start)([[:space:]]|$)"
   if printf '%s\n' "$command" | grep -Eq "$pip_install"; then
     deny "pip install bypasses pyproject.toml and uv.lock. Use uv add <package> (uv add --dev for tools)."
   fi
-  if printf '%s\n' "$command" | grep -Eq "$server"; then
+  if printf '%s\n' "$command" | grep -Eq "$streamlit_server|$make_server"; then
     deny "streamlit run, make dev and make start keep a server in the foreground. Run make test: tests/test_app.py drives the page with AppTest. stacks verify serves and probes it; ask the user to run make dev to look at it."
   fi
   exit 0

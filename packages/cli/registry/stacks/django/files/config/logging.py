@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 if TYPE_CHECKING:
-    from structlog.typing import Processor
+    from structlog.typing import EventDict, Processor, WrappedLogger
 
 # Applied to structlog events and to plain logging records (Django, gunicorn) alike.
 SHARED: list[Processor] = [
@@ -22,6 +22,13 @@ SHARED: list[Processor] = [
 ]
 
 
+def drop_exception_messages(_logger: WrappedLogger, _name: str, event: EventDict) -> EventDict:
+    """Keep each exception's class and frames, never its message: it can echo input or secrets."""
+    for error in event.get("exception", ()):
+        error.pop("exc_value", None)
+    return event
+
+
 def logging_config(level: str, *, json: bool) -> dict[str, Any]:
     renderer: list[Processor] = (
         [
@@ -29,6 +36,7 @@ def logging_config(level: str, *, json: bool) -> dict[str, Any]:
             structlog.processors.ExceptionRenderer(
                 structlog.tracebacks.ExceptionDictTransformer(show_locals=False)
             ),
+            drop_exception_messages,
             structlog.processors.JSONRenderer(),
         ]
         if json

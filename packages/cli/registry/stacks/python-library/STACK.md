@@ -7,7 +7,7 @@ description: A typed Python library for PyPI in a src layout, built with uv and 
 tags: [python, library, make]
 deps:
   dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, hypothesis, twine]
-tools: [uv, make, git]
+tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
   - "Supported Pythons: every CPython release that hasn't reached end of life, through the newest stable (default). Setup writes the oldest as requires-python's lower bound and pins the newest for development."
@@ -75,7 +75,7 @@ The shipped code follows these; new code keeps to them.
 
 ## Testing
 
-Example tests go in one `tests/test_<module>.py` per module, covering each error path with its attributes. Invariants that hold for every input (round trips, ordering, idempotence) get a Hypothesis property in `tests/test_properties.py`. `test_public_api.py` changes only when the API does. Tests import the installed package (the src layout plus `--import-mode=importlib`), never the working tree. `make coverage` enforces the floor with branch coverage, random order and xdist; `make test-min` runs the same tests in a fresh environment on the oldest supported Python. `make smoke` installs the built wheel outside the source tree, imports it, checks `py.typed` and every `__all__` name, and runs strict mypy on a file that imports the package; it is the only check that the wheel is complete, so keep it.
+Example tests go in one `tests/test_<module>.py` per module, covering each error path with its attributes. Invariants that hold for every input (round trips, ordering, idempotence) get a Hypothesis property in `tests/test_properties.py`. `test_public_api.py` changes only when the API does. `make install` installs the package editable, so tests import `src/` through that install; they don't see what the wheel leaves out. `make coverage` enforces the floor with branch coverage, random order and xdist; `make test-min` runs the same tests in a fresh environment on the oldest supported Python. `make smoke` installs the built wheel outside the source tree, imports it, checks `py.typed` and every `__all__` name, and runs strict mypy on a file that imports the package; it is the only check that the wheel is complete, so keep it.
 
 ## Commands
 
@@ -91,7 +91,7 @@ CI uses uv's setup action (cache on, Python from .python-version), then `make in
 ## Gotchas
 
 - `make build` fails until Setup adds `[build-system]`; that is deliberate, not a broken file.
-- Don't add `pythonpath = ["src"]` to pytest's config to fix an import error: run `make install`. Importing the working tree hides a module or `py.typed` missing from the wheel.
+- An import error in tests means the package isn't installed: run `make install`. Keep pytest's settings in `pyproject.toml`: a `pytest.ini` or `pytest.toml` would be read instead and drop `filterwarnings = ["error"]`, `--strict-config` and the import mode (the guard hook refuses both).
 - `uv run --isolated` in `test-min` builds a fresh environment each run, so it is slower than `make test`. It reads the lockfile, which uv resolves for every Python in `requires-python`.
 - mypy checks against the development Python, so it allows a newer stdlib API than the oldest supported release has. `test-min` catches it at runtime; read its failures that way.
 - `twine check --strict` fails on README markup PyPI can't render; fix the README, don't drop `--strict`.

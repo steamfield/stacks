@@ -58,6 +58,17 @@ def test_missing_data_shows_the_error_instead_of_a_traceback(
     assert not page.metric
 
 
+def test_an_empty_file_shows_the_error_instead_of_a_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "sales.csv"
+    path.write_bytes(b"")
+    page = run_page(monkeypatch, path)
+    assert not page.exception
+    assert "expected columns" in page.error[0].value
+    assert not page.metric
+
+
 def test_empty_data_says_nothing_matches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "sales.csv"
     path.write_text(",".join(SALES_SCHEMA.names()) + "\n")
@@ -67,8 +78,10 @@ def test_empty_data_says_nothing_matches(tmp_path: Path, monkeypatch: pytest.Mon
     assert "No orders match" in page.info[0].value
 
 
-def test_server_config_is_headless_without_usage_stats() -> None:
+def test_server_config_is_headless_without_usage_stats_or_tracebacks() -> None:
     config = tomllib.loads((ROOT / ".streamlit" / "config.toml").read_text())
     assert config["server"]["headless"] is True
     assert config["browser"]["gatherUsageStats"] is False
     assert config["runner"]["magicEnabled"] is False
+    # Viewers never see a traceback, which would show file paths and code.
+    assert config["client"]["showErrorDetails"] == "none"

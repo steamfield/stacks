@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from django.test import Client
 from rest_framework.test import APIClient
+from rest_framework.throttling import AnonRateThrottle
 
 from accounts.models import User
 from notes.models import Note
@@ -83,6 +84,7 @@ def test_html_only_clients_get_406(api: APIClient) -> None:
         ("/v1/notes?limit=0", "BadInput"),
         ("/v1/notes?limit=101", "BadInput"),
         ("/v1/notes?limit=ten", "BadInput"),
+        ("/v1/notes?limit=%C2%B2", "BadInput"),
         ("/v1/notes?cursor=!", "BadInput"),
         ("/v1/notes?cursor=bm9wZQ==", "BadInput"),
         ("/v1/notes?cursor=%FF", "BadInput"),
@@ -109,6 +111,19 @@ def test_wrong_methods_are_405_with_allow(
     response = getattr(api, method)(path)
     assert_error(response, "MethodNotAllowed")
     assert {name.strip() for name in response["Allow"].split(",")} == allowed
+
+
+def test_anonymous_clients_are_rate_limited(
+    api: APIClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # DRF reads the rates when the module loads; settings set them from DJANGO_ANON_RATE.
+    monkeypatch.setattr(AnonRateThrottle, "THROTTLE_RATES", {"anon": "2/minute"})
+    assert api.post("/v1/notes", {"title": "One"}).status_code == 201
+    assert api.get("/v1/notes").status_code == 200
+    limited = api.post("/v1/notes", {"title": "Three"})
+    assert_error(limited, "RateLimited")
+    assert int(limited["Retry-After"]) > 0
+    assert Note.objects.count() == 1
 
 
 def test_admin_manages_notes(client: Client) -> None:

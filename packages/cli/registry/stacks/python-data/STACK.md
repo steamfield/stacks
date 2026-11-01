@@ -8,7 +8,7 @@ tags: [python, data, make]
 deps:
   runtime: [polars, duckdb, pyarrow, pydantic, pydantic-settings, structlog]
   dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, marimo, altair]
-tools: [uv, make, git]
+tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that Polars, DuckDB and marimo all publish wheels for (default). Setup writes .python-version and requires-python."

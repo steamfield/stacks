@@ -33,7 +33,7 @@ run it locally; a deployment runs it once as a release step before new code take
 
 `config/logging.py` routes structlog and the standard library through one formatter: readable
 lines in development, JSON lines on stdout in production. Exceptions keep class and frames but
-never local variables.
+never their message or local variables.
 
 ## Apps
 

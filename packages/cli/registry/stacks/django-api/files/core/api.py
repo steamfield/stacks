@@ -51,7 +51,8 @@ class CursorPage(CursorPagination):
         raw = request.query_params.get(self.page_size_query_param)
         if raw is None:
             return self.page_size
-        if not raw.isdigit() or not 1 <= int(raw) <= self.max_page_size:
+        # isascii: isdigit alone accepts digits such as "²" that int() rejects.
+        if not (raw.isascii() and raw.isdigit()) or not 1 <= int(raw) <= self.max_page_size:
             raise ValidationError({self.page_size_query_param: ["Out of range."]})
         return int(raw)
 

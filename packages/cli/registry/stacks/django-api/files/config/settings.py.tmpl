@@ -114,6 +114,10 @@ REST_FRAMEWORK = {
     # No authentication yet: add a class here (and its permission) when the API needs one.
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    # Unauthenticated clients get DJANGO_ANON_RATE requests per IP, counted in the default
+    # (per-process) cache; past it, the RateLimited envelope with Retry-After.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"anon": ENV.anon_rate},
     "EXCEPTION_HANDLER": "core.errors.api_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "core.api.ApiSchema",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",

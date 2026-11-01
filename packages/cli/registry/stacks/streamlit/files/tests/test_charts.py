@@ -15,3 +15,5 @@ def test_revenue_chart_stacks_monthly_revenue_by_region(sales: pl.DataFrame) -> 
     assert encoding["color"]["field"] == "region"
     rows = next(iter(spec["datasets"].values()))
     assert len(rows) == 24
+    # Vega-Lite gets plain numbers; the package keeps revenue as a Decimal.
+    assert all(isinstance(row["revenue"], float) for row in rows)

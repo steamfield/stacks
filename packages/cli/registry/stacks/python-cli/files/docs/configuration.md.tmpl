@@ -38,8 +38,10 @@ above by default, debug with `--verbose`, and JSON records in JSON mode.
 | Exit | Codes | When |
 |---|---|---|
 | 0 | | Success, `--help`, `--version` |
-| 1 | `CONFIG`, `IO`, `INTERNAL` | Bad config, a failed read or write, an unexpected error |
+| 1 | `INTERNAL` | An unexpected error |
 | 2 | `INVALID_INPUT` | Unknown command or option, a missing or extra argument |
+| 3 | `CONFIG` | A config file that can't be read or parsed, an unknown key, a bad value |
+| 4 | `IO` | A failed read or write of a file the command works on |
 | 130 | `INTERRUPTED` | Ctrl+C (Typer exits quietly), or input closed at a prompt |
 
 An unexpected error prints `INTERNAL: unexpected error` without details;

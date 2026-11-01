@@ -12,6 +12,9 @@ UNITS: tuple[tuple[str, int], ...] = (("d", 86_400), ("h", 3_600), ("m", 60), ("
 _SECONDS = dict(UNITS)
 _RANK = {unit: rank for rank, (unit, _) in enumerate(UNITS)}
 _PART = re.compile(r"([0-9]+)([a-z]?)")
+# More significant digits than any duration timedelta holds; longer numbers are never converted,
+# since int() refuses (and is slow on) very long digit strings.
+_MAX_DIGITS = 20
 
 
 def parse_duration(text: str) -> timedelta:
@@ -45,12 +48,18 @@ def parse_duration(text: str) -> timedelta:
             reason = f"unit {unit!r} repeated or out of order"
             raise ParseError(reason, text=text, position=offset + match.start(2))
         previous = _RANK[unit]
+        if len(number.lstrip("0")) > _MAX_DIGITS:
+            raise _too_long(stripped)
         seconds += int(number) * _SECONDS[unit]
         position = match.end()
     try:
         return timedelta(seconds=seconds)
     except OverflowError:
-        raise RangeError(f"duration {text.strip()!r} is longer than timedelta allows") from None
+        raise _too_long(stripped) from None
+
+
+def _too_long(stripped: str) -> RangeError:
+    return RangeError(f"duration {stripped!r} is longer than timedelta allows")
 
 
 def format_duration(value: timedelta) -> str:

@@ -81,11 +81,11 @@ def test_json_usage_error_is_one_document_on_stderr(capsys: pytest.CaptureFixtur
     assert json.loads(err)["error"]["code"] == "INVALID_INPUT"
 
 
-def test_config_error_exits_1(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+def test_config_error_exits_3(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     bad = tmp_path / "bad.toml"
     bad.write_text("greeting = [\n")
     code, out, err = run(capsys, "--json", "--config", str(bad), "config", "show")
-    assert code == 1
+    assert code == 3
     assert out == ""
     error = json.loads(err)["error"]
     assert error["code"] == "CONFIG"

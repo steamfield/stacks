@@ -29,6 +29,16 @@ def decide(tool_input: dict[str, str]) -> str:
         "python -m pip install httpx",
         "uv pip install rich",
         "cd src && pip install typer",
+        "uv run pip install x",
+        "uv run python -m pip install x",
+        ".venv/bin/pip install x",
+        "python3.13 -m pip install x",
+        "pip3.13 install x",
+        "pip --disable-pip-version-check install x",
+        "sudo pip install x",
+        "env PIP_NO_INPUT=1 pip install x",
+        "bash -c 'pip install x'",
+        '"pip" install x',
     ],
 )
 def test_pip_install_is_denied(command: str) -> None:
@@ -38,7 +48,17 @@ def test_pip_install_is_denied(command: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "command", ["uv add requests", "make smoke", "uv run pytest tests/test_cli.py", "pip list"]
+    "command",
+    [
+        "uv add requests",
+        "make smoke",
+        "uv run pytest tests/test_cli.py",
+        "pip list",
+        "uv pip list",
+        "pipx install ruff",
+        "echo pip install x",
+        "git commit -m 'pip install fix'",
+    ],
 )
 def test_other_commands_pass(command: str) -> None:
     assert decide({"command": command}) == ""

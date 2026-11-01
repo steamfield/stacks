@@ -16,6 +16,6 @@ paths:
 - Every public function and class has a docstring and full type hints; `py.typed` ships them to users.
 - Keep code working on the oldest Python in `requires-python`: `make test-min` runs the tests there.
 - Each public behavior gets example tests and, where an invariant holds for all inputs (round trips, ordering), a Hypothesis property in `tests/test_properties.py`.
-- Never add `pythonpath` to pytest's config: tests import the installed package so packaging bugs show up.
+- Keep pytest's settings in `pyproject.toml`; never add `pytest.ini` or `pytest.toml`, which pytest would read instead. `make install` installs the package editable, so tests import `src/`; `make smoke` is the check that the wheel is complete.
 
 See the project's `AGENTS.md` for commands and the remaining conventions.

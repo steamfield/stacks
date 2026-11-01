@@ -15,9 +15,9 @@ sidebar widgets --> metrics.Filters --metrics.apply_filters--> DataFrame
 | Module | Owns |
 |---|---|
 | `app.py` | Page config, widgets with keys, layout, the `st.cache_data` wrapper, turning `AppError` into `st.error` |
-| `data.py` | `SALES_SCHEMA` and `load_sales`: the one place a file is read; adds `revenue` |
+| `data.py` | `SALES_SCHEMA` and `load_sales`: the one place a file is read; rejects empty cells; adds `revenue` as a Decimal |
 | `metrics.py` | `Filters`, `Summary` and pure functions over frames: options, filtering, totals, monthly revenue, money formatting |
-| `charts.py` | Altair chart specs from metric frames |
+| `charts.py` | Altair chart specs from metric frames; the only place money becomes a float |
 | `config.py` | `Settings` (pydantic-settings): defaults, `.env`, environment |
 | `errors.py` | `ErrorCode`, the `HEADINGS` table the page shows, `AppError` |
 | `log.py` | structlog to stderr |

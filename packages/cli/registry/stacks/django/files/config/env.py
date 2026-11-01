@@ -120,7 +120,8 @@ def _seconds(environ: Mapping[str, str], name: str, *, default: int) -> int:
     value = _raw(environ, name)
     if value is None:
         return default
-    if not value.isdigit():
+    # isascii: isdigit alone accepts digits such as "²" that int() rejects.
+    if not (value.isascii() and value.isdigit()):
         raise ImproperlyConfigured(f"{name} must be a whole number of seconds.")
     return int(value)
 

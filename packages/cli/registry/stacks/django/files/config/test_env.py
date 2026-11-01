@@ -48,6 +48,7 @@ def test_production_refuses_debug() -> None:
         ("DJANGO_ENV", "staging"),
         ("DJANGO_DEBUG", "maybe"),
         ("DJANGO_HSTS_SECONDS", "-1"),
+        ("DJANGO_HSTS_SECONDS", "²"),
         ("LOG_LEVEL", "info"),
         ("LOG_FORMAT", "xml"),
     ],

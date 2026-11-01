@@ -48,6 +48,16 @@ def test_parse_rejects_durations_timedelta_cannot_hold() -> None:
         parse_duration("99999999999d")
 
 
+@pytest.mark.parametrize("digits", [21, 5000])
+def test_parse_rejects_numbers_too_long_to_convert(digits: int) -> None:
+    with pytest.raises(RangeError, match="longer than timedelta allows"):
+        parse_duration("9" * digits + "s")
+
+
+def test_parse_ignores_leading_zeros_when_bounding_numbers() -> None:
+    assert parse_duration("0" * 30 + "5s") == timedelta(seconds=5)
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [

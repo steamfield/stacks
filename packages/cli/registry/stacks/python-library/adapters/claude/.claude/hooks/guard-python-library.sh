@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse (Bash|Edit|Write): dependencies go through uv add, uv.lock and dist/ stay generated,
-# and pytest never imports the working tree. (agent-ops's block-destructive.sh denies uploads.)
+# and pytest's settings stay in pyproject.toml. (agent-ops's block-destructive.sh denies uploads.)
 set -euo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 
@@ -17,8 +17,17 @@ deny() {
 
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
 if [ -n "$command" ]; then
-  # pip, pip3, python -m pip and uv pip, at the start of a line or after ; & | or (.
-  pip_install='(^|[;&|(])[[:space:]]*((uv|python3?[[:space:]]+-m)[[:space:]]+)?pip3?[[:space:]]+install([[:space:]]|$)'
+  # A command starts a line or follows ; & | ( ` $( or sh -c; it may be quoted and sit behind
+  # VAR=value, sudo, env, nice, exec, command, timeout 30, uv run --flags or uvx.
+  q="[\"']?"
+  start='(^|[;&|(`]|\$\(|[[:space:]]-c[[:space:]]+)[[:space:]]*\$?'"$q"
+  assign='[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+'
+  flags='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
+  wrapper="(sudo|command|exec|nice|env|uvx|uv[[:space:]]+run|timeout${flags}[[:space:]]+[0-9][^[:space:]]*)${flags}[[:space:]]+(${assign})*"
+  prefix="${start}(${assign})*(${wrapper})*${q}"
+  python='([^[:space:]]*/)?python[0-9.]*[[:space:]]+-m[[:space:]]+'
+  # pip, pip3.12, a venv's pip, python -m pip and uv pip, with any flags before install.
+  pip_install="${prefix}(uv[[:space:]]+pip|(${python}|([^[:space:]]*/)?)pip[0-9.]*)${q}${flags}[[:space:]]+install([[:space:]]|$)"
   if printf '%s\n' "$command" | grep -Eq "$pip_install"; then
     deny "pip install bypasses pyproject.toml and uv.lock. Use uv add <package> (uv add --dev for tools), or make smoke to try the built wheel."
   fi
@@ -52,10 +61,7 @@ case "$rel" in
   dist/*)
     deny "dist/ is build output. Change the source and run make build."
     ;;
-  pyproject.toml)
-    added="$(printf '%s' "$input" | jq -r '.tool_input.new_string // .tool_input.content // empty' 2>/dev/null)" || exit 0
-    if printf '%s\n' "$added" | grep -Eq '^[[:space:]]*pythonpath[[:space:]]*='; then
-      deny "pythonpath makes pytest import src/ instead of the installed package, which hides packaging bugs. Run make install so the package is installed in .venv."
-    fi
+  pytest.ini | .pytest.ini | pytest.toml | .pytest.toml)
+    deny "pytest reads the first config file it finds, so $rel would replace [tool.pytest.ini_options] in pyproject.toml and drop filterwarnings = [\"error\"], --strict-config and the import mode. Keep pytest settings in pyproject.toml; for an import error, run make install."
     ;;
 esac

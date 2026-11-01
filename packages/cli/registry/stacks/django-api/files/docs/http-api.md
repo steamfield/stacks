@@ -5,7 +5,8 @@
 `POST /v1/notes` accepts a JSON object with a title (trimmed, 1 to 200 characters) and an
 optional body (at most 10000 characters). It returns 201, the note and `Location`.
 `GET /v1/notes/{noteId}` returns the same shape: `id` (a string), `title`, `body` and
-`createdAt` (ISO 8601 UTC). Unknown ids return 404. There is no authentication in the slice.
+`createdAt` (ISO 8601 UTC). Unknown ids return 404. There is no authentication in the slice; every `/v1` request
+counts against a per-IP rate (`DJANGO_ANON_RATE`, default `60/minute`).
 
 `GET /v1/notes?limit=20&cursor=...` returns `{"items": [...], "nextCursor": "..."}`, newest
 first; `nextCursor` is absent on the last page. `limit` is 1 to 100 (default 20).
@@ -20,6 +21,7 @@ with the status from `core/errors.py::ERRORS`:
 | Wrong method on a known path (with `Allow`) | 405 | `MethodNotAllowed` |
 | `Accept` without JSON | 406 | `NotAcceptable` |
 | Body that isn't `application/json` | 415 | `UnsupportedMediaType` |
+| More than `DJANGO_ANON_RATE` requests from one client IP (with `Retry-After`) | 429 | `RateLimited` |
 | Host outside `DJANGO_ALLOWED_HOSTS` | 400 | `BadInput` |
 | Unexpected exception | 500 | `Internal` |
 

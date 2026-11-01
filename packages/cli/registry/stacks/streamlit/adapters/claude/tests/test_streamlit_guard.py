@@ -29,7 +29,21 @@ def denial(tool_input: dict[str, str]) -> str:
 
 @pytest.mark.parametrize(
     "command",
-    ["pip install streamlit", "python -m pip install polars", "uv pip install altair"],
+    [
+        "pip install streamlit",
+        "python -m pip install polars",
+        "uv pip install altair",
+        "uv run pip install x",
+        "uv run python -m pip install x",
+        ".venv/bin/pip install x",
+        "python3.13 -m pip install x",
+        "pip3.13 install x",
+        "pip --disable-pip-version-check install x",
+        "sudo pip install x",
+        "env PIP_NO_INPUT=1 pip install x",
+        "bash -c 'pip install x'",
+        '"pip" install x',
+    ],
 )
 def test_pip_install_is_denied(command: str) -> None:
     assert "uv add" in denial({"command": command})
@@ -43,6 +57,14 @@ def test_pip_install_is_denied(command: str) -> None:
         "make dev",
         "cd . && make start",
         "uv run streamlit hello",
+        "python -m streamlit run app.py",
+        "uv run python -m streamlit run app.py",
+        "uvx streamlit run app.py",
+        "uv run --with x streamlit run app.py",
+        "streamlit --log_level debug run app.py",
+        "make -C . start",
+        "timeout 30 make start",
+        "make lint start",
     ],
 )
 def test_foreground_servers_are_denied(command: str) -> None:
@@ -58,6 +80,12 @@ def test_foreground_servers_are_denied(command: str) -> None:
         "uv run pytest tests/test_app.py",
         "uv run streamlit config show",
         "stacks verify",
+        "make dev-tools",
+        "echo make start",
+        "make test && echo start",
+        "uv pip list",
+        "pipx install ruff",
+        "echo pip install x",
     ],
 )
 def test_other_commands_pass(command: str) -> None:

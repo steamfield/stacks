@@ -12,7 +12,7 @@ paths:
 
 - Each feature is an app with its own models, admin, forms, views, urls, `templates/<app>/` and tests. Register it in `INSTALLED_APPS` and include its urls in `config/urls.py`. Cross-cutting code (middleware, health, error pages) stays in `core/`.
 - Settings come from `config/env.py::load`. A new setting gets an `Env` field with a validated default, a `VARIABLES` entry, a case in `config/test_env.py` and a line in `.env.example`; nothing else reads `os.environ`.
-- Every model change ships the migration `make makemigrations` writes, in the same change. Never hand-write or edit a committed migration (the guard hook refuses); a data migration starts from `makemigrations --empty <app>`. `make check-migrations` fails on a model with no migration.
+- Every model change ships the migration `make makemigrations` writes, in the same change. Never hand-write a migration or edit a shipped or committed one (the guard hook refuses); a data migration starts from `makemigrations --empty <app>`. `make check-migrations` fails on a model with no migration.
 - Point foreign keys at `settings.AUTH_USER_MODEL`, never at `auth.User` or `accounts.User` directly.
 - Validation lives in forms and models, not views. Views stay thin: bind the form, save on `is_valid()`, redirect after a successful POST, re-render with the bound form otherwise.
 - When a template loops over a relation, the view's queryset uses `select_related` or `prefetch_related`. Paginate or slice every list.

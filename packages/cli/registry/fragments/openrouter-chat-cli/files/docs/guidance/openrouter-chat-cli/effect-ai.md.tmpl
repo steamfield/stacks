@@ -1,6 +1,6 @@
 # Effect AI behavior
 
-Use Effect AI with the OpenRouter provider. Before writing code, read the installed packages' exports and follow those paths to their type declarations. CLI, AI, and HTTP module locations and call signatures can change between releases. Keep verified imports, constructors, stream parts, schema helpers, and provider metadata shapes in the project's generated Effect skill, not this reference. Do not substitute another SDK's streaming protocol.
+Use Effect AI with the OpenRouter provider. Before writing code, read the installed packages' exports and follow those paths to their type declarations. CLI, AI, and HTTP module locations and call signatures can change between releases. Keep verified imports, constructors, stream parts, schema helpers, and provider metadata shapes in `docs/guidance/effect/api.md`, not this reference. Do not substitute another SDK's streaming protocol.
 
 ## Turn ownership
 
@@ -8,7 +8,7 @@ The application owns the multi-step tool loop in runTurn. Append a completed ste
 
 Retry a step only before it emits any part, only for retryable errors, with bounded exponential delay. Never replay a partially consumed stream. A duration limit must report a timeout rather than silently end. Finalize once for success, failure, cancellation, or early consumer return: save the observed partial reply, mark it interrupted unless the final event occurred, and log one call outcome. A successful stream exit alone does not prove that the consumer read everything.
 
-Map provider failures once to safe application errors and explicit retryability. Preserve bounded upstream reason text where actionable; never expose raw bodies, headers, or stack traces. Log private details at the handling boundary once.
+Map provider failures once to safe application errors and explicit retryability, following the error classes in `docs/openrouter.md`. A mid-stream OpenRouter error (a 200 chunk carrying `error`) reaches the stream as an `error` part with no finish part, not as a failed stream; map it the same way and finalize as interrupted. Preserve bounded upstream reason text where actionable; never expose raw bodies, headers, or stack traces. Log private details at the handling boundary once.
 
 ## Tools and output
 

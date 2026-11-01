@@ -1,6 +1,7 @@
 ---
 description: "Use when running tests or editing remote test tasks with rr."
-alwaysApply: true
+globs: .rr.yaml, **/*.test.*, **/*.spec.*, **/*_test.*, **/test_*.py, **/tests/**, **/test/**
+alwaysApply: false
 ---
 
 # Running tests with rr

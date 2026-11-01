@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "rr",
   "source": {
-    "digest": "sha256:40dc4d2214eb7019f05c07221eac08ca0b84f206f6bc56a79fd0dedb8dcea38e",
+    "digest": "sha256:6f669392cf2d388df92866e1d7f21389e9429b8ee8b70384d8cfeda5474a6934",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Run existing test, lint and build commands on SSH hosts with working-tree sync, per-host locking and structured results.",
   "description": "Wrap existing project commands as named rr tasks that can run on configured SSH hosts. Working-tree synchronization, host failover and per-host locking support remote checks, while structured results point agents to failures and logs. The shared task file contains no personal host details. Host configuration and credentials remain the user's responsibility, and every command continues to work locally; stacks verify still runs locally.",

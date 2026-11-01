@@ -102,7 +102,7 @@ CI has frontend on Ubuntu and Rust on the bundle platform (macOS by default), pl
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->
-pre-commit formats staged frontend code and Rust; pre-push runs lint and test. Bindings and Playwright stay in CI and the task's final check. Install lefthook from the install target only outside CI and when its config exists.
+pre-commit formats staged frontend code and Rust; pre-push runs lint and test. Bindings and Playwright stay in CI and the task's final check. If the install target already runs `lefthook install`, don't add another.
 <!-- stacks:end -->
 
 ## Gotchas

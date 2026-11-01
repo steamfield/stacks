@@ -9,10 +9,10 @@ import { emptyRegistry, minimal, writeEntry } from "./registry";
 export const setupBody = "## Setup\n\nCreate the project.\n";
 const steps = [
   "verify:",
-  '  - { name: install, phase: setup, layer: install, run: "true" }',
-  '  - { name: lint, layer: lint, run: "true" }',
-  '  - { name: typecheck, layer: typecheck, run: "true" }',
-  '  - { name: test, layer: test, run: "true" }',
+  '  - { name: install, phase: setup, layer: install, run: "true # install" }',
+  '  - { name: lint, layer: lint, run: "true # lint" }',
+  '  - { name: typecheck, layer: typecheck, run: "true # typecheck" }',
+  '  - { name: test, layer: test, run: "true # test" }',
 ].join("\n");
 
 export function stack(root: string, id = "sample", extra = "", body = setupBody) {
@@ -26,11 +26,14 @@ export function stack(root: string, id = "sample", extra = "", body = setupBody)
 }
 
 export function fragment(root: string, id: string, extra = "", body = "# Guidance\n") {
+  const checked = extra.includes("verify:")
+    ? extra
+    : `${extra}\nverify:\n  - { name: fixture-${id}, layer: check, run: "true # ${id}" }`;
   return writeEntry({
     root,
     kind: "fragment",
     dir: id,
-    frontmatter: minimal("fragment", id, extra),
+    frontmatter: minimal("fragment", id, checked),
     body,
   });
 }

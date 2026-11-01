@@ -104,7 +104,7 @@ CI reads Bun from packageManager and Node from .node-version, installs frozen de
 The shipped package scripts match the declared commands. `start` runs `node build`; `prepare` syncs generated types and, outside CI, installs hooks when lefthook.yml exists and downloads Chromium. `clean` removes generated app and test output. Mirror scripts in AGENTS.md with a scoped example: `bun run test src/lib/item-schema.test.ts`.
 
 <!-- stacks:when with=git-hooks -->
-The prepare script already installs lefthook when configured. pre-commit formats and lints staged files, including Svelte; pre-push runs typecheck and test in parallel.
+If the prepare script already runs `lefthook install`, don't add another install step. pre-commit formats and lints staged files, including Svelte; pre-push runs typecheck and test in parallel.
 <!-- stacks:end -->
 
 ## Gotchas

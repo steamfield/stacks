@@ -54,6 +54,7 @@ export const ShowReport = Schema.Struct({
       source: Schema.String,
       path: Schema.String,
       agent: Schema.optionalKey(Schema.String),
+      stack: Schema.optionalKey(Schema.String),
     }),
   ),
   body: Schema.String,

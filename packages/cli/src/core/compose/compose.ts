@@ -32,6 +32,8 @@ export type ComposeOptions<M extends "new" | "add" = "new"> = {
   mode: M;
   /** Already applied fragments satisfy requirements but emit nothing. */
   existing?: ReadonlyArray<string>;
+  /** Add-only fallback for conditional prose; never used by fragment selection. */
+  inferredTags?: ReadonlyArray<string>;
 };
 
 /** Which entry: a stack and a fragment may share an id, so an id alone is ambiguous. */
@@ -71,6 +73,9 @@ export type Composition<S extends Entry | null = Entry> = {
   fragments: ReadonlyArray<Entry>;
   /** The one fragment with category "app", also in `fragments`. */
   app: Entry | null;
+  /** Current recipe blocks that specifically name an added fragment. */
+  addNotes?: ReadonlyArray<{ fragment: string; entry: Entry }>;
+  inferredTags?: ReadonlyArray<string>;
   /** How each fragment was selected, in composition order. */
   selection: ReadonlyArray<{ id: string; via: Via }>;
   preset: ComposeOptions["preset"];
@@ -118,38 +123,48 @@ export function compose(
 ): Effect.Effect<Composition<Entry | null>, ComposeError, Registry> {
   return Effect.gen(function* () {
     const registry = yield* Registry;
-    const { stack, ordered, via, warnings, existing } = yield* selectFragments(registry, options);
+    const { stack, ordered, via, warnings, existing, appliedEntries } = yield* selectFragments(
+      registry,
+      options,
+    );
     const sandbox = options.preset === "sandbox";
-    const resolve = resolver(registry, {
+    const context = {
       stack: stack?.id ?? "",
-      tags: stack?.meta.tags ?? [],
+      tags: stack?.meta.tags ?? options.inferredTags ?? [],
       mode: options.mode,
       preset: options.preset,
       with: [...existing, ...ordered.map((fragment) => fragment.id)],
-    });
+    };
+    const resolve = resolver(registry, context);
     const resolvedStack = stack ? yield* resolve(stack) : null;
     const fragments = yield* Effect.forEach(ordered, resolve);
     const entries: ReadonlyArray<Entry> = [
       ...(options.mode === "new" && resolvedStack ? [resolvedStack] : []),
       ...fragments,
     ];
+    const addNotes = yield* recipeNotes(registry, context, ordered, {
+      stack,
+      applied: appliedEntries,
+    });
+    const inferred =
+      !stack && options.inferredTags !== undefined ? { inferredTags: options.inferredTags } : {};
     const app = fragments.find((fragment) => fragment.meta.category === "app") ?? null;
 
     return {
       stack: resolvedStack,
       fragments,
       app,
+      addNotes,
+      ...inferred,
       selection: fragments.map((fragment) => ({
         id: fragment.id,
         via: via.get(fragment.id) ?? "requires",
       })),
       preset: options.preset,
       agents: options.agents,
-      files: yield* planFiles(registry, entries, options.agents),
+      files: yield* planFiles(registry, entries, options.agents, stack?.id ?? null),
       verify: yield* steps(entries, app, sandbox),
-      commands: Object.fromEntries(
-        new Map(entries.flatMap((entry) => Object.entries(entry.meta.commands))),
-      ),
+      commands: mergeCommands(entries),
       env: yield* mergeEnv(entries),
       decisions: entries.flatMap((entry) =>
         entry.meta.decisions.map((text) => ({
@@ -162,7 +177,12 @@ export function compose(
       ).map(([tool, owners]) => ({ tool, owners: owners.map(entryRef) })),
       deps: mergeDeps(entries),
       needsOwnRepo: fragments.filter((fragment) => fragment.meta.needsOwnRepo).map((f) => f.id),
-      untrusted: entries
+      // Trust point 3: every recipe contributing prose participates in handoff trust.
+      untrusted: [
+        ...new Map(
+          [...entries, ...addNotes.map((note) => note.entry)].map((entry) => [entry.dir, entry]),
+        ).values(),
+      ]
         .filter((entry) => !entry.trusted)
         .map(({ id, kind, origin, dir }) => ({ id, kind, origin, dir })),
       warnings,
@@ -170,14 +190,32 @@ export function compose(
   });
 }
 
+const recipeNotes = Effect.fn("compose.recipeNotes")(function* (
+  registry: Registry["Service"],
+  context: Parameters<typeof resolveConditionals>[1],
+  fragments: ReadonlyArray<Entry>,
+  { stack, applied }: { stack: Entry | null; applied: ReadonlyArray<Entry> },
+) {
+  const notes: Array<{ fragment: string; entry: Entry }> = [];
+  if (context.mode !== "add") return notes;
+  const sources = [...(stack ? [stack] : []), ...applied];
+  for (const fragment of fragments)
+    for (const source of sources) {
+      const entry = yield* resolver(registry, context, fragment.id)(source);
+      if (entry.body.trim()) notes.push({ fragment: fragment.id, entry });
+    }
+  return notes;
+});
+
 /** Each entry with its body's conditional blocks resolved; a malformed block is `EntryInvalid`. */
 function resolver(
   registry: Registry["Service"],
   context: Parameters<typeof resolveConditionals>[1],
+  withFragment?: string,
 ) {
   return <E extends Entry>(entry: E) =>
     Effect.gen(function* () {
-      const resolved = resolveConditionals(entry.body, context);
+      const resolved = resolveConditionals(entry.body, context, withFragment);
       if ("text" in resolved) return { ...entry, body: resolved.text };
       // The body is the file's tail, so the lines before it are the difference in line counts.
       const file = markdownFile(entry.kind);
@@ -224,8 +262,13 @@ function steps(entries: ReadonlyArray<Entry>, app: Entry | null, sandbox: boolea
   });
 }
 
+/** `commands` in composition order; a later entry's command replaces an earlier one's. */
+export function mergeCommands(entries: ReadonlyArray<Entry>): Record<string, string> {
+  return Object.fromEntries(entries.flatMap((entry) => Object.entries(entry.meta.commands)));
+}
+
 /** `env` in composition order; two different defaults for one key is a conflict. */
-function mergeEnv(entries: ReadonlyArray<Entry>) {
+export function mergeEnv(entries: ReadonlyArray<Entry>) {
   return Effect.gen(function* () {
     const env = new Map<string, { value: string; owner: Entry }>();
     for (const entry of entries)

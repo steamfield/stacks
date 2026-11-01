@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "git-hooks",
   "source": {
-    "digest": "sha256:8cf9df5519b896e98ce207d96310694e12950dba18c2f3a249a760a1dc751b68",
+    "digest": "sha256:4b6602f15842f3377fb6f6e36991961ec05e86cef117e48464cabf801db64702",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-11-01"
   },
   "summary": "Format and lint staged changes, enforce Conventional Commits and run project tests before pushing through local Git hooks.",
   "description": "Check contributions locally with lefthook. Pre-commit formats and lints staged files, commit-msg checks Conventional Commits, and pre-push runs the project's tests. Installation is wired into project setup and skipped in CI. The instructions reuse each stack's commands and require proving both rejected and valid commit subjects. Hosted checks still belong in CI.",

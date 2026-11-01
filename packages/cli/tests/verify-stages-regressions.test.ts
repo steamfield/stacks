@@ -42,11 +42,10 @@ test.each(["human", "agent"])(
       host: { cwd: project.root, stdoutIsTTY: audience === "human" },
     });
     expect(run.status).toBe(5);
-    const failure = "Verify failed.\n  Failed: app-test (env, exit 127)\n";
     if (audience === "human") {
       expect(run.stderr).toContain("> base-test: true\n> app-test: ./missing-app-command\n");
-      expect(run.stderr.endsWith(failure)).toBe(true);
-    } else expect(run.stderr).toBe(`> base-test\n> app-test\n${failure}`);
+      expect(run.stderr.endsWith("Verify failed.\n")).toBe(true);
+    } else expect(run.stderr).toBe("> base-test\n> app-test\nVerify failed.\n");
     expect(run.stdout).toContain("base: green\napp: failed\nverify: failed");
     const next = lastLine(run.stdout);
     expect(next).toContain("the machine is missing something these steps need");

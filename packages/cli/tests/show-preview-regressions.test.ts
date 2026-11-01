@@ -82,19 +82,27 @@ test("text preview failures explain their findings on stderr and keep stdout equ
   const home = space.dir();
   const registry = space.dir();
   stack(registry);
-  fragment(registry, "bad-decision", "decisions: [Undecided]");
+  // No verify step, so the report also carries a note text modes must leave out.
+  fragment(registry, "bad-decision", "decisions: [Undecided]\nverify: []");
   const args = ["validate", "--brief", "sample", "--with", "bad-decision"];
   const json = await runCli([...args, "--json"], { home, env: quiet, host: { registry } });
   expect(json.status).toBe(2);
   expect(json.stderr.trim().split("\n")).toHaveLength(1);
   expect(JSON.parse(json.stderr)).toMatchObject({ error: { tag: "ValidationFailed" } });
   const report = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(json.stdout));
-  expect(report.findings).toHaveLength(1);
+  expect(report.findings.map(({ check, severity }) => [check, severity])).toEqual([
+    ["decision-default", "error"],
+    ["fragment-no-verify", "note"],
+  ]);
   for (const audience of [terminal, { stdoutIsTTY: false }]) {
     const result = await runCli(args, { home, env: quiet, host: { registry, ...audience } });
     expect(result.status).toBe(2);
     expect(result.stdout).toBe(report.brief);
     for (const finding of report.findings) {
+      if (finding.severity === "note") {
+        expect(result.stderr).not.toContain(finding.check);
+        continue;
+      }
       expect(result.stderr).toContain(finding.check);
       expect(result.stderr).toContain(finding.file);
       expect(result.stderr).toContain(finding.message);

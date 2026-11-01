@@ -14,6 +14,7 @@ import {
   markdownFile,
   type Origin,
   type RejectedEntry,
+  shippedPath,
 } from "./entry";
 import { remoteRegistry } from "./remote";
 
@@ -675,12 +676,13 @@ export class Registry extends Context.Service<
             Effect.gen(function* () {
               yield* checkEntry(entry);
               const walked = yield* tree(entry);
-              // `files/<path>` and `adapters/<agent>/<path>`; anything else in the entry ships nothing.
-              const shipped = /^(?:files|adapters\/[^/]+)\/(.+)$/;
+              // Stack overlays belong only to fragments; validate reports misplaced stack files.
               return walked.files
                 .flatMap(({ source, mode }) => {
-                  const match = shipped.exec(source);
-                  return match?.[1] ? [{ source, path: match[1], mode }] : [];
+                  const shipped = shippedPath(source);
+                  return shipped && !(entry.kind === "stack" && shipped.condition?.kind === "stack")
+                    ? [{ source, path: shipped.path, mode }]
+                    : [];
                 })
                 .sort((a, b) => (a.source < b.source ? -1 : 1));
             }),

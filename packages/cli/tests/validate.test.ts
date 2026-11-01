@@ -27,10 +27,10 @@ const words = (n: number, prefix = "w") =>
 /** The four D7 layers, so a stack that uses them is clean. */
 const STEPS = [
   "verify:",
-  '  - { name: install, phase: setup, layer: install, run: "true" }',
-  '  - { name: lint, layer: lint, run: "true" }',
-  '  - { name: typecheck, layer: typecheck, run: "true" }',
-  '  - { name: test, layer: test, run: "true" }',
+  '  - { name: install, phase: setup, layer: install, run: "true # install" }',
+  '  - { name: lint, layer: lint, run: "true # lint" }',
+  '  - { name: typecheck, layer: typecheck, run: "true # typecheck" }',
+  '  - { name: test, layer: test, run: "true # test" }',
 ].join("\n");
 const SETUP = "## Setup\n\nCreate the project.\n";
 type StackContent = { body?: string; tags?: string };
@@ -50,11 +50,14 @@ function stack(
   });
 }
 function fragment(root: string, id: string, extra = "", body = "# Guidance\n") {
+  const checked = extra.includes("verify:")
+    ? extra
+    : `${extra}\nverify:\n  - { name: fixture-${id}, layer: check, run: "true # ${id}" }`;
   return writeEntry({
     root,
     kind: "fragment",
     dir: id,
-    frontmatter: minimal("fragment", id, extra),
+    frontmatter: minimal("fragment", id, checked),
     body,
   });
 }
@@ -140,7 +143,7 @@ test("human mode groups findings by entry, prints sizes and a total, and suggest
   stack(root, "clean");
   const result = await run([root], { host: terminal });
   expect(result.status).toBe(0);
-  expect(result.stdout).toContain(`Validated ${root}: 1 stack, 0 fragments`);
+  expect(result.stdout).toContain(`Validated ${root}\n`);
   expect(result.stdout).toMatch(/Sizes \(words\)\n {2}clean body +\d+ \/ 2,000\n/);
   expect(result.stdout).toMatch(/clean \(sandbox\) +[\d,]+ \/ 6,000 {3}fixed [\d,]+\n/);
   expect(result.stdout).toContain("1 stack, 0 fragments: 0 errors, 0 warnings, 1 note");
@@ -751,6 +754,8 @@ test("a compose failure that remains is one finding per composition, naming the 
     ["compose", "torn", "torn (default, sandbox) + b: can't compose (conflicts): b, r"],
     ["search-missing", "torn", "No search card; add a reviewed sidecar for search discovery."],
     ["search-missing", "a", "No search card; add a reviewed sidecar for search discovery."],
+    ["compose-add", "b", "b with torn (default, add): can't compose (conflicts): b, r"],
+    ["compose-add", "b", "b with torn (sandbox, add): can't compose (conflicts): b, r"],
     ["search-missing", "b", "No search card; add a reviewed sidecar for search discovery."],
     ["search-missing", "r", "No search card; add a reviewed sidecar for search discovery."],
   ]);
@@ -959,6 +964,15 @@ test("a check-layer step is a described step: no step-layer warning, and no D7 l
       severity: "note",
     },
     {
+      check: "verify-run-duplicate",
+      entry: "hooks",
+      file: "fragments/hooks/FRAGMENT.md",
+      kind: "fragment",
+      severity: "note",
+      message:
+        "hooks with checked (add): steps readme, hooks-defined run the same command in one composed manifest; keep both only if the repetition is intentional.",
+    },
+    {
       check: "search-missing",
       entry: "hooks",
       file: "search/fragments/hooks.json",
@@ -1068,7 +1082,7 @@ test("conditional prose: syntax with its file line and 1.1's problem code, unkno
   fragment(root, "broken", "", "# G\n\n<!-- stacks:when preset=prod -->\nx\n<!-- stacks:end -->\n");
   const { report: got } = await report([root]);
   const conditional = got.findings.filter((finding) => finding.check.startsWith("conditional"));
-  // minimal() frontmatter is 6 lines for a stack (7 for a fragment), plus the two --- lines.
+  // Fixture fragment frontmatter includes its inert verify step, plus the two --- lines.
   expect(conditional).toEqual([
     expect.objectContaining({
       check: "conditional-tag",
@@ -1080,19 +1094,19 @@ test("conditional prose: syntax with its file line and 1.1's problem code, unkno
       check: "conditional-syntax",
       entry: "broken",
       file: "fragments/broken/FRAGMENT.md",
-      line: 11,
+      line: 14,
       problem: "bad_value",
     }),
     expect.objectContaining({
       check: "conditional-ids",
       entry: "ids",
-      line: 10,
+      line: 13,
       message: "stack=nope names no stack, so the block is never kept",
     }),
     expect.objectContaining({
       check: "conditional-ids",
       entry: "ids",
-      line: 10,
+      line: 13,
       message: "with=missing names no fragment, so the block is never kept",
     }),
   ]);
@@ -1146,6 +1160,14 @@ test("a directory under stacks/ or fragments/ with no markdown file, or the othe
   expect(wrong.report.findings.map((f) => [f.check, f.kind, f.entry, f.message])).toEqual([
     ["schema", "fragment", "misplaced", "FRAGMENT.md is missing"],
   ]);
+});
+
+test("a registry root inside a directory named stacks/ is a registry, as in node_modules/@steamfield/stacks/registry", async () => {
+  const root = join(temp(), "stacks", "registry");
+  stack(root, "fine");
+  const result = await report([root]);
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.report.findings.filter((f) => f.severity !== "note")).toEqual([]);
 });
 
 test("a stacks/ the project registry skips as a symlink is one registry finding, not a newer schema_version per entry", async () => {
@@ -1529,6 +1551,19 @@ it.effect("validate --help documents the path and every flag", () =>
   }),
 );
 
+test.each(["agent", "human"])(
+  "%s validation of one fragment prints its entry counts once",
+  async (audience) => {
+    const root = temp();
+    const entry = fragment(root, "checked");
+    const result = await run([entry], { host: audience === "human" ? terminal : {} });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.match(/0 stacks, 1 fragment/g)).toHaveLength(1);
+    expect(result.stdout).toContain("0 stacks, 1 fragment: 0 errors");
+  },
+);
+
 test("for an agent, no size table when every size is within budget; JSON keeps every size", async () => {
   const root = temp();
   stack(root, "clean");
@@ -1537,7 +1572,7 @@ test("for an agent, no size table when every size is within budget; JSON keeps e
   expect(agent.stderr).toBe("");
   expect(agent.stdout).toBe(
     [
-      "Validated .: 1 stack, 0 fragments",
+      "Validated .",
       "",
       "stack clean",
       "  note     search-missing  search/stacks/clean.json: No search card; add a reviewed sidecar for search discovery.",
@@ -1576,19 +1611,226 @@ test("for an agent, the root is relative to the working directory, and absolute 
   const root = join(home, "my registry");
   stack(root, "clean");
   const inside = await run([root], { home });
-  expect(inside.stdout).toMatch(/^Validated my registry: 1 stack, 0 fragments\n/);
+  expect(inside.stdout).toMatch(/^Validated my registry\n/);
   const outside = await run([root]);
-  expect(outside.stdout.startsWith(`Validated ${root}: 1 stack`)).toBe(true);
+  expect(outside.stdout.startsWith(`Validated ${root}\n`)).toBe(true);
   // Real paths that differ from the given one (/var and /private/var on macOS) still nest.
   const real = await run([realpathSync(root)], { home });
-  expect(real.stdout).toMatch(/^Validated my registry: 1 stack/);
+  expect(real.stdout).toMatch(/^Validated my registry\n/);
   const linked = join(temp(), "link");
   symlinkSync(home, linked);
   const viaLink = await run([root], { home: linked });
-  expect(viaLink.stdout).toMatch(/^Validated my registry: 1 stack/);
+  expect(viaLink.stdout).toMatch(/^Validated my registry\n/);
   // A human and --json keep the absolute root.
   const human = await run([root], { home, host: terminal });
-  expect(human.stdout.startsWith(`Validated ${root}: 1 stack`)).toBe(true);
+  expect(human.stdout.startsWith(`Validated ${root}\n`)).toBe(true);
   const json = await report([root], { home });
   expect(json.report.root).toBe(root);
 });
+
+test("overlays reject unknown or unadmitted stacks and duplicate shared paths", async () => {
+  const root = temp();
+  stack(root, "host");
+  stack(root, "other");
+  const entry = fragment(root, "overlay", "applies_to: [host]");
+  for (const source of [
+    "files/shared.txt",
+    "stacks/host/shared.txt",
+    "stacks/other/other.txt",
+    "stacks/missing/file.txt",
+  ]) {
+    const at = join(entry, source);
+    mkdirSync(join(at, ".."), { recursive: true });
+    writeFileSync(at, "bytes");
+  }
+  const { report: got } = await report([root]);
+  for (const code of ["overlay-stack-unknown", "overlay-stack-fit", "overlay-path-duplicate"])
+    expect(only(got.findings, code)).toEqual([
+      expect.objectContaining({ severity: "error", entry: "overlay" }),
+    ]);
+});
+
+test("a stack with a stacks/ directory is an overlay-fragment-only error, since new never ships it", async () => {
+  const root = temp();
+  const entry = stack(root, "host");
+  mkdirSync(join(entry, "stacks", "other"), { recursive: true });
+  writeFileSync(join(entry, "stacks", "other", "lost.txt"), "bytes");
+  const { status, report: got } = await report([root]);
+  expect(status).toBe(2);
+  expect(only(got.findings, "overlay-fragment-only")).toEqual([
+    expect.objectContaining({
+      severity: "error",
+      kind: "stack",
+      entry: "host",
+      file: "stacks/host/STACK.md",
+    }),
+  ]);
+});
+
+test("shipped files reject conditional markers in shared, adapter and stack files but accept fill", async () => {
+  const root = temp();
+  stack(root, "host");
+  const entry = fragment(root, "markers");
+  for (const prefix of ["files", "adapters/claude", "stacks/host"]) {
+    mkdirSync(join(entry, prefix), { recursive: true });
+    writeFileSync(
+      join(entry, prefix, "bad.md"),
+      "<!-- stacks:when mode=add -->\ntext\n<!-- stacks:end -->\n",
+    );
+    writeFileSync(join(entry, prefix, "fill.md"), "<!-- stacks:fill: write this -->\n");
+  }
+  const { report: got } = await report([root]);
+  const markers = only(got.findings, "shipped-conditional");
+  expect(markers).toHaveLength(6);
+  expect(
+    markers.every((found) => found.severity === "error" && found.file?.endsWith("bad.md")),
+  ).toBe(true);
+});
+
+test("validate notes missing fragment verification and duplicate commands", async () => {
+  const root = temp();
+  writeEntry({
+    root,
+    kind: "stack",
+    dir: "host",
+    frontmatter: minimal(
+      "stack",
+      "host",
+      `tags: [cli, scripts]\n${STEPS}\n  - {name: second, layer: check, run: "true # test"}\nfragments:\n  default: [unchecked]`,
+    ),
+    body: SETUP,
+  });
+  writeEntry({
+    root,
+    kind: "fragment",
+    dir: "unchecked",
+    frontmatter: minimal("fragment", "unchecked"),
+  });
+  const { status, report: got } = await report([root]);
+  expect(status).toBe(0);
+  expect(only(got.findings, "fragment-no-verify")).toEqual([
+    expect.objectContaining({ entry: "unchecked", severity: "note" }),
+  ]);
+  expect(only(got.findings, "verify-run-duplicate")).toEqual([
+    expect.objectContaining({ entry: "host", severity: "note" }),
+  ]);
+});
+
+test("add compositions budget add-only guidance with a host and with none", async () => {
+  const root = temp();
+  stack(root, "host");
+  fragment(root, "large", "", `<!-- stacks:when mode=add -->\n${words(6500)}\n<!-- stacks:end -->`);
+  const { report: got } = await report([root]);
+  const failures = only(got.findings, "budget-add");
+  expect(failures).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ severity: "error", message: expect.stringContaining("with host") }),
+      expect.objectContaining({
+        severity: "error",
+        message: expect.stringContaining("without a stack"),
+      }),
+    ]),
+  );
+});
+
+test("overlay compositions check imports and shipped references even when unlisted", async () => {
+  const root = temp();
+  stack(root, "host");
+  const entry = fragment(root, "overlay");
+  mkdirSync(join(entry, "stacks/host"), { recursive: true });
+  mkdirSync(join(entry, "stacks/host/.claude"), { recursive: true });
+  writeFileSync(
+    join(entry, "stacks/host/.claude/settings.json"),
+    `{"hooks":{"PreToolUse":[{"command":"bash \${CLAUDE_PROJECT_DIR}/.claude/hooks/missing.sh"}]}}`,
+  );
+  writeFileSync(join(entry, "stacks/host/index.ts"), 'import "./absent.ts";\n');
+  const { report: got } = await report([root]);
+  expect(got.findings).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ check: "import-closure", severity: "error" }),
+      expect.objectContaining({ check: "ref-hook", severity: "error" }),
+    ]),
+  );
+});
+
+test("preview tools use deterministic wording without claiming a PATH lookup", async () => {
+  const root = temp();
+  stack(root, "host", "tools: [git]");
+  const preview = await run([root, "--brief", "host", "--json"]);
+  const brief = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(preview.stdout)).brief;
+  expect(brief).not.toContain("found on PATH");
+  expect(brief).toContain("PATH not checked");
+});
+
+test.each([
+  { retained: 4800, note: 0, added: 800 },
+  { retained: 3800, note: 950, added: 950 },
+])(
+  "add budgets retain the host manifest and applied-fragment notes: $note note words",
+  async ({ retained, note, added }) => {
+    const root = temp();
+    writeEntry({
+      root,
+      kind: "stack",
+      dir: "host",
+      frontmatter: minimal(
+        "stack",
+        "host",
+        `tags: [cli, scripts]\n${STEPS}\n  - {name: retained, layer: check, run: "echo ${words(retained)}"}\nfragments:\n  default: [applied]`,
+      ),
+      body: SETUP,
+    });
+    fragment(
+      root,
+      "applied",
+      "",
+      `<!-- stacks:when with=addon mode=add -->\n${words(note)}\n<!-- stacks:end -->`,
+    );
+    fragment(
+      root,
+      "addon",
+      "applies_to: [host]",
+      `<!-- stacks:when mode=add -->\n${words(added)}\n<!-- stacks:end -->`,
+    );
+    const { report: got } = await report([root]);
+    expect(only(got.findings, "budget-composed")).toEqual([]);
+    expect(only(got.findings, "budget-add")).toEqual([
+      expect.objectContaining({
+        entry: "addon",
+        severity: "error",
+        message: expect.stringContaining("with host (default, add)"),
+      }),
+      expect.objectContaining({
+        entry: "addon",
+        severity: "error",
+        message: expect.stringContaining("with host (sandbox, add)"),
+      }),
+    ]);
+  },
+);
+
+test.each([false, true])(
+  "duplicate-command notes cover unlisted and stackless add compositions (host=%s)",
+  async (host) => {
+    const root = temp();
+    if (host) stack(root, "host");
+    fragment(
+      root,
+      "duplicate",
+      'verify:\n  - {name: first, layer: check, run: "true"}\n  - {name: second, layer: check, run: "true"}',
+    );
+    const { status, report: got } = await report([root]);
+    expect(status).toBe(0);
+    const notes = only(got.findings, "verify-run-duplicate");
+    expect(notes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entry: "duplicate",
+          severity: "note",
+          message: expect.stringContaining("first, second"),
+        }),
+      ]),
+    );
+    expect(notes.some((finding) => finding.severity !== "note")).toBe(false);
+  },
+);

@@ -60,6 +60,11 @@
     "registry/stacks/python-react/files/frontend/**",
     "registry/stacks/tauri-react/files/src/**",
     "registry/stacks/tauri-react/files/tests/**",
-    "registry/stacks/tauri-react/files/*.config.ts"
+    "registry/stacks/tauri-react/files/*.config.ts",
+    // Fragment files that import their host's dependencies are checked in the host scaffold.
+    // Overlays target one stack's layout and dependencies, so all of them are.
+    "registry/fragments/*/stacks/**",
+    "registry/fragments/clerk/files/apps/**",
+    "registry/fragments/cloudflare-d1/files/drizzle.config.ts"
   ]
 }

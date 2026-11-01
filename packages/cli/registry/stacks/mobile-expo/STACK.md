@@ -113,7 +113,7 @@ The root scripts are shipped and delegate to workspace scripts. `setup` installs
 `db:up` waits for Postgres; `db:down` stops it without deleting data. `db:check` validates migration metadata and generates against a temporary copy to detect uncommitted schema changes. `test` runs API, mobile and CI contracts; `check` adds lint, typecheck, migration checks, bundle and Expo dependency checks. Keep the names in Commands and AGENTS.md.
 <!-- stacks:when with=git-hooks -->
 
-Write lefthook config before the first install. Pre-push starts Postgres before tests; document that it leaves Postgres running.
+If `scripts/prepare.ts` already runs `lefthook install`, don't add another install step. Pre-push starts Postgres before tests; document that it leaves Postgres running.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 

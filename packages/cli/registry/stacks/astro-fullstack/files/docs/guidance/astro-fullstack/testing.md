@@ -28,7 +28,7 @@ Test what a client observes, with real dependencies, so tests survive refactorin
 
 ## Effect tests
 
-- With `@effect/vitest` installed, `it.effect` runs on the `TestClock` (it starts at 0 and moves only when adjusted: fork the program, adjust, then join) and silences the default logger; names are in the `effect` skill when the project has one. Without it, run programs with `Effect.runPromise` and provide `TestClock` yourself.
+- With `@effect/vitest` installed, `it.effect` runs on the `TestClock` (it starts at 0 and moves only when adjusted: fork the program, adjust, then join) and silences the default logger; names are in `docs/guidance/effect/api.md` when the project has one. Without it, run programs with `Effect.runPromise` and provide `TestClock` yourself.
 - Build a fresh app layer per test when state must not leak; `it.layer` shares one build across its block on purpose only.
 - Time-based behavior (retry schedules, rate limits, expiry) is tested with `TestClock`, never with real sleeps. For real I/O in between (the stub server), wait on a condition (`vi.waitFor`), not a fixed delay.
 - Assert typed failures and defects explicitly; never let a test pass because a failure was swallowed.

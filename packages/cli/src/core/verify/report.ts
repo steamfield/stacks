@@ -1,13 +1,13 @@
 import type { FailureKind } from "@steamfield/stacks-format";
 import { changeLines } from "../../errors";
 import type { StepResult, VerifyResult } from "../../schemas/verify";
-import { type Audience, plainStyle, type Style } from "../../services/output";
+import { type Audience, plainStyle, type Style, stripAnsi } from "../../services/output";
 import { printable } from "../text";
 import { nextLine } from "./next";
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 /** One line of step output, safe for a terminal; tabs become spaces rather than escapes. */
-export const outputLine = (line: string) => printable(line.replaceAll("\t", "  "));
+export const outputLine = (line: string) => printable(stripAnsi(line).replaceAll("\t", "  "));
 
 function stepLines(step: StepResult, width: number, partial: boolean, style: Style): string[] {
   const facts = [

@@ -19,7 +19,13 @@ import { fitsStack } from "./compose/selection";
 import { fingerprint } from "./fingerprint";
 import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
 import { toRow } from "./list";
-import { type CatalogEntry, type Entry, isFragment, outputPath } from "./registry/entry";
+import {
+  type CatalogEntry,
+  type Entry,
+  isFragment,
+  outputPath,
+  shippedPath,
+} from "./registry/entry";
 import { Registry, type RegistryRoots, remoteRoots } from "./registry/registry";
 import { searchSourceDigest } from "./search/digest";
 import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
@@ -50,11 +56,12 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
       const { meta } = entry;
       const fragments = yield* dependencyFragments(entry, registry);
       const files = (yield* registry.files(entry)).map((file) => {
-        const agent = /^adapters\/([^/]+)\//.exec(file.source)?.[1];
+        const condition = shippedPath(file.source)?.condition;
         return {
           source: file.source,
           path: outputPath(file),
-          ...(agent ? { agent } : {}),
+          ...(condition?.kind === "agent" ? { agent: condition.id } : {}),
+          ...(condition?.kind === "stack" ? { stack: condition.id } : {}),
         };
       });
       const composition = yield* defaultComposition(

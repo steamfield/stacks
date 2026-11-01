@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "ce-plugin",
   "source": {
-    "digest": "sha256:f7cf939b500a1207781f418fe2e6438260587b135d10bb39ca8e91b54f6619b3",
+    "digest": "sha256:628ae8f9661bb67a27b24ecefc58ab1bbfe78d616fbffaa3a727ae04ec80dc1d",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Enable shared engineering skills and review agents in Claude Code, with rules that load relevant guidance for testing, debugging, errors and writing.",
   "description": "Enable the Claude Essentials plugin and route relevant project files to its engineering and writing skills. Short path-scoped rules cover testing, errors, debugging and documentation, while AGENTS.md remains the source for project facts. The plugin takes effect in a trusted Claude Code session. It supplies guidance and review agents; it does not enforce checks or change other coding assistants.",

@@ -525,3 +525,42 @@ it.effect.prop(
     }),
   { timeout: 60_000, arbitrary: { runs: 25 } },
 );
+
+test("fragment stack overlays plan only for the host stack, and show and fingerprints carry them", async () => {
+  const root = temp();
+  for (const id of ["host", "other"])
+    writeEntry({ root, kind: "stack", dir: id, frontmatter: minimal("stack", id) });
+  const fragment = writeEntry({
+    root,
+    kind: "fragment",
+    dir: "overlay",
+    frontmatter: minimal("fragment", "overlay"),
+  });
+  for (const id of ["host", "other"]) {
+    mkdirSync(join(fragment, "stacks", id), { recursive: true });
+    writeFileSync(join(fragment, "stacks", id, `${id}.txt`), `${id} bytes`);
+  }
+  const host = await composed({ stack: "host", with: ["overlay"] }, { roots: bundledAt(root) });
+  const other = await composed({ stack: "other", with: ["overlay"] }, { roots: bundledAt(root) });
+  expect(host.files.map((file) => file.path)).toEqual(["host.txt"]);
+  expect(other.files.map((file) => file.path)).toEqual(["other.txt"]);
+  const options = { home: temp(), env: quiet, host: { registry: root } };
+  const shown = await runCli(["show", "overlay", "--json"], options);
+  expect(shown.status).toBe(0);
+  expect(JSON.parse(shown.stdout).files).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ source: "stacks/host/host.txt", path: "host.txt" }),
+      expect.objectContaining({ source: "stacks/other/other.txt", path: "other.txt" }),
+    ]),
+  );
+  const preview = async () => {
+    const run = await runCli(
+      ["validate", "--brief", "host", "--with", "overlay", "--json"],
+      options,
+    );
+    return JSON.parse(run.stdout).fingerprint;
+  };
+  const before = await preview();
+  writeFileSync(join(fragment, "stacks/host/host.txt"), "changed bytes");
+  expect(await preview()).not.toBe(before);
+});

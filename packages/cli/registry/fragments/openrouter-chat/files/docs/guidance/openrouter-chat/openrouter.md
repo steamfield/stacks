@@ -6,9 +6,9 @@
 
 - **Fallback models**: OpenRouter's `models` array, tried in order when the primary fails.
 - **Provider routing**: `sort` (price, throughput, latency), `allow_fallbacks`, data collection, zero-data-retention.
-- **Usage accounting** on, so cost comes back with every step.
+- **Attribution**: `X-OpenRouter-Title` from the project name and `HTTP-Referer` from `OPENROUTER_SITE_URL` when set, through the provider's `headers` option.
 
-Pass them through the provider's settings or extra-body option, whichever the installed `@openrouter/ai-sdk-provider` exposes. A test points the real provider at a local stub server and asserts on the request body, so a renamed option shows up as a failing test, not a silent no-op.
+Usage and cost come back on every response, streaming included; don't send the deprecated `usage: { include: true }` (the provider still exposes it, and it does nothing). Pass the settings through the provider's settings or extra-body option, whichever the installed `@openrouter/ai-sdk-provider` exposes. A test points the real provider at `startStubOpenRouter` (`tests/helpers/stub-openrouter.ts`) and asserts on `stub.chatRequests` and `stub.chatHeaders`, so a renamed option shows up as a failing test, not a silent no-op. Error classes and retry decisions follow `docs/openrouter.md`.
 
 ## Models list
 

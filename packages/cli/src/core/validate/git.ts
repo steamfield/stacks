@@ -2,7 +2,7 @@ import { Duration, Effect, FileSystem, Option, Path, Result } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
 import type { Finding } from "../../schemas/validate";
 import { Processes } from "../../services/processes";
-import { type Entry, markdownFile } from "../registry/entry";
+import { type Entry, markdownFile, shippedPath } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type Check, finding } from "./view";
 
@@ -115,9 +115,8 @@ export const gitChecks: Check = (view) =>
         const source = rule.source.split(path.sep).join("/");
         // A .gitignore the entry ships (under files/ or adapters/) can be shipped as a template
         // instead: git doesn't read `.gitignore.tmpl`, and `new` renders it to `.gitignore`.
-        const within = path.relative(entryDir, rule.source).split(path.sep);
-        const shipped =
-          (within[0] === "files" || within[0] === "adapters") && within.at(-1) === ".gitignore";
+        const within = path.relative(entryDir, rule.source).split(path.sep).join("/");
+        const shipped = shippedPath(within)?.path.split("/").at(-1) === ".gitignore";
         findings.push(
           finding(owner, {
             check: "git-ignored",

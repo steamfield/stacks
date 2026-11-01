@@ -1,4 +1,6 @@
-import { basename } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
+import { projectRoot } from "./_lib";
 import type { Command } from "./_shell";
 
 const message = (reason: string, suggestion: string) => `${reason}\n\n${suggestion}`;
@@ -201,18 +203,68 @@ function releaseReason(cmd: Command): string | undefined {
   return undefined;
 }
 
+function infraReason(cmd: Command): string | undefined {
+  const [program = "", ...args] = cmd.argv;
+  const name = basename(program);
+  const teardown =
+    (["terraform", "tofu"].includes(name) &&
+      (args.includes("destroy") || (args.includes("apply") && args.includes("-destroy")))) ||
+    (name === "pulumi" && args.includes("destroy")) ||
+    (name === "kubectl" && args.includes("delete")) ||
+    (name === "aws" &&
+      args[0] === "s3" &&
+      ((args[1] === "rm" && args.includes("--recursive")) ||
+        (args[1] === "rb" && args.includes("--force"))));
+  if (teardown)
+    return message(
+      "This tears down infrastructure or deletes cloud data.",
+      "Infrastructure changes are user-initiated. Ask the user first.",
+    );
+  return undefined;
+}
+
+const LOCKFILES: readonly [string, string][] = [
+  ["bun.lock", "bun"],
+  ["bun.lockb", "bun"],
+  ["pnpm-lock.yaml", "pnpm"],
+  ["yarn.lock", "yarn"],
+  ["package-lock.json", "npm"],
+];
+const MANAGERS = ["bun", "npm", "pnpm", "yarn"];
+
+/** The package managers owning the project's lockfiles, else its packageManager field, else bun. */
+function packageOwners(root: string): string[] {
+  const owners = LOCKFILES.filter(([file]) => existsSync(join(root, file))).map(([, pm]) => pm);
+  if (owners.length > 0) return owners;
+  try {
+    const manifest: unknown = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    const field =
+      typeof manifest === "object" && manifest !== null && "packageManager" in manifest
+        ? String(manifest.packageManager)
+        : "";
+    const named = field.split("@")[0] ?? "";
+    if (MANAGERS.includes(named)) return [named];
+  } catch {
+    // No readable package.json: fall through to the harness's own runtime.
+  }
+  return ["bun"];
+}
+
+function changesDependencies(name: string, sub: string | undefined): boolean {
+  if (name === "yarn" && sub === undefined) return true;
+  const subcommands = ["install", "i", "add", "ci", "remove", "uninstall", "rm", "update", "up"];
+  if (name === "bun") subcommands.push("a");
+  return subcommands.includes(sub ?? "");
+}
+
 function packageReason(cmd: Command): string | undefined {
   const [program = "", sub] = cmd.argv;
   const name = basename(program);
-  if (
-    ["npm", "pnpm", "yarn"].includes(name) &&
-    ((name === "yarn" && sub === undefined) ||
-      ["install", "i", "add", "ci", "remove", "uninstall", "rm", "update", "up"].includes(
-        sub ?? "",
-      ))
-  )
-    return "bun owns this project's lockfile. Use bun install, bun add, or bun remove.";
-  return undefined;
+  if (!MANAGERS.includes(name) || !changesDependencies(name, sub)) return undefined;
+  const owners = packageOwners(projectRoot());
+  if (owners.includes(name)) return undefined;
+  const owner = owners[0] ?? "bun";
+  return `${owner} owns this project's lockfile. Use ${owner} install, ${owner} add, or ${owner} remove.`;
 }
 
 /** The shell fallback's command families, inspected only after shell lexing. */
@@ -222,6 +274,7 @@ export function destructiveReason(cmd: Command): string | undefined {
     databaseReason,
     executionReason,
     releaseReason,
+    infraReason,
     packageReason,
   ]) {
     const reason = check(cmd);

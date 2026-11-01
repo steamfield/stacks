@@ -3,9 +3,14 @@
   "hooks": {
     "preToolUse": [
       {
-        "command": "bash \"${CURSOR_PROJECT_DIR}/.cursor/hooks/guard.sh\"",
-        "matcher": "^(Shell|Write|Edit)$",
+        "command": "bash .cursor/hooks/guard.sh",
+        "matcher": "^(Shell|Write|Delete)$",
         "failClosed": true
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "bash .cursor/hooks/guard.sh read"
       }
     ]
   }

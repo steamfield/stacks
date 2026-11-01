@@ -191,7 +191,6 @@ describe("verify with an app", () => {
       writeFileSync(join(project.root, "base-ready"), "");
       const run = await verify([], { ...project, cwd: project.root, host });
       expect(run.status).toBe(5);
-      const failure = "Verify failed.\n  Failed: app-test (step, exit 1)\n";
       const started = [
         "base-setup",
         "base-test",
@@ -202,8 +201,8 @@ describe("verify with an app", () => {
         "app-lint",
         "app-clean",
       ].map((name) => `> ${name}\n`);
-      if (audience === "human") expect(run.stderr.endsWith(failure)).toBe(true);
-      else expect(run.stderr).toBe(`${started.join("")}${failure}`);
+      if (audience === "human") expect(run.stderr.endsWith("Verify failed.\n")).toBe(true);
+      else expect(run.stderr).toBe(`${started.join("")}Verify failed.\n`);
       expect(run.stdout).toContain("verify: failed");
       const next = lastLine(run.stdout);
       expect(next).toMatch(/^Next: .*application/i);

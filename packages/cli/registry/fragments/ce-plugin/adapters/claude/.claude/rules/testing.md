@@ -12,7 +12,7 @@ paths:
 
 # Testing
 
-Load the `ce:writing-tests` skill before writing or rewriting tests. When a test passes alone but fails in the suite, or fails intermittently, load `ce:fixing-flaky-tests` instead of adding retries or sleeps.
+Load the `ce:writing-tests` skill before writing or rewriting tests, and when a test passes alone but fails in the suite or fails intermittently (instead of adding retries or sleeps).
 
 The project's test layers, runners, and harness files are in the Testing section of `AGENTS.md`; the commands are in its Commands table. Build on the existing harness rather than around it.
 

@@ -13,6 +13,8 @@ export const title = (project: string, stack: string) => `# Build ${project}: ${
 
 export const facts = {
   stack: (name: string, id: string) => `- Stack: ${name} (${code(id)})`,
+  project: (slug: string, prefix: string) =>
+    `- Project slug: ${code(slug)}; env prefix: ${code(prefix)}`,
   fragments: (ids: ReadonlyArray<string>) =>
     `- Fragments: ${ids.length ? ids.map(code).join(", ") : "none"}`,
   app: (name: string, id: string) => `- Application: ${name} (${code(id)}), built after the base`,
@@ -71,7 +73,7 @@ export const ground = {
     "- Files stacks wrote are starting points: adapt them, don't delete them. Update any that fail against what you installed; never pin older versions.",
   agentsMd: "- Keep `AGENTS.md` accurate: real commands, implemented behavior.",
   notes: [
-    `- Keep \`${NOTES_PATH}\` here as you work; git worktrees lack it and the brief (both git-ignored):`,
+    `- Keep \`${NOTES_PATH}\` here as you work. It and the brief are git-ignored, so git worktrees lack them:`,
     "  - Under `## Findings`, add a line whenever this brief is ambiguous, wrong, names something that doesn't exist or made you guess, and whenever an instruction stopped you making a mistake.",
     "  - Under `## Asked`, add a line with the time whenever you ask the user something or the user tells you something unprompted. An empty `## Asked` means no interventions.",
   ],
@@ -91,6 +93,7 @@ export const dependencies = {
     "Packages, by role. Install the current stable version of each; these are names, not versions:",
   tools: "Tools:",
   found: (tool: string) => `- ${code(tool)}: found on PATH`,
+  unchecked: (tool: string) => `- ${code(tool)}: required; PATH not checked in this preview`,
   missing: (
     tool: string,
     hint: string,
@@ -217,6 +220,11 @@ export const sandbox = [
 
 /** Fixed wording specific to applying fragments to an existing project. */
 export const add = {
+  inferredTags: (tags: ReadonlyArray<string>) =>
+    `- Inferred tags: ${tags.length ? tags.join(", ") : "none"}`,
+  recipeNote: (id: string) => `### From the ${code(id)} recipe (current version)`,
+  createAgentsMd:
+    "Create `AGENTS.md` at the project root before adding the sections requested below.",
   title: (ids: ReadonlyArray<string>, project: string) => `# Add ${ids.join(", ")} to ${project}`,
   stack: (id: string | null) => `- Stack: ${id ? code(id) : "none recorded, existing repo"}`,
   applied: (ids: ReadonlyArray<string>) =>
@@ -229,6 +237,7 @@ export const add = {
   accept: (cli: string) =>
     `The new steps have not been accepted. Stop and ask the user to run ${code(`${cli} verify --accept-changes`)} in their own terminal after reviewing them. Do not run it yourself.`,
   git: "- This repository already exists. Preserve its layout and history; don't commit without the user's permission.",
+  ignore: `- Exclude \`${METADATA_DIR}/\` from the repository's formatter and linter (Biome \`"!${METADATA_DIR}"\` in \`files.includes\`, \`.prettierignore\`, ruff \`extend-exclude\`), then format the files this brief added.`,
   done: (cli: string) =>
     `Run ${verify(cli)} over the whole manifest, keeping all existing checks green.`,
 };

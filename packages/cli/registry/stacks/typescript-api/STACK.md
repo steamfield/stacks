@@ -99,11 +99,11 @@ CI sets up Bun from packageManager and Node from .node-version, installs frozen 
 The shipped `package.json` wires every declared script; agents query `logs` and `dev:status` before restarting. `start` reads `PORT_API`, else `PORT`, else 3000, and `build` doesn't inline env, so the bundle reads it at runtime. Document command names, logs and hook ownership in AGENTS, plus a Debugging section with `jq` queries over `logs/server.jsonl` (one request by `requestId`, errors only, slow requests).
 
 <!-- stacks:when with=git-hooks -->
-The shipped `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install` (skipped when `CI` is set, lefthook is missing, or `lefthook.yml` doesn't exist yet, and non-fatal when it fails, for example outside a git checkout), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
+If `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install`, don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
 <!-- stacks:end -->
 
 <!-- stacks:when with=effect -->
-The generated Effect skill also records, under the installed release's names, every HTTP mechanism `effect-api.md` describes by behavior: the API declaration, error status annotations, server-level middleware, the test client, serving on Node and as a web handler.
+The Effect API reference (`docs/guidance/effect/api.md`) also records, under the installed release's names, every HTTP mechanism `effect-api.md` describes by behavior: the API declaration, error status annotations, server-level middleware, the test client, serving on Node and as a web handler.
 <!-- stacks:end -->
 
 The server and Vitest run on Node: never `bun test`, never `--bun`, and never run the server under Bun to save a step, because runtime differences hide until deploy. Bun doesn't pass its loaded `.env` to a Node child. Record configuration workarounds with their removal condition. The architecture stays Effect-based even when the optional Effect testing fragment is excluded.

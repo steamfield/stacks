@@ -2,7 +2,7 @@ import type { FailureKind } from "@steamfield/stacks-format";
 import { Clock, Duration, Effect, FileSystem, Path } from "effect";
 import type { SpawnFailed } from "../../errors";
 import type { StepResult } from "../../schemas/verify";
-import { Output } from "../../services/output";
+import { Output, stripAnsi } from "../../services/output";
 import { type Finished, Processes } from "../../services/processes";
 import { printable } from "../text";
 import type { PlannedStep } from "./plan";
@@ -81,7 +81,14 @@ export const runStep = (step: PlannedStep, context: StepContext) =>
       const result = (fields: Partial<StepResult> & Pick<StepResult, "status">) =>
         Effect.map(
           Clock.currentTimeMillis,
-          (now): StepResult => ({ ...base, ...fields, durationMs: now - started }),
+          (now): StepResult => ({
+            ...base,
+            ...fields,
+            ...(fields.outputTail === undefined
+              ? {}
+              : { outputTail: stripAnsi(fields.outputTail) }),
+            durationMs: now - started,
+          }),
         );
       const fail = (failureKind: FailureKind, reason: string, extra: Partial<StepResult> = {}) =>
         result({ status: "failed", failureKind, reason, ...extra });

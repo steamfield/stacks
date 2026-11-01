@@ -1,12 +1,14 @@
 import { Effect } from "effect";
 import { Command } from "effect/cli";
 import { doctor } from "../core/doctor";
+import { Invocation } from "../services/invocation";
 import { Output } from "../services/output";
 
 export const doctorCommand = Command.make(
   "doctor",
   {},
   Effect.fn(function* () {
+    yield* Effect.flatMap(Invocation, (invocation) => invocation.named("doctor"));
     const output = yield* Output;
     const result = yield* doctor();
     yield* output.result(

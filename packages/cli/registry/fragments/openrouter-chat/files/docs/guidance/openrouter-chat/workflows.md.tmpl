@@ -1,0 +1,49 @@
+# Workflows
+
+Three recipes for extending the app: a route, a service, a tool. Each ends with `bun run check`.
+
+## Add a route
+
+The extract feature is the smallest complete slice, so use it as the template: `app/schemas/extract.ts`, `app/.server/extract.ts`, `app/routes/api.extract.ts`, `app/routes/extract.tsx`, `app/components/extract-form.tsx`, `tests/extract.test.ts`, and the `api.extract` case in `tests/chat-routes.test.ts`. Read `AGENTS.md`, [ui](ui.md) and [testing](testing.md) for the paths you touch, and the Effect guidance (`docs/guidance/effect/index.md`, when the effect fragment is selected) before writing Effect code.
+
+If the request is ambiguous (what goes in, what comes out, what counts as failure), state your assumptions in one short list before writing code, and ask if a wrong guess would be expensive to undo.
+
+1. **Schema** in `app/schemas/<domain>.ts`, re-exported from `index.ts`: the request body and the response, each a `Schema.Struct` with a same-named type. Decoding is where validation lives (trim, lengths, brands), with a `message` on anything a user can trip.
+2. **Program** in `app/.server/<domain>.ts`: `<name>Program(request)` spends a rate-limit token (`yield* enforceRateLimit(request)`, required for anything that calls a paid model), reads and decodes the body (`readJsonBody` then `decodeInput(Schema)`), and hands the decoded input to a function that does the work and gets services with `yield*`. That split keeps the core testable without a Request (see `extractProgram` and `extractContact`). Expected failures are tagged errors; reuse the ones in `errors.ts` where they fit. A new error gets a status in `statusFor` and a user-safe message. State that persists or is shared is a service (below), not a module-level variable.
+3. **Route**: a resource route `app/routes/api.<name>.ts` (path params go in the file name and in `routes.ts`, e.g. `api.chats.$chatId.export.ts` for `api/chats/:chatId/export`) whose action or loader is one line, `return runRoute(request, <name>Program(request))`, and which exports nothing else (another export touching `~/.server` fails only the build). Add it to `app/routes.ts`, then run `bun run typecheck` so `./+types/api.<name>` exists. A page that needs data on load uses a loader with `runData`.
+4. **UI**, if the feature has one: a page route plus a component under `app/components/`, built from the shadcn components in `app/components/ui/`. It `fetch`es the resource route and shows loading, error (the response's `{ message, retryable }`, read with `errorFrom` from `~/lib/chat`; a Retry button only when `retryable`) and success states. Components import types from `~/schemas`, never from `app/.server/`.
+5. **Tests**:
+   - the program with `it.effect` and `Effect.provide(makeTestLayer(...))`, covering success and each tagged error
+   - the route with a real `Request` on `useTestRuntime`, covering 200 and every error status it returns: for an action that takes a body, 400 for a bad body, 415 for a non-JSON body and 429 once the rate limit is spent; for a GET route, 400 for a bad param and 404 for a missing thing (see `tests/chat-export.test.ts`)
+   - one component test (happy-dom) if there is UI
+   - a stub for any third-party HTTP call, so no test touches the network
+6. `bun run check`, then run the app (`bun run dev:bg`, see [verification](verification.md)) and exercise the feature once for real. If it adds something a user clicks, consider one step in `e2e/chat.spec.ts`.
+
+Keep the slice thin. Don't add abstractions, config or options the request didn't ask for; say what you left out instead.
+
+## Add a service
+
+Look at an existing service in `app/.server/services/` first.
+
+1. **Interface.** A `class <Name> extends Context.Service<<Name>, <Name>Shape>()("{{project_slug}}/<Name>")` in `app/.server/services/<Name>.ts`, with a small interface of Effect-returning methods. Failures it can produce are tagged errors in `errors.ts`, each mapped to an HTTP status in `runRoute`.
+2. **Layer.** `static readonly layer = Layer.effect(<Name>, make)` on the class. It reads its settings from Config (new env vars go in `config.ts` and `.env.example`). If it keeps in-memory state, keep that state on `globalThis` in dev so hot reload doesn't reset it.
+3. **Wire it** into `AppLayer` and the `AppServices` union in `runtime.ts` (re-export the class there too), and into `makeTestLayer` in `tests/helpers/runtime.ts` (a `static readonly layerMemory` with fresh state if it keeps state). Missing either one shows up as a `ManagedRuntime` type error in route tests.
+4. **Tests.** Test it with `@effect/vitest` using its real `layer` where that's in-memory, or pointed at a local stub server where it calls a third party. Use `TestClock` for anything time-based.
+5. `bun run check`.
+
+Keep the interface free of implementation details, so a different backing store later is a new layer, not a new interface.
+
+## Add a tool
+
+Look at the example tool in `app/.server/tools/` first and match its shape.
+
+1. **Schema** in `app/schemas/tools.ts`: the input and output as Effect Schemas with `title` and `description` annotations on the schema and its fields (the model reads these to decide when and how to call the tool). No `identifier` annotation, annotate before any `.check(...)`, and give a custom `Schema.makeFilter` a `toJsonSchema` annotation if the model should see the constraint (`TimeZone` in `app/schemas/tools.ts` shows the annotate-then-check order). Print `toAiSchema(Input).jsonSchema` before a model sees it.
+2. **Tool** next to `currentTime` in `app/.server/tools/index.ts` (or its own file there): `tool({ description, inputSchema: toAiSchema(Input), execute })`. `toAiSchema` already does the JSON Schema conversion and decoder-backed validation; don't hand-roll it. Dependencies come in through `ToolDeps` (built in `chat.ts` from the Effect runtime), not by providing a service layer.
+3. **Register** it in `makeTools` so `streamText` sees it.
+4. **Client type**: add `<name>: { input; output }` to `ChatTools` in `app/lib/chat.ts`. It's hand-kept; without it the tool's parts are untyped in the UI.
+5. **Render** its part in `MessageParts` in `app/components/chat/message-list.tsx` (a `part.type === "tool-<name>"` branch covering the input, output and error states). Unknown part types render nothing, so a missing branch means the tool is invisible.
+6. **Prompt**: if the model should prefer the tool over guessing, add a line to `DEFAULT_SYSTEM_PROMPT` in `app/.server/prompts.ts`.
+7. **Tests.** Unit-test `execute` for valid input, invalid input and any failure it can hit (`tests/tools.test.ts`). Then add a closed-loop case (`tests/chat-closed-loop.test.tsx`) where the mock model calls the new tool (`toolCallReply` in `tests/helpers/mock-model.ts`) and assert its rendered result reaches the DOM. If the tool is worth scoring against real models, add a case to `evals/cases.ts`.
+8. `bun run check`.
+
+If the tool calls a third-party API, add its base URL to Config and point tests at a local stub server. Tests never hit the network.

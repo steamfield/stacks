@@ -14,16 +14,19 @@
  * astro-blog changed again that day for its shipped blog, config and tests.
  * python-react changed that day for its shipped backend and frontend proving slice.
  * python-react changed again that day for Biome frontend linting and formatting.
+ * All six changed on 2026-10-31 because previews now say tools' PATH was not checked.
+ * All six changed again that day for the brief's project slug and env prefix line and the
+ * bundled fragment audit's fragment and stack edits; they await a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:43d6cfe011cc36271c904fb76fe6bb140453199b00308a8fbcd3762ab6fc76b3",
-  "astro-blog:sandbox": "sha256:ff6b070b0699468566e4fcc204056937f8f8b06e27ae4d4a2cd301fba1cd25d2",
-  "go-cli:default": "sha256:409ba8d13b314025615c9d1a695963e8dfb913fe496a204eefd7b2d4c0447d62",
-  "go-cli:sandbox": "sha256:95cc2b2f94070c6fc2228941697e9ed145e785372647b1237db8059657da91d9",
-  "python-react:default": "sha256:b32c2c14a4d8e3c4b642a9d92ad295c62db1e26fd2eda84f4f7fad4154ec6082",
-  "python-react:sandbox": "sha256:38d8239b6b2aca2ae426ca175a000d7d64e63aabd88c5aca5029a3259d8b341e",
+  "astro-blog:default": "sha256:13325938254e64bd094c6bd25d998b00c1792535d954b3c07030da40d6a81706",
+  "astro-blog:sandbox": "sha256:62cc98b852d14a05f25e0c3b7557c07c14cdea54ad3de6c0027084102fd7c92d",
+  "go-cli:default": "sha256:daa78b445c5972daab182e0ad9cbbfffb43f2d3db617a4c415453ce77455f2e9",
+  "go-cli:sandbox": "sha256:a95e731ed9a1508332d8dde85a1c13952b85a32db14753d2093bd7b4f72c6527",
+  "python-react:default": "sha256:59cd421a212a4cca744ed3f38c54215a4c395bb75b0ae65c7a3cf26f58392c07",
+  "python-react:sandbox": "sha256:c886ed5c2c5f5c18246394d874f551a9beeca4b4c34905a36f796424a1bcead3",
 };

@@ -405,18 +405,18 @@ test("conflicting releases fail in either selection order before creating a proj
   }
 });
 
-test("effect pulls in effect-schema on a stack that defaults to neither [3.3c#2]", async () => {
-  const baseline = await scaffold("cloudflare-react-router", "requirements-baseline", [
-    "--dry-run",
-    "--sandbox",
-  ]);
-  for (const id of ["effect", "effect-schema"]) expect(baseline.fragments).not.toContain(id);
-  const result = await scaffold("cloudflare-react-router", "requirements", [
-    "--with",
+test("effect-schema arrives only through effect's requires on a stack that never lists it [3.3c#2]", async () => {
+  // effect applies only to effect-tagged stacks, and each lists it by default, so no stack takes
+  // `--with effect` from neither. typescript-cli lists effect but not effect-schema: dropping
+  // effect drops both, and the default brings effect-schema only through effect's requires.
+  const baseline = await scaffold("typescript-cli", "requirements-baseline", [
+    "--without",
     "effect",
     "--dry-run",
     "--sandbox",
   ]);
+  for (const id of ["effect", "effect-schema"]) expect(baseline.fragments).not.toContain(id);
+  const result = await scaffold("typescript-cli", "requirements", ["--dry-run", "--sandbox"]);
   expect(result.fragments.filter((id) => id === "effect" || id === "effect-schema")).toEqual([
     "effect-schema",
     "effect",
@@ -537,30 +537,14 @@ test("bun-release renders scope and rejects bad sums without replacing an existi
   const server = createServer((request, response) => {
     const url = request.url ?? "";
     requests.push(url);
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("release fixture has no port");
-    const base = `http://127.0.0.1:${address.port}`;
-    if (url.endsWith("/releases/latest")) {
-      response.setHeader("content-type", "application/json");
-      response.end(
-        JSON.stringify({
-          assets: [
-            ...["darwin", "linux"].flatMap((os) =>
-              ["x64", "arm64"].map((arch) => ({
-                browser_download_url: `${base}/matrix-${os}-${arch}`,
-              })),
-            ),
-            { browser_download_url: `${base}/SHA256SUMS` },
-          ],
-        }),
-      );
-    } else if (url === "/SHA256SUMS") {
+    if (url === "/latest/download/SHA256SUMS") {
       response.end(
         ["darwin", "linux"]
           .flatMap((os) => ["x64", "arm64"].map((arch) => `${checksum}  matrix-${os}-${arch}`))
           .join("\n"),
       );
-    } else if (/^\/matrix-(darwin|linux)-(x64|arm64)$/.test(url)) response.end(binary);
+    } else if (/^\/latest\/download\/matrix-(darwin|linux)-(x64|arm64)$/.test(url))
+      response.end(binary);
     else {
       response.statusCode = 404;
       response.end();
@@ -599,9 +583,10 @@ test("bun-release renders scope and rejects bad sums without replacing an existi
     expect(rejected.exitCode).not.toBe(0);
     expect(rejected.tail).toContain(expected);
     expect(rejected.tail).toContain(actual);
-    expect(requests).toContain("/repos/acme/matrix/releases/latest");
-    expect(requests).toContain("/SHA256SUMS");
-    expect(requests.some((url) => /^\/matrix-(darwin|linux)-(x64|arm64)$/.test(url))).toBe(true);
+    expect(requests).toContain("/latest/download/SHA256SUMS");
+    expect(
+      requests.some((url) => /^\/latest\/download\/matrix-(darwin|linux)-(x64|arm64)$/.test(url)),
+    ).toBe(true);
     expect(snapshot(installDir)).toEqual(before);
     checksum = actual;
     const installed = await install();

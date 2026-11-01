@@ -3,14 +3,14 @@
   "kind": "fragment",
   "id": "cloudflare-d1",
   "source": {
-    "digest": "sha256:6aeef66a5e32d0461c51b02a7fce1408aca30d14b8aa5f7dc95522258c1dfeff",
+    "digest": "sha256:be9d127dfa93ea2542e720281c14b99534d1c7d359908a372d14aca4f8e0ae69",
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Add a typed SQL database binding with checked-in migrations and isolated local tests before provisioning production.",
-  "description": "Add Drizzle access to a typed Cloudflare D1 binding, checked-in SQL migrations and isolated database tests. Development and verify use local D1 without a cloud account, and the health route proves a real query through the framework. Production provisioning and reviewed remote migrations are separate steps. This is a storage foundation; it does not add a product data model or authentication.",
+  "description": "Add Drizzle access to a typed Cloudflare D1 binding, checked-in SQL migrations and isolated database tests. Development and verify use local D1 without a cloud account, and a readiness route proves a real query through the framework. Production provisioning and reviewed remote migrations are separate steps. This is a storage foundation; it does not add a product data model or authentication.",
   "seoDescription": "Cloudflare D1 with Drizzle, typed Worker bindings, checked-in SQL migrations and isolated local database tests without a cloud account.",
   "projectExamples": [
     {
@@ -51,11 +51,13 @@
     "Drizzle",
     "SQLite",
     "SQL migrations",
-    "typed bindings"
+    "typed bindings",
+    "wrangler d1",
+    "SQLite on Workers"
   ],
   "goodFor": [
     "schema-driven SQL generation",
-    "health checks that query the database"
+    "readiness checks that query the database"
   ],
   "notFor": [
     "Postgres databases",

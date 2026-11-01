@@ -108,7 +108,7 @@ CI sets up Bun from packageManager and Node from `.node-version`, installs froze
 `package.json` wires every declared command. Mirror them in AGENTS.md, including a scoped example such as `bun run test src/lib/item-schema.test.ts`. `prepare` runs the shipped helper after install; `clean` removes only build, test and coverage output.
 
 <!-- stacks:when with=git-hooks -->
-The shipped prepare helper already runs `lefthook install` when its config exists outside CI, so don't add another installer. pre-commit runs ESLint with `--fix` and Prettier on staged files; pre-push runs typecheck and tests in parallel.
+If the prepare helper already runs `lefthook install`, don't add another installer. pre-commit runs ESLint with `--fix` and Prettier on staged files; pre-push runs typecheck and tests in parallel.
 <!-- stacks:end -->
 
 ## Gotchas

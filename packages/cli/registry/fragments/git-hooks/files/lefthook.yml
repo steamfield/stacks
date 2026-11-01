@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lefthook.dev/schema.json
+# stacks:fill: add the pre-commit and pre-push jobs, then delete these comments.
+#   pre-commit: one job per language area on {staged_files} (glob, plus root in a monorepo).
+#     Format with stage_fixed: true, then lint in check mode, quiet on files the tool ignores.
+#     Biome: biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+#     ESLint: add --no-warn-ignored. Whole-project tools (golangci-lint) run the project's lint command.
+#     exclude: [".stacks/**"], because the CLI rewrites .stacks/manifest.json.
+#   pre-push: the project's test target; add lint only if pre-commit lints just staged files.
+commit-msg:
+  jobs:
+    - name: conventional-commits
+      script: conventional-commits.sh
+      runner: sh

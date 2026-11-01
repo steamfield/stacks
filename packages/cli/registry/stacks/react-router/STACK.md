@@ -15,7 +15,7 @@ merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
   default: [git-hooks, ci-github, effect]
-  optional: [posthog, rr, ce-plugin, openrouter-chat, effect-sql-postgres, effect-otlp]
+  optional: [posthog, rr, ce-plugin, openrouter-ai, openrouter-chat, effect-sql-postgres, effect-otlp]
 env:
   PORT_WEB: "5173"
 verify:
@@ -96,7 +96,7 @@ CI reads Bun from packageManager and Node from .node-version, installs frozen de
 The shipped package scripts wire every declared command. `dev` preserves terminal output in `logs/dev.log`; `dev:bg` starts or reuses this checkout's server and `dev:stop` stops its process group. `dev:server` is the direct framework server used by verify. `start` runs `react-router-serve build/server/index.js`, with PORT_WEB taking precedence over PORT, then 3000. The framework serves the build's assets and `public/` files. `clean` removes generated outputs only. Mirror commands, logs and hook ownership in AGENTS.md.
 
 <!-- stacks:when with=git-hooks -->
-`scripts/prepare.ts` already installs lefthook outside CI when the binary and config exist, non-fatally outside a git checkout. Don't duplicate it. pre-push runs typecheck and tests in parallel.
+If `scripts/prepare.ts` already runs `lefthook install`, don't duplicate it. pre-push runs typecheck and tests in parallel.
 <!-- stacks:end -->
 
 ## Gotchas
@@ -107,4 +107,4 @@ The shipped package scripts wire every declared command. `dev` preserves termina
 - Bun doesn't automatically pass its loaded .env into child Node processes. Supply the production environment explicitly; e2e supplies its own config and needs no .env.
 - `@react-router/serve` also emits a plain-text access log that includes query strings. Keep the app's Effect request logs as the structured record. A project that puts sensitive values in URLs switches to the Node adapter behind its own server, where it controls access logging.
 - `prepare` downloads Chromium on first install; this can take a while. It also runs after subsequent installs.
-- The architecture stays Effect-based when the optional testing fragment is excluded. Use installed declarations for APIs, then update the project's Effect skill when selected.
+- The architecture stays Effect-based when the optional testing fragment is excluded. Use installed declarations for APIs, then update the Effect API reference (`docs/guidance/effect/api.md`) when the effect fragment is selected.

@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "openrouter-chat-cli",
   "source": {
-    "digest": "sha256:eb6da6b94f1d941f5521494813ec764d342427f3bb2adee79a076e97ba7347ab",
+    "digest": "sha256:f766e5228e11e15486a9ca6b30dac3531be9b0db370775ff7c342a34be007b3d",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Add terminal chat and scriptable model commands with saved conversations, tool calls, structured extraction and Markdown export.",
   "description": "Add an OpenRouter terminal application to typescript-cli. Scriptable commands and an OpenTUI interface share chat, tools, contact extraction and Markdown export; MCP exposes the tools over stdio. Conversations are saved as local JSON files, with partial replies retained on interruption. Local stubs, capture and replay support testing without paid calls. Live use needs a key; installer and update workflows require the separate bun-release fragment.",

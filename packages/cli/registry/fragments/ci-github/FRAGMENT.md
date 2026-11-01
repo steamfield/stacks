@@ -10,57 +10,68 @@ tags: [ci, github]
 applies_to: []
 tools: [git]
 decisions:
-  - "Runners: ubuntu-latest (default) or self-hosted labels."
-  - "Required check: one aggregate ci-ok job (default)."
-  - "CI runs the coverage target instead of plain tests (default: yes)."
+  - "Runners: ubuntu-latest (default) or self-hosted labels (private repos only)."
+  - "CI runs the coverage target instead of plain tests (default: yes, when the project has one)."
   - "Weekly grouped Dependabot updates per ecosystem and for actions (default: yes)."
+verify:
+  - name: ci-workflow
+    layer: check
+    run: "f=.github/workflows/ci.yml; test -f $f && grep -q '^jobs:' $f && grep -Eq '^[[:space:]]+ci-ok:' $f && ! grep -n 'stacks:fill' $f || { echo \"$f needs jobs:, a ci-ok job and no stacks:fill\" >&2; exit 1; }"
 ---
 
 # GitHub Actions CI
 
-Write `.github/workflows/ci.yml`. Check each action's latest major tag before writing the workflow; versions written from memory run two majors behind.
+Write `.github/workflows/ci.yml`, looking up each action's latest release first, never from memory.
+
+<!-- stacks:when mode=add -->
+If the repo already has workflows, fold the checks they run into `ci.yml` rather than running them twice; leave deploy and release workflows alone.
+<!-- stacks:end -->
 
 ## What to add
 
-- **Triggers**: `push` to the repo's current branch (`git branch --show-current`; `new` keeps git's default name), `pull_request`, `workflow_dispatch`; never `pull_request_target`. **Permissions**: top-level `contents: read`, more only at job level.
-- **Jobs call the project's make targets (or package.json scripts, where the stack has no Makefile)**, never re-implemented inline; a CI-only check gets a target or script first. Official setup actions, versions read from the project, frozen-lockfile installs.
+- **Triggers**: `push` to the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/`; with no remote, the current branch), `pull_request`, `workflow_dispatch`; never `pull_request_target`.
+- **Permissions**: top-level `contents: read`, more only at job level. `actions/checkout` gets `persist-credentials: false`.
+- **Jobs call the project's make targets (or package scripts, without a Makefile)**, never re-implemented inline; a CI-only check gets a target or script first. Frozen-lockfile installs.
+- **Runtimes**: official setup actions reading versions from project files (`packageManager`, `.node-version`, `go.mod`, `.python-version`); create a missing one from the installed version.
+- Pass `${{ github.event.* }}` and `${{ github.head_ref }}` to `run:` through `env:`.
 - **Generated-code drift**: if generated code is committed, regenerate and fail on `git diff --exit-code`.
+- Pending user actions: require `ci-ok` in the branch ruleset.
 <!-- stacks:when preset=default -->
-- **Concurrency**: group per workflow and ref, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}` (cancelling on the default branch can let an untested commit reach deploy).
-- **Pin actions by full commit SHA** with the tag in a comment, resolved with `git ls-remote --tags https://github.com/<owner>/<repo>` (dereference annotated tags). Never invent one; if you can't resolve it, list it under Pending user actions. `timeout-minutes` on every job.
+- **Concurrency**: group per workflow and ref, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
+- **Pin actions by full commit SHA** with the exact tag in a comment (`# vX.Y.Z`), resolved with `git ls-remote --tags https://github.com/<owner>/<repo>` (annotated tags: the `^{}` line). Never invent one; if you can't resolve it, list it under Pending user actions. `timeout-minutes` on every job.
+- **Dependabot** (if chosen): `.github/dependabot.yml`, one `updates` entry for `github-actions` and one per ecosystem at its manifest's directory, weekly, `cooldown: { default-days: 7 }`, one group with `patterns: ["*"]`.
 <!-- stacks:end -->
 <!-- stacks:when preset=sandbox -->
 
-Sandbox: keep the workflow minimal, with `timeout-minutes` per job. Major-tag action refs are fine (where an action publishes none, pin its latest release tag); list SHA pinning under Deferred.
+Sandbox: a minimal workflow with `timeout-minutes` per job. Major-tag action refs are fine (where an action publishes none, its latest release tag; zizmor will flag them); list SHA pinning and Dependabot under Deferred.
 <!-- stacks:end -->
 
 <!-- stacks:when tag=monorepo -->
-**Monorepo.** A `changes` job (paths-filter action) outputs one boolean per area; each filter covers the area's directory, shared lockfiles and config, the Makefile, and `.github/workflows/**`, and the frontend's also covers the backend's API and schema paths. One job per area gated on its output. A final `ci-ok` job (`needs:` all, `if: always()`) fails if any needed job failed or was cancelled; make it the required check, or path-skipped jobs block merges forever.
+**Monorepo.** A `changes` job (paths-filter action, `permissions: { contents: read, pull-requests: read }`, checkout first) outputs one boolean per area; each filter covers the area's directory, shared lockfiles and config, the Makefile, and `.github/workflows/**`, and the frontend's also covers the backend's API and schema paths. One job per area gated on its output. A final `ci-ok` job (`needs:` all, `if: always()`) fails if any needed job failed or was cancelled; make it the required check, or path-skipped jobs block merges forever.
 <!-- stacks:end -->
 <!-- stacks:when tag!=monorepo -->
-Use one sequential job named ci-ok for this project, unless the stack's CI notes split the work into jobs; then a final `ci-ok` job (`needs:` all, `if: always()`) is the required check.
+One sequential `ci-ok` job, unless the stack's CI notes split the work behind a final `ci-ok` (`needs:` all, `if: always()`).
 <!-- stacks:end -->
 <!-- stacks:when tag=make -->
-Call the project's Makefile targets, including its full check command and the selected coverage/build targets. Read runtime versions from the project. A tool-specific setup action may install/cache a required binary, but the project's targets remain the behavior contract.
+Call the Makefile's existing aggregate target, or its lint, test (coverage when chosen) and build targets; a setup action may install a binary, but the targets stay the contract.
 <!-- stacks:end -->
 <!-- stacks:when tag=scripts -->
-Call the project's package scripts: frozen install, lint, typecheck, coverage or test, and its remaining check/build steps. Use the declared commands instead of copying runner details into CI.
+Call the package scripts: frozen install, lint, typecheck, coverage or test, then the remaining check and build steps.
 <!-- stacks:end -->
 <!-- stacks:when tag=bun -->
-Use Bun's setup action with the packageManager version from package.json.
-<!-- stacks:end -->
-<!-- stacks:when tag=node -->
-Set up Node from .node-version where present, or the project's documented runtime version.
+Bun's setup action takes `bun-version-file: package.json`.
 <!-- stacks:end -->
 <!-- stacks:when tag=go -->
-Set up Go from go.mod. Use golangci-lint's official action with the version declared by the project for installation/cache, then its documented checks.
+If `make lint` runs golangci-lint, install it with its official action and `version-file: .golangci-lint-version` (create the file from the installed version).
 <!-- stacks:end -->
 <!-- stacks:when tag=python -->
-Set up uv with cache and the project's .python-version. Invoke the relevant install/check/coverage targets for each filtered part.
+Set up uv with its cache on.
 <!-- stacks:end -->
 
-Before finishing, run `actionlint` if installed and make sure every command the workflow calls passes locally.
+## Verify
+
+`ci-workflow` checks `ci.yml` has `jobs:`, a `ci-ok` job and no `stacks:fill`. Also run each command the workflow calls, then `actionlint` and `zizmor --offline .github` if installed.
 
 ## AGENTS.md
 
-A short **CI** section: workflow path, what each job runs, the required check, and how to bump pinned actions.
+A short **CI** section: workflow path, what each job runs, the required check, and how pinned actions move (Dependabot, or `git ls-remote`).

@@ -160,7 +160,8 @@ export function renderShow(
     "Files:",
     ...(report.files.length
       ? report.files.map(
-          (file) => `  ${file.path}${file.agent ? ` (${file.agent})` : ""} <- ${file.source}`,
+          (file) =>
+            `  ${file.path}${file.agent ? ` (${file.agent})` : ""}${file.stack ? ` (stack ${file.stack})` : ""} <- ${file.source}`,
         )
       : ["  none"]),
   );

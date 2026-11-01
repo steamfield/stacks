@@ -5,7 +5,7 @@ import { afterEach, expect, test } from "vitest";
 import { skeleton } from "../src/core/create-text";
 import { ValidateReport } from "../src/schemas/validate";
 import { runCli, tempDir } from "./helpers/cli";
-import { emptyRegistry } from "./helpers/registry";
+import { emptyRegistry, minimal, writeEntry } from "./helpers/registry";
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -38,6 +38,7 @@ const cli = (args: string[], options: { home: string; env?: Record<string, strin
 /** Every finding that isn't a note, as `[check, severity, file, line]`. */
 async function validateSubmission(home: string, dir: string) {
   const run = await cli(["validate", dir, "--submission", "--json"], { home });
+  expect(run.stdout, run.stderr).not.toBe("");
   const report = Schema.decodeUnknownSync(ValidateReport)(JSON.parse(run.stdout));
   return {
     run,
@@ -53,6 +54,20 @@ const missingCard = ["missing-card", "warning", "search/stacks/demo-app.json", u
 const githubToken = ["gh", "p_", "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"].join("");
 const pemHeader = ["-----BEGIN", "RSA PRIVATE", "KEY-----"].join(" ");
 const homePath = ["", "Users", "someone", "work", "notes.md"].join("/");
+
+test("stack overlays receive submission fill and credential checks", async () => {
+  const { home, root, dir, write } = setup("fragment", "overlay");
+  writeEntry({ root, kind: "stack", dir: "host", frontmatter: minimal("stack", "host") });
+  write("stacks/host/config.txt", `<!-- stacks:fill: set config -->\n${githubToken}\n`);
+  const { run, findings } = await validateSubmission(home, dir);
+  expect(run.status).toBe(2);
+  expect(findings).toEqual(
+    expect.arrayContaining([
+      ["fill-marker", "error", "fragments/overlay/stacks/host/config.txt", 1],
+      ["secret", "error", "fragments/overlay/stacks/host/config.txt", 2],
+    ]),
+  );
+});
 
 test("a scaffolded entry with its description written passes, warning only that it has no card", async () => {
   const { home, dir, write } = setup();

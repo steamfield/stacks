@@ -53,7 +53,8 @@ function commitSkipsHooks(args: string[]): boolean {
   return false;
 }
 
-function discardReason(operation: string | undefined, rest: string[]): string | undefined {
+/** Checkout, restore and switch forms that throw away working-tree changes. */
+function worktreeReason(operation: string | undefined, rest: string[]): string | undefined {
   if (operation === "checkout" && rest.some((arg) => arg === "." || arg === ":/"))
     return message(
       "git checkout . discards every unstaged change.",
@@ -70,6 +71,19 @@ function discardReason(operation: string | undefined, rest: string[]): string | 
       "git restore . discards every unstaged change.",
       "Revert specific files: git restore <file>",
     );
+  if (
+    (operation === "checkout" || operation === "switch") &&
+    (rest.includes("--force") || rest.includes("--discard-changes") || shortFlag(rest, "f"))
+  )
+    return message(
+      "A forced checkout or switch discards every local change.",
+      "Commit or stash the work first. Ask the user first.",
+    );
+  return undefined;
+}
+
+/** Clean, stash and branch forms that delete untracked files, stashes or unmerged branches. */
+function deleteReason(operation: string | undefined, rest: string[]): string | undefined {
   if (
     operation === "clean" &&
     (rest.includes("--force") || shortFlag(rest, "f")) &&
@@ -93,35 +107,68 @@ function discardReason(operation: string | undefined, rest: string[]): string | 
   return undefined;
 }
 
+/** --force-with-lease and --force-if-includes refuse to overwrite work the pusher hasn't seen. */
+function forcePush(arg: string): boolean {
+  return arg === "--force" || /^-[^-]*f/.test(arg) || (arg.startsWith("+") && arg.length > 1);
+}
+
+/** --mirror, --delete/-d and a :<ref> refspec delete remote branches. */
+function deletingPush(arg: string): boolean {
+  return (
+    arg === "--mirror" ||
+    arg === "--delete" ||
+    /^-[^-]*d/.test(arg) ||
+    (arg.startsWith(":") && arg.length > 1)
+  );
+}
+
 function historyReason(operation: string | undefined, rest: string[]): string | undefined {
+  if (operation === "push" && rest.some(deletingPush))
+    return "This push deletes or overwrites remote branches. Ask the user first.";
   if (
-    (operation === "push" &&
-      rest.some(
-        (arg) =>
-          /^--force(?:$|=|-with-lease|-if-includes)/.test(arg) ||
-          /^-[^-]*f/.test(arg) ||
-          arg.startsWith("+"),
-      )) ||
+    (operation === "push" && rest.some(forcePush)) ||
     ["filter-branch", "filter-repo"].includes(operation ?? "") ||
     (operation === "rebase" &&
       !rest.some((arg) => ["--abort", "--continue", "--skip", "--quit"].includes(arg))) ||
     (operation === "reflog" && ["expire", "delete"].includes(rest[0] ?? ""))
   )
-    return "Rewriting Git history can destroy shared work. Ask the user first.";
+    return message(
+      "Rewriting Git history can destroy shared work. Ask the user first.",
+      "If a force push is needed, --force-with-lease refuses to overwrite work you haven't fetched.",
+    );
   return undefined;
 }
 
-function resetReason(cmd: Command, cwd: string, global: string[]): string | undefined {
+function git(args: string[], cwd: string) {
+  return spawnSync("git", args, { cwd, encoding: "utf8", timeout: 2000 });
+}
+
+/** True when every ref named resolves to HEAD's own commit, so the reset moves nothing. */
+function targetsHead(refs: string[], global: string[], cwd: string): boolean {
+  const revision = (ref: string) => {
+    const result = git([...global, "rev-parse", "--verify", "--quiet", `${ref}^{commit}`], cwd);
+    return result.status === 0 ? result.stdout.trim() : undefined;
+  };
+  const head = revision("HEAD");
+  return head !== undefined && refs.every((ref) => revision(ref) === head);
+}
+
+function resetReason(
+  cmd: Command,
+  options: { cwd: string; global: string[]; rest: string[] },
+): string | undefined {
   if (cmd.remote || cmd.dir === null || cmd.env.some((value) => value.startsWith("GIT_")))
     return "Cannot inspect this repository before a hard reset. Ask the user first.";
-  const status = spawnSync(
-    "git",
-    [...global, "-c", "core.fsmonitor=false", "status", "--porcelain"],
-    {
-      cwd: resolve(cwd, cmd.dir ?? "."),
-      encoding: "utf8",
-      timeout: 2000,
-    },
+  const cwd = resolve(options.cwd, cmd.dir ?? ".");
+  const refs = options.rest.filter((arg) => !arg.startsWith("-"));
+  if (!targetsHead(refs, options.global, cwd))
+    return message(
+      "A hard reset to another commit drops this branch's commits beyond it; only the reflog can recover them.",
+      "Ask the user first.",
+    );
+  const status = git(
+    [...options.global, "-c", "core.fsmonitor=false", "status", "--porcelain"],
+    cwd,
   );
   if (status.status !== 0 || status.stdout.trim())
     return "A hard reset could discard uncommitted work. Commit or stash it, or ask the user first.";
@@ -138,9 +185,12 @@ export function gitReason(cmd: Command, cwd: string): string | undefined {
       "--no-verify skips the project's git hooks.",
       "Fix what the hook reports instead. Ask the user first.",
     );
-  const reason = discardReason(operation, rest) ?? historyReason(operation, rest);
+  const reason =
+    worktreeReason(operation, rest) ??
+    deleteReason(operation, rest) ??
+    historyReason(operation, rest);
   if (reason) return reason;
   if (operation === "reset" && rest.some((arg) => arg === "--hard" || arg.startsWith("--hard=")))
-    return resetReason(cmd, cwd, global);
+    return resetReason(cmd, { cwd, global, rest });
   return undefined;
 }

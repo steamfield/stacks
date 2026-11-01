@@ -1,0 +1,7 @@
+# An allowlist: send only what the build reads.
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+**/*_test.go

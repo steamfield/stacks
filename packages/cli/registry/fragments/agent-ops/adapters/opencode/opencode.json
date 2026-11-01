@@ -8,8 +8,10 @@
       "git log*": "allow",
       "git show*": "allow",
       "git reset --hard*": "deny",
-      "git push --force*": "deny",
-      "git push -f*": "deny",
+      "git push --force": "deny",
+      "git push --force *": "deny",
+      "git push -f": "deny",
+      "git push -f *": "deny",
       "rm -rf /": "deny",
       "rm -rf ~": "deny",
       "rm -rf .": "deny"

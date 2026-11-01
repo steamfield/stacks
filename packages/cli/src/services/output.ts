@@ -1,4 +1,4 @@
-import { styleText } from "node:util";
+import { stripVTControlCharacters, styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
 import { Clock, Context, Effect, Layer, Option, type Scope, Semaphore } from "effect";
 import { AppConfig } from "../config";
@@ -19,6 +19,8 @@ import { Host, type HostInfo } from "./host";
  * never behave differently; only the rendering changes.
  */
 export type Audience = "json" | "agent" | "human";
+/** Remove terminal styling and cursor sequences before storing or displaying step output. */
+export const stripAnsi = stripVTControlCharacters;
 export function resolveAudience(
   json: boolean,
   stdoutIsTTY: boolean,

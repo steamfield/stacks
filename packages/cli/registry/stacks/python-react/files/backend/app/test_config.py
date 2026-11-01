@@ -17,6 +17,12 @@ def test_defaults_and_env_override_dotenv(tmp_path: Path, monkeypatch: pytest.Mo
     assert Settings(log_level="WARNING").log_level == "WARNING"
 
 
+def test_log_level_accepts_any_case(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LOG_LEVEL", "info")
+    assert Settings().log_level == "INFO"
+    assert Settings.model_validate({"log_level": "Debug"}).log_level == "DEBUG"
+
+
 @pytest.mark.parametrize("key,value", [("ENVIRONMENT", "prodution"), ("LOG_LEVEL", "verbose")])
 def test_invalid_env_fails_startup(key: str, value: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(key, value)

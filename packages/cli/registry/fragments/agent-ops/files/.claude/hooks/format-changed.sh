@@ -9,7 +9,7 @@
 #
 # Only formatters the project has opted into run, and only on the files they own:
 #
-#   *.py              ruff format + safe ruff fixes, when ruff is configured or
+#   *.py              ruff format + safe ruff fixes (unused imports kept), when ruff is configured or
 #                     installed in the project's .venv
 #   JS/TS/JSON/CSS    biome when a biome config exists, else prettier when a
 #                     prettier config exists (project node_modules binaries)
@@ -116,11 +116,12 @@ cut -f1,2 "$plan" | sort -u | while IFS=$'\t' read -r tool dir; do
   [ "$#" -gt 0 ] || continue
 
   case "$tool" in
+  # F401 stays unfixed: an import written this turn may be used next turn.
   ruff-venv)
-    (cd "$dir" && with_timeout 20 .venv/bin/ruff format --quiet "$@" && with_timeout 20 .venv/bin/ruff check --fix --quiet "$@") >/dev/null 2>&1 || true
+    (cd "$dir" && with_timeout 20 .venv/bin/ruff format --quiet "$@" && with_timeout 20 .venv/bin/ruff check --fix --unfixable F401 --quiet "$@") >/dev/null 2>&1 || true
     ;;
   ruff)
-    (cd "$dir" && with_timeout 20 ruff format --quiet "$@" && with_timeout 20 ruff check --fix --quiet "$@") >/dev/null 2>&1 || true
+    (cd "$dir" && with_timeout 20 ruff format --quiet "$@" && with_timeout 20 ruff check --fix --unfixable F401 --quiet "$@") >/dev/null 2>&1 || true
     ;;
   biome)
     (cd "$dir" && with_timeout 30 node_modules/.bin/biome check --write "$@") >/dev/null 2>&1 || true

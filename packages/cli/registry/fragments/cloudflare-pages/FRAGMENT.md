@@ -3,58 +3,74 @@ schema_version: 1
 id: cloudflare-pages
 kind: fragment
 category: deploy
-name: Cloudflare Pages
-description: Deploy a static site's build output to Cloudflare Pages with wrangler (installed as a dev dependency, run through bunx), covering production deploys from the default branch, preview deploys for pull requests, and headers and redirects config.
+name: Cloudflare Pages for the Astro blog
+description: Deploys the Astro blog's static build to Cloudflare Pages with project-local wrangler, with production deploys from the default branch after the checks pass, pull request previews, cache and security headers, and a local check that serves the build through Cloudflare's Pages runtime.
 tags: [deploy, cloudflare, static]
 applies_to: [astro-blog]
 deps:
   deploy-dev: [wrangler]
 decisions:
-  - "Deploy mode: direct upload from GitHub Actions after CI passes (default), or Cloudflare's git integration building on their side."
+  - "Deploy mode: direct upload from GitHub Actions after the checks pass (default), or Cloudflare's git integration building on their side."
   - "Pages project name: the project slug (default)."
   - "Preview deploys for pull requests: on (default)."
+verify:
+  - { name: deploy-check, layer: build, run: make deploy-check }
+commands:
+  deploy-check: Build, then serve dist/ through wrangler pages dev and check headers, canonical URLs and the 404 page
 ---
 
 # Cloudflare Pages
 
-Deploy the static build output (`dist/` for astro-blog) to Cloudflare Pages. Wrangler is a dev dependency, so its version is locked with the project and it runs through `bunx wrangler`. Nothing needs installing globally, and no Cloudflare account is needed to scaffold or verify.
+stacks wrote `wrangler.jsonc` (the Pages project name and `pages_build_output_dir: "./dist"`), `public/_headers` (a year of immutable caching for `/_astro/*`, plus `nosniff`, a referrer policy and `X-Frame-Options: DENY` on every response) and `tests/deploy.test.mjs`. The test serves the built `dist/` through `wrangler pages dev`, Cloudflare's local Pages runtime, and checks those headers, the canonical post URL and the 404 page. Wrangler is a dev dependency run through `bunx wrangler`. Scaffolding and verify need no Cloudflare account.
+
+Cloudflare now recommends Workers static assets for new projects. This fragment deploys to Pages.
 
 ## What to add
 
-**Wrangler config** (`wrangler.jsonc` at the root). Write it for the installed wrangler and point `$schema` at the schema file inside `node_modules/wrangler` so editors validate it. Set:
-- `name`: the Pages project name
-- the Pages build output directory: `dist`
-- any other fields the current wrangler requires for a Pages project (check the docs; a compatibility date is usually needed)
-- `vars`: public build-time values only (for example `PUBLIC_POSTHOG_KEY`). Never secrets.
+1. Add `wrangler` with `bun add -d`. Add `compatibility_date` to `wrangler.jsonc` with today's date in Wrangler's format; if `wrangler pages dev` rejects it, use the newest date its error names. Keep `pages_build_output_dir`. Don't add `vars`: they are runtime bindings for Pages Functions, and this site has none.
+2. Add `.wrangler/` to `.gitignore`. The test keeps its state in a temporary directory, but Wrangler still writes scratch files there.
+3. Add Makefile targets and list them in `.PHONY`:
+   - `deploy-check: build`, which runs `node --test tests/deploy.test.mjs`
+   - `deploy-preview: build`, which runs `bunx wrangler pages deploy dist --branch "$(BRANCH)"`
+   - `deploy: build`, which deploys to the production branch the Pages project was created with
 
-Once a wrangler config file exists, Cloudflare treats it as the source of truth for the project's settings. With git-integration builds, environment variables set in the dashboard are ignored, so public build-time vars must live in `vars`. Secrets go in with `bunx wrangler pages secret put`, or as GitHub Actions secrets in direct-upload mode.
+   Both deploy targets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Say so in their help text and fail with a clear message when either is missing.
+4. Public build-time values (`PUBLIC_*`, such as `PUBLIC_POSTHOG_KEY`) come from the environment of the process running `astro build`. In direct-upload mode, store them as GitHub Actions repository variables and pass them as `env` on the build step. In git-integration mode, set them as build environment variables for the Pages project. A static site has no runtime, so it has no secrets to put.
+5. Write no trailing-slash or `.html` redirects. Pages already answers `/welcome.html` and `/welcome/` with a 308 to `/welcome`, which matches the stack's `trailingSlash: "never"` and file output, and the test proves it. Use `public/_redirects` only for moved or renamed posts. If the trailing-slash decision changes, update the canonical URL test with it.
+6. Keep HTML, `rss.xml` and the sitemaps on Pages' default revalidating cache; `_headers` adds nothing for them.
 
-**Headers and redirects** in `public/_headers` and `public/_redirects` (copied into `dist/` by the build):
-- Long-lived immutable caching for hashed assets (Astro emits them under `/_astro/`).
-- Short caching for HTML, `rss.xml`, and `sitemap*.xml`.
-- Basic security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a frame policy.
-- Redirects for any trailing-slash normalization that matches the site's `trailingSlash` setting, so there's one canonical URL per page.
+<!-- stacks:when with=posthog -->
+If you add a Content-Security-Policy header, allow the PostHog host in `script-src` and `connect-src`, or analytics fail silently.
+<!-- stacks:end -->
 
-**Makefile targets**:
-- `deploy-preview`: build, then `bunx wrangler pages deploy dist --project-name <name> --branch preview`.
-- `deploy`: build, then deploy to the production branch.
+## Deploy workflow (direct upload)
 
-Both need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment. Say so in the target's help text, and fail with a clear message when they're missing.
+Never trigger deploys with `workflow_run`.
 
-**Deploy workflow** `.github/workflows/deploy.yml` (direct-upload mode):
-- Trigger on `workflow_run` of the CI workflow for the default branch (only when it concluded `success`, checking out that run's `head_sha`), plus `pull_request` for previews if on.
-- Permissions: `contents: read`, plus `deployments: write` if it reports a GitHub deployment, and `pull-requests: write` only if it comments the preview URL.
-- Build with the same `make build` CI uses, then deploy `dist/` with wrangler through Cloudflare's wrangler action or `bunx wrangler pages deploy`. Use `--branch` set to the PR's head branch for previews and the default branch for production.
-- Secrets: `CLOUDFLARE_API_TOKEN` (scoped to Pages edit on this account only) and `CLOUDFLARE_ACCOUNT_ID`. Pull-request previews from forks won't have secrets, so skip the deploy step when the token is empty instead of failing.
-- `concurrency` per branch with `cancel-in-progress: true` for previews and `false` for production.
-- Pin every action by full commit SHA with a version comment.
+When the project has `.github/workflows/ci.yml` (ci-github), deploy from jobs in it, each with `needs:` on its final `ci-ok` job:
+- production: `if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)`
+- preview, if on: `if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository`. Fork pull requests get no secrets and no preview.
 
-In git-integration mode, skip the workflow and document the dashboard settings (build command `make build` or the package build script, output `dist`, bun as the package manager) in AGENTS.md instead.
+Without a CI workflow, add `.github/workflows/deploy.yml`, triggered by `push` to the default branch and, for previews, `pull_request` from the same repository. Its job runs `make install lint check test build` before it deploys.
+
+Each deploy job:
+- sets job permissions to `contents: read`, adding `deployments: write` only if it reports a GitHub deployment and `pull-requests: write` only if it comments the preview URL
+- runs `make install` and `make build` with the public build variables in `env`, then deploys `dist/` with `bunx wrangler pages deploy` or Cloudflare's wrangler action
+- passes the preview branch name through `env` and never interpolates `github.head_ref` into a `run:` line
+- reads `CLOUDFLARE_API_TOKEN` (scoped to Pages edit on one account) and `CLOUDFLARE_ACCOUNT_ID` from repository secrets
+- sets `concurrency` per branch, with `cancel-in-progress: true` for previews and `false` for production
+- pins every action by full commit SHA with a version comment
+
+In git-integration mode, skip the workflow and document the Pages build settings in AGENTS.md: build command `make build`, output directory `dist`, bun as the package manager.
 
 ## Verify
 
-No verify step: deploying needs credentials, and the stack's `build` step already proves `dist/` builds.
+`deploy-check` builds the site and serves `dist/` through `wrangler pages dev` using `wrangler.jsonc`. It fails when `_headers` is missing or wrong, when the config doesn't point Pages at the build, when a redirect rule fights Pages' canonical URLs, or when the 404 page breaks. Deploying needs credentials, so verify never deploys.
 
 ## AGENTS.md
 
-Add a **Deploy** section: the Pages project name, deploy mode, the `make deploy` / `make deploy-preview` targets and the env vars they need, where public build-time vars live (`wrangler.jsonc` `vars`) and why dashboard vars are ignored, and where headers and redirects are configured. Under Pending user actions: create the Pages project once (`bunx wrangler pages project create <name>`), create a scoped API token, add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as repository secrets, and attach the custom domain.
+Add a **Deploy** section: the Pages project name, deploy mode, `make deploy-check`, `make deploy` and `make deploy-preview` with the environment variables the last two need, where public build-time values are set (repository variables in direct-upload mode, Pages build variables in git-integration mode), and where headers and redirects live (`public/_headers`, `public/_redirects`).
+
+<!-- stacks:when preset=default -->
+Under Pending user actions: create the Pages project once (`bunx wrangler pages project create <name>`, choosing the production branch), create a scoped API token, add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as repository secrets and the public build values as repository variables, and attach the custom domain.
+<!-- stacks:end -->

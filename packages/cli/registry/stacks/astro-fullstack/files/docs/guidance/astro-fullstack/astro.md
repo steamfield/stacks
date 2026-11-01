@@ -32,7 +32,7 @@ Paths below are relative to `apps/web/`. The site is static HTML built ahead of 
 ## Tests
 
 - Components and islands: Testing Library through what a user sees and does (roles, labels, text), never component internals.
-- An island's API calls are tested by replacing the fetch function Effect's HTTP client uses (the project's `effect` skill names the service) with a fake that returns bodies encoded with the contract's schemas (success, a tagged error envelope, a network failure). That is the network boundary; never mock `lib/api.ts` or the contract.
+- An island's API calls are tested by replacing the fetch function Effect's HTTP client uses (`docs/guidance/effect/api.md` names the service) with a fake that returns bodies encoded with the contract's schemas (success, a tagged error envelope, a network failure). That is the network boundary; never mock `lib/api.ts` or the contract.
 - A test whose imports reach `astro:*` modules starts with `// @vitest-environment node`.
 - `bun run build` is the integration test for every route.
 

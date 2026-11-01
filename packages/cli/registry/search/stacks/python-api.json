@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "python-api",
   "source": {
-    "digest": "sha256:1ead1e7fa6c4297d70cb49120a24d9b9b9bfcb363e9e985f9993b84d031c14f7",
+    "digest": "sha256:2dcd42d6f43096b6b2e47c5bd12c55bc96480bb945c169ca515d478a67d56064",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

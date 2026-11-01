@@ -5,7 +5,7 @@
   "plugins": ["./biome-plugins/boundaries.grit"],
   "overrides": [
     {
-      "includes": ["registry/stacks/mobile-expo/**"],
+      "includes": ["registry/stacks/mobile-expo/**", "registry/fragments/clerk/**"],
       "javascript": { "formatter": { "quoteStyle": "single" } }
     },
     {
@@ -38,7 +38,10 @@
       "includes": [
         "registry/stacks/astro-blog/files/**",
         "registry/stacks/nextjs/files/**",
-        "registry/stacks/sveltekit/files/**"
+        "registry/stacks/sveltekit/files/**",
+        "registry/fragments/*/stacks/astro-blog/**",
+        "registry/fragments/*/stacks/nextjs/**",
+        "registry/fragments/*/stacks/sveltekit/**"
       ],
       "formatter": { "enabled": false },
       "assist": { "enabled": false },

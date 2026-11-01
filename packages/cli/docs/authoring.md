@@ -81,6 +81,31 @@ Describe the local-only setup.
 
 Other condition keys are `stack`, `tag`, `tag!=`, `mode` and `with`.
 
+In add mode, matching `with=<added-fragment>` blocks from the recorded host stack
+and already-applied fragments appear under that addition as notes from each recipe's
+current version. Other host prose stays out. Phrase notes about existing files
+conditionally, since an older project may differ from today's recipe.
+
+With no known recorded stack, add infers conditional tags from data only: Makefile
+gives `make`; package.json gives `node`, and an object `scripts` gives `scripts`
+unless Makefile exists; bun.lock, bun.lockb or `packageManager` starting `bun@`
+gives `bun`; tsconfig.json, go.mod, pyproject.toml and Cargo.toml give `typescript`,
+`go`, `python` and `rust`. A `workspaces` field or manifests in at least two
+immediate child directories give `monorepo`. The brief prints the inferred tags;
+they affect conditionals only, never `applies_to` fit, and are not stored in the manifest.
+
+Fragments can ship `stacks/<stack-id>/<path>` alongside `files/` and `adapters/`.
+Only that host stack gets `<path>`, in new and add mode. The stack must exist and
+fit `applies_to` by id or tags (empty admits all). Stack entries cannot have
+overlays, and an overlay cannot duplicate a `files/` output path of its fragment.
+Templates, merge rules and security checks apply to overlays too. Keep
+`stacks:when` and `stacks:end` in entry bodies: shipped files reject them.
+`stacks:fill` remains legal.
+
+Verify steps check; they never generate source (no generator, and no write or fix
+mode of a tool, in a verify step). Validation notes fragments without verify steps and repeated
+commands in a composition, and budgets add briefs with each admitted stack and none.
+
 ## Add a search card
 
 Bundled contributions include `search/stacks/<id>.json` or
@@ -162,7 +187,8 @@ ignores personal always-fragments and the preset setting.
 Fix findings at their source: replace pinned versions and dated phrases with discovery
 instructions; drop version literals from shipped configs; use ATX headings; repair unknown
 references, unreachable conditionals and template variables. Imports must belong to the
-entry or its required dependencies. Declare commands and cover fragment deliverables
+entry or its required dependencies; a fragment's stack overlay may also import its host
+stack's files. Declare commands and cover fragment deliverables
 with verify. Repair shipped hook/editor command references and stale run fingerprints.
 Review warnings as well as errors.
 

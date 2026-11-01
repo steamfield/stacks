@@ -5,6 +5,7 @@ import { AppConfig } from "./config";
 import { BrokenPipe, errorTable, failure } from "./errors";
 import { defectTrace, Logging } from "./logging";
 import { Host } from "./services/host";
+import { Invocation } from "./services/invocation";
 import { Output } from "./services/output";
 
 // The audience must exist before parsing can fail. Successful handlers use parsed flags.
@@ -73,6 +74,7 @@ export const main = Effect.fn("main")(function* (
   };
   const started = yield* Clock.currentTimeMillis;
   const runId = `${started}-${(yield* Random.next).toString(36).slice(2)}`;
+  const invocation = Invocation.make();
   return yield* Effect.uninterruptibleMask((restore) =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(
@@ -81,6 +83,7 @@ export const main = Effect.fn("main")(function* (
             program ??
             Command.runWith(cli(host.name), { version: host.version, renderErrors: false })(args)
           ).pipe(
+            Effect.provide(invocation.layer),
             Effect.provideService(Console.Console, console),
             Effect.provideService(CliOutput.Formatter, capturedFormatter),
             Effect.provide(CliConfig.layer({ builtIns: [GlobalFlag.Help, GlobalFlag.Version] })),
@@ -118,7 +121,8 @@ export const main = Effect.fn("main")(function* (
       const level = error ? "Error" : settings.level;
       yield* Effect.logWithLevel(level === "None" ? "Info" : level)("command").pipe(
         Effect.annotateLogs({
-          command: framework.length ? "framework" : "doctor",
+          // The handler that ran names itself; help and version are framework, parse failures null.
+          command: invocation.state.command ?? (!error && framework.length ? "framework" : null),
           runId,
           exitCode: status,
           outcome: error ? "failure" : "success",

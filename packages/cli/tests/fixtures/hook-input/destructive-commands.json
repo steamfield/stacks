@@ -153,6 +153,15 @@
       "pattern": "sudo",
       "blocked": ["sudo apt-get install jq", "make build && sudo make install"],
       "allowed": ["git commit -m 'drop sudo from the docs'"]
+    },
+    {
+      "pattern": "publishing a release, unless that command is a dry run",
+      "blocked": [
+        "npm publish",
+        "echo --dry-run; npm publish",
+        "npm publish --dry-run && npm publish"
+      ],
+      "allowed": ["npm publish --dry-run", "goreleaser release --snapshot --clean"]
     }
   ]
 }

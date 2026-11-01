@@ -463,7 +463,7 @@ describe("selection", () => {
         /failed\s+setup\s+install.*setup always runs, even in a partial run/,
       );
       expect(result.stdout).toMatch(/skipped\s+check\s+lint.*an earlier setup step failed/);
-      expect(result.stderr).toContain("Failed: install (step, exit 1)");
+      expect(result.stderr).not.toContain("Failed:");
       expect(lastLine(result.stdout)).toBe(NEXT_FIX);
       expect(has(root, "linted")).toBe(false);
     },
@@ -480,7 +480,7 @@ describe("selection", () => {
     expect(result.stdout).toMatch(/verify: failed \(full run;/);
     expect(result.stdout).toMatch(/failed\s+setup\s+install/);
     expect(result.stdout).not.toContain("partial run");
-    expect(result.stderr).toContain("Failed: install (step, exit 1)");
+    expect(result.stderr).not.toContain("Failed:");
   });
 
   test("--only takes a comma list and repeats", async () => {

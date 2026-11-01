@@ -23,7 +23,7 @@ export const verifyCommand = Command.make(
   {
     only: Flag.String("only").pipe(
       Flag.withDescription(
-        "Run only these check and serve steps, by name (repeatable or comma-separated); setup and teardown still run. The outcome is partial, never green.",
+        "Run only these check and serve steps, by name (repeatable or comma-separated), even when the preset skips them by default; setup and teardown still run. The outcome is partial, never green.",
       ),
       Flag.atLeast(0),
     ),

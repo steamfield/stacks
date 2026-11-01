@@ -227,6 +227,8 @@ test("the agent sees only the selected fake token and a fresh home [2.0b#6]", as
     expect(call.env.PORT_BENCH).toBe(env.PORT_BENCH);
   const root = realpathSync(kept(f));
   expect(realpathSync(env.HOME ?? "")).toBe(join(root, "home"));
+  // Agent scratch under TMPDIR is removed with the root instead of piling up in the host's.
+  expect(realpathSync(env.TMPDIR ?? "")).toBe(join(root, "tmp"));
   for (const key of ["XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"]) {
     const value = env[key];
     expect(value, key).toBeDefined();

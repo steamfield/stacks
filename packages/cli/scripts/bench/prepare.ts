@@ -192,6 +192,8 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
     const env = environment({
       PATH: `${path.join(prefix, "bin")}:${path.dirname(nodeExecutable)}:${captured.PATH ?? "/usr/bin:/bin"}`,
       HOME: home,
+      // Inside the root, so scratch files from tools that honor TMPDIR go when the root does.
+      TMPDIR: path.join(root, "tmp"),
       XDG_CONFIG_HOME: path.join(home, "config"),
       XDG_DATA_HOME: path.join(home, "data"),
       XDG_STATE_HOME: path.join(home, "state"),
@@ -212,6 +214,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
       for (const directory of [
         home,
         bench,
+        path.join(root, "tmp"),
         path.join(prefix, "bin"),
         ...Object.entries(env)
           .filter(([key]) => key.startsWith("XDG_"))

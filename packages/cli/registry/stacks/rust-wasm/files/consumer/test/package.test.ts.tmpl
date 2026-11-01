@@ -1,0 +1,90 @@
+// A JavaScript project using the built package by name, the way an npm user would. `make test-js`
+// packs pkg/, unpacks the tarball into node_modules/, typechecks this file against the generated
+// .d.ts, then runs it on Node. Add a case here for every export you add or change.
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
+import {
+  type SlugError,
+  type SlugErrorCode,
+  type SlugInfo,
+  Slugger,
+  type SlugOptions,
+  slugInfo,
+  slugify,
+} from "{{project_slug}}";
+
+/** The SlugError a call throws; fails the test when it returns instead. */
+function thrown(call: () => unknown): SlugError {
+  try {
+    call();
+  } catch (error) {
+    assert.ok(error instanceof Error, "throws an Error instance");
+    assert.equal(error.name, "SlugError");
+    return error as SlugError;
+  }
+  assert.fail("expected a SlugError");
+}
+
+describe("slugify", () => {
+  test("turns text into a slug with the default options", () => {
+    assert.equal(slugify("Hello, World!"), "hello-world");
+    assert.equal(slugify("Crème Brûlée"), "crème-brûlée");
+  });
+
+  test("takes an options object", () => {
+    const options: SlugOptions = { separator: "_", maxLength: 11 };
+    assert.equal(slugify("Hello brave new world", options), "hello_brave");
+  });
+
+  test("throws a SlugError with a stable code", () => {
+    const cases: [() => unknown, SlugErrorCode][] = [
+      [() => slugify("   "), "empty_input"],
+      [() => slugify("!!!"), "empty_result"],
+      [() => slugify("text", { maxLength: 0 }), "invalid_option"],
+    ];
+    for (const [call, code] of cases) {
+      const error = thrown(call);
+      assert.equal(error.code, code);
+      assert.ok(error.stack, "a real Error carries a stack");
+    }
+  });
+
+  test("names the option at fault, including keys it doesn't know", () => {
+    assert.equal(thrown(() => slugify("text", { maxLength: 0 })).field, "maxLength");
+    // A typo JavaScript callers make; TypeScript callers are stopped by the compiler.
+    const typo = { maxlength: 10 } as unknown as SlugOptions;
+    assert.equal(thrown(() => slugify("text", typo)).field, "maxlength");
+  });
+});
+
+test("slugInfo returns a plain object", () => {
+  const info: SlugInfo = slugInfo("alpha beta gamma", { maxLength: 10 });
+  assert.deepEqual(info, { slug: "alpha-beta", words: ["alpha", "beta"], truncated: true });
+});
+
+describe("Slugger", () => {
+  test("keeps state across calls and frees its memory", () => {
+    const slugger = new Slugger();
+    assert.equal(slugger.slug("Intro"), "intro");
+    assert.equal(slugger.slug("Intro"), "intro-2");
+    assert.equal(slugger.size, 2);
+    slugger.free();
+    // A freed object's WebAssembly memory is gone; wasm-bindgen refuses to use it.
+    assert.throws(() => slugger.slug("Intro"));
+  });
+
+  test("frees itself at the end of a using block", () => {
+    let escaped: Slugger;
+    {
+      using slugger = new Slugger({ separator: "." });
+      assert.equal(slugger.slug("a b"), "a.b");
+      escaped = slugger;
+    }
+    assert.throws(() => escaped.size);
+  });
+
+  test("rejects bad options in the constructor", () => {
+    const error = thrown(() => new Slugger({ maxLength: 0 }));
+    assert.equal(error.code, "invalid_option");
+  });
+});

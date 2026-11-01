@@ -111,6 +111,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |
 | `rust-cli` | Rust CLI: clap, layered TOML config, coded errors with exit statuses, human and JSON output, strict clippy, binary tests | |
 | `rust-library` | Rust library crate: documented public API, thiserror errors, doctests on every item, proptest, optional serde feature, rustdoc and cargo package checks | |
+| `rust-wasm` | Rust compiled to WebAssembly as an npm package: wasm-bindgen exports with generated TypeScript types, errors thrown as JavaScript exceptions with stable codes, native and wasm-bindgen-test tests, a packed-tarball TypeScript consumer test | |
 | `spring-boot-api` | Java JSON API on Spring Boot and Maven: one error envelope, request ids and JSON logs, validated settings, Error Prone and NullAway, ArchUnit layering, MockMvc slice tests and a random-port integration test | |
 | `streamlit` | Streamlit data app managed with uv: a thin page over a Streamlit-free Polars package, sidebar filters driving a metric, an Altair chart and a table, AppTest page tests, a headless server probe | |
 | `sveltekit` | SvelteKit on the Node adapter: server load functions, zod-validated form actions, svelte-check, Vitest and Playwright | |

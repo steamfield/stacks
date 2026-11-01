@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "rust-wasm",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "A Rust library compiled to WebAssembly and shipped as an npm package with generated TypeScript types, for JavaScript in Node or the browser.",
+  "description": "Write the fast or tricky part of a JavaScript project in Rust and ship it as an npm package. wasm-bindgen exports functions and a class with TypeScript declarations, options arrive as typed objects, and every failure reaches JavaScript as an Error with a stable code instead of a crash. The logic is tested natively, the exports run as WebAssembly in Node with wasm-bindgen-test, and a TypeScript consumer installs the packed tarball, typechecks it against the generated .d.ts and runs it. The shipped slug functions are the example to replace with your own; publishing stays a person's step.",
+  "seoDescription": "A Rust WebAssembly recipe: wasm-bindgen and wasm-pack build an npm package with TypeScript types, typed errors, wasm-bindgen-test and a consumer test.",
+  "projectExamples": [
+    {
+      "title": "Parser shared by browser and server",
+      "description": "Replace the slug functions with a parser for a file format, so a web page and a Node service validate input with the same compiled code."
+    },
+    {
+      "title": "Image or data transform for a web app",
+      "description": "Move a slow transform out of JavaScript into Rust, with the inputs and results typed for the TypeScript code that calls it."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for code written in Rust, a fast compiled language, that JavaScript programs install from npm and call like any other package.",
+    "goodAt": [
+      "Running heavy work quickly inside a web page or Node",
+      "Sharing one implementation between Rust and JavaScript projects",
+      "Typed functions and clear errors for TypeScript callers"
+    ],
+    "notGoodAt": [
+      "A whole web app or interface; this ships a library other code calls.",
+      "Plain JavaScript packages; the TypeScript library stack is simpler."
+    ]
+  },
+  "platforms": [
+    "web"
+  ],
+  "productKinds": [
+    "library"
+  ],
+  "languages": [
+    "rust"
+  ],
+  "requests": [
+    "compile Rust to WebAssembly and publish it as an npm package",
+    "rust wasm library with typescript types for javascript",
+    "call my rust code from javascript in node and the browser",
+    "wasm-bindgen package where rust errors become js exceptions"
+  ],
+  "useCases": [
+    "speeding up JavaScript with Rust",
+    "sharing Rust logic with web code"
+  ],
+  "synonyms": [
+    "WebAssembly",
+    "wasm",
+    "wasm-pack",
+    "wasm-bindgen",
+    "wasm32",
+    "rustwasm"
+  ],
+  "goodFor": [
+    "Rust to JavaScript bindings",
+    "generated .d.ts types",
+    "typed JS errors"
+  ],
+  "notFor": [
+    "website"
+  ]
+}

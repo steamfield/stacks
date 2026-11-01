@@ -1,0 +1,11 @@
+# Build output (api/baseline.jar is committed: it is the released API)
+/target/
+
+# Editors and OS
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db

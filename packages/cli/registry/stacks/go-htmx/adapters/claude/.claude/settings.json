@@ -21,8 +21,8 @@
       "Bash(go vet *)",
       "Bash(go build *)",
       "Bash(go list *)",
-      "Bash(go tool templ generate *)",
-      "Bash(go tool templ fmt *)",
+      "Bash(go tool templ generate)",
+      "Bash(go tool templ fmt internal)",
       "Bash(golangci-lint run *)"
     ]
   },
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-htmx.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-htmx.sh\" || exit 2",
             "timeout": 10
           }
         ]

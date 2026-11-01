@@ -1,0 +1,40 @@
+# Configuration
+
+Settings come from flags and environment variables. Flags win; an empty or
+blank variable uses the default. The program doesn't load `.env` files;
+`.env.example` lists every variable.
+
+| Flag | Variable | Default | Validation |
+|---|---|---|---|
+| `--tasks FILE` | `{{env_prefix}}_TASKS` | unset: the built-in sample | A readable JSON array of `{id, title, status, notes}`; ids present and unique, titles present, status `todo`, `doing` or `done`, no other keys |
+| `--log-file FILE` | `{{env_prefix}}_LOG_FILE` | unset: no logs | Its directory must exist; records are appended as JSON lines. Not the tasks file |
+| `--no-tui` | `{{env_prefix}}_NO_TUI` | `false` | `true`, `false`, `1` or `0`. Print the tasks as text and exit |
+| `--json` | | off | Print `{"tasks": [...]}` (or the version, or help) as JSON; errors become `{"error": {...}}` on stderr |
+| `--version` | | | Print the version |
+| `--help` | | | Print usage |
+
+Relative paths resolve from the working directory. The full-screen UI runs only
+when neither `--no-tui` nor `--json` is set and both stdin and stdout are
+terminals; otherwise the program prints and exits.
+
+`RUST_LOG` (tracing's filter syntax, such as `debug` or `{{project_slug}}=trace`)
+sets the log level, default `info`. An invalid value fails with exit status 3
+even without a log file.
+
+## Exit status
+
+| Status | Code | When |
+|---|---|---|
+| 0 | | Success, including `--help`, `--version` and quitting the UI with `q` or ctrl+c |
+| 1 | `IO`, `INVALID_DATA`, `TERMINAL` | The tasks file is unreadable or invalid, the terminal failed, or output couldn't be written |
+| 2 | `USAGE` | Unknown flag or bad argument |
+| 3 | `INVALID_SETTING`, `LOG_FILE` | A bad environment value or `RUST_LOG`, or a log file that can't be opened |
+
+Every failure prints `error[CODE]: message` and a `suggestion:` line on stderr,
+or one JSON document under `--json`.
+
+## Adding a setting
+
+Give it a flag in `src/cli.rs` and `Flags`, its variable and validation in
+`config::load`, a test in `config.rs`, and a row in this file and
+`.env.example`.

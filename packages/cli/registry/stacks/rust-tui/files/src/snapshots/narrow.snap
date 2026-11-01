@@ -1,0 +1,11 @@
+---
+source: src/ui.rs
+---
+"┌ T-1 ─────────────────┐"
+"│Write the README      │"
+"│Status: doing         │"
+"│                      │"
+"│Say what the tool does│"
+"│and how to run it.    │"
+"└──────────────────────┘"
+"esc back  ? help  q quit"

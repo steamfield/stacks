@@ -13,14 +13,12 @@
       "Bash(make build)",
       "Bash(make smoke)",
       "Bash(make call)",
-      "Bash(make call *)",
       "Bash(make vuln)",
       "Bash(make ci)",
       "Bash(go test *)",
       "Bash(go vet *)",
       "Bash(go build *)",
       "Bash(go list *)",
-      "Bash(go run ./cmd/mcpcall *)",
       "Bash(golangci-lint run *)"
     ]
   },
@@ -31,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-mcp.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-mcp.sh\" || exit 2",
             "timeout": 10
           }
         ]

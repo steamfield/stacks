@@ -86,7 +86,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/tools/read-file.test.ts`. To call a tool by hand: `bun run build`, then `bunx mcp-inspector --cli -e MCP_ROOT=. node dist/index.js --method tools/call --tool-name read_file --tool-arg path=README.md`. `inspect` opens Inspector's web UI and never exits; start it in the background for a person, never to check your own work. `docs/guidance/typescript-mcp/verification.md` shows how to register the build with Claude Code or another host.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/tools/read-file.test.ts`. To call a tool by hand: `bun run build`, then `node_modules/.bin/mcp-inspector --cli -e MCP_ROOT=. node dist/index.js --method tools/call --tool-name read_file --tool-arg path=README.md`. `inspect` opens Inspector's web UI and never exits; start it in the background for a person, never to check your own work. `docs/guidance/typescript-mcp/verification.md` shows how to register the build with Claude Code or another host.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer.
@@ -98,6 +98,6 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 - `server.connect(new StdioServerTransport())` serves only 2025-era clients. `serveStdio(factory)` serves both eras, which is why `createServer` is a factory.
 - `InMemoryTransport.createLinkedPair()` connects on the 2025 era only; `tests/stdio.test.ts` covers 2026-07-28 with `versionNegotiation: { mode: "auto" }`.
 - One stray stdout write before or during the handshake breaks the session with an error on the host's side, not yours. MCP logging notifications are deprecated in the 2026-07-28 protocol; logs go to stderr.
-- `@modelcontextprotocol/inspector` is large (it carries its web UI) and its CLI flags have changed between releases; read `bunx mcp-inspector --cli --help` before changing `scripts/smoke.ts`. Its `postinstall` is blocked by Bun and isn't needed for the CLI.
+- `@modelcontextprotocol/inspector` is large (it carries its web UI) and its CLI flags have changed between releases; read `node_modules/.bin/mcp-inspector --cli --help` before changing `scripts/smoke.ts`. Its `postinstall` is blocked by Bun and isn't needed for the CLI. Call its binary by path, never `bunx mcp-inspector`: without the local install, bunx fetches the unrelated npm package of that name.
 - The server and tests run on Node: never `bun test`, `--bun`, or `bun src/index.ts`. The guard hook denies them. Node runs `src/*.ts` by stripping types, so relative imports keep `.ts` and the code uses only erasable syntax.
 - A host starts the server with its own working directory, often `/`; give `MCP_ROOT` as an absolute path in host config.

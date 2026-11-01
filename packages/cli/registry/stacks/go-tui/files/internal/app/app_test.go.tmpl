@@ -3,6 +3,8 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"{{project_slug}}/internal/config"
+	apperrors "{{project_slug}}/internal/errors"
+	"{{project_slug}}/internal/tasks"
 )
 
 type result struct {
@@ -74,6 +78,40 @@ func TestFailuresMapToExitCodes(t *testing.T) {
 	level := run(t, map[string]string{config.EnvPrefix + "_LOG_LEVEL": "loud"})
 	assert.Equal(t, 1, level.code)
 	assert.Contains(t, level.stderr, "CONFIG:")
+}
+
+// Errors are JSON whenever the parsed flags say so, in any spelling the flag
+// package accepts, and text when they don't.
+func TestErrorFormatFollowsTheJSONFlag(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "none.json")
+	for _, tt := range []struct {
+		name string
+		args []string
+		json bool
+	}{
+		{"--json", []string{"--json", "--tasks", missing}, true},
+		{"--json=true", []string{"--json=true", "--tasks", missing}, true},
+		{"-json=1", []string{"-json=1", "--tasks", missing}, true},
+		{"before a bad flag", []string{"--json", "--bogus"}, true},
+		{"--json=false", []string{"--json=false", "--tasks", missing}, false},
+		{"no flag", []string{"--tasks", missing}, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := run(t, nil, tt.args...)
+			assert.NotZero(t, got.code)
+			assert.Empty(t, got.stdout)
+			assert.Equal(t, tt.json, json.Valid([]byte(got.stderr)), got.stderr)
+		})
+	}
+}
+
+// ctrl+c in the running UI ends the program as an interrupt: exit status 130,
+// so `app && next-step` doesn't carry on after the user aborted.
+func TestCtrlCInTheUIExits130(t *testing.T) {
+	streams := Streams{Stdin: strings.NewReader("\x03"), Stdout: io.Discard, Stderr: io.Discard, Getenv: func(string) string { return "" }}
+	load := func() ([]tasks.Task, error) { return tasks.Sample(), nil }
+	err := runUI(t.Context(), streams, load, slog.New(slog.DiscardHandler))
+	assert.Equal(t, 130, apperrors.ExitCode(err), "%v", err)
 }
 
 func TestLogsGoToTheLogFile(t *testing.T) {

@@ -1,0 +1,18 @@
+# Build output: cargo's target/ (with the packed tarball under target/npm/)
+# and the npm package wasm-pack generates in pkg/
+/target/
+/pkg/
+
+# The consumer's packages, including the unpacked build `make test-js` installs
+node_modules/
+
+# Agent worktrees
+.claude/worktrees/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db

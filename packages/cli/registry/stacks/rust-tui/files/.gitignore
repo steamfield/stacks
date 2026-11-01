@@ -1,0 +1,23 @@
+# Build output
+/target/
+
+# Snapshots insta wrote for review; accepted ones are the .snap files beside them
+*.snap.new
+*.pending-snap
+
+# Logs written with --log-file
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+!.env.example.tmpl
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db

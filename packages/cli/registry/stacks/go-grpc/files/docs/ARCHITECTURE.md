@@ -11,7 +11,8 @@ service interface, client constructor and registration function.
 function loads configuration, creates the logger, store and RPC server, binds a
 listener and serves HTTP/1.1 and cleartext HTTP/2 (h2c) on one port. It logs
 the actual address before waiting for SIGINT or SIGTERM. Shutdown first marks
-health NOT_SERVING, then drains with the configured timeout and closes the
+health NOT_SERVING, keeps serving for DRAIN_DELAY so probes see it, then
+drains with the configured timeout and closes the
 server on failure. Only `main` calls `os.Exit`; success is 0 and startup or
 shutdown failure is 1. `-healthcheck` calls the running server's
 `grpc.health.v1.Health/Check` over gRPC.

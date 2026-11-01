@@ -11,13 +11,7 @@
       "Bash(make test-integration)",
       "Bash(make build)",
       "Bash(make smoke)",
-      "Bash(make ci)",
-      "Bash(./mvnw -q test *)",
-      "Bash(./mvnw test *)",
-      "Bash(./mvnw -q verify *)",
-      "Bash(./mvnw -q spotless:apply *)",
-      "Bash(./mvnw dependency:tree *)",
-      "Bash(./mvnw -q dependency:tree *)"
+      "Bash(make ci)"
     ]
   },
   "hooks": {

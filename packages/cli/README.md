@@ -96,6 +96,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `go-tui` | Go terminal app on Bubble Tea: Bubbles and Lip Gloss, key-driven tests against golden frames, a text and JSON fallback without a terminal | |
 | `hono-api` | Hono JSON API on Node: zod-validated routes that generate OpenAPI, one error envelope, request ids, pino logs, Vitest in process and over a port | |
 | `java-cli` | Java CLI on picocli and Maven: one shaded runnable jar, layered TOML config, an exit-code table with suggestions, text or JSON output, Logback logs on stderr, Error Prone and NullAway, tests against the packaged jar | |
+| `java-library` | Java library for Maven Central: a JPMS module exporting one package, Javadoc with doclint and examples run as tests, NullAway, a consumer project built against the installed jar, a japicmp API check, sources and Javadoc jars | |
 | `mobile-expo` | Expo Router app and a Bun + Hono API on Postgres, sharing zod schemas through a typed client | |
 | `nestjs-api` | NestJS JSON API on Node: feature modules, class-validator DTOs behind a global pipe, one error envelope from an exception filter, request ids, JSON logs, Swagger, Vitest unit specs and Supertest contract tests | |
 | `nextjs` | Next.js App Router on Node: server components, zod-validated Server Actions, Vitest and a Playwright test against the production build | |
@@ -111,6 +112,8 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | `rust-api` | Rust HTTP API on Axum and Tokio: one JSON error envelope, tower-http request ids and logs, timeouts, clean shutdown, router and binary tests | |
 | `rust-cli` | Rust CLI: clap, layered TOML config, coded errors with exit statuses, human and JSON output, strict clippy, binary tests | |
 | `rust-library` | Rust library crate: documented public API, thiserror errors, doctests on every item, proptest, optional serde feature, rustdoc and cargo package checks | |
+| `rust-tui` | Full-screen Rust terminal app on Ratatui: state and keys kept apart from drawing, one keybinding table feeding the help overlay, insta snapshots of each screen, a text and JSON fallback without a terminal | |
+| `rust-wasm` | Rust compiled to WebAssembly as an npm package: wasm-bindgen exports with generated TypeScript types, errors thrown as JavaScript exceptions with stable codes, native and wasm-bindgen-test tests, a packed-tarball TypeScript consumer test | |
 | `spring-boot-api` | Java JSON API on Spring Boot and Maven: one error envelope, request ids and JSON logs, validated settings, Error Prone and NullAway, ArchUnit layering, MockMvc slice tests and a random-port integration test | |
 | `spring-boot-web` | Server-rendered Java web app on Spring Boot and Maven: Thymeleaf pages, htmx partial updates from a WebJar, a server-validated form that works without JavaScript, CSRF from Spring Security, error pages from one table, page tests read with jsoup and an HtmlUnit browser test | |
 | `streamlit` | Streamlit data app managed with uv: a thin page over a Streamlit-free Polars package, sidebar filters driving a metric, an Altair chart and a table, AppTest page tests, a headless server probe | |

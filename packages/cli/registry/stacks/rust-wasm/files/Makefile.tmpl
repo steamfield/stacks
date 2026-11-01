@@ -1,0 +1,81 @@
+# {{project_name}} development commands.
+#
+# Adapt the recipes, but keep the target names. `stacks verify` calls install,
+# fmt-check, clippy, test, test-wasm, build, typecheck-js and test-js; CI calls
+# `make ci`.
+
+# wasm-pack's output: the npm package, generated from src/lib.rs.
+PKG := pkg
+# Where `make pack` writes the tarball npm would upload.
+PACK := target/npm
+
+.DEFAULT_GOAL := help
+.PHONY: help install tools fmt fmt-check clippy lint test test-wasm build pack consumer-package typecheck-js test-js audit ci clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
+
+install: tools ## Install the toolchain and wasm target, fetch crates, install the consumer's packages
+	rustup toolchain install --no-self-update
+	cargo fetch
+	cd consumer && bun install --frozen-lockfile
+	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
+
+# wasm-pack downloads the wasm-bindgen CLI matching Cargo.lock, and wasm-opt,
+# the first time each is needed.
+tools: ## Install wasm-pack when missing (prebuilt with cargo-binstall, else from source)
+	@command -v wasm-pack >/dev/null 2>&1 || { \
+		if command -v cargo-binstall >/dev/null 2>&1; then cargo binstall --no-confirm wasm-pack; \
+		else cargo install --locked wasm-pack; fi; }
+
+fmt: ## Format the Rust code
+	cargo fmt --all
+
+fmt-check: ## Fail if rustfmt would change any file
+	cargo fmt --all --check
+
+clippy: ## clippy for the native and wasm32 targets, warnings denied
+	cargo clippy --locked --all-targets -- -D warnings
+	cargo clippy --locked --all-targets --target wasm32-unknown-unknown -- -D warnings
+
+lint: fmt-check clippy ## fmt-check and clippy
+
+test: ## Native unit tests of the Rust logic
+	cargo test --locked
+
+test-wasm: ## The exports compiled to wasm32 and run in Node (wasm-bindgen-test)
+	wasm-pack test --node -- --locked
+
+build: ## Compile to wasm and generate the npm package in pkg/ (release, wasm-opt)
+	wasm-pack build --release --target bundler --out-dir $(PKG) -- --locked
+
+pack: build ## Pack pkg/ into the tarball npm would upload, under target/npm/ (uploads nothing)
+	@! grep -n 'stacks:fill' Cargo.toml || { echo "Fill the package metadata in Cargo.toml first." >&2; exit 1; }
+	rm -rf $(PACK) && mkdir -p $(PACK)
+	cd $(PKG) && bun pm pack --quiet --destination ../$(PACK)
+
+# Unpack the tarball where an npm install would put it, so the consumer sees
+# only the files that ship.
+consumer-package: pack
+	@name=$$(node -p 'require("./$(PKG)/package.json").name') && \
+		rm -rf "consumer/node_modules/$$name" && mkdir -p "consumer/node_modules/$$name" && \
+		tar -xzf $(PACK)/*.tgz --strip-components=1 -C "consumer/node_modules/$$name" && \
+		echo "consumer: installed $$name from $$(ls $(PACK))"
+
+typecheck-js: consumer-package ## Typecheck consumer/ against the packed package's .d.ts
+	cd consumer && bun run typecheck
+
+test-js: consumer-package ## Run consumer/'s tests on Node against the packed package
+	cd consumer && bun run test
+
+audit: ## Advisories, licenses and sources with cargo-deny (needs network)
+	@command -v cargo-deny >/dev/null 2>&1 || { \
+		if command -v cargo-binstall >/dev/null 2>&1; then cargo binstall --no-confirm cargo-deny; \
+		else cargo install --locked cargo-deny; fi; }
+	cargo deny check
+
+ci: lint test test-wasm typecheck-js test-js audit ## Everything CI runs
+
+clean: ## Remove build output
+	cargo clean
+	rm -rf $(PKG)

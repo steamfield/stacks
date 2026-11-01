@@ -29,10 +29,11 @@ var errorTable = map[string]errorRow{
 }
 
 // toStatus turns a handler's error into the error the caller sees, and reports
-// whether it is the server's fault (and so worth logging with its cause).
+// whether it is the server's fault (and so worth logging with its cause). Only a
+// *connect.Error the handler returned itself passes through: one found deeper
+// in the chain came from a downstream call and stays a cause.
 func toStatus(err error) (*connect.Error, bool) {
-	var public *connect.Error
-	if errors.As(err, &public) {
+	if public, ok := err.(*connect.Error); ok {
 		return public, false
 	}
 	switch {

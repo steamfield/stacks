@@ -8,7 +8,7 @@ tags: [go, mcp, make]
 deps:
   mcp: [github.com/modelcontextprotocol/go-sdk]
   test: [github.com/stretchr/testify]
-tools: [go, make, git, golangci-lint]
+tools: [go, make, git, golangci-lint, jq]
 decisions:
   - "Module path: github.com/<owner>/<project-slug> (default), owner from `gh api user -q .login` or the git remote, never the author's display name. If neither exists, keep the bare `<project-slug>` the shipped imports use and list the path under decisions to revisit."
   - "Server name: the project slug (default; `config.Binary`, which is also the binary under bin/ and the name hosts show)."
@@ -91,7 +91,7 @@ The shipped code follows these; new code keeps to them.
 The shipped Makefile (`make help`) has install, build, vet, lint, lint-fix, fmt, fmt-check, tidy-check, test, test-integration, coverage, vuln, smoke, call, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with a single-test command such as `go test -race -run TestConvertUnitsToolErrors ./internal/server/`. Try the built server with `make call TOOL=convert_units ARGS='{"value": 5, "from": "km", "to": "mi"}'`. `docs/hosts.md` shows how to add it to Claude Code and other hosts; ask the user before changing their host config.
 
 <!-- stacks:when with=agent-ops -->
-The stack's Claude settings allow its non-destructive make targets, `make call`, go test and the mcpcall client. `.claude/hooks/guard-mcp.sh` denies piping input into the built server or `go run .`, the MCP Inspector without `--cli`, and `go get` of a second Go MCP library; its tests in `tests/hooks` run with `make test`. `.claude/skills/add-tool` walks through adding a tool. List the hook and skill in `.claude/README.md`. Add allow rules only for new commands.
+The stack's Claude settings allow its non-destructive make targets, `make call` without arguments and go test; `make call TOOL=...` and `go run ./cmd/mcpcall` ask first, because make arguments can override any variable and mcpcall runs whatever program it is given. `.claude/hooks/guard-mcp.sh` denies feeding stdin (a pipe, a file redirect or a heredoc) to the built server or `go run .`, the MCP Inspector without `--cli`, and adding a second Go MCP library; it blocks every command when jq is missing, and its tests in `tests/hooks` run with `make test`. `.claude/skills/add-tool` walks through adding a tool. List the hook and skill in `.claude/README.md`. Add allow rules only for new commands.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->
@@ -110,4 +110,5 @@ CI reads Go from go.mod and runs `make install`, `make fmt-check`, `make tidy-ch
 - Arguments that fail the derived schema never reach the handler; the SDK returns a tool error naming the field. An unknown tool name is a protocol error.
 - The SDK doesn't recover panics in tool handlers; without `addTool`'s recover, one panic ends the process and the host's session.
 - A nil `ServerOptions.Capabilities` advertises the deprecated logging capability; `New` passes an empty struct so only tools are advertised.
+- `make vuln` can fail on a fresh project when the installed Go's standard library has a published advisory that the code reaches. Set go.mod's `toolchain` directive to the patched release instead of raising `go`.
 - Race-enabled binaries sleep about a second on exit (the race detector's `atexit_sleep_ms`), so integration cases take a second each; that isn't a hang. Race checks need cgo and a C compiler; fix the environment instead of dropping `-race`.

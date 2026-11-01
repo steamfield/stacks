@@ -10,8 +10,9 @@ variables in the `env` entry of its server config, and a shell exports them.
 | `--version` | | off | Prints the version and exits |
 | `--help` | | off | Prints usage and exits |
 
-A blank variable counts as unset. An unknown flag, a positional argument or
-an invalid value exits 2 with one line on stderr naming the setting.
+A blank variable counts as unset. An unknown flag or a positional argument
+exits 2, and an invalid value exits 1, each with one line on stderr naming the
+flag or setting.
 
 ## Logs
 

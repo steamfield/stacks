@@ -19,6 +19,7 @@ import (
 
 	applog "{{project_slug}}/internal/log"
 	"{{project_slug}}/internal/notes"
+	"{{project_slug}}/internal/views"
 )
 
 type harness struct {
@@ -108,6 +109,9 @@ func TestHTMXPostReturnsFragments(t *testing.T) {
 	form := p.doc.Find("form#note-form")
 	assert.Equal(t, "true", form.AttrOr("hx-swap-oob", ""))
 	assert.Empty(t, form.Find("input#title").AttrOr("value", ""))
+	alert := p.doc.Find("#" + views.AlertID)
+	assert.Equal(t, "true", alert.AttrOr("hx-swap-oob", ""), "a success clears the last error")
+	assert.Empty(t, strings.TrimSpace(alert.Text()))
 
 	full := h.get(t, "/")
 	assert.Equal(t, "Groceries", full.doc.Find("ul#notes > li h2").Text())
@@ -198,14 +202,69 @@ func TestRequestFailures(t *testing.T) {
 	}
 }
 
-type failingStore struct{ notes.Store }
+// A note at both length limits in a script that takes three bytes per
+// character, which urlencoding triples again, is still a valid form.
+func TestLongestValidFormIsAccepted(t *testing.T) {
+	form := url.Values{"title": {strings.Repeat("題", notes.MaxTitle)}, "body": {strings.Repeat("語", notes.MaxBody)}}
+	for name, headers := range map[string]map[string]string{"htmx": htmx, "plain": nil} {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness(t, notes.NewMemory())
+			p := h.post(t, form, headers)
+			assert.Less(t, p.status, 400, p.body)
+			assert.Equal(t, 1, h.get(t, "/").doc.Find("ul#notes > li").Length())
+		})
+	}
+}
 
-func (failingStore) List(context.Context) ([]notes.Note, error) {
-	return nil, errors.New("database password=secret unreachable")
+// htmx doesn't swap an error into the form's target, so every failed htmx
+// request gets a fragment retargeted to the layout's alert region.
+func TestHTMXFailuresShowAnAlert(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		store   notes.Store
+		body    string
+		headers map[string]string
+		status  int
+		title   string
+	}{
+		{"cross-origin", notes.NewMemory(), "title=forged", map[string]string{"Sec-Fetch-Site": "cross-site"}, 403, "Request blocked"},
+		{"form too large", notes.NewMemory(), "title=" + strings.Repeat("a", maxFormBytes+1), nil, 413, "Request too large"},
+		{"store down", failingStore{errors.New("database password=secret unreachable")}, "title=ok", nil, 503, "Service unavailable"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHarness(t, tt.store)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, h.server.URL+"/notes", strings.NewReader(tt.body))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("HX-Request", "true")
+			req.Header.Set("X-Request-Id", "req-alert")
+			for key, value := range tt.headers {
+				req.Header.Set(key, value)
+			}
+			p := h.do(t, req)
+			assert.Equal(t, tt.status, p.status)
+			assertHTML(t, p)
+			assert.Equal(t, "#"+views.AlertID, p.header.Get("HX-Retarget"))
+			assert.Equal(t, "innerHTML", p.header.Get("HX-Reswap"))
+			assert.NotContains(t, p.body, "<html", "an htmx error is a fragment")
+			assert.Contains(t, p.doc.Find("p").First().Text(), tt.title)
+			assert.Equal(t, "req-alert", p.doc.Find(".request-id code").Text())
+			assert.NotContains(t, p.body, "secret")
+		})
+	}
+}
+
+// failingStore fails every call with err.
+type failingStore struct{ err error }
+
+func (s failingStore) List(context.Context) ([]notes.Note, error) { return nil, s.err }
+
+func (s failingStore) Create(context.Context, notes.Input) (notes.Note, error) {
+	return notes.Note{}, s.err
 }
 
 func TestStoreFailureHidesTheCause(t *testing.T) {
-	h := newHarness(t, failingStore{notes.NewMemory()})
+	h := newHarness(t, failingStore{errors.New("database password=secret unreachable")})
 	p := h.get(t, "/")
 	assert.Equal(t, http.StatusServiceUnavailable, p.status)
 	assert.Equal(t, "Service unavailable", p.doc.Find("h1").Text())

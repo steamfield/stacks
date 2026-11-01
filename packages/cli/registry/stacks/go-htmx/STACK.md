@@ -8,7 +8,7 @@ tags: [go, web, make]
 deps:
   web: [github.com/a-h/templ]
   test: [github.com/stretchr/testify, github.com/PuerkitoBio/goquery]
-tools: [go, make, git, golangci-lint, curl]
+tools: [go, make, git, golangci-lint, curl, jq]
 decisions:
   - "Module path: github.com/<owner>/<project-slug> (default), owner from `gh api user -q .login` or the git remote, never the author's display name. If neither exists, keep the bare `<project-slug>` the shipped imports use and list the path under decisions to revisit."
   - "htmx: the release npm tags `latest`, downloaded by `make htmx` into static/vendor/ and committed (default). Never the `next` tag; a new major changes the response-handling config the layout sets. A CDN script tag instead only when the user asks, and then the content security policy must allow that host."
@@ -92,7 +92,7 @@ The shipped code follows these; new code keeps to them. `docs/pages.md` is the p
 - **Components are pure.** They take the types in `internal/views/models.go`, never import a domain package or call a store. Handlers load data, convert it (`viewNote`) and call `render`.
 - **Every htmx endpoint works without htmx.** Forms keep `action` and `method` beside `hx-post`. `isHTMX(r)` chooses a fragment over a page and nothing else: a plain valid post answers 303, an htmx one answers 200 with fragments.
 - **Validation is 422** with the form re-rendered, submitted values kept and one message per field from `apperrors.Validation`. htmx gets the form with `HX-Retarget` and `HX-Reswap`; a plain post gets the whole page. `views.HTMXConfig` is what makes htmx swap a 422; a new swapping status goes there before the `[45]..` rule.
-- **Errors.** Handlers return `internal/errors` values from an `endpoint`. `renderError` and `errorTable` are the only mapping to a status and page text; server faults log the cause and never show it.
+- **Errors.** Handlers return `internal/errors` values from an `endpoint`. `renderError` and `errorTable` are the only mapping to a status and page text; server faults log the cause and never show it. An htmx request gets the error as `views.ErrorAlert`, retargeted to the layout's alert region.
 - **Same-origin only.** The content security policy allows no inline script or style and the htmx config turns off eval, so no `<script>` or `<style>` in components, no `style=` and no `hx-on`. Cross-site posts get 403 from `http.CrossOriginProtection`.
 - **Logging**: the `*slog.Logger` from `internal/log`, passed down; JSON on stdout, one `request` record per request with route, status and an `htmx` flag; health and static files at debug; never form values.
 - **Config** comes from env in `internal/config` only. A new setting updates its test, `.env.example` and `docs/configuration.md`.
@@ -128,7 +128,7 @@ Templates and static files are embedded, so the runtime image needs only the bin
 
 - A `.templ` edit without `make generate` compiles the old component silently. The hook regenerates on save; `generate-check` catches the rest.
 - templ's CLI and runtime must match. A global `go install` of templ drifts from go.mod; `go tool templ` doesn't.
-- htmx doesn't swap 4xx by default, so a 422 form re-render shows nothing until `HTMXConfig` allows it. Keep the meta tag in the layout.
+- htmx doesn't swap 4xx or 5xx by default, so a 422 form re-render or an error alert shows nothing until `HTMXConfig` allows it. Keep the meta tag in the layout.
 - An htmx request answered with a 303 follows the redirect and swaps the whole page into the target. Answer htmx with fragments, or `HX-Redirect` with a 200.
 - `HX-Retarget` and other response headers are ignored on 3xx responses.
 - `templ fmt` formats `<script>` and `<style>` blocks with prettier when it's on PATH, so output differs between machines. The policy bans inline blocks anyway.

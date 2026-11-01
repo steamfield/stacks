@@ -800,10 +800,13 @@ describe("advisory hooks never get in the way [1.6d#6]", () => {
     write("svc/src/main/java/app/A.java", "class A {}\n");
     write("svc/src/test/java/app/B.java", "class B {}\n");
     write("svc/src/main/java/app/Untouched.java", "class Untouched {}\n");
-    // Near misses: a wrapper with no pom.xml beside it, and Java with no wrapper above it.
+    // Near misses: a wrapper with no pom.xml beside it, and Java with no wrapper
+    // above it inside the project, though a Maven project encloses the project.
     write("lib/mvnw", wrapper, 0o755);
     write("lib/src/C.java", "class C {}\n");
     write("scripts/Stray.java", "class Stray {}\n");
+    write("../pom.xml", "<project/>\n");
+    write("../mvnw", wrapper, 0o755);
     const written = [
       "svc/src/main/java/app/A.java",
       "svc/src/test/java/app/B.java",

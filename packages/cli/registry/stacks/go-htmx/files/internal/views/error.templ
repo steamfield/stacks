@@ -11,3 +11,26 @@ templ Error(page ErrorPage) {
 		<p><a href="/">Back to notes</a></p>
 	}
 }
+
+// ErrorAlert is the error for an htmx request: the content of the layout's
+// alert region, which the response retargets to.
+templ ErrorAlert(page ErrorPage) {
+	<p><strong>{ page.Title }.</strong> { page.Message }</p>
+	if page.RequestID != "" {
+		<p class="request-id">Request ID: <code>{ page.RequestID }</code></p>
+	}
+}
+
+// Alert is the alert region, empty when page is nil. NoteCreated sends it
+// empty out of band, so a success clears the last error.
+templ Alert(page *ErrorPage) {
+	<div id={ AlertID } role="alert">
+		if page != nil {
+			@ErrorAlert(*page)
+		}
+	</div>
+}
+
+templ clearAlert() {
+	<div id={ AlertID } role="alert" hx-swap-oob="true"></div>
+}

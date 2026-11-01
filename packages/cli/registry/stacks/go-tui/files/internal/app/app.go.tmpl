@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"slices"
 
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
@@ -42,19 +41,20 @@ type Build struct {
 
 // Main runs the program and returns its exit status. Errors are reported here,
 // on stderr, and nowhere else.
+// The error format follows the parsed --json flag, so --json=true counts, and
+// a bad flag after --json still gets a JSON error.
 func Main(ctx context.Context, args []string, s Streams, b Build) int {
-	err := Run(ctx, args, s, b)
+	cfg, err := config.Load(args, s.Getenv)
+	if err == nil {
+		err = Run(ctx, cfg, s, b)
+	}
 	if err != nil {
-		output.Error(s.Stderr, slices.Contains(args, "--json") || slices.Contains(args, "-json"), err)
+		output.Error(s.Stderr, cfg.JSON, err)
 	}
 	return apperrors.ExitCode(err)
 }
 
-func Run(ctx context.Context, args []string, s Streams, b Build) error {
-	cfg, err := config.Load(args, s.Getenv)
-	if err != nil {
-		return err
-	}
+func Run(ctx context.Context, cfg config.Config, s Streams, b Build) error {
 	if cfg.Help {
 		return output.Render(s.Stdout, false, nil, config.Usage(s.Getenv))
 	}

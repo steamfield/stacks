@@ -3,7 +3,10 @@
 # full-screen UI a fake terminal inside the agent's shell, where it waits for
 # keys nobody sends and the session hangs.
 set -euo pipefail
-command -v jq >/dev/null 2>&1 || exit 0
+if ! command -v jq >/dev/null 2>&1; then
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"jq is not installed, so .claude/hooks/guard-tui.sh cannot read this tool call and blocks it. Ask the user to install jq (brew install jq, or apt-get install jq), then retry."}}'
+  exit 0
+fi
 
 input="$(cat)"
 
@@ -15,6 +18,42 @@ deny() {
   }}'
   exit 0
 }
+
+# commands <text>: one line per simple command, split on ; & | ( ) { } $( `
+# and newlines, with quotes and backslashes removed, and leading wrappers (env,
+# command, exec, nice, sudo, time, timeout, xargs, sh -c, bash -c ...) and
+# VAR=value assignments dropped, so each line starts with the program.
+commands() {
+  printf '%s\n' "$1" | LC_ALL=C awk '
+    {
+      gsub(/\$\047/, "\047"); gsub(/\$"/, "\"")
+      gsub(/[\047"\\]/, "")
+      gsub(/\$\(|[`;&|(){}]/, "\n")
+      n = split($0, parts, "\n")
+      for (p = 1; p <= n; p++) {
+        m = split(parts[p], w, /[ \t]+/)
+        out = ""; wrapped = 0; started = 0
+        for (i = 1; i <= m; i++) {
+          if (w[i] == "") continue
+          if (!started) {
+            if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+            base = w[i]; sub(/.*\//, "", base)
+            if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|timeout|xargs|busybox|stdbuf|sh|bash|zsh|dash|ksh)$/) { wrapped = 1; continue }
+            if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*[smhd]?$/)) continue
+            started = 1
+          }
+          out = out (out == "" ? "" : " ") w[i]
+        }
+        if (out != "") print out
+      }
+    }'
+}
+
+# runs <line> <names>: the line's program is one of names (an ERE), by basename.
+runs() { printf '%s\n' "$1" | grep -Eq "^([^[:space:]]*/)?($2)([[:space:]]|$)"; }
+has() { printf '%s\n' "$1" | grep -Eq "$2"; }
+
+fake_terminal="Don't run the UI under a fake terminal. Test it with make test (teatest drives it headless), use --no-tui or --json for output, or ask the user to run it in their terminal."
 
 path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)" || exit 0
 case "$path" in
@@ -28,8 +67,17 @@ case "$path" in
 esac
 
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
-# A pseudo-terminal wrapper at the start of a command or after ; & | ( or $(.
-if printf '%s' "$command" | grep -Eq '(^|[;&|(]|\$\()[[:space:]]*(script|unbuffer|tmux|screen)([[:space:]]|$)'; then
-  deny "Don't run the UI under a fake terminal. Test it with make test (teatest drives it headless), use --no-tui or --json for output, or ask the user to run it in their terminal."
+[ -n "$command" ] || exit 0
+
+# Python's pty module, before commands() splits `import pty; pty.spawn(...)`.
+if has "$command" '(^|[^[:alnum:]_])python[0-9.]*([[:space:]]|$)' &&
+  has "$command" '(pty\.(spawn|fork)|openpty)'; then
+  deny "$fake_terminal"
 fi
+# A pseudo-terminal wrapper as any command's program, however it is spelled.
+while IFS= read -r line; do
+  if runs "$line" 'script|unbuffer|tmux|screen|expect'; then
+    deny "$fake_terminal"
+  fi
+done < <(commands "$command")
 exit 0

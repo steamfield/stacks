@@ -10,15 +10,19 @@
 | `GET /static/<file>` | Embedded asset, `Cache-Control: public, max-age=3600` | |
 | `GET /healthz` | `ok`, plain text, `no-store` | |
 
-Forms post `application/x-www-form-urlencoded` bodies up to 64 KiB; larger
-bodies get 413 and unreadable ones 400.
+Forms post `application/x-www-form-urlencoded` bodies up to `maxFormBytes`,
+sized from `notes.MaxTitle` and `notes.MaxBody` so the longest valid note fits
+in any script; larger bodies get 413 and unreadable ones 400.
 
 ## Status codes and swaps
 
 htmx swaps 2xx and 3xx responses by default and ignores 4xx and 5xx. The layout's
 `htmx-config` meta tag (`views.HTMXConfig`) adds a rule that swaps 422, so a
-form comes back with its errors. Every other error status renders the error
-page and htmx leaves the page as it was (it fires `htmx:responseError`).
+form comes back with its errors. Every other error status swaps as an error
+(htmx still fires `htmx:responseError`): a plain request gets the error page,
+and an htmx request gets `views.ErrorAlert` with `HX-Retarget: #alert` and
+`HX-Reswap: innerHTML`, shown in the layout's `role="alert"` region. A
+successful post clears that region out of band.
 
 htmx follows redirects inside the request and swaps the final page into the
 target, so an htmx request never gets a 3xx. Send `HX-Redirect` with a 200 when

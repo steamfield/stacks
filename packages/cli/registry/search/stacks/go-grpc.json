@@ -16,13 +16,6 @@
     {
       "title": "Internal pricing service",
       "description": "Illustrative: replace the notes service with quote and price lookups that other backend services call over gRPC. A database and service-to-service authentication are work the project still has to add."
-    },
-    {
-      "title": "Containerised RPC backend",
-      "description": "Illustrative: ship the service as a container whose health check calls the gRPC health service. docker-deploy builds and publishes the image; TLS stays at the load balancer.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

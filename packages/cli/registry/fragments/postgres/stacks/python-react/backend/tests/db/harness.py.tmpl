@@ -1,0 +1,201 @@
+"""Run-owned test databases on the db-test service.
+
+Each pytest run gets an id (DB_TEST_RUN, set by tests/db/conftest.py before xdist starts
+workers). The run migrates one template, `<prefix>_tpl_<run>`, and every test file clones its
+own database from it. A run drops only the names it created; nothing is dropped by prefix, so
+a concurrent run on the same server keeps its databases. Leftovers from a crashed run are
+listed for a person, never removed automatically.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import re
+import secrets
+import subprocess
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import pytest
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import pool, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable, Iterator
+
+    from sqlalchemy.ext.asyncio import AsyncConnection
+
+ROOT = Path(__file__).resolve().parents[2]
+RUN_ENV = "DB_TEST_RUN"
+PREFIX = "{{project_slug}}"[:20]
+LABEL = re.compile(r"^[a-z0-9_]{1,12}$")
+
+
+class DbTestServer(BaseSettings):
+    """Where db-test listens: the environment first, then the repo root's .env, as Compose reads it."""
+
+    model_config = SettingsConfigDict(env_file=ROOT.parent / ".env", extra="ignore")
+
+    test_database_url: str = ""
+    port_db_test: int = 5433
+
+
+def admin_url() -> str:
+    """The maintenance database on db-test (TEST_DATABASE_URL, default on PORT_DB_TEST)."""
+    server = DbTestServer()
+    raw = server.test_database_url or (
+        f"postgresql://app:app@localhost:{server.port_db_test}/postgres"
+    )
+    return database_url(raw, make_url(raw).database or "postgres")
+
+
+def database_url(admin: str, name: str) -> str:
+    """The app's URL (SQLAlchemy with asyncpg) for database `name` on the admin URL's server."""
+    url = make_url(admin).set(drivername="postgresql+asyncpg", database=name)
+    return url.render_as_string(hide_password=False)
+
+
+def run_id() -> str:
+    return os.environ[RUN_ENV]
+
+
+def template_name(run: str) -> str:
+    return f"{PREFIX}_tpl_{run}"
+
+
+def quote(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+@asynccontextmanager
+async def admin(url: str) -> AsyncIterator[AsyncConnection]:
+    """An autocommit connection to the maintenance database (CREATE DATABASE needs one)."""
+    engine = create_async_engine(url, isolation_level="AUTOCOMMIT", poolclass=pool.NullPool)
+    try:
+        try:
+            connection = await engine.connect()
+        except OSError as exc:
+            msg = f"cannot reach db-test at TEST_DATABASE_URL ({exc}); run `make db-up` first"
+            raise RuntimeError(msg) from exc
+        try:
+            yield connection
+        finally:
+            await connection.close()
+    finally:
+        await engine.dispose()
+
+
+async def exists(connection: AsyncConnection, name: str) -> bool:
+    found = await connection.scalar(
+        text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": name}
+    )
+    return found is not None
+
+
+@asynccontextmanager
+async def locked(connection: AsyncConnection, key: str) -> AsyncIterator[None]:
+    await connection.execute(text("SELECT pg_advisory_lock(hashtext(:key))"), {"key": key})
+    try:
+        yield
+    finally:
+        await connection.execute(text("SELECT pg_advisory_unlock(hashtext(:key))"), {"key": key})
+
+
+def alembic(url: str, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run an Alembic command against the database at `url`."""
+    return subprocess.run(  # noqa: S603 - fixed argv, no shell
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "alembic.ini"), *args],
+        cwd=ROOT,
+        env={**os.environ, "DATABASE_URL": url, "ENVIRONMENT": "test"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def migrate_with_alembic(url: str) -> None:
+    """Run the real migrations on `url`, as `make db-migrate` does."""
+    result = alembic(url, "upgrade", "head")
+    if result.returncode != 0:
+        msg = f"alembic upgrade head failed:\n{result.stderr}"
+        raise RuntimeError(msg)
+
+
+async def _ensure_template(url: str, template: str, migrate: Callable[[str], None]) -> None:
+    async with admin(url) as connection, locked(connection, template):
+        # One worker builds the template; the others wait on the lock, then find it built.
+        if await exists(connection, template):
+            return
+        await connection.execute(text(f"CREATE DATABASE {quote(template)}"))
+        try:
+            migrate(database_url(url, template))
+        except BaseException:
+            await connection.execute(
+                text(f"DROP DATABASE IF EXISTS {quote(template)} WITH (FORCE)")
+            )
+            raise
+
+
+async def _clone(url: str, template: str, name: str) -> None:
+    # Cloning needs a template nobody is connected to, so clones queue on the same lock.
+    async with admin(url) as connection, locked(connection, template):
+        await connection.execute(text(f"CREATE DATABASE {quote(name)} TEMPLATE {quote(template)}"))
+
+
+async def _drop(url: str, name: str) -> None:
+    async with admin(url) as connection:
+        await connection.execute(text(f"DROP DATABASE IF EXISTS {quote(name)} WITH (FORCE)"))
+
+
+async def _exists(url: str, name: str) -> bool:
+    async with admin(url) as connection:
+        return await exists(connection, name)
+
+
+def ensure_template(run: str, migrate: Callable[[str], None] = migrate_with_alembic) -> str:
+    """The run's migrated template, created by the first caller; returns its name."""
+    template = template_name(run)
+    asyncio.run(_ensure_template(admin_url(), template, migrate))
+    return template
+
+
+def create_database(run: str, label: str) -> str:
+    """A new database cloned from the run's template; returns its name."""
+    if not LABEL.match(label):
+        msg = f"label must match {LABEL.pattern}: {label!r}"
+        raise ValueError(msg)
+    template = ensure_template(run)
+    name = f"{PREFIX}_{run}_{label}_{secrets.token_hex(2)}"
+    asyncio.run(_clone(admin_url(), template, name))
+    return name
+
+
+def drop_database(name: str) -> None:
+    asyncio.run(_drop(admin_url(), name))
+
+
+def database_exists(name: str) -> bool:
+    return asyncio.run(_exists(admin_url(), name))
+
+
+def setup_test_database(label: str) -> Callable[[], Iterator[str]]:
+    """A module-scoped fixture yielding the URL of this file's own database.
+
+    In a test file: `notes_db = setup_test_database("notes")`, then take `notes_db` as a
+    fixture argument.
+    """
+
+    @pytest.fixture(scope="module")
+    def database() -> Iterator[str]:
+        name = create_database(run_id(), label)
+        try:
+            yield database_url(admin_url(), name)
+        finally:
+            drop_database(name)
+
+    return database

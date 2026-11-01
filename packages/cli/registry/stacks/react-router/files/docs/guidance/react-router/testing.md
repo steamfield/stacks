@@ -15,7 +15,7 @@
 
 ## Effect tests
 
-- `it.effect` runs on the TestClock (it starts at 0 and moves only when adjusted; fork the program, adjust, then join) and silences the default logger. The `effect` skill has the installed names.
+- `it.effect` runs on the TestClock (it starts at 0 and moves only when adjusted; fork the program, adjust, then join) and silences the default logger. `docs/guidance/effect/api.md` has the installed names.
 - The TestClock doesn't reach routes run through a test runtime (a separate `ManagedRuntime` on the live clock). Test time-based behavior on the program or service with its layers provided directly.
 - `it.layer` shares one layer build across its block; build fresh layers per test when state must not leak.
 

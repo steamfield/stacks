@@ -16,13 +16,6 @@
     {
       "title": "Internal pricing service",
       "description": "Illustrative: replace notes with price rules that other services look up over HTTP. Persistence and access control are work the project still has to add."
-    },
-    {
-      "title": "Webhook receiver in a container",
-      "description": "Illustrative: accept JSON callbacks from a payment provider, validate them and log each request. Signature checks are custom work; docker-deploy builds and publishes the image.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

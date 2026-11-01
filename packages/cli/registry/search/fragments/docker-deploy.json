@@ -3,14 +3,14 @@
   "kind": "fragment",
   "id": "docker-deploy",
   "source": {
-    "digest": "sha256:21440965447d17b9326ccf1c3cd3dc783b000f23df6e341d7ad6a866c8ae844b",
+    "digest": "sha256:ab57622f09ddf370511bd423840f4af6437144223bb048731db339aba478a03d",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
     "reviewedAt": "2026-10-31"
   },
   "summary": "Package deployable services as production container images and publish them to GitHub Container Registry after CI passes.",
-  "description": "Package each deployable part as a multi-stage, non-root image with a healthcheck, then publish versioned images to GitHub Container Registry after CI. The instructions adapt to the selected stack, including an API and static site in one image for astro-fullstack. Local verification builds images. Choosing a host, configuring runtime secrets and rolling out containers remain separate deployment work.",
+  "description": "Package each deployable part as a multi-stage, non-root image with a healthcheck, then publish versioned images to GitHub Container Registry after CI. The instructions adapt to the selected stack, including an API and static site in one image for astro-fullstack. Local verification builds the images and checks that they start healthy. Choosing a host, configuring runtime secrets and rolling out containers remain separate deployment work.",
   "seoDescription": "Build non-root production container images with healthchecks and publish versioned artifacts to GHCR through GitHub Actions.",
   "projectExamples": [
     {

@@ -16,7 +16,7 @@ merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
   default: [git-hooks, ci-github, rest-api]
-  optional: [rr, ce-plugin, docker-deploy]
+  optional: [rr, ce-plugin]
 env:
   PORT_API: "3000"
 verify:

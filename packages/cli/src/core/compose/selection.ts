@@ -288,7 +288,7 @@ export function selectFragments(
     });
     yield* checkFit;
 
-    return { stack, ordered: order(selected), via, warnings, existing };
+    return { stack, ordered: order(selected), via, warnings, existing, appliedEntries };
   });
 }
 

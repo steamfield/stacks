@@ -16,13 +16,6 @@
     {
       "title": "Internal admin dashboard",
       "description": "Illustrative: replace the notes page with tables and edit forms for an internal team, keeping server-side validation and partial updates. A database and sign-in are work the project still has to add."
-    },
-    {
-      "title": "Containerised small business site with a contact form",
-      "description": "Illustrative: a few pages and a form that answers inline, shipped as one container image whose health check needs no shell. docker-deploy builds and publishes the image.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

@@ -16,6 +16,33 @@
 # Add project-specific patterns at the end (e.g. a deploy script that must never
 # run from an agent session). Test them in the project's hook tests.
 
+# split_commands <blank>: stdin's command line, one simple command per line.
+# Outside quotes and inside double quotes a backslash escapes the next
+# character, so \" or \x27 opens no string; inside single quotes it is literal.
+# With <blank> 1, whitespace inside quotes becomes _. If a quote is still open
+# at the end, the quoting was misread: fail closed by also emitting every line
+# split on every separator, quotes ignored and nothing blanked.
+split_commands() {
+  awk -v blank="$1" '
+    {
+      out = ""
+      n = length($0)
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1)
+        if (c == "\\" && q != "\047" && i < n) { i++; c = c substr($0, i, 1) }
+        else if (q != "") { if (c == q) q = ""; else if (blank == 1 && (c == " " || c == "\t")) c = "_" }
+        else if (c == "\047" || c == "\"") q = c
+        else if (c == ";" || c == "&" || c == "|") c = "\n"
+        out = out c
+      }
+      print out
+      raw = $0
+      gsub(/[;&|]/, "\n", raw)
+      lines = lines raw "\n"
+    }
+    END { if (q != "") printf "%s", lines }'
+}
+
 is_destructive() {
   local command=$1
   [ -z "$command" ] && return 1
@@ -60,17 +87,31 @@ is_destructive() {
   # --no-pager, --git-dir=.git or --git-dir .git all reach the same rules.
   local git_='git([[:space:]]+(-[Cc][[:space:]]+[^[:space:]]+|--(git-dir|work-tree|namespace|config-env)[[:space:]]+[^[:space:]]+|-[[:alpha:]]+|--[[:alnum:]-]+(=[^[:space:]]*)?))*[[:space:]]+'
 
-  # --- Filesystem ------------------------------------------------------------
-  # rm rules look at one simple command at a time, split on ; && || | & and
+  # --- Simple commands -------------------------------------------------------
+  # Most rules look at one simple command at a time, split on ; && || | & and
   # newlines, so `rm -f out.txt && cd ..` or `rm build.log; ls /` don't read the
   # next command's argument as rm's target. Separators inside quotes don't
   # split (echo 'a;rm -rf ~' is one echo); sh -c payloads were checked above.
-  # rm must be the segment's command word, possibly after env assignments, a
-  # shell keyword (then/do), or a wrapper such as sudo/env/timeout/nice with
-  # its options and numeric arguments (sudo -u root, timeout 5, nice -n 10).
-  local rm_wrap='(then|do|else|sudo|doas|env|exec|eval|command|builtin|nohup|time|nice|ionice|timeout|stdbuf)'
-  local rm_arg='(-[^[:space:]]*([[:space:]]+[^-[:space:]][^[:space:]]*)?|[0-9][^[:space:]]*|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)'
-  local rm_start="^[[:space:]]*((\\\$\\(|[({!\`])[[:space:]]*|${rm_wrap}([[:space:]]+${rm_arg})*[[:space:]]+|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*[\"']?(/bin/|/usr/bin/|\\\\)?rm[[:space:]]"
+  # The rule's program must be the segment's command word, possibly after env
+  # assignments, a shell keyword (then/do), or a wrapper such as
+  # sudo/env/timeout/nice with its options and numeric arguments (sudo -u root,
+  # timeout 5, nice -n 10). So a commit message, a PR body or an echo that
+  # mentions `git reset --hard` isn't the command it mentions.
+  local wrap='(then|do|else|sudo|doas|env|exec|eval|command|builtin|nohup|time|nice|ionice|timeout|stdbuf)'
+  local wrap_arg='(-[^[:space:]]*([[:space:]]+[^-[:space:]][^[:space:]]*)?|[0-9][^[:space:]]*|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)'
+  local start="^[[:space:]]*((\\\$\\(|[({!\`])[[:space:]]*|${wrap}([[:space:]]+${wrap_arg})*[[:space:]]+|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*[\"']?([^[:space:]\"';&|]*/|\\\\)?"
+  # segments: one simple command per line. quiet: the same, with whitespace
+  # inside quotes turned into _, so a quoted argument ("explain git push -f")
+  # can't supply the separate words a rule looks for.
+  local segments quiet
+  segments=$(split_commands 0 <<<"$command")
+  quiet=$(split_commands 1 <<<"$command")
+  # c <ere>: some simple command runs a program matching <ere> (its words
+  # follow), quoted arguments excluded.
+  c() { grep -qE -e "${start}$1" <<<"$quiet"; }
+
+  # --- Filesystem ------------------------------------------------------------
+  local rm_start="${start}rm[[:space:]]"
   local seg
   while IFS= read -r seg; do
     grep -qE -e "$rm_start" <<<"$seg" || continue
@@ -86,28 +127,7 @@ is_destructive() {
       hit "rm with a bare wildcard." "Be explicit about which files to remove. Ask the user first."
       return 0
     fi
-  done < <(awk '
-    # Outside quotes and inside double quotes a backslash escapes the next
-    # character, so \" or \x27 opens no string; inside single quotes it is literal.
-    # If a quote is still open at the end, the quoting was misread: fail closed
-    # by also emitting every line split on every separator, quotes ignored.
-    {
-      out = ""
-      n = length($0)
-      for (i = 1; i <= n; i++) {
-        c = substr($0, i, 1)
-        if (c == "\\" && q != "\047" && i < n) { i++; c = c substr($0, i, 1) }
-        else if (q != "") { if (c == q) q = "" }
-        else if (c == "\047" || c == "\"") q = c
-        else if (c == ";" || c == "&" || c == "|") c = "\n"
-        out = out c
-      }
-      print out
-      raw = $0
-      gsub(/[;&|]/, "\n", raw)
-      lines = lines raw "\n"
-    }
-    END { if (q != "") printf "%s", lines }' <<<"$command")
+  done <<<"$segments"
 
   if m "xargs[[:space:]].*rm[[:space:]]+-[a-zA-Z]*[rRf]"; then
     hit "Recursive or forced rm fed by xargs." "Review the pipeline. Ask the user first."
@@ -147,36 +167,42 @@ is_destructive() {
   # --- Git: discarding uncommitted work --------------------------------------
   # Every path at once (. or :/), with or without a ref or options before it
   # (git checkout HEAD -- ., git restore --source=HEAD .), in one command.
-  local all_paths="[[:space:]]+([^;&|]*[[:space:]])?(\.|:/)${end}"
-  if m "${git_}checkout${all_paths}"; then
+  local all_paths="[[:space:]]+(.*[[:space:]])?(\.|:/)${end}"
+  if c "${git_}checkout${all_paths}"; then
     hit "git checkout . discards every unstaged change." "Revert specific files: git checkout -- <file>"
+    return 0
+  fi
+  # checkout -f and switch -f/--discard-changes throw away local changes too.
+  if c "${git_}(checkout|switch)[[:space:]](.*[[:space:]])?(-[[:alpha:]]*f[[:alpha:]]*|--force|--discard-changes)([[:space:]]|$)"; then
+    hit "A forced checkout or switch discards every local change." \
+      "Commit or stash the work first. Ask the user first."
     return 0
   fi
   # restore touches the worktree unless only --staged/-S is given, which just
   # unstages. Checked per command, so one restore's --staged can't cover another.
   local restore
   while IFS= read -r restore; do
-    grep -qE -e "${git_}restore${all_paths}" <<<"$restore" || continue
+    grep -qE -e "${start}${git_}restore${all_paths}" <<<"$restore" || continue
     if ! grep -qE -e "[[:space:]](--staged|-[[:alpha:]]*S[[:alpha:]]*)([[:space:]]|$)" <<<"$restore" ||
       grep -qE -e "[[:space:]](--worktree|-[[:alpha:]]*W[[:alpha:]]*)([[:space:]]|$)" <<<"$restore"; then
       hit "git restore . discards every unstaged change." "Revert specific files: git restore <file>"
       return 0
     fi
-  done < <(tr ';&|' '\n' <<<"$command")
-  if m "${git_}clean[[:space:]]+(.*[[:space:]])?(-[a-zA-Z]*f|--force)"; then
+  done <<<"$quiet"
+  if c "${git_}clean[[:space:]]+(.*[[:space:]])?(-[a-zA-Z]*f|--force)"; then
     hit "git clean -f deletes untracked files permanently." "Preview with git clean -n. Ask the user first."
     return 0
   fi
-  if m "${git_}reset[[:space:]]+(.*[[:space:]])?--hard"; then
+  if c "${git_}reset[[:space:]]+(.*[[:space:]])?--hard"; then
     hit "git reset --hard discards all uncommitted changes, staged and unstaged." \
       "Use git stash or a soft reset to keep the work. Ask the user first."
     return 0
   fi
-  if m "${git_}stash[[:space:]]+(drop|clear)"; then
+  if c "${git_}stash[[:space:]]+(drop|clear)"; then
     hit "git stash drop/clear destroys stashed work." "Other sessions may have work in the stash. Ask the user first."
     return 0
   fi
-  if m "${git_}branch[[:space:]](.*[[:space:]])?-[a-zA-Z]*D"; then
+  if c "${git_}branch[[:space:]](.*[[:space:]])?-[a-zA-Z]*D"; then
     hit "git branch -D deletes a branch even when its commits are merged nowhere." \
       "Use git branch -d, which refuses unmerged work. Ask the user first."
     return 0
@@ -186,16 +212,22 @@ is_destructive() {
   # commit's -n is --no-verify, alone or in a cluster (-nm, -anm), but not as
   # the argument of -m, -c, -C, -F or -t (-mn is the message "n"). push -n is
   # --dry-run.
-  if m "${git_}(commit|push)[[:space:]](.*[[:space:]])?--no-verify" ||
-    m "${git_}commit[[:space:]]([^;&|]*[[:space:]])?-[abd-lo-su-zABDEG-Z]*n[[:alpha:]]*([[:space:]]|$)"; then
+  if c "${git_}(commit|push)[[:space:]](.*[[:space:]])?--no-verify([[:space:]]|$)" ||
+    c "${git_}commit[[:space:]](.*[[:space:]])?-[abd-lo-su-zABDEG-Z]*n[[:alpha:]]*([[:space:]]|$)"; then
     hit "--no-verify skips the project's git hooks." "Fix what the hook reports instead. Ask the user first."
     return 0
   fi
 
-  # --- Git: rewriting shared history (--force-with-lease is allowed) ----------
-  if m "${git_}push[[:space:]](.*[[:space:]])?(-f|--force|-[a-zA-Z]*f[a-zA-Z]*)([[:space:]]|$)" ||
-    m "${git_}push[[:space:]](.*[[:space:]])?\+[^[:space:]]+"; then
+  # --- Git: rewriting or deleting shared history ------------------------------
+  # --force-with-lease and --force-if-includes are allowed.
+  if c "${git_}push[[:space:]](.*[[:space:]])?(-f|--force|-[a-zA-Z]*f[a-zA-Z]*)([[:space:]]|$)" ||
+    c "${git_}push[[:space:]](.*[[:space:]])?\+[^[:space:]]+"; then
     hit "Force push rewrites remote history." "Ask the user first. If it is needed, use --force-with-lease."
+    return 0
+  fi
+  # --mirror, --delete/-d and a :<ref> refspec delete remote branches.
+  if c "${git_}push[[:space:]](.*[[:space:]])?(--mirror|--delete|-[a-zA-Z]*d[a-zA-Z]*|:[^[:space:]]+)([[:space:]]|$)"; then
+    hit "This push deletes or overwrites remote branches." "Ask the user first."
     return 0
   fi
 
@@ -219,21 +251,30 @@ is_destructive() {
   fi
 
   # --- Containers, hosting, releases ------------------------------------------
-  if m "docker[[:space:]]+(system[[:space:]]+prune|volume[[:space:]]+(rm|prune)|image[[:space:]]+prune|rmi[[:space:]])" ||
-    m "docker[[:space:]]+compose[[:space:]]+down[[:space:]](.*[[:space:]])?(-v|--volumes)${end}"; then
+  if c "docker[[:space:]]+(system[[:space:]]+prune|volume[[:space:]]+(rm|prune)|image[[:space:]]+prune|rmi[[:space:]])" ||
+    c "docker[[:space:]]+compose[[:space:]]+down[[:space:]](.*[[:space:]])?(-v|--volumes)${end}"; then
     hit "This deletes Docker images or volumes (including database data)." \
       "The Docker context may not be local. Ask the user first."
     return 0
   fi
-  if m "${word}gh[[:space:]]+(repo|release)[[:space:]]+delete"; then
+  if c "gh[[:space:]]+(repo|release)[[:space:]]+delete"; then
     hit "gh repo/release delete is unrecoverable." "Ask the user first."
     return 0
   fi
-  if { m "${word}(npm|pnpm|yarn|bun|uv|cargo|poetry|gem)[[:space:]]+(.*[[:space:]])?publish${end}" ||
-    m "${word}twine[[:space:]]+upload" ||
-    m "${word}goreleaser[[:space:]]+release"; } &&
-    ! m "(--dry-run|--snapshot)"; then
+  # --dry-run or --snapshot excuses only the publishing command it belongs to,
+  # so `echo --dry-run; npm publish` is still denied.
+  local publish="${start}((npm|pnpm|yarn|bun|uv|cargo|poetry|gem)[[:space:]]+(.*[[:space:]])?publish${end}|twine[[:space:]]+upload|goreleaser[[:space:]]+release)"
+  while IFS= read -r seg; do
+    grep -qE -e "$publish" <<<"$seg" || continue
+    grep -qE -e "[[:space:]][\"']?(--dry-run|--snapshot)(=[^[:space:]]*)?[\"']?${end}" <<<"$seg" && continue
     hit "Publishing a release is irreversible." "Releases are user-initiated. Ask the user first."
+    return 0
+  done <<<"$quiet"
+  if c "(terraform|tofu)[[:space:]]+(.*[[:space:]])?(destroy|apply[[:space:]](.*[[:space:]])?-destroy)${end}" ||
+    c "pulumi[[:space:]]+(.*[[:space:]])?destroy${end}" ||
+    c "kubectl[[:space:]]+(.*[[:space:]])?delete${end}" ||
+    c "aws[[:space:]]+s3[[:space:]]+(rm[[:space:]](.*[[:space:]])?--recursive|rb[[:space:]](.*[[:space:]])?--force)${end}"; then
+    hit "This tears down infrastructure or deletes cloud data." "Infrastructure changes are user-initiated. Ask the user first."
     return 0
   fi
 

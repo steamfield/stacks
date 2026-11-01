@@ -75,7 +75,7 @@ export function renderReport(
   const { stacks, fragments } = report.entries;
   const counted = `${plural(stacks, "stack")}, ${plural(fragments, "fragment")}`;
   const out = [
-    `Validated ${printable(options.root)}${report.bundled ? " (bundled registry)" : ""}: ${counted}`,
+    `Validated ${printable(options.root)}${report.bundled ? " (bundled registry)" : ""}`,
   ];
   const sizes = options.audience === "human" ? report.sizes : report.sizes.filter(over);
   const checkWidth = Math.max(0, ...report.findings.map((finding) => finding.check.length));

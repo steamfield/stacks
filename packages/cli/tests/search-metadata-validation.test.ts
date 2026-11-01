@@ -227,7 +227,10 @@ test("project vocabulary is ignored even when malformed [4.5b#13b]", async () =>
   ]);
 });
 
-test("a shared stack and fragment id keeps two independent cards [4.5b#15]", async () => {
+// Two stamps and two validate runs; under a loaded gate host this passes 5 s.
+test("a shared stack and fragment id keeps two independent cards [4.5b#15]", {
+  timeout: 15_000,
+}, async () => {
   const f = setup();
   const fragment = { kind: "fragment", id: sample.id } as const;
   seed(f.root, fragment);

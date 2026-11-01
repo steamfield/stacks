@@ -22,7 +22,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: fmt-check, layer: lint, run: make fmt-check }
@@ -99,10 +99,6 @@ The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compi
 <!-- stacks:when with=git-hooks -->
 
 **Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make fmt` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
-<!-- stacks:end -->
-<!-- stacks:when with=docker-deploy -->
-
-**Image.** The jar is `target/app.jar`, with templates, the stylesheet and the htmx WebJar inside it. `HEALTHCHECK` runs `java -jar /app/app.jar --healthcheck`, which reads the same `HOST` and `PORT` as the server; `WebIT` covers it. Set `SESSION_COOKIE_SECURE=true` where the container sits behind TLS. Sessions (which hold CSRF tokens) live in the container's memory, so a restart signs nobody out but invalidates open forms; several replicas need sticky sessions or a shared session store. `.dockerignore` also excludes `target/`.
 <!-- stacks:end -->
 
 ## Gotchas

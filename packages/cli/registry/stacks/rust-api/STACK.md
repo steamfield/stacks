@@ -20,7 +20,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github, rest-api]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: fmt-check, layer: lint, run: make fmt-check }
@@ -105,10 +105,6 @@ The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, ch
 <!-- stacks:when with=rest-api -->
 
 **API conventions.** The notes resource follows the REST rule. Record in AGENTS.md: the `/v1` prefix, the `{"error":{"tag","message","retryable"}}` envelope, cursor pagination (`limit` default 20, max 100, `nextCursor`), and 405 with `Allow` for a wrong method, with notes as the example.
-<!-- stacks:end -->
-<!-- stacks:when with=docker-deploy -->
-
-**Image.** The binary's `--healthcheck` flag is the exec-form `HEALTHCHECK` (`["/<binary>", "--healthcheck"]`); `tests/binary.rs` covers it. Set `HOST=0.0.0.0` and `PORT` in the image and `EXPOSE` that port. `.dockerignore` also excludes `target/`.
 <!-- stacks:end -->
 
 ## Gotchas

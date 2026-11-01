@@ -20,7 +20,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github, rest-api]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: fmt-check, layer: lint, run: make fmt-check }
@@ -99,10 +99,6 @@ The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compi
 <!-- stacks:when with=rest-api -->
 
 **API conventions.** The notes resource follows the REST rule. Record in AGENTS.md: the `/v1` prefix, the `{"error":{"tag","message","retryable"}}` envelope, cursor pagination (`limit` default 20, max 100, `nextCursor`), and 405 with `Allow` for a wrong method, with notes as the example.
-<!-- stacks:end -->
-<!-- stacks:when with=docker-deploy -->
-
-**Image.** The jar is `target/app.jar`. `HEALTHCHECK` runs `java -jar /app/app.jar --healthcheck`, which reads the same `HOST` and `PORT` as the server; `ApiIT` covers it. `.dockerignore` also excludes `target/`.
 <!-- stacks:end -->
 
 ## Gotchas

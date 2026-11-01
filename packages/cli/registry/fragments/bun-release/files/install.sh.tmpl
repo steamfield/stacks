@@ -8,12 +8,16 @@
 # checksum doesn't match. Settings (env):
 #   {{env_prefix}}_INSTALL_DIR    where to put {{project_slug}} (default ~/.local/bin)
 #   {{env_prefix}}_VERSION        a tag like v0.2.0 (default: the latest release)
-#   {{env_prefix}}_RELEASES_REPO  owner/repo (default {{package_scope}}/{{project_slug}})
-#   {{env_prefix}}_RELEASES_URL   the GitHub API base (default https://api.github.com; tests use a stub)
+#   {{env_prefix}}_RELEASES_REPO  owner/repo (default: default_repo below)
+#   {{env_prefix}}_RELEASES_URL   the releases base URL (default https://github.com/<repo>/releases;
+#                         tests point it at a local stub)
+# It downloads through GitHub's release download URLs, so it needs no API call and no JSON parsing.
 set -euo pipefail
 
-repo="${{{env_prefix}}_RELEASES_REPO:-{{package_scope}}/{{project_slug}}}"
-api="${{{env_prefix}}_RELEASES_URL:-https://api.github.com}"
+default_repo="{{package_scope}}/{{project_slug}}"
+# stacks:fill Confirm default_repo's owner (the GitHub owner the user names when it's empty) and the curl line above, then delete this line.
+repo="${{{env_prefix}}_RELEASES_REPO:-$default_repo}"
+base="${{{env_prefix}}_RELEASES_URL:-}"
 dir="${{{env_prefix}}_INSTALL_DIR:-$HOME/.local/bin}"
 version="${{{env_prefix}}_VERSION:-}"
 
@@ -21,6 +25,13 @@ fail() {
   echo "install.sh: $*" >&2
   exit 1
 }
+
+if [ -z "$base" ]; then
+  case "$repo" in
+    /* | */ | "") fail "no GitHub owner in '$repo'; set {{env_prefix}}_RELEASES_REPO=owner/repo" ;;
+  esac
+  base="https://github.com/$repo/releases"
+fi
 
 case "$(uname -s)" in
   Darwin) os=darwin ;;
@@ -33,40 +44,32 @@ case "$(uname -m)" in
   *) fail "no {{project_slug}} build for $(uname -m)" ;;
 esac
 # musl's ldd exits 1 for --version, so capture its output rather than piping it (pipefail).
+libc=""
 if [ "$os" = linux ]; then
   ldd_out="$(ldd --version 2>&1 || true)"
   case "$ldd_out" in
-    *musl* | *MUSL* | *Musl*) fail "musl Linux (Alpine) isn't supported yet; use a glibc distro or build from source" ;;
+    *musl* | *MUSL* | *Musl*) libc="-musl" ;;
   esac
 fi
 # Under Rosetta, uname says x86_64 on an Apple Silicon Mac; the native build is faster.
 if [ "$os" = darwin ] && [ "$arch" = x64 ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)" = 1 ]; then
   arch=arm64
 fi
-asset="{{project_slug}}-$os-$arch"
+asset="{{project_slug}}-$os-$arch$libc"
 
 if [ -n "$version" ]; then
-  release_url="$api/repos/$repo/releases/tags/$version"
+  download="$base/download/$version"
 else
-  release_url="$api/repos/$repo/releases/latest"
+  download="$base/latest/download"
 fi
-release="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$release_url")" ||
-  fail "couldn't read $release_url"
-
-# The download URL of a named asset, from the release JSON (no jq needed).
-url_of() {
-  printf '%s' "$release" | tr ',' '\n' | grep '"browser_download_url"' | sed -E 's/.*"browser_download_url" *: *"([^"]+)".*/\1/' |
-    grep -E "/$1\$" | head -n 1
-}
-binary_url="$(url_of "$asset")" || fail "the release has no $asset"
-sums_url="$(url_of SHA256SUMS)" || fail "the release has no SHA256SUMS"
-[ -n "$binary_url" ] || fail "the release has no $asset"
-[ -n "$sums_url" ] || fail "the release has no SHA256SUMS"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
-curl -fsSL "$binary_url" -o "$tmp/$asset" || fail "couldn't download $binary_url"
-curl -fsSL "$sums_url" -o "$tmp/SHA256SUMS" || fail "couldn't download $sums_url"
+if ! curl -fsSL "$download/$asset" -o "$tmp/$asset"; then
+  [ -z "$libc" ] || fail "this release has no musl (Alpine) build; use a glibc distro or build from source"
+  fail "couldn't download $download/$asset"
+fi
+curl -fsSL "$download/SHA256SUMS" -o "$tmp/SHA256SUMS" || fail "couldn't download $download/SHA256SUMS"
 
 expected="$(awk -v name="$asset" '{ file = $2; sub(/^\*/, "", file); if (file == name) print $1 }' "$tmp/SHA256SUMS")"
 if command -v sha256sum >/dev/null 2>&1; then
@@ -89,5 +92,12 @@ mv -f "$staged" "$dir/{{project_slug}}"
 echo "Installed {{project_slug}} to $dir/{{project_slug}}"
 case ":$PATH:" in
   *":$dir:"*) ;;
-  *) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.zshrc" ;;
+  *)
+    case "${SHELL:-}" in
+      */fish) echo "Add $dir to your PATH, e.g.: fish_add_path '$dir'" ;;
+      */zsh) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.zshrc" ;;
+      */bash) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.bashrc" ;;
+      *) echo "Add $dir to your PATH, e.g.: echo 'export PATH=\"$dir:\$PATH\"' >> ~/.profile" ;;
+    esac
+    ;;
 esac

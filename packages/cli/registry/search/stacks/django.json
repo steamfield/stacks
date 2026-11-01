@@ -16,13 +16,6 @@
     {
       "title": "Internal records app with an admin",
       "description": "Illustrative: replace notes with the team's own records, edit them through Django's admin and a few forms, and keep the migration and test shape. Sign-in pages for non-staff users are work the project still adds."
-    },
-    {
-      "title": "Containerised booking site",
-      "description": "Illustrative: a few pages and a booking form served from one container image, with migrations run as a release step. docker-deploy builds and publishes the image; moving from SQLite to Postgres is a separate step.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

@@ -1,0 +1,53 @@
+# Workflows
+
+Three recipes for extending {{project_slug}}: a command, a service, a tool. Each ends with `bun run check`.
+
+## Add a command
+
+`{{project_slug}} extract` is the smallest complete slice, so use it as the template: `src/schemas/extract.ts`, `src/core/extract.ts`, `src/commands/extract.ts`, and its cases in the tests. `{{project_slug}} export` shows a command that reads saved state and writes a file. Read `AGENTS.md`, [testing](testing.md), and [effect-ai](effect-ai.md) if it calls a model, plus the Effect guidance (`docs/guidance/effect/index.md`, when the effect fragment is selected) before writing Effect code.
+
+If the request is ambiguous (what goes in, what comes out on stdout and with `--json`, what counts as failure and which exit code), state your assumptions in one short list before writing code, and ask if a wrong guess would be expensive to undo. The argv shape and exit codes are an interface scripts will depend on.
+
+1. **Schema** in `src/schemas/<domain>.ts`, re-exported from `index.ts`: the decoded input and the result, each a `Schema.Struct` (or a checked primitive) with a same-named type. Decoding is where validation lives (trim, lengths, brands), with a `message` on anything a user can trip.
+2. **Program** in `src/core/<domain>.ts`: a function from decoded input to an Effect that gets services with `yield*` and loads config with `loadConfig` only if it needs settings. No argv, no printing. Expected failures are tagged errors; reuse the ones in `src/errors.ts` where they fit. A new error gets a case in `exitCodeFor` and `retryableFor` and a user-safe message. State that must persist is a service (below).
+3. **Command** in `src/commands/<name>.ts`: use the installed Effect CLI command, flag and argument APIs. Read the package's exports and matching declarations before choosing imports or constructors, and keep what you verify in `docs/guidance/effect/api.md`. The handler decodes (`decodeInput(Schema)`, `readPipedStdin` if it takes stdin), runs the program, and renders: `out.json(result)` with `--json`, `out.line(...)` for text, `out.note(...)` for anything that isn't the result. Register it in the command tree in `src/cli.ts` using the installed API. Nothing under `src/tui/` is imported statically; a command that needs the TUI loads it with `importTui` from `commands/load-tui.ts`, as `commands/chat.ts` does.
+4. **Tests** through `runCli` (`tests/helpers/cli.ts`):
+   - success: stdout holds exactly the result, as text and with `--json`; exit 0
+   - each tagged error: its exit code, the message on stderr, stdout empty, and `{"error":{tag,message,retryable}}` on stderr with `--json`
+   - a usage error (missing argument, bad flag): exit 2, stdout empty
+   - the program with `it.effect` if it has time-based or retry behavior
+   - the provider stub, or the release fragment's stub when selected, for external HTTP, so no test touches the network
+5. **Docs**: the command and its exit codes in the README Commands section, the architecture map in `AGENTS.md` if a new file or directory appeared.
+6. `bun run check`, then run it for real: `eval "$(bun run --silent stub)"`, then `bun run dev -- <name> ...` with and without `--json`, and read `logs/cli.jsonl` for its `command` line. `bun run stub:stop` when done. If only the compiled binary could break it, add one step to `app-e2e/`.
+
+Keep the command thin. Don't add flags, config or output formats the request didn't ask for; say what you left out instead.
+
+## Add a service
+
+Look at an existing service in `src/services/` first: `ChatStore` for local state with a memory variant, `OpenRouterModels` for HTTP with retry and timeout (`Releases` is another example only when bun-release is selected).
+
+1. **Interface.** `export interface <Name>Shape` with a small set of Effect-returning methods, and `export class <Name> extends Context.Service<<Name>, <Name>Shape>()("{{project_slug}}/<Name>") {}` in `src/services/<Name>.ts`. Failures it can produce are tagged errors in `src/errors.ts`, each with an exit code in `exitCodeFor` and a decision in `retryableFor`.
+2. **Layer.** `static readonly layer = Layer.effect(<Name>, make)` on the class. `make` yields its dependencies once (platform services like `FileSystem.FileSystem` or `HttpClient.HttpClient`, other services, `AppConfig`) and must not fail on bad config while being built: run `load` inside the methods that need settings. New env vars go in `src/config.ts`, `.env.example` and the README table. No Bun or Node APIs: the service runs under vitest on Node and in the binary on Bun.
+3. **Wire it** into `AppLayer` in `src/runtime.ts`. Tests get it through the same `AppLayer` (`runCli`); add a `static readonly layerMemory` (fresh state per build) or a scripted variant only if a test needs to replace what it talks to.
+4. **Tests.** Test it with `@effect/vitest` using its real `layer` where that's local, or pointed at a stub server where it calls a third party. Use `TestClock` for anything time-based. Then one `runCli` test for the command that uses it.
+5. `bun run check`.
+
+Keep the interface free of implementation details, so a different backing store later is a new layer, not a new interface.
+
+## Add a tool
+
+Look at `CurrentTime` in `src/tools/index.ts` first and match its shape; `ExtractContact` in `src/tools/mcp.ts` shows a tool whose failure is returned to the caller.
+
+1. **Schema** in `src/schemas/tools.ts`: the parameters as a `Schema.Struct` and the success value, with `description` (and `examples`) annotations on the fields (the model reads these to decide when and how to call the tool). Annotate before any `.check(...)`; a custom `Schema.makeFilter` contributes nothing to the JSON Schema, so put what the model should know in the description (`TimeZone` shows the annotate-then-check order). No `identifier` annotation.
+2. **Tool** in `src/tools/index.ts` (or its own file there): `Tool.make("<name>", { description, parameters, success })`. Add `failureMode: "return"` if the model should see a failure and carry on, rather than the turn failing (`CurrentTime` does, for input that doesn't decode), plus a `failure` schema if the handler itself can fail. Print `Tool.getJsonSchema(tool)` and read it before a model sees it: objects are open (`additionalProperties: true`), and `Tool.Strict` only sets the `strict` flag in the request, not the schema.
+3. **Register it** in `ChatTools = Toolkit.make(CurrentTime, <New>)` and give it a handler in `ChatToolsLive = ChatTools.toLayer({ ..., <name>: (params) => Effect... })`. The handler gets services from the context (`Clock`, `ChatStore`), never by providing a layer. `McpTools` in `src/tools/mcp.ts` is `Toolkit.merge(ChatTools, ...)` and `McpToolsLive` includes `ChatToolsLive`, so `{{project_slug}} mcp` serves it with no change there; a tool for MCP only goes in `mcp.ts` instead.
+4. **Render**: `{{project_slug}} ask` prints tool calls as a note and emits `tool-call`/`tool-result` events with `--json`; the TUI shows the call from the bridge's `tool` event. Check both show something sensible for its input; a new display needs a change in `src/tui/message-list.tsx` (and `DESIGN.md`).
+5. **Prompt**: if the model should prefer the tool over guessing, add a line to `DEFAULT_SYSTEM_PROMPT` in `src/config.ts`.
+6. **Tests.**
+   - the handler for valid input, invalid input (the parameters schema rejects it), and any failure it can hit, with `TestClock` if it reads time
+   - its JSON Schema, pinned exactly
+   - a turn where the model calls it: the stub OpenRouter streams a tool call (push `{ name, arguments }` onto `stub.toolCalls`), and `{{project_slug}} ask --json` shows the `tool-call`, the `tool-result`, and the follow-up step's text
+   - `{{project_slug}} mcp`: `tools/list` includes it and `tools/call` returns its result (`tests/mcp.test.ts`)
+7. `bun run check`.
+
+If the tool calls a third-party API, add its base URL to Config (with an unreachable default in `tests/isolation.ts`) and point tests at a local stub server. Tests never hit the network.

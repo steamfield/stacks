@@ -1,6 +1,6 @@
 # TypeScript
 
-Only the things that are easy to get wrong here. Effect-specific typing is in the `effect` skill.
+Only the things that are easy to get wrong here. Effect-specific typing is in `docs/guidance/effect/api.md`.
 
 ## Compiler and config
 

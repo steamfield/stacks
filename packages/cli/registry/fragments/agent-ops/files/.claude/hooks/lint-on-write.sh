@@ -90,7 +90,7 @@ lint_python() {
   fi
   tool="ruff check"
   # ruff exits 1 for violations, 2 for its own errors (bad config, crash).
-  out=$(cd "$dir" && with_timeout 20 "$ruff" check --no-fix --quiet "$file_path") || rc=$?
+  out=$(cd "$dir" && with_timeout 20 "$ruff" check --no-fix --quiet --output-format=concise "$file_path") || rc=$?
   [ "$rc" -eq 1 ] || out=""
 }
 
@@ -98,12 +98,18 @@ lint_biome() {
   local cfg bin
   cfg=$(find_up "$file_dir" biome.json biome.jsonc) || return 1
   bin=$(node_bin biome) || bin=$(command -v biome 2>/dev/null) || return 0
-  tool="biome check"
-  out=$(cd "$cfg" && with_timeout 20 "$bin" check --colors=off "$file_path") || rc=$?
+  # lint, not check: formatting is fixed at Stop by format-changed.sh, so a
+  # formatter diff here would only cost the agent a turn.
+  tool="biome lint"
+  out=$(cd "$cfg" && with_timeout 20 "$bin" lint --colors=off --reporter=concise "$file_path") || rc=$?
   # Clean, timed out, or the file is outside biome's configured includes.
   if [ "$rc" -eq 0 ] || [ "$rc" -ge 124 ] || grep -q "No files were processed" <<<"$out"; then
     out=""
   fi
+  # Keep the one-line diagnostics (path:line:col: rule: message), not the summary.
+  local lines
+  lines=$(grep -E ':[0-9]+:[0-9]+: ' <<<"$out" || true)
+  [ -z "$lines" ] || out=$lines
   return 0
 }
 

@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "typescript-api",
   "source": {
-    "digest": "sha256:c431a94d690862d83dd809d231efe63e4526f31889d853ec33a9af9efc9527d6",
+    "digest": "sha256:92657b7261705b1a6fa032f54b3d36e5aa52dc58d3b2477677bcd2da64884982",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,

@@ -5,9 +5,16 @@ import type { Finding } from "../../schemas/validate";
 import { targetAgents } from "../compose/agents";
 import { type ComposeOptions, type Composition, compose } from "../compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../compose/files";
-import { type Entry, isStack } from "../registry/entry";
+import {
+  type Entry,
+  isFragment,
+  isStack,
+  shippedOnlyFor,
+  shippedPath,
+  shipsFor,
+} from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { compositionPlans, describe } from "./compositions";
+import { compositionPlans, describe, replacementDefaults } from "./compositions";
 import type { Source } from "./sources";
 import { type Check, entryFile, finding, type View } from "./view";
 
@@ -48,13 +55,33 @@ function compositionRuns(view: SourceView): CompositionRun[] {
           plan: view.composition.options,
         },
       ]
-    : view.all
-        .filter(isStack)
-        .flatMap((stack) =>
-          (["default", "sandbox"] as const).flatMap((preset) =>
-            compositionPlans(view, stack).map((plan) => ({ stack, preset, plan })),
-          ),
-        );
+    : view.all.filter(isStack).flatMap((stack) =>
+        (["default", "sandbox"] as const).flatMap((preset) =>
+          [...compositionPlans(view, stack), ...overlayPlans(view, stack)].map((plan) => ({
+            stack,
+            preset,
+            plan,
+          })),
+        ),
+      );
+}
+
+/** An overlay must be checked even when its host recipe never lists the fragment. */
+function overlayPlans(view: SourceView, stack: Entry) {
+  if (!isStack(stack)) return [];
+  return view.all
+    .filter((entry): entry is Entry => "meta" in entry)
+    .filter(isFragment)
+    .filter((entry) =>
+      view.sources
+        .get(entry.dir)
+        ?.files.some((file) => shippedOnlyFor(file.source, "stack", stack.id)),
+    )
+    .map((entry) => ({ with: [entry.id], without: replacementDefaults(view, stack, entry.id) }));
+}
+
+function selectedSource(source: string, agents: ReadonlyArray<string>, stack: string): boolean {
+  return shippedPath(source) !== undefined && shipsFor(source, agents, stack);
 }
 
 const renderRun = (view: SourceView, { stack, preset, plan }: CompositionRun, state: RenderState) =>
@@ -75,7 +102,7 @@ const renderRun = (view: SourceView, { stack, preset, plan }: CompositionRun, st
       entries.some((entry) =>
         view.sources
           .get(entry.dir)
-          ?.files.some((file) => file.source.startsWith(`adapters/${agent}/`)),
+          ?.files.some((file) => shippedOnlyFor(file.source, "agent", agent)),
       ),
     );
 
@@ -136,8 +163,7 @@ function recordComposeFailure(
           (error._tag === "EntryInvalid"
             ? source.source === error.details?.path
             : source.path.replace(/\.tmpl$/, "") === error.details?.path) &&
-          (source.source.startsWith("files/") ||
-            targets.some((agent) => source.source.startsWith(`adapters/${agent}/`))),
+          selectedSource(source.source, targets, stack.id),
       )
       .map((source) => ({ entry, source })),
   );
@@ -210,10 +236,7 @@ export function sourceOf(
       .filter(
         (source) =>
           source.path.replace(/\.tmpl$/, "") === file.path &&
-          (source.source.startsWith("files/") ||
-            snapshot.composition.agents.some((agent) =>
-              source.source.startsWith(`adapters/${agent}/`),
-            )),
+          selectedSource(source.source, snapshot.composition.agents, snapshot.composition.stack.id),
       )
       .map((source) => ({ entry, source }));
   });

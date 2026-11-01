@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "drizzle-postgres",
   "source": {
-    "digest": "sha256:1e581090089356a03829b8629b47228b83070260b371b16c4b653b134a00457e",
+    "digest": "sha256:fd2b1aabd80f414c7170c5b0be462350122ef3b6d2a3eb003639d24bc6975c68",
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,
@@ -65,5 +65,10 @@
     "migrations as the schema source",
     "server-only database access"
   ],
-  "notFor": []
+  "notFor": [
+    "Effect",
+    "FastAPI",
+    "Cloudflare D1",
+    "managed production database provisioning"
+  ]
 }

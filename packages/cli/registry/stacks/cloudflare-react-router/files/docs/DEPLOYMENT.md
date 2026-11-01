@@ -11,6 +11,7 @@ fork pull requests. Read Node and Bun versions from the project, install the fro
 lockfile, build, then deploy with the locally installed Wrangler. Store
 `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as protected CI secrets.
 
-With D1, create the production database separately, replace the local-only identifier,
-and apply reviewed remote migrations before deploying the compatible Worker. Local
+With D1, the binding has no `database_id`: the first `wrangler deploy` provisions the
+production database. Apply reviewed remote migrations before deploying the compatible
+Worker. Local
 migration commands and tests must always use local storage.

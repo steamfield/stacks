@@ -25,14 +25,28 @@ function physical(path: string): string {
   return current;
 }
 
+/**
+ * The directory a plain filename glob expands inside (`./tmp/` for `./tmp/*.log`), or undefined
+ * when the word holds other expansions, has no directory part, or globs across directories.
+ */
+function globDirectory(target: string): string | undefined {
+  if (/[$`~{(]/.test(target)) return undefined;
+  const first = target.search(/[*?[]/);
+  const slash = target.lastIndexOf("/", first);
+  if (first < 0 || slash < 0 || target.includes("/", first)) return undefined;
+  return target.slice(0, slash + 1);
+}
+
 function removalTargetReason(
   target: string,
   options: { root: string; directory: string; expands: boolean },
 ): string | undefined {
-  if (options.expands) {
+  // A glob inside a subdirectory (rm -rf ./tmp/*) empties that directory: check the directory.
+  const checked = options.expands ? globDirectory(target) : target;
+  if (checked === undefined) {
     return "Recursive deletion has an unknown target. Name paths inside the project.";
   }
-  const path = physical(isAbsolute(target) ? target : `${options.directory}/${target}`);
+  const path = physical(isAbsolute(checked) ? checked : `${options.directory}/${checked}`);
   const rel = relative(options.root, path);
   if (rel === "" || rel === ".." || rel.startsWith("../") || isAbsolute(rel)) {
     return "Recursive deletion outside the project or of its root is blocked. Ask the user first.";

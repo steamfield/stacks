@@ -22,7 +22,7 @@ function reachFinding(
     file: entryFile(view, entry),
     line: start + (view.sources.get(entry.dir)?.bodyOffset ?? 0),
     message: allowed
-      ? `stack=${id} is reachable only when ${entry.id} is added with --with`
+      ? `stack=${id} does not list ${entry.id} in its fragments; add it to fragments.default or fragments.optional, or select it with --with or add`
       : `stack=${id} cannot include ${entry.id}: its applies_to does not match`,
   });
 }

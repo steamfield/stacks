@@ -22,7 +22,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github, rest-api]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: fmt-check, layer: lint, run: make fmt-check }
@@ -101,10 +101,6 @@ The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compi
 <!-- stacks:when with=rest-api -->
 
 **API conventions.** The notes resource follows the REST rule. Record in AGENTS.md: the `/v1` prefix (health and OpenAPI stay under `/q`), the `{"error":{"tag","message","retryable"}}` envelope, cursor pagination (`limit` default 20, max 100, `nextCursor`), and 405 without an `Allow` header for a wrong method, since Quarkus REST sends none, with notes as the example.
-<!-- stacks:end -->
-<!-- stacks:when with=docker-deploy -->
-
-**Image.** Quarkus builds a directory, not one jar: copy `target/quarkus-app/lib/`, `app/`, `quarkus/` and `quarkus-run.jar` into the runtime stage as four `COPY --chown` lines, dependencies first so a source edit reuses the `lib/` layer. `CMD` is `java -jar /app/quarkus-run.jar` and `HEALTHCHECK` runs it with `--healthcheck`, which reads the same `HOST` and `PORT` as the server; `ApiIT` covers it. `.dockerignore` also excludes `target/`.
 <!-- stacks:end -->
 
 ## Gotchas

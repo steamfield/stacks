@@ -16,13 +16,6 @@
     {
       "title": "Container-first catalog service",
       "description": "Illustrative: replace notes with catalog items that other services read over HTTP, with readiness checks for an orchestrator. Persistence and access control are work the project still has to add."
-    },
-    {
-      "title": "Small event intake endpoint in an image",
-      "description": "Illustrative: accept events as JSON, validate them and log each request with its id. Storage and delivery are custom work; docker-deploy builds and publishes the image.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

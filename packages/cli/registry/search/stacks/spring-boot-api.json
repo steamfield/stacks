@@ -16,13 +16,6 @@
     {
       "title": "Internal inventory service",
       "description": "Illustrative: replace notes with stock records that other services read and update over HTTP. Persistence and access control are work the project still has to add."
-    },
-    {
-      "title": "Containerized order intake",
-      "description": "Illustrative: accept orders as JSON, validate them and log each request with its id. A database and payment handling are custom work; docker-deploy builds and publishes the image.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

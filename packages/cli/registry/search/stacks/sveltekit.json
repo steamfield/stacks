@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "sveltekit",
   "source": {
-    "digest": "sha256:164ace1ec3abcf356cc24bb48f3ad8577a9bdc22b4ab366b886a1bcced025f13",
+    "digest": "sha256:683f4cd2527c90c94737a3d93ec241aa07d720f3f45ab06f13d1bcd13103b00b",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

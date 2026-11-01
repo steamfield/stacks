@@ -1,0 +1,112 @@
+// Run-owned databases on the db-test server. A run creates names only it knows and drops only
+// those names: nothing is listed or dropped by prefix, so a concurrent run keeps its databases.
+// Leftovers from a crashed run are for a person to remove.
+import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { Client, Pool } from 'pg';
+
+// test:db and Playwright's setup run outside SvelteKit's env loading, so read the files here, as
+// Compose does. Variables already set (verify's PORT_DB_TEST, CI's TEST_DATABASE_URL) win.
+for (const file of ['.env.local', '.env']) if (existsSync(file)) process.loadEnvFile(file);
+
+// Postgres truncates identifiers at 63 bytes; prefix, run id, label and suffix stay well under.
+const PREFIX = '{{project_slug}}'.slice(0, 20);
+
+export function adminUrl(): string {
+	return (
+		process.env.TEST_DATABASE_URL ||
+		`postgres://app:app@localhost:${process.env.PORT_DB_TEST || '5433'}/postgres`
+	);
+}
+
+export function databaseUrl(name: string): string {
+	const url = new URL(adminUrl());
+	url.pathname = `/${name}`;
+	return url.toString();
+}
+
+export const newRunId = () => randomBytes(4).toString('hex');
+export const templateName = (run: string) => `${PREFIX}_tpl_${run}`;
+export const cloneName = (run: string, label: string) =>
+	`${PREFIX}_${run}_${label}_${randomBytes(2).toString('hex')}`;
+
+const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
+
+async function withAdmin<T>(task: (client: Client) => Promise<T>): Promise<T> {
+	const client = new Client({
+		connectionString: adminUrl(),
+		connectionTimeoutMillis: 5000
+	});
+	try {
+		await client.connect();
+	} catch (error) {
+		throw new Error(
+			`Cannot reach db-test at ${new URL(adminUrl()).host}; run bun run db:up first.`,
+			{ cause: error }
+		);
+	}
+	try {
+		return await task(client);
+	} finally {
+		await client.end();
+	}
+}
+
+async function locked<T>(client: Client, key: string, task: () => Promise<T>) {
+	await client.query('select pg_advisory_lock(hashtext($1))', [key]);
+	try {
+		return await task();
+	} finally {
+		await client.query('select pg_advisory_unlock(hashtext($1))', [key]);
+	}
+}
+
+/** Runs the committed migrations, as db:migrate does, and closes its pool. */
+export async function migrateWithDrizzle(url: string) {
+	const pool = new Pool({ connectionString: url });
+	try {
+		await migrate(drizzle(pool), { migrationsFolder: 'drizzle' });
+	} finally {
+		await pool.end();
+	}
+}
+
+/** Creates and migrates a database (a run's template, the e2e database); a failed migration drops it again. */
+export async function createMigrated(
+	name: string,
+	migrateTo: (url: string) => Promise<void> = migrateWithDrizzle
+) {
+	await withAdmin((client) =>
+		locked(client, name, async () => {
+			await client.query(`create database ${quote(name)}`);
+			try {
+				await migrateTo(databaseUrl(name));
+			} catch (error) {
+				await client.query(`drop database if exists ${quote(name)} with (force)`);
+				throw error;
+			}
+		})
+	);
+}
+
+/** Clones a template. Cloning needs a template nobody is connected to, so clones queue. */
+export async function cloneDatabase(template: string, name: string) {
+	await withAdmin((client) =>
+		locked(client, template, () =>
+			client.query(`create database ${quote(name)} template ${quote(template)}`)
+		)
+	);
+}
+
+export async function dropDatabase(name: string) {
+	await withAdmin((client) => client.query(`drop database if exists ${quote(name)} with (force)`));
+}
+
+export async function databaseExists(name: string): Promise<boolean> {
+	return withAdmin(async (client) => {
+		const result = await client.query('select 1 from pg_database where datname = $1', [name]);
+		return result.rowCount === 1;
+	});
+}

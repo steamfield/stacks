@@ -39,9 +39,46 @@ export type RejectedEntry = {
 };
 /**
  * A file an entry ships. `source` is the entry-relative path on disk; `path` is where it goes in
- * the project: `source` without its `files/` or `adapters/<agent>/` prefix. Names are literal.
+ * the project: `source` without its files, agent adapter or stack overlay prefix. Names are literal.
  */
 export type EntryFile = { source: string; path: string; mode: number };
+
+/** Map an entry-relative source to its project path and the selection that ships it. */
+export function shippedPath(source: string):
+  | {
+      path: string;
+      condition: { kind: "agent" | "stack"; id: string } | null;
+    }
+  | undefined {
+  const shared = /^files\/(.+)$/.exec(source);
+  if (shared?.[1]) return { path: shared[1], condition: null };
+  const overlay = /^(adapters|stacks)\/([^/]+)\/(.+)$/.exec(source);
+  if (!overlay?.[2] || !overlay[3]) return undefined;
+  return {
+    path: overlay[3],
+    condition: { kind: overlay[1] === "adapters" ? "agent" : "stack", id: overlay[2] },
+  };
+}
+
+/** Whether a source is one agent's adapter file or one stack's overlay file. */
+export function shippedOnlyFor(source: string, kind: "agent" | "stack", id: string): boolean {
+  const condition = shippedPath(source)?.condition;
+  return condition?.kind === kind && condition.id === id;
+}
+
+/**
+ * Whether a source ships to a project for these agents and host stack: shared files always, an
+ * adapter for a targeted agent, an overlay for its own stack. Composition and validate share it.
+ */
+export function shipsFor(
+  source: string,
+  agents: ReadonlyArray<string>,
+  stack: string | null,
+): boolean {
+  const condition = shippedPath(source)?.condition;
+  if (!condition) return true;
+  return condition.kind === "agent" ? agents.includes(condition.id) : condition.id === stack;
+}
 
 /** Output path of a shipped file; a literal `.tmpl` basename is copied unchanged. */
 export function outputPath(file: Pick<EntryFile, "path">): string {

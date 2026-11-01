@@ -1,6 +1,6 @@
 # CLI: commands, stdout and exit codes
 
-New commands copy `src/commands/doctor.ts`: use Effect CLI's parser, call a program from `src/core/`, and send the result through Output. Shared flags belong in the root command. Validate external input with Schema from effect.
+New commands copy `src/commands/doctor.ts`: use Effect CLI's parser, name the command through `Invocation`, call a program from `src/core/`, and send the result through Output. Shared flags belong in the root command. Validate external input with Schema from effect.
 
 Only help and version are enabled as framework built-ins. Set logging through LOG_LEVEL or the config file; --log-level, wizard and completions aren't part of this slice. Successful commands resolve the audience from parsed flags, while early parse failures use the same boolean literal rules for --json.
 
@@ -12,4 +12,4 @@ Only `src/bin.ts` supplies process writers and BunServices. Core code uses abstr
 
 `src/errors.ts` is the stable exit-code table: 0 success/help/version/closed pipe, 1 defect, 2 Usage, 3 InvalidConfig, 6 PermissionDenied, 130 Interrupted. Doctor intentionally reports invalid config in its result with exit 0. A later command that requires valid config lets the tagged failure reach main. Add a tag and its table row together, and exercise its public envelope through runCli.
 
-Main emits one command record with durationMs, outcome, exitCode, runId and errorTag. Records use the configured level (warn by default), so none suppresses them too. Framework actions are labeled framework; the proving command is doctor. Do not log raw argv or flag values.
+Main emits one command record with durationMs, outcome, exitCode, runId and errorTag. Records use the configured level (warn by default), so none suppresses them too. Its `command` field is the name the handler that ran gave `Invocation.named` (each handler names itself first, as doctor does), `framework` for help and version, and null for a parse failure. Do not log raw argv or flag values.

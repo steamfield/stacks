@@ -23,7 +23,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: generate-check, layer: check, run: make generate-check }
@@ -117,10 +117,6 @@ The Makefile's install recipe runs `lefthook install` outside CI when lefthook.y
 
 <!-- stacks:when with=ci-github -->
 CI reads Go from go.mod and runs `make install`, `make generate-check`, `make buf-lint`, `make fmt-check`, `make tidy-check`, `make coverage`, `make test-integration`, `make vuln` and `make build`. Lint uses golangci-lint's official action with `version-file: .golangci-lint-version`. On pull requests, check out with full history and run `make breaking BREAKING_AGAINST='.git#branch=origin/<base branch>'`, taking the base from `github.base_ref`.
-<!-- stacks:end -->
-
-<!-- stacks:when with=docker-deploy -->
-The distroless runtime has no shell, curl or grpc_health_probe. Use the shipped `server -healthcheck` in an exec-form HEALTHCHECK; it calls the gRPC health service on PORT and is covered by integration tests. Set HOST=0.0.0.0, REFLECTION=false (the reflection decision for a public endpoint) and DRAIN_DELAY=5s (above the orchestrator's probe interval) in the image. `gen/` is committed, so the build stage needs no buf; build only `./cmd/server`.
 <!-- stacks:end -->
 
 ## Gotchas

@@ -16,13 +16,6 @@
     {
       "title": "Regional sales dashboard",
       "description": "An illustrative page where the sales team picks regions and products to see revenue, order counts and a monthly chart from the weekly export."
-    },
-    {
-      "title": "Support ticket explorer",
-      "description": "An illustrative internal app that swaps the sample for ticket data, filters by team and priority and charts open tickets per week, shipped as a container.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

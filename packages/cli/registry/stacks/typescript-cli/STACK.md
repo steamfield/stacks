@@ -16,7 +16,7 @@ merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
   default: [git-hooks, ci-github, effect]
-  optional: [rr, ce-plugin, bun-release, openrouter-chat-cli]
+  optional: [rr, ce-plugin, bun-release, openrouter-ai, openrouter-chat-cli]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
   - { name: lint, layer: lint, run: bun run lint }
@@ -73,7 +73,7 @@ Read `docs/guidance/typescript-cli/index.md` before changing the corresponding c
 The shipped package scripts are the command contract: `dev`, `build`, `lint`, `format`, `typecheck`, `test`, `test:unit`, `test:watch`, `coverage`, `e2e`, `check`, `clean`, `prepare`. Vitest runs on Node; Bun runs only scoped compiled-binary tests. `scripts/dev.ts` keeps logs under `logs/` and data under `.dev/data`; it preserves terminal behavior, arguments and status.
 
 <!-- stacks:when with=git-hooks -->
-The shipped `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install` (skipped when `CI` is set, lefthook is missing, or `lefthook.yml` doesn't exist yet, and non-fatal when it fails, for example outside a git checkout), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
+If `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install`, don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->

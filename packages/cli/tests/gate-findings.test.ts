@@ -62,7 +62,7 @@ test("python-react keeps Biome off .stacks/ and .claude/", async () => {
 test("the sandbox CI workflow pins a release tag when an action publishes no major tag", async () => {
   const text = await brief("python-react");
   expect(text).not.toContain("Major-tag action refs are fine;");
-  expect(text).toContain("pin its latest release tag");
+  expect(text).toContain("where an action publishes none, its latest release tag");
 });
 
 test.each(["astro-blog", "go-cli", "python-react"])(
@@ -203,7 +203,7 @@ test("astro-blog's vitest.config.ts references vitest's config types", async () 
 
 test("CI triggers on the branch the new repo is actually on, not an assumed main", async () => {
   expect(await brief("astro-blog")).toContain(
-    "`push` to the repo's current branch (`git branch --show-current`; `new` keeps git's default name)",
+    "`push` to the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/`; with no remote, the current branch)",
   );
 });
 
@@ -228,7 +228,9 @@ test("astro-blog allows make new-article, so the agent needn't edit .claude/sett
 test("astro-blog's analytics keeps one pre-init buffer, in the module islands import", async () => {
   const text = await brief("astro-blog");
   expect(text).not.toContain("window.posthog");
-  expect(text).toContain("Islands import `track()` from the module");
+  expect(text).toContain(
+    "Islands import `track()`; the queue covers calls made before the SDK loads.",
+  );
 });
 
 test("python-react's Makefile type-checks the backend scripts too", async () => {

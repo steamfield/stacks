@@ -1,6 +1,6 @@
 import { Effect, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
-import { type Entry, markdownFile, outputPath } from "../registry/entry";
+import { type Entry, markdownFile, outputPath, shippedPath } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
 import { unreadable } from "./files";
@@ -29,7 +29,7 @@ export const submissionChecks: Check = (view) =>
 
 /** A shipped file's path in the project: without `files/` or `adapters/<agent>/`. */
 function projectPath(source: string): string | undefined {
-  return /^(?:files|adapters\/[^/]+)\/(.+)$/.exec(source)?.[1];
+  return shippedPath(source)?.path;
 }
 
 /** Whether `run` names `file` as a whole path, not as the tail of a longer one. */
@@ -111,7 +111,7 @@ const cardFindings = (entry: Entry) =>
 
 function areaOf(entry: Entry, source: string): Area {
   if (source === markdownFile(entry.kind)) return "markdown";
-  return /^(?:files|adapters)\//.test(source) ? "shipped" : "other";
+  return shippedPath(source) ? "shipped" : "other";
 }
 
 /** A markdown file's frontmatter, between its `---` lines, as 1-based `first` to before `end`. */

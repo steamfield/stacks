@@ -51,6 +51,12 @@ Add the db-test service to the existing compose file.
 
 `tag=` and `tag!=` branches (`tag=make`, `tag=scripts`, `tag=bun`) keep one body working across task runners and runtimes.
 
+For different host layouts, ship `stacks/<stack-id>/<path>` inside the fragment. Only that stack gets `<path>`, in new and add mode. The stack must exist and fit `applies_to`; empty admits all. Never duplicate a `files/` output path in an overlay. Overlays support the same templates and checks as shared files. Put conditional prose in the body; shipped files reject `stacks:when` and `stacks:end` (fill markers remain legal).
+
+Add includes matching `with=<added-fragment>` blocks from the host stack and already-applied fragments as notes from each recipe's current version. Other host prose stays out. Phrase notes about existing files conditionally, since older projects may differ.
+
+Without a known recorded stack, add infers conditional tags: Makefile gives `make`; package.json gives `node` and an object `scripts` gives `scripts` unless Makefile exists; a Bun lockfile or `packageManager` starting `bun@` gives `bun`; tsconfig.json, go.mod, pyproject.toml and Cargo.toml give `typescript`, `go`, `python` and `rust`. A `workspaces` field or manifests in two immediate child directories give `monorepo`. The brief prints inferred tags. They never change `applies_to` fit or the manifest.
+
 ## The body
 
 Follow the skeleton's sections:
@@ -58,9 +64,11 @@ Follow the skeleton's sections:
 - **What to add**: the files and changes, as instructions for the building agent.
 - **Tool configuration**: what the tool must enforce, written for the installed version.
 - **Verify**: what the fragment's verify step checks.
-- **AGENTS.md**: the section the project's `AGENTS.md` gets, so later agents know the capability exists and how to use it.
+- **AGENTS.md**: the section the project's `AGENTS.md` gets, so later agents know the capability exists and how to use it. Put it under a heading naming the file (`## AGENTS.md`): `add` into a repo without one then asks the agent to create it.
 
 Give the fragment a verify step that checks its own deliverable: its config is valid, its command runs, its service comes up. Services that start and stop use `setup` and `teardown` phases (`make db-up`, `make db-down`). Declare every command verify calls in `commands`. Keep the body under 1,000 words.
+
+Verify steps check; they never generate source (no generate, `--write` or `--fix` in a verify step).
 
 ## Apps
 

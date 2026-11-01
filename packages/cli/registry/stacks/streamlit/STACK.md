@@ -22,7 +22,7 @@ env:
   PORT_WEB: "8501"
 fragments:
   default: [agent-ops, git-hooks, ci-github]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: lint, layer: lint, run: make lint }
@@ -89,11 +89,6 @@ Write lefthook.yml before `make install`: the recipe calls lefthook only outside
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage` with CI set.
-<!-- stacks:end -->
-<!-- stacks:when with=docker-deploy -->
-**Image.** One root `Dockerfile`, built as docker-deploy's Python section says; the second sync copies `README.md` and `src/` and adds `--no-editable`, so the venv holds the package and the runtime stage needs no `src/`. The runtime stage copies the venv, `app.py`, `.streamlit/` and `data/`, sets `STREAMLIT_SERVER_ADDRESS=0.0.0.0`, `STREAMLIT_SERVER_PORT` and `PORT_WEB` to the same exposed port, `STREAMLIT_SERVER_FILE_WATCHER_TYPE=none`, `STREAMLIT_LOGGER_HIDE_WELCOME_MESSAGE=true` and the prefix's `LOG_FORMAT=json`, and runs `CMD ["streamlit", "run", "app.py"]` (`.streamlit/config.toml` makes it headless). The health check requests `/_stcore/health` with Python's `urllib` on `STREAMLIT_SERVER_PORT`. `.dockerignore` also excludes `tests/` and `.streamlit/secrets.toml`. A proxy in front must pass WebSocket upgrades on `/_stcore/stream`.
-
-Prove it with `make docker-build`, then run the image and wait for its health check to report healthy.
 <!-- stacks:end -->
 
 ## Gotchas

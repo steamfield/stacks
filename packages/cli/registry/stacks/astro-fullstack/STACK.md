@@ -20,7 +20,7 @@ merge: [.claude/settings.json, .codex/hooks.json]
 fragments:
   required: [claude-harness]
   default: [git-hooks, ci-github, effect, rest-api]
-  optional: [rr, ce-plugin, effect-sql-postgres, effect-otlp]
+  optional: [rr, ce-plugin, effect-sql-postgres, effect-otlp, docker-deploy, posthog]
 env:
   PORT_API: "3000"
   PORT_WEB: "4321"
@@ -112,11 +112,11 @@ CI sets up Bun from packageManager and Node from .node-version, installs frozen 
 Follow `docs/guidance/astro-fullstack/development.md` for process ownership and logs; document commands in AGENTS.md.
 
 <!-- stacks:when with=git-hooks -->
-The shipped `scripts/prepare.ts` already runs `lefthook install` after every `bun install` (skipped in CI or without lefthook), so don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`.
+If `scripts/prepare.ts` already runs `lefthook install` after every `bun install`, don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`.
 <!-- stacks:end -->
 
 <!-- stacks:when with=effect -->
-The generated Effect skill records the HTTP mechanisms in `effect-api.md` and `astro.md` against the installed release.
+The Effect API reference (`docs/guidance/effect/api.md`) records the HTTP mechanisms in `effect-api.md` and `astro.md` against the installed release.
 <!-- stacks:end -->
 
 The API and Vitest run on Node: never `bun test`, never `--bun`. Bun doesn't pass its loaded `.env` to a Node child. `dev:web` passes `--ignore-lock` to prevent Astro backgrounding itself under an agent. Delete `apps/web/.astro/` for stale generated types. Drop the TypeScript compatibility workaround once `@astrojs/check` supports the current major. Build-time switches use Astro's env schema, not secret `PUBLIC_` values.

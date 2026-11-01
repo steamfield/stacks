@@ -2,7 +2,7 @@ import type { AgentId } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import { EntryInvalid } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
-import { type Entry, type EntryFile, entryRef, outputPath } from "../registry/entry";
+import { type Entry, type EntryFile, entryRef, outputPath, shipsFor } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import type { PlannedFile } from "./compose";
 import { conflict, parties } from "./conflicts";
@@ -36,13 +36,13 @@ function fileWriters(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
   agents: ReadonlyArray<AgentId>,
+  stack: string | null,
 ) {
   return Effect.gen(function* () {
     const byPath = new Map<string, Writer[]>();
     const addWriter = (entry: Entry, file: EntryFile) =>
       Effect.gen(function* () {
-        const agent = /^adapters\/([^/]+)\//.exec(file.source)?.[1];
-        if (agent !== undefined && !agents.some((id) => id === agent)) return;
+        if (!shipsFor(file.source, agents, stack)) return;
         // A template needs a name before the suffix: a file called just `.tmpl` is copied as is.
         const path = outputPath(file);
         const template = path !== file.path;
@@ -74,9 +74,10 @@ export function planFiles(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
   agents: ReadonlyArray<AgentId>,
+  stack: string | null,
 ) {
   return Effect.gen(function* () {
-    const byPath = yield* fileWriters(registry, entries, agents);
+    const byPath = yield* fileWriters(registry, entries, agents, stack);
     const planned: PlannedFile[] = [];
     /** Folded file paths, and folded directories on the way to one, each to a path that made it. */
     const files = new Map<string, string>();

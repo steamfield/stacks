@@ -16,13 +16,6 @@
     {
       "title": "Internal admin console",
       "description": "Illustrative: replace notes with the records a back-office team edits through forms and lists. Sign-in, roles and a database are work the project still has to add."
-    },
-    {
-      "title": "Containerized booking pages",
-      "description": "Illustrative: a public form that takes booking requests and shows a confirmation without a page reload. Storage and email are custom work; docker-deploy builds the image.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

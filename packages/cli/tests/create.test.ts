@@ -40,6 +40,16 @@ import { splitEvents } from "./helpers/verify";
 
 afterEach(releaseCreate);
 const read = (path: string) => readFileSync(path, "utf8");
+/** A fragment skeleton has no verify step until its author adds one. */
+const noVerify = (entry: string) => ({
+  check: "fragment-no-verify",
+  entry,
+  file: `fragments/${entry}/FRAGMENT.md`,
+  kind: "fragment",
+  message:
+    "This fragment has no verify step; add a check for its deliverable, or explain in its body why it cannot be checked.",
+  severity: "note",
+});
 async function validate(home: string, target: string) {
   return jsonResult(await createCli(home, ["validate", target, "--json"]), ValidateReport);
 }
@@ -147,6 +157,7 @@ describe("create an entry", () => {
       },
     ]);
     expect((await validate(home, entryPath(home, "fragment", "my-ci"))).findings).toEqual([
+      noVerify("my-ci"),
       {
         check: "search-missing",
         entry: "my-ci",
@@ -186,7 +197,7 @@ describe("create an entry", () => {
     // Three real validations load the registry and run its reference checks under concurrent gates.
   }, 30_000);
 
-  test("fresh stack and fragment skeletons have exactly the missing-card notes [3.1b#1]", async () => {
+  test("fresh stack and fragment skeletons have exactly the missing-card and missing-check notes [3.1b#1]", async () => {
     const home = createWorkspace();
     await created(await createCli(home, ["create", "stack", "my-api", "--json"]));
     await created(await createCli(home, ["create", "fragment", "my-ci", "--json"]));
@@ -203,6 +214,7 @@ describe("create an entry", () => {
       },
     ]);
     expect((await validate(home, fragment)).findings).toEqual([
+      noVerify("my-ci"),
       {
         check: "search-missing",
         entry: "my-ci",
@@ -353,6 +365,7 @@ describe("create an entry", () => {
     expect(before).toMatch(/^applies_to:\s*\[\]/m);
     writeFileSync(path, before.replace(/^applies_to:\s*\[\]/m, "applies_to: [my-api]"));
     expect((await validate(home, dirname(path))).findings).toEqual([
+      noVerify("my-app"),
       {
         check: "search-missing",
         entry: "my-app",

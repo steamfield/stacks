@@ -304,6 +304,26 @@ test("two requires hops allow a fragment's import, but applies_to never grants o
   expect(bad.report.findings[1]?.message).toContain("requires");
 });
 
+test("a stack overlay may import its host stack's files; the shared files tree may not", async () => {
+  const root = space.temp();
+  const host = stack(root, "sample", "fragments:\n  optional: [addon]");
+  ship(host, "files/config.ts", "export const config = 1;\n");
+  const addon = fragment(root, "addon", "applies_to: [sample]");
+  ship(addon, "stacks/sample/feature.ts", 'import { config } from "./config";\nconfig;\n');
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"], fragments: ["addon"] }),
+  ]);
+  ship(addon, "files/shared.ts", 'import { config } from "./config";\nconfig;\n');
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"], fragments: ["addon"] }),
+    [
+      "import-closure",
+      "error",
+      { entry: "addon", file: "fragments/addon/files/shared.ts", text: ["config", "sample"] },
+    ],
+  ]);
+});
+
 test.each([
   ["main.ts", 'import "./lib";\n'],
   ["main.tsx", 'import { value } from "./lib/index.js";\n'],

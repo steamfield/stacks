@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "openrouter-chat",
   "source": {
-    "digest": "sha256:5c45e90cf020f803160576c92946a23ae6c177fa52d9883759363e7487ee39b0",
+    "digest": "sha256:bda6d1b84e4b2bf4cbe6e46617b10b934fa81a8ea594670770e1a270aaa36208",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-10-31"
   },
   "summary": "Add browser chat with streaming replies, model selection, server history, tool calls, usage costs and Markdown export.",
   "description": "Add the reference browser chat application to react-router. It includes streamed replies, model selection, a deterministic time tool, contact extraction and Markdown export, with usage metadata and local browser tests. History lives on the server in memory by default; SQLite is an implementation choice for restart persistence. There is no authentication: possessing a chat URL grants access. Configure an OpenRouter key for live requests.",
@@ -53,16 +53,17 @@
     "streaming chat",
     "model picker",
     "tool calls",
-    "token usage"
+    "token usage",
+    "AI chatbot",
+    "LLM chat"
   ],
   "goodFor": [
     "stopping replies while preserving partial text",
-    "local browser tests without paid requests"
+    "offline development without paid model requests"
   ],
   "notFor": [
     "terminal interfaces",
-    "private user accounts without added authentication",
-    "auth",
-    "e2e browser tests"
+    "end-to-end test setup for an existing app",
+    "private user accounts without added authentication"
   ]
 }

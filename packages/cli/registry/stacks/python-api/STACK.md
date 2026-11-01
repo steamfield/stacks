@@ -14,7 +14,7 @@ decisions:
   - "Python version: the newest stable CPython that FastAPI, ruff, and mypy support (default). Setup writes it to .python-version and requires-python."
   - "Packaging: an unpackaged application with no build backend, deployed as source (default). If the service must ship as a wheel, add a build backend, a build target that builds and installs the wheel, and a verify step for it."
   - "Resource path prefix: /v1 (default), with /healthz and the OpenAPI document outside it."
-  - "Database: none (default; the example resource is in memory); add --with postgres for Postgres + SQLAlchemy + Alembic."
+  - "Database: the postgres fragment when it was selected, otherwise none (default; the example resource is in memory, and `stacks add postgres` adds Postgres + SQLAlchemy + Alembic later)."
   - "Auth: none (default); add a current-user dependency when authentication is needed."
   - "CORS: off (default); add it from settings only when a browser on another origin calls the API."
 env:
@@ -58,9 +58,9 @@ A working FastAPI app factory, validated settings, lifespan-owned in-memory note
 
 ## Setup
 
-1. No generator. Use the shipped `pyproject.toml`. `uv add` every runtime dependency (Uvicorn with its standard extra), then `uv add --dev` every dev dependency, resolving current releases.
-2. `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every linter, strict type checking, test and coverage floor. Do not replace the shipped rule sets with generated defaults.
-3. Record the chosen Python with `uv python pin` and set `project.requires-python` to match it. Set ruff's target-version to that Python. Record Python and uv versions in AGENTS.md.
+1. No generator. Use the shipped `pyproject.toml`. Pin the chosen Python with `uv python pin`, set `project.requires-python` and ruff's target-version to match it, then `uv add` every runtime dependency (Uvicorn with its standard extra) and `uv add --dev` every dev dependency, resolving current releases.
+2. `make format` (a newer target can rewrite syntax), then `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every linter, strict type checking, test and coverage floor. Do not replace the shipped rule sets with generated defaults.
+3. Record Python and uv versions in AGENTS.md.
 4. `make openapi`, then commit `openapi.json` with future route changes. Setup generates it because it embeds FastAPI's OpenAPI version. `make check-openapi` compares parsed JSON, not formatting.
 5. Fill README's `stacks:fill` marker and the selected fragments' agent guidance. Run `stacks verify` until green.
 
@@ -84,19 +84,19 @@ A working FastAPI app factory, validated settings, lifespan-owned in-memory note
 The shipped Makefile (`make help`) holds every declared target. Mirror them and a single-file command (`uv run pytest tests/test_http.py`) in AGENTS.md. `TEST_WORKERS` defaults to auto; reduce it on shared machines without changing test behavior.
 
 <!-- stacks:when with=git-hooks -->
-Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
+If `make install` already runs `lefthook install`, don't add another install step. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 CI uses uv's setup action (cache on, Python read from .python-version), then `make install lint typecheck coverage check-openapi` with CI set.
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
-Replace MemoryNotes with a SQLAlchemy store behind NoteStore, created from the lifespan's engine, and add the notes table in the first migration. Run its round-trip tests on the harness's per-file database. The 503 test still overrides get_note_store. `/healthz` stays DB-free; add `/health/ready` for readiness.
+The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free.
 <!-- stacks:end -->
 <!-- stacks:when with=rest-api -->
 The notes slice already follows the REST rule. Record /v1, the tag/message/retryable envelope, cursor limits (20 default, 100 maximum), 400 validation and 405 with Allow in AGENTS.md. Keep those contracts when adding resources.
 <!-- stacks:end -->
 <!-- stacks:when with=docker-deploy -->
-The root image's healthcheck fetches `/healthz`. Set API_HOST=0.0.0.0 for containers.
+If the root `Dockerfile` runs uvicorn directly, it binds 0.0.0.0:8000 and its healthcheck fetches `/healthz`; keep `/healthz` free of dependencies so the container stays healthy without a database.
 <!-- stacks:end -->
 
 ## Gotchas

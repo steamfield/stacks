@@ -6,7 +6,7 @@
   "javascript": { "parser": { "unsafeParameterDecoratorsEnabled": true } },
   "overrides": [
     {
-      "includes": ["registry/stacks/mobile-expo/**"],
+      "includes": ["registry/stacks/mobile-expo/**", "registry/fragments/clerk/**"],
       "javascript": { "formatter": { "quoteStyle": "single" } }
     },
     {
@@ -45,7 +45,10 @@
         "registry/stacks/nestjs-api/files/**",
         "registry/stacks/nextjs/files/**",
         "registry/stacks/nuxt/files/**",
-        "registry/stacks/sveltekit/files/**"
+        "registry/stacks/sveltekit/files/**",
+        "registry/fragments/*/stacks/astro-blog/**",
+        "registry/fragments/*/stacks/nextjs/**",
+        "registry/fragments/*/stacks/sveltekit/**"
       ],
       "formatter": { "enabled": false },
       "assist": { "enabled": false },

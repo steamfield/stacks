@@ -30,6 +30,12 @@
       "Read(./.env.test)",
       "Read(./.env.staging)",
       "Read(./.env.production)",
+      "Read(./.envrc)",
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.*.local)",
+      "Read(./**/.env.production)",
+      "Read(./**/.envrc)",
       "Edit(./.stacks/manifest.json)"
     ]
   },

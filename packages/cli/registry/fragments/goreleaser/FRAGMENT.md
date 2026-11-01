@@ -4,63 +4,64 @@ id: goreleaser
 kind: fragment
 category: release
 name: GoReleaser
-description: Tag-driven releases for a Go binary with GoReleaser, covering cross-platform builds with version ldflags, archives, checksums, a conventional-commit changelog, a GitHub release workflow, and optional Homebrew publishing.
+description: Tag-driven releases for a Go binary with GoReleaser, shipping a checked .goreleaser.yaml for cross-platform builds with version ldflags, archives, checksums and a conventional-commit changelog, plus a GitHub release workflow and optional Homebrew publishing.
 tags: [go, release, goreleaser]
-applies_to: [go-cli, go-tui, go-mcp]
-requires_tools: [goreleaser]
-tools: [goreleaser]
+applies_to: [go-cli]
+tools: []
 decisions:
-  - "Targets: linux, darwin, windows on amd64 and arm64 (default)."
-  - "Homebrew: off (default), or publish to a tap repository the user owns (needs a tap repo and a token secret)."
+  - "Targets: linux, darwin, windows on amd64 and arm64 (default; edit `goos` and `goarch` in `.goreleaser.yaml`)."
+  - "Homebrew: off (default), or publish a cask to a tap repository the user owns (needs the tap repo and a token secret)."
+  - "Build provenance: off (default), or attest `dist/checksums.txt` with GitHub artifact attestations (public repositories, or private ones on GitHub Enterprise Cloud)."
   - "Release trigger: pushing a v* tag (default)."
 verify:
-  - { name: release-check, layer: check, run: make release-check }
+  - name: release-check
+    layer: check
+    run: "grep -n 'stacks:fill' .goreleaser.yaml docs/releasing.md; [ $? -eq 1 ] && make release-check"
+  - { name: release-build, layer: build, run: make release-build }
   - { name: release-snapshot, layer: build, run: make release-snapshot, tags: [prod] }
 commands:
-  release-check: Validate release configuration
-  release-snapshot: Build a release snapshot
+  release-check: Validate .goreleaser.yaml
+  release-build: Build this platform's release binary with GoReleaser and check its version
+  release-snapshot: Build every release target into dist/ without publishing
 ---
 
 # GoReleaser
 
-Add tag-driven releases. Pushing `vX.Y.Z` builds every target, attaches archives and checksums to a GitHub release, and writes the changelog from commit messages. Write `.goreleaser.yaml` for the installed GoReleaser; its config has a schema version and keys that change between majors, so check the current docs.
+Pushing `vX.Y.Z` builds every target, attaches archives and `checksums.txt` to a GitHub release and writes the changelog from commit messages. stacks wrote `.goreleaser.yaml` (GoReleaser v2 config: builds with the same ldflags as the Makefile, tar.gz archives with zip on Windows named `<slug>_<os>_<arch>`, checksums, a snapshot version template, a changelog that drops `docs:`, `test:`, `chore:` and `ci:` commits, and a `release.github` block) and `docs/releasing.md`. Read both before changing them.
 
 ## What to add
 
-**`.goreleaser.yaml`**:
-- **Build**: `main` is the go-cli stack's package `.` (its `main.go` sits at the project root), `binary` is `<bin>`, `CGO_ENABLED=0`, goos linux/darwin/windows, goarch amd64/arm64 (per the decision). ldflags: `-s -w` plus `-X main.version`, `-X main.commit`, and `-X main.date` bound to GoReleaser's version, commit, and date template fields. These must match the variables the go-cli stack declares in `main.go` and the Makefile's `build` target, so `<bin> --version` reports the same thing whether GoReleaser or make built it.
-- **Archives**: tar.gz, with zip for windows. Name them `<project>_<os>_<arch>` so install scripts can predict the URL. Include README, LICENSE, and shell completions if the project generates them (a `before` hook can run `go run . completion <shell>` into `completions/`).
-- **Checksum**: a single `checksums.txt`.
-- **Changelog**: sorted ascending, excluding `docs:`, `test:`, `chore:`, and `ci:` commits (the git-hooks fragment enforces conventional commits, which makes this useful).
-- **Snapshot**: a version template for snapshot builds that marks them clearly as non-releases.
-- **Homebrew (if on)**: use whichever Homebrew publisher the current GoReleaser recommends (it has moved from formulas toward casks), pointing at the user's tap repo, with the token read from a `HOMEBREW_TAP_TOKEN` env var. On macOS, unsigned binaries get quarantined; add the post-install hook GoReleaser documents for removing the quarantine attribute, or document the manual step.
-<!-- stacks:when stack=go-tui -->
+1. **Owner.** Replace the `stacks:fill` line in `.goreleaser.yaml`'s `release.github` with the owner from the module path decision (`github.com/<owner>/<slug>`). With a bare module path, use the owner the user names, or the slug as a placeholder listed under Pending user actions. The block has to stay: without it, or a git remote, `goreleaser check` fails with "no remote configured to list refs from", which says nothing about config.
+2. **Makefile targets**, added to `.PHONY`. GoReleaser needn't be installed; the fallback runs it through `go run`, like the stack's `vuln` target:
 
-go-tui has the same layout: `main.go` at the root with `main.version`, `main.commit` and `main.date`, set by the Makefile's `build` target, and `dist/` already in `.gitignore`. It has no `completion` command, so leave out the completions hook.
-<!-- stacks:end -->
-<!-- stacks:when stack=go-mcp -->
+   ```make
+   GORELEASER := $(shell command -v goreleaser 2>/dev/null || echo go run github.com/goreleaser/goreleaser/v2@latest)
 
-go-mcp has the same layout: `main.go` at the root with `main.version`, `main.commit` and `main.date`, set by the Makefile's `build` target, and `dist/` already in `.gitignore`. Build only `.`, not the `cmd/mcpcall` dev client, and leave out the completions hook. In `docs/hosts.md`, point hosts at the installed binary.
-<!-- stacks:end -->
+   release-check: ## Validate .goreleaser.yaml
+   	$(GORELEASER) check
 
-**Release workflow** `.github/workflows/release.yml`:
-- Trigger on `push` of tags matching `v*`.
-- `permissions: { contents: write }` (needed to create the release), nothing else.
-- Check out with full history (`fetch-depth: 0`) so the changelog can see previous tags. Set up Go from `go.mod`, then run GoReleaser's official action with `release --clean`, pinned to the GoReleaser major the config targets.
-- Env: `GITHUB_TOKEN` from the workflow token, plus `HOMEBREW_TAP_TOKEN` from secrets if Homebrew is on.
-- Pin every action by full commit SHA with a version comment, and look SHAs up when writing the file.
+   release-build: ## Build this platform's release binary with GoReleaser and check its version
+   	$(GORELEASER) build --snapshot --clean --single-target --output dist/$(BIN)
+   	@out="$$(./dist/$(BIN) --version --json)" && echo "$$out" && ! echo "$$out" | grep -q '"version": *"dev"'
 
-**Makefile targets**:
-- `release-check`: `goreleaser check` (validates the config).
-- `release-snapshot`: `goreleaser release --snapshot --clean` (full local build into `dist/`, publishes nothing).
-- `dist/` is already in the go-cli `.gitignore`; add it if this is another stack.
+   release-snapshot: ## Build every release target into dist/ without publishing
+   	$(GORELEASER) release --snapshot --clean
+   ```
 
-**docs/releasing.md**: how to cut a release (make sure main is green, tag `vX.Y.Z`, push the tag), how to check the result, and which secrets exist.
+   `release-build` fails when the ldflags don't reach `main.version`, so keep `version`, `commit` and `date` in `main.go`, the Makefile's `LDFLAGS` and `.goreleaser.yaml` in step. `--output` must stay directly under `dist/`, because `--clean` removes the directory before the build.
+3. **Release workflow** `.github/workflows/release.yml`: trigger on `push` of tags matching `v*`; `permissions: { contents: write }`; check out with `fetch-depth: 0` so the changelog sees earlier tags; set up Go from `go.mod`; run `goreleaser/goreleaser-action` with `version: "~> v2"` and `args: release --clean`; pass `GITHUB_TOKEN`, plus `HOMEBREW_TAP_TOKEN` from secrets when Homebrew is on. Look up current action versions when writing the file.
+4. **Homebrew (if on).** Add a `homebrew_casks` entry (`brews` is deprecated): `binaries: [<bin>]`, the tap in `repository` (`owner`, `name`, `token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"`). Unsigned macOS binaries are quarantined: remove the attribute with the cask's declarative `hooks.post.install_steps` (an `on_macos` block that runs `/usr/bin/xattr -dr com.apple.quarantine` on the staged binary), as GoReleaser's cask docs show, or document the manual step. The older `hooks.post.install` Ruby hook is deprecated.
+5. **Provenance (if on).** Give the release job `id-token: write` and `attestations: write`, and after GoReleaser attest `dist/checksums.txt` with GitHub's `actions/attest`.
+6. **`docs/releasing.md`**: replace the `stacks:fill` line in its secrets section with the secrets your choices added, or remove it.
+
+## Tool configuration
+
+`goreleaser check` also reports deprecated keys; fix them rather than ignoring the warning. Keep `version: 2` at the top of the file, `formats` and `ids` (not `format` and `builds`) in archives, and `version_template` in snapshot. GoReleaser's own `{{ .Field }}` templates in the file are literal: stacks only renders bare names like the project slug.
 
 ## Verify
 
-`release-check` runs everywhere. `release-snapshot` is tagged `prod` because it cross-compiles every target and takes a while. The whole fragment is dropped under `--sandbox`.
+`release-check` fails while `.goreleaser.yaml` or `docs/releasing.md` still holds a `stacks:fill` line, and when the config is invalid. `release-build` builds this platform's binary through GoReleaser and runs `--version --json`. Both work without a remote or a commit. `release-snapshot` builds all six targets and is tagged `prod`; under `--sandbox` it's skipped. Under `--sandbox`, also skip the release workflow, Homebrew and provenance, and list the release workflow under Pending user actions (`docs/releasing.md` points there).
 
 ## AGENTS.md
 
-Add a **Releasing** section: releases are cut by pushing a `v*` tag, never by hand-uploading; `make release-check` after touching `.goreleaser.yaml`; `make release-snapshot` to test a release locally; version info comes from ldflags. Under Pending user actions, add creating the Homebrew tap repo and the `HOMEBREW_TAP_TOKEN` secret if Homebrew is on.
+Add a **Releasing** section: releases are cut by pushing a `v*` tag, never by hand-uploading; run `make release-check` after touching `.goreleaser.yaml` and `make release-build` after touching ldflags or `main.go`'s version variables; `make release-snapshot` builds every archive locally. Under Pending user actions, add the release owner if it's a placeholder, and the Homebrew tap repo and `HOMEBREW_TAP_TOKEN` secret if Homebrew is on.

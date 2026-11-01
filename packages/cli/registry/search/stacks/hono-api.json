@@ -16,13 +16,6 @@
     {
       "title": "Backend for a small web or mobile app",
       "description": "An illustrative JSON API a front end calls for its records, documented by its own OpenAPI file. Add a database and sign-in before it holds real users' data."
-    },
-    {
-      "title": "Internal service with a typed contract",
-      "description": "An illustrative service other teams call from their own code, generating clients from its OpenAPI document. Ship it as a container with the optional Docker fragment.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

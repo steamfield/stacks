@@ -4,98 +4,87 @@ id: docker-deploy
 kind: fragment
 category: deploy
 name: Docker images + GHCR
-description: Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.
+description: Production container images (multi-stage, non-root, healthchecked Dockerfiles shipped for each deployable part) that verify builds and starts, plus a GitHub Actions job that publishes them to GitHub Container Registry once the project's checks pass on the default branch.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api, hono-api, go-grpc, go-htmx, rust-api, django, django-api, nestjs-api, spring-boot-api, spring-boot-web, quarkus-api, streamlit]
+applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api]
 requires_tools: [docker]
 tools: [docker]
-decisions:
-  - "Where images run: publish to GHCR only (default); rollout to a host (Fly.io, Render, a VPS over SSH, Kubernetes) is a separate step the user chooses."
-  - "Target platforms: linux/amd64 (default); add linux/arm64 if the hosts are ARM. Cross-building under emulation is slow, so build only what's needed."
-  - "Publish trigger: after CI succeeds on the default branch plus on v* tags (default), or tags only."
-  - "Frontend serving (python-react): a separate static-file image (default), or the API image serves the built SPA."
+env:
+  PORT_IMAGE: "18080"
 verify:
   - name: image-build
     layer: build
     run: "(test ! -f Makefile || make docker-build) && (test -f Makefile || bun run docker-build)"
-    tags: [prod]
+    tags: [docker]
+  - name: image-serve
+    phase: serve
+    layer: serve
+    run: "(test ! -f Makefile || make docker-serve) && (test -f Makefile || bun run docker-serve)"
+    expect: { http: "http://127.0.0.1:${PORT_IMAGE}/healthz", within: 90s }
+    tags: [docker]
 commands:
-  docker-build: Build container images
+  docker-build: Build the production images
+  docker-serve: Run the production images in the foreground on 127.0.0.1:PORT_IMAGE
 ---
 
 # Docker images + GHCR
 
-A production image per deployable part and a workflow that publishes them, written against current base images and action versions.
+stacks shipped the Dockerfiles and allowlist `.dockerignore` files (non-root, cached, healthchecked); read them before changing anything. Base image versions are `ARG`s with no default, so a build without them fails; `docker-build` passes them from the project's own records. Keep versions and secrets out of Dockerfiles and build args.
+
+<!-- stacks:when stack=go-api -->
+**Image** `api`, port 8080: distroless with no shell, so the HEALTHCHECK runs `server -healthcheck`. Args: `GO_VERSION` from `sed -n 's/^go //p' go.mod`, `VERSION` for the ldflags.
+<!-- stacks:end -->
+<!-- stacks:when stack=python-api -->
+**Image** `api`, port 8000. Args: `PYTHON_VERSION` from `.python-version`, `UV_VERSION` from `uv --version | cut -d' ' -f2`. `uv sync --locked` needs `requires-python` set.
+<!-- stacks:end -->
+<!-- stacks:when stack=python-react -->
+**Images** `api` (context `backend/`, port 8000) and `web` (context `frontend/`, nginx proxying the API paths), the stack's Production SPA serving default; if the user picks FastAPI serving the build, fold the SPA into the API image. `docker-serve` exports `PORT_IMAGE` and runs `docker compose -f compose.prod.yaml up --abort-on-container-failure`. Args: `PYTHON_VERSION` from `backend/.python-version`, `UV_VERSION` from `uv --version | cut -d' ' -f2`, `BUN_VERSION` from `bun --version`.
+<!-- stacks:end -->
+<!-- stacks:when stack=typescript-api,astro-fullstack -->
+**Image** `app`, port 3000, only the bundle (and, for astro-fullstack, the site as `STATIC_DIR`) on slim Node. Args: `BUN_VERSION` from `bun --version`, `NODE_VERSION` from `.node-version` without a leading `v`.
+<!-- stacks:end -->
 
 ## What to add
 
-**Dockerfiles** next to the code (`backend/Dockerfile`, `frontend/Dockerfile`); root context only if an image needs files outside its directory. Every image:
-- Multi-stage: deps, build (if any), minimal runtime with only runtime artifacts.
-- Manifest and lockfile copied first and installed frozen, then source, so a source edit doesn't reinstall.
-- Non-root user with fixed uid/gid, `COPY --chown`, `USER` before `CMD`.
-- `HEALTHCHECK` on the health endpoint using the image's own runtime (no curl just for this).
-- All config from env; no secrets in the image or build args (build args only for public values like a `VITE_PUBLIC_*` key).
-- Exec-form `CMD` so the app gets SIGTERM and shuts down gracefully.
-- `.dockerignore`: `.git`, `.env*`, `node_modules`, virtualenvs, caches, test and build output.
-
-<!-- stacks:when tag=python -->
-**Python**: slim Python base matching `.python-version`; copy the uv binary from uv's official image; `uv sync --locked --no-dev --no-install-project`, copy source, sync again. Copy the venv to the runtime stage at the same path, put its `bin` on `PATH`, set `PYTHONUNBUFFERED=1` and `PYTHONDONTWRITEBYTECODE=1`.
-<!-- stacks:end -->
-<!-- stacks:when stack=python-api,python-react -->
-Run uvicorn on `0.0.0.0` with proxy headers.
-<!-- stacks:end -->
-<!-- stacks:when stack=python-api -->
-**One image**: one root `Dockerfile`, since the API is the repo root. The health check fetches the shipped `/healthz` with Python's `urllib`. `.dockerignore` also excludes `tests/` and `openapi.json`, which the runtime doesn't read.
-<!-- stacks:end -->
-<!-- stacks:when stack=django,django-api -->
-**Django**: one root `Dockerfile` served by gunicorn, with migrations as a release step; the stack's own deploy section has the specifics.
-<!-- stacks:end -->
-<!-- stacks:when stack=streamlit -->
-**Streamlit**: one root `Dockerfile` running `streamlit run app.py` headless on `0.0.0.0`, health-checked on `/_stcore/health`; the stack's own deploy section has the specifics.
-<!-- stacks:end -->
-<!-- stacks:when stack=python-react -->
-**React SPA**: build with bun, serve `build/client` from an unprivileged nginx or Caddy image with the `index.html` fallback, immutable caching for hashed assets, `no-cache` for `index.html`, a `/healthz` location, and a `/api` proxy if the API shares the origin.
-<!-- stacks:end -->
-<!-- stacks:when stack=typescript-api -->
-**Node API**: one root `Dockerfile`. Build the bundle with bun in the build stage; the runtime stage is the official slim Node image matching `.node-version` with only `dist/`, no `node_modules` or source, running `node` on the bundle with `NODE_ENV=production`, so it logs JSON to stdout and never writes `logs/`. The health check fetches `/healthz` with Node's own `fetch`.
-<!-- stacks:end -->
-<!-- stacks:when stack=hono-api -->
-**Node API**: one root `Dockerfile`. The build stage installs frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only `package.json` (its `"type": "module"` marks the bundle as ESM) and `dist/main.js` (the bundle includes its dependencies, so no `node_modules`), running `node dist/main.js` with `PORT_API` set and exposed. The health check fetches `/healthz` with Node's own `fetch`. Logs are JSON on stdout.
-<!-- stacks:end -->
-<!-- stacks:when stack=nestjs-api -->
-**NestJS API**: one root `Dockerfile`. `nest build` doesn't bundle, so a Bun deps stage runs `bun install --frozen-lockfile --production`; the build stage installs frozen and runs `bun run build`; both pass `--ignore-scripts` (`prepare` needs `scripts/`). The runtime stage is the official slim Node image matching `.node-version` with `package.json`, those `node_modules` and `dist/`, running `node dist/main.js` with `PORT_API` set and exposed.
-<!-- stacks:end -->
-<!-- stacks:when stack=astro-fullstack -->
-**API and site**: one root `Dockerfile`, one image. The build stage installs the workspace frozen and runs `bun run build`; the runtime stage is the official slim Node image matching `.node-version` with only the API bundle and `apps/web/dist`, `STATIC_DIR` pointing at the copied site and `NODE_ENV=production`. The health check fetches `/healthz` with Node's own `fetch`.
-<!-- stacks:end -->
-<!-- stacks:when tag=go -->
-**Go**: `CGO_ENABLED=0` with version ldflags in the official Go image, static binary copied into a distroless nonroot runtime.
-<!-- stacks:end -->
-<!-- stacks:when tag=rust -->
-**Rust**: build in the official Rust image for the `rust-toolchain.toml` toolchain, its Debian release named by tag suffix (`-slim-<codename>`) to match the runtime's, with BuildKit cache mounts for the Cargo registry and `target/` (or cargo-chef) so a source edit doesn't recompile every dependency, and `cargo build --release --locked`; copy the binary out of the cache-mounted `target/` in the same `RUN`. The runtime is the nonroot distroless `cc` image for that Debian release, since the binary links against its glibc. Distroless has no shell or curl, so the exec-form `HEALTHCHECK` runs the binary's own probe flag (`--healthcheck`: requests the health endpoint, exits 0 or 1).
-<!-- stacks:end -->
-<!-- stacks:when tag=java -->
-**Java**: build in the Temurin JDK image for `.java-version`'s major, copying `mvnw`, `.mvn/` and `pom.xml` before `src/`, with a cache mount on `/root/.m2`, then `./mvnw -B -ntp package -DskipTests`. Run only the jar (for Quarkus, the whole `target/quarkus-app/` directory and its `quarkus-run.jar`) on the same major's Temurin JRE with `HOST=0.0.0.0`; the `HEALTHCHECK` runs `java -jar <jar> --healthcheck`, with a start period for JVM startup.
-<!-- stacks:end -->
-
-<!-- stacks:when with=postgres -->
-**Migrations** run as a one-shot `docker run <image> <migrate command>`, never on container start, so replicas can't race.
-<!-- stacks:end -->
-
 <!-- stacks:when tag=make -->
-**Makefile**: `docker-build` builds every image as `<project-slug>-<part>:local` (verify calls it); `docker-run` runs them together with `.env` (a `compose.prod.yaml` for several images).
+**Makefile targets**: `docker-build` runs `docker build --build-arg NAME="$$(<command>)" ... -t <project-slug>-<image>:local <context>` per image. `docker-serve` sets `PORT_IMAGE ?= 18080` and runs `docker run --rm -p 127.0.0.1:$(PORT_IMAGE):<port> <image>` in the foreground.
 <!-- stacks:end -->
 <!-- stacks:when tag=scripts -->
-**Package scripts**: `docker-build` builds every image as `<project-slug>-<part>:local` (verify calls it with `bun run`, since there's no Makefile); `docker-run` runs them together with `.env`.
+**Package scripts**: `docker-build` is `docker build --build-arg BUN_VERSION="$(bun --version)" --build-arg NODE_VERSION="$(sed 's/^v//' .node-version)" -t <project-slug>-app:local .`; `docker-serve` is `docker run --rm -p 127.0.0.1:${PORT_IMAGE:-18080}:3000 <project-slug>-app:local`.
 <!-- stacks:end -->
 
-**`.github/workflows/docker-publish.yml`**:
-- Trigger per the decision: `workflow_run` of CI on the default branch, proceeding only on `conclusion == 'success'` and checking out that run's `head_sha`, plus `v*` tag pushes.
-- Job permissions `contents: read, packages: write`.
-- Matrix per image; Buildx; log in to `ghcr.io` with `GITHUB_TOKEN`; tags from Docker's metadata action (short SHA, semver on tags, `latest` on the default branch only); build and push with the GitHub Actions cache scoped per image.
-- Image names `ghcr.io/<owner>/<repo>/<part>`, lowercased.
-- Actions pinned by full commit SHA; `concurrency` per ref with `cancel-in-progress: false`.
+<!-- stacks:when tag=python -->
+Uvicorn trusts proxy headers only from `FORWARDED_ALLOW_IPS` (default `127.0.0.1`); set it to the load balancer's addresses when deploying.
+<!-- stacks:end -->
+<!-- stacks:when with=postgres,effect-sql-postgres -->
+**Migrations** run as a one-shot `docker run <image> <migrate command>` before rollout, never on container start, so replicas can't race.
+<!-- stacks:end -->
+
+<!-- stacks:when preset=default -->
+## Publish workflow
+
+Ask the user, defaults first: where images run (publish to GHCR only; rollout to a host is a separate step they choose), target platforms (linux/amd64; add linux/arm64 for ARM hosts, where Python images build under slow emulation), and the trigger (default-branch pushes after the checks pass plus `v*` tags, or tags only).
+
+Never publish from `workflow_run` or `pull_request_target`: both hold write tokens for events a fork starts.
+<!-- stacks:end -->
+
+<!-- stacks:when preset=default with=ci-github -->
+Add a `publish` job to `.github/workflows/ci.yml` with `needs: [ci-ok]` and `if: github.event_name == 'push'`, and add `tags: ['v*']` to the push trigger. Pull requests never pass the `if`.
+<!-- stacks:end -->
+
+<!-- stacks:when preset=default -->
+Without a `ci.yml`, create `.github/workflows/docker-publish.yml` on `push` to the default branch and `v*` tags, where `publish` needs a `checks` job running the project's lint, typecheck and tests.
+
+`publish`: job permissions `contents: read`, `packages: write`, `id-token: write`, `attestations: write`; checkout with `persist-credentials: false`; a matrix per image; build args computed as `docker-build` does; Buildx and a `ghcr.io` login with `GITHUB_TOKEN`; metadata-action tags `type=sha`, `type=semver,pattern={{version}}` and `latest` with `enable={{is_default_branch}}`; build-push-action with `provenance: mode=max`, `sbom: true` and a per-image GitHub Actions cache. Images are `ghcr.io/<owner>/<repo>/<image>`, lowercased; `concurrency` per ref without cancelling. Pin actions as the CI section says, otherwise by commit SHA.
+<!-- stacks:end -->
+
+## Verify
+
+`image-build` builds every image and `image-serve` starts them and probes `/healthz`. Both are tagged `docker`: `stacks verify --skip-tag docker` drops them on a machine without Docker.
 
 ## AGENTS.md
 
-A **Deploy** section: images and Dockerfiles, the `docker-build`/`docker-run` commands, where and when images publish, how migrations run, no secrets in images. Pending user actions: package visibility on GitHub, and the deploy target and its secrets once chosen.
+A **Deploy** section: images, the two commands, where base image versions come from, how migrations run.
+<!-- stacks:when preset=default -->
+Also when images publish. Pending user actions: package visibility on GitHub, and the deploy target and its secrets once chosen.
+<!-- stacks:end -->

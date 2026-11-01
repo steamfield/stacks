@@ -1,6 +1,6 @@
 import { Effect, Path } from "effect";
 import type { Finding } from "../../schemas/validate";
-import type { Entry } from "../registry/entry";
+import { type Entry, shippedPath } from "../registry/entry";
 import { shellWords } from "../shell";
 import { type Composed, sourceOf, uniqueFindings } from "./composed";
 import { type Check, finding, type View } from "./view";
@@ -111,8 +111,11 @@ function resolve(from: string, spec: string, files: ImportFiles, js: boolean) {
   return candidates.find((candidate) => paths.has(candidate));
 }
 
-function allowedOwners(view: View, entry: Entry): Set<string> {
+/** An overlay ships only onto its host stack, so it may also import that stack's files. */
+function allowedOwners(view: View, entry: Entry, source: string): Set<string> {
   const allowed = new Set([`${entry.kind}:${entry.id}`]);
+  const condition = shippedPath(source)?.condition;
+  if (condition?.kind === "stack") allowed.add(`stack:${condition.id}`);
   const queue =
     entry.meta.kind === "stack" ? [...entry.meta.fragments.required] : [...entry.meta.requires];
   for (const id of queue) {
@@ -154,7 +157,7 @@ function fileImportFindings(
   if (!js && !file.path.endsWith(".sh")) return findings;
   const source = sourceOf(view, snapshot, file);
   if (!source || !view.entries.some((entry) => entry.dir === source.entry.dir)) return findings;
-  const allowed = allowedOwners(view, source.entry);
+  const allowed = allowedOwners(view, source.entry, source.source.source);
   const checkImport = (ref: ImportRef) => {
     const target = resolve(file.path, ref.spec, files, js);
     const owner = target === undefined ? undefined : byPath.get(target)?.owner;

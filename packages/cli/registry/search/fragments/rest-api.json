@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "rest-api",
   "source": {
-    "digest": "sha256:1daa4bf183c5f035970c37b524b6613aba64cc8b731e3429e4fb13d26d8fec8a",
+    "digest": "sha256:7e414bfbc4f1dfd991a38e901965d99e75f57e31744fccff9e00ed0999285166",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-29"
+    "reviewedAt": "2026-11-01"
   },
   "summary": "Give coding agents consistent HTTP resource conventions for paths, methods, status codes, response shapes, pagination and versioning.",
   "description": "Give coding agents framework-neutral rules for HTTP resource design. Paths use resource nouns, methods carry the action, response shapes stay consistent and collections use cursor pagination. The project's own error table and framework decide exact statuses and behavior. Document those choices alongside an existing resource to copy. This fragment supplies conventions and agent guidance, not generated endpoints or a running server.",
@@ -19,9 +19,9 @@
       "stack": "typescript-api"
     },
     {
-      "title": "Mobile backend resource guide",
-      "description": "Keep new Hono resources consistent as the Expo application's API grows. Record the router's actual status and pagination behavior in project instructions.",
-      "stack": "mobile-expo"
+      "title": "Python API resource guide",
+      "description": "Keep new FastAPI resources consistent with the shipped notes resource as the API grows. Record the router's actual status and pagination behavior in project instructions.",
+      "stack": "python-api"
     }
   ],
   "plain": {

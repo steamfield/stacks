@@ -1,0 +1,42 @@
+# Local development and test databases. Ports bind to 127.0.0.1 only.
+# A second checkout sets its own COMPOSE_PROJECT_NAME, PORT_DB and PORT_DB_TEST in .env.
+name: ${COMPOSE_PROJECT_NAME:-{{project_slug}}}
+
+# stacks:fill Pin the image to the current Postgres major, postgres:<major>-alpine (or the image the decision chose), then delete this line.
+x-postgres: &postgres
+  # Moving db to a new Postgres major needs a dump and restore: data directories don't carry over.
+  image: postgres:alpine
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER:-app}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+    POSTGRES_DB: ${POSTGRES_DB:-app}
+  healthcheck:
+    # TCP on 127.0.0.1: the entrypoint's init-time server listens only on the socket, so this
+    # can't report healthy before the real server is up.
+    test: pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+    interval: 2s
+    timeout: 3s
+    retries: 15
+    start_period: 10s
+    start_interval: 1s
+
+services:
+  db:
+    <<: *postgres
+    ports:
+      - 127.0.0.1:${PORT_DB:-5432}:5432
+    # Mounted at the parent of the data directory, which works for every major's layout.
+    volumes:
+      - db-data:/var/lib/postgresql
+
+  db-test:
+    <<: *postgres
+    # Throwaway data: tmpfs storage and durability off. Stopping it discards every database.
+    command: postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+    ports:
+      - 127.0.0.1:${PORT_DB_TEST:-5433}:5432
+    tmpfs:
+      - /var/lib/postgresql
+
+volumes:
+  db-data:

@@ -22,9 +22,8 @@ Run these from the repo root. They are the only supported way to build, test, an
 
 ## Agent harness
 
-<!-- stacks:fill Document the selected agents' actual harness: where hooks, rules and skills live and which config wires each agent's hooks. Include a table mapping each rule to the paths it covers. Link any harness docs. Keep this section for Codex-only and multiple-agent projects too. Before writing it, when both Claude Code and Codex are targets, make one skill tree: move each `.agents/skills/*` directory into `.claude/skills/` without overwriting an existing skill, then replace `.agents/skills` with a tracked symlink to `../.claude/skills`, and write new skills (the installed-API Effect skill too) under `.claude/skills/`. With Codex alone, skills live in `.agents/skills/`; with Claude alone, in `.claude/skills/`. -->
+<!-- stacks:fill Document the selected agents' actual harness: where hooks, rules and skills live and which config wires each agent's hooks. Include a table mapping each rule to the paths it covers. Link any harness docs. Keep this section for Codex-only and multiple-agent projects too. Before writing it, when both Claude Code and Codex are targets, make one skill tree: move each `.agents/skills/*` directory into `.claude/skills/` without overwriting an existing skill, then replace `.agents/skills` with a tracked symlink to `../.claude/skills`, and write new skills under `.claude/skills/`. With Codex alone, skills live in `.agents/skills/`; with Claude alone, in `.claude/skills/`. When the project has `.claude/rules/` and Codex is a target, add: "Codex does not load `.claude/rules/` automatically: it reads the rules covering the files it changes before editing them." -->
 
-Codex does not load `.claude/rules/` automatically: it reads the rules covering the files it changes before editing them. Claude Code loads its path-scoped rules automatically.
 
 ## Conventions
 
@@ -37,7 +36,7 @@ Codex does not load `.claude/rules/` automatically: it reads the rules covering 
 
 - Destructive commands, credential-shaped writes and real `.env` writes are guarded by native hooks when this project targets Claude Code, Codex, OpenCode or Cursor. A block means ask the user; never rephrase a command or use another tool to bypass it.
 - Store credentials in environment variables or a secrets manager. Write variable names and placeholders in `.env.example`; ask the user to set real values.
-- Load the selected agent's applicable project skills or rules before changing their area. When the brief asks for a generated Effect skill, use the selected agent's native skill directory (or Cursor rule), verified against installed types.
+- Load the selected agent's applicable project skills or rules before changing their area.
 - Treat lint diagnostics as work to resolve. Run the project check command before finishing; instructions and hooks do not replace tests.
 
 ## Testing

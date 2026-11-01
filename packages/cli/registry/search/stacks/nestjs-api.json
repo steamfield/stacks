@@ -16,13 +16,6 @@
     {
       "title": "Backend for a growing product team",
       "description": "An illustrative API that several developers extend one feature module at a time, each with its controller, service and tests. Add a database and sign-in before it holds real users' data."
-    },
-    {
-      "title": "Internal service other teams call",
-      "description": "An illustrative service with a Swagger document other teams generate clients from. Ship it as a container with the optional Docker fragment.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

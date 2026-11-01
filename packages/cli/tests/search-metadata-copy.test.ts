@@ -17,7 +17,10 @@ import { workspace } from "./helpers/verify";
 const space = workspace();
 afterEach(() => space.release());
 
-test("copying a bundled entry preserves its card bytes and refuses a second write [4.5b#19]", async () => {
+// Three validate runs over a copied entry, each about 1.5 s on an idle host.
+test("copying a bundled entry preserves its card bytes and refuses a second write [4.5b#19]", {
+  timeout: 15_000,
+}, async () => {
   const home = space.dir();
   const ref = { kind: "stack", id: "mobile-expo" } as const;
   const root = join(home, "config/stacks");
@@ -48,8 +51,7 @@ test("copying a bundled entry preserves its card bytes and refuses a second writ
       severity,
     })),
   ).toEqual([{ check: "search-stale", severity: "warning" }]);
-  // Validates the copied root against the whole bundled registry, which outgrew the 5 s default.
-}, 30_000);
+});
 
 test("copying an entry without a card leaves the user search directory absent [4.5b#19]", async () => {
   const home = space.dir();

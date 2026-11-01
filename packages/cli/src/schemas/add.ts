@@ -27,6 +27,7 @@ export const AddResult = Schema.Struct({
   digestRecorded: Schema.Boolean,
   brief: Schema.Literal(BRIEF_PATH),
   briefWords: Schema.Number,
+  inferredTags: Schema.optionalKey(Schema.Array(Schema.String)),
   untrusted: NewResult.fields.untrusted,
   handoff: NewResult.fields.handoff,
 });

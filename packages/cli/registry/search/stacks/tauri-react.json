@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "tauri-react",
   "source": {
-    "digest": "sha256:bb1fe24e6c9288ab2cf62a470b784e3fd4d5428d3156a961246c8d3fc0469ec8",
+    "digest": "sha256:78dbe0d5244258f1116df7c2ad18ee8f12b1fc6e4b03e3cdff4280e034989ee9",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

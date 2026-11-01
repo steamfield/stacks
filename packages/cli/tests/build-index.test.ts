@@ -114,6 +114,23 @@ test("a signed build decodes and publishes canonical bundles at their digests [4
   }
 }, 30_000);
 
+test("index bundles preserve fragment stack overlays as raw files", async () => {
+  const f = await setup();
+  const dir = join(entryPath(f.registry, "fragment", "tools"), "stacks/sample");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "overlay.txt"), "overlay bytes\n");
+  writeLedger(f.registry, [await proof(f.registry)]);
+  const { index } = await build(f);
+  const entry = named(index.entries, "fragment", "tools");
+  const bundle = await assertBundle(f.out, entry);
+  expect(bundle.files).toContainEqual({
+    path: "stacks/sample/overlay.txt",
+    executable: false,
+    encoding: "utf8",
+    content: "overlay bytes\n",
+  });
+}, 30_000);
+
 test("default digests and newest eligible matching proof are published [4.0c#2]", async () => {
   const f = await setup();
   const newest = { ...f.record, date: "2026-10-29", minutesToGreen: 1.25 };

@@ -1,0 +1,15 @@
+# Both production images together, as `make docker-serve` runs them: the web image is the
+# origin and proxies the API paths to the api service, which publishes no port of its own.
+services:
+  api:
+    image: {{project_slug}}-api:local
+    environment:
+      # Only the web container can reach the API on this network.
+      FORWARDED_ALLOW_IPS: "*"
+  web:
+    image: {{project_slug}}-web:local
+    ports:
+      - "127.0.0.1:${PORT_IMAGE:-18080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy

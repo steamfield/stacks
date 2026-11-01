@@ -26,7 +26,7 @@ install: ## JS deps (frozen in CI), the selected Rust toolchain and crates, Play
 	rustup toolchain install --no-self-update
 	cargo fetch
 	bunx playwright install $(if $(CI),--with-deps) chromium
-	@if [ -z "$(CI)" ] && [ -f lefthook.yml ]; then lefthook install; fi
+	@if [ -z "$(CI)" ] && [ -f lefthook.yml ] && command -v lefthook >/dev/null 2>&1; then lefthook install; fi
 
 dev: ## Full app: tauri dev (Vite on PORT_WEB plus the Rust shell)
 	bun run tauri dev

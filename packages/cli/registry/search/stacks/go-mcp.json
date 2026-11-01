@@ -16,13 +16,6 @@
     {
       "title": "Internal docs lookup for a coding assistant",
       "description": "Illustrative: replace the conversion tool with search and fetch tools over the team's docs, so Claude Code can look things up. Access control and indexing are still the project's work."
-    },
-    {
-      "title": "Released MCP server binary",
-      "description": "Illustrative: publish the server as a binary for each platform, so teammates add it to their host with one command. goreleaser builds the archives on each tag.",
-      "withFragments": [
-        "goreleaser"
-      ]
     }
   ],
   "plain": {

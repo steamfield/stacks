@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "mobile-expo",
   "source": {
-    "digest": "sha256:930dc48e1e97b58b7b1cbc686419f0d1facf66d113623b1f98ff6ca3b561b8ba",
+    "digest": "sha256:eb18f1736b4838e3328d396c690faa626eb3d443504a5bbf4dc54e146db8432a",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

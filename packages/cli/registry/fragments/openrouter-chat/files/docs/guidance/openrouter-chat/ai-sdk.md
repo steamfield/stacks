@@ -12,9 +12,9 @@ A failed stream rejects `result.text` with `NoOutputGeneratedError`; the real `A
 
 ## APIs change between majors
 
-Read the installed package's type definitions before writing against it (`node_modules/ai/dist/*.d.ts`, `node_modules/@ai-sdk/react/dist/*.d.ts`). Older examples use names that were renamed or removed: `useChat` input helpers, `maxSteps`, tool `parameters`, `toDataStreamResponse`, `generateObject`, the system-prompt option. If something is marked deprecated, use its replacement.
+Read the installed package's type definitions before writing against it (`node_modules/ai/dist/*.d.ts`, `node_modules/@ai-sdk/react/dist/*.d.ts`). Older examples use names that were renamed, deprecated or removed: `useChat` input helpers, `maxSteps`, `stepCountIs` (now `isStepCount`), tool `parameters`, `toDataStreamResponse`, the result's `toUIMessageStreamResponse` (now `toUIMessageStream` plus `createUIMessageStreamResponse` over `result.stream`), `generateObject`, `system` (now `instructions`), `onFinish` (now `onEnd`). If something is marked deprecated, use its replacement.
 
-Shapes the installed types enforce that older examples get wrong: mock-model usage is nested (`inputTokens: { total, noCache, cacheRead, cacheWrite }`, `outputTokens: { total, text, reasoning }`) and `finishReason` is `{ unified, raw }`; `tool.execute`'s options require `context`, so unit tests pass one; Effect's `Config.fail` takes a `ConfigError`, not a string.
+Shapes the installed types enforce that older examples get wrong: mock-model usage is nested (`inputTokens: { total, noCache, cacheRead, cacheWrite }`, `outputTokens: { total, text, reasoning }`) and `finishReason` is `{ unified, raw }`; `tool.execute`'s options carry the tool's own `context`, which the call supplies through `toolsContext` (`runtimeContext` is the separate call-level context), so unit tests pass one; Effect's `Config.fail` takes a `ConfigError`, not a string.
 
 ## Messages and metadata
 
@@ -24,6 +24,6 @@ Shapes the installed types enforce that older examples get wrong: mock-model usa
 
 ## Tools and structured output
 
-- Tool input and structured-output schemas are Effect Schemas converted to draft-07 by `toAiSchema` (`Schema.toJsonSchemaDocument`, closed objects) and passed through the SDK's JSON Schema helper, with a validate function built on the schema's decoder. Use `title`/`description` annotations, not `identifier` (it produces a `$ref`).
+- Tool input and structured-output schemas are Effect Schemas converted to draft-07 by `toAiSchema` (`Schema.toJsonSchemaDocument`, which emits draft 2020-12, then `JsonSchema.toDocumentDraft07`; closed objects) and passed through the SDK's JSON Schema helper, with a validate function built on the schema's decoder. Use `title`/`description` annotations, not `identifier` (it produces a `$ref`).
 - Decode structured output with the same schema before returning it; a failed decode is `InvalidModelOutput`.
 - Tools are small, deterministic where possible, and have their own tests. Cap tool steps from Config.

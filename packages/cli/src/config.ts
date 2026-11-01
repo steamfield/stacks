@@ -73,6 +73,28 @@ export const AgentMarkers: ReadonlyArray<AgentMarker> = Schema.decodeUnknownSync
 export const AGENT_MARKER_NAMES: ReadonlyArray<string> = [
   ...new Set(AgentMarkers.map((item) => item.name)),
 ];
+/** CLI settings, shared by their readers and verify's child-environment removal list. */
+const CLI_ENV = {
+  logLevel: "LOG_LEVEL",
+  dataDir: "STACKS_DATA_DIR",
+  stateDir: "STACKS_STATE_DIR",
+  registryDir: "STACKS_REGISTRY_DIR",
+  logFormat: "STACKS_LOG_FORMAT",
+  logFile: "STACKS_LOG_FILE",
+  offline: "STACKS_OFFLINE",
+  telemetryDisabled: "STACKS_TELEMETRY_DISABLED",
+  telemetryDebug: "STACKS_TELEMETRY_DEBUG",
+  telemetryUrl: "STACKS_TELEMETRY_URL",
+  indexUrl: "STACKS_INDEX_URL",
+  devApiUrl: "STACKS_DEV_API_URL",
+} as const;
+/**
+ * The settings verify removes from a step's environment. `LOG_LEVEL` stays: projects read the same
+ * name for their own logging, and a person running `LOG_LEVEL=debug stacks verify` means it for them.
+ */
+export const CLI_SETTING_NAMES: ReadonlyArray<string> = Object.values(CLI_ENV).filter(
+  (name) => name !== CLI_ENV.logLevel,
+);
 /**
  * The variables that point git at a repository, work tree, index or object store instead of
  * letting it discover one from its working directory: `childEnv`'s `remove` list for the CLI's
@@ -130,16 +152,13 @@ export function configLayer(env: Environment | undefined, build: Build) {
           read(text(key, path.join(home, ...fallback)));
         const config = yield* xdg("XDG_CONFIG_HOME", ".config");
         const data = yield* read(
-          text("STACKS_DATA_DIR", path.join(yield* xdg("XDG_DATA_HOME", ".local", "share"), SLUG)),
+          text(CLI_ENV.dataDir, path.join(yield* xdg("XDG_DATA_HOME", ".local", "share"), SLUG)),
         );
         const cache = path.join(yield* xdg("XDG_CACHE_HOME", ".cache"), SLUG);
         const state = yield* read(
-          text(
-            "STACKS_STATE_DIR",
-            path.join(yield* xdg("XDG_STATE_HOME", ".local", "state"), SLUG),
-          ),
+          text(CLI_ENV.stateDir, path.join(yield* xdg("XDG_STATE_HOME", ".local", "state"), SLUG)),
         );
-        const registry = yield* read(text("STACKS_REGISTRY_DIR"));
+        const registry = yield* read(text(CLI_ENV.registryDir));
         return {
           config: path.join(config, SLUG, "config.json"),
           home,
@@ -165,12 +184,12 @@ export function configLayer(env: Environment | undefined, build: Build) {
         Effect.gen(function* () {
           const locations = yield* paths;
           const file = yield* settings;
-          const override = yield* read(text("STACKS_DATA_DIR"));
+          const override = yield* read(text(CLI_ENV.dataDir));
           return { ...file, dataDir: override || file.dataDir || locations.data };
         }).pipe(Effect.mapError(() => new InvalidConfig())),
       );
       const logging = Effect.gen(function* () {
-        const raw = (yield* read(text("LOG_LEVEL", "warn"))).toLowerCase();
+        const raw = (yield* read(text(CLI_ENV.logLevel, "warn"))).toLowerCase();
         const levels: Readonly<Record<string, LogSettings["level"]>> = {
           trace: "Trace",
           debug: "Debug",
@@ -182,11 +201,11 @@ export function configLayer(env: Environment | undefined, build: Build) {
         };
         // Own keys only: `constructor` or `__proto__` would otherwise read Object.prototype.
         const level = (Object.hasOwn(levels, raw) ? levels[raw] : undefined) ?? "Warn";
-        const format = yield* read(text("STACKS_LOG_FORMAT"));
+        const format = yield* read(text(CLI_ENV.logFormat));
         return {
           level,
           format: format === "json" ? ("json" as const) : ("human" as const),
-          file: yield* read(text("STACKS_LOG_FILE")),
+          file: yield* read(text(CLI_ENV.logFile)),
           noColor: Boolean(yield* read(text("NO_COLOR"))),
         };
       });
@@ -204,7 +223,7 @@ export function configLayer(env: Environment | undefined, build: Build) {
         forceColor: captured.FORCE_COLOR === "1",
       });
       let offlineFlag = false;
-      const offline = Effect.sync(() => offlineFlag || captured.STACKS_OFFLINE === "1");
+      const offline = Effect.sync(() => offlineFlag || captured[CLI_ENV.offline] === "1");
       const setOffline = (value: boolean) =>
         Effect.sync(() => {
           offlineFlag = value;
@@ -219,12 +238,12 @@ export function configLayer(env: Environment | undefined, build: Build) {
         value !== undefined && !["", "0", "false"].includes(value);
       const telemetry = {
         doNotTrack: switchedOff(captured.DO_NOT_TRACK),
-        disabled: switchedOff(captured.STACKS_TELEMETRY_DISABLED),
-        debug: captured.STACKS_TELEMETRY_DEBUG === "1",
-        url: captured.STACKS_TELEMETRY_URL || undefined,
+        disabled: switchedOff(captured[CLI_ENV.telemetryDisabled]),
+        debug: captured[CLI_ENV.telemetryDebug] === "1",
+        url: captured[CLI_ENV.telemetryUrl] || undefined,
       };
-      const indexUrl = read(text("STACKS_INDEX_URL")).pipe(Effect.map((url) => url || undefined));
-      const apiUrl = read(text("STACKS_DEV_API_URL")).pipe(
+      const indexUrl = read(text(CLI_ENV.indexUrl)).pipe(Effect.map((url) => url || undefined));
+      const apiUrl = read(text(CLI_ENV.devApiUrl)).pipe(
         Effect.map((value) => {
           if (releaseBuild || !URL.canParse(value)) return defaultApiUrl;
           const url = new URL(value);

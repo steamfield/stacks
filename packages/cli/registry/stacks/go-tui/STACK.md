@@ -19,7 +19,7 @@ env: {}
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github]
-  optional: [goreleaser, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: fmt-check, layer: lint, run: make fmt-check }

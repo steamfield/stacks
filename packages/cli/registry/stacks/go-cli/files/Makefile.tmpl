@@ -39,6 +39,7 @@ install: ## Download modules and install dev tools that are missing
 	go mod download
 	@[ -x "$(GOIMPORTS)" ] || go install golang.org/x/tools/cmd/goimports@latest
 	@[ -x "$(GOTESTSUM)" ] || go install gotest.tools/gotestsum@latest
+	@test -n "$$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || lefthook install
 
 build: ## Build the binary into bin/ with version info
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG)

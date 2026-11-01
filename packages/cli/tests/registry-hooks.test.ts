@@ -534,7 +534,7 @@ describe("the hooks decide the same with and without jq [1.6d#3]", () => {
       const strip = (run: Run) => ({ ...run, stdout: run.stdout.replaceAll(project, "<project>") });
       outputs.push([lint, stop, start].map(strip));
       expect(readFileSync(join(project, "biome-calls"), "utf8").trim().split("\n")).toEqual([
-        "check",
+        "lint",
         "check --write",
       ]);
     }
@@ -543,7 +543,7 @@ describe("the hooks decide the same with and without jq [1.6d#3]", () => {
     expect(
       Schema.decodeUnknownSync(Context)(JSON.parse(lint?.stdout ?? "")).hookSpecificOutput
         .additionalContext,
-    ).toContain("biome check found issues in src.ts");
+    ).toContain("biome lint found issues in src.ts");
     expect(stop).toEqual(ALLOW);
     expect(start?.stdout).toContain("read .stacks/BRIEF.md");
   }, 30_000);
@@ -609,6 +609,12 @@ describe("composed settings wire each hook once [1.6d#4] [1.6d#5]", () => {
         "Read(./.env.test)",
         "Read(./.env.staging)",
         "Read(./.env.production)",
+        "Read(./.envrc)",
+        "Read(./**/.env)",
+        "Read(./**/.env.local)",
+        "Read(./**/.env.*.local)",
+        "Read(./**/.env.production)",
+        "Read(./**/.envrc)",
       ].sort(),
     );
   });

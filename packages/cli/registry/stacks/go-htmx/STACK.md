@@ -22,7 +22,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: generate-check, layer: check, run: make generate-check }
@@ -118,10 +118,6 @@ The Makefile's install recipe runs `lefthook install` outside CI when lefthook.y
 
 <!-- stacks:when with=ci-github -->
 CI reads Go from go.mod and runs `make install`, `make generate-check`, `make templ-fmt-check`, `make htmx-check`, `make fmt-check`, `make tidy-check`, `make coverage`, `make test-integration`, `make vuln` and `make build`. Lint uses golangci-lint's official action with `version-file: .golangci-lint-version`. CI never runs `make htmx`; the committed file is what ships.
-<!-- stacks:end -->
-
-<!-- stacks:when with=docker-deploy -->
-Templates and static files are embedded, so the runtime image needs only the binary. The distroless runtime has no shell or curl: use the shipped `server -healthcheck` in an exec-form HEALTHCHECK; it fetches /healthz on PORT and is covered by integration tests. Set HOST=0.0.0.0 in the image. The `*_templ.go` files and htmx are committed, so the build stage runs no generator and no download; build only `./cmd/server`.
 <!-- stacks:end -->
 
 ## Gotchas

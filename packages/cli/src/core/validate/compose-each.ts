@@ -3,7 +3,7 @@ import { Effect, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { type ComposeOptions, compose } from "../compose/compose";
 import { fitsStack } from "../compose/selection";
-import { type Entry, isStack } from "../registry/entry";
+import { type Entry, isStack, shippedOnlyFor } from "../registry/entry";
 import { canonicalBrief, composedLimit } from "./budget";
 import { uniqueFindings } from "./composed";
 import { compositionSingles, describe, replacementDefaults } from "./compositions";
@@ -18,7 +18,7 @@ export const composeEachChecks: Check = (view) =>
     const stacks = view.all.filter(isStack);
     const agents = AgentId.literals.filter((agent) =>
       [...view.sources.values()].some((sources) =>
-        sources.files.some((file) => file.source.startsWith(`adapters/${agent}/`)),
+        sources.files.some((file) => shippedOnlyFor(file.source, "agent", agent)),
       ),
     );
     const fragments = view.entries.filter(
@@ -32,8 +32,12 @@ export const composeEachChecks: Check = (view) =>
 
 function fragmentPlan(view: View, stack: Stack, fragment: Fragment) {
   const listed = Object.values(stack.meta.fragments).some((ids) => ids.includes(fragment.id));
+  const overlay = view.sources
+    .get(fragment.dir)
+    ?.files.some((file) => shippedOnlyFor(file.source, "stack", stack.id));
   if (
     !listed &&
+    !overlay &&
     (!fragment.meta.appliesTo.length ||
       !fitsStack(fragment.meta.appliesTo, { id: stack.id, tags: stack.meta.tags }))
   )

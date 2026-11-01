@@ -12,6 +12,7 @@ The full entry format. `<cli> create` writes a skeleton with every key and secti
   stacks/<id>/files/...
   stacks/<id>/adapters/<agent>/...
   fragments/<id>/FRAGMENT.md
+  fragments/<id>/stacks/<stack-id>/...
   search/stacks/<id>.json
   search/fragments/<id>.json
 ```
@@ -95,6 +96,8 @@ Write the `description` for someone skimming a list:
 
 ## Verify steps
 
+Verify steps check; they never generate source (no generate, `--write` or `--fix` in a verify step).
+
 Each step has a `name` (kebab-case), a `run` command and optionally `phase`, `layer`, `cwd`, `tags`, `timeout` and `expect`.
 
 - `phase`: `setup` (stops at the first failure), `check` (the default; every check runs), `serve` (started, probed, stopped) or `teardown` (always runs).
@@ -142,7 +145,15 @@ CI reads the Go version from go.mod.
 
 Conditions: `with=<fragment>`, `stack=<id>`, `tag=<tag>`, `tag!=<tag>`, `preset=default|sandbox`, `mode=new|add`. Use `preset=sandbox` for the local-only path (nothing deployed or released).
 
-## files/ and adapters/
+In add mode, matching `with=<added-fragment>` blocks from the host stack and already-applied fragments appear under that addition as notes from each recipe's current version. Other host prose stays out. Write notes about existing files conditionally, since older projects may differ.
+
+Without a known recorded stack, add infers conditional tags from repository data: Makefile gives `make`; package.json gives `node` and an object `scripts` gives `scripts` unless Makefile exists; a Bun lockfile or `packageManager: bun@` gives `bun`; tsconfig.json, go.mod, pyproject.toml and Cargo.toml give `typescript`, `go`, `python` and `rust`. A `workspaces` field or manifests in two immediate child directories give `monorepo`. The brief prints these tags. They affect only conditionals, never `applies_to`, and are not recorded in the manifest.
+
+## files/, adapters/ and stack overlays
+
+A fragment may ship `stacks/<stack-id>/<path>` alongside `files/` and `adapters/`. Only that host stack gets `<path>`, including in add mode. Stack entries cannot have overlays. The stack must exist and fit the fragment's `applies_to` by id or tags (empty admits all). An overlay cannot duplicate a `files/` output path; use separate paths for separate hosts. An overlay may import its host stack's shipped files (a relative import of `src/errors.ts`, say); files under `files/` may import only the fragment's own files and its `requires` closure. Templates, merge rules and security checks apply to overlays too.
+
+Conditional markers resolve only in entry bodies. Shipped files may hold `stacks:fill`, but `stacks:when` and `stacks:end` are errors there.
 
 `files/` holds a working slice of the project: the entry point, a few modules that exercise config, errors, logging and output, their unit and integration tests, the lint, format, typecheck and test configs, the task runner (a Makefile or `package.json` scripts), docs, `.gitignore` and `.env.example`. Write it against a current release and make it pass every verify step from a fresh scaffold once dependencies are installed. Keep it small: one payload that proves the wiring, no product features.
 

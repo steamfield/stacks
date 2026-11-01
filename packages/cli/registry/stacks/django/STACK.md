@@ -21,7 +21,7 @@ env:
   PORT_WEB: "8000"
 fragments:
   default: [agent-ops, git-hooks, ci-github]
-  optional: [docker-deploy, rr, ce-plugin]
+  optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: lint, layer: lint, run: make lint }
@@ -95,11 +95,6 @@ Write lefthook.yml before `make install`: the recipe calls lefthook only outside
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage check-migrations check-deploy build` with CI set.
-<!-- stacks:end -->
-<!-- stacks:when with=docker-deploy -->
-**Image.** One root `Dockerfile`, built as docker-deploy's Python section says and served by gunicorn: `CMD ["gunicorn", "-c", "config/gunicorn.py"]` with `DJANGO_ENV=production`, `WEB_HOST=0.0.0.0` and `PORT_WEB` set and that port exposed. The build stage runs `python manage.py collectstatic --noinput` with `DJANGO_ENV=production` and a throwaway `DJANGO_SECRET_KEY` on that `RUN` line only (the real key comes from the runtime environment). The project isn't packaged (`[tool.uv] package = false`), so the venv holds only dependencies: besides the venv, the runtime stage copies `manage.py`, `config/`, `core/`, `accounts/`, `notes/`, `templates/` and `static/` (and each app added later), and the build stage's `staticfiles/`, which whitenoise serves. Migrations are a release step (`docker run --rm --env-file .env <image> python manage.py migrate --noinput` before the new image takes traffic), never in `CMD`. SQLite lives on a mounted volume (`DJANGO_DB_PATH=/data/db.sqlite3`, the directory owned by the image's uid), one container at a time. The health check requests `/healthz` with Python's `urllib`, sending the first `DJANGO_ALLOWED_HOSTS` entry (default `localhost`) as the `Host` header, since Django answers other hosts with a 400. `.dockerignore` also excludes `tests/`, `var/` and `staticfiles/`.
-
-Prove the image with `make docker-build`, then run it with a mounted data directory, `DJANGO_SECRET_KEY` set and the migrate release step first, and wait for its health check to report healthy. Record the release step in AGENTS.md.
 <!-- stacks:end -->
 
 ## Gotchas

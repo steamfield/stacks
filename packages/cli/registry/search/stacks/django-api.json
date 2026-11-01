@@ -16,13 +16,6 @@
     {
       "title": "Backend for a mobile app with staff admin",
       "description": "Illustrative: replace notes with the app's own records, let the phone app read and write them over JSON, and let staff edit them in Django's admin. Sign-in for app users is still to add."
-    },
-    {
-      "title": "Containerised internal records API",
-      "description": "Illustrative: a few resources other internal services call, shipped as one container image with migrations as a release step. docker-deploy builds and publishes the image; Postgres is a separate step.",
-      "withFragments": [
-        "docker-deploy"
-      ]
     }
   ],
   "plain": {

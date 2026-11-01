@@ -172,6 +172,13 @@ test("dead stack branches warn, --with-only branches note, listed branches are r
   fragment(root, "manual", "applies_to: [cli]", branch);
   fragment(root, "listed", "", branch);
   const { report } = await validate(root);
+  expect(
+    report.findings.find(
+      (finding) => finding.check === "conditional-dead-branch" && finding.entry === "manual",
+    )?.message,
+  ).toContain(
+    "does not list manual in its fragments; add it to fragments.default or fragments.optional",
+  );
   findingsAre(report.findings, [
     ...missingSearchNotes({
       stacks: ["go-stack", "python"],

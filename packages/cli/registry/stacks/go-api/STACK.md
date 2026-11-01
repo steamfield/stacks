@@ -96,7 +96,7 @@ The stack's Claude settings already allow its non-destructive make checks and go
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->
-The shipped Makefile's install recipe guards `lefthook install` on CI and the presence of lefthook.yml; write that config before installing. pre-commit formats staged Go files with gofmt and goimports, re-stages fixes, then runs `make lint`; pre-push runs `make test`.
+If the Makefile's install recipe already runs `lefthook install`, don't add another install step. pre-commit formats staged Go files with gofmt and goimports, re-stages fixes, then runs `make lint`; pre-push runs `make test`.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->
@@ -108,7 +108,7 @@ The shipped notes resource follows the REST rule. Record /v1, the shared envelop
 <!-- stacks:end -->
 
 <!-- stacks:when with=docker-deploy -->
-The distroless runtime has no shell or curl. Use the shipped `server -healthcheck` in an exec-form HEALTHCHECK; it fetches /healthz on PORT and is covered by integration tests. Set HOST=0.0.0.0 in the image.
+The integration tests cover `server -healthcheck`, the image's HEALTHCHECK; keep it working when /healthz or PORT handling changes.
 <!-- stacks:end -->
 
 ## Gotchas

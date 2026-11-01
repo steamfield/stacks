@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import {
   type EvalReport,
   validateEvalReport,
-} from "../registry/fragments/openrouter-ai/files/scripts/lib/eval-report";
+} from "../registry/fragments/openrouter-chat/files/scripts/lib/eval-report";
 
 const models = ["synthetic/model-a", "synthetic/model-b"];
 

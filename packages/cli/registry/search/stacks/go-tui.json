@@ -10,19 +10,12 @@
     "reviewedAt": null
   },
   "summary": "A full-screen Go terminal app on Bubble Tea with keyboard navigation, styled screens and rendered frames checked against snapshots.",
-  "description": "Start a Go terminal app that takes over the window, built on Bubble Tea with Bubbles components and Lip Gloss styles. A task list loads in the background, filters as you type and opens into a detail screen. Tests send key presses to the model and compare each screen with a saved golden frame, and the binary prints text or JSON when no terminal is attached, so scripts and coding agents can run it. Replace the task list with your own data and screens; add goreleaser to publish binaries.",
+  "description": "Start a Go terminal app that takes over the window, built on Bubble Tea with Bubbles components and Lip Gloss styles. A task list loads in the background, filters as you type and opens into a detail screen. Tests send key presses to the model and compare each screen with a saved golden frame, and the binary prints text or JSON when no terminal is attached, so scripts and coding agents can run it. Replace the task list with your own data and screens.",
   "seoDescription": "A Go terminal UI recipe on Bubble Tea with Bubbles and Lip Gloss, golden-frame tests and a text or JSON fallback when no terminal is attached.",
   "projectExamples": [
     {
       "title": "Log browser for a local service",
       "description": "Load log lines from a file in a command, show them in a filterable list, and open one entry with its fields on a detail screen."
-    },
-    {
-      "title": "Release dashboard with published binaries",
-      "description": "Show recent builds and their status in the terminal, then add goreleaser to ship the tool as archives on tagged GitHub releases.",
-      "withFragments": [
-        "goreleaser"
-      ]
     }
   ],
   "plain": {

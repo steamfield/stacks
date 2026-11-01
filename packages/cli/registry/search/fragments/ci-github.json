@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "ci-github",
   "source": {
-    "digest": "sha256:b20acb9046dbb1f29374731eef1c690dd3e73d15158439e2de8bdc00877aae00",
+    "digest": "sha256:1c099fa22510a75bccafea438548013ce56cd84eeafb201dfbe0c21b520baae4",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-01"
   },
   "summary": "Run the project's existing checks on GitHub pushes and pull requests, with a single required result and selective jobs for monorepos.",
   "description": "Run the project's existing checks on GitHub pushes and pull requests. The workflow reads tool versions from project files and gives branch protection one aggregate result; monorepos can filter work by affected area. Default-preset guidance includes SHA-pinned actions and limited permissions. The fragment defines CI configuration, while deployment and release publishing belong to separate fragments.",

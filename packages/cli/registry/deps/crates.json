@@ -34,7 +34,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "axum": {
@@ -50,7 +50,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "clap": {
@@ -68,7 +68,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "insta": {
@@ -86,7 +86,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "js-sys": {
@@ -104,7 +104,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "proptest": {
@@ -122,7 +122,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "ratatui": {
@@ -141,7 +141,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "serde": {
@@ -173,7 +173,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "serde_json": {
@@ -322,7 +322,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "tower": {
@@ -340,7 +340,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "tower-http": {
@@ -356,7 +356,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "tracing": {
@@ -406,7 +406,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "wasm-bindgen-test": {
@@ -424,7 +424,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     }
   }

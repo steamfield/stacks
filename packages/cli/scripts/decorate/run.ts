@@ -46,9 +46,11 @@ const review = Effect.fn("decorate.review")(function* (options: {
   if (bytes === undefined)
     return yield* Effect.fail(new Error(`${entry.id}: no search card to review.`));
   const card = yield* decodeSidecar(bytes);
-  if (options.restamp && card.source.reviewedAt === null)
+  // A model draft is the maintainer's own agent's copy, so restamping stamps it; a submitted
+  // author card is a stranger's public copy and still needs a person's --approve.
+  if (options.restamp && card.source.reviewedAt === null && card.source.by === "author")
     return yield* Effect.fail(
-      new Error(`${entry.id}: unread draft; use --approve after a person reviews it.`),
+      new Error(`${entry.id}: unread submission; use --approve after a person reviews it.`),
     );
   if (card.kind !== entry.kind || card.id !== entry.id)
     return yield* Effect.fail(new Error(`${entry.id}: sidecar identity does not match.`));

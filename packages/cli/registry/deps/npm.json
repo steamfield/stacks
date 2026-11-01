@@ -30,7 +30,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@astrojs/check": {
@@ -267,7 +267,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@hono/zod-openapi": {
@@ -299,7 +299,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@modelcontextprotocol/inspector": {
@@ -315,7 +315,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@modelcontextprotocol/server": {
@@ -331,7 +331,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nuxt/eslint": {
@@ -341,7 +341,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nuxt/test-utils": {
@@ -351,7 +351,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@openrouter/ai-sdk-provider": {
@@ -790,7 +790,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@xterm/headless": {
@@ -1250,7 +1250,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "orval": {
@@ -1298,7 +1298,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "pino-pretty": {
@@ -1308,7 +1308,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "postcss": {
@@ -1384,7 +1384,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "prettier-plugin-astro": {
@@ -1648,7 +1648,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "typescript": {
@@ -1724,7 +1724,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "vue-router": {
@@ -1734,7 +1734,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "vue-tsc": {
@@ -1744,7 +1744,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "wrangler": {
@@ -1828,7 +1828,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/common": {
@@ -1838,7 +1838,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/platform-express": {
@@ -1848,7 +1848,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/config": {
@@ -1864,7 +1864,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/swagger": {
@@ -1880,7 +1880,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/cli": {
@@ -1890,7 +1890,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/schematics": {
@@ -1900,7 +1900,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@nestjs/testing": {
@@ -1910,7 +1910,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "reflect-metadata": {
@@ -1920,7 +1920,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "rxjs": {
@@ -1930,7 +1930,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "class-validator": {
@@ -1948,7 +1948,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "class-transformer": {
@@ -1958,7 +1958,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@types/express": {
@@ -1968,7 +1968,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "supertest": {
@@ -1984,7 +1984,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "@types/supertest": {
@@ -1994,7 +1994,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "oxlint": {
@@ -2010,7 +2010,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     },
     "oxlint-tsgolint": {
@@ -2020,7 +2020,7 @@
         "by": "drafted",
         "model": "claude-opus-5-5",
         "promptVersion": 3,
-        "reviewedAt": null
+        "reviewedAt": "2026-11-01"
       }
     }
   }

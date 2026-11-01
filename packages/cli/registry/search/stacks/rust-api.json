@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "rust-api",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:709e6dd5146fa71fd29974867e47fcde87d0ea38b192a9af0147c241a71e671c",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Rust JSON web service on Axum and Tokio with one error format, request logs and a clean shutdown.",
   "description": "Write a Rust HTTP service on Axum and Tokio. One in-memory notes resource proves the shape: create, read and paged list routes, strict JSON input, and one error envelope for bad input, misses, wrong methods, timeouts and panics, all from a single status table. Request ids, JSON access logs, a body size limit and a request timeout come from tower-http. The server stops cleanly on SIGINT or SIGTERM and ships a health-check flag for containers. The recipe picks no database, sign-in or hosting; the store sits behind a trait a database can implement.",

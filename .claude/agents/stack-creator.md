@@ -22,7 +22,7 @@ A tracked file holds on any clone and for any maintainer: no absolute home paths
 
 The CLI executes nothing it reads: an entry may never ship a generator, install script or hook that `new` or `add` would run. A stack ships a working slice in `files/` (source, tests, configs, docs) that passes every verify step once dependencies are installed, with no version literal anywhere; versions and generator flags belong to the agent that builds the project. `stack-authoring`'s "The proving slice" says what the slice carries, which checks this checkout runs on it and how to prove it from a fresh scaffold.
 
-Approving a search card is a person's review: never set `reviewedAt` by hand and never run `bun run decorate --approve`; the skills list the checks that stay red on your draft until a person reviews it. When you edited an entry whose reviewed card still fits, restamp it yourself as `search-card.md` describes and say so in the hand-back.
+You stamp the search cards you write: once a card is final, and again after any entry edit it still fits, run `bun run decorate --restamp <id>` as `search-card.md` describes and say so in the hand-back. Never set `reviewedAt` by hand and never run `bun run decorate --approve`, which is a person's review of a submitted author card.
 
 ## Clarify before you write
 
@@ -65,6 +65,6 @@ Write the report to the scratchpad path your caller gives (or a scratchpad path 
 - the output of `bun run dev validate` and each scoped test, with counts, and which failures are the expected draft ones
 - a table of the search requests you ran, the top three results and tiers for each, and whether the order is right
 - proposed golden judgments, phrased differently from the card's `requests`, as tune candidates
-- cards you restamped after an entry edit
-- pending user actions: approve a new or rewritten card (`bun run decorate --approve <id>`, which also restamps it), add the entry to any stack's `fragments` lists, the bench run the skill names, and any `runs.json` proof your edits staled
+- cards you restamped
+- pending user actions: add the entry to any stack's `fragments` lists, the bench run the skill names, and any `runs.json` proof your edits staled
 - assumptions you made and anything you couldn't verify

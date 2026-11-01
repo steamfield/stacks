@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-mcp",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:a45fadada3fcf56ddf2d39b6420a40c355cac6d0b53041a31a066bbea3933fad",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Go MCP server that gives Claude Code and other AI hosts your own tools, built as one binary they start over stdio.",
   "description": "Start a Model Context Protocol server in Go on the official Go library. One unit-conversion tool proves the shape: its input and output are Go structs whose JSON Schemas the library derives, arguments are checked before the handler runs, and a caller's mistake comes back as a tool error the model can read and fix, while server faults and panics hide their cause and go to the log. Logs are JSON on stderr and a lint rule keeps prints off stdout, which belongs to the protocol. Tests call the tools through a real client in memory and by starting the built binary, and a dev client calls tools from the shell. It ships no remote HTTP transport, authentication or storage.",

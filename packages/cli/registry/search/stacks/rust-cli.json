@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "rust-cli",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:c5288386ef7bbc44e6d42c2e50fcc26e7f60c5f2b5a7e038f0848564aec8a81a",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Rust command-line tool built as one binary, with clap commands, TOML settings, coded errors and human or JSON output.",
   "description": "Write a Rust utility with clap subcommands and typed settings layered from defaults, TOML files, environment variables and flags. Each failure has a code, a fix suggestion and an exit status, printed as text or as JSON. Strict clippy lints, rustfmt and cargo-deny checks are set up, and tests run the built binary. The shipped config show command is the example to copy; your tool's own commands and any release packaging are still yours to add.",

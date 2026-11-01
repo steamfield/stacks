@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "python-cli",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:78db8e1fe778b900344bf584a4c24fd487201583d6f7242ca05974f62831ff6e",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Python command-line tool on Typer, packaged as a wheel, with layered settings, text or JSON output and fixed exit codes.",
   "description": "Write a Python command-line tool with Typer commands and pydantic-settings, layered from defaults, a TOML file, environment variables and flags. Commands print text or one JSON document, errors carry a suggestion and map to fixed exit codes, and logs go to stderr. uv and make run lint, strict typing and pytest, build the wheel and run it from a clean install. Add your tool's commands; publishing to PyPI is a step you set up yourself.",

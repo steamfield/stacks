@@ -33,7 +33,7 @@ What the slice carries, for any stack:
 
 Where a framework has a generator (Next.js, SvelteKit, Astro, React Router, Expo, Tauri), ship the durable parts of its output with the slice: the app source, its config files and the tests. Keep a generator step in Setup only for what can't ship as files (Expo or Tauri native project directories and icons, a lockfile), run into a subdirectory and merged without overwriting shipped files.
 
-`STACK.md` follows the slice. Open with "What stacks wrote" (one paragraph, ending "read the code before extending it"), as `go-cli` does; `typescript-api` says the same in its unheaded first paragraphs, and a converted stack uses the heading. Setup becomes: add the declared `deps` so they resolve to current releases, run the checks, update shipped code or config the installed release rejects without loosening a check, record toolchain versions, fill the README. Conventions shrink to rules new code must keep, each already followed by the shipped code; cut prose the code now carries. Keep every Gotcha that still applies. Keep `id`, `tags` and `description` unless the description becomes false. Keep `deps` to names the slice imports; a new name needs an allowlist row and a reviewed dependency card, which is a maintainer's step, so don't add one: report the need instead.
+`STACK.md` follows the slice. Open with "What stacks wrote" (one paragraph, ending "read the code before extending it"), as `go-cli` does; `typescript-api` says the same in its unheaded first paragraphs, and a converted stack uses the heading. Setup becomes: add the declared `deps` so they resolve to current releases, run the checks, update shipped code or config the installed release rejects without loosening a check, record toolchain versions, fill the README. Conventions shrink to rules new code must keep, each already followed by the shipped code; cut prose the code now carries. Keep every Gotcha that still applies. Keep `id`, `tags` and `description` unless the description becomes false. Keep `deps` to names the slice imports; a new name needs a dependency card (`search-card.md`) and an allowlist row, which is a maintainer's step, so don't add the row: report the need instead.
 
 Lessons from converting the twelve stacks:
 
@@ -55,7 +55,7 @@ The slice must compose with every default and optional fragment. Don't ship a fi
 - `validate` warns on a version literal in the config files it knows (`core/validate/version-sensitive.ts::VERSION_SENSITIVE`: package, TypeScript, Python, Go and Cargo manifests, the build and test tool configs it names, linters, Docker, workflows), and the bundled registry must stay warning-free (`tests/bundled-registry.test.ts`). It doesn't read `tauri.conf.json`, Expo's `app.json`, `rust-toolchain.toml`, Wrangler config, `next.config.*`, `svelte.config.js`, `react-router.config.ts`, `drizzle.config.ts` or `.prettierrc`, and it reads Compose files but doesn't flag a major-only image tag (`postgres:17`). Check those by hand. A manifest's own version needs two parts (`version = "0.1"`) or none where the format allows it; ship no `requires-python`, `rust-version` or `engines` line.
 - Every shipped file a tool reads is exercised by a verify step. Docs, editor settings (`.vscode/`, `.editorconfig`) and PR templates are exempt.
 - A `files/.gitignore` applies to this repository too, so a shipped path its patterns match (`build/`, `out/`, `next-env.d.ts`) passes the proof but never reaches a commit. Check `git status --ignored --porcelain packages/cli/registry/stacks/<id>` and add negations to the shipped `.gitignore` where needed, as `typescript-api`'s does.
-- The search card's digest covers the entry, so every `STACK.md` edit makes `search-stale` warn until the card is restamped (`search-card.md`). Restamp after your last edit; a card you had to rewrite stays a draft and keeps the registry red until a person approves it.
+- The search card's digest covers the entry, so every `STACK.md` edit makes `search-stale` warn until the card is restamped (`search-card.md`). Restamp after your last edit, including a card you wrote or rewrote.
 - The stack body stays under 2,000 words and each composed brief under its budget: `bun run dev validate --brief <id> --sandbox` and once with each default and optional fragment.
 - Tests pin composed output and brief prose. Find the ones naming the stack with `grep -rln '<id>' packages/cli/tests` (among them `gate-findings.test.ts`, `library-qa-*.test.ts`, `brief.test.ts`, `registry-hooks.test.ts`, `agent-harness.test.ts`, and for some stacks `registry-api-harness.test.ts`, `codex-api-harness.test.ts` and `mobile-dev-*.test.ts`). When the conversion moves a rule from prose into a shipped file, move the assertion with it onto the scaffolded file (`readFileSync` on the project the test scaffolds); never delete or loosen one. Regenerate `tests/fixtures/bundled-brief-digests.ts` keys as its header says.
 
@@ -92,7 +92,6 @@ From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind stack
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgments, and the pending user actions:
 
-- card approval (`bun run decorate --approve <id>`, which also restamps), for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
 - a bench run, `bun run bench <id> --agent claude` from `packages/cli` (`docs/maintaining.md`, "The bench"), before the stack counts as proven
 - if you edited a stack with `runs.json` records or a fragment in its default composition, that its ledger proof is now stale
 
@@ -104,6 +103,6 @@ A PR from `stacks submit` or the entry template carries an author card (`by: "au
 
 | Don't | Do |
 | --- | --- |
-| Setting `reviewedAt` by hand or running `--approve` | Leave a new or rewritten card a draft for a person; restamp only a reviewed card that still fits (`search-card.md`) |
+| Setting `reviewedAt` by hand or running `--approve` | Stamp your own card with `--restamp`; leave a submitted author card for a person to approve (`search-card.md`) |
 | Renaming an id to fix search | Fix the card and description; a rename is a release decision |
 | Tags chosen without checking which fragments they admit | Compose the brief with each admitted fragment |

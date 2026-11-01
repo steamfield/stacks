@@ -34,15 +34,15 @@ The editorial fields (`description`, `seoDescription`, `projectExamples`) are fo
 
 `plain` (directly after `projectExamples`) is the copy `show` and the directory lead with, written for someone who has never used this ecosystem: `whatItIs` (one sentence, at most 30 words), `goodAt` (2 or 3 jobs, at most 15 words each) and `notGoodAt` (1 to 3 limits, ideally naming what to use instead). Explain any unavoidable technical word in the same sentence, and keep it version-neutral (`plain-versioned` flags a version number). Every name in the entry's `deps` also needs a card in `registry/deps/<ecosystem>.json` (`whatItIs`, plus `goodAt`, `notGoodAt` and an `example` for a package a person would choose; support packages such as `@types/*` and plugins get `whatItIs` only), or `validate` reports `deps-missing`; follow the existing cards' tone.
 
-## Provenance: you write drafts, a person reviews
+## Provenance: you write the card and stamp it
 
-Approval is a person's: never set `reviewedAt` by hand and never run `bun run decorate --approve`, which refuses under an agent anyway. A new or rewritten card's text is model copy that ends up public, so a person reads it first.
+A card you write or rewrite starts as a draft: `source.by: "drafted"`, `model` set to your model id, `promptVersion` set to `PROMPT_VERSION` from `scripts/decorate/prompt.ts`, `reviewedAt: null`, and a placeholder `source.digest` (`sha256:` and 64 zeros). If you change any card field, reset `source` to a draft as above.
 
-Restamping is yours when you changed the entry and not its card. Reread the card against the edited entry; if every claim and request still fits, run `bun run decorate --restamp <id>` from `packages/cli` and name the restamp in your hand-back. The tool refuses to restamp an unread draft. If the card no longer fits, rewrite it instead.
+Once the card is final and its requests rank where they should ("Testing the card"), stamp it: `bun run decorate --restamp <id>` from `packages/cli` sets the review date and the digest against the entry as it stands. After any later entry edit, reread the card; if every claim and request still fits, restamp it, and if not, rewrite it and restamp. Name each restamp in your hand-back.
 
-A card you write or rewrite is a draft: `source.by: "drafted"`, `model` set to your model id, `promptVersion` set to `PROMPT_VERSION` from `scripts/decorate/prompt.ts`, `reviewedAt: null`, and a placeholder `source.digest` (`sha256:` and 64 zeros). If you change any card field, reset `source` to a draft as above.
+Never set `reviewedAt` by hand and never run `bun run decorate --approve`, which refuses under an agent anyway. Approval is for a submitted card (`by: "author"`): a stranger's copy that ends up public, so a person reads it first, and `--restamp` refuses an unread one.
 
-The pending user action for a draft is one command: read the card, then run `bun run decorate --approve <id>` from `packages/cli`. Approval also stamps the card against the current entry, so no restamp follows it; when a model draft's entry changed after drafting, it says so.
+A dependency card you add to `registry/deps/<ecosystem>.json` follows the same rule: `source.by: "drafted"`, your model id, `promptVersion` as above, and `reviewedAt` set to the date you wrote it.
 
 ## Testing the card
 
@@ -63,11 +63,9 @@ bun run test:unit tests/search-golden.test.ts tests/search-metadata-holdout.test
 
 `search-golden.test.ts` ranks the real registry against the golden set; a new entry that takes another entry's first-result query fails it, and that failure is yours to fix in your card. A new entry needs golden judgments (a stack two first-result queries, a fragment one relevant judgment), which are product decisions. Propose them in the hand-back, phrased differently from your own `requests`, as tune candidates; the maintainer adds them and picks the holdout split.
 
-## Checks that stay red on a new draft
+## Checks that stay red on a new entry
 
 Leave exactly these and report them; fix everything else:
 
-- `validate` warnings `search-stale` and `search-unreviewed` for your card
-- `tests/bundled-registry.test.ts`, failing on those two warnings
 - `tests/search-golden-coverage.test.ts`, failing on the new id's missing judgments
-- `tests/search-metadata-holdout.test.ts`, when resetting cards to drafts changes which reviewed cards it takes as prompt examples and the new example contains a golden query; it clears once the drafts are approved. A failure that names one of your own cards' requests is yours to fix.
+- `tests/search-metadata-holdout.test.ts`, when stamping changes which reviewed cards it takes as prompt examples and the new example contains a golden query. A failure that names one of your own cards' requests is yours to fix.

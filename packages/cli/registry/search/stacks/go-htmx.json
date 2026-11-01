@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-htmx",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:1d456775f520ed7f8c90ad17c123166c0c09c42b84134dce7d3e7af95cdf83db",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A server-rendered Go web app with templ components and htmx, where forms validate on the server and pages update without a JavaScript build.",
   "description": "Start a Go web app that renders HTML on the server. templ turns typed components into Go code, run through go tool, and a check fails when the generated code is stale. htmx, downloaded once and embedded in the binary, swaps parts of the page. One notes page proves the shape: its form posts with htmx and gets back the new item, invalid input comes back as the form with inline errors and a 422, and the same form works as a plain post without JavaScript. Request logging, an error page, cross-site post protection and graceful shutdown are wired in, and tests assert on the rendered HTML. The recipe picks no database, sign-in or CSS framework.",

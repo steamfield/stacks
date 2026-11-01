@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-grpc",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:a51f27851ab1a67db3dbae26cafbaedc452d07c811ea299c1234c44a22275564",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Go gRPC service defined in Protocol Buffers and served with Connect, so one port answers gRPC, gRPC-Web and JSON over HTTP.",
   "description": "Start a Go RPC service from a .proto contract. buf lints the schema, catches breaking changes and generates the Go code, all run through go tool, and a check fails when the generated code is stale. One notes service with create and get calls proves the shape: interceptors log each call and turn domain errors into gRPC status codes, panics and internal faults hide their cause, the standard health service and server reflection are registered, and the server drains and stops cleanly on SIGTERM. Tests call the real server over a loopback connection with every protocol. The recipe picks no database, authentication or TLS; put TLS at the proxy or load balancer.",

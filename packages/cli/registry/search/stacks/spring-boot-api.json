@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "spring-boot-api",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:e7213e2e56c5f8ded189cb42adecd9a77dd35ba147f86d4bc5e22662532e2201",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Java JSON web service on Spring Boot and Maven with one error format, request logs and null checks at compile time.",
   "description": "Write a Java HTTP service on Spring Boot with Maven. One in-memory notes resource proves the shape: create, read and paged list routes, strict JSON input, and one error envelope for bad input, misses, wrong methods and unexpected failures, all from a single error table. Request ids, JSON access logs, validated settings and Actuator come wired. The build formats code, catches nullness bugs and common mistakes at compile time, enforces a coverage floor and checks the layering with ArchUnit. The recipe picks no database, sign-in or hosting; the store sits behind an interface a database can implement.",

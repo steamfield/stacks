@@ -143,16 +143,19 @@ command clears a draft; when the entry changed since the card was stamped, it
 prints a line saying so. `--restamp` preserves every other field and refreshes
 only the digest and review date after an entry change that still fits a
 reviewed card. Authors can also write cards by hand.
-Restamping an unread draft is refused; use the guarded approval operation first.
-Agents may restamp a reviewed card after editing its entry, once they have
-reread the card and judged that it still fits, and they report each restamp;
-approving a new or rewritten card stays a person's step.
+A model draft (`by: "drafted"`) is the maintainer's own agent's copy, so
+`--restamp` also stamps an unread one, and agents stamp the cards they write
+once they're final, reporting each restamp. A submitted author card
+(`by: "author"`) is a stranger's copy: restamping an unread one is refused, and
+approving it stays a person's step. Dependency cards in `registry/deps/` follow
+the same rule: an agent's draft carries its `reviewedAt` date when written, and
+a submitted card waits for the maintainer.
 
 When dispatching agents to draft cards, provide the same prompt and examples at
 the current version in a checkout without the golden evaluation set. Do not read
 that set while drafting: requests must not echo holdout queries or five-word runs.
-Keep agent drafts unreviewed for a person to approve. Before approval, check
-examples against the named host and additions: a recipe's health slice is not a
+Before stamping or approving a card, check examples against the named host and
+additions: a recipe's health slice is not a
 finished product, optional fragments are not included by implication, and a
 product idea cannot establish authentication, persistence or compliance.
 `stacks validate` checks example selections with the existing metadata selection
@@ -162,8 +165,8 @@ The richer fields stay optional in schema version 1 for existing author cards
 and carried-forward index data. Bundled cards should have complete editorial
 coverage. See `docs/authoring.md` for field budgets and description precedence.
 The bundled 30-card enrichment was approved for landing by the maintainer on
-2026-10-28. Future drafts still need explicit maintainer approval; a successful
-draft or validation run does not authorize `--approve` under an agent.
+2026-10-28. Since 2026-11-01 agents stamp their own drafts; `--approve` still
+refuses under an agent.
 
 `build:index` publishes signed `v1/search.json` beside the index and names file.
 Each indexed entry has a card; a card whose baseline differs from a carried-forward

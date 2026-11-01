@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "spring-boot-web",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:616fc6412d547fb04c208ce31c1090a239764ef211553bac8eb4278dfa66bb59",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A server-rendered Java web app on Spring Boot with Thymeleaf pages, htmx partial updates and server-validated forms, built with Maven.",
   "description": "Write a Java web app that renders HTML on the server with Spring Boot, Spring MVC and Thymeleaf. One in-memory notes page proves the shape: a shared layout, an add form validated on the server that works with JavaScript off, htmx swapping in only the changed part of the page, CSRF tokens from Spring Security and one table behind every error page. Request ids, JSON access logs, validated settings and a health check come wired, and tests read the rendered HTML with MockMvc and a browser without JavaScript. The recipe picks no database, sign-in or hosting.",

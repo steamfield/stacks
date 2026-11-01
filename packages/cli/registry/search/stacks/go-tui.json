@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-tui",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:04867bb99c275e8cdbec9144dd2324b35e8b213981948147830c7ceb7090e125",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A full-screen Go terminal app on Bubble Tea with keyboard navigation, styled screens and rendered frames checked against snapshots.",
   "description": "Start a Go terminal app that takes over the window, built on Bubble Tea with Bubbles components and Lip Gloss styles. A task list loads in the background, filters as you type and opens into a detail screen. Tests send key presses to the model and compare each screen with a saved golden frame, and the binary prints text or JSON when no terminal is attached, so scripts and coding agents can run it. Replace the task list with your own data and screens.",

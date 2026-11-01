@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "nuxt",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:6e1a447f9c8739eca60e62838f91780615dd945b318aa6737b389b87e9197b0f",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A full-stack Nuxt app for Vue on Node, with server API routes, useFetch pages and a zod-validated form.",
   "description": "Start a Nuxt project in the app directory layout, built into a Node server you run with node. A page loads data from the app's own server routes with useFetch while rendering on the server, and a form posts to a route that validates with zod and returns field errors the form shows. Runtime config is validated on the server, and requests are logged as JSON lines. Vitest covers schemas and server code in Node and components in Nuxt's test environment; Playwright drives the built server. There is no database, sign-in or hosting setup; add those for a real product.",

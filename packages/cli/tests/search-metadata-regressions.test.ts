@@ -71,7 +71,7 @@ verify:
   });
 }
 
-test("restamp cannot mark an unread model draft reviewed", async () => {
+test("restamp under an agent stamps an unread model draft against the current entry", async () => {
   const f = decorateWorkspace(space.dir());
   const ref = { kind: "stack", id: "second" } as const;
   const card = await stamp(f.registry, ref);
@@ -81,12 +81,29 @@ test("restamp cannot mark an unread model draft reviewed", async () => {
       ...card,
       source: {
         ...card.source,
+        digest: `sha256:${"0".repeat(64)}`,
         by: "drafted",
         model: "fixture/model",
         promptVersion: 1,
         reviewedAt: null,
       },
     }),
+  );
+  const result = await decorate(f, ["--restamp", ref.id], { env: { CLAUDECODE: "1" } });
+  expect(result.status, result.stderr).toBe(0);
+  const after = readJson(cardPath(f.registry, ref));
+  expect(after).toMatchObject({
+    source: { by: "drafted", digest: card.source.digest, reviewedAt: expect.any(String) },
+  });
+});
+
+test("restamp cannot mark an unread submitted author card reviewed", async () => {
+  const f = decorateWorkspace(space.dir());
+  const ref = { kind: "stack", id: "second" } as const;
+  const card = await stamp(f.registry, ref);
+  put(
+    cardPath(f.registry, ref),
+    JSON.stringify({ ...card, source: { ...card.source, by: "author", reviewedAt: null } }),
   );
   const before = readFileSync(cardPath(f.registry, ref), "utf8");
   const result = await decorate(f, ["--restamp", ref.id], { env: { CLAUDECODE: "1" } });

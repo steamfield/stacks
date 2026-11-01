@@ -40,7 +40,6 @@ From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind fragm
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgment, and the pending user actions:
 
-- card approval (`bun run decorate --approve <id>`, which also restamps), for a new or rewritten card (a card you restamped after an entry edit is listed as done, not pending)
 - any stack whose `fragments` lists should offer it
 - a bench run with the fragment, `bun run bench <stack> --with <id> --agent claude` from `packages/cli`, for an app or any fragment that changes what verify runs
 - if the fragment is in a stack's default composition, that the stack's `runs.json` proof is now stale
@@ -53,6 +52,6 @@ Follow "Reviewing a submitted stack" in `stack-authoring`; for a fragment, also 
 
 | Don't | Do |
 | --- | --- |
-| Setting `reviewedAt` by hand or running `--approve` | Leave a new or rewritten card a draft for a person; restamp only a reviewed card that still fits (`stack-authoring/search-card.md`) |
+| Setting `reviewedAt` by hand or running `--approve` | Stamp your own card with `--restamp`; leave a submitted author card for a person to approve (`stack-authoring/search-card.md`) |
 | Renaming a required fragment to fix search | Fix the name field, description and card |
 | Misspellings on one card | Aliases in `vocabulary.json` |

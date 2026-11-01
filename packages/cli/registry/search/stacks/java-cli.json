@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "java-cli",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:53cfabde04ea81a4469a6fa3ad2fa6aa5a91b7a44a64ece7a078eb9bfb134851",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A Java command-line program on picocli, built with Maven into one runnable jar with config files, exit codes and JSON output.",
   "description": "Write a Java command-line program with picocli subcommands and Maven. Settings layer from defaults, a TOML file, environment variables and flags, and every failure maps to a fixed exit code with a suggested fix. Results print as text or one JSON document, logs go to stderr, and the build shades every dependency into one jar that runs with java -jar. The build formats code, catches nullness bugs at compile time, enforces a coverage floor and tests the packaged jar. One config command proves the wiring; the recipe adds no product commands, release pipeline or native binary.",

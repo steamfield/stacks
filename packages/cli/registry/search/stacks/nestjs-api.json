@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "nestjs-api",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:e054c5fbf286c2abc907d01ab124cd45f76f7528781b5d89d9285a20e3e6d5e2",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-01"
   },
   "summary": "A NestJS JSON API on Node with feature modules, dependency injection, class-validator DTOs and Swagger docs.",
   "description": "Start a JSON API on NestJS, the framework that organizes a Node backend into modules, controllers and injectable services. Request bodies and queries are DTO classes checked by a global validation pipe, one exception filter turns every error into the same envelope with a request id, and Nest's JSON logger records one line per request. Swagger serves the OpenAPI document and docs page. An in-memory notes module shows list, get and create, with Vitest unit specs and Supertest contract tests on the real app module. Storage, accounts and deployment are left for you to add.",

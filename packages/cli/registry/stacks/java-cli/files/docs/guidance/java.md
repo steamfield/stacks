@@ -4,7 +4,7 @@ How Java code in this project is written. The shipped code follows every rule he
 
 ## Build
 
-- Maven runs only through the committed wrapper (`./mvnw`, or the make targets that call it). Never `mvn`, never a second build tool. The wrapper files (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`) change only through `mvn -N wrapper:wrapper`, run by a person.
+- Maven runs only through the committed wrapper (`./mvnw`, or the make targets that call it). Never `mvn`, never a second build tool. The wrapper files (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`) are generated once during setup (`mvn -N wrapper:wrapper -Dtype=only-script`), and after that change only when a person upgrades Maven with `./mvnw wrapper:wrapper`.
 - `.java-version` names the JDK major; the Makefile derives `JAVA_HOME` from it when unset, and `pom.xml`'s `java.version` must match it (`make env` checks).
 - Every version lives in a `<properties>` entry of `pom.xml`. Jackson, SLF4J and JUnit come from their BOMs in `<dependencyManagement>`, so those dependencies have no `<version>`; any other library or plugin gets a `<name>.version` property.
 - Keep the build's checks: Enforcer's Java version and dependency convergence, `-Xlint:all` with `failOnWarning`, Error Prone with NullAway, Spotless and the JaCoCo floor. A check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, as `Main.terminal` does, never a weaker build.

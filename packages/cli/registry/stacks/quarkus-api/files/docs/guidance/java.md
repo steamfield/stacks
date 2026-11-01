@@ -4,7 +4,7 @@ How Java code in this project is written. The shipped code follows every rule he
 
 ## Build
 
-- Maven runs only through the committed wrapper (`./mvnw`, or the make targets that call it). Never `mvn`, never a second build tool. The wrapper files (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`) change only through `mvn -N wrapper:wrapper`, run by a person.
+- Maven runs only through the committed wrapper (`./mvnw`, or the make targets that call it). Never `mvn`, never a second build tool. The wrapper files (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`) are generated once during setup (`mvn -N wrapper:wrapper -Dtype=only-script`), and after that change only when a person upgrades Maven with `./mvnw wrapper:wrapper`.
 - `.java-version` names the JDK major; the Makefile derives `JAVA_HOME` from it when unset, and `pom.xml`'s `java.version` must match it (`make env` checks).
 - Every version lives in a `<properties>` entry of `pom.xml`. The Quarkus platform BOM manages the Quarkus extensions and most libraries, so a managed dependency has no `<version>`; an unmanaged one gets a `<name>.version` property. Plugins always get a property; the Quarkus Maven plugin shares the platform's.
 - Add a Quarkus capability as its extension (`io.quarkus:quarkus-<name>`, managed by the BOM), not as the plain library underneath it: the extension does the build-time wiring the library alone lacks.

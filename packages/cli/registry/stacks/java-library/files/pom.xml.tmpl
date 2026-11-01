@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Setup sets the group id to a namespace the author controls (STACK.md). -->
+    <!-- Setup sets the group id to a namespace the author controls (.stacks/BRIEF.md). -->
     <groupId>app</groupId>
     <artifactId>{{project_slug}}</artifactId>
     <version>0.1.0-SNAPSHOT</version>
@@ -30,7 +30,7 @@
 
     <!--
       Every version is an empty property that Setup fills from Maven Central
-      (STACK.md); `make install` refuses to run while one is empty. JUnit takes
+      (.stacks/BRIEF.md); `make install` refuses to run while one is empty. JUnit takes
       its versions from its BOM. src/it/consumer/pom.xml reads the same
       properties through the invoker's @name@ filtering.
     -->

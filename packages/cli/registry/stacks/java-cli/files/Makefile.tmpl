@@ -29,11 +29,11 @@ help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-17s %s\n", $$1, $$2}'
 
 env: ## Check the JDK, the Maven wrapper and the pom.xml versions
-	@test -n "$(JAVA_MAJOR)" || { echo "No .java-version: write the JDK major to it (STACK.md Setup)." >&2; exit 1; }
+	@test -n "$(JAVA_MAJOR)" || { echo "No .java-version: write the JDK major to it (Setup in .stacks/BRIEF.md)." >&2; exit 1; }
 	@test -n "$$JAVA_HOME" || { echo "No JDK $(JAVA_MAJOR) found: brew install openjdk@$(JAVA_MAJOR), or set JAVA_HOME." >&2; exit 1; }
 	@test -x ./mvnw || { echo "No ./mvnw: run mvn -N wrapper:wrapper -Dtype=only-script once and commit mvnw, mvnw.cmd and .mvn/wrapper/." >&2; exit 1; }
 	@grep -q "<java.version>$(JAVA_MAJOR)</java.version>" pom.xml || { echo "pom.xml's <java.version> must be $(JAVA_MAJOR), the major in .java-version." >&2; exit 1; }
-	@! grep -nE '<[A-Za-z0-9_.-]+\.version></' pom.xml || { echo "Fill the empty pom.xml version properties above from Maven Central (STACK.md Setup)." >&2; exit 1; }
+	@! grep -nE '<[A-Za-z0-9_.-]+\.version></' pom.xml || { echo "Fill the empty pom.xml version properties above from Maven Central (Setup in .stacks/BRIEF.md)." >&2; exit 1; }
 
 install: env ## Check the toolchain and download dependencies and plugins
 	$(MVN) -q dependency:go-offline

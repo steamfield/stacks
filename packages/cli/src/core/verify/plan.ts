@@ -50,7 +50,7 @@ export function planVerify(
   for (const step of steps) {
     const tag = step.tags.find((item) => options.skipTags.includes(item));
     if (step.skipByDefault && !options.all && !options.only.includes(step.name))
-      skipped.set(step.name, "skipped by default in this preset; --all runs it");
+      skipped.set(step.name, "skipped by default in this preset; --all or --only <name> runs it");
     else if (
       options.only.length &&
       (step.phase === "check" || step.phase === "serve") &&

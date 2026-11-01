@@ -17,7 +17,7 @@ const space = workspace();
 afterEach(() => space.release());
 
 test.each([undefined, "INFO"])(
-  "verify removes CLI settings but preserves manifest LOG_LEVEL=%s and general variables",
+  "verify removes STACKS_* settings, passes the caller's LOG_LEVEL over manifest %s and keeps general variables",
   async (level) => {
     const root = space.dir();
     writeProject(root, [{ name: "environment", run: "env > env.txt" }], {
@@ -53,7 +53,7 @@ test.each([undefined, "INFO"])(
         .split("\n")
         .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]),
     );
-    expect(env.LOG_LEVEL).toBe(level);
+    expect(env.LOG_LEVEL).toBe("info");
     expect(Object.keys(env).filter((name) => name.startsWith("STACKS_"))).toEqual([
       "STACKS_PROJECT_VALUE",
     ]);

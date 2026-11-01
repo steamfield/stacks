@@ -101,14 +101,8 @@ const needsAgentsMd = Effect.fn("add.needsAgentsMd")(function* (
     ...composition.fragments,
     ...(composition.addNotes ?? []).map((note) => note.entry),
   ];
-  if (
-    !entries.some((entry) =>
-      /(?:^#{1,6}[ \t]+`?AGENTS\.md`?(?:[ \t]|$)|AGENTS\.md[^\n]*section|section[^\n]*AGENTS\.md)/im.test(
-        entry.body,
-      ),
-    )
-  )
-    return false;
+  // Entries ask for AGENTS.md sections under a heading naming the file (`## AGENTS.md`).
+  if (!entries.some((entry) => /^#{1,6}[ \t][^\n]*AGENTS\.md/m.test(entry.body))) return false;
   if (plan.write.some((file) => file.path === "AGENTS.md")) return false;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;

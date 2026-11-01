@@ -164,9 +164,7 @@ export function compose(
       agents: options.agents,
       files: yield* planFiles(registry, entries, options.agents, stack?.id ?? null),
       verify: yield* steps(entries, app, sandbox),
-      commands: Object.fromEntries(
-        new Map(entries.flatMap((entry) => Object.entries(entry.meta.commands))),
-      ),
+      commands: mergeCommands(entries),
       env: yield* mergeEnv(entries),
       decisions: entries.flatMap((entry) =>
         entry.meta.decisions.map((text) => ({
@@ -264,8 +262,13 @@ function steps(entries: ReadonlyArray<Entry>, app: Entry | null, sandbox: boolea
   });
 }
 
+/** `commands` in composition order; a later entry's command replaces an earlier one's. */
+export function mergeCommands(entries: ReadonlyArray<Entry>): Record<string, string> {
+  return Object.fromEntries(entries.flatMap((entry) => Object.entries(entry.meta.commands)));
+}
+
 /** `env` in composition order; two different defaults for one key is a conflict. */
-function mergeEnv(entries: ReadonlyArray<Entry>) {
+export function mergeEnv(entries: ReadonlyArray<Entry>) {
   return Effect.gen(function* () {
     const env = new Map<string, { value: string; owner: Entry }>();
     for (const entry of entries)

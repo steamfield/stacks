@@ -22,7 +22,7 @@ verify:
     run: "lefthook dump | awk '/^pre-commit:/{h=1;next} /^pre-push:/{h=2;next} /^[^ ]/{h=0} h&&/^ +(- )?(run|script):/{ok[h]=1} END{exit !(ok[1]&&ok[2])}'"
   - name: git-hooks-commit-msg
     layer: test
-    run: "! test -f .lefthook/commit-msg/conventional-commits.sh || { m=$(mktemp) && printf 'wip\\n' > \"$m\" && ! lefthook run commit-msg --no-auto-install \"$m\" && printf 'feat: check commit messages\\n' > \"$m\" && lefthook run commit-msg --no-auto-install \"$m\"; r=$?; rm -f \"$m\"; exit $r; }"
+    run: "test -f .lefthook/commit-msg/conventional-commits.sh && { m=$(mktemp) && printf 'wip\\n' > \"$m\" && ! lefthook run commit-msg --no-auto-install \"$m\" && printf 'feat: check commit messages\\n' > \"$m\" && lefthook run commit-msg --no-auto-install \"$m\"; r=$?; rm -f \"$m\"; exit $r; }"
 ---
 
 # Git hooks (lefthook)

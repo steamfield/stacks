@@ -5,7 +5,14 @@ import type { Finding } from "../../schemas/validate";
 import { targetAgents } from "../compose/agents";
 import { type ComposeOptions, type Composition, compose } from "../compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../compose/files";
-import { type Entry, isFragment, isStack, shippedPath } from "../registry/entry";
+import {
+  type Entry,
+  isFragment,
+  isStack,
+  shippedOnlyFor,
+  shippedPath,
+  shipsFor,
+} from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { compositionPlans, describe, replacementDefaults } from "./compositions";
 import type { Source } from "./sources";
@@ -66,22 +73,15 @@ function overlayPlans(view: SourceView, stack: Entry) {
     .filter((entry): entry is Entry => "meta" in entry)
     .filter(isFragment)
     .filter((entry) =>
-      view.sources.get(entry.dir)?.files.some((file) => {
-        const condition = shippedPath(file.source)?.condition;
-        return condition?.kind === "stack" && condition.id === stack.id;
-      }),
+      view.sources
+        .get(entry.dir)
+        ?.files.some((file) => shippedOnlyFor(file.source, "stack", stack.id)),
     )
     .map((entry) => ({ with: [entry.id], without: replacementDefaults(view, stack, entry.id) }));
 }
 
 function selectedSource(source: string, agents: ReadonlyArray<string>, stack: string): boolean {
-  const shipped = shippedPath(source);
-  if (!shipped) return false;
-  const condition = shipped.condition;
-  return (
-    !condition ||
-    (condition.kind === "agent" ? agents.includes(condition.id) : condition.id === stack)
-  );
+  return shippedPath(source) !== undefined && shipsFor(source, agents, stack);
 }
 
 const renderRun = (view: SourceView, { stack, preset, plan }: CompositionRun, state: RenderState) =>
@@ -100,10 +100,9 @@ const renderRun = (view: SourceView, { stack, preset, plan }: CompositionRun, st
     if (!entries.some((entry) => view.entries.some((wanted) => wanted.dir === entry.dir))) return;
     const agents = AgentId.literals.filter((agent) =>
       entries.some((entry) =>
-        view.sources.get(entry.dir)?.files.some((file) => {
-          const condition = shippedPath(file.source)?.condition;
-          return condition?.kind === "agent" && condition.id === agent;
-        }),
+        view.sources
+          .get(entry.dir)
+          ?.files.some((file) => shippedOnlyFor(file.source, "agent", agent)),
       ),
     );
 

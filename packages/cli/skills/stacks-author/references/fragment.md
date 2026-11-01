@@ -64,7 +64,7 @@ Follow the skeleton's sections:
 - **What to add**: the files and changes, as instructions for the building agent.
 - **Tool configuration**: what the tool must enforce, written for the installed version.
 - **Verify**: what the fragment's verify step checks.
-- **AGENTS.md**: the section the project's `AGENTS.md` gets, so later agents know the capability exists and how to use it.
+- **AGENTS.md**: the section the project's `AGENTS.md` gets, so later agents know the capability exists and how to use it. Put it under a heading naming the file (`## AGENTS.md`): `add` into a repo without one then asks the agent to create it.
 
 Give the fragment a verify step that checks its own deliverable: its config is valid, its command runs, its service comes up. Services that start and stop use `setup` and `teardown` phases (`make db-up`, `make db-down`). Declare every command verify calls in `commands`. Keep the body under 1,000 words.
 

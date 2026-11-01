@@ -2,7 +2,7 @@ import type { AgentId } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import { EntryInvalid } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
-import { type Entry, type EntryFile, entryRef, outputPath, shippedPath } from "../registry/entry";
+import { type Entry, type EntryFile, entryRef, outputPath, shipsFor } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import type { PlannedFile } from "./compose";
 import { conflict, parties } from "./conflicts";
@@ -32,12 +32,6 @@ const checkPlannedPath = (path: string) =>
 
 type Writer = { entry: Entry; source: string; template: boolean; mode: number };
 
-function selected(file: EntryFile, agents: ReadonlyArray<AgentId>, stack: string | null): boolean {
-  const condition = shippedPath(file.source)?.condition;
-  if (condition?.kind === "agent") return agents.some((id) => id === condition.id);
-  return condition?.kind !== "stack" || condition.id === stack;
-}
-
 function fileWriters(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
@@ -48,7 +42,7 @@ function fileWriters(
     const byPath = new Map<string, Writer[]>();
     const addWriter = (entry: Entry, file: EntryFile) =>
       Effect.gen(function* () {
-        if (!selected(file, agents, stack)) return;
+        if (!shipsFor(file.source, agents, stack)) return;
         // A template needs a name before the suffix: a file called just `.tmpl` is copied as is.
         const path = outputPath(file);
         const template = path !== file.path;

@@ -1162,6 +1162,14 @@ test("a directory under stacks/ or fragments/ with no markdown file, or the othe
   ]);
 });
 
+test("a registry root inside a directory named stacks/ is a registry, as in node_modules/@steamfield/stacks/registry", async () => {
+  const root = join(temp(), "stacks", "registry");
+  stack(root, "fine");
+  const result = await report([root]);
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.report.findings.filter((f) => f.severity !== "note")).toEqual([]);
+});
+
 test("a stacks/ the project registry skips as a symlink is one registry finding, not a newer schema_version per entry", async () => {
   const home = temp();
   const elsewhere = join(home, "elsewhere");
@@ -1640,6 +1648,23 @@ test("overlays reject unknown or unadmitted stacks and duplicate shared paths", 
     expect(only(got.findings, code)).toEqual([
       expect.objectContaining({ severity: "error", entry: "overlay" }),
     ]);
+});
+
+test("a stack with a stacks/ directory is an overlay-fragment-only error, since new never ships it", async () => {
+  const root = temp();
+  const entry = stack(root, "host");
+  mkdirSync(join(entry, "stacks", "other"), { recursive: true });
+  writeFileSync(join(entry, "stacks", "other", "lost.txt"), "bytes");
+  const { status, report: got } = await report([root]);
+  expect(status).toBe(2);
+  expect(only(got.findings, "overlay-fragment-only")).toEqual([
+    expect.objectContaining({
+      severity: "error",
+      kind: "stack",
+      entry: "host",
+      file: "stacks/host/STACK.md",
+    }),
+  ]);
 });
 
 test("shipped files reject conditional markers in shared, adapter and stack files but accept fill", async () => {

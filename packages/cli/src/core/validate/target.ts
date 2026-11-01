@@ -80,17 +80,24 @@ export const resolveTarget = (given: string | undefined) =>
         return false;
       });
 
+    // A fragment can hold stacks/ overlays without becoming a registry root itself, and a
+    // registry can sit in a directory named stacks/ (node_modules/@steamfield/stacks/registry):
+    // the entry's own markdown file decides.
+    const entryOrRegistry = (at: string) =>
+      Effect.gen(function* () {
+        const entry = yield* entryDirectory(at);
+        if (entry && (yield* hasEntryFile(at))) return entry;
+        return (yield* registryDirectory(at)) ?? entry;
+      });
+
     if (given === undefined) {
       if (!bundled.found) return yield* missing(bundled.path);
       return { root: bundled.path, bundled: true } satisfies Target;
     }
     const at = path.resolve(host.cwd, given);
     if (!(yield* isDirectory(at))) return yield* missing(at);
-    // A fragment can hold stacks/ overlays without becoming a registry root itself.
-    const entry = yield* entryDirectory(at);
-    if (entry) return entry;
-    const root = yield* registryDirectory(at);
-    if (root) return root;
+    const found = yield* entryOrRegistry(at);
+    if (found) return found;
     // An entry outside a `stacks/` or `fragments/` directory belongs to no registry.
     if (yield* hasEntryFile(at)) return yield* missing(at);
     if (yield* isBundled(at)) return { root: at, bundled: true } satisfies Target;

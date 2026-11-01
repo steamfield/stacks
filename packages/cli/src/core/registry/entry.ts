@@ -60,6 +60,26 @@ export function shippedPath(source: string):
   };
 }
 
+/** Whether a source is one agent's adapter file or one stack's overlay file. */
+export function shippedOnlyFor(source: string, kind: "agent" | "stack", id: string): boolean {
+  const condition = shippedPath(source)?.condition;
+  return condition?.kind === kind && condition.id === id;
+}
+
+/**
+ * Whether a source ships to a project for these agents and host stack: shared files always, an
+ * adapter for a targeted agent, an overlay for its own stack. Composition and validate share it.
+ */
+export function shipsFor(
+  source: string,
+  agents: ReadonlyArray<string>,
+  stack: string | null,
+): boolean {
+  const condition = shippedPath(source)?.condition;
+  if (!condition) return true;
+  return condition.kind === "agent" ? agents.includes(condition.id) : condition.id === stack;
+}
+
 /** Output path of a shipped file; a literal `.tmpl` basename is copied unchanged. */
 export function outputPath(file: Pick<EntryFile, "path">): string {
   const suffix = ".tmpl";

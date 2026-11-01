@@ -406,7 +406,9 @@ test("conflicting releases fail in either selection order before creating a proj
 });
 
 test("effect-schema arrives only through effect's requires on a stack that never lists it [3.3c#2]", async () => {
-  // typescript-cli lists effect but not effect-schema, so dropping effect alone drops both.
+  // effect applies only to effect-tagged stacks, and each lists it by default, so no stack takes
+  // `--with effect` from neither. typescript-cli lists effect but not effect-schema: dropping
+  // effect drops both, and the default brings effect-schema only through effect's requires.
   const baseline = await scaffold("typescript-cli", "requirements-baseline", [
     "--without",
     "effect",

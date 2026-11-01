@@ -1,6 +1,6 @@
 # Bundled fragment audit
 
-Status: IN PROGRESS 2026-10-31. Audit done; a devil's-advocate pass checked the plan against the code and its corrections are folded in below.
+Status: EXECUTED 2026-11-01 (all 23 fragments fixed, two rounds of real installs QA'd and their findings applied, CLI defects fixed, code review applied; bench runs for stacks whose default compositions changed, and approval of the drafted openrouter-chat card, remain the maintainer's steps). A devil's-advocate pass checked the plan against the code before execution and its corrections are folded in below.
 
 The goal is a fragment suite where adding any one fragment to a project lets a coding agent set up that capability well configured, following the tool's ecosystem conventions as they stand today, and proven by `stacks verify`. Fourteen of the 23 fragments need significant rework against that bar, and three CLI defects make every `add` worse than the matching `new`.
 

@@ -3,7 +3,7 @@ import type { Finding } from "../../schemas/validate";
 import { mergeAddManifest } from "../add/manifest";
 import { renderBrief } from "../brief/render";
 import { targetAgents } from "../compose/agents";
-import { compose } from "../compose/compose";
+import { compose, mergeCommands, mergeEnv } from "../compose/compose";
 import { fitsStack } from "../compose/selection";
 import { buildManifest } from "../manifest";
 import { type Entry, isFragment, isStack } from "../registry/entry";
@@ -145,6 +145,8 @@ const canonicalHost = Effect.fn("validate.addHost")(function* (
   const base = result.success;
   const fragments = base.fragments.filter((entry) => entry.id !== fragment.id);
   const entries = [base.stack, ...fragments];
+  // A subset of a composition that merged cleanly can't conflict.
+  const env = yield* Effect.orDie(mergeEnv(entries));
   return yield* buildManifest(
     {
       ...base,
@@ -152,8 +154,8 @@ const canonicalHost = Effect.fn("validate.addHost")(function* (
       verify: base.verify.filter(
         (step) => step.owner.kind !== "fragment" || step.owner.id !== fragment.id,
       ),
-      commands: Object.fromEntries(entries.flatMap((entry) => Object.entries(entry.meta.commands))),
-      env: Object.fromEntries(entries.flatMap((entry) => Object.entries(entry.meta.env))),
+      commands: mergeCommands(entries),
+      env,
     },
     { briefWords: 0 },
   );

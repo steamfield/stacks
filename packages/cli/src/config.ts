@@ -88,7 +88,13 @@ const CLI_ENV = {
   indexUrl: "STACKS_INDEX_URL",
   devApiUrl: "STACKS_DEV_API_URL",
 } as const;
-export const CLI_SETTING_NAMES: ReadonlyArray<string> = Object.values(CLI_ENV);
+/**
+ * The settings verify removes from a step's environment. `LOG_LEVEL` stays: projects read the same
+ * name for their own logging, and a person running `LOG_LEVEL=debug stacks verify` means it for them.
+ */
+export const CLI_SETTING_NAMES: ReadonlyArray<string> = Object.values(CLI_ENV).filter(
+  (name) => name !== CLI_ENV.logLevel,
+);
 /**
  * The variables that point git at a repository, work tree, index or object store instead of
  * letting it discover one from its working directory: `childEnv`'s `remove` list for the CLI's

@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "effect-otlp",
   "source": {
-    "digest": "sha256:a098d78797b6eae4d96c3a9f9928a34660898fb33740bff74cfc68a5553ebfad",
+    "digest": "sha256:c65a63e54f9b2893c2c6c5b83c43c2db00d0f6b3e09fbb18885cab4c3a10537d",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-01"
   },
   "summary": "Add observability to an Effect server: traces, logs and metrics exported to an OpenTelemetry collector, with trace ids in the server logs.",
   "description": "Add OpenTelemetry to the Effect server in an API, Astro or React Router project. One observability layer exports traces, logs and metrics over OTLP when an endpoint is configured and does nothing otherwise, so development and tests need no collector. Each request gets one server span named by its route, log records carry trace ids, and defect messages stay out of exported data. Tests use an in-memory tracer and a loopback receiver. Browser code is not instrumented, and choosing and running a telemetry backend is left to the project.",

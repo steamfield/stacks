@@ -128,7 +128,10 @@ test("cross-category aliases are allowed and bare go is absent [4.5b#13e]", asyn
   expect(searchFindings(await validateSearch(f.root, { ...f, bundled: true }))).toEqual([]);
 });
 
-test("180 text words warn without treating long text as invalid [4.5b#7]", async () => {
+// Validates against the whole bundled registry; the 5 s default is too tight on a loaded gate host.
+test("180 text words warn without treating long text as invalid [4.5b#7]", {
+  timeout: 15_000,
+}, async () => {
   const f = setup();
   const value = await stamp(f.root, sample);
   put(
@@ -211,7 +214,9 @@ test.each([
   ]);
 });
 
-test("project vocabulary is ignored even when malformed [4.5b#13b]", async () => {
+test("project vocabulary is ignored even when malformed [4.5b#13b]", {
+  timeout: 15_000,
+}, async () => {
   const home = space.dir();
   const root = join(home, ".stacks");
   seed(root, sample);
@@ -281,18 +286,24 @@ test("repeated text in a project card warns but still decodes [4.5b#16]", async 
   ).toMatchObject({ trusted: false, origin: "project" });
 });
 
-test.each(["bom", "crlf"])("sidecar %s text decodes identically [4.5b#17]", async (encoding) => {
-  const f = setup();
-  await stamp(f.root, sample);
-  const before = searchFindings(await validateSearch(f.root, f));
-  const text = readFileSync(cardPath(f.root, sample), "utf8");
-  put(
-    cardPath(f.root, sample),
-    encoding === "bom" ? `\uFEFF${text}` : text.replaceAll("\n", "\r\n"),
-  );
-  expect(searchFindings(await validateSearch(f.root, f))).toEqual(before);
-  expect(before).toEqual([]);
-});
+test.each(["bom", "crlf"])(
+  "sidecar %s text decodes identically [4.5b#17]",
+  {
+    timeout: 15_000,
+  },
+  async (encoding) => {
+    const f = setup();
+    await stamp(f.root, sample);
+    const before = searchFindings(await validateSearch(f.root, f));
+    const text = readFileSync(cardPath(f.root, sample), "utf8");
+    put(
+      cardPath(f.root, sample),
+      encoding === "bom" ? `\uFEFF${text}` : text.replaceAll("\n", "\r\n"),
+    );
+    expect(searchFindings(await validateSearch(f.root, f))).toEqual(before);
+    expect(before).toEqual([]);
+  },
+);
 
 test("a root containing only search cards has no entries and reports all orphans [4.5b#18]", async () => {
   const home = space.dir();

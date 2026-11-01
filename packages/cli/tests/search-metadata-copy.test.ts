@@ -48,7 +48,8 @@ test("copying a bundled entry preserves its card bytes and refuses a second writ
       severity,
     })),
   ).toEqual([{ check: "search-stale", severity: "warning" }]);
-});
+  // Validates the copied root against the whole bundled registry, which outgrew the 5 s default.
+}, 30_000);
 
 test("copying an entry without a card leaves the user search directory absent [4.5b#19]", async () => {
   const home = space.dir();

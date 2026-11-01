@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "rust-wasm",
   "source": {
-    "digest": "sha256:07d151bf70593d4623d608edffa7ef137b98d66b6553a3da2ee37b27d7f37e5c",
+    "digest": "sha256:91d278e4e90c27d9511474ab9a029c1a0293c9306449e52bd22953a4e7058db1",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,

@@ -1,6 +1,6 @@
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
-import { type Entry, isRejected, type RejectedEntry } from "../registry/entry";
+import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
 import { defaultRoots, Registry, type RegistryRoots } from "../registry/registry";
 import { addCompositionChecks } from "./add-compositions";
 import { authorChecks } from "./authors";
@@ -95,6 +95,21 @@ export function compareFindings(a: Finding, b: Finding): number {
 const sizeRank = { body: 0, composed: 1, shipped: 2 } as const;
 
 /**
+ * The entries whose sources a check can read: the validated ones and every entry they compose
+ * with. A validated fragment composes with any stack and its fragments, so that reads them all;
+ * otherwise the validated stacks compose only with fragments, and reading every other origin's
+ * stacks would cost time that grows with the bundled registry for nothing.
+ */
+function sourceEntries(
+  all: ReadonlyArray<Entry | RejectedEntry>,
+  validated: ReadonlyArray<Entry | RejectedEntry>,
+): ReadonlyArray<Entry> {
+  const entries = all.filter((item): item is Entry => !isRejected(item));
+  if (entries.some((item) => validated.includes(item) && isFragment(item))) return entries;
+  return entries.filter((item) => validated.includes(item) || isFragment(item));
+}
+
+/**
  * Validates the entries under `target.root` (or the one entry `target.only` names). Never stops
  * at the first bad entry: every problem is a finding. Fails only when a root can't be read.
  * `submission` adds the readiness checks for the public registry (`validate --submission`).
@@ -118,7 +133,7 @@ export const validate = (target: Target, options: { submission?: boolean } = {})
           entries: validated.filter((item): item is Entry => !isRejected(item)),
           rejected: validated.filter((item): item is RejectedEntry => isRejected(item)),
           all,
-          sources: yield* readSources(all.filter((item): item is Entry => !isRejected(item))),
+          sources: yield* readSources(sourceEntries(all, validated)),
           wanted,
           inRoot,
           file,

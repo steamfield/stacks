@@ -23,7 +23,7 @@ beforeAll(async () => {
   // This walks every shipped entry and composition; concurrent gates can exceed Vitest's 5 s.
 }, 60_000);
 
-test("the bundled registry validates with zero errors and zero warnings [1.5#14] [1.6a#1] [1.6d#7] [3.3b#2]", () => {
+test("the bundled registry validates with zero errors and zero warnings [1.5#14] [1.6a#1] [1.6d#7] [2.2#9] [3.3b#2]", () => {
   expect(report.root).toBe(bundled);
   expect(report.bundled).toBe(true);
   expect(report.findings.filter((finding) => finding.severity !== "note")).toEqual([]);

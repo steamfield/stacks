@@ -1,5 +1,3 @@
-import { cpSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import {
   findingsAre,
@@ -10,7 +8,7 @@ import {
   stack,
   validateRot,
 } from "./helpers/rot";
-import { missingSearchNotes, reviewSearchFixture } from "./helpers/search-fixture";
+import { missingSearchNotes } from "./helpers/search-fixture";
 
 const space = rotWorkspace();
 afterEach(() => space.cleanup());
@@ -420,17 +418,5 @@ test("malformed reference JSON reports one error per file and skips cascading re
   expect(status).toBe(2);
 });
 
-test("the shipped entry bodies have zero errors and warnings with every rot check enabled [2.2#9]", async () => {
-  const root = space.temp();
-  cpSync(join(import.meta.dirname, "..", "registry"), root, { recursive: true });
-  reviewSearchFixture(root);
-  const { report, status } = await validateRot(root, {
-    home: space.temp(),
-    bundled: true,
-    env: { PATH: process.env.PATH ?? "" },
-  });
-  expect(status).toBe(0);
-  expect(report.bundled).toBe(true);
-  expect(report.findings.filter((f) => f.severity !== "note")).toEqual([]);
-  // This walks every shipped entry and composition; concurrent gates can exceed Vitest's 5 s.
-}, 30_000);
+// That the shipped entries have zero errors and warnings with every rot check enabled [2.2#9] is
+// asserted against the suite's one whole-registry report, in tests/bundled-registry.test.ts.

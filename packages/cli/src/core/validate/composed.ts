@@ -55,7 +55,7 @@ function compositionRuns(view: SourceView): CompositionRun[] {
           plan: view.composition.options,
         },
       ]
-    : view.all.filter(isStack).flatMap((stack) =>
+    : composedStacks(view).flatMap((stack) =>
         (["default", "sandbox"] as const).flatMap((preset) =>
           [...compositionPlans(view, stack), ...overlayPlans(view, stack)].map((plan) => ({
             stack,
@@ -64,6 +64,15 @@ function compositionRuns(view: SourceView): CompositionRun[] {
           })),
         ),
       );
+}
+
+/**
+ * The stacks whose compositions can involve a validated entry. `renderRun` keeps only those, so
+ * without a validated fragment only the validated stacks qualify, and composing every other
+ * origin's stacks would cost time that grows with the bundled registry for nothing.
+ */
+function composedStacks(view: SourceView) {
+  return view.entries.some(isFragment) ? view.all.filter(isStack) : view.entries.filter(isStack);
 }
 
 /** An overlay must be checked even when its host recipe never lists the fragment. */

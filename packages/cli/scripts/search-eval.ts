@@ -155,10 +155,17 @@ function queryReport(
     )
     .join("\n\n");
 }
+// Each report ranks every golden query once per split, pool and listing, and the fused ranking
+// ranks lexically too. Ranking is pure, so each request is ranked once per run.
 function lexicalRank(entries: ReadonlyArray<RankRecord>, vocabulary: SearchVocabulary): Ranking {
+  const ranked = new Map<string, ReadonlyArray<EvaluationHit>>();
   return (request) => {
+    const known = ranked.get(request);
+    if (known !== undefined) return known;
     const result = rank({ request, entries, vocabulary, limit: entries.length });
-    return [...result.stacks, ...result.fragments];
+    const hits = [...result.stacks, ...result.fragments];
+    ranked.set(request, hits);
+    return hits;
   };
 }
 const program = Effect.gen(function* () {

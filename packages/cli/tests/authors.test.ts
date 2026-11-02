@@ -24,7 +24,8 @@ function registry(authors: string) {
 
 const authorFindings = async (authors: string) => {
   const { home, root } = registry(authors);
-  const report = await validateSearch(root, { home });
+  // The bundled root holds authors.json, so the fixture is validated as one.
+  const report = await validateSearch(root, { home, bundled: true });
   return report.findings
     .filter((finding) => finding.check.startsWith("authors-"))
     .map(({ check, severity, file }) => ({ check, severity, file }));

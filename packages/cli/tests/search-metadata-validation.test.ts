@@ -8,6 +8,7 @@ import {
   bundled,
   card,
   cardPath,
+  copyVocabulary,
   put,
   readJson,
   searchFindings,
@@ -215,7 +216,9 @@ test.each([
     cardPath(f.root, ref),
     JSON.stringify({ ...(omitLanguages ? withoutLanguages : value), ...change }),
   );
-  expect(rows(await validateSearch(f.root, f))).toEqual([
+  // Validated as a bundled root with its vocabulary, so the bundled registry's stacks stay out.
+  copyVocabulary(f.root);
+  expect(rows(await validateSearch(f.root, { ...f, bundled: true }))).toEqual([
     { check: "search-invalid", severity: "error", kind: ref.kind, entry: ref.id },
   ]);
 });

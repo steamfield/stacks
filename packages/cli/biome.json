@@ -36,6 +36,15 @@
       }
     },
     {
+      "includes": ["registry/stacks/astro-product-site/files/**/*.astro"],
+      "formatter": { "enabled": false },
+      "assist": { "enabled": false }
+    },
+    {
+      "includes": ["registry/stacks/astro-product-site/files/**"],
+      "linter": { "domains": { "react": "recommended" } }
+    },
+    {
       "includes": ["registry/stacks/nestjs-api/files/**"],
       "linter": { "rules": { "style": { "useImportType": "off" } } }
     },

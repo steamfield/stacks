@@ -6,7 +6,7 @@ category: vendor
 name: PostHog analytics for web clients
 description: PostHog product analytics in the web client, with a shipped analytics module, typed event catalog and unit test for each supported stack. The SDK never loads while the key is empty, so tests, CI and sandboxes need no account.
 tags: [analytics, vendor, web]
-applies_to: [astro-blog, astro-fullstack, cloudflare-react-router, python-react, react-router, react-vite]
+applies_to: [astro-blog, astro-product-site, astro-fullstack, cloudflare-react-router, python-react, react-router, react-vite]
 deps:
   web: [posthog-js]
   web-dev: [happy-dom]
@@ -28,6 +28,9 @@ Inert without a key, the normal state in dev, tests, CI and sandboxes.
 
 <!-- stacks:when stack=astro-blog -->
 Shipped under `src/lib/`. Append `PUBLIC_POSTHOG_KEY=` and `PUBLIC_POSTHOG_HOST=` to `.env.example`, empty, under a comment saying analytics is off while the key is empty. Initialize once from a module `<script>` (not `is:inline`) in `BaseLayout.astro`'s head that imports `initAnalytics` and passes `import.meta.env.PUBLIC_POSTHOG_KEY` and `_HOST`. Every page is a full load, so the pageview option captures each one. Islands import `track()`; the queue covers calls made before the SDK loads. The shipped files are formatted for Prettier; keep them that way.
+<!-- stacks:end -->
+<!-- stacks:when stack=astro-product-site -->
+Shipped under `src/lib/`. Append `PUBLIC_POSTHOG_KEY=` and `PUBLIC_POSTHOG_HOST=` to `.env.example`, empty, under a comment saying analytics is off while the key is empty. Initialize once from the module `<script>` in `BaseLayout.astro`'s head (beside `import "../scripts/site"`): import `initAnalytics` and pass `import.meta.env.PUBLIC_POSTHOG_KEY` and `_HOST`. Every page is a full load, so the pageview option captures each one. Track events from the `InstallTabs` island or `src/scripts/site.ts`; docs pages stay free of islands. The browser tests run without a key, so analytics stays off there.
 <!-- stacks:end -->
 <!-- stacks:when stack=astro-fullstack -->
 Shipped under `apps/web/src/lib/`, plus `config.ts`, the one module the Grit boundary lets read `import.meta.env` (if `lib/config.ts` already exists, merge `analyticsEnv` into it). The test is `analytics.test.tsx` because the web project only includes `src/**/*.test.tsx`. Add `posthog-js` to `apps/web`. Append `PUBLIC_POSTHOG_KEY=` and `PUBLIC_POSTHOG_HOST=`, empty, under `.env.example`'s `PUBLIC_` comment; Astro reads env files from `apps/web/`, so set the key in the build environment. Initialize once from a module `<script>` in `apps/web/src/layouts/BaseLayout.astro`'s head: `initAnalytics(analyticsEnv)`. The site never logs to the console, so the queue drops overflow silently.
@@ -67,7 +70,7 @@ Replace `example_viewed` with real events as they appear; `track()` accepts cata
 
 ## Testing
 
-No verify step of its own, because the test command differs per stack: the stack's test step (`make test` on astro-blog and python-react, `bun run test` elsewhere) runs the shipped test, including its wiring check.
+No verify step of its own, because the test command differs per stack: the stack's test step (`make test` on astro-blog, astro-product-site and python-react, `bun run test` elsewhere) runs the shipped test, including its wiring check.
 
 ## AGENTS.md
 

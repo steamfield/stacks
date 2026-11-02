@@ -2155,6 +2155,22 @@
       "query": "an mcp server written in typescript for cursor",
       "first": { "kind": "stack", "id": "typescript-mcp" },
       "relevant": [{ "kind": "stack", "id": "typescript-mcp", "grade": 2 }]
+    },
+    {
+      "id": "stack-astro-product-site-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "landing page and docs site for my open source tool",
+      "first": { "kind": "stack", "id": "astro-product-site" },
+      "relevant": [{ "kind": "stack", "id": "astro-product-site", "grade": 2 }]
+    },
+    {
+      "id": "stack-astro-product-site-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "product site with a hero section, install command and a docs section",
+      "first": { "kind": "stack", "id": "astro-product-site" },
+      "relevant": [{ "kind": "stack", "id": "astro-product-site", "grade": 2 }]
     }
   ]
 }

@@ -36,6 +36,11 @@
     "registry/stacks/astro-blog/files/*.ts",
     "registry/stacks/astro-blog/files/src",
     "registry/stacks/astro-blog/files/tests",
+    // Astro, React, satori, Playwright and DOM types are installed only in the product-site scaffold.
+    "registry/stacks/astro-product-site/files/*.ts",
+    "registry/stacks/astro-product-site/files/src",
+    "registry/stacks/astro-product-site/files/tests",
+    "registry/stacks/astro-product-site/files/e2e",
     // Astro/React/Vite and browser types are installed only in the fresh scaffold.
     // Keep apps/api, packages/contract, scripts and hook tests checked here.
     "registry/stacks/astro-fullstack/files/apps/web",

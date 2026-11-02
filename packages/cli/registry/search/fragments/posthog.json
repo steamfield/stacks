@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "posthog",
   "source": {
-    "digest": "sha256:a409d68e1858a3c4837ba6239c553a2fde8a3417a52959043356d932f659dc28",
+    "digest": "sha256:754f5a29fb9ac8035f2a06c1d75a4c03c52fd711fd4a810407017996b9b641f5",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-01"
+    "reviewedAt": "2026-11-02"
   },
   "summary": "Track browser pageviews and typed product events through PostHog, with buffered initialization and analytics disabled when no key is configured.",
   "description": "Collect browser pageviews and explicitly named product events through one typed analytics module. Events can queue while PostHog initializes, and an empty key makes analytics silent in development and tests. Session recording and autocapture are off by default; consent and cookie use are explicit choices. The guidance excludes user-entered text, email addresses and tokens. It does not establish legal compliance or provide server-side analytics.",

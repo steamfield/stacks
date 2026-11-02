@@ -3,10 +3,10 @@ schema_version: 1
 id: cloudflare-pages
 kind: fragment
 category: deploy
-name: Cloudflare Pages for the Astro blog
-description: Deploys the Astro blog's static build to Cloudflare Pages with project-local wrangler, with production deploys from the default branch after the checks pass, pull request previews, cache and security headers, and a local check that serves the build through Cloudflare's Pages runtime.
+name: Cloudflare Pages for static Astro sites
+description: Deploys a static Astro site's build (the blog or the product site) to Cloudflare Pages with project-local wrangler, with production deploys from the default branch after the checks pass, pull request previews, cache and security headers, and a local check that serves the build through Cloudflare's Pages runtime.
 tags: [deploy, cloudflare, static]
-applies_to: [astro-blog]
+applies_to: [astro-blog, astro-product-site]
 deps:
   deploy-dev: [wrangler]
 decisions:
@@ -21,7 +21,7 @@ commands:
 
 # Cloudflare Pages
 
-stacks wrote `wrangler.jsonc` (the Pages project name and `pages_build_output_dir: "./dist"`), `public/_headers` (a year of immutable caching for `/_astro/*`, plus `nosniff`, a referrer policy and `X-Frame-Options: DENY` on every response) and `tests/deploy.test.mjs`. The test serves the built `dist/` through `wrangler pages dev`, Cloudflare's local Pages runtime, and checks those headers, the canonical post URL and the 404 page. Wrangler is a dev dependency run through `bunx wrangler`. Scaffolding and verify need no Cloudflare account.
+stacks wrote `wrangler.jsonc` (the Pages project name and `pages_build_output_dir: "./dist"`), `public/_headers` (a year of immutable caching for `/_astro/*`, plus `nosniff`, a referrer policy and `X-Frame-Options: DENY` on every response) and `tests/deploy.test.mjs`. The test serves the built `dist/` through `wrangler pages dev`, Cloudflare's local Pages runtime, and checks those headers, the canonical URLs Pages answers with and the 404 page. Wrangler is a dev dependency run through `bunx wrangler`. Scaffolding and verify need no Cloudflare account.
 
 Cloudflare now recommends Workers static assets for new projects. This fragment deploys to Pages.
 
@@ -36,8 +36,14 @@ Cloudflare now recommends Workers static assets for new projects. This fragment 
 
    Both deploy targets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Say so in their help text and fail with a clear message when either is missing.
 4. Public build-time values (`PUBLIC_*`, such as `PUBLIC_POSTHOG_KEY`) come from the environment of the process running `astro build`. In direct-upload mode, store them as GitHub Actions repository variables and pass them as `env` on the build step. In git-integration mode, set them as build environment variables for the Pages project. A static site has no runtime, so it has no secrets to put.
+<!-- stacks:when stack=astro-blog -->
 5. Write no trailing-slash or `.html` redirects. Pages already answers `/welcome.html` and `/welcome/` with a 308 to `/welcome`, which matches the stack's `trailingSlash: "never"` and file output, and the test proves it. Use `public/_redirects` only for moved or renamed posts. If the trailing-slash decision changes, update the canonical URL test with it.
 6. Keep HTML, `rss.xml` and the sitemaps on Pages' default revalidating cache; `_headers` adds nothing for them.
+<!-- stacks:end -->
+<!-- stacks:when stack=astro-product-site -->
+5. Write no trailing-slash or `index.html` redirects. Pages already answers `/docs` and `/docs/index.html` with a 308 to `/docs/`, which matches the stack's `trailingSlash: "always"` and directory output, and the test proves it. Use `public/_redirects` only for moved or renamed pages.
+6. Keep HTML, the Markdown exports, `llms.txt` and the sitemaps on Pages' default revalidating cache; `_headers` adds nothing for them.
+<!-- stacks:end -->
 
 <!-- stacks:when with=posthog -->
 If you add a Content-Security-Policy header, allow the PostHog host in `script-src` and `connect-src`, or analytics fail silently.

@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "astro-product-site",
+  "source": {
+    "digest": "sha256:5c606220d9a01633ddc7ce47222d391c1a33f9d238c6ab975fa709c5a93d0cf2",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 3,
+    "reviewedAt": "2026-11-02"
+  },
+  "summary": "A static landing page and Markdown documentation for a product or open-source project, built with Astro.",
+  "description": "One config file drives the landing page: hero, install commands, a demo block, features, users and sponsors, with empty sections left out. The docs section turns Markdown files into pages with a sidebar, an on-page table of contents, previous and next links, a Markdown copy of each page and llms.txt for agents. Social preview images are generated at build time, and the checks cover links, anchors and accessibility in light and dark themes. Hosting is separate: add cloudflare-pages for its deploy workflow. Search is not included.",
+  "seoDescription": "A static Astro site for a product or open-source project: a landing page from one config file and Markdown docs with a sidebar, contents and llms.txt.",
+  "projectExamples": [
+    {
+      "title": "Command-line tool homepage",
+      "description": "A landing page with install commands for npm, bun and Homebrew, a terminal demo and a features list, plus a getting-started guide and a configuration reference. You write the copy and the docs pages."
+    },
+    {
+      "title": "Library docs on Cloudflare Pages",
+      "description": "Publish the project's site and docs from the default branch, with preview deploys for pull requests, by adding cloudflare-pages. Create the Pages project and its credentials yourself.",
+      "withFragments": [
+        "cloudflare-pages"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter website for a software product: a front page that describes it and a documentation section built from text files, published as plain web pages.",
+    "goodAt": [
+      "A project homepage with install instructions and a feature list",
+      "Documentation pages with navigation, written as Markdown text files",
+      "Docs that AI assistants can read as plain text"
+    ],
+    "notGoodAt": [
+      "Sites with user accounts or a database; choose a stack with a server.",
+      "A blog with posts and a feed; choose astro-blog."
+    ]
+  },
+  "platforms": [
+    "web"
+  ],
+  "productKinds": [
+    "content-site"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "landing page and docs for my open source project",
+    "product website with a home page and documentation",
+    "documentation site with a sidebar and table of contents",
+    "launch site for my developer tool with install instructions",
+    "docs that agents can read as markdown with llms.txt"
+  ],
+  "useCases": [
+    "open-source project homepage",
+    "product documentation",
+    "developer tool landing page"
+  ],
+  "synonyms": [
+    "Astro",
+    "docs site",
+    "documentation website",
+    "marketing site",
+    "homepage",
+    "Starlight alternative",
+    "Docusaurus alternative",
+    "llms.txt",
+    "static site"
+  ],
+  "goodFor": [
+    "checking internal links and heading anchors at build time",
+    "accessibility checks in light and dark themes",
+    "generated social preview images"
+  ],
+  "notFor": [
+    "blog posts",
+    "RSS feed",
+    "server-side rendering",
+    "SvelteKit"
+  ]
+}

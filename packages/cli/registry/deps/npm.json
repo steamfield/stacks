@@ -43,6 +43,16 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "@astrojs/markdown-satteri": {
+      "whatItIs": "Astro's Markdown processor, which turns Markdown files into web pages and runs plugins that change the result.",
+      "homepage": "https://docs.astro.build/en/guides/markdown-content/",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": "2026-11-01"
+      }
+    },
     "@astrojs/mdx": {
       "whatItIs": "Lets Astro pages mix Markdown, a plain-text writing format, with reusable components.",
       "homepage": "https://docs.astro.build/en/guides/integrations-guide/mdx/",
@@ -81,6 +91,16 @@
         "model": "codex/gpt-6-sol",
         "promptVersion": 1,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "@axe-core/playwright": {
+      "whatItIs": "Runs the axe accessibility checker inside Playwright browser tests.",
+      "homepage": "https://github.com/dequelabs/axe-core-npm/tree/develop/packages/playwright",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": "2026-11-01"
       }
     },
     "@biomejs/biome": {
@@ -258,6 +278,16 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "@fontsource/inter": {
+      "whatItIs": "The Inter typeface packaged as font files you install with a package manager instead of loading from a font service.",
+      "homepage": "https://fontsource.org/fonts/inter",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": "2026-11-01"
       }
     },
     "@hono/node-server": {
@@ -1964,6 +1994,22 @@
     "@types/express": {
       "whatItIs": "Type definitions for Express, so TypeScript can check code that uses its requests and responses.",
       "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": "2026-11-01"
+      }
+    },
+    "sharp": {
+      "whatItIs": "A fast image library for Node that resizes, converts and compresses pictures.",
+      "goodAt": [
+        "Turning a drawn graphic into a PNG file during a build",
+        "Making smaller copies of large photos for a website"
+      ],
+      "notGoodAt": ["Editing images by hand; use a drawing or photo program for that."],
+      "example": "When a site builds, it draws a preview card for each page and saves it as a PNG that link previews show.",
+      "homepage": "https://sharp.pixelplumbing.com",
       "source": {
         "by": "drafted",
         "model": "claude-opus-5-5",

@@ -383,7 +383,7 @@ function removeRoot(fs: FileSystem.FileSystem, root: string) {
 }
 
 /** Every bench run uses one agent setup unless --agent says otherwise, so proofs compare. */
-const DEFAULT_AGENT = "codex";
+export const DEFAULT_AGENT = "codex";
 
 function chosenAgent(options: Options): string {
   return options.agent ?? DEFAULT_AGENT;

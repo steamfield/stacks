@@ -1,26 +1,28 @@
 #!/usr/bin/env bun
-// `bun run bench:pending [--list] [bench options]`: bench every bundled stack whose default
-// composition has no green run on record or changed since its last one. The list comes from
+// `bun run bench:pending [--list] [bench options]`: bench every bundled stack that has no current
+// green run from the bench's agent (Codex unless `--agent` says otherwise). The list comes from
 // `validate`'s ledger notes (`ledger-unproven`, `ledger-changed`), so it matches what validate
-// reports. An unproven stack runs on the bench's default agent; a changed one reruns on the agent
-// whose proof went stale, since only that agent's pass clears its note. `--agent <id>` keeps only
-// the runs that agent can clear. Remaining arguments pass to each `bun run bench <stack>`; runs go
+// reports. `ledger-changed` is keyed by agent, so a stale proof from another agent counts only
+// while this agent has no sandbox run of the stack at all; once it has one, its own note says
+// whether that run is current. Remaining arguments pass to each `bun run bench <stack>`; runs go
 // one at a time, and an interrupted run (exit 130) stops the rest.
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-
-type Run = { stack: string; agent: string | undefined };
+import { DEFAULT_AGENT } from "./bench/prepare";
 
 const root = join(import.meta.dirname, "..");
 const args = process.argv.slice(2);
 const listOnly = args.includes("--list");
 const benchArgs = args.filter((arg) => arg !== "--list");
 const agentAt = benchArgs.indexOf("--agent");
-const chosenAgent = agentAt >= 0 ? benchArgs[agentAt + 1] : undefined;
+const agent = (agentAt >= 0 ? benchArgs[agentAt + 1] : undefined) ?? DEFAULT_AGENT;
 
 // validate names the stale proof's key in its message: "<id> (<preset>, <agent>) changed since...".
 const CHANGED_AGENT = /^\S+ \([a-z]+, ([a-z]+)\) changed since/;
 
-function pendingRuns(): Run[] {
+type Note = { stack: string; agent: string | undefined };
+
+function ledgerNotes(): Note[] {
   const validate = Bun.spawnSync(["bun", "scripts/dev.ts", "validate", "--json"], {
     cwd: root,
     stdout: "pipe",
@@ -30,18 +32,13 @@ function pendingRuns(): Run[] {
   if (typeof report !== "object" || report === null || !("findings" in report))
     throw new Error("validate --json printed no findings");
   const findings = Array.isArray(report.findings) ? report.findings : [];
-  const runs = new Map<string, Run>();
-  for (const finding of findings) {
-    const run = pendingRun(finding);
-    if (run && (chosenAgent === undefined || (run.agent ?? chosenAgent) === chosenAgent))
-      runs.set(`${run.stack}\0${run.agent ?? ""}`, run);
-  }
-  return [...runs.values()].sort((a, b) =>
-    `${a.stack}\0${a.agent ?? ""}`.localeCompare(`${b.stack}\0${b.agent ?? ""}`),
-  );
+  return findings.flatMap((finding) => {
+    const note = ledgerNote(finding);
+    return note ? [note] : [];
+  });
 }
 
-function pendingRun(finding: unknown): Run | undefined {
+function ledgerNote(finding: unknown): Note | undefined {
   if (typeof finding !== "object" || finding === null) return undefined;
   if (!("kind" in finding) || finding.kind !== "stack") return undefined;
   if (!("entry" in finding) || typeof finding.entry !== "string") return undefined;
@@ -50,44 +47,70 @@ function pendingRun(finding: unknown): Run | undefined {
   if (check !== "ledger-changed") return undefined;
   const message =
     "message" in finding && typeof finding.message === "string" ? finding.message : "";
-  const agent = CHANGED_AGENT.exec(message)?.[1];
-  if (agent === undefined) throw new Error(`Unrecognized ledger-changed note: ${message}`);
-  return { stack: finding.entry, agent };
+  const changed = CHANGED_AGENT.exec(message)?.[1];
+  if (changed === undefined) throw new Error(`Unrecognized ledger-changed note: ${message}`);
+  return { stack: finding.entry, agent: changed };
 }
 
-function runArgs(run: Run): string[] {
-  const agent = run.agent && chosenAgent === undefined ? ["--agent", run.agent] : [];
-  return [run.stack, ...agent, ...benchArgs];
+/** Stacks with a sandbox run from `agent` on record, current or not. */
+function sandboxRuns(): Set<string> {
+  const ledger = JSON.parse(readFileSync(join(root, "registry/runs.json"), "utf8")) as unknown;
+  const records =
+    typeof ledger === "object" &&
+    ledger !== null &&
+    "records" in ledger &&
+    Array.isArray(ledger.records)
+      ? ledger.records
+      : [];
+  const stacks = new Set<string>();
+  for (const record of records)
+    if (
+      typeof record === "object" &&
+      record !== null &&
+      record.agent === agent &&
+      record.preset === "sandbox" &&
+      typeof record.stack === "string"
+    )
+      stacks.add(record.stack);
+  return stacks;
 }
 
-const label = (run: Run) => (run.agent ? `${run.stack} (${run.agent})` : run.stack);
+function pendingStacks(): string[] {
+  const ran = sandboxRuns();
+  const pending = new Set<string>();
+  for (const note of ledgerNotes())
+    if (note.agent === undefined || note.agent === agent || !ran.has(note.stack))
+      pending.add(note.stack);
+  return [...pending].sort();
+}
 
-const runs = pendingRuns();
-if (listOnly || runs.length === 0) {
+const stacks = pendingStacks();
+if (listOnly || stacks.length === 0) {
   console.log(
-    runs.length ? runs.map(label).join("\n") : "Every bundled stack has a current green run.",
+    stacks.length ? stacks.join("\n") : `Every bundled stack has a current green ${agent} run.`,
   );
   process.exit(0);
 }
 
-console.log(`Benching ${runs.length} runs: ${runs.map(label).join(", ")}`);
+console.log(`Benching ${stacks.length} stacks on ${agent}: ${stacks.join(", ")}`);
 const failed: string[] = [];
-for (const [index, run] of runs.entries()) {
-  console.log(`\n[${index + 1}/${runs.length}] bun run bench ${runArgs(run).join(" ")}`);
-  const result = Bun.spawnSync(["bun", "scripts/bench.ts", ...runArgs(run)], {
+for (const [index, stack] of stacks.entries()) {
+  console.log(`\n[${index + 1}/${stacks.length}] bun run bench ${[stack, ...benchArgs].join(" ")}`);
+  const run = Bun.spawnSync(["bun", "scripts/bench.ts", stack, ...benchArgs], {
     cwd: root,
     stdio: ["inherit", "inherit", "inherit"],
   });
-  if (result.exitCode === 130 || result.signalCode) {
-    const rest = runs.slice(index + 1).map(label);
-    console.log(`Interrupted at ${label(run)}; skipped ${rest.join(", ") || "none"}.`);
+  if (run.exitCode === 130 || run.signalCode) {
+    console.log(
+      `Interrupted at ${stack}; skipped ${stacks.slice(index + 1).join(", ") || "none"}.`,
+    );
     process.exit(130);
   }
-  if (result.exitCode !== 0) failed.push(label(run));
+  if (run.exitCode !== 0) failed.push(stack);
 }
 console.log(
   failed.length
-    ? `\n${failed.length} of ${runs.length} failed: ${failed.join(", ")}`
-    : `\nAll ${runs.length} benched.`,
+    ? `\n${failed.length} of ${stacks.length} failed: ${failed.join(", ")}`
+    : `\nAll ${stacks.length} benched.`,
 );
 process.exit(failed.length ? 1 : 0);

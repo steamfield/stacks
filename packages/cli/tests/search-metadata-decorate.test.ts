@@ -48,6 +48,20 @@ function setup() {
   rmSync(cardPath(f.registry, mobile), { force: true });
   return f;
 }
+// Validates each named stack alone, so the cost doesn't grow with the bundled registry the
+// workspace copies, and returns the ones whose card is stale.
+async function staleStacks(f: DecorateWorkspace, ids: ReadonlyArray<string>) {
+  const stale: string[] = [];
+  for (const id of ids) {
+    const report = await validateSearch(join(f.registry, "stacks", id), {
+      home: join(f.root, "home"),
+      registry: f.registry,
+    });
+    for (const { check, entry } of searchFindings(report))
+      if (check === "search-stale" && entry !== undefined) stale.push(entry);
+  }
+  return stale;
+}
 function success(result: Awaited<ReturnType<typeof decorate>>) {
   expect(result.status, result.stderr).toBe(0);
   expect(result.stderr).not.toMatch(/error|failed/i);
@@ -428,15 +442,8 @@ test("approving a model draft whose entry changed since says so and leaves nothi
   const done = `Approved and restamped stack/${mobile.id}.`;
   expect(result.stdout).toContain(note);
   expect(result.stdout.indexOf(note)).toBeLessThan(result.stdout.indexOf(done));
-  const report = await validateSearch(f.registry, { home: join(f.root, "home"), bundled: true });
-  expect(
-    searchFindings(report).filter(
-      ({ check, entry }) => check === "search-stale" && entry === mobile.id,
-    ),
-  ).toEqual([]);
-  // Validates the search cards of the whole bundled registry: about 8 s locally, more than 30 s on
-  // CI with coverage.
-}, 60_000);
+  expect(await staleStacks(f, [mobile.id])).toEqual([]);
+}, 30_000);
 
 test("changing body text stales only its card and restamp changes only the review baseline [4.5b#2]", async () => {
   const f = setup();
@@ -445,12 +452,8 @@ test("changing body text stales only its card and restamp changes only the revie
   await stamp(f.registry, second);
   const entry = join(f.registry, "stacks/mobile-expo/STACK.md");
   put(entry, `${readFileSync(entry, "utf8")}\nClarification.\n`);
-  const changed = await validateSearch(f.registry, { home: join(f.root, "home"), bundled: true });
-  expect(
-    searchFindings(changed)
-      .filter(({ check }) => check === "search-stale")
-      .map(({ entry }) => entry),
-  ).toEqual([mobile.id]);
+  // The changed stack and the stamped control beside it.
+  expect(await staleStacks(f, [mobile.id, second.id])).toEqual([mobile.id]);
   const before = new Date().toISOString().slice(0, 10);
   success(await decorate(f, ["--restamp", mobile.id]));
   const { SearchMetadata } = await import("@steamfield/stacks-format");
@@ -467,10 +470,5 @@ test("changing body text stales only its card and restamp changes only the revie
       reviewedAt: restamped.source.reviewedAt,
     },
   });
-  expect(
-    searchFindings(
-      await validateSearch(f.registry, { home: join(f.root, "home"), bundled: true }),
-    ).filter(({ check }) => check === "search-stale"),
-  ).toEqual([]);
-  // Validates the whole bundled registry twice: about 12 s alone, more than 30 s on a loaded gate.
-}, 60_000);
+  expect(await staleStacks(f, [mobile.id, second.id])).toEqual([]);
+}, 30_000);

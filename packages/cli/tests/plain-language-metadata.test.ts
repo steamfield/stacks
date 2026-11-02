@@ -439,19 +439,17 @@ test("unsigned and signed builds publish dependency cards and check detects tamp
   }
 }, 30_000);
 
-test("every bundled entry has plain copy, every used dependency has a card, and warnings stay zero [4.5f#17]", async () => {
+// The bundled registry's zero-warning half of 4.5f#17 is asserted against the suite's one
+// whole-registry report, in tests/bundled-registry.test.ts.
+test("every bundled entry has plain copy and every used dependency has a card [4.5f#17]", async () => {
   const root = join(import.meta.dirname, "../registry");
   const home = space.dir();
-  const report = await validate(home, root);
-  expect(report.entries.stacks + report.entries.fragments).toBeGreaterThan(0);
-  expect(
-    report.findings.filter(({ severity }) => severity === "warning" || severity === "error"),
-  ).toEqual([]);
   const listing = await runCli(["list", "--json"], { home, env: quiet, host: { registry: root } });
   expect(listing.status, listing.stderr).toBe(0);
   expect(listing.stderr).toBe("");
   const { ListResult } = await import("../src/schemas/list");
   const entries = Schema.decodeUnknownSync(ListResult)(JSON.parse(listing.stdout)).entries;
+  expect(entries.length).toBeGreaterThan(0);
   const allow = Schema.decodeUnknownSync(DependencyAllowlist)(
     readJson(join(root, "allowlist.json")),
   );
@@ -483,9 +481,8 @@ test("every bundled entry has plain copy, every used dependency has a card, and 
         expect(file.cards[key], `${ecosystem}/${key}`).toBeDefined();
       }
   }
-  // Whole-registry validation and one show per entry take about 11 s for 41 stacks, and more than
-  // 30 s on a loaded gate host; on CI with coverage, more than 60 s.
-}, 120_000);
+  // One show per entry; concurrent gates can exceed Vitest's 5 s.
+}, 60_000);
 
 test("show go-cli includes the canonical go-yaml card and preserves its full import path", async () => {
   const root = join(import.meta.dirname, "../registry");

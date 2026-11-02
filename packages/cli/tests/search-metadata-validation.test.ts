@@ -35,12 +35,10 @@ function rows(report: Awaited<ReturnType<typeof validateSearch>>) {
   }));
 }
 
-test("every bundled entry has a current reviewed card and no warnings [4.5b#1]", async () => {
+// That every card is current (no search-stale or other warning) is asserted against the suite's one
+// whole-registry report, in tests/bundled-registry.test.ts.
+test("every bundled entry has a reviewed card [4.5b#1]", async () => {
   const home = space.dir();
-  const report = await validateSearch(bundled, { home, bundled: true });
-  expect(report.entries.stacks).toBeGreaterThan(0);
-  expect(report.entries.fragments).toBeGreaterThan(0);
-  expect(report.findings.filter(({ severity }) => severity !== "note")).toEqual([]);
   const listing = await runCli(["list", "--json"], {
     home,
     host: { registry: bundled },
@@ -49,6 +47,8 @@ test("every bundled entry has a current reviewed card and no warnings [4.5b#1]",
   expect(listing.status, listing.stderr).toBe(0);
   expect(listing.stderr).toBe("");
   const entries = Schema.decodeUnknownSync(ListResult)(JSON.parse(listing.stdout)).entries;
+  expect(entries.some(({ kind }) => kind === "stack")).toBe(true);
+  expect(entries.some(({ kind }) => kind === "fragment")).toBe(true);
   const { SearchMetadata } = await import("@steamfield/stacks-format");
   for (const entry of entries) {
     const value = Schema.decodeUnknownSync(SearchMetadata)(readJson(cardPath(bundled, entry)));
@@ -56,9 +56,7 @@ test("every bundled entry has a current reviewed card and no warnings [4.5b#1]",
     expect(value.kind).toBe(entry.kind);
     expect(value.id).toBe(entry.id);
   }
-  // This validates the whole bundled registry; concurrent gates can exceed Vitest's 5 s, and CI
-  // with coverage exceeds 30 s.
-}, 60_000);
+}, 30_000);
 
 test("unknown values, mismatched paths and orphan cards are actionable errors [4.5b#4]", async () => {
   const f = setup();

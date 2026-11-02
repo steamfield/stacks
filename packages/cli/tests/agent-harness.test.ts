@@ -129,7 +129,8 @@ test("astro-blog composes one destructive hook and single-owner files with the h
       .map((row) => row.preset)
       .sort(),
   ).toEqual(["default", "sandbox"]);
-}, 30_000);
+  // Validates the whole bundled registry: about 8 s locally, more than 30 s on CI with coverage.
+}, 60_000);
 
 test("explicit --with on Go keeps the harness and warns, without a Go validation pairing [3.4a#4]", async () => {
   const { decoded, project, home } = await scaffold("go-cli");
@@ -144,4 +145,5 @@ test("explicit --with on Go keeps the harness and warns, without a Go validation
   expect(
     report.sizes.filter((row) => row.entry === "go-cli" && row.with === "claude-harness"),
   ).toEqual([]);
-}, 30_000);
+  // Validates the whole bundled registry, like the astro-blog test above.
+}, 60_000);

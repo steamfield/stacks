@@ -434,7 +434,9 @@ test("approving a model draft whose entry changed since says so and leaves nothi
       ({ check, entry }) => check === "search-stale" && entry === mobile.id,
     ),
   ).toEqual([]);
-}, 30_000);
+  // Validates the search cards of the whole bundled registry: about 8 s locally, more than 30 s on
+  // CI with coverage.
+}, 60_000);
 
 test("changing body text stales only its card and restamp changes only the review baseline [4.5b#2]", async () => {
   const f = setup();

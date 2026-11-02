@@ -56,8 +56,9 @@ test("every bundled entry has a current reviewed card and no warnings [4.5b#1]",
     expect(value.kind).toBe(entry.kind);
     expect(value.id).toBe(entry.id);
   }
-  // This validates the whole bundled registry; concurrent gates can exceed Vitest's 5 s.
-}, 30_000);
+  // This validates the whole bundled registry; concurrent gates can exceed Vitest's 5 s, and CI
+  // with coverage exceeds 30 s.
+}, 60_000);
 
 test("unknown values, mismatched paths and orphan cards are actionable errors [4.5b#4]", async () => {
   const f = setup();

@@ -37,4 +37,6 @@ test("local ranking meets every golden judgment and the metric gate [4.5c#2]", a
   }
   for (const metric of ["mrr", "recallAt3", "fragmentRecallAt5"] as const)
     expect(report.total[metric], metric).toBeGreaterThanOrEqual(golden.gate[metric] - 0.02);
-});
+  // Ranking every judgment against all 41 stacks takes about 3 s, and more than Vitest's 5 s on
+  // CI with coverage.
+}, 30_000);

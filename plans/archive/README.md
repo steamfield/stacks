@@ -4,7 +4,8 @@ Restored and organized on 2026-10-30. The 55 phase plans below are marked
 EXECUTED in their status notes. The two standalone reports and the architecture
 foundations RFC (archived 2026-10-31) record executed work;
 the six submission tasks are marked Done in the submission tracker (R4 delegates
-its production walkthrough to R5).
+its production walkthrough to R5). The plans under "Superseded plans" were never
+executed; their status notes say what replaced them.
 
 Archiving preserves those recorded scopes and caveats. It does not mark outstanding
 maintainer actions or follow-up work complete. Partial, blocked, deferred, and
@@ -88,3 +89,8 @@ R13, release, submission, and judging operations. See the [active index](../READ
 | R4. Website demo polish | [r4-website.md](submission-readiness/r4-website-2026-10-30.md) |
 | R12. Website search page | [r12-web-search.md](submission-readiness/r12-web-search-2026-10-30.md) |
 
+## Superseded plans
+
+| Plan | Archived file |
+| --- | --- |
+| Phase 4.0f: Workers migration (superseded by D41) | [phase-4.0f-workers-migration.md](phases/phase-4.0f-workers-migration-2026-11-01.md) |

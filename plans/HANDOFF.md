@@ -141,7 +141,8 @@ regression test, not a retry.
 Open questions: the index omits `lastRun` because no bundled stack has a ledger pass at its
 current fingerprint, while local search shows ledger passes without that check, so the two
 paths disagree. The site's own index reader (`apps/web/src/data/read-directory.ts`) still
-requires signatures. 4.0f (Workers) stays deferred; 4.3 and 4.5d wait on their start
+requires signatures. 4.0f (Workers) stays deferred (2026-11-01: superseded by D41, see the
+[edge hosting RFC](edge-hosting-rfc-2026-11-01.md)); 4.3 and 4.5d wait on their start
 conditions. Maintainers' steps: the allowlist review, 4.1e's live launch and alert
 destination, the index key, and 4.2d's production rerun.
 
@@ -197,7 +198,8 @@ telemetry views remain. 4.2f runs fixture-first: the provisional `StatsSummary` 
 `StatsDetail` are in `packages/format/src/stats.ts`, its data layer is landed in `stacks-api`, and
 the charts wait on OpenChart work done outside these plans (another agent owns the site and
 OpenChart). D17 is decided (opt-out, 2026-10-27) and D16 amended: telemetry storage runs on
-SQLite on the Node host now. 4.5c is executed (2026-10-28): `stacks search` ranks locally, scoring
+SQLite on the Node host now (2026-11-01: D41 superseded D16, so it stays there behind a static
+edge; see the [edge hosting RFC](edge-hosting-rfc-2026-11-01.md)). 4.5c is executed (2026-10-28): `stacks search` ranks locally, scoring
 36/36 first results and 4/4 no-match on the golden set (`plans/runs/2026-10-28-search-lexical.md`);
 the embeddings comparison waits on a maintainer's provider key. 4.1b is executed (2026-10-28):
 `stacks-api` accepts `POST /v1/events` into SQLite (development defaults to `.dev/data/`,
@@ -271,7 +273,9 @@ definition both apps import). It runs as a Node server on a maintainers' host fi
 "API skeleton on Node"), serving only `/healthz`, the signed index files and the built site;
 the Workers spike and move are 4.0f, deferred until after the hackathon demo. Every storage-
 or telemetry-backed sub-phase (4.1b onward) starts after 4.0f, on D1, so no data ever moves
-between hosts. The index and `names.json` are still built and signed here. `@steamfield/stacks-format`
+between hosts. (2026-11-01: D41 superseded this. 4.0f won't run, Cloudflare D1 isn't used, and
+storage stays on the Node container behind a static Cloudflare edge; see the
+[edge hosting RFC](edge-hosting-rfc-2026-11-01.md).) The index and `names.json` are still built and signed here. `@steamfield/stacks-format`
 (4.0a) is now published, with a `dist/` build, because the API consumes it across repositories.
 
 The bundled `astro-api` stack is what `stacks-api` is scaffolded from; it builds on the
@@ -327,7 +331,7 @@ schemas live in `packages/format` (`@steamfield/stacks-format`), with `canonical
 `bundleDigest`; the CLI links it through the workspace and bundles it, and `rr check` gains a
 `check-format` partition. D21 (a signed index) and open question 14 (proven-only serving) are
 decided, so 4.0c can start. Publishing `@steamfield/stacks-format` 0.1.0 to npm is the maintainers' step,
-needed before `stacks-api` imports it (4.1b, after 4.0f).
+needed before `stacks-api` imports it (4.1b, after 4.0f; 2026-11-01: 4.0f was superseded by D41).
 
 ## 4.0b executed (2026-10-27)
 
@@ -488,7 +492,7 @@ amended D18); the roadmap's decision table says which sub-phase each one blocks.
 | Review requirements.md and roadmap.md; decide A1, D12, D22 and D23 first, then D5-D7, D9, D13, D14, D18-D20 | Maintainers | The gating table in [0.0](phases/phase-0.0-decisions-and-npm-name.md) says which can wait |
 | Review A2-A4 as answered in 0.3a and 0.3b | Maintainers | Must be in the decisions log before [1.6c](archive/phases/phase-1.6c-first-release-2026-10-30.md) publishes |
 | Answer the open questions in [risks-and-open-questions.md](risks-and-open-questions.md) | Maintainers | Question 1 (registry audience) decides which stacks ship bundled |
-| Review the 4.2f, 4.2g and 4.5a-4.5e drafts; decide D36 and D37; answer open questions 33-40 | Maintainers | 4.5a can start any time (data and pure functions); 4.5b and 4.5c need no API; the stats plans wait on D17 and 4.0f |
+| Review the 4.2f, 4.2g and 4.5a-4.5e drafts; decide D36 and D37; answer open questions 33-40 | Maintainers | 4.5a can start any time (data and pure functions); 4.5b and 4.5c need no API; the stats plans wait on D17 and 4.0f (2026-11-01: 4.0f superseded by D41, so no longer a wait) |
 | ~~Apply the batch review's fixes to phase 1 round 1 (1.0, 1.1, 1.2a, 1.2b, 1.5)~~ | Agents | Done 2026-10-26, merged in PR #4; notes in [archive/handoff-2026-10-26.md](archive/handoff-2026-10-26.md) |
 | Confirm 1.6b's three gate runs | Maintainers | One green counting run each for astro-blog, go-cli and python-react; the other four bundled stacks have none |
 | ~~Choose how `validate` treats a verify step no layer describes (a file-existence or config check)~~ | Maintainers | Decided 2026-10-26: `check` layer added (roadmap, "Verify step `layer`"). `step-layer` stays a warning and `check` isn't a D7 layer; see [1.5](archive/phases/phase-1.5-validate-and-brief-budget-2026-10-30.md), "What this plan may get wrong" |

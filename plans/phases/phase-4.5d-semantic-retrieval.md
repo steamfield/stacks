@@ -2,11 +2,13 @@
 
 Status: DRAFT 2026-10-27 (not agreed; gated on 4.5c's evaluation)
 
+Noted 2026-11-01: D41 ([edge hosting RFC](../edge-hosting-rfc-2026-11-01.md)) moves `/v1/search` to a stateless Worker on the Workers Free plan that ranks a corpus built at deploy time. That makes the stored vectors below a build artifact rather than a Cloudflare D1 table, and a query embedding would go through the Workers AI binding from that Worker. The 4.0f dependency no longer applies. This plan gets re-scoped if it starts.
+
 | Field | Value |
 |---|---|
 | Goal | `GET /v1/search` (4.5e) adds a semantic leg: the API embeds the request, compares it with embeddings of each official entry's search card and example requests, and fuses the similarities with its lexical ranking, so paraphrases with none of an entry's words still find it. Every caller of the route gets it, `stacks search` included, with no CLI release; the request is never logged, stored or counted, and the response's `method` says which ranking ran (rewritten 2026-10-27 from an opt-in CLI leg over `POST /v1/search`; see What this plan may get wrong) |
 | Traces to | 4.5a's `paraphrase` pool, where lexical ranking has nothing to match |
-| Depends on | 4.5c (the ranking, the gate, the `search:eval --embeddings` report) and its evidence (below), 4.5e (the route, `Search`, `IndexAssets`, and the search code in `packages/format`), 4.5b (`SearchMetadata`, `v1/search.json`), 4.0f (the Worker, D1, scheduled entry), 4.1b (`RateLimiter` and `rate_counts`, for the route's own counter), 4.1c (`maintain` and its lease), 4.1d (`daily_metrics`, which holds the one call count), 4.0c (the index the API reads), D36 |
+| Depends on | 4.5c (the ranking, the gate, the `search:eval --embeddings` report) and its evidence (below), 4.5e (the route, `Search`, `IndexAssets`, and the search code in `packages/format`), 4.5b (`SearchMetadata`, `v1/search.json`), 4.0f (the Worker, D1, scheduled entry; superseded by D41 on 2026-11-01, so the edge RFC's Worker replaces this dependency), 4.1b (`RateLimiter` and `rate_counts`, for the route's own counter), 4.1c (`maintain` and its lease), 4.1d (`daily_metrics`, which holds the one call count), 4.0c (the index the API reads), D36 |
 | Blocks | Nothing |
 | Decisions needed | D36 as amended (the request reaches the API by default, 4.5e). The start condition below. [Open question 36](../risks-and-open-questions.md#open-questions-for-the-maintainers) (the embedding provider, including a local query model) |
 | Settles | When this is built at all; what text is embedded; the model and where it runs; where vectors live and how they are rebuilt; fusion on the server; what the server may and may not keep beyond 4.5e's rules |

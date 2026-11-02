@@ -107,9 +107,13 @@ say so and keep their numbers, because plans link to them by number.
     the trigger. Without telemetry, the two evidence sources above are enough. Blocks 4.3.
 16. If D17 is declined, does the API still need a Worker at all, or does static hosting of
     the index and directory cover phase 4? Blocks
-    [4.0f](phases/phase-4.0f-workers-migration.md); its spike answers it.
+    [4.0f](archive/phases/phase-4.0f-workers-migration-2026-11-01.md); its spike answers it.
+    Answered 2026-11-01 by D41: a stateless Worker serves the dynamic reads (search, stats
+    and docs negotiation) and no Worker holds state; storage stays on the Node origin.
 17. Does the Cloudflare Workers Vitest pool run with the API's Vitest 5 on Node? If not,
-    API tests need another harness. Blocks 4.0f; its spike answers it first.
+    API tests need another harness. Blocks 4.0f; its spike answers it first. Moved
+    2026-11-01 to the spike in the [edge hosting RFC](edge-hosting-rfc-2026-11-01.md), since
+    D41 superseded 4.0f.
 18. Should git sources keep the user's global git credential helper (so private repos
     work) or run with it disabled? Blocks
     [3.2a](phases/phase-3.2a-git-sources-and-untrusted-origin.md).
@@ -221,6 +225,8 @@ plan keeps its choice in each case; the maintainers confirm or change it.
     the CLI runs, not a service) and would let semantic search work in the local fallback and
     under `--local` (D36 as amended sends the request to the API by default). The cost is the download size, a model file the CLI
     must verify like the index, and an exception to A1's single-bundle rule. Blocks 4.5d.
+    Under D41 (2026-11-01) the search route runs in a free-plan Worker, so an embedding call
+    would need the Workers AI binding's free allowance; re-decided if 4.5d starts.
 37. `stacks-api/.claude/rules/api/effect-api.md` puts each store in
     `api/services/<Name>Store.ts` (its "Store" row: an in-memory layer for tests and local
     dev, a SQL layer needing only `SqlClient`); `apps/api/src` has no `services/` folder yet.

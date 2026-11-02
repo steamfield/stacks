@@ -20,7 +20,7 @@ are closed. After it, the order is local proof, then reach, then scale, then aut
    tools, (only once someone outside asks) git sources, and a wider bundled catalog with
    native config for more agents and apps built on stacks.
 3. Phase 4: the hosted side. An Effect API in the private `stacks-api` repository
-   (D35), on Node first and Workers later, that serves a signed
+   (D35), on Node behind a static Cloudflare edge (D41, which on 2026-11-01 replaced the planned move to Workers), that serves a signed
    registry index, opt-in or opt-out usage telemetry (the maintainers' call) with
    integrity checks and a launch runbook, public stats, a browsable directory, dependency
    trends, and an MCP server in `packages/mcp` once there is evidence agents want one.
@@ -187,7 +187,7 @@ a maintainer by hand; CI builds and deploys are 5.2.
 |---|---|---|---|---|
 | [4.0a The format package](archive/phases/phase-4.0a-format-package-2026-10-30.md) | Extract the entry, manifest and run-record schemas to `packages/format`, published so the API's repository can depend on it (D35), and add `canonicalBundle`/`bundleDigest`, bundled into the CLI, with the CLI suite unchanged | D11 ("shared code gets its own package") | 1.3b, 1.6b | Executed 2026-10-27; npm publish is the maintainers' step |
 | [4.0b API skeleton on Node](archive/phases/phase-4.0b-api-skeleton-on-node-2026-10-30.md) | The private `stacks-api` bun workspace, from the `astro-api` stack (`apps/api`, `apps/web`, `packages/contract`), serving `/healthz`, the signed index files and a minimal built Astro site as a Node server on a maintainers' host, with the runtime and static serving only in `apps/api/src/platform/` | "no public registry exists yet"; D35 | D35; the `astro-api` stack committed in this repository | Executed 2026-10-27: in `stacks-api`, served from one Docker container; the first live deploy is the maintainers' step |
-| [4.0f Workers migration](phases/phase-4.0f-workers-migration.md) | Move the API to Cloudflare Workers with an empty D1 database and the static assets layer by adding a Worker platform entry, after a spike that answers open questions 16 and 17; every storage- or telemetry-backed sub-phase starts after it | D16, D35 | 4.0b; 4.0c and 4.0e if they have landed (their static output moves with it) | Deferred 2026-10-27 (until after the hackathon demo; the API runs on Node until then) |
+| [4.0f Workers migration](archive/phases/phase-4.0f-workers-migration-2026-11-01.md) | Superseded 2026-11-01 by D41 and never run: the API stays on the Node container behind a static edge and one stateless Worker, as the [edge hosting RFC](edge-hosting-rfc-2026-11-01.md) describes. The archived file keeps the original plan | D16, D35 | 4.0b; 4.0c and 4.0e if they have landed (their static output moves with it) | Superseded 2026-11-01 by D41 |
 | [4.0c Registry index](archive/phases/phase-4.0c-registry-index-2026-10-30.md) | A static, content-addressed, signed index (D21) of proven compositions with each stack's last ledger run, built, signed inline and deployed by a maintainer, with `build:index --check` against the live host | "Stacks don't rot" made visible | 4.0b, 4.0a, 2.0a, 2.0c, 2.2 | Executed 2026-10-27; the production key, bench reruns and first deploy are the maintainers' steps |
 | [4.0e Official names and directory](archive/phases/phase-4.0e-official-names-and-directory-2026-10-30.md) | The same build writes the signed `v1/names.json` (every official id and step name from every `v*` tag and index entry) and the index data `stacks-api/apps/web` builds a static directory page per indexed stack from, deployed by hand with the index; the site's design tokens, so every later page has them without D17 | "Stacks don't rot" made visible; "None of these are collected today" (4.1c's official names) | 4.0c, 1.6c | Executed 2026-10-27; the first deploy is the maintainers' step |
 | [4.0d The CLI's remote origin](archive/phases/phase-4.0d-cli-remote-origin-2026-10-30.md) | The CLI reads the index with a cache, signature check, bounded refresh, backoff and `--offline`, so official stacks update without a CLI release | "Stacks don't rot"; the agent's frustration with ambiguity | 4.0c, 0.3b, 1.3a | Executed 2026-10-27; no official index URL ships until the host exists |
@@ -211,7 +211,7 @@ a maintainer by hand; CI builds and deploys are 5.2.
 | [4.5a Search evaluation set](archive/phases/phase-4.5a-search-evaluation-set-2026-10-30.md) | A reviewed golden set of natural-language requests over the bundled registry (platform, product, paraphrase, trap, fragment, combined and no-match pools, tune and holdout splits) with graded judgments, metrics (first-result pass, MRR, recall@3, fragment recall@5, no-match pass) and the gate's shape, before any ranking code | The coding agent's "ambiguity" at the first step; the demo's product-first discovery | 1.0 | Executed 2026-10-27; the maintainers still review the judgments |
 | [4.5b Search metadata](archive/phases/phase-4.5b-search-metadata-2026-10-30.md) | A reviewed sidecar per bundled entry under `registry/search/` (bounded search phrases and facets, optional directory description, SEO prose and illustrative projects), outside `fingerprint` and the bundle digest, keyed to a content digest and checked by `validate`; the schemas in the CLI until 4.5e; drafted by a maintainer-only OpenRouter script, signed into `v1/search.json` for index entries | Same as 4.5a; D2 kept (the CLI only reads reviewed files) | 4.5a, 1.5, 3.1b, 2.0a; 4.0a, 4.0c, 4.0d and 3.2a soft | Executed 2026-10-28, including maintainer-authorized editorial enrichment |
 | [4.5c `stacks search` and local ranking](archive/phases/phase-4.5c-search-command-and-local-ranking-2026-10-30.md) | `stacks search "<request>" --json`: field-weighted BM25 over entries and sidecars with vocabulary phrases, a platform rule, tiers with absolute scores, evidence that only settles near-ties, explanations; `rank` is pure so 4.5e can move it to `packages/format`; this sub-phase sends nothing; 4.5a's set gates it | The coding agent picking a stack from a product request; the trust job | 4.5a, 4.5b, 1.0, 3.1a, 1.4, 3.4c; 4.2b and 4.0d soft | Executed 2026-10-28 |
-| [4.5d Semantic retrieval](phases/phase-4.5d-semantic-retrieval.md) | Only if 4.5c's paraphrase numbers need it: `GET /v1/search` embeds the request on the API's platform and fuses similarities against in-memory vectors of each official entry's card and example requests (stored in D1) with the lexical ranking, for every caller; falls back to lexical when the embedder is slow or down; the request is never logged, stored or counted | 4.5a's paraphrase pool | 4.5c and its evaluation, 4.5e, 4.5b, 4.0f, 4.1b, 4.1c, 4.1d, 4.0c, D36 | Not started, gated |
+| [4.5d Semantic retrieval](phases/phase-4.5d-semantic-retrieval.md) | Only if 4.5c's paraphrase numbers need it: `GET /v1/search` embeds the request on the API's platform and fuses similarities against in-memory vectors of each official entry's card and example requests (stored in D1; under D41: a build-time artifact) with the lexical ranking, for every caller; falls back to lexical when the embedder is slow or down; the request is never logged, stored or counted | 4.5a's paraphrase pool | 4.5c and its evaluation, 4.5e, 4.5b, 4.0f, 4.1b, 4.1c, 4.1d, 4.0c, D36 | Not started, gated |
 | [4.5e Search endpoint and API-first search](archive/phases/phase-4.5e-search-endpoint-2026-10-30.md) | `GET /v1/search?q=` in `stacks-api` runs the same `rank` (moved to `packages/format`) over the signed index on the Node host, with no store; `stacks search` asks it first with an 800 ms deadline and falls back to local ranking, merging local user, project and source entries; skipped with `--local`, offline or `DO_NOT_TRACK` | Search as a key API surface for the CLI, site, MCP and other callers; D36 as amended | 4.5c, 4.5b, 4.0a, 4.0c, 4.0d; 4.2b and 4.2a soft | Executed 2026-10-28 |
 | [4.5f Plain-language metadata](archive/phases/phase-4.5f-plain-language-metadata-2026-10-30.md) | Reviewed plain-language copy (what it is, good at, example, not good at) as an unscored `plain` sidecar field per entry and one card per allowlisted dependency in `registry/deps/<ecosystem>.json`; `show` leads with it, `validate` checks it, `build:index` signs `v1/deps.json` for the site | A reader who doesn't already know what an entry or dependency is; 4.2e's pages before telemetry; D40 | 4.5b, 4.2d, 3.1a, 4.0c | Executed 2026-10-29; the stacks-api pages follow |
 
@@ -225,7 +225,7 @@ schedules and secrets around behavior that already exists and is already tested 
 |---|---|---|---|---|
 | [5.0 CI release and checks](phases/phase-5.0-ci-release-and-checks.md) | A tag-driven release workflow with npm provenance, an `e2e-node22` job in `ci-ok`, and the bundled registry's `validate` and rot checks as CI steps | Entry point `npx stacks`; D12 | 1.6c | Not started |
 | [5.1 Scheduled canary](phases/phase-5.1-scheduled-canary.md) | Scheduled bench runs of every bundled stack on an isolated maintainer-controlled machine, with infra failures kept apart from rot and a report when a passing stack stops passing | "How does a stack prove it still works?"; success row 4; assumption 2 | 2.0b, 5.0, D15, D24 | Not started |
-| [5.2 CI index build and deploy](phases/phase-5.2-ci-index-build-and-deploy.md) | Build, sign and deploy the static index output from CI with the signing key as a deploy secret; the API deploys from `stacks-api`'s own CI | "Stacks don't rot" made visible without a maintainer at a keyboard | 4.0c, 4.0e, 4.0d, 5.0; 4.1e soft | Not started |
+| [5.2 CI index build and deploy](phases/phase-5.2-ci-index-build-and-deploy.md) | Build, sign and deploy the static index output from CI with the signing key as a deploy secret; the API deploys from `stacks-api`'s own CI. Under D41 (2026-11-01) the hand-off target is the edge RFC's deploy workflow in `stacks-api`, triggered by `repository_dispatch` | "Stacks don't rot" made visible without a maintainer at a keyboard | 4.0c, 4.0e, 4.0d, 5.0; 4.1e soft | Not started |
 
 ### Release: the final step
 
@@ -369,7 +369,8 @@ flowchart LR
   p13b --> p40a[4.0a format package]
   p16b --> p40a
   p40b[4.0b API skeleton] --> p40c[4.0c index]
-  p40b --> p40f[4.0f Workers migration]
+  %% Dotted edges: dependencies on 4.0f that D41 (2026-11-01) removed.
+  p40b --> p40f[4.0f superseded by D41]
   p40a --> p40c
   p20a --> p40c
   p20c --> p40c
@@ -386,12 +387,12 @@ flowchart LR
   p40d -.-> p41a
   p41a --> p41b[4.1b ingest + storage]
   p40b --> p41b
-  p40f --> p41b
+  p40f -.-> p41b
   p41b --> p41c[4.1c maintenance]
   p40e --> p41c
   p41c --> p41d[4.1d integrity + alerts]
   p41d --> p41e[4.1e launch + runbook]
-  p40f --> p41e
+  p40f -.-> p41e
   p41b --> p41e
   p41c --> p41e
   p40e --> p41e
@@ -423,7 +424,7 @@ flowchart LR
   p41b --> p42g
   p41c --> p42g
   p41d --> p42g
-  p40f --> p42g
+  p40f -.-> p42g
   p40c --> p42g
   p40e --> p42g
   p42d -.-> p42g
@@ -457,7 +458,7 @@ flowchart LR
   p45e --> p45d[4.5d semantic retrieval]
   p45c --> p45d
   p45b --> p45d
-  p40f --> p45d
+  p40f -.-> p45d
   p41b --> p45d
   p41c --> p45d
   p41d --> p45d
@@ -496,7 +497,7 @@ misses paraphrases and an offline experiment shows embeddings fix it (its "Start
 condition"). 4.5a, 4.5b and 4.5c need no API and no `packages/format` (the search code
 stays in the CLI until 4.5e gives it a second reader, D11): search works on the bundled registry
 before phase 4's server exists, so they can run as soon as their CLI dependencies have
-landed. 4.5e needs the API but no store, so it runs on the Node host before 4.0f.
+landed. 4.5e needs the API but no store, so it ran on the Node host. Under D41 (2026-11-01) 4.0f won't run, and `/v1/search` moves to the edge Worker instead.
 
 What can run in parallel, given one agent per sub-phase:
 
@@ -510,7 +511,7 @@ What can run in parallel, given one agent per sub-phase:
 | Phase 2 and 3 | 3.0 alongside phase 2, after 1.6b | `src/core/scaffold/` (3.0 adds the parking path) |
 | Phase 3 | 3.1a alongside 3.0 once 2.0c lands; 3.1b and 3.1c after 3.1a | `src/commands/new.ts`: 3.1b adds `--preset` and the `preset` default, 3.1c adds `--dry-run`, `--name` and `--author`, 3.0 adds nothing there; merge 3.1b and 3.1c by hand |
 | Phase 3, content | 3.3a, 3.3b, 3.4a, 3.4b, 3.4c and 3.5b in parallel after 2.0b and 2.2; 3.3c after 3.3a | `packages/cli/registry/fragments/agent-ops/` (3.4a and 3.4b both edit it; merge by hand); `registry/runs.json` (append only); `src/core/validate/` (3.3a, 3.4b and 3.5b each add checks); the package `files` list (3.4c adds `skill/`). 3.5b touches verify: land it alone or rebase. 3.3b must not change the bytes of existing stack entries; shared fragments gain only `tag=` blocks that leave existing stacks' composed briefs unchanged |
-| Phase 4 | 4.0b once the `astro-api` stack is committed (D35); 4.1a after 4.0a; 4.0d after 4.0c; 4.0f after the hackathon demo, before 4.1b and every other storage- or telemetry-backed sub-phase | `packages/format` is additive only once 4.0a lands: 4.0c adds the index schema and keys, 4.0e the names schema, 4.1a the event schema, 4.2a the stats schema; nobody changes an existing export |
+| Phase 4 | 4.0b once the `astro-api` stack is committed (D35); 4.1a after 4.0a; 4.0d after 4.0c; 4.0f superseded by D41 on 2026-11-01 and won't run; storage and telemetry stay on the Node host | `packages/format` is additive only once 4.0a lands: 4.0c adds the index schema and keys, 4.0e the names schema, 4.1a the event schema, 4.2a the stats schema; nobody changes an existing export |
 | Phase 4, telemetry | 4.1d after 4.1c, then 4.1e; 4.2d after 4.2b and 4.1e; 4.2c's telemetry views and 4.2e after 4.2f (4.2e also after 4.2d), in parallel with each other; 4.2c's telemetry-free views any time after 4.0c and 4.0e, without D17 | `stacks-api/apps/api/src/maintenance/maintain.ts` and the scheduled entry (4.1d adds a step before archive, 4.2a the hourly rollup under the same lease); `stacks-api/apps/api/src/stats/rollup.ts` (4.2c adds co-occurrence, 4.2e the dependency dimensions, both additive); `stacks-api/apps/web` pages and its site config (4.2b stats sections, 4.2c views and the `STATS_ENABLED` switch, 4.2e dependency pages and `DEPS_ENABLED`); the index build in this repository (4.2d the allowlist) |
 | Phase 4, stats pages | 4.2g after 4.2a; 4.2f after 4.2b and 4.2g; then 4.2c's telemetry views and 4.2e | `stacks-api/apps/web/src/components/StatsSection.astro` (4.2b builds it, 4.2f rebuilds it from its components); `apps/web/src/styles/global.css` (4.0e owns the tokens, 4.2f adds the chart palette); `src/pages/stats/about.astro` (4.2f writes it, 4.2c and 4.2e add sections); 4.2g's seed profile gains a storyline whenever a later sub-phase adds a state to show |
 | Phase 4, search | 4.5a any time; 4.5b after 4.5a; 4.5c after 4.5b; 4.5e after 4.5c, 4.0c and 4.0d; 4.5d after 4.5e and its start condition | `packages/cli/registry/search/` (4.5b writes it; every new bundled entry adds a sidecar); `tests/fixtures/search/golden.json` (every new bundled stack adds two queries); `src/core/validate/` (4.5b adds the search findings); `packages/cli/scripts/build-index.ts` (4.5b adds `v1/search.json` beside 4.2c's and 4.2d's files) |
@@ -738,7 +739,7 @@ Names to use: `EntryInvalid` (not `InvalidEntry`), `ComposeConflict` (not
 | `validate` severities | `error` (exit 2), `warning` (fails the bundled registry's zero-warning gate), `note` (never affects exit or the gate) | 1.5, 2.2 |
 | Telemetry from maintainer runs | The bench (2.0b) sets `DO_NOT_TRACK=1` in the agent's child environment, so every `stacks` the agent runs sends nothing; the canary (5.1) runs through the bench and asserts it. Smoke events use the excluded smoke install id | 2.0b, 5.1, 4.1e |
 | Run evidence | Gate and bench run notes in [plans/runs/](runs/README.md) `<date>-<stack>.md`, each with the repo commit; 1.6b's notes are also the evidence for D5; the ledger (above) | 1.6b, 2.0c |
-| New dependencies | `yaml` (1.0). Any other new runtime dependency needs a line in that sub-phase's design saying why the standard library and Effect aren't enough. Known ones, all in `stacks-api` and never in this repository's root catalog: `@effect/platform-node`, Astro, React and Tailwind (4.0b, from the `astro-api` stack), `wrangler`, `@cloudflare/vitest-pool-workers` and the D1 driver for `effect/sql` (4.0f); `smol-toml` for reading TOML, added once to the root catalog by 3.0 and reused by 4.2d for `Cargo.toml` and `pyproject.toml`. Scripts in `scripts/` use Effect and `Processes`; GitHub is called with `gh` (5.1) | each owner |
+| New dependencies | `yaml` (1.0). Any other new runtime dependency needs a line in that sub-phase's design saying why the standard library and Effect aren't enough. Known ones, all in `stacks-api` and never in this repository's root catalog: `@effect/platform-node`, Astro, React and Tailwind (4.0b, from the `astro-api` stack), `wrangler`, `@cloudflare/vitest-pool-workers` and the D1 driver for `effect/sql` (4.0f, superseded 2026-11-01 by D41, so not needed); `smol-toml` for reading TOML, added once to the root catalog by 3.0 and reused by 4.2d for `Cargo.toml` and `pyproject.toml`. Scripts in `scripts/` use Effect and `Processes`; GitHub is called with `gh` (5.1) | each owner |
 
 ## Repository and stack
 
@@ -897,7 +898,7 @@ question 9).
 | D13 | The three MVP stacks and their word targets; amended 2026-10-26 so 1.6a brings the whole catalog into v1 and validates it | 1.6a (drafting can start after 1.0) | Proposed; amendment is an agent proposal |
 | D14 | Changed verify steps fail verify | 1.3b | Proposed |
 | D15 | Where the canary runs, on whose agent account, with what isolation and token | 5.1 | Proposed |
-| D16 | API hosting | 4.0f | Decided 2026-10-27 (with D35): Workers with D1 in production, after a Node interim |
+| D16 | API hosting | n/a | Superseded 2026-11-01 by D41 (a static edge in front of the Node origin; see the [edge hosting RFC](edge-hosting-rfc-2026-11-01.md)). Was: Workers with D1 in production, after a Node interim |
 | D17 | Telemetry consent model | 4.1a | Proposed; also [open question 5](risks-and-open-questions.md#open-questions-for-the-maintainers) |
 | D18 | Entry format v1, amended 2026-10-26 (snake_case keys, literal dotfiles, `package_scope`, apps as fragments, `expect`) | 1.1 starts; 1.6a bringing the catalog into v1 | Proposed; amendment is an agent proposal |
 | D19 | Project-origin entries untrusted by default | 1.0 | Proposed |

@@ -16,4 +16,4 @@ ones their own plan and link it here.
 | P1 | Worktree and branch cleanup | After R6 | The user removes what R0 listed as superseded |
 | P2 | Signed remote-only recipe distribution (was R7; 4.0c, 4.0d) | The catalog needs to grow faster than CLI releases | Signing-key decision, `officialUrl` in `bin.ts`, refusal tests |
 | P2 | CI release, scheduled canary, CI index build (5.0, 5.1, 5.2) | The user agrees the phases | Per phase file |
-| P2 | Dependency decision cohorts, community sources, embeddings (4.5d), MCP (4.3), Workers (4.0f) | Their own start conditions | Per phase file or spec |
+| P2 | Dependency decision cohorts, community sources, embeddings (4.5d), MCP (4.3), Workers (4.0f, superseded 2026-11-01 by D41 and the [edge hosting RFC](../edge-hosting-rfc-2026-11-01.md)) | Their own start conditions | Per phase file or spec |

@@ -145,7 +145,7 @@ failures), and what's left. No credentials or home paths.
 | 4.2d/4.2e allowlist names review | R4 step 1 (one skim, before `/deps/` goes live) |
 | 4.2g active seed tuning | R2 |
 | 4.0c/4.0d signed remote index; 4.1e/4.2d live telemetry launch | R9 |
-| 4.4c, 4.4d leftovers; 4.5a judgments; 5.0 to 5.2; 4.0f, 4.3, 4.5d | R9 |
+| 4.4c, 4.4d leftovers; 4.5a judgments; 5.0 to 5.2; 4.0f (superseded 2026-11-01 by D41), 4.3, 4.5d | R9 |
 
 ## Out of scope before submission
 

@@ -8,7 +8,7 @@ Status: DRAFT 2026-10-26 (not agreed)
 | Traces to | "Stacks don't rot: A stack that passed last month still passes this month without a prose change", made visible to agents through the index; "A community registry will form ... no public registry exists yet" |
 | Depends on | [4.0c](../archive/phases/phase-4.0c-registry-index-2026-10-30.md) (the local build, inline signing and deploy), [4.0e](../archive/phases/phase-4.0e-official-names-and-directory-2026-10-30.md) (the signed names file), [4.0d](../archive/phases/phase-4.0d-cli-remote-origin-2026-10-30.md) (the CLI's compiled public key and signature check), [5.0](phase-5.0-ci-release-and-checks.md) (workflow conventions, `ci-ok` as the gate), and a deploy workflow in `stacks-api` that accepts a signed index output ([4.0b](../archive/phases/phase-4.0b-api-skeleton-on-node-2026-10-30.md)'s deploy, moved to that repository's CI). Soft: [4.2c](phase-4.2c-directory-browsing.md)'s `v1/directory.json` and [4.2d](../archive/phases/phase-4.2d-dependency-telemetry-client-and-ingest-2026-10-30.md)'s signed allowlist, built when they have landed |
 | Blocks | Nothing |
-| Decisions needed | D21 (the signed index). If it were dropped, this sub-phase deploys unsigned and the key handling below goes away. D23 (why this is phase 5). D16 is decided and doesn't affect this file: the host is `stacks-api`'s concern |
+| Decisions needed | D21 (the signed index). If it were dropped, this sub-phase deploys unsigned and the key handling below goes away. D23 (why this is phase 5). D16 is decided and doesn't affect this file: the host is `stacks-api`'s concern. Noted 2026-11-01: D41 superseded D16, and the signed output is handed to `stacks-api`'s deploy workflow on the maintainers' M4 runner through `repository_dispatch`; that runner downloads this workflow's build artifact with a token ([edge hosting RFC](../edge-hosting-rfc-2026-11-01.md)) |
 | Settles | When CI publishes the index, where the signing key lives, how the signed output reaches the API's deploy, how a stale run is kept from overwriting a newer deploy, and how a key mismatch is caught before users see it |
 
 ## Scope
@@ -130,6 +130,11 @@ in a separate workflow that never runs on pull requests.
 The host credential (a Workers API token) lives only in `stacks-api`'s CI. This
 repository is public and its workflows can be read by anyone, so it holds the signing key
 and a dispatch-only token and nothing that can change the host directly.
+
+Noted 2026-11-01 (D41, [edge hosting RFC](../edge-hosting-rfc-2026-11-01.md)): the dispatch
+goes to `stacks-api`'s deploy workflow, which runs on a self-hosted runner on the
+maintainers' M4. That runner downloads this workflow's build artifact with its own token,
+and the Cloudflare API token lives on the M4 runner, not in `stacks-api`'s GitHub secrets.
 
 In phase 4 a maintainer signs locally with a key kept off the repo (trust model point 7).
 Moving to CI means putting that same key into `INDEX_SIGNING_KEY`, not generating a new

@@ -1,6 +1,10 @@
 # Phase 4.0f: Workers migration
 
-Status: DEFERRED 2026-10-27 (until after the hackathon demo; the API runs on Node under D35 until then)
+Status: SUPERSEDED 2026-11-01 by [the edge hosting RFC](../../edge-hosting-rfc-2026-11-01.md) (D41). Never executed.
+
+## Change of direction
+
+This plan was never run, and D41 replaced it on 2026-11-01. Moving the API onto Workers and Cloudflare D1 would have meant rewriting the store's interactive transactions as Cloudflare D1 batches, since the store drifted from what D16's amendment assumed, and the rollups don't fit in a Worker's 128 MB. Production also already holds data that Cloudflare D1 would have needed imported, and the Workers Free plan's 10 ms CPU cap can't run maintenance, so a Workers-hosted API would have cost money from day one. Under D41 a static edge with one stateless free-plan Worker sits in front of the Node container on the maintainers' M4, which costs nothing at Cloudflare. The rest of this file is kept as the record of what was planned.
 
 | Field | Value |
 |---|---|

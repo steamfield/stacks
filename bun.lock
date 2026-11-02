@@ -14,7 +14,7 @@
     },
     "packages/cli": {
       "name": "@steamfield/stacks",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "bin": {
         "stacks": "dist/stacks",
       },
@@ -35,7 +35,7 @@
     },
     "packages/format": {
       "name": "@steamfield/stacks-format",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "dependencies": {
         "effect": "catalog:",
       },

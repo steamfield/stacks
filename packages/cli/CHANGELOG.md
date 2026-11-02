@@ -4,6 +4,29 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-01
+
+### Added
+
+- 27 new stacks across five languages. Go: `go-grpc`, `go-htmx`, `go-library`, `go-mcp`, `go-tui`. Python: `django`, `django-api`, `python-cli`, `python-data`, `python-library`, `streamlit`. TypeScript: `hono-api`, `nestjs-api`, `nuxt`, `react-vite`, `typescript-library`, `typescript-mcp`. Rust: `rust-api`, `rust-cli`, `rust-library`, `rust-tui`, `rust-wasm`. Java: `java-cli`, `java-library`, `quarkus-api`, `spring-boot-api`, `spring-boot-web`. Each ships a working slice of the project (source, tests, lint, format and build config, agent rules and skills) that `verify` proves from a fresh scaffold.
+- The shared fragments (`ci-github`, `git-hooks`, `agent-ops` and the others a stack composes by default) have Go, Python, Rust and Java branches.
+- `show` lists every dependency a stack brings, including those of its fragments.
+- `search` reads `npm` as TypeScript, `cargo`, `rustlang` and `axum` as Rust, and `go library`, `go package`, `go module` and `go mcp` as Go.
+- `@steamfield/stacks-mcp`, a stdio MCP server whose `stacks_list`, `stacks_new` and `stacks_verify` tools run this CLI, is published alongside it.
+
+### Changed
+
+- The existing stacks now ship their working proving slices instead of describing the code for the agent to write: `astro-blog`, `astro-fullstack`, `cloudflare-react-router`, `go-api`, `go-cli`, `mobile-expo`, `nextjs`, `python-api`, `python-react`, `react-router`, `sveltekit`, `tauri-react`, `typescript-api` and `typescript-cli`.
+- A fragment's `applies_to` can name a tag, so a new stack carrying that tag is admitted without editing the fragment.
+- `validate` warns about version literals in shipped configs rather than about the configs themselves.
+
+### Fixed
+
+- `verify` steps no longer inherit the CLI's own `STACKS_*` settings, `--only` runs a step that is skipped by default, and a runner that ends in a defect records no run.
+- Discovery and run history fail with `PermissionDenied` on paths the CLI can't inspect, instead of reporting nothing there.
+- Failed writes report every path their rollback couldn't restore, including the Codex app fallback's handoff record.
+- The packaged CLI ships the registry's `bunfig.toml` files and forwards directory-read options.
+
 ## [0.6.0] - 2026-10-30
 
 ### Added
@@ -122,6 +145,7 @@ First release, as the npm package `@steamfield/stacks` installed as `stacks` (No
 - Commands: `list`, `show`, `new`, `add`, `create`, `validate`, `verify`, `runs`, `schema`, `guide`, `skill` and `doctor`, each with `--json` output, fixed exit codes and error envelopes with a next action.
 - Bundled stacks: `astro-blog`, `cloudflare-react-router`, `go-cli`, `mobile-expo`, `python-react`, `react-router`, `tauri-react` and `typescript-cli`, with 19 fragments.
 
+[0.7.0]: https://github.com/steamfield/stacks/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/steamfield/stacks/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/steamfield/stacks/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/steamfield/stacks/compare/v0.3.1...v0.4.0

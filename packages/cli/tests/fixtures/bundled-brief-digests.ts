@@ -19,16 +19,17 @@
  * bundled fragment audit's fragment and stack edits; they await a bench run.
  * All six changed on 2026-11-01 when the stack expansion merged agent-ops' one unconditional
  * allow-rules sentence over the audit; they await a bench run.
+ * The 0.7.0 version in the brief changed all six again on 2026-11-01.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:633ca4c32e466e37a50787da84c02821ab3fc8de0781fe71eba2d3b89e51d0c5",
-  "astro-blog:sandbox": "sha256:c6018df84342b43596a257234760223519b0634a6813ebcbce05b77fb191a767",
-  "go-cli:default": "sha256:9088bff3e0d705e5469a106608c5cd5791e26de083e0ab33fe5ffb8edb403174",
-  "go-cli:sandbox": "sha256:3ee14c38ead6d92ca5082b868e9d74f5cfae5004ed7020aa9a43119b83605c7c",
-  "python-react:default": "sha256:2a8c9a6ba659aadaa0387e24798acc4a094e67020bdb61fb3821ebb12b3f2e94",
-  "python-react:sandbox": "sha256:29b875c170355a8c0c9989f11accf9f93e2c2f2a35380cdfacdc13c4cfaf8f87",
+  "astro-blog:default": "sha256:cf266e3b707727f00fd7621d4abbc7da6cf2123bb431bedaa33efee3f0ddd348",
+  "astro-blog:sandbox": "sha256:8e67662247fa7431ed996121fbc4d1f50d2e8dfc89a058f228f04d1948190a0f",
+  "go-cli:default": "sha256:7e05a667ffbda97d054df2a0677bbdbea73c14dcd0f3ce2e0904d812ea5f130b",
+  "go-cli:sandbox": "sha256:8c5eba976c95a41aa280dd8800bb54fd280ba7293775583796ca81caab97bc80",
+  "python-react:default": "sha256:46f4b3995f862487cd064dee828af46f9d4a793f6321a6da7f7f894dde0ba7c9",
+  "python-react:sandbox": "sha256:5b7d43e43544d699466d6b5b1cb7d3180a227df9000f1f53ccb0b358bd9e3082",
 };

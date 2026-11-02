@@ -1,0 +1,4 @@
+{"event":"step-started","name":"first","phase":"check"}
+{"event":"step-finished","name":"first","phase":"check","status":"passed","durationMs":6}
+{"event":"step-started","name":"second","phase":"check"}
+{"event":"step-finished","name":"second","phase":"check","status":"passed","durationMs":4}

@@ -83,7 +83,7 @@ The package is `@steamfield/stacks` and the command is `stacks`; `npx @steamfiel
 | --- | --- |
 | [packages/cli](packages/cli/README.md) | `@steamfield/stacks`, the CLI: Effect 4 on Node, bundled by Bun. Holds the bundled registry of stacks and fragments, the agent skill and the [user docs](packages/cli/docs/README.md) |
 | [packages/format](packages/format/README.md) | `@steamfield/stacks-format`, the contracts the CLI and the hosted API share: entry format, manifest, run records, telemetry events, bundles, the signed index and stats shapes |
-| [packages/mcp](packages/mcp/README.md) | `@steamfield/stacks-mcp`, a placeholder for an MCP server, with no code yet |
+| [packages/mcp](packages/mcp/README.md) | `@steamfield/stacks-mcp`, the MCP server: a stdio server on Effect's MCP modules that wraps the CLI's `--json` contract as typed tools and resources, so an agent whose client prefers MCP tools gets the same results and trust boundary |
 | `product/` | The problem statement, pitch and demo outline |
 | `.claude/`, [docs/harness.md](docs/harness.md) | The agent harness: hooks, rules, skills and agents, with their tests in `tests/hooks/` and `tests/scripts/` |
 

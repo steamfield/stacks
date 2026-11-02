@@ -1,0 +1,25 @@
+{
+  "project": { "stack": "fixture", "applied": [], "addable": [] },
+  "entries": [
+    {
+      "id": "fixture",
+      "kind": "stack",
+      "name": "Fixture project",
+      "description": "A project for capturing CLI wire results.",
+      "tags": ["node"],
+      "origin": "bundled",
+      "trusted": false,
+      "shadows": [],
+      "lastRun": null
+    }
+  ],
+  "rejected": [
+    {
+      "id": "rejected",
+      "kind": "stack",
+      "origin": "bundled",
+      "dir": "/stacks-mcp-capture/registry/stacks/rejected",
+      "error": "name: Missing key"
+    }
+  ]
+}

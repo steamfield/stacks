@@ -1,0 +1,30 @@
+{
+  "outcome": "green",
+  "scope": "full",
+  "steps": [
+    {
+      "name": "first",
+      "phase": "check",
+      "layer": "test",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "second",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4
+    }
+  ],
+  "totals": { "passed": 2, "failed": 0, "skipped": 0 },
+  "durationMs": 12,
+  "secondsSinceCreated": 0,
+  "tamperCheck": "full",
+  "firstGreen": true,
+  "stateRecord": true
+}

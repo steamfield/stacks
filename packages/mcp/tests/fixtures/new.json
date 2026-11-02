@@ -1,0 +1,36 @@
+{
+  "project": "/stacks-mcp-capture/project with spaces",
+  "dryRun": false,
+  "fingerprint": "sha256:5cec52c729e0a20643304a599c83f498a223c008463fce27b389b57f57222cf1",
+  "stack": "fixture",
+  "fragments": [],
+  "preset": "sandbox",
+  "agents": ["claude"],
+  "written": [
+    ".stacks/.gitignore",
+    ".stacks/BRIEF.md",
+    ".stacks/NOTES.md",
+    ".stacks/manifest.json"
+  ],
+  "brief": ".stacks/BRIEF.md",
+  "briefWords": 866,
+  "fixedWords": 801,
+  "missingTools": [],
+  "untrusted": [
+    {
+      "id": "fixture",
+      "kind": "stack",
+      "origin": "bundled",
+      "dir": "/stacks-mcp-capture/registry/stacks/fixture"
+    }
+  ],
+  "warnings": [],
+  "git": "none",
+  "stateRecord": true,
+  "handoff": {
+    "kind": "print",
+    "reason": "json",
+    "untrusted": ["fixture"],
+    "prompt": "Read .stacks/BRIEF.md and carry it out. It's your full task for this project; you're done when stacks verify passes."
+  }
+}

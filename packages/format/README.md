@@ -13,16 +13,17 @@ published build from npm.
 Maintainers with publish rights on the `@steamfield` npm organization publish by hand. Run
 every command from the repository root unless it says otherwise.
 
-`bun run release` does steps 3 to 6 for this package and then `@steamfield/stacks`, once the
-version commit is on `main`. It refuses a dirty tree, a HEAD other than `origin/main`, or an
-existing tag. It packs both packages in a temporary detached worktree of `origin/main`, publishes
-this package first, waits up to 10 minutes for the registry to serve both versions, then tags
+`bun run release` does steps 3 to 6 for this package, then `@steamfield/stacks`, then
+`@steamfield/stacks-mcp`, once the version commit is on `main`. It refuses a dirty tree, a HEAD
+other than `origin/main`, or an existing tag. It packs all three packages in a temporary detached
+worktree of `origin/main`, publishes them in that order (the MCP server pins the CLI's exact
+version), waits up to 10 minutes for the registry to serve each version, then tags
 `v<cli version>` and pushes the tag. To publish format alone first so the hosted API can use it,
 run `bun run release:format`: the same checks, pack and publish for this package only, with no
 tag (the CLI tag checks are skipped too). A later `release` skips that exact version when the
 published tarball integrity matches its fresh pack; a mismatch or lookup failure stops the
-release. `bun run release:dry-run` packs both and shows which it would skip or publish, including
-the CLI's embedded telemetry endpoint, without logging in, publishing or tagging
+release. `bun run release:dry-run` packs all three and shows which it would skip or publish,
+including the CLI's embedded telemetry endpoint, without logging in, publishing or tagging
 (`bun run release:format -- --dry-run` does the same for format alone). The steps below are what
 it runs.
 
@@ -37,6 +38,9 @@ it runs.
    patch for a fix, minor for an addition (a new export, a new optional field), major for a
    change that rejects data the previous version accepted or removes an export. The first
    release publishes the version already in the file.
+
+   With every CLI version bump, bump the patch version in `packages/mcp/package.json` too:
+   the MCP package pins the CLI's exact version, so its published version must change with it.
 
 3. Run the gate on that commit (`rr check`, or `bun run check` without rr) and push it to `main`.
    Pack and publish from a checkout of exactly that commit

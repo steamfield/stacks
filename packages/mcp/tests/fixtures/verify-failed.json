@@ -1,0 +1,36 @@
+{
+  "outcome": "failed",
+  "scope": "full",
+  "steps": [
+    {
+      "name": "first",
+      "phase": "check",
+      "layer": "test",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "failed",
+      "failureKind": "step",
+      "exitCode": 1,
+      "durationMs": 7,
+      "reason": "exited with status 1",
+      "outputTail": "fixture failure output"
+    },
+    {
+      "name": "second",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "failed",
+      "failureKind": "step",
+      "exitCode": 1,
+      "durationMs": 4,
+      "reason": "exited with status 1",
+      "outputTail": "fixture failure output"
+    }
+  ],
+  "totals": { "passed": 0, "failed": 2, "skipped": 0 },
+  "durationMs": 13,
+  "secondsSinceCreated": 0,
+  "tamperCheck": "full",
+  "firstGreen": false,
+  "stateRecord": true
+}

@@ -1,0 +1,38 @@
+{
+  "outcome": "changed",
+  "scope": "full",
+  "steps": [
+    {
+      "name": "first",
+      "phase": "check",
+      "layer": "test",
+      "command": "true",
+      "status": "skipped",
+      "durationMs": 0,
+      "reason": "not run: the verify steps changed since they were recorded"
+    },
+    {
+      "name": "second",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "skipped",
+      "durationMs": 0,
+      "reason": "not run: the verify steps changed since they were recorded"
+    }
+  ],
+  "totals": { "passed": 0, "failed": 0, "skipped": 2 },
+  "durationMs": 4,
+  "secondsSinceCreated": 0,
+  "tamperCheck": "full",
+  "changed": {
+    "against": "manifest",
+    "reason": "digest",
+    "removed": [],
+    "added": [],
+    "edited": ["first"],
+    "settings": false
+  },
+  "firstGreen": false,
+  "stateRecord": true
+}

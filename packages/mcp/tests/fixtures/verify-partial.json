@@ -1,0 +1,30 @@
+{
+  "outcome": "partial",
+  "scope": "partial",
+  "steps": [
+    {
+      "name": "first",
+      "phase": "check",
+      "layer": "test",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 6
+    },
+    {
+      "name": "second",
+      "phase": "check",
+      "layer": "check",
+      "command": "test ! -f fail || { echo 'fixture failure output' >&2; exit 1; }",
+      "status": "skipped",
+      "durationMs": 0,
+      "reason": "not selected by --only"
+    }
+  ],
+  "totals": { "passed": 1, "failed": 0, "skipped": 1 },
+  "durationMs": 7,
+  "secondsSinceCreated": 0,
+  "tamperCheck": "full",
+  "firstGreen": false,
+  "stateRecord": true
+}

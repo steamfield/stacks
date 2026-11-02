@@ -1254,14 +1254,15 @@
       "pool": "product",
       "split": "holdout",
       "query": "give a coding agent typed tools over the Model Context Protocol",
-      "first": {
-        "kind": "stack",
-        "id": "typescript-mcp"
-      },
       "relevant": [
         {
           "kind": "stack",
           "id": "typescript-mcp",
+          "grade": 2
+        },
+        {
+          "kind": "stack",
+          "id": "go-mcp",
           "grade": 2
         }
       ]

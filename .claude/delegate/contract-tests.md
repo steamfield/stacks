@@ -2,7 +2,7 @@
 
 <!-- Template for the test-author unit that comes first in a test-first feature
 (rules/cli/testing.md "Process and gate"). Copy into the scratchpad, fill every {PLACEHOLDER},
-delete this comment, then run scripts/delegate.sh <filled-contract.md> --write --worktree <worktree> -->
+delete this comment, then run the codex-delegate runner as .claude/delegate.md shows -->
 
 ## Goal
 

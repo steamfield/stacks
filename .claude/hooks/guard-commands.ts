@@ -15,8 +15,9 @@ const inPlaceFlag = (arg: string) =>
 // worktrees, never committed); without it, whole suites run locally. A scoped file always does.
 const RR =
   'BLOCKED: Whole test suites run through rr, which queues them across the test hosts: `rr check` for the gate, `rr test-cli`, `rr test-hooks` or `rr e2e` for one suite (AGENTS.md "Test runs"). A single test file runs locally (`bun run test:unit tests/<file>.test.ts` in packages/cli). If rr is missing or fails before running, say so and rerun with STACKS_LOCAL_GATE=1 in front.';
-// A delegate (`scripts/delegate.sh` sets STACKS_DELEGATE=1) runs no gate at all: Claude runs it
-// once on the delegate's work after the refactor, so the delegate's run only held a shared host.
+// A delegate (the codex-delegate runner sets CODEX_DELEGATE=1; older runners set STACKS_DELEGATE=1)
+// runs no gate at all: Claude runs it once on the delegate's work after the refactor, so the
+// delegate's run only held a shared host.
 const DELEGATE =
   'BLOCKED: Delegates run no full gate or whole suite, locally or on rr: Claude runs the gate once after review (AGENTS.md "Test runs"). Run the test files covering your change (`bun run test:unit tests/<file>.test.ts` in packages/cli, or `rr test-cli tests/<file>.test.ts`), lint and typecheck, and name in the hand-off any test outside your scope your change could affect.';
 const RR_SUITES = new Set(["check", "check-serial", "test", "test-hooks", "e2e"]);
@@ -108,7 +109,7 @@ const requestedDirectory = text(payload?.tool_input?.working_directory) || text(
 const start = isDir(requestedDirectory) ? requestedDirectory : process.cwd();
 const command = text(payload?.tool_input?.command);
 const localGate = /(^|[\s;&|(])STACKS_LOCAL_GATE=1\s/.test(command ?? "");
-const delegate = process.env.STACKS_DELEGATE === "1";
+const delegate = process.env.CODEX_DELEGATE === "1" || process.env.STACKS_DELEGATE === "1";
 for (const parsed of commands(command ?? "")) {
   const { argv, stdin } = parsed;
   if (delegate && (wholeSuite(parsed) || wholeRrSuite(parsed))) {

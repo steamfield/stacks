@@ -1,7 +1,7 @@
 # Contract: {TITLE}
 
 <!-- Template. Copy into the scratchpad, fill every {PLACEHOLDER}, delete this comment and the
-sections that don't apply, then run scripts/delegate.sh <filled-contract.md> --write --worktree <worktree> -->
+sections that don't apply, then run the codex-delegate runner as .claude/delegate.md shows -->
 
 ## Goal
 

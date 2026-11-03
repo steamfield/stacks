@@ -17,13 +17,17 @@ describe("shared package manager guard", () => {
   );
 });
 
-/** A clone's rr opt-in (`git config stacks.rr`), set through git's env config so it wins. */
-const rrOptIn = (value: string, delegate?: "1") => ({
+/**
+ * A clone's rr opt-in (`git config stacks.rr`), set through git's env config so it wins, with the
+ * delegate marker under the name given (both cleared otherwise, so an inherited one can't leak in).
+ */
+const rrOptIn = (value: string, delegate?: "CODEX_DELEGATE" | "STACKS_DELEGATE") => ({
   env: {
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: "stacks.rr",
     GIT_CONFIG_VALUE_0: value,
-    STACKS_DELEGATE: delegate,
+    CODEX_DELEGATE: delegate === "CODEX_DELEGATE" ? "1" : undefined,
+    STACKS_DELEGATE: delegate === "STACKS_DELEGATE" ? "1" : undefined,
   },
 });
 
@@ -100,7 +104,25 @@ describe("a delegate runs no full gate", () => {
   ])("denies %s", async (command) => {
     expect(
       denyReason(
-        await runHook("PreToolUse", "guard-commands", bash(command), rrOptIn("true", "1")),
+        await runHook(
+          "PreToolUse",
+          "guard-commands",
+          bash(command),
+          rrOptIn("true", "CODEX_DELEGATE"),
+        ),
+      ),
+    ).toContain("Delegates run no full gate");
+  });
+  // A worktree on an older branch, or an older runner, still marks a delegate this way.
+  it("denies the gate to a delegate marked with the older STACKS_DELEGATE", async () => {
+    expect(
+      denyReason(
+        await runHook(
+          "PreToolUse",
+          "guard-commands",
+          bash("rr check"),
+          rrOptIn("true", "STACKS_DELEGATE"),
+        ),
       ),
     ).toContain("Delegates run no full gate");
   });
@@ -114,7 +136,12 @@ describe("a delegate runs no full gate", () => {
   ])("allows %s", async (command) => {
     expect(
       denyReason(
-        await runHook("PreToolUse", "guard-commands", bash(command), rrOptIn("true", "1")),
+        await runHook(
+          "PreToolUse",
+          "guard-commands",
+          bash(command),
+          rrOptIn("true", "CODEX_DELEGATE"),
+        ),
       ),
     ).toBeUndefined();
   });

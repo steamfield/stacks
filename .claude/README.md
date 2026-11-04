@@ -1,24 +1,67 @@
 # Claude adapter
 
-CLAUDE.md imports canonical AGENTS.md. docs/harness.md describes ownership. The settings file wires owned hooks once and allows project checks/source development while guarding destructive operations. No optional marketplace plugin is required.
+`CLAUDE.md` imports `AGENTS.md`, the project instructions every coding agent reads. `docs/harness.md` says who owns which part of the harness. `settings.json` wires each hook below once, allows the project's checks and source-development commands, and denies the worst destructive commands outright. Nothing here needs a marketplace plugin to work; the `ce` skills the rules and agents load make them better, but each rule stands on its own.
 
-| Hook | Purpose |
-| --- | --- |
-| session-start.sh | Repository, dependency, jq and environment advisory; exports macOS's ssh-agent socket for rr in an opted-in clone |
-| project-status.ts | Bun version mismatch and newly appended warn/error logs |
-| block-destructive.sh | Destructive command deny/near-miss checks |
-| detect-secrets.sh | Credential-shaped edit guard |
-| lint-on-write.sh | Local Biome advisory and session edit tracking |
-| format-changed.sh | Format only this session's recorded edits |
-| guard-commands.ts | Shared package command rules |
-| guard-generated.ts | Build/coverage/lockfile edit guard |
-| guard-repo-content.ts | Keeps home paths and local names (gitignored `hooks/private-patterns.local`) out of tracked files |
-| guard-cli-commands.ts | Node unit runner and explicitly scoped Bun binary tests |
-| guard-boundaries.ts | Platform, Schema, env and output boundary guard |
-| typecheck-on-write.ts | Bounded TypeScript advisory |
-| _lib.ts, _shell.ts | Protocol/process and shell parsing helpers |
-| _lib.sh, _destructive-patterns.sh | Bash 3.2 helpers and deny patterns |
+## Hooks
 
-rules/architecture.md and rules/agent-ops.md have no `paths:` and load in every session: the first holds product, package and shared-contract constraints for any design; the second holds how agents operate here (what tracked files may reference, Edit/Write over shell edits, subagent briefs, one review pass). rules/typescript.md applies to the TypeScript in packages/cli, the root tests/ and scripts/, and the hooks. rules/cli/ is scoped to packages/cli: cli.md is the CLI UX contract, effect.md is the CLI's Effect policy (services, runtime, errors, parsed input, config and logging) and loads `ce:effect`, testing.md and verification.md cover tests and done-checks. rules/format/format.md is scoped to packages/format and keeps its runtime source portable. The rules load these ce plugin skills from the `claude-essentials` marketplace: `ce:architecting-systems`, `ce:handling-errors`, `ce:writing-tests` and `ce:effect`; Codex installs the same plugin (`codex plugin marketplace add rileyhilliard/claude-essentials`, then `codex plugin add ce@claude-essentials`); without the plugin, the rules still stand on their own. Codex delegation uses the personal `codex-delegate` skill (its runner starts Codex in a worktree); delegate.md is this repo's overlay on it (setup, runner command, what to keep in-house) and delegate/ holds the repo's filled-in templates (`contract.md` for a task, `contract-tests.md` for a test author); rules/agent-ops.md makes delegation the default for coding tasks. skills/stack-authoring/ and skills/fragment-authoring/ guide naming, descriptions and search cards for registry entries (they load `ce:writer`; `stack-authoring/search-card.md` is shared), and agents/stack-creator.md loads both to add or revise one entry. Commands /check, /test and /feature, plus the personal /execute:codex (a design or task executed through Codex delegates, with delegate.md's additions), orchestrate work; agents/architect.md is a read-only design review, and agents/code-reviewer.md is the one code review of a diff (it extends `ce:code-reviewer` with the checks reviews here have missed; Codex delegates run its body too). `.agents/skills` is a tracked symlink to `skills/`, so Codex, which discovers repo skills under `.agents/skills`, reads the same files; edit them here.
+| Hook | Event | What it does |
+| --- | --- | --- |
+| `session-start.sh` | SessionStart | Reports the branch, dirty files, `.env`, installed dependencies and whether jq is present; in a clone opted in to rr, exports macOS's ssh-agent socket |
+| `project-status.ts` | SessionStart | Reports a Bun version mismatch and the warn/error lines each package's `logs/*.jsonl` gained since the last session |
+| `block-destructive.sh` | PreToolUse Bash | Denies commands that destroy work without a way back, and asks before a publish |
+| `guard-commands.ts` | PreToolUse Bash | Denies shell in-place edits, hand-written lockfile changes, local whole-suite runs in an rr clone, and any gate or whole suite from a Codex delegate |
+| `guard-cli-commands.ts` | PreToolUse Bash | Keeps Vitest on Node, scopes Bun's runner to its declared binary and native tests, and refuses competing schema or legacy platform packages |
+| `detect-secrets.sh` | PreToolUse Edit/Write | Denies writes containing a credential-shaped value |
+| `guard-generated.ts` | PreToolUse Edit/Write | Denies hand edits to `dist/`, `coverage/` and `bun.lock` |
+| `guard-repo-content.ts` | PreToolUse Edit/Write | Denies home paths and the patterns in the gitignored `hooks/private-patterns.local` in tracked files |
+| `guard-boundaries.ts` | PreToolUse Edit/Write | Enforces the platform, Schema, env and output boundaries under `packages/cli/src/` |
+| `lint-on-write.sh` | PostToolUse Edit/Write | Returns Biome diagnostics for the written file and records it for formatting |
+| `typecheck-on-write.ts` | PostToolUse Edit/Write | Returns tsc errors for the nearest `tsconfig.json`, within 40 s |
+| `format-changed.sh` | Stop | Formats only the files this session recorded |
 
-jq powers Bash payload parsing. Hooks never download tools. Missing optional tools cause quiet/advisory behavior; guards explain denies. Tests execute helpers and exercise actual boundary rules. Personal settings.local.json is ignored. `.env` is optional here even when the generic session-start advisory mentions it.
+`_lib.ts` and `_shell.ts` hold the TypeScript hooks' payload, process and shell-parsing helpers; `_lib.sh` and `_destructive-patterns.sh` hold the Bash 3.2 helpers and the deny patterns.
+
+The Bash hooks parse their payload with jq. Without it they exit quietly, `session-start.sh` says so once, and the `permissions.deny` list in `settings.json` still blocks the worst commands. Hooks never download tools, and a missing optional tool makes a hook skip rather than fail. Every deny explains itself so the agent can ask the user instead. `.env` is optional in this repo even when `session-start.sh` mentions it.
+
+Codex runs only the command guards: `.codex/hooks.json` runs `guard-commands.ts` and `block-destructive.sh` from the checkout's own git root and refuses the command if either is missing. The hook tests in `tests/hooks/` execute the real helpers and probe each guard with a deny and a near miss.
+
+## Rules
+
+`rules/architecture.md` and `rules/agent-ops.md` have no `paths:` and load in every session. The first holds the product, package and shared-contract constraints for any design; the second covers how agents work here: what tracked files may reference, Edit and Write over shell edits, subagent briefs, Codex delegation as the default for coding, and one review pass per deliverable.
+
+The rest are path-scoped:
+
+| Rule | Loads for | Covers |
+| --- | --- | --- |
+| `typescript.md` | TypeScript in `packages/cli` and `packages/mcp` sources, tests and scripts, root `tests/` and `scripts/`, and the hooks | Strict TypeScript conventions |
+| `cli/cli.md` | `packages/cli/src/` | The CLI UX contract |
+| `cli/effect.md` | `packages/cli/src/` and `tests/` | The CLI's Effect policy: services, runtime, errors, parsed input, config and logging |
+| `cli/testing.md`, `cli/verification.md` | `packages/cli/src/` and `tests/` | Tests and done-checks |
+| `format/format.md` | `packages/format/` | Keeps its runtime source portable |
+| `mcp/effect.md` | `packages/mcp/src/`, `tests/` and `e2e/` | The MCP server's Effect notes on top of `cli/effect.md` |
+
+The rules and agents load these skills from the `claude-essentials` marketplace's `ce` plugin: `ce:architecting-systems`, `ce:handling-errors`, `ce:writing-tests`, `ce:effect` and `ce:writer`. Codex installs the same plugin:
+
+```bash
+codex plugin marketplace add rileyhilliard/claude-essentials
+```
+
+```bash
+codex plugin add ce@claude-essentials
+```
+
+## Delegation
+
+Codex delegation uses the personal `codex-delegate` skill, whose runner starts Codex in its own worktree. `delegate.md` is this repo's overlay on it (setup, the runner command, what to keep in-house), and `delegate/` holds the filled-in contract templates: `contract.md` for a task and `contract-tests.md` for a test author.
+
+## Skills, agents and commands
+
+`skills/stack-authoring/` and `skills/fragment-authoring/` guide naming, descriptions and search cards for registry entries. Both load `ce:writer`, and they share `stack-authoring/search-card.md`. `.agents/skills` is a tracked symlink to `skills/` so Codex, which looks for repo skills there, reads the same files; edit them here.
+
+`agents/architect.md` is a read-only design review. `agents/code-reviewer.md` is the one code review of a diff; it extends `ce:code-reviewer` with the checks reviews here have missed, and Codex delegates run its body as a prompt. `agents/stack-creator.md` loads both authoring skills to add or revise one registry entry.
+
+The commands `/check`, `/test` and `/feature` orchestrate work, alongside the personal `/execute:codex`, which executes a design or task through Codex delegates with `delegate.md`'s additions.
+
+## Local files
+
+`settings.local.json`, `hooks/private-patterns.local` and `worktrees/` are gitignored. Personal or machine-specific settings go in `settings.local.json`, never in `settings.json`.

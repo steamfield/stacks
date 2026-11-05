@@ -5,7 +5,7 @@ sections that don't apply, then run the codex-delegate runner as .claude/delegat
 
 ## Goal
 
-{One paragraph: the behaviour to add or change and why. Quote the design or task description it
+{One paragraph: the behavior to add or change and why. Quote the design or task description it
 implements, or give the design file's path and section, if there is one.}
 
 ## Read first
@@ -51,7 +51,7 @@ never rename or redefine one.}
 
 ## Acceptance
 
-{The tests that must exist and pass, as behaviours. A bug fix starts with a failing regression
+{The tests that must exist and pass, as behaviors. A bug fix starts with a failing regression
 test. Copy these when they apply:}
 
 {- Performance: first measure at the target size and hand back the time per phase, before any
@@ -93,8 +93,8 @@ command to run (a refactor, the harness), say so and QA what does run.
 ## Review before hand-off
 
 Once the acceptance checks pass, get one independent code review and fix what it finds, so the
-work comes back clean. The reviewer is the repo's reviewer agent file (here
-`.claude/agents/code-reviewer.md`; use the target repo's own file in the commands below), which extends the `ce:code-reviewer` agent
+work comes back clean. The reviewer is this repo's `code-reviewer` agent,
+`.claude/agents/code-reviewer.md`, which extends the `ce:code-reviewer` agent
 (`${ce}agents/code-reviewer.md`); both bodies go into the prompt, the repo's last so it wins.
 
 Run it as a fresh Codex process, so it doesn't share your context, read-only, with its report
@@ -122,8 +122,7 @@ Fix every finding in `review.md` (its list has no optional tier), or say in the 
 finding is wrong. A finding about a locked file is a note for the orchestrator, not an edit. A
 finding that is a bug gets a regression test in the repo before its fix (a new test file when the
 natural one is locked), revert-verified; a probe in a temp script doesn't count. Then rerun the
-acceptance checks. One review pass only: don't review again
-after the fixes.
+acceptance checks. One review pass only: don't review again after the fixes.
 
 ## Hand-off
 
@@ -141,7 +140,7 @@ the orchestrator works from it, so be specific and name files and symbols.
    the commands you ran, what you judged and what you changed.
 5. Review: the review file's path, each finding in a line, and how you resolved it (fixed,
    or why not).
-6. Look closer at: the places most likely to be wrong, such as assumptions you couldn't verify,
-   edge cases you didn't cover, code you're least sure of, tests that are weaker than you'd
-   like, and anything in the design that looked wrong.
+6. Look closer at: the places most likely to be wrong (assumptions you couldn't verify, edge
+   cases you didn't cover, code you're least sure of, tests weaker than you'd like) and anything
+   in the design that looked wrong.
 7. Open: what's left undone or blocked, and the questions you'd ask.

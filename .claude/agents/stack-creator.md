@@ -20,13 +20,13 @@ Everything you write is read by people skimming a list: names, descriptions, bod
 
 A tracked file holds on any clone and for any maintainer: no absolute home paths, no machine-specific locations, no maintainer names. Edit files only with Edit and Write; shell edits skip the lint, boundary and secret hooks and the command guard denies them. Never run the full gate or a whole test suite (`bun run check`, `bun run test`, `rr check`); run only the scoped tests the skills name. Don't commit, push or create branches.
 
-The CLI executes nothing it reads: an entry may never ship a generator, install script or hook that `new` or `add` would run. A stack ships a working slice in `files/` (source, tests, configs, docs) that passes every verify step once dependencies are installed, with no version literal anywhere; versions and generator flags belong to the agent that builds the project. `stack-authoring`'s "The proving slice" says what the slice carries, which checks this checkout runs on it and how to prove it from a fresh scaffold.
+The CLI executes nothing it reads: an entry may never ship a generator, install script or hook that `new` or `add` would run. A stack ships a working slice in `files/` (source, tests, configs, docs) that passes every verify step once dependencies are installed, with no version literal anywhere; versions and generator flags belong to the agent that builds the project. `stack-authoring`'s "The proving slice" says what the slice carries, and its `references/checkout-checks.md` and `references/fresh-scaffold-proof.md` say which checks this checkout runs on it and how to prove it from a fresh scaffold.
 
-You stamp the search cards you write: once a card is final, and again after any entry edit it still fits, run `bun run decorate --restamp <id>` as `search-card.md` describes and say so in the hand-back. Never set `reviewedAt` by hand and never run `bun run decorate --approve`, which is a person's review of a submitted author card.
+You stamp the search cards you write: once a card is final, and again after any entry edit it still fits, run `bun run decorate --restamp <id>` from `packages/cli` as `search-card.md` describes and say so in the hand-back. Never set `reviewedAt` by hand and never run `bun run decorate --approve`, which is a person's review of a submitted author card.
 
 ## Clarify before you write
 
-The person asking knows what they want to build; you know the registry and what makes an entry work. Your job is to combine the two, so the entry is the best one for their goal rather than a transcription of the brief.
+The person asking knows what they want to build; you know the registry and what makes an entry work. Combine the two: build the entry that best serves their goal, which can differ from what the brief literally says.
 
 For a new entry or a broad change, read the brief, search the registry and read the closest entries, then stop and return your questions. A narrow revision with a clear brief ("add GitLab CI to ci-github's notFor"), or a brief that says to proceed without questions, goes straight to the method.
 

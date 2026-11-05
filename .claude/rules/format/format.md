@@ -5,8 +5,10 @@ paths:
 
 # Format package
 
-This package owns the shared entry, manifest, run-record and canonical bundle contracts.
-Keep runtime source portable: no `node:*`, `bun`, `bun:*` or `@effect/platform-*` imports.
+This package owns the wire contracts the CLI and the hosted API share: entry format, manifest,
+run record, canonical bundle, index, search, stats and dependency schemas.
+Keep runtime source portable: no `node:*`, `bun`, `bun:*` or `@effect/platform-*` imports in
+`src/` (`biome-plugins/no-platform-imports.grit` enforces it).
 Use standard Web APIs and Effect core; platform I/O belongs to consumers.
 
 Extend the public contracts additively. Existing exports from `src/index.ts` and their behavior

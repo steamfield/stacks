@@ -15,7 +15,7 @@ This file covers only what differs for the bundled registry.
 
 Use `bun run dev <command>` from the repo root where the public skill says `<cli>`. Write the entry straight into `packages/cli/registry/fragments/<id>/` with Edit and Write.
 
-Search for overlap first: `bun run dev search --local --kind fragment --json "<capability>"`, and read the closest two fragments in full. Bundled entries predate the public skill: copy their structure, not their search cards.
+Search for overlap first: `bun run dev search --local --kind fragment --json "<capability>"`, and read the closest two fragments in full. Bundled entries predate the public skill, so copy their structure and not their search cards.
 
 For a new fragment or a broad change, ask the person the questions in `references/fragment.md` (at most five, each with a recommendation). A subagent returns the questions to its caller and waits for the answers.
 
@@ -23,13 +23,13 @@ When you target stacks by tag, compose each admitted stack's brief with the frag
 
 ## Ids in a release
 
-An id is permanent once a release ships it. A rename needs a `removed.json` row with `replacedBy`, restarts the fragment's published stats, updates every stack `fragments` list and fragment `requires` that names it, and stales golden judgments. Fragments that something requires are the worst case: older projects keep the old id in their manifest, so `add` asks for the new id again and parks duplicate files under `.stacks/incoming/`. When revising a fragment, keep its id; if you think it's wrong, say so with these costs.
+An id is permanent once a release ships it. A rename needs a `removed.json` row with `replacedBy`, restarts the fragment's published stats, updates every stack `fragments` list and fragment `requires` that names it, and stales golden judgments. Fragments that something requires are the worst case: older projects keep the old id in their manifest, so `add` asks for the new id again and parks duplicate files under `.stacks/incoming/`. When revising a fragment, keep its id; if you think it's wrong, say so and name these costs.
 
 ## Search card
 
 Write `packages/cli/registry/search/fragments/<id>.json` following `search-card.md`, as a `drafted` card. Fragment-specific points:
 
-- `capabilities` come from the closed vocabulary (0 to 3). Platforms, product kinds and languages come from `applies_to`; `applies_to: []` opts out of those penalties, and the fragment then needs `notFor` to stay out of other languages' queries.
+- `capabilities` come from the closed vocabulary (0 to 3). Platform and language penalties come from the stacks `applies_to` admits, and a fragment never takes a product-kind penalty. `applies_to: []` opts out of those penalties, so the fragment then needs `notFor` to stay out of other languages' queries.
 - `notFor` fixes most fragment misses seen in testing: the other host ("GitLab CI"), the vendor's products it doesn't touch, the capability it lacks, and the sibling's job.
 - `synonyms` add the plain words people use for the capability and agent-specific terms for each adapter shipped ("Cursor rules", "Codex hooks").
 - For an app, `requests` describe the app the user gets, and project examples name their host `stack`.
@@ -52,6 +52,6 @@ Follow "Reviewing a submitted stack" in `stack-authoring`; for a fragment, also 
 
 | Don't | Do |
 | --- | --- |
-| Setting `reviewedAt` by hand or running `--approve` | Stamp your own card with `--restamp`; leave a submitted author card for a person to approve (`stack-authoring/search-card.md`) |
-| Renaming a required fragment to fix search | Fix the name field, description and card |
-| Misspellings on one card | Aliases in `vocabulary.json` |
+| Set `reviewedAt` by hand or run `--approve` | Stamp your own card with `--restamp`; leave a submitted author card for a person to approve (`stack-authoring/search-card.md`) |
+| Rename a required fragment to fix search | Fix the name field, description and card |
+| Put misspellings on one card | Add aliases to `vocabulary.json` |

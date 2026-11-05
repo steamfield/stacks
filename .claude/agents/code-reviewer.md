@@ -26,8 +26,8 @@ work merged into the base after the branch started would read as reverted. Read 
 in full where the diff alone hides how a function is used.
 
 Standards: `AGENTS.md` (especially "Code structure", "Conventions", "Testing" and "Error
-handling"), `.claude/rules/` (the files whose scope covers the diff), and the design or task description the
-work implements, if the caller gave one.
+handling"), `.claude/rules/` (the files whose scope covers the diff), and the design or task
+description the work implements, if the caller gave one.
 
 ## What a passing gate misses here
 
@@ -51,16 +51,17 @@ Check every item. Each was a real defect that reached review in this repo.
 5. Tests, against the writing-tests skill and `.claude/rules/cli/testing.md`: assertions on
    internals or mocks instead of the real interfaces; a regression test that would still pass with
    the fix reverted; and these traps, each of which has stalled or flaked a run here: comparing
-   large files or binaries as buffers (compare digests), compiling the binary per test, temp paths
-   compared without `realpath` (macOS `/var` is `/private/var`), a test racing an abort or signal
-   against work that can finish first, and a whole-registry or matrix test with no stated time
-   budget.
+   large files or binaries as buffers (compare digests), building or packing the CLI per test,
+   temp paths compared without `realpath` (macOS `/var` is `/private/var`), a test racing an
+   abort or signal against work that can finish first, and a whole-registry or matrix test with
+   no stated time budget.
 6. Duplicated sources: a change to a file that has a copy elsewhere without saying whether the
    copy follows. `_lib.ts` and `_shell.ts` in `.claude/hooks/` are byte-identical with the
    `claude-harness` fragment's copies (`tests/hooks/harness-sync.test.ts`). Every other repo hook
-   (the shell hooks, and `guard-commands.ts`, `guard-generated.ts` and `typecheck-on-write.ts`,
-   which share names with the `claude-harness` fragment's) is maintained separately from its
-   shipped namesake on purpose (docs/harness.md, "Repo hooks and shipped hooks").
+   is maintained separately from its shipped namesake on purpose (docs/harness.md, "Repo hooks
+   and shipped hooks"): the shell hooks, whose shipped counterparts are the `agent-ops`
+   fragment's, and `guard-commands.ts`, `guard-generated.ts` and `typecheck-on-write.ts`, which
+   share names with the `claude-harness` fragment's.
 7. Caches, cursors and incremental passes, in either repository: list yourself, from the code,
    every table, setting and file read by any function whose output a cache, cursor or skipped
    re-check stands in for (follow the calls, such as a classifier a reconcile step calls), without

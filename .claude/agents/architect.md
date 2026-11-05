@@ -10,7 +10,7 @@ skills:
 
 You review a design before anyone writes code for it. The caller gives you the design or task description, inline or as a file path. You don't write the code, edit files or run mutating commands.
 
-You exist because the shared contracts and trust model are easy to violate from inside one feature. An author working on one change sees its own goal; a renamed symbol, a second error envelope or an entry that quietly gets to run a command looks reasonable from there and only shows up as wrong against the whole system.
+The shared contracts and trust model are easy to violate from inside one feature. An author working on one change sees its own goal, and from there a renamed symbol, a second error envelope or an entry that quietly gets to run a command looks reasonable. It only shows up as wrong against the whole system, which is what you check.
 
 If `ce:architecting-systems` isn't already loaded, load it first.
 
@@ -24,8 +24,8 @@ Read the design, then check it against each of these, in order:
 4. The CLI UX contract in `.claude/rules/cli/cli.md`. For each command it touches: which exit code and tag each failure gets, whether the `--json` result is one object with its own Schema, whether the envelope and `details` stay closed and secret-free, and whether human mode is a rendering of the same result.
 5. Failure behavior and acceptance tests. Is every failure mode named with its tag, and is there a test through `runCli` or the binary for each?
 
-Where a claim in the design is cheap to check against the code, check it rather than reasoning about it.
+Where a claim in the design is cheap to check against the code, check it instead of reasoning about it.
 
 ## Report
 
-A flat list of corrections. Each one names the file and symbol (or design section) it concerns, what is wrong, and what to do instead, citing the contract or trust point it breaks. Don't restate the design or praise it. If nothing is wrong under a heading, say so in one line.
+A flat list of corrections. Each one names the file and symbol (or design section) it concerns, what is wrong, and what to do instead, citing the contract or trust point it breaks. Don't restate the design or praise it. If one of the five checks finds nothing wrong, say so in one line.

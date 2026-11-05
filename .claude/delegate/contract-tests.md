@@ -24,7 +24,7 @@ from the right paths. Point at the existing tests and fixtures whose patterns to
 ## Scope
 
 - May change: `packages/cli/tests/` (new test files and fixtures), and `packages/cli/e2e/` only
-  for what needs the compiled binary.
+  for what needs the packed and installed CLI.
 - Must not change: anything under `packages/cli/src/`, existing tests, the design.
 - Locked: none.
 
@@ -65,7 +65,7 @@ the design's acceptance tests and its realistic edge cases as failing tests. You
 implementation code. The implementer will make your tests pass without editing their
 assertions, so each test must:
 
-- assert behaviour through the real interfaces (`runCli`, real NodeServices, real temp dirs,
+- assert behavior through the real interfaces (`runCli`, real NodeServices, real temp dirs,
   real `git init`), with no module mocks;
 - import the new symbols from the module paths the design names, so the tests fail now only
   because the code doesn't exist yet (a missing export or a wrong result), never because of
@@ -73,11 +73,11 @@ assertions, so each test must:
 - be named after the behavior it checks;
 - be specific enough that a wrong implementation fails it, and loose enough that it doesn't
   pin internal structure the design leaves open;
-- be deterministic. An interruption test first makes the program block at the step it
+- be deterministic: an interruption test first makes the program block at the step it
   interrupts (a git or tool shim on `PATH` that hangs after touching a marker file, as
   `tests/new.test.ts` does for `git init`, or a writer-level program that ends in
   `Effect.never`, as `tests/scaffold-write.test.ts` does), then aborts. Never race an abort
-  against a command that can finish first (an `fs.watch` callback, a timer).
+  against a command that can finish first (an `fs.watch` callback, a timer);
 - match formats the code already has (ids, digests such as `sha256:<hex>`, paths): read the
   producing function rather than guessing a shape.
 
@@ -85,8 +85,8 @@ Known traps, each of which has cost a run in this repo:
 
 - Comparing compiled binaries or other large files as buffers: Vitest's diff on a mismatch
   stalls the run. Compare sha256 digests.
-- Compiling the binary per test: a compile takes about 20 s. Compile once per file in
-  `beforeAll`, or use the e2e suite, which compiles once.
+- Building or packing the CLI per test: the e2e suite packs and installs it once (`bun run e2e`
+  in `packages/cli`). Build once per file in `beforeAll`, or put the test in the e2e suite.
 - Temp paths without `realpathSync`: on macOS `/var` is `/private/var`, so a path the CLI prints
   won't equal the one the test built. Resolve the temp dir first.
 - Tests that need more than Vitest's default timeout: a test that runs the whole registry or a
@@ -103,7 +103,7 @@ Steps:
    feature (only those that apply) and list them in your hand-off, one line each.
 3. Write the tests, including one per edge case.
 4. Run them and confirm each fails for the expected reason (missing module or export, or wrong
-   behaviour), not a test bug. Typecheck failures from imports of not-yet-existing modules are
+   behavior), not a test bug. Typecheck failures from imports of not-yet-existing modules are
    expected; anything else in `bun run typecheck` or `bun run lint` must be clean in your files.
 
 ## Do not
@@ -134,7 +134,7 @@ body() { awk 'NR==1&&/^---$/{f=1;next} f&&/^---$/{f=0;next} !f' "$1"; }  # witho
   echo "Skills: ${ce}skills/writing-tests/SKILL.md, ${ce}skills/architecting-systems/SKILL.md."
   echo "The base branch is {BASE BRANCH}; review the uncommitted work in $PWD. These are"
   echo "failing acceptance tests written ahead of the code; review them as tests: do they"
-  echo "assert the design's behaviour, would a wrong implementation pass them, are they flaky or"
+  echo "assert the design's behavior, would a wrong implementation pass them, are they flaky or"
   echo "coupled to internals. Your sandbox is read-only, so don't run Vitest. The task's contract:"
   cat "{THIS CONTRACT'S PATH}"
 } > "$review/prompt.md"

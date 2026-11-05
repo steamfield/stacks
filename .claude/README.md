@@ -56,7 +56,7 @@ Codex delegation uses the personal `codex-delegate` skill, whose runner starts C
 
 ## Skills, agents and commands
 
-`skills/stack-authoring/` and `skills/fragment-authoring/` guide naming, descriptions and search cards for registry entries. Both load `ce:writer`, and they share `stack-authoring/search-card.md`. `.agents/skills` is a tracked symlink to `skills/` so Codex, which looks for repo skills there, reads the same files; edit them here.
+`skills/stack-authoring/` and `skills/fragment-authoring/` guide naming, descriptions and search cards for registry entries. Both load `ce:writer`, and they share `stack-authoring/search-card.md`. `stack-authoring/references/` holds the checkout checks, the fresh-scaffold proof and the conversion lessons, each linked from its `SKILL.md` at the step that needs it. `.agents/skills` is a tracked symlink to `skills/` so Codex, which looks for repo skills there, reads the same files; edit them here.
 
 `agents/architect.md` is a read-only design review. `agents/code-reviewer.md` is the one code review of a diff; it extends `ce:code-reviewer` with the checks reviews here have missed, and Codex delegates run its body as a prompt. `agents/stack-creator.md` loads both authoring skills to add or revise one registry entry.
 

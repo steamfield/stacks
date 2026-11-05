@@ -1,20 +1,20 @@
 # Writing a search card
 
-Shared by the `stack-authoring` and `fragment-authoring` skills. `packages/cli/docs/authoring.md` ("Add a search card") owns the field list and word budgets. `packages/cli/scripts/decorate/prompt.ts::buildPrompt` holds the drafting rules a card's `promptVersion` claims it followed: read them and follow them. This file covers how to fill the fields so the entry ranks for the right requests and stays out of the wrong ones. The rules come from an audit of the bundled registry, and bundled cards predate them, so copy an existing card's shape, not its `notFor` or facets.
+Shared by the `stack-authoring` and `fragment-authoring` skills. `packages/cli/docs/authoring.md` ("Add a search card") owns the field list and word budgets. `packages/cli/scripts/decorate/prompt.ts::buildPrompt` holds the drafting rules a card's `promptVersion` claims it followed; read and follow them. This file covers how to fill the fields so the entry ranks for the right requests and stays out of the wrong ones. The rules come from an audit of the bundled registry, and bundled cards predate them, so copy an existing card's shape, not its `notFor` or facets.
 
 ## How the ranker reads a card
 
 The ranker is `packages/format/src/search/rank.ts` (BM25 over weighted fields, then facet and exclusion penalties, then tiers). Its rules decide what a card has to say:
 
-- Field weights: `requests` 2.5, `id` and `name` 2, the frontmatter `description`, `summary`, `useCases` and `synonyms` 1.5, `tags` and `goodFor` 1, the body 0.15. `deps` and the editorial fields aren't ranked. Facet matches (closed vocabulary words in the request) add on top.
+- Field weights: `requests` 2.5, `id` and `name` 2, the frontmatter `description`, `summary`, `useCases` and `synonyms` 1.5, `tags`, `goodFor` and a fragment's `category` 1, the body 0.15. `deps` and the editorial fields aren't ranked. Facet matches (closed vocabulary words in the request) add on top.
 - Only the one request closest to the query is scored. Five requests with the same words count as one; make each a different intent or phrasing.
 - The strong tier needs at least half the query's content words covered by fields weighted 1.5 or more. A word that appears only in `tags`, `goodFor` or the body never gets an entry to strong.
 - Any penalty (a `notFor` match or a facet mismatch) drops the entry out of the strong tier, and tier sorts before score. A penalty is a demotion below every strong hit, so one that fires on a request the entry should win costs a lot.
 - Common words are removed before matching: "app", "tool", "project", "build", "use", "make" and the usual articles. "desktop app" in `notFor` fires on any request containing "desktop".
 - Closed vocabulary words in `search/vocabulary.json` work as aliases. `api` is an alias for both `platforms.server` and `productKinds.api`, so a stack that ships an API but lists no `server` platform takes a platform penalty on every query containing "api" or "backend".
-- A `notFor` phrase fires on an exact match, when every content word in it appears in the request, or on its acronym when the phrase has three or more words. "server-rendered pages by default" needs four words in the query and in practice never fires; "server-side rendering" fires on "SSR".
+- A `notFor` phrase fires on an exact match, when every content word in it appears in the request, or on its acronym when the phrase has three or more words. "server-rendered pages by default" needs four content words in the query and in practice never fires; "server-side rendering" fires on "SSR".
 - Language and platform penalties apply only when the request names a vocabulary alias. "go release" matched no Go alias, so a Bun release fragment tied with goreleaser for it.
-- Stack scores saturate (raw over raw plus one), so generic requests like "react app" return several strong hits. Metadata fixes order and penalties, not tier sharpness.
+- Stack scores saturate (raw over raw plus one), so generic requests like "react app" return several strong hits. Metadata can fix their order and penalties; it can't make the tiers sharper.
 
 ## Field by field
 

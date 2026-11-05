@@ -2,11 +2,18 @@
 
 Load the `ce:architecting-systems` skill before designing or changing a module, service, package boundary, schema or shared contract, and before executing a design or task across several units. Its Structure, Coupling and Boundaries references matter most here. Load Concurrency as well when touching signal handling or the Processes service, and Observability when touching logging. The skill comes from the `claude-essentials` marketplace (`ce` plugin); an agent without it should read the constraints below and continue.
 
-The skill gives general structure. This rule carries the constraints it can't know, which come from the product rather than from code. AGENTS.md "Architecture map" and "Conventions" cover the per-file layout and service style; don't repeat them in a design.
+The skill gives general structure. This rule carries the product constraints it can't know. AGENTS.md "Architecture map" and "Conventions" cover the per-file layout and service style; don't repeat them in a design.
 
 ## Product constraints
 
-The CLI executes nothing it reads and never calls an LLM. `list`, `show`, `new`, `add`, `validate` and `create` read, compose and write entries; only `verify` runs commands, and only the steps in the project's own manifest. The CLI's other programs are fixed and never come from an entry: constant git commands (`scaffold/git.ts`: `git init` from `new`, read-only lookups from `new` and `add`), the harness chosen at handoff through `Processes.interactive` or `Processes.exec` (never for an untrusted entry), and `update`, which makes one request to the npm registry and calls `npm` with fixed arguments and a checked version, only when a person runs it, and `submit`, which runs `gh` and `git` with fixed arguments (`core/submit/github.ts`) in a temporary clone. A design that runs a generator, an install script or a hook from an entry is wrong, however convenient.
+The CLI executes nothing it reads and never calls an LLM. `list`, `show`, `new`, `add`, `validate` and `create` read, compose and write entries; only `verify` runs commands, and only the steps in the project's own manifest. The CLI's other programs are fixed and never come from an entry:
+
+- Constant git commands (`core/scaffold/git.ts`): `git init` from `new`, read-only lookups from `new` and `add`.
+- The harness chosen at handoff, through `Processes.interactive` or `Processes.exec`, never for an untrusted entry.
+- `update`, only when a person runs it: one request to the npm registry, then `npm` with fixed arguments and a checked version.
+- `submit`: `gh` and `git` with fixed arguments (`core/submit/github.ts`) in a temporary clone.
+
+A design that runs a generator, an install script or a hook from an entry is wrong, however convenient.
 
 The MCP server (`packages/mcp`) runs one program: the CLI's built Node entry under the server's own Node, with fixed flags, `--` before every positional (tool and resource arguments alike), and stdin closed. It never passes `--accept-changes` and never lets `new` launch an agent, so trust points 3 and 4 hold over MCP exactly as in a shell.
 
@@ -24,7 +31,7 @@ Code comments cite these points by number.
 
 ## Package boundaries
 
-Code two packages share goes in its own package under `packages/`, extracted when the second package needs it and not before. Never import from another package's `src/`; the root `biome-plugins/no-cross-package-imports.grit` enforces it and names each package, so a new package is added there.
+Code two packages share goes in its own package under `packages/`, extracted when the second package needs it and not before. Never import from another package's `src/`; the root `biome-plugins/no-cross-package-imports.grit` enforces it and names each package, so add a new package there.
 
 ## Shared contracts
 

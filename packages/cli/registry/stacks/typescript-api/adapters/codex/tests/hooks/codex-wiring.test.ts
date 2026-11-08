@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -44,22 +53,33 @@ function env() {
 }
 
 function run(command: string, input: string, dir: string) {
-  const result = spawnSync("sh", ["-c", command], {
-    cwd: join(dir, "nested"),
-    env: env(),
-    input: JSON.stringify({
+  const payload = join(dir, "payload.json");
+  writeFileSync(
+    payload,
+    JSON.stringify({
       session_id: "codex-hook-test",
       hook_event_name: "PreToolUse",
       tool_name: "Bash",
       cwd: join(dir, "nested"),
       tool_input: { command: input },
     }),
-    encoding: "utf8",
-    timeout: 10_000,
-  });
-  expect(result.error).toBeUndefined();
-  expect(result.signal).toBeNull();
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  );
+  // Refusals exit without reading stdin; a file avoids racing that exit with a pipe write (EPIPE).
+  const stdin = openSync(payload, "r");
+  try {
+    const result = spawnSync("sh", ["-c", command], {
+      cwd: join(dir, "nested"),
+      env: env(),
+      stdio: [stdin, "pipe", "pipe"],
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.signal).toBeNull();
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  } finally {
+    closeSync(stdin);
+  }
 }
 
 describe("Codex hook wiring", () => {

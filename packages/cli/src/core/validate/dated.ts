@@ -2,7 +2,8 @@ import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { proseLines } from "../brief/headings";
 import type { Entry } from "../registry/entry";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 const MONTHS =
   "January|February|March|April|May|June|July|August|September|October|November|December";

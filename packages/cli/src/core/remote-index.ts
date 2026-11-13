@@ -14,7 +14,8 @@ import { directoryMatches, extractBundle } from "./remote-index/files";
 import { type RemoteFailure, verifyIndex } from "./remote-index/verification";
 
 export { RemoteStatus } from "../schemas/remote-index";
-export type VerifiedIndex = RegistryIndex;
+
+type VerifiedIndex = RegistryIndex;
 type Access = {
   cache: Cache;
   cached: CachedResource<VerifiedIndex>;

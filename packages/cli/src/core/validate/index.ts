@@ -26,9 +26,10 @@ import { readSources } from "./sources";
 import { submissionChecks } from "./submission";
 import type { Target } from "./target";
 import { templateChecks } from "./templates";
+import type { Check, View } from "./types";
 import { verifyNotes } from "./verify-notes";
 import { versionSensitiveChecks } from "./version-sensitive";
-import { type Check, rootPaths, type View } from "./view";
+import { rootPaths } from "./view";
 
 /** Every check group; each module owns one class of findings over the same view. */
 export const checks: ReadonlyArray<Check> = [

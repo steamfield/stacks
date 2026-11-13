@@ -31,7 +31,7 @@ export const DEFAULT_REPO = "steamfield/stacks";
  * Warnings a submission may carry: what maintainers finish after the pull request (the reviewed
  * search card, dependency review). Every other warning, and every error, blocks it.
  */
-export const MAINTAINER_WARNINGS: ReadonlyArray<string> = [
+const MAINTAINER_WARNINGS: ReadonlyArray<string> = [
   "search-unreviewed",
   "search-missing",
   "missing-card",

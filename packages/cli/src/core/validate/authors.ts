@@ -2,7 +2,7 @@ import { authorKey } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { decodeAuthors, readSearchFile } from "../search/sidecar";
-import type { Check } from "./view";
+import type { Check } from "./types";
 
 const issue = (check: string, message: string): Finding => ({
   check,

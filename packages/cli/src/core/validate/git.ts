@@ -4,7 +4,8 @@ import type { Finding } from "../../schemas/validate";
 import { Processes } from "../../services/processes";
 import { type Entry, markdownFile, shippedPath } from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { type Check, finding } from "./view";
+import type { Check } from "./types";
+import { finding } from "./view";
 
 /** Paths per `git check-ignore` call, well under any argv limit. */
 const BATCH = 200;

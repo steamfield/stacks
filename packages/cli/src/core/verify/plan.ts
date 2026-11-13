@@ -3,7 +3,7 @@ import { type Phase, type ResolvedStep, withStepDefaults } from "@steamfield/sta
 import { Effect } from "effect";
 import { BadInput } from "../../errors";
 
-export const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
+const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
 
 /** A manifest step with its defaults applied. */
 export type PlannedStep = ResolvedStep & { skipByDefault: boolean };

@@ -3,7 +3,7 @@ import type { Consent } from "../schemas/telemetry";
 import type { Output } from "../services/output";
 import { directory, Notice, read, remove, type Storage, timestamp, uuid, write } from "./storage";
 
-export const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
+const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
   store: Storage,
   output: Output["Service"],
   text: string,
@@ -27,7 +27,7 @@ export const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
   return claimId;
 });
 
-export const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
+const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
   store: Storage,
   output: Output["Service"],
   text: string,
@@ -102,7 +102,7 @@ export const settleNotice = Effect.fn("telemetry.settleNotice")(function* (
 });
 
 /** Recover an abandoned exclusive claim; never discard a newer claimant's marker. */
-export const recoverNotice = Effect.fn("telemetry.recoverNotice")(function* (store: Storage) {
+const recoverNotice = Effect.fn("telemetry.recoverNotice")(function* (store: Storage) {
   const target = store.path.join(store.root, "notice.json");
   const stat = yield* store.fs.stat(target).pipe(Effect.option);
   if (Option.isNone(stat)) return;

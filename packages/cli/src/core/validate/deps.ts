@@ -11,7 +11,8 @@ import { countWords } from "../brief/words";
 import { goAllowlistKey } from "../deps";
 import { readSearchFile } from "../search/sidecar";
 import { versionedPlain } from "./search";
-import { type Check, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { finding } from "./view";
 
 const decode = <S extends Schema.Codec<unknown, unknown>>(schema: S, bytes: Uint8Array) =>
   Schema.decodeUnknownEffect(Schema.fromJsonString(schema))(new TextDecoder().decode(bytes), {

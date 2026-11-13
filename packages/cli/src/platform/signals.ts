@@ -2,8 +2,8 @@
 // the foreground. `decide` is the policy; `installSignalPolicy` wires it to the process.
 import { killGroupsNow, killProcess, type ProcessHolder } from "./process";
 
-export type PolicySignal = "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT";
-export type SignalAction = "interrupt" | "ignore" | "force-exit" | "forward" | "default";
+type PolicySignal = "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT";
+type SignalAction = "interrupt" | "ignore" | "force-exit" | "forward" | "default";
 export type SignalState = {
   /** When the first interrupting signal arrived, if one has. */
   readonly interruptedAt?: number;

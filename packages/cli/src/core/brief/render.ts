@@ -1,42 +1,13 @@
-import type { Manifest } from "@steamfield/stacks-format";
 import { APP_TAG, DEFAULT_STEP_TIMEOUT, withStepDefaults } from "@steamfield/stacks-format";
 import { METADATA_DIR } from "../../project-layout";
-import type { ComposedStep, Composition, MissingTool } from "../compose/compose";
+import type { ComposedStep, Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
-import { envPrefix, slug } from "../scaffold/slug";
+import { envPrefix, slug } from "../slug";
 import { nest } from "./headings";
 import { collapsePaths } from "./paths";
 import * as T from "./text";
+import type { Brief, BriefContext } from "./types";
 import { countWords } from "./words";
-
-/**
- * The project root's git state, probed before anything is written: `fresh` gets its own
- * repository, `parent` is inside another work tree, `none` means git isn't installed.
- */
-export type GitState = { kind: "fresh" } | { kind: "parent"; toplevel: string } | { kind: "none" };
-export type BriefContext = {
-  add?: {
-    applied: ReadonlyArray<string>;
-    createAgentsMd?: boolean;
-    stack: string | null;
-    mergeNeeded: ReadonlyArray<{ path: string; incoming: ReadonlyArray<string> }>;
-    missingRequired: ReadonlyArray<{ id: string; command: string }>;
-    digestRecorded: boolean;
-    manifest: Manifest;
-  };
-  project: string;
-  git: GitState;
-  /** Paths stacks wrote, relative to the project root. */
-  written: ReadonlyArray<string>;
-  missing: ReadonlyArray<MissingTool>;
-  /** Canonical previews do not inspect PATH. */
-  toolsUnchecked?: boolean;
-  /** `--yes` or `--sandbox`: take every decision's default. */
-  yes: boolean;
-  /** `Host.invocation`. */
-  invocation: string;
-};
-export type Brief = { text: string; briefWords: number; fixedWords: number };
 
 /** A line of the brief: fixed text from `text.ts`, or entry and generated content. */
 type Segment = { fixed: boolean; text: string };

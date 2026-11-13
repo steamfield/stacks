@@ -42,7 +42,7 @@ const PIPES_HELD =
   "stacks: output was still open 2s after the command exited; its process group was killed.";
 const RESOURCE_ERRNOS = new Set(["EAGAIN", "EMFILE", "ENFILE", "ENOMEM"]);
 
-export type ShellSpec = {
+type ShellSpec = {
   /** Run through `/bin/sh -c`. */
   command: string;
   cwd: string;
@@ -50,14 +50,14 @@ export type ShellSpec = {
   env: Record<string, string>;
   timeout?: Duration.Duration;
 };
-export type ArgvSpec = {
+type ArgvSpec = {
   /** `argv[0]` is the program; no shell, no expansion. */
   argv: readonly [string, ...string[]];
   cwd: string;
   env: Record<string, string>;
   timeout?: Duration.Duration;
 };
-export type InteractiveSpec = {
+type InteractiveSpec = {
   bin: string;
   args: string[];
   cwd: string;
@@ -85,7 +85,7 @@ export type Finished = {
   /** Output was still open 2 s after the command exited; the group was killed. */
   pipesHeld: boolean;
 };
-export interface Running {
+interface Running {
   /** The process exited and its output closed. */
   readonly exited: Effect.Effect<Finished>;
   /** The last TAIL_LINES lines of output so far. */

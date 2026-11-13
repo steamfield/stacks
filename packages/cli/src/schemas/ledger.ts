@@ -1,7 +1,7 @@
 import { DetectedAgent, RunRecord } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 
-export const LedgerResult = Schema.Literals(["pass", "partial", "fail", "infra"]);
+const LedgerResult = Schema.Literals(["pass", "partial", "fail", "infra"]);
 
 /** A recorded build, wrapping the Run record contract unchanged. */
 export const LedgerRecord = Schema.Struct({
@@ -32,14 +32,14 @@ export const LedgerRecord = Schema.Struct({
 export type LedgerRecord = typeof LedgerRecord.Type;
 
 /** What `list` (and `show`) report of a stack's latest record. */
-export const LastRun = Schema.Struct({
+export const LedgerLastRun = Schema.Struct({
   date: LedgerRecord.fields.date,
   result: LedgerRecord.fields.result,
   agent: LedgerRecord.fields.agent,
   preset: LedgerRecord.fields.preset,
   fingerprint: LedgerRecord.fields.fingerprint,
 });
-export type LastRun = typeof LastRun.Type;
+export type LedgerLastRun = typeof LedgerLastRun.Type;
 
 /** Records are decoded separately so readers can skip newer or invalid records. */
 export const Ledger = Schema.Struct({

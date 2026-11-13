@@ -40,9 +40,9 @@ import {
 } from "./storage";
 
 /** The privacy page is `/telemetry` on the host that receives the events. */
-export const notice = (endpoint: string) =>
+const notice = (endpoint: string) =>
   `stacks collects anonymous usage and verify results, including allowlisted dependency names and major versions from project manifest and lock files after green verify runs. It never sends your code, paths or command output. Privacy and allowlist: ${new URL("/telemetry", endpoint).href}. Turn it off: stacks telemetry disable`;
-export const dependencyNotice = (endpoint: string) =>
+const dependencyNotice = (endpoint: string) =>
   `stacks now sends allowlisted dependency names and major versions from project manifest and lock files after green verify runs, normally no more than once every 7 days per project. Privacy and allowlist: ${new URL("/telemetry", endpoint).href}. Turn it off: stacks telemetry disable`;
 const safe = <A, E, R>(effect: Effect.Effect<A, E, R>, fallback: A) =>
   effect.pipe(

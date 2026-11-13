@@ -3,7 +3,7 @@ import { Effect, Exit, FileSystem, Path, type PlatformError, Schema } from "effe
 import { AppConfig } from "../config";
 import { InvalidConfig, PermissionDenied } from "../errors";
 import { Invocation } from "../services/invocation";
-import { digestSettings, digestStep } from "./manifest";
+import { digestSettings, digestStep, versionOf } from "./manifest";
 import { replaceFile } from "./replace-file";
 import { printable } from "./text";
 
@@ -31,7 +31,7 @@ export const ProjectState = Schema.Struct({
 export type ProjectState = typeof ProjectState.Type;
 
 /** Whether the record was written, and where: `new` reports `stateRecord` and rolls back `path`. */
-export type StateWrite = { written: true; path: string } | { written: false };
+type StateWrite = { written: true; path: string } | { written: false };
 
 /** The record a manifest gets; `manifestPath` must already be a real path. */
 export function projectStateFor(manifest: Manifest, manifestPath: string): ProjectState {
@@ -60,7 +60,7 @@ export const projectStatePath = (projectId: string) =>
     return path.join(paths.state, "projects", `${projectId}.json`);
   });
 
-const reasonOf = (error: PlatformError.PlatformError) => error.reason._tag;
+export const reasonOf = (error: PlatformError.PlatformError) => error.reason._tag;
 
 /**
  * Writes the state record for a manifest that is already on disk at `manifestPath`. The record
@@ -151,11 +151,6 @@ export const replaceProjectState = (state: ProjectState, target: string) =>
 
 /** A state record and the file it was read from. */
 export type FoundState = { state: ProjectState; path: string };
-
-const versionOf = (value: unknown) =>
-  value !== null && typeof value === "object" && "schemaVersion" in value
-    ? value.schemaVersion
-    : undefined;
 
 /**
  * Reads one record file: `undefined` when it is missing, unreadable, not JSON or doesn't decode

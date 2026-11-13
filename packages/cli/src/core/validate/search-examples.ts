@@ -4,7 +4,7 @@ import { selectFragments } from "../compose/selection";
 import { isRejected } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { describe } from "./compositions";
-import type { View } from "./view";
+import type { View } from "./types";
 
 type Example = NonNullable<SearchMetadata["projectExamples"]>[number];
 

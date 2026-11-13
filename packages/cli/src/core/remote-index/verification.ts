@@ -2,7 +2,7 @@ import { type INDEX_PUBLIC_KEYS, RegistryIndex, SignedIndex } from "@steamfield/
 import { Effect, Schema } from "effect";
 import { VERSION } from "../../version";
 
-export type RemoteOutcome = "ok" | "timeout" | "network" | "not_found" | "invalid" | "unsupported";
+type RemoteOutcome = "ok" | "timeout" | "network" | "not_found" | "invalid" | "unsupported";
 export type RemoteFailure = Exclude<RemoteOutcome, "ok">;
 const header = Schema.Struct({ formatVersion: Schema.Number, minCli: Schema.String });
 const bytes = (text: string) => Uint8Array.from(atob(text), (character) => character.charCodeAt(0));

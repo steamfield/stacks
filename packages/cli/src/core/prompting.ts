@@ -11,8 +11,8 @@ import { listResult, projectChoices } from "./list";
 import { MANIFEST_PATH, readManifest } from "./manifest";
 import { defaultRoots, Registry } from "./registry/registry";
 import type { NewOptions } from "./scaffold/new";
-import { slug } from "./scaffold/slug";
 import { shellArg } from "./shell";
+import { slug } from "./slug";
 import { printable } from "./text";
 
 export const canPrompt = (input: {

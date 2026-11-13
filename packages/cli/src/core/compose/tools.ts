@@ -1,7 +1,8 @@
 import { Effect, Option } from "effect";
 import { Processes } from "../../services/processes";
 import type { Entry } from "../registry/entry";
-import { type Composition, missingTools } from "./compose";
+import { missingTools } from "./compose";
+import type { Composition } from "./types";
 
 /** The single PATH lookup for a composition's tools; it never starts one. */
 export const missingToolsOnPath = (composition: Composition<Entry | null>) =>

@@ -25,7 +25,7 @@ export type ConditionContext = {
 type Key = "stack" | "tag" | "tag!=" | "mode" | "preset" | "with";
 export type Condition = Partial<Record<Key, ReadonlyArray<string>>>;
 /** A malformed marker: its 1-based line in the body and what is wrong with it. */
-export type ConditionalError = { line: number; problem: ConditionalProblem };
+type ConditionalError = { line: number; problem: ConditionalProblem };
 
 const MARKER = /^\s*<!--\s*stacks:(\S+)(.*?)-->\s*$/;
 /**
@@ -84,7 +84,7 @@ function matches(condition: Condition, context: ConditionContext): boolean {
 }
 
 /** A well-formed block: its `when` and `end` lines (1-based in the body) and its condition. */
-export type ConditionalBlock = { start: number; end: number; condition: Condition };
+type ConditionalBlock = { start: number; end: number; condition: Condition };
 
 type MarkerState = {
   open: { line: number; condition: Condition } | undefined;

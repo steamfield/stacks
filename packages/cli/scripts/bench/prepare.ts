@@ -9,7 +9,8 @@ import {
   Schema,
 } from "effect";
 import { AppConfig, type Environment } from "../../src/config";
-import { type ComposeOptions, compose } from "../../src/core/compose/compose";
+import { compose } from "../../src/core/compose/compose";
+import type { ComposeOptions } from "../../src/core/compose/types";
 import { fingerprint } from "../../src/core/fingerprint";
 import { readManifest } from "../../src/core/manifest";
 import { Registry } from "../../src/core/registry/registry";

@@ -4,7 +4,8 @@ import type { Finding } from "../../schemas/validate";
 import { type Condition, scanConditionals } from "../compose/conditionals";
 import { type Entry, isStack, markdownFile } from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { type Check, entryFile, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { entryFile, finding } from "./view";
 
 const PROBLEMS: Record<ConditionalProblem, string> = {
   unclosed: "a when block has no end marker",

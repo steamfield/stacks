@@ -5,7 +5,7 @@ import { printable } from "../text";
  * The maintainer checklist every entry pull request carries; CONTRIBUTING.md and the entry pull
  * request template list the same steps.
  */
-export const MAINTAINER_CHECKLIST: ReadonlyArray<string> = [
+const MAINTAINER_CHECKLIST: ReadonlyArray<string> = [
   "`authors.json` names the PR author's login for every submitted entry",
   "Security review of `files/`, `adapters/` and `stacks/` overlays (hooks and settings run in users' projects)",
   "Search card reviewed and restamped",
@@ -15,7 +15,7 @@ export const MAINTAINER_CHECKLIST: ReadonlyArray<string> = [
   "CI green before undraft",
 ];
 
-export type BodyEntry = { kind: string; id: string; update: boolean; description: string };
+type BodyEntry = { kind: string; id: string; update: boolean; description: string };
 
 /** One line of text for Markdown: control characters escaped, newlines folded. */
 const oneLine = (text: string) => printable(text.replace(/\s+/g, " ").trim());

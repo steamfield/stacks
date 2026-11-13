@@ -5,7 +5,8 @@ import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
 import { unreadable } from "./files";
 import { ABSOLUTE_PATH, escapeRegExp, FILL_MARKER, isEnvFile, secretIn } from "./patterns";
-import { type Check, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { finding } from "./view";
 
 /**
  * Where a scanned text sits: the entry's markdown file, a shipped file under `files/` or

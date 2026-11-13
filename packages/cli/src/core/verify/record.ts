@@ -1,12 +1,12 @@
 import type { Manifest } from "@steamfield/stacks-format";
 import { RunRecord, type RunStep } from "@steamfield/stacks-format";
-import { Clock, Effect, FileSystem, Option, Path, type PlatformError, Schema } from "effect";
+import { Clock, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { AppConfig } from "../../config";
 import { METADATA_DIR, RUNS_PATH, STATE_DIR } from "../../project-layout";
 import type { VerifyResult } from "../../schemas/verify";
 import { Telemetry } from "../../telemetry";
 import { VERSION } from "../../version";
-import { findProjectState, saveProjectState, warnUnwritten } from "../project-state";
+import { findProjectState, reasonOf, saveProjectState, warnUnwritten } from "../project-state";
 import { printable } from "../text";
 import type { RunResult } from "./run";
 import type { Tamper } from "./tamper";
@@ -17,7 +17,7 @@ export { RUNS_PATH } from "../../project-layout";
 /** What a finished run settles in the state record, for the result's `firstGreen` and `stateRecord`. */
 export type RecordFacts = Pick<VerifyResult, "firstGreen" | "stateRecord">;
 
-export type RecordContext = {
+type RecordContext = {
   root: string;
   manifest: Manifest;
   tamper: Tamper;
@@ -35,8 +35,6 @@ const runStep = (step: Finished["steps"][number]): RunStep => ({
   ...(step.exitCode === undefined ? {} : { exitCode: step.exitCode }),
   durationMs: step.durationMs,
 });
-
-const reasonOf = (error: PlatformError.PlatformError) => error.reason._tag;
 
 /**
  * Appends one encoded `RunRecord` line to `.stacks/state/runs.jsonl` with a single write.

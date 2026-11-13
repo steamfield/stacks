@@ -14,10 +14,10 @@ import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import type { Composition } from "../src/core/compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../src/core/compose/files";
-import { envPrefix, slug } from "../src/core/scaffold/slug";
-import type { TemplateValues } from "../src/core/scaffold/template";
+import type { Composition } from "../src/core/compose/types";
+import { envPrefix, slug } from "../src/core/slug";
+import type { TemplateValues } from "../src/core/template";
 import type { EntryInvalid, PermissionDenied } from "../src/errors";
 import {
   BINARY,

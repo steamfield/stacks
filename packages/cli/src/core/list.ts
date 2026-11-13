@@ -5,7 +5,7 @@ import {
   type StatsSummary,
 } from "@steamfield/stacks-format";
 import { Schema } from "effect";
-import { LastRun, type LedgerRecord } from "../schemas/ledger";
+import { LedgerLastRun, type LedgerRecord } from "../schemas/ledger";
 import type { ListResult, ListRow } from "../schemas/list";
 import { fitsStack } from "./compose/selection";
 import { lastRun } from "./ledger";
@@ -48,7 +48,8 @@ function rowAuthor(entry: Entry, authors: AuthorsFile): string | undefined {
 }
 
 function rowLastRun(entry: Entry, records: ReadonlyArray<LedgerRecord>) {
-  if (entry.indexEntry?.lastRun) return Schema.decodeUnknownSync(LastRun)(entry.indexEntry.lastRun);
+  if (entry.indexEntry?.lastRun)
+    return Schema.decodeUnknownSync(LedgerLastRun)(entry.indexEntry.lastRun);
   return entry.kind === "stack" && entry.origin === "bundled" ? lastRun(records, entry.id) : null;
 }
 

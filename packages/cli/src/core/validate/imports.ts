@@ -2,8 +2,9 @@ import { Effect, Path } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { type Entry, shippedPath } from "../registry/entry";
 import { shellWords } from "../shell";
-import { type Composed, sourceOf, uniqueFindings } from "./composed";
-import { type Check, finding, type View } from "./view";
+import { sourceOf, uniqueFindings } from "./composed";
+import type { Check, Composed, View } from "./types";
+import { finding } from "./view";
 
 type ImportFiles = {
   byPath: ReadonlyMap<string, Composed["files"][number]>;

@@ -1,7 +1,6 @@
 /** Project metadata layout, shared by writers, readers and report schemas. */
 export const METADATA_DIR = ".stacks";
 export const SEARCH_DIRECTORY = "search";
-export const SEARCH_DIR = `${METADATA_DIR}/${SEARCH_DIRECTORY}`;
 export const BRIEF_PATH = `${METADATA_DIR}/BRIEF.md`;
 export const NOTES_PATH = `${METADATA_DIR}/NOTES.md`;
 export const IGNORE_PATH = `${METADATA_DIR}/.gitignore`;

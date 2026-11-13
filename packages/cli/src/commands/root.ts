@@ -12,7 +12,9 @@ export const root = Command.make("stacks").pipe(
       Flag.withDefault(false),
     ),
     offline: Flag.Boolean("offline").pipe(
-      Flag.withDescription("Use cached and bundled entries without network requests."),
+      Flag.withDescription(
+        "Make no network requests: use cached and bundled entries only. update and submit refuse it.",
+      ),
       Flag.withDefault(false),
     ),
     json: Flag.Boolean("json").pipe(

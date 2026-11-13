@@ -57,7 +57,7 @@ const entryCommand = (kind: Kind) =>
       ),
       from: Flag.Literals("from", Origin.literals).pipe(
         Flag.withDescription(
-          "Copy this id from bundled or project into the user registry; user is refused.",
+          "Copy this id from the bundled, index or project registry into the user registry; user is refused (exit 2), because the entry is already there.",
         ),
         Flag.optional,
       ),
@@ -125,7 +125,19 @@ export const createCommand = Command.make("create", {}, () =>
     yield* promptedCreate({ category: "tooling", yes: false });
   }),
 ).pipe(
-  Command.withDescription("Start a stack or fragment, or copy an existing entry for editing."),
+  Command.withDescription(
+    "Start a stack or fragment in the user registry, or copy an existing entry there for editing. With no subcommand, a person at a terminal is asked what to create; otherwise this help is shown. Each subcommand's --help lists its exits.",
+  ),
+  Command.withExamples(({ commandPath }) => [
+    {
+      command: `${commandPath.join(" ")} stack my-stack`,
+      description: "Write a stack skeleton to edit",
+    },
+    {
+      command: `${commandPath.join(" ")} fragment postgres --from bundled`,
+      description: "Copy a bundled fragment into the user registry",
+    },
+  ]),
   Command.withShortDescription("Create or copy a stack or fragment for editing."),
   Command.withSubcommands([entryCommand("stack"), entryCommand("fragment")]),
 );

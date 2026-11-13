@@ -774,7 +774,10 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
     case "create_target":
       return guide([`Path: ${id}`], "edit the existing entry, or choose an unused id.");
     case "from":
-      return guide([`Origin: ${id}`], "copy from bundled or project; user is the destination.");
+      return guide(
+        [`Origin: ${id}`],
+        "copy from bundled, index or project; user is the destination.",
+      );
     case "confirmation":
       return guide(
         ["The copy was declined. Nothing was changed."],

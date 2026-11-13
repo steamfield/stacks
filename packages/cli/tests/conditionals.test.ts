@@ -1,7 +1,7 @@
 import { Exit } from "effect";
 import { afterEach, expect, test } from "vitest";
-import type { Composition } from "../src/core/compose/compose";
 import { type ConditionContext, resolveConditionals } from "../src/core/compose/conditionals";
+import type { Composition } from "../src/core/compose/types";
 import { EntryInvalid } from "../src/errors";
 import { tempDir } from "./helpers/cli";
 import { bundledAt, composeExit } from "./helpers/compose";

@@ -17,7 +17,7 @@ function rerun(invocation: string, options: SubmitOptions): string {
   ].join(" ");
 }
 
-export function renderSubmit(
+function renderSubmit(
   result: SubmitResult,
   options: { invocation: string; given: SubmitOptions },
 ): string {

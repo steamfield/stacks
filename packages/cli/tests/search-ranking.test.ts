@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
-import type { LastRun } from "../src/schemas/ledger";
+import type { LedgerLastRun } from "../src/schemas/ledger";
 import {
   fixtureRecord,
   hit,
@@ -17,7 +17,7 @@ const request = "an iOS workout journal";
 const stats = (greenRateLower: number, projects = 100) => ({
   stats: { greenRateLower, projects, sample: 100, window: 28 as const },
 });
-const proof = (result: LastRun["result"]): LastRun => ({
+const proof = (result: LedgerLastRun["result"]): LedgerLastRun => ({
   result,
   date: "2026-10-27",
   agent: "codex",

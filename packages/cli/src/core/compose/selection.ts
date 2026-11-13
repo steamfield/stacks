@@ -10,8 +10,8 @@ import {
 import { type CatalogEntry, type Entry, isFragment, isRejected, isStack } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import { closest } from "../suggest";
-import type { ComposeOptions, ComposeWarning, Via } from "./compose";
 import { conflict } from "./conflicts";
+import type { ComposeOptions, ComposeWarning, Via } from "./types";
 
 /** Categories `--sandbox` leaves out unless named with `--with` or required by another fragment. */
 const SANDBOX_DROPS: ReadonlyArray<Category> = ["deploy", "release", "app"];

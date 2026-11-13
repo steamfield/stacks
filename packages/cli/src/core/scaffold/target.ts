@@ -5,7 +5,7 @@ import { MANIFEST_PATH, readManifest } from "../manifest";
 import { readProjectState } from "../project-state";
 
 /** Files an OS drops into any directory a person opened: treated as absent, left alone. */
-export const isLitter = (name: string) =>
+const isLitter = (name: string) =>
   name === ".DS_Store" || name === "Thumbs.db" || name === "desktop.ini" || name.startsWith("._");
 
 export type Target = {

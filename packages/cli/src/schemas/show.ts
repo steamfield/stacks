@@ -7,7 +7,7 @@ import {
   VerifyStep,
 } from "@steamfield/stacks-format";
 import { Schema } from "effect";
-import { LastRun } from "./ledger";
+import { LedgerLastRun } from "./ledger";
 import { ListRow } from "./list";
 import { NoticeFields } from "./notice";
 
@@ -64,7 +64,7 @@ export const ShowReport = Schema.Struct({
   briefCap: Schema.Number,
   lastRun: Schema.NullOr(
     Schema.Struct({
-      ...LastRun.fields,
+      ...LedgerLastRun.fields,
       sameContent: Schema.Boolean,
       /** Fragments only: the stack whose composition contained this fragment. */
       stack: Schema.optionalKey(Schema.String),

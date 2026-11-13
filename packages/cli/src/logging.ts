@@ -2,7 +2,8 @@ import { Context, Effect, FileSystem, Layer, Logger, Path, References } from "ef
 import type { LogSettings } from "./config";
 import { type AppError, exitCode } from "./errors";
 import { Output } from "./services/output";
-export type LogEntry = {
+
+type LogEntry = {
   time: string;
   level: string;
   msg: string;

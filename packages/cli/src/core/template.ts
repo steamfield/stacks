@@ -1,4 +1,4 @@
-import { hasControl } from "../text";
+import { hasControl } from "./text";
 
 /** The fixed template variables (D18 as amended). No entry can add one. */
 export const TEMPLATE_VARIABLES = [
@@ -9,7 +9,7 @@ export const TEMPLATE_VARIABLES = [
   "author",
   "year",
 ] as const;
-export type TemplateVariable = (typeof TEMPLATE_VARIABLES)[number];
+type TemplateVariable = (typeof TEMPLATE_VARIABLES)[number];
 export type TemplateValues = Record<TemplateVariable, string>;
 
 /**

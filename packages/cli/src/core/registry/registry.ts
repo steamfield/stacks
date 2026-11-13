@@ -22,7 +22,7 @@ import { remoteRegistry } from "./remote";
  * One registry root. `overridden` marks a bundled root set by STACKS_REGISTRY_DIR instead of
  * the one shipped with the CLI, whose entries are untrusted.
  */
-export type RegistryRoot = { origin: Origin; path: string; overridden?: boolean; remote?: boolean };
+type RegistryRoot = { origin: Origin; path: string; overridden?: boolean; remote?: boolean };
 /** Registry roots, highest precedence first. */
 export type RegistryRoots = ReadonlyArray<RegistryRoot>;
 type Reason = "decode" | "symlink" | "id_mismatch" | "missing" | "unreadable";

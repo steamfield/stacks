@@ -10,8 +10,9 @@ import { type Entry, isFragment, isStack } from "../registry/entry";
 import { canonicalContext, composedLimit } from "./budget";
 import { uniqueFindings } from "./composed";
 import { describe, replacementDefaults } from "./compositions";
+import type { Check, View } from "./types";
 import { duplicateRuns } from "./verify-notes";
-import { type Check, entryFile, finding, type View } from "./view";
+import { entryFile, finding } from "./view";
 
 /** Add-mode guidance has its own branches and budget, including repositories without a recipe. */
 export const addCompositionChecks: Check = (view) =>

@@ -8,7 +8,7 @@ const CONNECT_TIMEOUT = Duration.seconds(1);
 const REQUEST_TIMEOUT = Duration.seconds(5);
 const PROBE_EVERY = Duration.millis(500);
 
-export type ProbeTarget = { url: string; host: string; port: number };
+type ProbeTarget = { url: string; host: string; port: number };
 
 /**
  * `expect.http` with each `${VAR}` expanded from `env`, checked to be an http URL on a local host.

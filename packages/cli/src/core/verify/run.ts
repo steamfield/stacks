@@ -10,8 +10,8 @@ import { runStep } from "./step";
  * `createdAt` is what `secondsSinceCreated` counts from: the state record's when there is one
  * (`tamper.ts::createdAtOf`), since the manifest's is outside the digest and editable.
  */
-export type VerifyProject = { root: string; manifest: Manifest; createdAt: string };
-export type VerifyOptions = SelectOptions;
+type VerifyProject = { root: string; manifest: Manifest; createdAt: string };
+type VerifyOptions = SelectOptions;
 /**
  * What the runner knows about a run: the result without the tamper check's fields, which the
  * command adds (1.3b), and never `changed`, since a changed run doesn't reach the runner.

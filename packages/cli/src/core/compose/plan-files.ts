@@ -4,9 +4,9 @@ import { EntryInvalid } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
 import { type Entry, type EntryFile, entryRef, outputPath, shipsFor } from "../registry/entry";
 import type { Registry } from "../registry/registry";
-import type { PlannedFile } from "./compose";
 import { conflict, parties } from "./conflicts";
 import { deepMerge } from "./merge";
+import type { PlannedFile } from "./types";
 
 /** Code points HFS+ ignores in names (git's `is_hfs_dotgit`): `.git` with one inside opens `.git`. */
 const HFS_IGNORABLE = /[\u{200c}-\u{200f}\u{202a}-\u{202e}\u{206a}-\u{206f}\u{feff}]/gu;

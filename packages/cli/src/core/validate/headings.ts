@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { proseLines } from "../brief/headings";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 export const headingChecks: Check = (view) =>
   Effect.sync(() => {

@@ -3,12 +3,8 @@ import { join } from "node:path";
 import { it } from "@effect/vitest";
 import { Effect, Exit, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import {
-  type Composition,
-  compose,
-  type CompositionEntryRef as EntryRef,
-  missingTools,
-} from "../src/core/compose/compose";
+import { compose, missingTools } from "../src/core/compose/compose";
+import type { Composition, CompositionEntryRef as EntryRef } from "../src/core/compose/types";
 import { Registry } from "../src/core/registry/registry";
 import { BadInput, ComposeConflict, EntryInvalid, NotFound } from "../src/errors";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";

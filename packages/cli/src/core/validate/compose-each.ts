@@ -1,13 +1,15 @@
 import { AgentId, type FragmentMeta, type StackMeta } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
-import { type ComposeOptions, compose } from "../compose/compose";
+import { compose } from "../compose/compose";
 import { fitsStack } from "../compose/selection";
+import type { ComposeOptions } from "../compose/types";
 import { type Entry, isStack, shippedOnlyFor } from "../registry/entry";
 import { canonicalBrief, composedLimit } from "./budget";
 import { uniqueFindings } from "./composed";
 import { compositionSingles, describe, replacementDefaults } from "./compositions";
-import { type Check, entryFile, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { entryFile, finding } from "./view";
 
 type Stack = Entry & { meta: StackMeta };
 type Fragment = Entry & { meta: FragmentMeta };

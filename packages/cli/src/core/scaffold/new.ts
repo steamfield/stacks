@@ -14,18 +14,20 @@ import {
 import type { NewResult } from "../../schemas/new";
 import { Host } from "../../services/host";
 import { Output } from "../../services/output";
-import { type GitState, renderBrief } from "../brief/render";
+import { renderBrief } from "../brief/render";
+import type { GitState } from "../brief/types";
 import { targetAgents } from "../compose/agents";
-import { type Composition, compose, dropFlags } from "../compose/compose";
+import { compose, dropFlags } from "../compose/compose";
 import { composeFilesWithNeutral } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
+import type { Composition } from "../compose/types";
 import { fingerprintFromFiles } from "../fingerprint";
 import { type HandoffDecision, handoffRecord } from "../handoff";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../manifest";
 import { removeProjectState, writeProjectState } from "../project-state";
+import { slug } from "../slug";
 import { hasControl } from "../text";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "./git";
-import { slug } from "./slug";
 import { inspectTarget } from "./target";
 import { templateOverrides, templateValues } from "./values";
 import { openProject, type ProjectWriter } from "./write";
@@ -53,7 +55,7 @@ export type NewOptions = {
 };
 
 /** What `new` wrote or planned, and the handoff the command carries out next. */
-export type Scaffolded = {
+type Scaffolded = {
   result: Omit<NewResult, "handoff">;
   decision: HandoffDecision;
   manifest: Manifest;

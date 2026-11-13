@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { PINNED } from "./dated";
-import { type Check, finding } from "./view";
+import type { Check } from "./types";
+import { finding } from "./view";
 
 /** Project-relative names whose formats belong to the agent's current tool versions. */
 const VERSION_SENSITIVE = [

@@ -2,7 +2,7 @@ import { Duration, Effect, FileSystem, Option } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
 import type { NewResult } from "../../schemas/new";
 import { type Finished, Processes } from "../../services/processes";
-import type { GitState } from "../brief/render";
+import type { GitState } from "../brief/types";
 import type { Target } from "./target";
 
 /**

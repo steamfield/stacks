@@ -1,7 +1,7 @@
 import { TelemetryNewEvent } from "@steamfield/stacks-format";
 import { Cause, Effect, Option, Schema } from "effect";
 import { Flag } from "effect/cli";
-import type { Composition } from "../core/compose/compose";
+import type { Composition } from "../core/compose/types";
 import { Registry } from "../core/registry/registry";
 import { BadInput } from "../errors";
 import { Telemetry } from "../telemetry";

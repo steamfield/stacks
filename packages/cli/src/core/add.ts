@@ -1,4 +1,3 @@
-import type { AgentId } from "@steamfield/stacks-format";
 import { Clock, Effect } from "effect";
 import { AppConfig } from "../config";
 import { BRIEF_PATH } from "../project-layout";
@@ -8,20 +7,12 @@ import { mergeAddManifest } from "./add/manifest";
 import { mergeNeeded } from "./add/plan";
 import { prepareAdd } from "./add/prepare";
 import { readAddProject } from "./add/project";
+import type { AddOptions } from "./add/types";
 import { applyAdd } from "./add/write";
 import { renderBrief } from "./brief/render";
-import { type HandoffDecision, handoffRecord } from "./handoff";
+import { handoffRecord } from "./handoff";
 
 export { type AddPlan, checkAddRoot, planAdd } from "./add/plan";
-
-export type AddOptions = {
-  root: string;
-  fragments: ReadonlyArray<string>;
-  agents: ReadonlyArray<AgentId> | undefined;
-  sandbox: boolean;
-  yes: boolean;
-  handoff: (untrusted: ReadonlyArray<string>) => HandoffDecision;
-};
 
 /** Read the accepted project, prepare a delta, merge its manifest, then apply it transactionally. */
 export const add = (options: AddOptions) =>

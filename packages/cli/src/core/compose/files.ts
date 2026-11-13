@@ -2,8 +2,8 @@ import { Effect, type FileSystem, type Path } from "effect";
 import { EntryInvalid, type PermissionDenied } from "../../errors";
 import type { Entry } from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { renderTemplate, type TemplateValues } from "../scaffold/template";
-import type { Composition } from "./compose";
+import { renderTemplate, type TemplateValues } from "../template";
+import type { Composition } from "./types";
 
 export type RenderedFile = {
   readonly path: string;

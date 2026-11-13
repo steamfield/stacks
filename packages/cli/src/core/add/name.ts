@@ -1,6 +1,6 @@
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { parse } from "smol-toml";
-import { slug } from "../scaffold/slug";
+import { slug } from "../slug";
 
 const Package = Schema.Struct({ name: Schema.optionalKey(Schema.String) });
 const Python = Schema.Struct({

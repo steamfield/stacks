@@ -10,7 +10,7 @@ import {
   NOTES_PATH,
   STATE_DIR,
 } from "../../project-layout";
-import type { Brief } from "../brief/render";
+import type { Brief } from "../brief/types";
 import { encodeManifest } from "../manifest";
 import {
   projectStateFor,

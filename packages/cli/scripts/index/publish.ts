@@ -42,7 +42,7 @@ function selectStacks(
     } else if (old !== undefined) {
       entries.set(`stack/${id}`, old);
       lines.push(
-        `Carried forward stack/${id}: current default composition has no matching pass with zero interventions and full tamper check.`,
+        `Carried forward stack/${id} (stale proof): current content has no matching pass with zero interventions and full tamper check; serving the previous entry${old.lastRun ? ` proven ${old.lastRun.date}` : ""}.`,
       );
     } else {
       lines.push(
@@ -82,6 +82,13 @@ export const carryForward = Effect.fn("index.carryForward")(function* (
 ) {
   const { entries, lines } = selectStacks(current, previous);
   yield* includePinnedFragments(entries, { previous, base, bundles: current.bundles });
+  // A fragment no current composition pins stays at its previous entry rather than disappearing.
+  for (const id of current.fragments) {
+    const old = previous?.entries.find((entry) => entry.kind === "fragment" && entry.id === id);
+    if (old === undefined || entries.has(`fragment/${id}`)) continue;
+    entries.set(`fragment/${id}`, old);
+    lines.push(`Carried forward fragment/${id}: no proven composition includes it.`);
+  }
   const sorted = [...entries.values()].sort((a, b) =>
     `${a.kind}/${a.id}`.localeCompare(`${b.kind}/${b.id}`, "en"),
   );

@@ -179,5 +179,6 @@ export const currentIndex = Effect.fn("index.currentIndex")(function* (
     entries: published,
     bundles,
     stacks: entries.filter(isStack).map((entry) => entry.id),
+    fragments: entries.filter(isFragment).map((entry) => entry.id),
   };
 });

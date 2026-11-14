@@ -231,6 +231,76 @@ test("changed stack and fragment carry old proof and every old bundle [4.0c#5]",
   }
 }, 30_000);
 
+test("a missing proof carries the stack forward as stale proof until a new proof replaces it", async () => {
+  const f = await setup();
+  const previous = join(f.root, "previous");
+  const old = await build(f, "none", previous);
+  const oldStack = named(old.index.entries, "stack", "sample");
+  const stackFile = join(entryPath(f.registry, "stack", "sample"), "STACK.md");
+  writeFileSync(stackFile, `${readFileSync(stackFile, "utf8")}\nChanged stack guidance.\n`);
+  reviewSearchFixture(f.registry);
+  const host = await serve(previous);
+  try {
+    const args = ["--out", f.out, "--previous", `${host.url}/v1/index.json`, "--key", privateKey];
+    const stale = await f.invoke(args);
+    succeeded(stale);
+    expect(stale.stdout).toContain("Carried forward stack/sample (stale proof)");
+    expect(named((await readBuild(f.out)).index.entries, "stack", "sample")).toEqual(oldStack);
+
+    const reproven = await proof(f.registry, {
+      date: "2026-10-28",
+      mode: "scaffold",
+      agent: "none",
+    });
+    writeLedger(f.registry, [f.record, reproven]);
+    const fresh = await f.invoke(args);
+    succeeded(fresh);
+    expect(fresh.stdout).toContain("Updated stack/sample");
+    const stack = named((await readBuild(f.out)).index.entries, "stack", "sample");
+    expect(stack.digest).toBe(await digestOf(rawBundle(f.registry, "stack", "sample")));
+    expect(stack.lastRun).toMatchObject({ date: "2026-10-28", agent: "none" });
+  } finally {
+    await host.close();
+  }
+}, 30_000);
+
+test("a fragment no proven composition includes is carried forward, not dropped", async () => {
+  const f = await setup();
+  const optional = await proof(f.registry, {
+    with: ["extra"],
+    fingerprint: await compositionFingerprint(f.registry, { with: ["extra"] }),
+  });
+  writeLedger(f.registry, [f.record, optional]);
+  const previous = join(f.root, "previous");
+  const old = await build(f, "none", previous);
+  const oldExtra = named(old.index.entries, "fragment", "extra");
+  writeLedger(f.registry, [f.record]);
+  const host = await serve(previous);
+  try {
+    const result = await f.invoke([
+      ...["--out", f.out, "--previous", `${host.url}/v1/index.json`, "--key", privateKey],
+    ]);
+    succeeded(result);
+    expect(result.stdout).toContain("Carried forward fragment/extra");
+    expect(named((await readBuild(f.out)).index.entries, "fragment", "extra")).toEqual(oldExtra);
+    await assertBundle(f.out, oldExtra);
+  } finally {
+    await host.close();
+  }
+}, 30_000);
+
+test("an unreachable previous index fails loudly instead of shrinking the catalog", async () => {
+  const f = await setup();
+  await build(f);
+  const before = preserve(f.out);
+  const result = await f.invoke([
+    ...["--out", f.out, "--previous", "http://127.0.0.1:1/v1/index.json", "--key", privateKey],
+  ]);
+  failed(result);
+  expect(result.stderr).toContain("could not fetch");
+  expect(snapshot(f.out)).toEqual(before);
+}, 30_000);
+
 test("never-proven stacks are omitted, including an entirely unproven registry [4.0c#6]", async () => {
   const f = await setup();
   const first = await build(f);

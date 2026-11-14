@@ -3,7 +3,14 @@ import type { Finding, SizeRow } from "../../schemas/validate";
 import { countWords } from "../brief/words";
 import { isConditionalMarker, scanConditionals } from "../compose/conditionals";
 import { fitsStack } from "../compose/selection";
-import { type Entry, type EntryFile, isStack, outputPath, shippedPath } from "../registry/entry";
+import {
+  type Entry,
+  type EntryFile,
+  isStack,
+  outputPath,
+  PAYLOADS,
+  shippedPath,
+} from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type Check, entryFile, finding, type View } from "./view";
 
@@ -82,16 +89,37 @@ const misplacedOverlay = Effect.fn("validate.misplacedOverlay")(function* (
   view: View,
   entry: Entry,
 ) {
-  if (entry.kind !== "stack") return [];
   const tree = yield* Effect.result((yield* Registry).tree(entry));
-  if (Result.isFailure(tree) || !tree.success.directories.includes("stacks")) return [];
+  if (Result.isFailure(tree)) return [];
+  const at = (check: string, message: string) =>
+    finding(entry, { check, severity: "error", file: entryFile(view, entry), message });
+  if (entry.kind !== "stack")
+    return tree.success.directories.includes("payloads")
+      ? [at("payload-stack-only", "payloads/ belong only to stacks; move these files into files/.")]
+      : [];
+  const variants = new Set(
+    tree.success.files.flatMap(({ source }) => /^payloads\/([^/]+)\//.exec(source)?.[1] ?? []),
+  );
+  const unknown = [...variants].filter(
+    (variant) => !(PAYLOADS as ReadonlyArray<string>).includes(variant),
+  );
   return [
-    finding(entry, {
-      check: "overlay-fragment-only",
-      severity: "error",
-      file: entryFile(view, entry),
-      message: "stacks/ overlays belong only to fragments; move these files into files/.",
-    }),
+    ...(tree.success.directories.includes("stacks")
+      ? [
+          at(
+            "overlay-fragment-only",
+            "stacks/ overlays belong only to fragments; move these files into files/.",
+          ),
+        ]
+      : []),
+    ...(unknown.length
+      ? [
+          at(
+            "payload-unknown",
+            `payloads/ holds only ${PAYLOADS.join(" and ")}; rename or remove ${unknown.map((name) => `payloads/${name}/`).join(", ")}.`,
+          ),
+        ]
+      : []),
   ];
 });
 

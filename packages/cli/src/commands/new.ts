@@ -3,13 +3,14 @@ import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import { handoffRecord } from "../core/handoff";
 import { pickNew, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
+import { isStack, PAYLOADS } from "../core/registry/entry";
 import { Registry, remoteRoots } from "../core/registry/registry";
 import { type NewOptions, scaffold } from "../core/scaffold/new";
 import { renderNew } from "../core/scaffold/report";
 import { templateOverrides } from "../core/scaffold/values";
 import { Usage } from "../errors";
 import { BRIEF_PATH } from "../project-layout";
-import { NewResult } from "../schemas/new";
+import { NewPreset, NewResult } from "../schemas/new";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
 import { completeHandoff, prepareHandoff, projectFlags, splitValues } from "./handoff";
@@ -49,11 +50,23 @@ const newFlags = {
     ),
     Flag.withDefault(false),
   ),
-  preset: Flag.Literals("preset", ["default", "sandbox"]).pipe(
+  preset: Flag.Literals("preset", NewPreset.literals).pipe(
     Flag.withDescription(
-      "Composition preset. Default: the preset setting, else default. Sandbox implies --yes.",
+      "Composition preset. Default: the preset setting, else default. Sandbox implies --yes. Lean leaves out every default fragment (git hooks, CI, the long-lived harness docs) for timed work; add them later with stacks add.",
     ),
     Flag.optional,
+  ),
+  payload: Flag.Literals("payload", PAYLOADS).pipe(
+    Flag.withDescription(
+      "The stack's payload: example (default) ships its example code; none starts with an empty public API, for stacks that offer it.",
+    ),
+    Flag.optional,
+  ),
+  ownRepo: Flag.Boolean("own-repo").pipe(
+    Flag.withDescription(
+      "When the directory is inside another git repository, git init the project as its own repository there, keeping fragments that need one (ci-github, git-hooks).",
+    ),
+    Flag.withDefault(false),
   ),
   with: ids("with", "Add optional fragments or an app. Repeatable or comma-separated."),
   without: ids("without", "Leave out default fragments. Repeatable or comma-separated."),
@@ -82,12 +95,14 @@ const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: New
     without: flags.without,
     sandbox: flags.sandbox,
     preset: Option.getOrUndefined(flags.preset),
+    payload: Option.getOrUndefined(flags.payload),
+    ownRepo: flags.ownRepo,
     yes: flags.yes,
     agents: flags.agents.length ? flags.agents : undefined,
     scope: Option.getOrUndefined(flags.scope),
   };
-  if (flags.sandbox && options.preset === "default")
-    return yield* new Usage({ details: { flags: ["--sandbox", "--preset default"] } });
+  if (flags.sandbox && options.preset !== undefined && options.preset !== "sandbox")
+    return yield* new Usage({ details: { flags: ["--sandbox", `--preset ${options.preset}`] } });
   if (stack !== undefined) return { ...options, stack };
   yield* templateOverrides(options);
   const picked = yield* pickNew(options);
@@ -108,6 +123,8 @@ function newReplay(
       author: options.author,
       "dry-run": options.dryRun,
       preset: options.preset,
+      payload: options.payload,
+      "own-repo": options.ownRepo,
       with: options.with,
       without: options.without,
       sandbox: options.sandbox,
@@ -142,10 +159,17 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
       beforeHandoff: (settled) =>
         Effect.gen(function* () {
           if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
-          const without = yield* Effect.forEach(options.without, (id) =>
-            registry
-              .get("fragment", id)
-              .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
+          // Lean leaves the stack's defaults out, so telemetry reports them as left out.
+          const dropped =
+            composition.lean && isStack(composition.stack)
+              ? composition.stack.meta.fragments.default
+              : [];
+          const without = yield* Effect.forEach(
+            [...new Set([...options.without, ...dropped])],
+            (id) =>
+              registry
+                .get("fragment", id)
+                .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
           );
           yield* telemetry.recordScaffold(
             {

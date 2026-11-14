@@ -109,6 +109,7 @@ export const BadInputDetails = Schema.Union([
       "fragment",
       "agents",
       "sandbox",
+      "payload",
       "create_id",
       "create_target",
       "create_shadows",
@@ -793,6 +794,11 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
         [`Flag: --${details.flag}`],
         "use the preset and agents recorded in the manifest.",
       );
+    case "payload":
+      return guide(
+        [`Flag: --payload ${id}`, "This stack ships no such payload variant."],
+        "drop --payload to start from the stack's example; only stacks with a payloads/none/ directory offer --payload none.",
+      );
     case "scope":
       return guide(
         [`Flag: --scope ${id}`],
@@ -1122,8 +1128,8 @@ function composeNext(
     return guide(
       [],
       details.fix?.length
-        ? `run again with ${details.fix.map(printable).join(" ")}, or pick a directory outside that repository.`
-        : "pick a directory outside that repository.",
+        ? `run again with --own-repo to give the project its own git repository inside that one, or with ${details.fix.map(printable).join(" ")} to leave those fragments out, or pick a directory outside that repository.`
+        : "run again with --own-repo to give the project its own git repository inside that one, or pick a directory outside that repository.",
     );
   if (details.reason === "reserved_path")
     return guide(

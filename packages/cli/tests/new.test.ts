@@ -884,7 +884,7 @@ describe.skipIf(!hasGit)("new and git", () => {
       human: true,
     });
     expect(human.stderr).toContain(
-      "  Next: run again with --without own-repo, or pick a directory outside that repository.\n",
+      "  Next: run again with --own-repo to give the project its own git repository inside that one, or with --without own-repo to leave those fragments out, or pick a directory outside that repository.\n",
     );
 
     const ok = await newCli(["fixture-stack", "repo/app", "--without", "own-repo", "--json"], {

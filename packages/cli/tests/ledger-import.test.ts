@@ -289,3 +289,35 @@ test.each([
   },
   30_000,
 );
+
+test("a runs.json ledger file imports its scaffold records once and rejects unknown commits", async () => {
+  const f = await repository();
+  const { ledgerRecord } = await import("./helpers/ledger");
+  const record = await ledgerRecord(f.registry, {
+    repoCommit: f.commit,
+    agent: "none",
+    agentVersion: "none",
+    mode: "scaffold",
+    compositionFingerprint: `sha256:${"2".repeat(64)}`,
+  });
+  const artifact = join(f.root, "artifact", "runs.json");
+  mkdirSync(dirname(artifact), { recursive: true });
+  writeFileSync(artifact, JSON.stringify({ schemaVersion: 1, records: [record] }));
+  const file = join(f.registry, "runs.json");
+  const imported = await f.invoke([artifact]);
+  expect(imported.stderr).toBe("");
+  expect(imported.stdout).toBe("Imported 1 record(s).\n");
+  expect(JSON.parse(readFileSync(file, "utf8")).records).toEqual([record]);
+  const again = await f.invoke([artifact]);
+  expect(again.stdout).toBe("Imported 0 record(s).\n");
+
+  const before = readFileSync(file, "utf8");
+  writeFileSync(
+    artifact,
+    JSON.stringify({ schemaVersion: 1, records: [{ ...record, repoCommit: "f".repeat(40) }] }),
+  );
+  const unknown = await f.invoke([artifact]);
+  expect(unknown.status).toBe(1);
+  expect(unknown.stderr).toContain("unknown commit");
+  expect(readFileSync(file, "utf8")).toBe(before);
+}, 30_000);

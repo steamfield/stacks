@@ -17,7 +17,7 @@ import { NodeServices } from "@effect/platform-node";
 import { bundleDigest, EntryBundle, type IndexEntry, type Kind } from "@steamfield/stacks-format";
 import { Effect, Exit, Schema } from "effect";
 import { expect } from "vitest";
-import { fingerprint } from "../../../src/core/fingerprint";
+import { proofFingerprint } from "../../../src/core/fingerprint";
 import { LedgerRecord } from "../../../src/schemas/ledger";
 import { ValidateReport } from "../../../src/schemas/validate";
 import { quiet, runCli } from "../../helpers/cli";
@@ -54,7 +54,7 @@ export async function compositionFingerprint(
     { roots: bundledAt(registry) },
   );
   if (Exit.isFailure(exit)) throw new Error(`Invalid fixture composition: ${JSON.stringify(exit)}`);
-  return Effect.runPromise(fingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)));
+  return Effect.runPromise(proofFingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)));
 }
 
 export async function proof(registry: string, overrides: Partial<LedgerRecord> = {}) {

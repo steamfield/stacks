@@ -26,6 +26,7 @@
     "ledger:import": "bun scripts/ledger-import.ts",
     "bench": "bun scripts/bench.ts",
     "bench:pending": "bun scripts/bench-pending.ts",
+    "prove": "bun scripts/prove.ts",
     "pack": "bun run build && bun scripts/pack.ts"
   },
   "devDependencies": {

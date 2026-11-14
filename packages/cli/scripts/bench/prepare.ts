@@ -10,7 +10,7 @@ import {
 } from "effect";
 import { AppConfig, type Environment } from "../../src/config";
 import { type ComposeOptions, compose } from "../../src/core/compose/compose";
-import { fingerprint } from "../../src/core/fingerprint";
+import { fingerprint, proofFingerprint } from "../../src/core/fingerprint";
 import { readManifest } from "../../src/core/manifest";
 import { Registry } from "../../src/core/registry/registry";
 import { NewResult } from "../../src/schemas/new";
@@ -303,6 +303,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
       return {
         // Fresh runs keep precisely what new returned; continuations retain that manifest.
         fingerprint: scaffold?.fingerprint ?? manifest.fingerprint ?? "",
+        proof: yield* proofFingerprint(composition),
         briefWords: scaffold?.briefWords ?? manifest.briefWords,
         cliVersion: manifest.cli,
         before: yield* snapshot(project),

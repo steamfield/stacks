@@ -1,0 +1,3 @@
+{
+  "stacks": ["typescript-library", "python-cli", "go-cli", "rust-cli"]
+}

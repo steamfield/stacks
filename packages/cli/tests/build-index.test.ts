@@ -240,7 +240,7 @@ test("never-proven stacks are omitted, including an entirely unproven registry [
   expect(empty.index.entries).toEqual([]);
 }, 30_000);
 
-test("shared fragments retain old and new proven digests when only one stack is re-proven [4.0c#5]", async () => {
+test("a shared fragment change keeps every stack proven and publishes the current fragment [4.0c#5]", async () => {
   const f = await setup();
   const second = await proof(f.registry, {
     stack: "never-proven",
@@ -249,35 +249,27 @@ test("shared fragments retain old and new proven digests when only one stack is 
   writeLedger(f.registry, [f.record, second]);
   const previous = join(f.root, "previous");
   const old = await build(f, "none", previous);
-  const oldSample = named(old.index.entries, "stack", "sample");
-  const oldSecond = named(old.index.entries, "stack", "never-proven");
   const oldTools = named(old.index.entries, "fragment", "tools");
   const fragmentFile = join(entryPath(f.registry, "fragment", "tools"), "FRAGMENT.md");
   writeFileSync(fragmentFile, `${readFileSync(fragmentFile, "utf8")}\nNew shared guidance.\n`);
   reviewSearchFixture(f.registry);
-  const updated = await proof(f.registry, { date: "2026-10-28" });
-  writeLedger(f.registry, [f.record, second, updated]);
   const currentDigest = await digestOf(rawBundle(f.registry, "fragment", "tools"));
   expect(currentDigest).not.toBe(oldTools.digest);
+  // Proofs cover each stack's own content; the canaries, not every stack, prove shared fragments.
+  expect(await compositionFingerprint(f.registry)).toBe(f.record.fingerprint);
   const host = await serve(previous);
   try {
     const { index } = await build(f, `${host.url}/v1/index.json`);
-    const sample = named(index.entries, "stack", "sample");
-    expect(sample.digest).toBe(oldSample.digest);
-    expect(sample.composition).toEqual({ tools: currentDigest });
-    expect(sample.lastRun).toEqual({
-      date: updated.date,
-      result: "pass",
-      agent: updated.agent,
-      preset: updated.preset,
-      minutesToGreen: updated.minutesToGreen,
-      fingerprint: updated.fingerprint,
-    });
-    expect(named(index.entries, "stack", "never-proven")).toEqual(oldSecond);
-    expect(oldSecond.composition).toEqual({ tools: oldTools.digest });
-    await assertBundle(f.out, oldTools);
+    for (const [id, record] of [
+      ["sample", f.record],
+      ["never-proven", second],
+    ] as const) {
+      const stack = named(index.entries, "stack", id);
+      expect(stack.digest).toBe(named(old.index.entries, "stack", id).digest);
+      expect(stack.composition).toEqual({ tools: currentDigest });
+      expect(stack.lastRun?.fingerprint).toBe(record.fingerprint);
+    }
     await assertBundle(f.out, { ...oldTools, digest: currentDigest });
-    expect(host.requests).toContain(`/${relative(previous, bundleFile(previous, oldTools))}`);
   } finally {
     await host.close();
   }
@@ -402,7 +394,7 @@ test("generated headers declare exactly the index, bundle and search cache rules
   ]);
 }, 30_000);
 
-test("optional fragments enter the index only with current proven compositions [4.0c#12]", async () => {
+test("optional fragments enter the index only with a proven composition that adds them [4.0c#12]", async () => {
   const f = await setup();
   const optional = await proof(f.registry, {
     with: ["extra"],
@@ -417,8 +409,11 @@ test("optional fragments enter the index only with current proven compositions [
   const file = join(entryPath(f.registry, "fragment", "extra"), "FRAGMENT.md");
   writeFileSync(file, `${readFileSync(file, "utf8")}\nNew optional guidance.\n`);
   reviewSearchFixture(f.registry);
+  // The proof covers the stack and which fragments were added, not the added fragment's content.
   const changed = await build(f);
-  expect(changed.index.entries.some((entry: IndexEntry) => entry.id === "extra")).toBe(false);
+  const updated = named(changed.index.entries, "fragment", "extra");
+  expect(updated.digest).toBe(await digestOf(rawBundle(f.registry, "fragment", "extra")));
+  expect(updated.digest).not.toBe(extra.digest);
 }, 30_000);
 
 test.each(["unknown key", "changed payload"])(

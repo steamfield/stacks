@@ -5,7 +5,7 @@ import { NodeServices } from "@effect/platform-node";
 import { RunRecord } from "@steamfield/stacks-format";
 import { Effect, Exit, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { fingerprint } from "../src/core/fingerprint";
+import { proofFingerprint } from "../src/core/fingerprint";
 import { Ledger, LedgerRecord } from "../src/schemas/ledger";
 import { ProjectRuns } from "../src/schemas/runs";
 import { quiet, runCli } from "./helpers/cli";
@@ -126,7 +126,7 @@ test.each([false, true])(
     );
     if (Exit.isFailure(composed)) throw new Error("Could not compose adapter fixture");
     const codexFingerprint = await Effect.runPromise(
-      fingerprint(composed.value).pipe(Effect.provide(NodeServices.layer)),
+      proofFingerprint(composed.value).pipe(Effect.provide(NodeServices.layer)),
     );
     expect(defaultFingerprint).not.toBe(codexFingerprint);
     const result = await f.invoke();

@@ -12,10 +12,14 @@ export const LedgerRecord = Schema.Struct({
   preset: Schema.String,
   agent: DetectedAgent,
   agentVersion: Schema.String,
-  mode: Schema.Literals(["interactive", "headless"]),
+  /** `scaffold` is a zero-edit run with no agent: scaffold, the brief's install, then verify. */
+  mode: Schema.Literals(["interactive", "headless", "scaffold"]),
   repoCommit: Schema.String,
   cli: Schema.String,
+  /** `proofFingerprint`: the stack's own content and verify steps. */
   fingerprint: Schema.String,
+  /** The whole composition's `fingerprint`, shared fragments included, when it was recorded. */
+  compositionFingerprint: Schema.optionalKey(Schema.String),
   briefWords: Schema.Number,
   result: LedgerResult,
   agentEnded: Schema.Literals(["exit", "error", "timeout"]),

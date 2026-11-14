@@ -2,8 +2,8 @@ import { Effect, Result } from "effect";
 import type { LedgerRecord } from "../../schemas/ledger";
 import type { Finding } from "../../schemas/validate";
 import { compose } from "../compose/compose";
-import { fingerprint } from "../fingerprint";
-import { latestRecord, ledgerAdapterSets, readLedger } from "../ledger";
+import { fingerprint, proofFingerprint } from "../fingerprint";
+import { latestRecord, ledgerAdapterSets, readCanaries, readLedger } from "../ledger";
 import type { Entry } from "../registry/entry";
 import { type Check, entryFile, finding } from "./view";
 
@@ -22,61 +22,141 @@ export const ledgerChecks: Check = (view) =>
       });
       return { findings };
     }
+    const canaries = yield* readCanaries(view.root);
+    const stacks = view.entries.filter((entry) => entry.kind === "stack");
+    if (view.only === undefined) findings.push(...canaryFindings(canaries, stacks));
     const records = ledger.records.filter((record) => record.with.length === 0);
-    const checkStack = (stack: Entry) =>
-      Effect.gen(function* () {
-        const own = records.filter((record) => record.stack === stack.id);
-        const emit = (check: string, message: string) =>
-          findings.push(
-            finding(stack, {
-              check,
-              severity: "note",
-              file: entryFile(view, stack),
-              message,
-            }),
-          );
-        if (!own.some((record) => record.preset === "sandbox" && record.result === "pass"))
-          emit("ledger-unproven", `${stack.id} has no sandbox pass for its default composition`);
-        const keys = new Map(own.map((record) => [`${record.preset}\0${record.agent}`, record]));
-        for (const key of keys.values())
-          for (const note of yield* keyNotes(stack, own, key)) emit(note.check, note.message);
-      });
-    for (const stack of view.entries.filter((entry) => entry.kind === "stack"))
-      yield* checkStack(stack);
+    for (const stack of stacks) {
+      const own = records.filter((record) => record.stack === stack.id);
+      for (const note of yield* stackNotes(stack, own, canaries?.includes(stack.id) ?? false))
+        findings.push(
+          finding(stack, {
+            check: note.check,
+            severity: "note",
+            file: entryFile(view, stack),
+            message: note.message,
+          }),
+        );
+    }
     return { findings };
   });
 
+type Note = { check: string; message: string };
+
+function canaryFindings(canaries: ReadonlyArray<string> | null, stacks: ReadonlyArray<Entry>) {
+  const unknown = canaries?.filter((id) => !stacks.some((stack) => stack.id === id)) ?? [];
+  if (canaries !== null && unknown.length === 0) return [];
+  const finding: Finding = {
+    check: "ledger-canaries",
+    severity: "warning",
+    file: "canaries.json",
+    message: `canaries.json must be { "stacks": [...] } naming bundled stacks${unknown.length ? `; unknown: ${unknown.join(", ")}` : ""}`,
+  };
+  return [finding];
+}
+
+const stackNotes = (stack: Entry, own: ReadonlyArray<LedgerRecord>, canary: boolean) =>
+  Effect.gen(function* () {
+    const notes: Note[] = [];
+    if (!own.some((record) => record.preset === "sandbox" && record.result === "pass"))
+      notes.push({
+        check: "ledger-unproven",
+        message: `${stack.id} has no sandbox pass for its default composition`,
+      });
+    const keys = new Map(own.map((record) => [`${record.preset}\0${record.agent}`, record]));
+    for (const key of keys.values()) notes.push(...(yield* keyNotes(stack, own, key)));
+    const stale = canary ? yield* canaryStale(stack, own) : null;
+    if (stale !== null)
+      notes.push({
+        check: "ledger-canary",
+        message: `${stack.id} is a canary and shared fragments changed since its last green run${stale ? ` (${stale})` : ""}`,
+      });
+    return notes;
+  });
+
+const currentFingerprints = (
+  stack: Entry,
+  key: Pick<LedgerRecord, "preset" | "agent">,
+  hash: typeof proofFingerprint,
+) =>
+  key.preset !== "default" && key.preset !== "sandbox"
+    ? Effect.succeed([])
+    : Effect.forEach(ledgerAdapterSets(key.agent), (agents) =>
+        Effect.result(
+          compose({
+            stack: stack.id,
+            with: [],
+            without: [],
+            preset: key.preset as "default" | "sandbox",
+            agents,
+            always: [],
+            mode: "new",
+          }).pipe(Effect.flatMap(hash)),
+        ),
+      );
+
+/**
+ * A canary's proof must also match the whole composition, shared fragments included. Null when a
+ * pass does; otherwise the latest pass's date, or "" when there is none.
+ */
+const canaryStale = (stack: Entry, own: ReadonlyArray<LedgerRecord>) =>
+  Effect.gen(function* () {
+    const passes = own.filter((record) => record.result === "pass");
+    for (const pass of passes) {
+      if (pass.compositionFingerprint === undefined) continue;
+      const currents = yield* currentFingerprints(stack, pass, fingerprint);
+      if (
+        currents.some(
+          (current) => Result.isSuccess(current) && current.success === pass.compositionFingerprint,
+        )
+      )
+        return null;
+    }
+    return (
+      passes
+        .map((pass) => pass.date)
+        .sort()
+        .at(-1) ?? ""
+    );
+  });
+
+/**
+ * A key's notes. It is current when its last pass, or a pass of the same preset from another
+ * agent or a scaffold proof, matches the content this key's adapters compose today.
+ */
 const keyNotes = (stack: Entry, own: ReadonlyArray<LedgerRecord>, key: LedgerRecord) =>
   Effect.gen(function* () {
-    const notes: Array<{ check: string; message: string }> = [];
-    const emit = (check: string, message: string) => notes.push({ check, message });
+    const notes: Note[] = [];
     const latest = latestRecord(own, key);
     const label = `${stack.id} (${key.preset}, ${key.agent})`;
     if (latest?.result === "fail" || latest?.result === "partial")
-      emit("ledger-failed", `${label}: latest run was ${latest.result} (${latest.date})`);
+      notes.push({
+        check: "ledger-failed",
+        message: `${label}: latest run was ${latest.result} (${latest.date})`,
+      });
     const pass = latestRecord(
       own.filter((record) => record.result === "pass"),
       key,
     );
     if (!pass || (key.preset !== "default" && key.preset !== "sandbox")) return notes;
-    const preset = key.preset;
-    const currents = yield* Effect.forEach(ledgerAdapterSets(key.agent), (agents) =>
-      Effect.result(
-        compose({
-          stack: stack.id,
-          with: [],
-          without: [],
-          preset,
-          agents,
-          always: [],
-          mode: "new",
-        }).pipe(Effect.flatMap(fingerprint)),
+    const currents = yield* currentFingerprints(stack, key, proofFingerprint);
+    if (!currents.some(Result.isSuccess)) return notes;
+    // This key's latest pass, or a pass of the same preset from another agent or a scaffold proof.
+    const proofs = [
+      pass,
+      ...own.filter(
+        (record) =>
+          record.result === "pass" && record.preset === key.preset && record.agent !== key.agent,
       ),
+    ];
+    const current = currents.some(
+      (value) =>
+        Result.isSuccess(value) && proofs.some((record) => record.fingerprint === value.success),
     );
-    if (
-      currents.some(Result.isSuccess) &&
-      !currents.some((current) => Result.isSuccess(current) && current.success === pass.fingerprint)
-    )
-      emit("ledger-changed", `${label} changed since its last green run (${pass.date})`);
+    if (!current)
+      notes.push({
+        check: "ledger-changed",
+        message: `${label} changed since its last green run (${pass.date})`,
+      });
     return notes;
   });

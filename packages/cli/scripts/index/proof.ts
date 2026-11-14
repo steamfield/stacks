@@ -6,7 +6,7 @@ import {
 } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { type Composition, compose } from "../../src/core/compose/compose";
-import { fingerprint } from "../../src/core/fingerprint";
+import { proofFingerprint } from "../../src/core/fingerprint";
 import { latestMatchingRecord, ledgerAdapterSets, readLedger } from "../../src/core/ledger";
 import { type Entry, isFragment, isRejected, isStack } from "../../src/core/registry/entry";
 import { Registry } from "../../src/core/registry/registry";
@@ -29,7 +29,7 @@ const proveRecord = Effect.fn("index.proveRecord")(function* (record: LedgerReco
         mode: "new",
       }).pipe(
         Effect.flatMap((composition) =>
-          Effect.map(fingerprint(composition), (value) => ({ composition, value })),
+          Effect.map(proofFingerprint(composition), (value) => ({ composition, value })),
         ),
       ),
     );
@@ -81,10 +81,11 @@ function fragmentDigests(fragments: Composition["fragments"], raw: Raw) {
 
 function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): IndexEntry | null {
   const own = proven.filter(({ record }) => record.stack === stack.id && record.with.length === 0);
-  const newest = latestMatchingRecord(
-    own.map(({ record }) => record),
-    () => true,
-  );
+  // An agent run is preferred: it measures minutesToGreen. A scaffold run proves the same content.
+  const records = own.map(({ record }) => record);
+  const newest =
+    latestMatchingRecord(records, (record) => record.mode !== "scaffold") ??
+    latestMatchingRecord(records, () => true);
   const proof = own.find(({ record }) => record === newest);
   const value = raw.get(`stack/${stack.id}`);
   if (proof === undefined || value === undefined) return null;

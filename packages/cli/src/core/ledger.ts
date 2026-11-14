@@ -1,5 +1,5 @@
 import { AgentId } from "@steamfield/stacks-format";
-import { Effect, FileSystem, Path, Result, Schema } from "effect";
+import { Duration, Effect, FileSystem, Path, Result, Schedule, Schema } from "effect";
 import { InvalidConfig } from "../errors";
 import { type LastRun, Ledger, LedgerRecord } from "../schemas/ledger";
 import { replaceFile } from "./replace-file";
@@ -109,20 +109,58 @@ export function lastRun(records: ReadonlyArray<LedgerRecord>, stack: string): La
       };
 }
 
+/**
+ * `registry/canaries.json`: the stacks whose proofs also cover shared fragment content. A registry
+ * without one has no canaries.
+ */
+export const readCanaries = (
+  registryDir: string,
+): Effect.Effect<ReadonlyArray<string> | null, never, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = (yield* Path.Path).join(registryDir, "canaries.json");
+    const read = yield* Effect.result(fs.readFileString(path));
+    if (Result.isFailure(read)) return read.failure.reason._tag === "NotFound" ? [] : null;
+    const decoded = Schema.decodeUnknownResult(Schema.fromJsonString(Canaries))(read.success);
+    return Result.isSuccess(decoded) ? decoded.success.stacks : null;
+  });
+const Canaries = Schema.Struct({ stacks: Schema.Array(Schema.String) });
+
+/** Holds `runs.json.lock` (an atomic mkdir) so parallel appends can't drop each other's record. */
+const ledgerLock = (target: string, invalid: () => InvalidConfig) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const lock = `${target}.lock`;
+    yield* Effect.acquireRelease(
+      fs.makeDirectory(lock).pipe(
+        Effect.retry({
+          schedule: Schedule.spaced(Duration.millis(100)),
+          times: 600,
+          while: (error) => error.reason._tag === "AlreadyExists",
+        }),
+        Effect.mapError(invalid),
+      ),
+      () => fs.remove(lock, { recursive: true }).pipe(Effect.ignore),
+    );
+  });
+
 /** Atomically replace the envelope, preserving unknown records and cleaning up on failure. */
 export const appendRecord = (
   registryDir: string,
   record: LedgerRecord,
 ): Effect.Effect<void, InvalidConfig, FileSystem.FileSystem | Path.Path> =>
-  Effect.gen(function* () {
-    const path = yield* Path.Path;
-    const target = path.join(registryDir, "runs.json");
-    const invalid = () => new InvalidConfig({ details: { path: target } });
-    const { present, ledger } = yield* readFile(registryDir);
-    if (present && ledger === null) return yield* invalid();
-    const decoded = yield* Schema.decodeUnknownEffect(LedgerRecord)(record).pipe(
-      Effect.mapError(invalid),
-    );
-    const text = `${JSON.stringify({ schemaVersion: 1, records: [...(ledger?.records ?? []), decoded] }, null, 2)}\n`;
-    yield* replaceFile(target, text).pipe(Effect.mapError(invalid));
-  });
+  Effect.scoped(
+    Effect.gen(function* () {
+      const path = yield* Path.Path;
+      const target = path.join(registryDir, "runs.json");
+      const invalid = () => new InvalidConfig({ details: { path: target } });
+      const decoded = yield* Schema.decodeUnknownEffect(LedgerRecord)(record).pipe(
+        Effect.mapError(invalid),
+      );
+      yield* ledgerLock(target, invalid);
+      const { present, ledger } = yield* readFile(registryDir);
+      if (present && ledger === null) return yield* invalid();
+      const text = `${JSON.stringify({ schemaVersion: 1, records: [...(ledger?.records ?? []), decoded] }, null, 2)}\n`;
+      yield* replaceFile(target, text).pipe(Effect.mapError(invalid));
+    }),
+  );

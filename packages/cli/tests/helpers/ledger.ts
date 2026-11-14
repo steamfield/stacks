@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import type { RunRecord } from "@steamfield/stacks-format";
 import { Effect, Exit } from "effect";
-import { fingerprint } from "../../src/core/fingerprint";
+import { proofFingerprint } from "../../src/core/fingerprint";
 import type { LedgerRecord } from "../../src/schemas/ledger";
 import { bundledAt, composeExit } from "./compose";
 import { minimal, writeEntry } from "./registry";
@@ -30,7 +30,7 @@ export async function registryFingerprint(root: string) {
     { roots: bundledAt(root) },
   );
   if (Exit.isFailure(exit)) throw new Error(`Fixture did not compose: ${JSON.stringify(exit)}`);
-  return Effect.runPromise(fingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)));
+  return Effect.runPromise(proofFingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)));
 }
 
 export function runRecord(overrides: Partial<RunRecord> = {}): RunRecord {

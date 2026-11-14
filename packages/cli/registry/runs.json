@@ -9275,6 +9275,358 @@
       "interventions": 0,
       "note": "plans/runs/2026-11-02-astro-product-site.md",
       "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-14",
+      "stack": "typescript-library",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "none",
+      "agentVersion": "none",
+      "mode": "scaffold",
+      "repoCommit": "3e7dc1342a9a3a52fd61003651f7db42f5dadec9",
+      "cli": "0.9.0",
+      "fingerprint": "sha256:8d2080f8b295dbbcbf9b2d3404cce817fd29ebb4464c302a3ee4d88411a1ed80",
+      "compositionFingerprint": "sha256:d10b4f1c8cf0f6df33908fd93c7177c616192835d8af07394931dec4710fb5fb",
+      "briefWords": 4103,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-14T21:30:58.293Z",
+        "cli": "0.9.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 10810,
+        "secondsSinceCreated": 24,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 103
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1198
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 678
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5265
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 585
+          },
+          {
+            "name": "package-lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2206
+          },
+          {
+            "name": "consumer",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 772
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "harness-hooks",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          }
+        ]
+      },
+      "verifyRuns": 1,
+      "minutesToGreen": null,
+      "minutesToFirstTest": null,
+      "agentMinutes": null,
+      "interventions": 0
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-14",
+      "stack": "typescript-mcp",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "none",
+      "agentVersion": "none",
+      "mode": "scaffold",
+      "repoCommit": "3e7dc1342a9a3a52fd61003651f7db42f5dadec9",
+      "cli": "0.9.0",
+      "fingerprint": "sha256:40ae4ab52b107471fd7cf13c6093393574587a404cf09a034d9789c6325f7ad7",
+      "compositionFingerprint": "sha256:11f15abc2e53802360c7ec8a0037c132e799e4fbc4ef74b592b3388d7e9814bd",
+      "briefWords": 3874,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-14T21:31:16.393Z",
+        "cli": "0.9.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 9338,
+        "secondsSinceCreated": 15,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 113
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1102
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 719
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5401
+          },
+          {
+            "name": "stdio",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1469
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 34
+          },
+          {
+            "name": "smoke",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 498
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "harness-hooks",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          }
+        ]
+      },
+      "verifyRuns": 1,
+      "minutesToGreen": null,
+      "minutesToFirstTest": null,
+      "agentMinutes": null,
+      "interventions": 0
     }
   ]
 }

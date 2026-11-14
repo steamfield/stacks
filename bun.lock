@@ -14,7 +14,7 @@
     },
     "packages/cli": {
       "name": "@steamfield/stacks",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "bin": {
         "stacks": "dist/stacks",
       },
@@ -51,7 +51,7 @@
     },
     "packages/mcp": {
       "name": "@steamfield/stacks-mcp",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "bin": {
         "stacks-mcp": "dist/server.js",
       },

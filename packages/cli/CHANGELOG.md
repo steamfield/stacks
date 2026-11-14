@@ -4,6 +4,8 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-14
+
 ### Added
 
 - The brief opens with "Start here": a short ordered list whose first step is the exact install command, spelled from the declared package names with no versions (single-package Bun stacks), then `stacks verify`, the remaining work, and `stacks verify --all` as done. The rest of the brief is reference.
@@ -177,6 +179,7 @@ First release, as the npm package `@steamfield/stacks` installed as `stacks` (No
 - Commands: `list`, `show`, `new`, `add`, `create`, `validate`, `verify`, `runs`, `schema`, `guide`, `skill` and `doctor`, each with `--json` output, fixed exit codes and error envelopes with a next action.
 - Bundled stacks: `astro-blog`, `cloudflare-react-router`, `go-cli`, `mobile-expo`, `python-react`, `react-router`, `tauri-react` and `typescript-cli`, with 19 fragments.
 
+[0.9.0]: https://github.com/steamfield/stacks/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/steamfield/stacks/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/steamfield/stacks/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/steamfield/stacks/compare/v0.5.0...v0.6.0

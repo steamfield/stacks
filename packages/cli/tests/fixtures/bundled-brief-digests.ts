@@ -26,16 +26,17 @@
  * All six changed again that day for the Start here action list (install commands, code-layer
  * verify, verify --all as done), the hygiene steps and the claude-harness-docs split; they
  * await a bench run.
+ * The 0.9.0 version in the brief changed all six again on 2026-11-14.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:89ae806441105a13a3c5a95699891cf0c8af630b1acae93199abed4b773be66a",
-  "astro-blog:sandbox": "sha256:7c3661b7c58a99143a2b2de5c71d96f0fb6e708af50ac917d7dfb7eb4b41ab4c",
-  "go-cli:default": "sha256:7965c98f50cac66dfea56a4ed688b36a41530ce19790a829780ec44663d14e12",
-  "go-cli:sandbox": "sha256:216f45ce0867373a21fa13bbad12ebd55f0de48fd5a637c8791d20416148bc83",
-  "python-react:default": "sha256:cced7e35e21940db1758ad0f343faac4b9ef94dbad155cee27f85e440ce5b4e4",
-  "python-react:sandbox": "sha256:d9386b807b9208c416bf67c6b77c0c6bc2afa742dc5d7ce4876d1eb14ef849f8",
+  "astro-blog:default": "sha256:b36f538baf33b98fad0eb2f40f2a91d722a8290002cb9c168ab3d19cb683a48f",
+  "astro-blog:sandbox": "sha256:9f02644a34559338f39e588d4da279e5eca4b8072f2b6e2723328490b7c0de3d",
+  "go-cli:default": "sha256:6bb63357e3099087ec4e3c1f983eaed66d114f98840a896f3cdb8525ad59be92",
+  "go-cli:sandbox": "sha256:3772bb8d2f5d6d3fc323d4e106c3cdc80eca7f3667b163a981a3d4734086aee3",
+  "python-react:default": "sha256:e9cdc6d12a19b1be4c934d68099947147f5ead9b8830ad2a2cd98633377a1d69",
+  "python-react:sandbox": "sha256:5ee81dcccd647a9fbb64d65b9c98d4e9ac5d97fd79755b4c8c017802088b6d86",
 };

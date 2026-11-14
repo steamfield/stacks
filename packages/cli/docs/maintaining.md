@@ -12,13 +12,30 @@ bun run bench <stack> --keep
 
 It builds the dev binary, installs it with the working registry into a throwaway prefix, scaffolds the stack, runs the agent headlessly and verifies independently. `--cli <binary>` skips the build; `--preset default` uses defaults instead of sandbox, `--with a,b` adds fragments, `--max-minutes 60` sets the time limit, and `--no-record` skips the ledger and run note. `--existing <kept-root>` continues matching content and adds one intervention.
 
-To bench every stack `validate` reports as unproven or changed since its last green run (`ledger-unproven`, `ledger-changed`), run `bun run bench:pending`, which passes its other arguments to each run (`bun run bench:pending --max-minutes 30`) and runs them one at a time; `--list` prints the runs without starting any. Every run uses the bench's agent (Codex, or the one `--agent` names), and a stack counts as pending until that agent has a current green run of it. `ledger-changed` is keyed by agent, so another agent's stale proof stays a note after the Codex pass; it isn't rerun.
+To bench every stack `validate` reports as unproven, changed since its last green run, or a canary whose shared fragments changed (`ledger-unproven`, `ledger-changed`, `ledger-canary`), run `bun run bench:pending`, which passes its other arguments to each run (`bun run bench:pending --max-minutes 30`) and runs them one at a time; `--list` prints the runs without starting any. Every run uses the bench's agent (Codex, or the one `--agent` names), and a stack counts as pending until that agent has a current green run of it. `ledger-changed` is keyed by agent, so another agent's stale proof stays a note after the Codex pass; it isn't rerun.
 
 The package must be clean before a run, apart from `registry/runs.json`, so uncommitted records from earlier runs don't block the next. The bench writes its run note under `plans/runs/` at the repository root (creating the directory if needed) and appends to `registry/runs.json`. Read every generated note and its ledger record before committing; a green verify can still need relabeling as `partial` after review. The bench never commits anything.
 
 Auth is `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, or `CODEX_ACCESS_TOKEN` as documented by `codex login --with-access-token`. Codex also accepts the invoking user's `codex login`: when no token is set, the bench copies only `$HOME/.codex/auth.json` into the fresh home with mode 0600 and removes it when the agent exits, before verification, even with `--keep` or on interruption. Global Codex settings, instructions and MCP servers are never copied. Only the selected token reaches the agent when token auth is used. The fresh `HOME` and project are not a security boundary: local runs give the agent full permissions. Child processes get `DO_NOT_TRACK=1`. Fake-agent tests need no account or real token.
 
 The bench runs Codex on `gpt-6.1-terra` at medium reasoning effort unless told otherwise, whichever agent the bench itself was started from, so every proof comes from the same setup. `--agent claude` runs Claude Code on `haiku` instead. `--model <id>` selects another model for either adapter (`--model opus`, say, when a stack needs a stronger agent); the id accepts letters, digits, `.`, `-` and `_`, with no leading `-`. `--effort minimal|low|medium|high|xhigh` sets Codex's reasoning effort and is refused for Claude. Ledger records don't store the model or effort, so any pass counts as the same proof. Run notes record the credential route, model and effort; ledger records keep their existing format.
+
+## Proving without an agent
+
+```sh
+bun run prove <stack>... [--preset default] [--ledger <dir>] [--no-record] [--keep]
+```
+
+`prove` scaffolds each stack in a throwaway root with a fresh `HOME`, runs the brief's install command (step 1 of "Start here", for Bun and uv stacks), then `verify`, and appends a `scaffold` record to `registry/runs.json`. It spends no inference. A scaffold pass proves the stack's content for the index and clears `ledger-changed`; agent runs are still preferred for minutesToGreen. A stack whose template leaves work for the agent (a package to rename, a `go.mod` to create) fails it; see [the zero-edit gaps plan](../../../plans/zero-edit-proof-gaps-2026-11-14.md). The registry must be committed first, since the record names `HEAD`. `--ledger <dir>` writes `<dir>/runs.json` instead, which is what the nightly zero-edit workflow uploads; import it with `bun run ledger:import <dir>/runs.json`. Records are appended under a lock, so parallel runs are safe.
+
+A proof covers the stack's own content: its `STACK.md`, the files, adapters and payload a composition writes from its directory, and its composed verify steps (`fingerprint.ts::proofFingerprint`). Shared fragment content isn't part of it. The canaries in `registry/canaries.json` prove it instead: a canary needs a pass of its whole current composition, or `validate` notes `ledger-canary`.
+
+## Landing a one-stack change
+
+1. Edit the stack, run `bunx vitest run tests/bundled-registry.test.ts` (which validates the bundled registry) and the tests that cover the stack, and commit.
+2. `bun run prove <stack>`, or `bun run bench <stack>` when it needs an agent. Commit the record.
+3. Merge. If you changed a shared fragment, prove the canaries (`bun run bench:pending --list` names them) instead of every stack.
+4. Deploy. `build:index` with the live `--previous` URL keeps every other entry's proof, and serves a stack whose proof is out of date from its previous entry ("stale proof") instead of dropping it.
 
 ## The ledger
 
@@ -31,7 +48,7 @@ bun run ledger:import ../../plans/runs/<note>.md --dry-run
 
 The script discovers the repo from the working directory, archives only the registry at each note's commit into a temporary directory and fingerprints it with the current composition code. A contradictory Outcome row and final verify record are reported and skipped; a maintainer's explicit `partial` stays partial even when verify is green. The driving agent is independent of adapter targets: targets default to `claude`, and notes for an override can include a `Target agents` table row with comma-separated ids such as `codex`, `claude`.
 
-It records only added fragments in `with`, removing fragments already selected by the default composition at that commit. Existing `(repoCommit, stack, date)` records are skipped. Incomplete notes are reported, other notes continue, and any failure exits 1. `--dry-run` prints a JSON array and writes no ledger; `--` ends options. Bun consumes an initial `--` before passing arguments to a script, so single-dash note names are also accepted directly. Use `./` for a note name that collides with a long option.
+It records only added fragments in `with`, removing fragments already selected by the default composition at that commit. Existing `(repoCommit, stack, date)` records are skipped. A `.json` argument is a ledger file from `prove --ledger`: every record is checked against its commit and deduplicated before any is appended. Incomplete notes are reported, other notes continue, and any failure exits 1. `--dry-run` prints a JSON array and writes no ledger; `--` ends options. Bun consumes an initial `--` before passing arguments to a script, so single-dash note names are also accepted directly. Use `./` for a note name that collides with a long option.
 
 ## Building the index and official names
 
@@ -51,7 +68,7 @@ For a development index that also includes stacks without a qualifying ledger pa
 bun run build:index -- --out <output> --previous none --unsigned --include-unproven
 ```
 
-`--include-unproven` requires `--unsigned` and cannot be used with `--key` or `--check`; those combinations exit 2. Unproven stacks have no `lastRun` and pin their current default composition, including required fragments and transitive dependencies. Every bundled fragment is published, including optional fragments outside those compositions. Proven stacks retain their proof and pinned composition. Without the flag, the proof gate and carry-forward behavior are unchanged, including for signed builds.
+`--include-unproven` requires `--unsigned` and cannot be used with `--key` or `--check`; those combinations exit 2. Unproven stacks have no `lastRun` and pin their current default composition, including required fragments and transitive dependencies. Every bundled fragment is published, including optional fragments outside those compositions. Proven stacks retain their proof and pinned composition. Without the flag, the proof gate and carry-forward behavior are unchanged, including for signed builds: a published stack with no proof of its current content keeps its previous entry (reported as "stale proof"), a published fragment that no proven composition includes keeps its previous entry, and only a stack that was never proven is left out. To verify a previous index signed with a key the CLI doesn't bundle, set `STACKS_INDEX_PUBLIC_KEYS` to a JSON array of `{"keyId", "publicKey"}`.
 
 Official names include every release's stack and fragment ids, each stack's default composition and each default composition plus one optional fragment. Release registries are read with `git archive` into temporary directories and composed with today's code. A release that no longer decodes or composes prints a warning naming its tag and retains recoverable frontmatter ids; unavailable composition details stay empty. Review those warnings before publishing. The index source takes each published stack's exact composition and step names from its pinned bundles, including carried-forward content and sandbox proofs that omit default deploy fragments.
 

@@ -1,0 +1,3 @@
+# Test commands rr-route-tests.sh sends through rr, one "<command>|<rr task>" per line, such as
+# "bun run test|test". Each task must be in .rr.yaml (rr tasks lists them).
+# stacks:fill: one line per test or gate command in AGENTS.md's Commands that has an .rr.yaml task, then delete this marker line.

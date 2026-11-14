@@ -1,0 +1,53 @@
+name: Zero-edit scaffold
+# Nightly and on demand: scaffold typescript-library outside any repository with no edits,
+# install the latest releases with the brief's own install command, and run the code checks.
+# A red run means a new upstream release broke a shipped file; fix the template, not the check.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  typescript-library:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # A CI run is not a user's project: send no telemetry.
+      DO_NOT_TRACK: "1"
+    steps:
+      - run: echo "PROJECT=$RUNNER_TEMP/zero-edit/demo-lib" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun run install:ci
+      - name: Scaffold with defaults
+        run: |
+          mkdir -p "$(dirname "$PROJECT")"
+          cd "$(dirname "$PROJECT")"
+          bun "$GITHUB_WORKSPACE/packages/cli/src/bin.ts" new typescript-library demo-lib --no-launch --json > new.json
+      - name: Install with the brief's command
+        working-directory: ${{ env.PROJECT }}
+        run: |
+          # Step 1 of the brief's "Start here" list: the indented sh fence.
+          awk '/^   ```sh$/{f=1;next} /^   ```$/{if(f)exit} f{sub(/^   /,"");print}' .stacks/BRIEF.md > ../install.sh
+          test -s ../install.sh
+          cat ../install.sh
+          sh -e ../install.sh
+      - name: Verify the code checks
+        working-directory: ${{ env.PROJECT }}
+        run: bun "$GITHUB_WORKSPACE/packages/cli/src/bin.ts" verify --json > ../verify.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: zero-edit-typescript-library
+          path: |
+            ${{ runner.temp }}/zero-edit/new.json
+            ${{ runner.temp }}/zero-edit/install.sh
+            ${{ runner.temp }}/zero-edit/verify.json
+            ${{ env.PROJECT }}/package.json
+            ${{ env.PROJECT }}/.stacks/state/runs.jsonl

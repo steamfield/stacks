@@ -121,6 +121,35 @@ describe("installed Node package", () => {
     expect(result.stdout).toBe("");
     expect(JSON.parse(result.stderr)).toMatchObject({ error: { tag: "Usage", retryable: false } });
   });
+  test.each([
+    { mode: "json", args: ["show", "typescript-library", "--json"] },
+    { mode: "agent", args: ["show", "typescript-library"] },
+  ])("a removed working directory fails as NotFound ($mode)", async ({ mode, args }) => {
+    // The shell removes its own working directory, then runs the CLI from it.
+    const result = await invoke(
+      ["-c", 'rmdir "$PWD" && exec "$0" "$@"', binary, ...args],
+      undefined,
+      { STACKS_OFFLINE: "1" },
+      "/bin/sh",
+    );
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).not.toContain("uv_cwd");
+    if (mode === "json")
+      expect(JSON.parse(result.stderr)).toEqual({
+        error: {
+          tag: "NotFound",
+          message: "Not found.",
+          retryable: false,
+          next: "cd to a directory that exists, then run the command again.",
+          details: { suggestions: [], kind: "cwd" },
+        },
+      });
+    else
+      expect(result.stderr).toBe(
+        "Not found.\n  The working directory no longer exists.\n  Next: cd to a directory that exists, then run the command again.\n",
+      );
+  });
   test("invalid optional file is reported by doctor without failing", async () => {
     const result = await invoke(["doctor", "--json"], (dir) => {
       const config = join(dir, "config", "stacks");

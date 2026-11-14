@@ -5,6 +5,7 @@
   "stack": "fixture",
   "fragments": [],
   "preset": "sandbox",
+  "payload": "example",
   "agents": ["claude"],
   "written": [
     ".stacks/.gitignore",

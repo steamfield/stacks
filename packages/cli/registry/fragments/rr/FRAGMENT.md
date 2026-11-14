@@ -16,9 +16,11 @@ decisions:
 verify:
   - name: rr-config
     layer: check
+    tags: [hygiene]
     run: "out=$(rr tasks 2>&1) || { printf '%s\\n' \"$out\"; exit 1; }; if printf '%s' \"$out\" | grep -q '\"status\":\"warn\"'; then printf '%s\\n' \"$out\"; exit 1; fi"
   - name: rr-routes
     layer: check
+    tags: [hygiene]
     run: "test ! -f .claude/hooks/rr-routes.txt || { ! grep -n 'stacks:fill' .claude/hooks/rr-routes.txt && bash .claude/hooks/rr-route-tests-smoke.sh; }"
 ---
 

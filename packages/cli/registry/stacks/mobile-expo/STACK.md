@@ -45,6 +45,7 @@ verify:
   - { name: db-down, phase: teardown, layer: install, run: bun run db:down }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   setup: Install dependencies, create .env from .env.example, link apps/mobile/.env (idempotent)

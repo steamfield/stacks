@@ -3,15 +3,15 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:c6cb5a30184f018a845f63552120b48fa530b13594208aa1c05df04449355e17",
+    "digest": "sha256:857eaddda9ba85e1a0c2dc5c2bcf56aec99f442e70cf7223c8744b0a9eaa4500",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-01"
+    "reviewedAt": "2026-11-14"
   },
-  "summary": "Add reusable TypeScript hook helpers and a Claude Code adapter with command guards, incremental type checks, hook tests, workflows and review agents.",
-  "description": "Build project-specific agent guards on shared Bun TypeScript hook helpers. For Claude Code, the adapter adds guarded commands, incremental typechecking, development commands and read-only review agents, with tests and a harness guide. The shared helpers can also support stack-owned Codex hooks. Each guard must be wired once and documented with its own regression cases.",
-  "seoDescription": "Shared Bun TypeScript hook helpers plus a Claude Code development harness with command guards, typechecking, workflow commands and hook tests.",
+  "summary": "Add reusable TypeScript hook helpers and a Claude Code adapter with command guards, incremental type checks and hook tests.",
+  "description": "Build project-specific agent guards on shared Bun TypeScript hook helpers. For Claude Code, the adapter adds guarded commands and incremental typechecking, with regression tests for each hook. The shared helpers can also support stack-owned Codex hooks. Each guard must be wired once and documented with its own regression cases.",
+  "seoDescription": "Shared Bun TypeScript hook helpers plus Claude Code guards with command checks, incremental typechecking and hook tests.",
   "projectExamples": [
     {
       "title": "Generated client protection",
@@ -20,7 +20,7 @@
     },
     {
       "title": "CLI development harness",
-      "description": "Extend the TypeScript CLI's existing harness with project commands and tested guards. Keep paid operations and publishing outside automatic permissions.",
+      "description": "Extend the TypeScript CLI's existing harness with tested project guards. Keep paid operations and publishing outside automatic permissions.",
       "stack": "typescript-cli"
     }
   ],
@@ -28,8 +28,7 @@
     "whatItIs": "Adds tested guards and helper commands to Claude Code in a TypeScript project that uses Bun, a JavaScript runtime.",
     "goodAt": [
       "Blocking certain commands and edits to generated files in Claude Code",
-      "Testing each guard against blocked actions and similar safe ones",
-      "Adding read-only helpers that review designs and code changes"
+      "Testing each guard against blocked actions and similar safe ones"
     ],
     "notGoodAt": [
       "Sandboxing untrusted code; use a separate sandbox for that.",
@@ -42,7 +41,6 @@
   "requests": [
     "catch TypeScript errors after Claude changes a file",
     "keep the agent from editing generated files or using the wrong package manager",
-    "give Claude commands for checking, testing and developing features",
     "build project-specific agent guards using shared helpers and regression tests"
   ],
   "useCases": [
@@ -52,9 +50,7 @@
   "synonyms": [
     "Bun hooks",
     "incremental typecheck",
-    "generated-file guard",
-    "architect agent",
-    "reviewer agent"
+    "generated-file guard"
   ],
   "goodFor": [
     "shared hook payload and shell parsing",

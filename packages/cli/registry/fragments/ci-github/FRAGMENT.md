@@ -16,6 +16,7 @@ decisions:
 verify:
   - name: ci-workflow
     layer: check
+    tags: [hygiene]
     run: "f=.github/workflows/ci.yml; test -f $f && grep -q '^jobs:' $f && grep -Eq '^[[:space:]]+ci-ok:' $f && ! grep -n 'stacks:fill' $f || { echo \"$f needs jobs:, a ci-ok job and no stacks:fill\" >&2; exit 1; }"
 ---
 

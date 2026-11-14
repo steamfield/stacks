@@ -31,6 +31,7 @@ verify:
     expect: { http: "http://localhost:${PORT_WEB}/healthz", within: 90s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   dev: Run React Router in the local Workers runtime

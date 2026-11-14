@@ -37,6 +37,7 @@ verify:
     expect: { http: "http://127.0.0.1:${PORT_WEB}/healthz", within: 60s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: uv sync (--locked when CI is set), then git hooks outside CI

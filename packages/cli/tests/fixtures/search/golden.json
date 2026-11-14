@@ -823,6 +823,11 @@
           "kind": "fragment",
           "id": "agent-ops",
           "grade": 1
+        },
+        {
+          "kind": "fragment",
+          "id": "claude-harness-docs",
+          "grade": 1
         }
       ]
     },

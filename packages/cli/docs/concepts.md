@@ -97,10 +97,11 @@ Picking the fragments and putting the result together is called composition. Com
 
 ### Presets
 
-A preset changes how composition treats the project. There are two:
+A preset changes how composition treats the project. There are three:
 
 - `default`: the agent asks you about each decision, and deploy and release fragments are included when the stack defaults to them.
 - `sandbox` (`--sandbox`): local only. The agent takes the default for every decision without asking, deploy, release and app fragments stay out unless you name them with `--with`, and verify steps tagged `prod` are skipped.
+- `lean` (`--preset lean`): like `default` but without the stack's default fragments (git hooks, CI, the long-lived harness docs), for short, timed work. The manifest records it as `default`; `stacks add` brings a fragment back.
 
 Sandbox is the quickest way to see a stack working. Default is what you want for a real project.
 
@@ -177,7 +178,7 @@ CI uses Bun's packageManager and Node's .node-version ...
 <!-- stacks:end -->
 ```
 
-That paragraph appears in the brief only when `ci-github` is part of the project. The conditions are `with=<fragment>`, `preset=<preset>`, `stack=<id>`, `tag=<tag>`, `tag!=<tag>` and `mode=<new|add>`.
+That paragraph appears in the brief only when `ci-github` is part of the project. The conditions are `with=<fragment>`, `preset=<preset>`, `stack=<id>`, `tag=<tag>`, `tag!=<tag>`, `mode=<new|add>` and `payload=<example|none>`.
 
 ### Files and adapters
 
@@ -225,8 +226,8 @@ Your own stacks and fragments go in the user root. `stacks create stack my-api` 
 
 `new` and `add` write `.stacks/BRIEF.md`, the agent's entire task. It's assembled from fixed CLI text and the composed entries:
 
-1. A header: stack, fragments, preset, target agents, and the files stacks wrote.
-2. "Your job", "Versions" and "Ground rules": the same for every project. Use current versions, prefer official generators, never weaken verify.
+1. "Start here": a short ordered list. Install the declared packages (the exact command for single-package Bun stacks, no versions), run `stacks verify` for the code checks, finish the work and the `stacks:fill` markers, and finish with `stacks verify --all`, which adds the hygiene checks. Everything after it is reference.
+2. "Facts": stack, fragments, preset, target agents, and the files stacks wrote. Then "Versions" and "Ground rules": the same for every project. Use current versions, prefer official generators, never weaken verify.
 3. "Decisions": every entry's decisions, each with its default. With `--yes` or `--sandbox`, the agent takes the defaults without asking.
 4. "Dependencies and tools": packages by role, and any tools missing from PATH.
 5. One section per entry: the stack's guidance, then each fragment's.

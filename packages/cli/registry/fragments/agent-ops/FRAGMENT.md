@@ -12,15 +12,19 @@ merge: [.claude/settings.json, .codex/hooks.json]
 verify:
   - name: agents-md-filled
     layer: check
+    tags: [hygiene]
     run: "test -s AGENTS.md && grep -q '^## Commands' AGENTS.md && ! grep -n 'stacks:fill' AGENTS.md"
   - name: claude-md-imports-agents
     layer: check
+    tags: [hygiene]
     run: "test ! -f CLAUDE.md || grep -qx '@AGENTS.md' CLAUDE.md"
   - name: claude-readme-filled
     layer: check
+    tags: [hygiene]
     run: "test ! -f .claude/README.md || ! grep -n 'stacks:fill' .claude/README.md"
   - name: hooks-smoke
     layer: check
+    tags: [hygiene]
     run: bash .claude/hooks/smoke.sh
 ---
 

@@ -23,7 +23,7 @@ Optional configuration is `$XDG_CONFIG_HOME/stacks/config.json`, defaulting to `
 | `agents` | Agents whose `adapters/<agent>/` files are written: any of `claude`, `codex`, `opencode`, `cursor`. `--agents` overrides it; the default is `["claude"]` |
 | `author` | Author name for templates |
 | `package_scope` | npm scope for templates, such as `@acme` |
-| `preset` | `default` or `sandbox` for `new`; `--preset` and `--sandbox` override it |
+| `preset` | `default`, `sandbox` or `lean` for `new`; `--preset` and `--sandbox` override it |
 | `telemetry` | `false` disables anonymous usage collection. Prefer `stacks telemetry disable`, which also removes pending events and identity |
 
 Your own stacks and fragments live beside this file, in `stacks/<id>/` and `fragments/<id>/`.

@@ -1,0 +1,35 @@
+# {{project_name}}
+
+<!-- stacks:fill: one sentence on what the package does and who calls it -->
+
+## Install
+
+```sh
+npm install {{project_slug}}
+```
+
+ESM only: load it with `import`, or with `require()` on a Node version that loads ES modules synchronously. Types are included.
+
+## API
+
+Every export is listed here. A change to this list is a release decision: a new export is a minor release, a removed or renamed one is a major release.
+
+Nothing is exported yet.
+
+## Development
+
+Bun installs dependencies and runs the scripts; Node runs Vitest and the consumer check. Versions this project was set up with:
+
+<!-- stacks:fill:toolchain the Bun and Node versions recorded at setup -->
+
+Install with `bun install`, then:
+
+| Command | What it does |
+| --- | --- |
+<!-- stacks:fill:commands one row per package script -->
+
+Run one test file with `bun run test src/errors.test.ts`.
+
+## Releasing
+
+The package keeps `"private": true` until the maintainer decides to publish. A release is the maintainer's step: bump `version` (a `0.x` minor or patch while the API settles), note the change, remove `private` for the first release, and run `npm publish` from their machine or from CI with npm provenance.

@@ -98,6 +98,28 @@ test("a self-closing POM section does not absorb the project's version", async (
   ]);
 });
 
+test("a shipped package.json may set its own version, but not a dependency's", async () => {
+  const root = space.temp();
+  const entry = stack(root);
+  ship(
+    entry,
+    "files/package.json.tmpl",
+    '{\n  "name": "{{project_slug}}",\n  "version": "0.0.0",\n  "private": true\n}\n',
+  );
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+  ]);
+  ship(
+    entry,
+    "files/package.json.tmpl",
+    '{\n  "name": "x",\n  "version": "0.0.0",\n  "dependencies": { "effect": "^4.0.0" }\n}\n',
+  );
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+    ["version-sensitive-file", "warning", { file: "stacks/sample/files/package.json.tmpl" }],
+  ]);
+});
+
 test.each([
   ["build.gradle", 'version "1.2.3"'],
   ["build.gradle.kts", 'version "1.2.3"'],

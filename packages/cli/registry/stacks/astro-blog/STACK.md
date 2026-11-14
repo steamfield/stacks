@@ -21,7 +21,7 @@ env:
 merge: [.claude/settings.json]
 fragments:
   default: [agent-ops, git-hooks, ci-github, posthog]
-  optional: [cloudflare-pages, ce-plugin, claude-harness]
+  optional: [cloudflare-pages, ce-plugin, claude-harness, claude-harness-docs]
 verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: lint, layer: lint, run: make lint }
@@ -35,6 +35,7 @@ verify:
     expect: { http: "http://localhost:${PORT_WEB}/", within: 60s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Install dependencies (frozen lockfile when CI is set)

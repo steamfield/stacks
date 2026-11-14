@@ -13,15 +13,18 @@ decisions:
   - "Conventional Commits commit-msg hook (default: yes; declining deletes the `commit-msg` job and `.lefthook/commit-msg/`)."
   - "What pre-push runs: the project's test target (default), or only the fast tests if the suite takes minutes."
 verify:
-  - { name: git-hooks-install, phase: setup, layer: install, run: lefthook install }
+  - { name: git-hooks-install, phase: setup, layer: install, run: lefthook install, tags: [hygiene] }
   - name: git-hooks-validate
     layer: check
+    tags: [hygiene]
     run: "if grep -n 'stacks:fill' lefthook.yml; then echo 'lefthook.yml: fill stacks:fill' >&2; exit 1; fi; lefthook validate"
   - name: git-hooks-jobs
     layer: check
+    tags: [hygiene]
     run: "lefthook dump | awk '/^pre-commit:/{h=1;next} /^pre-push:/{h=2;next} /^[^ ]/{h=0} h&&/^ +(- )?(run|script):/{ok[h]=1} END{exit !(ok[1]&&ok[2])}'"
   - name: git-hooks-commit-msg
     layer: test
+    tags: [hygiene]
     run: "test -f .lefthook/commit-msg/conventional-commits.sh && { m=$(mktemp) && printf 'wip\\n' > \"$m\" && ! lefthook run commit-msg --no-auto-install \"$m\" && printf 'feat: check commit messages\\n' > \"$m\" && lefthook run commit-msg --no-auto-install \"$m\"; r=$?; rm -f \"$m\"; exit $r; }"
 ---
 

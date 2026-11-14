@@ -198,9 +198,10 @@ export function selectFragments(
         yield* visit(id, null, "required", []);
     });
     yield* selectRequired;
-    const defaults = options.mode === "new" ? (stack?.meta.fragments.default ?? []) : [];
+    const defaults =
+      options.mode === "new" && !options.lean ? (stack?.meta.fragments.default ?? []) : [];
     const selectDefaults = Effect.gen(function* () {
-      // 2. Defaults, minus --without and the sandbox drops.
+      // 2. Defaults (none under --preset lean), minus --without and the sandbox drops.
       for (const id of defaults) {
         if (without.has(id) || via.has(id)) continue;
         const fragment = yield* load(id, null);

@@ -14,7 +14,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github, rest-api]
+  default: [claude-harness-docs, git-hooks, ci-github, rest-api]
   optional: [rr, ce-plugin]
 env:
   PORT_API: "3000"
@@ -32,6 +32,7 @@ verify:
     expect: { http: "http://localhost:${PORT_API}/healthz", within: 60s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   dev: Run the server from source on Node, restarting on change, with readable logs

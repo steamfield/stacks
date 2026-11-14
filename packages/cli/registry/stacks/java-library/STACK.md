@@ -34,6 +34,7 @@ verify:
   - { name: api-check, layer: check, run: make api-check }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   env: Check the JDK, the Maven wrapper, every pom.xml version property and the description

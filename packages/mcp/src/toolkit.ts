@@ -27,7 +27,7 @@ export const stacksList = Tool.make("stacks_list", {
 
 export const stacksNew = Tool.make("stacks_new", {
   description:
-    "Create a project from a stack, writing starter files and .stacks/BRIEF.md. dir must be absolute. Runs in the server's cwd, which determines project-origin entries. Runs nothing from the stack and never launches an agent. Omitting preset uses the user's setting. Returns the whole CLI result, including missing tools, warnings and handoff. Follow its brief, then verify.",
+    "Create a project from a stack, writing starter files and .stacks/BRIEF.md. dir must be absolute. Runs in the server's cwd, which determines project-origin entries. Runs nothing from the stack and never launches an agent. Omitting preset uses the user's setting; lean leaves out the stack's default fragments. Returns the whole CLI result, including missing tools, warnings and handoff. Follow its brief, then verify.",
   parameters: NewParams,
   success: NewSuccess,
   failure: CliFailure,

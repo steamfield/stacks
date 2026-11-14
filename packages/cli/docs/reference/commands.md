@@ -111,7 +111,9 @@ stacks new <stack> [dir]    # dir defaults to the slug of --name, else <stack>; 
   --with a --with b              # add optional fragments (repeatable, or comma-separated)
   --without a                    # remove default fragments
   --sandbox                      # every default, nothing deployed or released; implies --yes
-  --preset default|sandbox       # the preset; --sandbox is an alias for sandbox
+  --preset default|sandbox|lean  # the preset; --sandbox is an alias for sandbox
+  --payload example|none         # the stack's starting code; none only where the stack ships it
+  --own-repo                     # inside another git repository, git init the project as its own
   --yes                          # the brief tells the agent to take each decision's default
   --agents claude,codex          # adapter targets (default: the `agents` setting, else claude)
   --name "My App"                # project_name for templates (default: directory base name)
@@ -123,11 +125,21 @@ stacks new <stack> [dir]    # dir defaults to the slug of --name, else <stack>; 
   --json                         # one NewResult object; never starts an agent
 ```
 
-`new` composes the stack, writes its files and `.stacks/` (`BRIEF.md`, `NOTES.md`, `manifest.json`, an empty `state/`, and a `.gitignore` that ignores `BRIEF.md`, `NOTES.md`, `state/` and `incoming/`), writes a state record outside the project, runs `git init` when the target isn't already inside a repository and git is on PATH, then hands off to an agent. It never runs a command from a stack or fragment.
+`new` composes the stack, writes its files and `.stacks/` (`BRIEF.md`, `NOTES.md`, `manifest.json`, an empty `state/`, and a `.gitignore` that ignores `BRIEF.md`, `NOTES.md`, `state/` and `incoming/`), writes a state record outside the project, runs `git init` when the target isn't already inside a repository (or with `--own-repo`) and git is on PATH, then hands off to an agent. It never runs a command from a stack or fragment, so it installs nothing: the brief opens with a "Start here" list whose first step is the install command, spelled from the declared package names with no versions for single-package Bun stacks, and whose last is `verify --all`.
+
+The one `stacks:fill` marker `new` fills itself is `<!-- stacks:fill:commands ... -->` in shipped Markdown: each becomes one table row per declared command (`make <name>` for `make`-tagged stacks, `bun run <name>` for Bun `scripts` stacks). Markers that need an install, such as toolchain versions, stay for the agent.
 
 ### Presets
 
-Set `"preset": "sandbox"` in `config.json` to default new projects to sandbox. `--preset default|sandbox` overrides the setting; `--sandbox` is a sandbox alias. Flags win, then the setting, then `default`. `--sandbox --preset default` is `Usage` (exit 2). Sandbox implies `--yes` however it was selected. `add` keeps the manifest's preset; `validate --brief` ignores the setting.
+Set `"preset": "sandbox"` in `config.json` to default new projects to sandbox. `--preset lean` leaves out every default fragment (git hooks, CI, the long-lived harness docs) for short, timed work; the manifest records it as `default`, and `stacks add` brings any of them back. `--preset default|sandbox|lean` overrides the setting; `--sandbox` is a sandbox alias. Flags win, then the setting, then `default`. `--sandbox` with any other `--preset` is `Usage` (exit 2). Sandbox implies `--yes` however it was selected. `add` keeps the manifest's preset; `validate --brief` ignores the setting.
+
+### Payload
+
+`--payload none` writes a stack's empty variant in place of its example code (`payloads/none/` in the entry): for `typescript-library`, an empty public API with the same tests and checks. A stack without that variant refuses it with `BadInput` (exit 2), naming `--payload`. The result's `payload` is `example` or `none`.
+
+### Own repository
+
+Inside another git work tree, `new` doesn't run `git init`, and fragments that need their own repository (`ci-github`, `git-hooks`) fail `ComposeConflict` (`needs_own_repo`). `--own-repo` makes the target its own fresh repository there instead, so they stay; the enclosing repository then sees it as an untracked nested repository.
 
 ### Dry run
 
@@ -178,16 +190,17 @@ Before planning, `add` performs the same tamper check as `verify`. Changed steps
 ## verify
 
 ```sh
-stacks verify                 # every step, from the project root or any directory below it
+stacks verify                 # the code checks, from the project root or any directory below it
   --only lint,test                 # named check and serve steps, even when the preset skips them by default (repeatable or comma-separated); setup and teardown still run
   --skip-tag slow                  # leave out steps with this tag (repeatable or comma-separated)
-  --all                            # also run steps skipped by default (prod steps in a --sandbox project)
+  --all                            # also run steps skipped by default: hygiene steps, and prod steps in a --sandbox project
   --accept-changes                 # a person only: record the steps as they are now, then run them
   --json                           # one VerifyResult object
 ```
 
 `verify` finds the nearest `.stacks/manifest.json` walking up from the current directory and runs only the steps it lists, printing each command before running it. Nothing else runs.
 
+- Steps tagged `hygiene` check the project's upkeep rather than its code: fill markers, the harness doc, the CI workflow, git hooks. Plain `verify` skips them, and the run can still be `green`; `--all` or `--only <name>` runs them. Done is `verify --all` with outcome `green`. An agent's text report folds the skipped hygiene steps into one line.
 - Phases run in order. `setup` stops at its first failure and skips the check and serve steps; every `check` step runs, so one run reports every failing check; each `serve` step is started, probed and stopped; `teardown` always runs, after a failure or a Ctrl+C too.
 - With `app`-tagged steps, all base phases finish, including teardown, before the app phases start. A failed or interrupted base skips every app step, including app teardown, with reason `base-failed`. An incomplete base also skips app steps, with a reason explaining that the app stage waits for a full verify. A stage interrupted by Ctrl+C still tears down; a base interruption never starts the app. Results and run records include `stages: { base, app }` only for these projects, and both text audiences print their outcomes before the summary. `app` is `null` when it did not run, including `--skip-tag app`. Each stage reports `green` when its selected steps pass, or `partial` when selection left out its steps; default skips still allow green. The whole run stays partial with `--only` or `--skip-tag`. After a green base and a failed app, `Next:` points at the application section of `.stacks/BRIEF.md`.
 - Steps run through `/bin/sh -c` in the project root (or the step's `cwd`, which must resolve inside the project) with stdin closed, in their own process group. Their environment is the caller's, minus every agent session marker (`CLAUDECODE` and the rest) and the CLI's own `STACKS_*` settings (`STACKS_DATA_DIR`, `STACKS_LOG_FILE` and the rest; `LOG_LEVEL` passes through), with the manifest's `env` filling keys the caller doesn't set: `PORT_WEB=5187 stacks verify` moves a port.

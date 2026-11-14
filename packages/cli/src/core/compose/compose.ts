@@ -7,13 +7,22 @@ import {
 } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import {
-  type BadInput,
+  BadInput,
   type ComposeConflict,
   EntryInvalid,
   type NotFound,
   type PermissionDenied,
 } from "../../errors";
-import { type Entry, entryRef, isFragment, markdownFile, type Origin } from "../registry/entry";
+import {
+  DEFAULT_PAYLOAD,
+  type Entry,
+  entryRef,
+  isFragment,
+  markdownFile,
+  type Origin,
+  type Payload,
+  shippedPath,
+} from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { resolveConditionals } from "./conditionals";
 import { conflict, parties } from "./conflicts";
@@ -34,6 +43,10 @@ export type ComposeOptions<M extends "new" | "add" = "new"> = {
   existing?: ReadonlyArray<string>;
   /** Add-only fallback for conditional prose; never used by fragment selection. */
   inferredTags?: ReadonlyArray<string>;
+  /** `--preset lean`: select none of the stack's default fragments. */
+  lean?: boolean;
+  /** `new --payload`: the stack's payload variant; absent is the example. */
+  payload?: Payload;
 };
 
 /** Which entry: a stack and a fragment may share an id, so an id alone is ambiguous. */
@@ -79,6 +92,10 @@ export type Composition<S extends Entry | null = Entry> = {
   /** How each fragment was selected, in composition order. */
   selection: ReadonlyArray<{ id: string; via: Via }>;
   preset: ComposeOptions["preset"];
+  /** Composed with `--preset lean`: the default fragments left out. */
+  lean?: boolean;
+  /** The stack's payload variant; absent is the example. */
+  payload?: Payload;
   agents: ReadonlyArray<AgentId>;
   files: ReadonlyArray<PlannedFile>;
   verify: ReadonlyArray<ComposedStep>;
@@ -128,12 +145,15 @@ export function compose(
       options,
     );
     const sandbox = options.preset === "sandbox";
+    const payload = options.payload ?? DEFAULT_PAYLOAD;
+    yield* checkPayload(registry, stack, payload);
     const context = {
       stack: stack?.id ?? "",
       tags: stack?.meta.tags ?? options.inferredTags ?? [],
       mode: options.mode,
       preset: options.preset,
       with: [...existing, ...ordered.map((fragment) => fragment.id)],
+      payload,
     };
     const resolve = resolver(registry, context);
     const resolvedStack = stack ? yield* resolve(stack) : null;
@@ -161,8 +181,13 @@ export function compose(
         via: via.get(fragment.id) ?? "requires",
       })),
       preset: options.preset,
+      ...variant(options.lean, payload),
       agents: options.agents,
-      files: yield* planFiles(registry, entries, options.agents, stack?.id ?? null),
+      files: yield* planFiles(registry, entries, {
+        agents: options.agents,
+        stack: stack?.id ?? null,
+        payload,
+      }),
       verify: yield* steps(entries, app, sandbox),
       commands: mergeCommands(entries),
       env: yield* mergeEnv(entries),
@@ -189,6 +214,27 @@ export function compose(
     } satisfies Composition<Entry | null>;
   });
 }
+
+/** Lean and a non-default payload are recorded only when chosen, so other compositions are unchanged. */
+const variant = (lean: boolean | undefined, payload: Payload) => ({
+  ...(lean ? { lean: true } : {}),
+  ...(payload === DEFAULT_PAYLOAD ? {} : { payload }),
+});
+
+/** A payload other than the example must be one the stack ships under `payloads/<variant>/`. */
+const checkPayload = Effect.fn("compose.checkPayload")(function* (
+  registry: Registry["Service"],
+  stack: Entry | null,
+  payload: Payload,
+) {
+  if (!stack || payload === DEFAULT_PAYLOAD) return;
+  const files = yield* registry.files(stack);
+  const shipped = files.some((file) => {
+    const condition = shippedPath(file.source)?.condition;
+    return condition?.kind === "payload" && condition.id === payload;
+  });
+  if (!shipped) return yield* new BadInput({ details: { id: payload, flag: "payload" } });
+});
 
 const recipeNotes = Effect.fn("compose.recipeNotes")(function* (
   registry: Registry["Service"],

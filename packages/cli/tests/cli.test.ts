@@ -221,7 +221,7 @@ test.each([
   ["agents", "gemini", "claude, codex, opencode or cursor", []],
   ["agents", "codx", "claude, codex, opencode or cursor", ["codex"]],
   ["launch", "codx", "claude, codex, opencode, cursor, copilot, codex-app", ["codex"]],
-  ["preset", "other", '"default" | "sandbox"', []],
+  ["preset", "other", '"default" | "sandbox" | "lean"', []],
 ])(
   "invalid --%s value %s names the input and expectation in every audience",
   async (flag, value, expected, suggestions) => {

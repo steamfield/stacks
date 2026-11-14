@@ -137,7 +137,7 @@ The brief is long (thousands of words) because it's written for the agent, which
 
 ## Run verify
 
-`verify` runs the checks listed in the manifest (install, lint, typecheck, tests, and whatever else the stack and its fragments require) and reports which pass. Use `--all` for final acceptance so steps skipped by default in the sandbox preset run too:
+`verify` runs the code checks listed in the manifest (install, lint, typecheck, tests, and whatever else the stack and its fragments require) and reports which pass. Use `--all` for final acceptance: it adds the hygiene checks (no `stacks:fill` markers left, the harness doc, CI, git hooks) and the steps the sandbox preset skips:
 
 ```sh
 cd my-cli

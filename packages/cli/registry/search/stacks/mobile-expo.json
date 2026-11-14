@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "mobile-expo",
   "source": {
-    "digest": "sha256:eb18f1736b4838e3328d396c690faa626eb3d443504a5bbf4dc54e146db8432a",
+    "digest": "sha256:ec1f246413bb2d1c56deba6ebb4d05650d008280967e84a9b295ad7ad973159a",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-14"
   },
   "summary": "An iOS and Android app sharing TypeScript schemas with its own API and Postgres database.",
   "description": "Build an Expo Router phone app and a Bun/Hono API together, sharing Zod schemas across the mobile screens and backend. Postgres and Drizzle are part of the base, with database-backed API tests and hooks that own client data access. The default Clerk fragment adds sign-in when configured. The first screen proves API connectivity; your screens, data model and authorization rules come next.",

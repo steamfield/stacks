@@ -33,6 +33,7 @@ verify:
   - { name: test-js, layer: test, run: make test-js }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Install the toolchain and wasm32 target, wasm-pack when missing, the crates and consumer/'s packages

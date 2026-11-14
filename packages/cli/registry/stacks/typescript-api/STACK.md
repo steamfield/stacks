@@ -14,7 +14,7 @@ decisions:
 merge: [.claude/settings.json, .codex/hooks.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github, effect, rest-api]
+  default: [claude-harness-docs, git-hooks, ci-github, effect, rest-api]
   optional: [rr, ce-plugin, docker-deploy, openrouter-ai, effect-sql-postgres, effect-otlp]
 env:
   PORT_API: "3000"
@@ -32,6 +32,7 @@ verify:
     expect: { http: "http://localhost:${PORT_API}/healthz", within: 60s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   dev: Run the foreground server and preserve logs
@@ -67,7 +68,7 @@ Read `docs/api-foundation.md` for lint, testing and development requirements.
 
 ## Setup
 
-1. Add the declared dependencies with `bun add` and `bun add -d` together, letting them resolve to current compatible versions and checking peer ranges; pin `@types/node` to the `.node-version` major (a bare add picks the newest). Write Node LTS to `.node-version` and `engines.node`, and the current Bun to `packageManager`.
+1. Run the brief's install commands, then check peer ranges and pin `@types/node` to the `.node-version` major. Write Node LTS to `.node-version` and `engines.node`, and the current Bun to `packageManager`.
 2. Run lint, typecheck, test and build. The shipped `package.json` scripts, `tsconfig*.json`, `biome.json`, `vitest.config.ts`, `src/` and `tests/` were written against an earlier Effect release: where the installed one renamed or moved an API, update the code to it, following `effect-api.md` to find the current mechanism; never loosen a test to fit.
 3. If the installed Node can't run `node src/platform/node.ts` without a flag, add it to the scripts and record it under Build workarounds.
 4. Fill README and AGENTS for this base before adding any resource.

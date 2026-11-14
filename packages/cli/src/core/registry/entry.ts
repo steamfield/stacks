@@ -43,21 +43,29 @@ export type RejectedEntry = {
  */
 export type EntryFile = { source: string; path: string; mode: number };
 
+/**
+ * A stack's payload variants: `payloads/example/` holds the example the stack ships by default,
+ * `payloads/none/` the empty variant `new --payload none` writes instead.
+ */
+export const PAYLOADS = ["example", "none"] as const;
+export type Payload = (typeof PAYLOADS)[number];
+export const DEFAULT_PAYLOAD: Payload = "example";
+
+const OVERLAY_KINDS = { adapters: "agent", stacks: "stack", payloads: "payload" } as const;
+
 /** Map an entry-relative source to its project path and the selection that ships it. */
 export function shippedPath(source: string):
   | {
       path: string;
-      condition: { kind: "agent" | "stack"; id: string } | null;
+      condition: { kind: "agent" | "stack" | "payload"; id: string } | null;
     }
   | undefined {
   const shared = /^files\/(.+)$/.exec(source);
   if (shared?.[1]) return { path: shared[1], condition: null };
-  const overlay = /^(adapters|stacks)\/([^/]+)\/(.+)$/.exec(source);
-  if (!overlay?.[2] || !overlay[3]) return undefined;
-  return {
-    path: overlay[3],
-    condition: { kind: overlay[1] === "adapters" ? "agent" : "stack", id: overlay[2] },
-  };
+  const overlay = /^(adapters|stacks|payloads)\/([^/]+)\/(.+)$/.exec(source);
+  const kind = overlay?.[1] as keyof typeof OVERLAY_KINDS | undefined;
+  if (!overlay?.[2] || !overlay[3] || !kind) return undefined;
+  return { path: overlay[3], condition: { kind: OVERLAY_KINDS[kind], id: overlay[2] } };
 }
 
 /** Whether a source is one agent's adapter file or one stack's overlay file. */
@@ -67,17 +75,21 @@ export function shippedOnlyFor(source: string, kind: "agent" | "stack", id: stri
 }
 
 /**
- * Whether a source ships to a project for these agents and host stack: shared files always, an
- * adapter for a targeted agent, an overlay for its own stack. Composition and validate share it.
+ * Whether a source ships to a project for these agents, host stack and payload: shared files
+ * always, an adapter for a targeted agent, an overlay for its own stack, a payload variant when it
+ * is the selected one. Composition and validate share it.
  */
 export function shipsFor(
   source: string,
   agents: ReadonlyArray<string>,
   stack: string | null,
+  payload: Payload = DEFAULT_PAYLOAD,
 ): boolean {
   const condition = shippedPath(source)?.condition;
   if (!condition) return true;
-  return condition.kind === "agent" ? agents.includes(condition.id) : condition.id === stack;
+  if (condition.kind === "agent") return agents.includes(condition.id);
+  if (condition.kind === "payload") return condition.id === payload;
+  return condition.id === stack;
 }
 
 /** Output path of a shipped file; a literal `.tmpl` basename is copied unchanged. */

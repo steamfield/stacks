@@ -19,7 +19,7 @@ decisions:
 merge: [.claude/settings.json, .codex/hooks.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github, effect, rest-api]
+  default: [claude-harness-docs, git-hooks, ci-github, effect, rest-api]
   optional: [rr, ce-plugin, effect-sql-postgres, effect-otlp, docker-deploy, posthog]
 env:
   PORT_API: "3000"
@@ -43,6 +43,7 @@ verify:
     expect: { http: "http://localhost:${PORT_WEB}/", within: 60s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   dev: Run the API and the site in the foreground and preserve logs

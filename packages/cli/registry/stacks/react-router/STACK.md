@@ -14,7 +14,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github, effect]
+  default: [claude-harness-docs, git-hooks, ci-github, effect]
   optional: [posthog, rr, ce-plugin, openrouter-ai, openrouter-chat, effect-sql-postgres, effect-otlp]
 env:
   PORT_WEB: "5173"
@@ -32,6 +32,7 @@ verify:
     expect: { http: "http://localhost:${PORT_WEB}/healthz", within: 90s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   dev: Run the foreground server and preserve logs

@@ -15,7 +15,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github, effect]
+  default: [claude-harness-docs, git-hooks, ci-github, effect]
   optional: [rr, ce-plugin, bun-release, openrouter-ai, openrouter-chat-cli]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
@@ -26,6 +26,7 @@ verify:
   - { name: binary, layer: test, run: bun run e2e }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   dev: Run the CLI from source with checkout-local logs and data

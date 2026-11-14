@@ -30,6 +30,7 @@ verify:
   - { name: api-check, layer: check, run: make api-check }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Download modules and the tools.mod dev tools, and install goimports when missing

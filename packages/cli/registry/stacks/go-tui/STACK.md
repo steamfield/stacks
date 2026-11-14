@@ -32,6 +32,7 @@ verify:
   - { name: smoke, layer: test, run: make smoke }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Download modules and install dev tools that are missing

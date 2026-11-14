@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "claude-harness-docs",
+  "source": {
+    "digest": "sha256:4bbc96272d575d42caf0db9a0caf996de1ba4c56497632214f68ed14446f6412",
+    "by": "author",
+    "reviewedAt": "2026-11-14"
+  },
+  "summary": "Add Claude Code /check, /test and /feature commands, read-only architect and reviewer agents, and a harness guide for long-lived repos.",
+  "description": "Give Claude Code workflow commands for checking, testing and building features, plus read-only architect and reviewer agents. A docs/harness.md guide explains each guard layer the claude-harness hooks add. Leave it out with the lean preset for short, timed work.",
+  "plain": {
+    "whatItIs": "Adds workflow commands, review agents and a guide to the Claude Code setup of a TypeScript project that uses Bun.",
+    "goodAt": [
+      "Running the project's checks and tests from one Claude Code command",
+      "Getting a read-only design or code review from a separate agent",
+      "Explaining the project's agent guards to the next maintainer"
+    ],
+    "notGoodAt": [
+      "Short, timed tasks where the hooks alone are enough.",
+      "Projects that do not use Claude Code."
+    ]
+  },
+  "capabilities": [
+    "agent-harness"
+  ],
+  "requests": [
+    "give Claude commands for checking, testing and developing features",
+    "add architect and reviewer agents to Claude Code",
+    "document the Claude Code harness for maintainers"
+  ],
+  "useCases": [
+    "Claude Code development workflows",
+    "long-lived agent-maintained repos"
+  ],
+  "synonyms": [
+    "slash commands",
+    "architect agent",
+    "reviewer agent",
+    "harness guide"
+  ],
+  "goodFor": [
+    "repeatable check and test workflows",
+    "read-only design and code review"
+  ],
+  "notFor": [
+    "timed interview or sandbox tasks",
+    "projects without Claude Code"
+  ]
+}

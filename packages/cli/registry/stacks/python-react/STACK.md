@@ -46,6 +46,7 @@ verify:
     expect: { http: "http://localhost:${PORT_WEB}/", within: 90s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Install backend and frontend dependencies

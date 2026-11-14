@@ -31,6 +31,7 @@ verify:
   - { name: notebooks, layer: test, run: make notebooks }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: uv sync (--locked when CI is set), then git hooks outside CI

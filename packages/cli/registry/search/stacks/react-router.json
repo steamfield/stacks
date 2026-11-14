@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "react-router",
   "source": {
-    "digest": "sha256:a8855dce20ed913c3f8406fe29abf7cfbaf34a868674d78397fb264902736b71",
+    "digest": "sha256:5533a8eb20b2084198dc53d1e1ffc7bee4d96df5c4a3020f544f0da803958010",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-14"
   },
   "summary": "A server-rendered React app with page loaders, form actions and shared backend services with typed errors and structured logs.",
   "description": "Build server-rendered React pages with loaders, form actions and JSON resource routes in one application. Server programs share an Effect runtime, typed error handling and request logs, with a boundary that keeps server code out of components. A health route and browser smoke test establish the base. Data storage and accounts are not included; the optional openrouter-chat app adds the reference browser chat experience.",

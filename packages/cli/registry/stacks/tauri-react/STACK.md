@@ -18,7 +18,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github]
+  default: [claude-harness-docs, git-hooks, ci-github]
   optional: [rr, ce-plugin]
 env:
   PORT_WEB: "1420"
@@ -39,6 +39,7 @@ verify:
     expect: { http: "http://localhost:${PORT_WEB}/", within: 90s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Install JS dependencies, the selected Rust toolchain and crates, and Playwright's Chromium

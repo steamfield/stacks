@@ -313,13 +313,28 @@ function listed(composition: Composition<Entry | null>): "packages" | "tools" | 
 /** Dependency roles installed as development dependencies. */
 const DEV_ROLE = /^(dev|test|.+-dev|.+-test)$/;
 /**
- * Step 1's install commands, built from the declared package names (never versions): for a
- * single-package Bun stack, one `bun add -d` for development roles and one `bun add` for the rest.
- * Other stacks, monorepos among them, get none and the brief points at the list.
+ * The package manager step 1 can drive for a single-package stack: Bun for a Bun scripts stack,
+ * uv for a uv Python stack. Go needs `go mod init <module path>` first and Rust crates need
+ * features the deps list doesn't carry, so those stacks, and monorepos, get none.
+ */
+function installer(composition: Composition<Entry | null>) {
+  const tags = composition.stack?.meta.tags ?? [];
+  if (tags.includes("monorepo")) return null;
+  if (tags.includes("bun") && tags.includes("scripts"))
+    return { add: "bun add", dev: "bun add -d" };
+  if (tags.includes("python") && composition.stack?.meta.tools.includes("uv"))
+    return { add: "uv add", dev: "uv add --dev" };
+  return null;
+}
+
+/**
+ * Step 1's install commands, built from the declared package names (never versions): one add
+ * for development roles and one for the rest. Other stacks get none and the brief points at the
+ * list.
  */
 export function installCommands(composition: Composition<Entry | null>): string[] {
-  const tags = composition.stack?.meta.tags ?? [];
-  if (!tags.includes("bun") || !tags.includes("scripts") || tags.includes("monorepo")) return [];
+  const command = installer(composition);
+  if (command === null) return [];
   const names = (dev: boolean) => [
     ...new Set(
       composition.deps.filter((dep) => DEV_ROLE.test(dep.role) === dev).flatMap((dep) => dep.names),
@@ -330,8 +345,8 @@ export function installCommands(composition: Composition<Entry | null>): string[
   const runtime = names(false);
   const dev = names(true).filter((name) => !runtime.includes(name));
   return [
-    ...(runtime.length ? [`bun add ${runtime.map(quoted).join(" ")}`] : []),
-    ...(dev.length ? [`bun add -d ${dev.map(quoted).join(" ")}`] : []),
+    ...(runtime.length ? [`${command.add} ${runtime.map(quoted).join(" ")}`] : []),
+    ...(dev.length ? [`${command.dev} ${dev.map(quoted).join(" ")}`] : []),
   ];
 }
 

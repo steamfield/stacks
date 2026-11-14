@@ -333,6 +333,44 @@ test("briefWords counts the whole brief; fixedWords is all of it when entries br
   expect(brief.text).not.toContain("## Dependencies and tools");
 });
 
+test.each([
+  {
+    tags: "[python, cli]",
+    tools: "[uv]",
+    start: "   uv add typer\n   uv add --dev ruff pytest\n",
+  },
+  // Go needs `go mod init <module path>` and Rust crates need features: no generated command.
+  { tags: "[go, cli]", tools: "[go]", start: null },
+  { tags: "[rust, cli]", tools: "[cargo]", start: null },
+])("step 1 spells the install for uv stacks only: $tags", async ({ tags, tools, start }) => {
+  const user = temp();
+  writeEntry({
+    root: user,
+    kind: "stack",
+    dir: "language",
+    frontmatter: minimal(
+      "stack",
+      "language",
+      `tags: ${tags}\ntools: ${tools}\ndeps:\n  runtime: [typer]\n  dev: [ruff, pytest]`,
+    ),
+    body: "",
+  });
+  const composition = await composed(
+    { stack: "language" },
+    { roots: [{ origin: "user", path: user }] },
+  );
+  const brief = renderBrief(composition, context()).text;
+  if (start === null) {
+    expect(section(brief, "## Start here")).not.toContain("```sh");
+    expect(section(brief, "## Dependencies and tools")).toContain("- runtime: typer\n");
+  } else {
+    expect(section(brief, "## Start here")).toContain(`   \`\`\`sh\n${start}   \`\`\`\n`);
+    expect(section(brief, "## Dependencies and tools")).toContain(
+      "Packages: see Start here, step 1.\n",
+    );
+  }
+});
+
 test("deps merge by role into one line; a missing tool gets its install hint and the --without that drops it [1.1#21]", async () => {
   const composition = await composed({});
   const missing = missingTools(composition, (tool) => tool === "bun-never");

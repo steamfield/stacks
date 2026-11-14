@@ -293,7 +293,7 @@ export const prepare = (options: Options, adapters: readonly AgentAdapter[]) =>
 - Keep .stacks/NOTES.md as the brief describes, including ## Findings.
 - Run verify with ${path.join(bench, "verify")}.
 - Never edit .stacks/manifest.json. Never fake a credential or stub a service the brief says to use for real.
-- Stop when verify is green.
+- Stop when verify --all is green.
 `,
       );
     });

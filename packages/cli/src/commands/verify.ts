@@ -35,7 +35,7 @@ export const verifyCommand = Command.make(
     ),
     all: Flag.Boolean("all").pipe(
       Flag.withDescription(
-        "Also run steps skipped by default (prod steps in a --sandbox project).",
+        "Also run steps skipped by default: the hygiene checks (fill markers, harness doc, CI workflow, git hooks) and prod steps in a --sandbox project. Plain verify runs the code checks.",
       ),
       Flag.withDefault(false),
     ),
@@ -132,11 +132,15 @@ export const verifyCommand = Command.make(
     }),
 ).pipe(
   Command.withDescription(
-    `Run this project's verify steps from ${MANIFEST_PATH} (found from here or any directory above): setup, check, serve (each server probed, then stopped), then teardown, which always runs. Prints each command before running it. First checks the steps against the copy recorded when the project was made; changed steps run nothing until a person runs --accept-changes. Every run appends a record to ${RUNS_PATH}. Exits 0 when green or partial, 2 outside a project or on an --only name that isn't a check or serve step, 3 on a bad manifest or a state record from a newer stacks, 5 when a step fails (VerifyFailed) or the steps changed (VerifyChanged), with the report still on stdout, 6 when the manifest can't be read or --accept-changes is refused, 130 when interrupted (teardown still runs).`,
+    `Run this project's verify steps from ${MANIFEST_PATH} (found from here or any directory above): setup, check, serve (each server probed, then stopped), then teardown, which always runs. Steps tagged hygiene (fill markers, harness doc, CI workflow, git hooks) run only with --all, and skipping them still counts as green. Prints each command before running it. First checks the steps against the copy recorded when the project was made; changed steps run nothing until a person runs --accept-changes. Every run appends a record to ${RUNS_PATH}. Exits 0 when green or partial, 2 outside a project or on an --only name that isn't a check or serve step, 3 on a bad manifest or a state record from a newer stacks, 5 when a step fails (VerifyFailed) or the steps changed (VerifyChanged), with the report still on stdout, 6 when the manifest can't be read or --accept-changes is refused, 130 when interrupted (teardown still runs).`,
   ),
   Command.withShortDescription("Run the project's verify steps: the definition of done."),
   Command.withExamples(({ commandPath }) => [
-    { command: commandPath.join(" "), description: "Run every step from the project root" },
+    { command: commandPath.join(" "), description: "Run the code checks from the project root" },
+    {
+      command: `${commandPath.join(" ")} --all`,
+      description: "Also run the hygiene checks: the full definition of done",
+    },
     {
       command: `${commandPath.join(" ")} --only lint,test`,
       description: "Rerun two checks while fixing them (outcome partial)",

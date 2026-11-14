@@ -166,8 +166,8 @@
         "entryKind": "stack",
         "entry": "base",
         "preset": "default",
-        "words": 735,
-        "fixedWords": 733,
+        "words": 754,
+        "fixedWords": 752,
         "limit": 6000
       },
       {
@@ -175,8 +175,8 @@
         "entryKind": "stack",
         "entry": "base",
         "preset": "sandbox",
-        "words": 776,
-        "fixedWords": 774,
+        "words": 795,
+        "fixedWords": 793,
         "limit": 6000
       }
     ]

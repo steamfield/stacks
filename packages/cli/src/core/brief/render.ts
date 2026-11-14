@@ -4,6 +4,7 @@ import { METADATA_DIR } from "../../project-layout";
 import type { ComposedStep, Composition, MissingTool } from "../compose/compose";
 import type { Entry } from "../registry/entry";
 import { envPrefix, slug } from "../scaffold/slug";
+import { HYGIENE_TAG } from "../verify/plan";
 import { nest } from "./headings";
 import { collapsePaths } from "./paths";
 import * as T from "./text";
@@ -90,6 +91,25 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
     }
   };
   untrusted();
+  const startHere = () => {
+    const install = installCommands(composition);
+    fixed(T.start.heading, "", T.start.did, "");
+    if (install.length) {
+      fixed(T.start.install, "");
+      data("   ```sh", ...install.map((line) => `   ${line}`), "   ```", "");
+    } else fixed(T.start.installListed(listed(composition)));
+    fixed(
+      T.start.verify(cli),
+      T.start.build(composition.decisions.length > 0, app !== null),
+      T.start.done(cli),
+      "",
+      T.start.reference,
+      "",
+      T.start.facts,
+      "",
+    );
+  };
+  startHere();
   const writtenPaths = () => {
     if (context.written.length) {
       fixed(T.facts.written);
@@ -109,7 +129,8 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
       T.facts.project(slug(context.project), envPrefix(slug(context.project))),
       T.facts.fragments(base.map((fragment) => fragment.id)),
       ...(app ? [T.facts.app(oneLine(app.meta.name), app.id)] : []),
-      T.facts.preset(sandbox),
+      T.facts.preset(composition.lean ? "lean" : composition.preset),
+      ...(composition.payload ? [T.facts.payload(composition.payload)] : []),
       T.facts.agents(composition.agents),
       T.facts.root,
     );
@@ -118,9 +139,7 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
   };
   facts();
 
-  // 3-5. Job, versions, ground rules.
-  gap();
-  fixed(...T.job(cli));
+  // 4-5. Versions, ground rules.
   gap();
   fixed(...T.versions);
   gap();
@@ -141,7 +160,10 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
     if (composition.deps.length || composition.tools.length) {
       gap();
       fixed(T.dependencies.heading);
-      if (composition.deps.length) {
+      // Step 1 of Start here already names every package when stacks can spell the command.
+      if (composition.deps.length && installCommands(composition).length)
+        fixed("", T.dependencies.inStart);
+      else if (composition.deps.length) {
         fixed("", T.dependencies.packages, "");
         data(...composition.deps.map((dep) => `- ${dep.role}: ${dep.names.join(", ")}`));
       }
@@ -282,6 +304,37 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
   };
 }
 
+/** What step 1 points at when stacks can't spell the install command. */
+function listed(composition: Composition<Entry | null>): "packages" | "tools" | "none" {
+  if (composition.deps.length) return "packages";
+  return composition.tools.length ? "tools" : "none";
+}
+
+/** Dependency roles installed as development dependencies. */
+const DEV_ROLE = /^(dev|test|.+-dev|.+-test)$/;
+/**
+ * Step 1's install commands, built from the declared package names (never versions): for a
+ * single-package Bun stack, one `bun add -d` for development roles and one `bun add` for the rest.
+ * Other stacks, monorepos among them, get none and the brief points at the list.
+ */
+export function installCommands(composition: Composition<Entry | null>): string[] {
+  const tags = composition.stack?.meta.tags ?? [];
+  if (!tags.includes("bun") || !tags.includes("scripts") || tags.includes("monorepo")) return [];
+  const names = (dev: boolean) => [
+    ...new Set(
+      composition.deps.filter((dep) => DEV_ROLE.test(dep.role) === dev).flatMap((dep) => dep.names),
+    ),
+  ];
+  const quoted = (name: string) =>
+    /^[@\w./-]+$/.test(name) ? name : `'${name.replaceAll("'", "'\\''")}'`;
+  const runtime = names(false);
+  const dev = names(true).filter((name) => !runtime.includes(name));
+  return [
+    ...(runtime.length ? [`bun add ${runtime.map(quoted).join(" ")}`] : []),
+    ...(dev.length ? [`bun add -d ${dev.map(quoted).join(" ")}`] : []),
+  ];
+}
+
 /** One record merged over `entries` in order, later keys replacing earlier ones. */
 function merged(entries: ReadonlyArray<Entry>, field: "commands" | "env"): Record<string, string> {
   return Object.fromEntries(new Map(entries.flatMap((entry) => Object.entries(entry.meta[field]))));
@@ -299,6 +352,7 @@ function table(ordered: ReadonlyArray<ComposedStep>): string[] {
     expects: [
       ...(step.expect ? [T.done.within(step.expect.http, step.expect.within)] : []),
       ...(step.skipByDefault ? [T.done.skipped] : []),
+      ...(step.tags.includes(HYGIENE_TAG) ? [T.done.hygiene] : []),
       ...(step.timeout !== DEFAULT_STEP_TIMEOUT ? [T.done.timeout(step.timeout)] : []),
     ].join("; "),
   }));
@@ -402,7 +456,7 @@ function renderAddBrief(
       : []),
     T.add.applied(add.applied),
     T.facts.fragments(composition.fragments.map((entry) => entry.id)),
-    T.facts.preset(composition.preset === "sandbox"),
+    T.facts.preset(composition.preset),
     T.facts.agents(composition.agents),
     T.facts.root,
   );

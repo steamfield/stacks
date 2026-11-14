@@ -31,3 +31,10 @@ test("the public signatures are what callers see", () => {
     "invalid_input" | "invalid_option" | "empty_result"
   >();
 });
+
+// A negative type test: tsc fails the `@ts-expect-error` line once it compiles, so a signature that
+// starts accepting a number fails `bun run typecheck` before release. The runtime check still holds.
+test("the public signatures refuse what callers must not pass", () => {
+  // @ts-expect-error slugify takes a string, never a number
+  expect(() => api.slugify(42)).toThrow(api.LibraryError);
+});

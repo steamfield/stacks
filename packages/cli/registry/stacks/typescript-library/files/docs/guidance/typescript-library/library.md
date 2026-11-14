@@ -9,6 +9,15 @@
 - Public types are `interface` or `type` with `readonly` fields. An option a caller may leave out is optional (`?:`); `exactOptionalPropertyTypes` stops `undefined` standing in for "absent".
 - A change to the export list or a signature updates README.md's API section, `tests/public-api.test.ts` and `tests/consumer/` in the same change.
 
+## Inference-heavy APIs
+
+Schema builders and parsers, whose types come from their arguments, still need an explicit type on every export:
+
+- Write an exported factory as a `function` with a declared return type: `export function string(): Schema<string>`, or `export function object<S extends Shape>(shape: S): Schema<{ [K in keyof S]: Infer<S[K]> }>`. An arrow constant such as `export const string = () => new Schema<string>(...)` or `export const literal = <const V extends string>(value: V) => new Schema<V>(...)` fails tsc with TS9013, "Expression type can't be inferred with --isolatedDeclarations". The fix is the return type; never turn `isolatedDeclarations` off.
+- Derive a value's type with an exported conditional type: `export type Infer<S> = S extends Schema<infer T> ? T : never;`.
+- Under `exactOptionalPropertyTypes`, an optional key (`name?: string`) rejects an explicit `undefined`. If an `.optional()`-style key should also accept `undefined` as a value, type it `name?: string | undefined`.
+- Pin inferred types with `expectTypeOf` tests (testing.md).
+
 ## Versioning
 
 Semantic versioning, decided per change:
@@ -23,8 +32,20 @@ While the version is `0.x`, a breaking change bumps the minor. Write what change
 
 ## Errors
 
-- Throw only `LibraryError` with a code from `LibraryErrorCode` (`src/errors.ts`). Each code has one fixed message in `messages`. A new failure adds a code there, a row in README.md's error table and a test.
+- Throw only `LibraryError` with a code from `LibraryErrorCode` (`src/errors.ts`), or a subclass of it. Each code has one fixed message in `messages`. A new failure adds a code there, a row in README.md's error table and a test.
 - `field` names the argument or option at fault, never the value: values may be large or private.
+- When a failure carries detail the caller needs (validation issues with paths, a parse error's position), extend `LibraryError` with a typed, `readonly` payload. The subclass keeps a code, its fixed message and the `LibraryError` name, so `isLibraryError` still matches it. Export the subclass from `src/index.ts` and document its payload in the README. Keep raw input values out of the payload, as with `field`:
+
+  ```ts
+  export class ParseError extends LibraryError {
+    readonly pos: number;
+
+    constructor(pos: number, options: LibraryErrorOptions = {}) {
+      super("invalid_input", options);
+      this.pos = pos;
+    }
+  }
+  ```
 - Wrap a lower-level failure with `cause` rather than rethrowing it, so callers still get a code.
 - `isLibraryError` checks name and code, so it works across two installed copies of the package; `instanceof` doesn't.
 - A function that can fail on caller input gets a `safe*` form returning `Result<T>` only when callers need it; it returns `LibraryError` and lets anything else (a bug) throw.
@@ -49,6 +70,6 @@ The package ships no runtime dependencies. A new one is a decision for the maint
 ## Packaging
 
 - ESM only, one entry, declarations bundled by tsdown into `dist/`. `files: ["dist"]` keeps the tarball to the build, `package.json`, README and license.
-- `bun run lint:package` runs publint (the `package.json` fields against the packed files) and Are the Types Wrong with the ESM-only profile (every resolution mode a TypeScript user might have). Both pack the package, and `prepack` builds it first.
+- `bun run lint:package` runs publint (the `package.json` fields against the packed files) and Are the Types Wrong with the ESM-only profile (every resolution mode a TypeScript user might have). Both pack the package. publint packs without lifecycle scripts, so `lint:package` builds first; attw's pack runs `prepack`.
 - Never edit `dist/`; it is rebuilt on every pack.
 - `"private": true` stays until the maintainer decides to publish. Publishing, `npm version`, tags and dist-tags are the maintainer's steps.

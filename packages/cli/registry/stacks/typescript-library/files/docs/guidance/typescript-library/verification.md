@@ -1,6 +1,6 @@
 # Before calling work done
 
-Run `bun run check` (lint, typecheck, coverage, the package checks and the consumer install) and read the output, then `stacks verify`.
+After each change, run `bun run gate`: lint, typecheck and `vitest run`, with no coverage or packing, so it stays quick when several agents run it at once. Before calling work done or publishing, run `bun run check` (lint, typecheck, coverage thresholds, the package checks and the consumer install) and read the output, then `stacks verify`.
 
 - A clean exit code isn't a pass. A `-t` filter that matches nothing exits 0 with every test skipped; read the counts.
 - Tests import `src/`, so they can pass while the published package is broken. `bun run lint:package` and `bun run test:consumer` check the packed tarball; run both after touching `package.json`, `tsdown.config.ts`, `src/index.ts` or a public type.

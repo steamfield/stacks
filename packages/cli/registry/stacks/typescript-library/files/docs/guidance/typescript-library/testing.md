@@ -4,6 +4,7 @@ Vitest runs every test on Node: `src/**/*.test.ts` and `tests/**/*.test.ts`. Nev
 
 - **Unit tests** beside the code (`src/slugify.test.ts`, `src/options.test.ts`, `src/errors.test.ts`). Table-driven with `test.each`: each row an input and the exact output, or an input and the error `code` and `field` it raises. Assert errors with `expect.objectContaining({ code, field })`, not the message text.
 - **Public API** in `tests/public-api.test.ts`: the sorted list of runtime exports, and the error type through the public entry. A new export adds its name there, which forces the release decision.
+- **Type tests** with Vitest's `expectTypeOf`, as in `tests/public-api.test.ts`: they do nothing at runtime, and `bun run typecheck` fails when one doesn't hold, because `tsconfig.json` includes `src/` and `tests/`. Pin a public signature or an inferred type (an `Infer<>` result) this way.
 - **Boundary probes** in `tests/boundaries.test.ts`: each Grit rule fires on a fixture file and stays quiet where the thing is allowed. A new rule adds a row to both tables.
 - **Consumer** in `tests/consumer/`, run by `bun run test:consumer` (`scripts/consumer.ts`), not Vitest. It packs the package, installs the tarball into a temporary copy of the fixture, typechecks `index.ts` with strict NodeNext resolution and runs `index.ts` and `index.mjs` with Node. A new export gets a call in `index.ts` (with its types) and, if JavaScript callers can misuse it, a runtime check in `index.mjs`.
 

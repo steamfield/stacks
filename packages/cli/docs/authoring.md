@@ -69,6 +69,15 @@ File checks are short shell commands in v1: the skeleton's README check requires
 nonempty file without `stacks:fill`. Replace every fill marker yourself; plain `validate`
 doesn't flag them, but `validate --submission` does.
 
+Tag a step `hygiene` when it checks the project's upkeep rather than its code: a fill
+marker, the harness doc, the CI workflow, git hooks. Plain `stacks verify` skips hygiene
+steps and can still be green; `verify --all`, the definition of done, runs them.
+
+A shipped Markdown line that is only `<!-- stacks:fill:commands ... -->` is filled by
+`new` with one table row per declared command (`make <name>` or `bun run <name>`, by
+the stack's tags). Leave any marker that needs an install, such as tool versions, to
+the agent.
+
 A `.tmpl` file can use only `{{project_name}}`, `{{project_slug}}`, `{{env_prefix}}`,
 `{{package_scope}}`, `{{author}}` and `{{year}}`. Use `{{package_scope}}` for scoped
 package names. Conditional prose uses standalone markers, without nesting:
@@ -79,7 +88,8 @@ Describe the local-only setup.
 <!-- stacks:end -->
 ```
 
-Other condition keys are `stack`, `tag`, `tag!=`, `mode` and `with`.
+Other condition keys are `stack`, `tag`, `tag!=`, `mode`, `with` and `payload`
+(`example` or `none`).
 
 In add mode, matching `with=<added-fragment>` blocks from the recorded host stack
 and already-applied fragments appear under that addition as notes from each recipe's
@@ -101,6 +111,11 @@ overlays, and an overlay cannot duplicate a `files/` output path of its fragment
 Templates, merge rules and security checks apply to overlays too. Keep
 `stacks:when` and `stacks:end` in entry bodies: shipped files reject them.
 `stacks:fill` remains legal.
+
+A stack can ship its starting code as payload variants: `payloads/example/<path>` is
+written by default and `payloads/none/<path>` by `new --payload none`, beside the
+shared `files/`. Only `example` and `none` exist, and only stacks have payloads.
+Use `<!-- stacks:when payload=none -->` for body prose about one variant.
 
 Verify steps check; they never generate source (no generator, and no write or fix
 mode of a tool, in a verify step). Validation notes fragments without verify steps and repeated

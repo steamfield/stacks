@@ -32,7 +32,7 @@ stacks verify --all
 
 `--sandbox` is the quick local experiment: every decision takes its default, deploy, release and app fragments are left out unless you name them with `--with`, and steps tagged `prod` are skipped. Drop it for a full project, where the brief lists the decisions your agent should ask you about.
 
-The agent loops on `stacks verify` until it's green. `verify --all` also runs the steps a sandbox skips, and it's the final acceptance run. The [quick start guide](docs/quickstart.md) walks through all of this with real output.
+The agent loops on `stacks verify` (the code checks) until it's green. `verify --all` also runs the hygiene checks and the steps a sandbox skips, and it's the final acceptance run. The [quick start guide](docs/quickstart.md) walks through all of this with real output.
 
 ## Working with a coding agent
 

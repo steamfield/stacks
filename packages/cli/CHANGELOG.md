@@ -4,6 +4,25 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+### Added
+
+- The brief opens with "Start here": a short ordered list whose first step is the exact install command, spelled from the declared package names with no versions (single-package Bun stacks), then `stacks verify`, the remaining work, and `stacks verify --all` as done. The rest of the brief is reference.
+- `new --preset lean` leaves out the stack's default fragments (git hooks, CI, the long-lived harness docs) for short, timed work. The manifest records `default`.
+- `new --payload none` writes a stack's empty variant instead of its example; `typescript-library` ships one. Stacks without it refuse the flag.
+- `new --own-repo` gives the project its own git repository inside another one, so `ci-github` and `git-hooks` stay; the `needs_own_repo` error suggests it.
+- `new` fills `<!-- stacks:fill:commands -->` markers with the declared commands; `typescript-library`'s README and every stack's AGENTS.md use it.
+- A nightly workflow scaffolds `typescript-library` with no edits, installs the latest releases with the brief's command and runs `verify`.
+
+### Changed
+
+- Plain `verify` runs the code checks; steps tagged `hygiene` (fill markers, the harness doc, the CI workflow, git hooks) run with `--all`, which is the definition of done. Skipped hygiene steps leave the outcome `green`.
+- `claude-harness` is the hooks core; its `/check`, `/test` and `/feature` commands, architect and reviewer agents and `docs/harness.md` move to the new `claude-harness-docs` fragment, a default of every stack that had them.
+- `typescript-library` and `typescript-mcp` ship `"version": "0.0.0"`, and `typescript-library` adds a `@ts-expect-error` type test and its strict-flag patterns to the brief.
+
+### Fixed
+
+- `typescript-library` and `typescript-mcp` format `package.json` the way current Biome does, so `lint` passes on a fresh scaffold.
+
 ## [0.8.0] - 2026-11-14
 
 ### Added

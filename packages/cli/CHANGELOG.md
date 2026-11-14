@@ -4,6 +4,19 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-14
+
+### Added
+
+- The `astro-product-site` stack: a static Astro landing page with `/docs`, generated OG images, Markdown exports and `llms.txt`.
+- `typescript-library` covers libraries whose failures carry data: a subclass of `LibraryError` with a typed payload, guidance for inference-heavy APIs under `isolatedDeclarations` (TS9013 and its fix), an `expectTypeOf` type test that `typecheck` enforces, a `gate` script for the check after each change, and a note on what to delete when replacing the example.
+- The `rr` fragment can queue runs on this machine under one lock instead of remote hosts, and its Claude Code adapter ships a hook that routes the project's test commands through rr, with a verify step that tests it.
+
+### Fixed
+
+- `typescript-library`'s `lint:package` builds before publint packs, so it and `check` pass on a tree with no `dist/`.
+- `validate` no longer repeats work that grows with the registry size.
+
 ## [0.7.0] - 2026-11-01
 
 ### Added
@@ -145,6 +158,7 @@ First release, as the npm package `@steamfield/stacks` installed as `stacks` (No
 - Commands: `list`, `show`, `new`, `add`, `create`, `validate`, `verify`, `runs`, `schema`, `guide`, `skill` and `doctor`, each with `--json` output, fixed exit codes and error envelopes with a next action.
 - Bundled stacks: `astro-blog`, `cloudflare-react-router`, `go-cli`, `mobile-expo`, `python-react`, `react-router`, `tauri-react` and `typescript-cli`, with 19 fragments.
 
+[0.8.0]: https://github.com/steamfield/stacks/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/steamfield/stacks/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/steamfield/stacks/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/steamfield/stacks/compare/v0.4.0...v0.5.0

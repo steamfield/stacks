@@ -136,7 +136,8 @@ test("an invalid index URL never reaches HTTP, including direct bundle access", 
   expect(server.requests).toEqual([]);
 });
 
-test("show detects local changes to an index stack's proven composition", async () => {
+// A stack's proof covers its own content; shared fragments are proven by the canaries.
+test("a local fragment change keeps an index stack's proof current", async () => {
   const file = join(bundled, "stacks/sample/STACK.md");
   writeFileSync(file, readFileSync(file, "utf8").replace("sample name", "Bundled fallback"));
   const tools = join(home, ".stacks/fragments/tools");
@@ -146,7 +147,7 @@ test("show detects local changes to an index stack's proven composition", async 
   success(shown);
   expect(JSON.parse(shown.stdout)).toMatchObject({
     origin: "index",
-    lastRun: { sameContent: false },
+    lastRun: { sameContent: true },
   });
 });
 
@@ -300,13 +301,13 @@ it.effect("index refresh backoff does not suppress available bundles from the st
   }),
 );
 
-test("bundled proof comparisons exclude remote pins", async () => {
+test("a bundled fragment change keeps a bundled stack's proof current", async () => {
   writeFileSync(join(bundled, "fragments/tools/files/pinned.txt"), "changed bundled tools\n");
   const shown = await invoke(["show", "sample", "--json"]);
   success(shown);
   expect(JSON.parse(shown.stdout)).toMatchObject({
     origin: "bundled",
-    lastRun: { sameContent: false },
+    lastRun: { sameContent: true },
   });
 });
 

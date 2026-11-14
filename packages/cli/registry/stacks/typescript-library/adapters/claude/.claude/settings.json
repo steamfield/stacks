@@ -12,6 +12,7 @@
       "Bash(bunx vitest run)",
       "Bash(bunx vitest run *)",
       "Bash(bun run build)",
+      "Bash(bun run gate)",
       "Bash(bun run check)",
       "Bash(bun pm pack --dry-run)"
     ]

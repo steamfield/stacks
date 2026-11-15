@@ -51,12 +51,12 @@ When the repo already has an `AGENTS.md`, the skeleton isn't copied (it's listed
 
 **Claude Code adapter** (when Claude is a target): `CLAUDE.md` imports `AGENTS.md` via `@AGENTS.md` (never remove the line). `.claude/settings.json` wires the hooks; other fragments deep-merge into it. Replace `.claude/README.md`'s `stacks:fill` row with one row per shipped hook (`claude-readme-filled` checks).
 
-Once Commands are settled, allow the project's non-destructive commands (lint, format, typecheck, test, single test file) in `.claude/settings.json` as `Bash(<cmd>)` / `Bash(<cmd> *)`. Never allow deploy, publish, release, migrate or deletes. Allow rules other entries merged are already approved.
+Once Commands are settled, allow the project's non-destructive commands (lint, format, typecheck, test, single test file) in `.claude/settings.json` as `Bash(<cmd>)` / `Bash(<cmd> *)`. Never allow deploy, publish, release, migrate or deletes. Allow rules already merged into `.claude/settings.json` are approved.
 
 **Other agents** run the shell guards from `.claude/hooks/`, so keep it whatever the targets. Codex runs project hooks only after the user trusts the project and approves each in `/hooks`: list that under Pending user actions.
 
 `hooks-smoke` runs `.claude/hooks/smoke.sh`, the project's only hook test: a deny and a near miss per guard, and every hook config parses and wires real files. A hook you add gets a case there. If it fails, fix the hook or wiring, never the script.
 
-Claude Code asks before any edit under `.claude/` or to `lefthook.yml`; if denied, finish the rest, then ask once for all of them with exact content.
+Claude Code asks the user before any edit under `.claude/` or to `lefthook.yml`; if denied, finish the rest, then ask once for all of them with exact content.
 
-With a linter (not just a formatter), confirm `lint-on-write.sh` reports a deliberate error, then revert; if silent, check the linter is where the hook looks (`.venv`, `node_modules/.bin`, PATH). On Stop, `format-changed.sh` formats this session's files. With biome or eslint, add `.claude/worktrees/` to `.gitignore`.
+With a linter (a formatter alone doesn't count), confirm `lint-on-write.sh` reports a deliberate error, then revert; if silent, check the linter is where the hook looks (`.venv`, `node_modules/.bin`, PATH). On Stop, `format-changed.sh` formats this session's files. With biome or eslint, add `.claude/worktrees/` to `.gitignore`.

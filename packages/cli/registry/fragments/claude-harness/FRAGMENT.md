@@ -10,11 +10,7 @@ applies_to: [astro-blog, astro-fullstack, nextjs, react-router, sveltekit, tauri
 requires: [agent-ops]
 tools: [bun]
 merge: [.claude/settings.json]
-verify:
-  - name: harness-hooks
-    layer: check
-    tags: [hygiene]
-    run: "test ! -d tests/hooks || node node_modules/vitest/vitest.mjs run tests/hooks"
+verify: []
 ---
 
 # Claude development harness

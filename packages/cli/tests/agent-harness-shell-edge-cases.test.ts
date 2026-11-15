@@ -26,7 +26,7 @@ test.each([
   { command: "git push --force-with-lease", denied: false },
   { command: "echo 'git push --force'", denied: false },
   { command: 'git commit -m "explain; rm -rf /"', denied: false },
-  { command: "sh -c 'git push --force'", denied: false },
+  { command: "sh -c 'git push --force'", denied: true },
   { command: "find . -exec rm file \\;", denied: false },
   { command: "$COMMAND --force", denied: false },
   { command: "cat <<'EOF'\nrm -rf /\nEOF", denied: false },
@@ -66,6 +66,7 @@ test.each([
   expect(result.signal).toBeNull();
   expect(result.status).toBe(0);
   expect(result.stderr).toBe("");
-  if (denied) Schema.decodeUnknownSync(Denial)(JSON.parse(result.stdout));
+  if (denied)
+    Schema.decodeUnknownSync(Denial)(JSON.parse(result.stdout), { onExcessProperty: "error" });
   else expect(result.stdout).toBe("");
 });

@@ -107,13 +107,17 @@ test.each(patterns.flatMap(({ blocked }) => blocked))(
   "a quoted mention is allowed: %s",
   (command) => {
     const root = project();
-    expect(hook(root, `git commit -m '${command}'`)).toEqual({ status: 0, stdout: "", stderr: "" });
+    expect(hook(root, `git commit -m '${command.replaceAll("'", "'\\''")}'`)).toEqual({
+      status: 0,
+      stdout: "",
+      stderr: "",
+    });
   },
 );
 
 test("absolute removal respects the project boundary and resolves symlinks", () => {
   const root = project();
-  const outside = project();
+  const outside = "/etc";
   mkdirSync(join(root, "dist"));
   symlinkSync(outside, join(root, "outside-link"));
   symlinkSync(root, join(root, "project café link"));
@@ -268,7 +272,7 @@ test.each(["{broken", JSON.stringify({ tool_name: "Write", tool_input: { content
 
 test("Cursor protects absolute paths when CLAUDE_PROJECT_DIR is initially unset", () => {
   const root = project();
-  const outside = project();
+  const outside = "/etc";
   const wrapper = adapter(root, "cursor");
   const result = run(root, wrapper.program, wrapper.args, {
     env: { CLAUDE_PROJECT_DIR: undefined },
@@ -305,3 +309,63 @@ test.each(["awk", "grep"])(
     expect(result.stderr.trim()).not.toBe("");
   },
 );
+
+test.each(["{broken", JSON.stringify({ tool_input: { file_path: 4 } })])(
+  "the secret guard allows unreadable input with one note: %s",
+  (input) => {
+    const root = project();
+    const result = run(root, "/bin/bash", [join(root, ".claude/hooks/detect-secrets.sh")], {
+      input,
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toContain("allowing");
+  },
+);
+
+test.each(["", "{broken"])("foreground inspection reports skipped input: %s", (path) => {
+  const root = project();
+  const result = run(
+    root,
+    "/bin/bash",
+    [
+      "-c",
+      'source "$1"; hook_foreground_commands "$2"',
+      "hook",
+      join(root, ".claude/hooks/_lib.sh"),
+      path === "" ? '{"tool_input":{"command":"echo ok"}}' : path,
+    ],
+    {
+      env: { PATH: path === "" ? "" : process.env.PATH },
+    },
+  );
+  expect(result.status).toBe(1);
+  expect(result.stdout).toBe("");
+  expect(result.stderr.trim().split("\n")).toHaveLength(1);
+  expect(result.stderr).toContain("allowing");
+});
+
+test.each([
+  { filter: "placeholder", content: "sk-ant-Aa0123456789Aa0123456789Aa0123456789" },
+  { filter: "openai", content: "sk-proj-Aa0123456789Aa0123456789Aa0123456789Aa0123456789" },
+])("a failed $filter secret filter allows with one note", ({ filter, content }) => {
+  const root = project();
+  const bin = join(root, "bin");
+  mkdirSync(bin);
+  const condition =
+    filter === "placeholder" ? '[ "$1" = -qviE ]' : '[ "$1" = -v ] && [ "$2" = "^sk-ant-" ]';
+  writeFileSync(
+    join(bin, "grep"),
+    `#!/bin/sh\nif ${condition}; then exit 7; fi\nexec /usr/bin/grep "$@"\n`,
+    { mode: 0o755 },
+  );
+  const result = run(root, "/bin/bash", [join(root, ".claude/hooks/detect-secrets.sh")], {
+    env: { PATH: `${bin}${delimiter}${process.env.PATH ?? ""}` },
+    input: JSON.stringify({ tool_name: "Write", tool_input: { file_path: "config.ts", content } }),
+  });
+  expect(result.status).toBe(0);
+  expect(result.stdout).toBe("");
+  expect(result.stderr.trim().split("\n")).toHaveLength(1);
+  expect(result.stderr).toContain("allowing");
+});

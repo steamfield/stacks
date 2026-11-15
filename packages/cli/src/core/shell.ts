@@ -1,3 +1,18 @@
+/**
+ * Writes values as shell arguments and splits shell commands into words, without running anything.
+ *
+ * Two directions, both text only. `shellArg` quotes a value so a command the CLI prints (a
+ * `Next:` hint, the `Running:` line after a picker, a handoff `cd`) can be pasted into a shell
+ * safely. `shellWords` and `shellTokens` read a command an entry declares, such as a verify step or
+ * a hook in an agent's config, so `validate` (`core/validate/commands.ts`, `shipped-refs.ts`,
+ * `imports.ts`, `native-config.ts`) can check which files and tools it names.
+ *
+ * The tokenizer understands quotes, backslash escapes, comments, operators and heredocs well enough
+ * to find literal words. Expansions such as `$VAR` or `$(...)` stay as plain text: the CLI executes
+ * nothing it reads (`.claude/rules/architecture.md`, "Trust model", point 1), so it never evaluates
+ * them.
+ */
+
 /** A value as a shell argument: plain when it is safe, else single-quoted. */
 export const shellArg = (text: string) =>
   /^[A-Za-z0-9._/+-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`;
@@ -9,8 +24,14 @@ export function shellWords(command: string): string[] {
     .map((token) => token.word);
 }
 
+/** A heredoc waiting for its body: the end delimiter, `<<-` tab stripping and whether it was quoted. */
 type Heredoc = { delimiter: string; stripTabs: boolean; quoted: boolean };
 
+/**
+ * The index of the newline (or end of text) closing a heredoc body that starts at `start`. An
+ * unquoted heredoc joins a line ending in an odd number of backslashes with the next one before
+ * comparing it with the delimiter, as the shell does.
+ */
 function heredocEnd(command: string, start: number, heredoc: Heredoc): number {
   let offset = start;
   let line = "";
@@ -29,15 +50,25 @@ function heredocEnd(command: string, start: number, heredoc: Heredoc): number {
   return command.length;
 }
 
-/** Shell words and operators in order, with heredoc bodies skipped; newlines are operators. */
+/**
+ * Shell words and operators in order, with heredoc bodies skipped; newlines are operators.
+ *
+ * A single pass over the characters. The helpers below each handle one kind of character and
+ * return the index of the last character they consumed, and they share the tokenizer's state: the
+ * word being built, the open quote and the heredocs whose bodies start after the next newline.
+ */
 export function shellTokens(command: string) {
   const words: { word: string; operator: boolean }[] = [];
   const heredocs: Heredoc[] = [];
+  // Set right after `<<` or `<<-`: the next word is a heredoc delimiter.
   let delimiterTabs: boolean | undefined;
   let word = "";
   let quote: string | undefined;
   let wordQuoted = false;
+  // Whether a word has started, which an empty quoted string (`''`) does too.
   let active = false;
+
+  /** Ends the current word, recording it as a heredoc delimiter when one is expected. */
   const finish = () => {
     if (active) {
       words.push({ word, operator: false });
@@ -52,9 +83,7 @@ export function shellTokens(command: string) {
   };
   for (let index = 0; index < command.length; index++) {
     const char = command[index] ?? "";
-    if (quote) {
-      index = quotedCharacter(index, char);
-    } else index = unquotedCharacter(index, char);
+    index = quote ? quotedCharacter(index, char) : unquotedCharacter(index, char);
   }
   finish();
   return words;
@@ -68,6 +97,7 @@ export function shellTokens(command: string) {
     }
     if (char === "\\") return escapedCharacter(index);
     if (/\s/.test(char)) return whitespace(index, char);
+    // A `#` starts a comment only at the start of a word; it runs to the end of the line.
     if (char === "#" && !active) {
       const newline = command.indexOf("\n", index);
       return newline < 0 ? command.length : newline - 1;
@@ -78,6 +108,7 @@ export function shellTokens(command: string) {
     return index;
   }
 
+  /** A backslash outside quotes: a line continuation, or the next character taken literally. */
   function escapedCharacter(index: number): number {
     if (command[index + 1] === "\n") return index + 1;
     wordQuoted = true;
@@ -86,6 +117,7 @@ export function shellTokens(command: string) {
     return index + 1;
   }
 
+  /** Ends the word; a newline is also an operator, after which pending heredoc bodies are skipped. */
   function whitespace(index: number, char: string): number {
     finish();
     if (char !== "\n") return index;
@@ -94,6 +126,7 @@ export function shellTokens(command: string) {
     return index;
   }
 
+  /** `<<<` (a here-string, no body), or `<<` and `<<-`, which make the next word a delimiter. */
   function heredocRedirect(index: number): number {
     finish();
     if (command[index + 2] === "<") {
@@ -112,6 +145,7 @@ export function shellTokens(command: string) {
     return index;
   }
 
+  /** Inside quotes: the closing quote, the escapes double quotes allow, or a literal character. */
   function quotedCharacter(index: number, char: string): number {
     if (char === "\\" && quote === '"' && command[index + 1] === "\n") return index + 1;
     if (char === quote) quote = undefined;

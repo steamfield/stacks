@@ -1,3 +1,20 @@
+/**
+ * Combines the hosted API's search hits with the local ranking into the one result `stacks search`
+ * prints.
+ *
+ * `run.ts::search` ranks locally and asks the API at the same time, then hands both here. When the
+ * API answered, its hits win for official entries (bundled or from the signed index), because the
+ * hosted ranking can be fresher. A local override, a project or user entry with the same kind and
+ * id as an official one, always wins over the API's hit, since that local entry is the one
+ * `stacks new` or `stacks add` would actually use. When the API wasn't used, the local ranking is
+ * the result.
+ *
+ * Evidence is merged per hit: an API hit missing stats or a last run borrows the local value.
+ * Because API and local stats can come from different populations, each hit's stats source is
+ * tracked so the result can say when any shown number is seeded development data. The requested
+ * `limit` and `kind` filter apply only after merging, so an override is never cut before it can
+ * replace its official twin.
+ */
 import {
   compareSearchHits,
   limitHits,
@@ -8,34 +25,46 @@ import {
 } from "@steamfield/stacks-format";
 import type { RemoteSearch } from "./remote";
 
-/** Official hits can be fresher; a local override is always the entry new would use. */
+type StatsSource = "api" | "local";
+
+/** The `kind:id` key that identifies one entry across both rankings. */
+const hitKey = (hit: Pick<SearchHit, "kind" | "id">) => `${hit.kind}:${hit.id}`;
+
+/** An API hit whose missing stats or last run is filled from the local hit for the same entry. */
+function withLocalEvidence(hit: SearchHit, local: SearchHit | undefined): SearchHit {
+  const stats = hit.evidence.stats ?? local?.evidence.stats;
+  const lastRun = hit.evidence.lastRun ?? local?.evidence.lastRun;
+  return {
+    ...hit,
+    evidence: {
+      ...(stats ? { stats } : {}),
+      ...(lastRun ? { lastRun } : {}),
+    },
+  };
+}
+
+/**
+ * The API's hits, minus overridden entries, joined with the local hits the API didn't return, in
+ * rank order; plus where each shown hit's stats came from.
+ */
 function mergeHits(
   local: ReadonlyArray<SearchHit>,
   api: ReadonlyArray<SearchHit>,
   overrides: ReadonlySet<string>,
 ) {
-  const statsSources = new Map<string, "api" | "local">();
-  const localById = new Map(local.map((hit) => [`${hit.kind}:${hit.id}`, hit]));
+  const statsSources = new Map<string, StatsSource>();
+  const localByKey = new Map(local.map((hit) => [hitKey(hit), hit]));
   const official = api
-    .filter((hit) => !overrides.has(`${hit.kind}:${hit.id}`))
+    .filter((hit) => !overrides.has(hitKey(hit)))
     .map((hit) => {
-      const key = `${hit.kind}:${hit.id}`;
-      const fallback = localById.get(key)?.evidence;
-      const stats = hit.evidence.stats ?? fallback?.stats;
-      if (stats) statsSources.set(key, hit.evidence.stats ? "api" : "local");
-      const lastRun = hit.evidence.lastRun ?? fallback?.lastRun;
-      return {
-        ...hit,
-        evidence: {
-          ...(stats ? { stats } : {}),
-          ...(lastRun ? { lastRun } : {}),
-        },
-      };
+      const merged = withLocalEvidence(hit, localByKey.get(hitKey(hit)));
+      if (merged.evidence.stats)
+        statsSources.set(hitKey(hit), hit.evidence.stats ? "api" : "local");
+      return merged;
     });
-  const replaced = new Set(official.map((hit) => `${hit.kind}:${hit.id}`));
-  const retained = local.filter((hit) => !replaced.has(`${hit.kind}:${hit.id}`));
-  for (const hit of retained)
-    if (hit.evidence.stats) statsSources.set(`${hit.kind}:${hit.id}`, "local");
+  const replaced = new Set(official.map(hitKey));
+  const retained = local.filter((hit) => !replaced.has(hitKey(hit)));
+  for (const hit of retained) if (hit.evidence.stats) statsSources.set(hitKey(hit), "local");
   return { hits: [...retained, ...official].sort(compareSearchHits), statsSources };
 }
 
@@ -43,7 +72,7 @@ function mergeHits(
 function shownPopulation(
   shown: ReadonlyArray<SearchHit>,
   options: {
-    sources: ReadonlyMap<string, "api" | "local">;
+    sources: ReadonlyMap<string, StatsSource>;
     api: StatsPopulation | undefined;
     local: StatsPopulation | undefined;
   },
@@ -51,12 +80,13 @@ function shownPopulation(
   const { sources, api, local } = options;
   const populations = shown
     .filter((hit) => hit.evidence.stats)
-    .map((hit) => (sources.get(`${hit.kind}:${hit.id}`) === "api" ? api : local));
+    .map((hit) => (sources.get(hitKey(hit)) === "api" ? api : local));
   if (populations.includes("seeded development data")) return "seeded development data";
   if (populations.includes(undefined)) return undefined;
   return populations[0];
 }
 
+/** The final search result: merged hits, the ranking used, the remote status and the population. */
 export function mergeSearch(
   local: SearchResult,
   remote: RemoteSearch,
@@ -65,11 +95,11 @@ export function mergeSearch(
     localPopulation?: StatsPopulation;
   },
 ): SearchResult & { remote: RemoteSearch["remote"] } {
-  const overrides = new Set(options.overrides.map((entry) => `${entry.kind}:${entry.id}`));
-  const localSources = new Map<string, "api" | "local">(
+  const overrides = new Set(options.overrides.map(hitKey));
+  const localSources = new Map<string, StatsSource>(
     [...local.stacks, ...local.fragments]
       .filter((hit) => hit.evidence.stats)
-      .map((hit) => [`${hit.kind}:${hit.id}`, "local"]),
+      .map((hit) => [hitKey(hit), "local"]),
   );
   const mergedStacks =
     remote.remote === "used"

@@ -65,6 +65,7 @@ reuses the same list without the checks that start a process or span the whole r
 | `git.ts` | Entry files the checkout's own ignore rules keep out of every commit |
 | `budget.ts` | `BUDGET`, the word limits, and the canonical context every budgeted brief renders with |
 | `compositions.ts` | Body sizes and the compositions each stack is budgeted in, with their brief sizes |
+| `composition-findings.ts` | Groups one stack's composition results and turns them into findings, one per failure or warning across presets |
 | `composed.ts` | Rendering every composition per agent adapter, and locating a rendered defect's source |
 | `compose-each.ts` | Each validated fragment composed with every stack it fits |
 | `add-compositions.ts` | Add-mode briefs for each fragment, with and without a host recipe |

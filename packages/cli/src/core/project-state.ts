@@ -1,16 +1,34 @@
+/**
+ * Keeps each project's state record: a small JSON file outside the project that `stacks verify`
+ * trusts more than anything inside it.
+ *
+ * The manifest (`.stacks/manifest.json`) sits in the project, where an agent can edit it. So when
+ * `stacks new` writes a manifest, `writeProjectState` also writes a second copy of its verify
+ * digest to `<state dir>/projects/<projectId>.json` (the state directory is `Paths.state`, under
+ * `XDG_STATE_HOME`). Before running any step, `verify/tamper.ts` looks the record up, by project
+ * id with `findProjectState` and then by manifest path with `findProjectStateByPath`, and refuses
+ * to run steps whose digest no longer matches (Trust model, point 5). The record also stores when
+ * the project first went green, which `verify/record.ts` fills in and `runs.ts` reports.
+ *
+ * Writes go through `replace-file.ts::replaceFile`, so a symlink planted at the record is replaced
+ * rather than followed. Callers decide whether a failed write matters: `new` and verify's timing
+ * fields only warn, since some agent sandboxes allow writes only inside the project, while
+ * `verify --accept-changes` and `add` use `replaceProjectState`, which puts the old bytes back if
+ * the rest of their work fails.
+ */
 import { type Manifest, ProjectId } from "@steamfield/stacks-format";
-import { Effect, Exit, FileSystem, Path, type PlatformError, Schema } from "effect";
+import { Effect, Exit, FileSystem, Option, Path, type PlatformError, Schema } from "effect";
 import { AppConfig } from "../config";
 import { InvalidConfig, PermissionDenied } from "../errors";
 import { Invocation } from "../services/invocation";
-import { digestSettings, digestStep, versionOf } from "./manifest";
+import { digestSettings, digestStep, newerSchemaVersion } from "./manifest";
 import { replaceFile } from "./replace-file";
 import { printable } from "./text";
 
 /**
- * The second copy of a project's verify digest, outside the project, at
- * `$XDG_STATE_HOME/stacks/projects/<projectId>.json`. `stepDigests` and `settingsDigest`
- * only explain a changed `verifyDigest` (1.3b's `VerifyChanged`); the whole-set digest decides.
+ * The second copy of a project's verify digest, outside the project. `stepDigests` and
+ * `settingsDigest` only explain which part changed when `verifyDigest` differs (verify's
+ * `VerifyChanged` report); the whole-set digest decides.
  */
 export const ProjectState = Schema.Struct({
   schemaVersion: Schema.Literal(1),
@@ -23,9 +41,9 @@ export const ProjectState = Schema.Struct({
   /** `digestSettings` over the manifest's `env` and `preset`. */
   settingsDigest: Schema.String,
   createdAt: Schema.String,
-  /** Filled by 1.3b. */
+  /** When verify first finished green; filled by `verify/record.ts`. */
   firstGreenAt: Schema.NullOr(Schema.String),
-  /** Filled by 1.3b. */
+  /** When a test step first passed; filled by `verify/record.ts`. */
   firstTestPassAt: Schema.NullOr(Schema.String),
 });
 export type ProjectState = typeof ProjectState.Type;
@@ -60,6 +78,7 @@ export const projectStatePath = (projectId: string) =>
     return path.join(paths.state, "projects", `${projectId}.json`);
   });
 
+/** The filesystem reason a write failed, for warning text. */
 export const reasonOf = (error: PlatformError.PlatformError) => error.reason._tag;
 
 /**
@@ -117,6 +136,38 @@ export const saveProjectState = (
     yield* replaceFile(target, text);
   });
 
+/** The record's current bytes, or `undefined` when there is none yet; other failures fail. */
+const readOldBytes = (target: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    return yield* fs
+      .readFile(target)
+      .pipe(
+        Effect.catch((error) =>
+          error.reason._tag === "NotFound" ? Effect.succeed(undefined) : Effect.fail(error),
+        ),
+      );
+  });
+
+/**
+ * Puts back what `replaceProjectState` replaced: the old bytes, or no file when there were none.
+ * A restore that fails is recorded with `Invocation.rollbackIncomplete` (when an invocation is
+ * running) and never replaces the original failure.
+ */
+const restoreOldBytes = (options: {
+  target: string;
+  old: Uint8Array | undefined;
+  invocation: Option.Option<Invocation["Service"]>;
+}) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const { target, old, invocation } = options;
+    const restore = old === undefined ? fs.remove(target) : replaceFile(target, old);
+    const restored = yield* Effect.exit(restore);
+    if (Exit.isFailure(restored) && Option.isSome(invocation))
+      yield* invocation.value.rollbackIncomplete(target);
+  });
+
 /**
  * Replace a record within the caller's transaction. Acquisition finishes the save before it can
  * be interrupted; failure or interruption of the scope restores the exact old bytes, or removes
@@ -124,28 +175,15 @@ export const saveProjectState = (
  */
 export const replaceProjectState = (state: ProjectState, target: string) =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
     const invocation = yield* Effect.serviceOption(Invocation);
     yield* Effect.acquireRelease(
       Effect.gen(function* () {
-        const old = yield* fs
-          .readFile(target)
-          .pipe(
-            Effect.catch((error) =>
-              error.reason._tag === "NotFound" ? Effect.succeed(undefined) : Effect.fail(error),
-            ),
-          );
+        const old = yield* readOldBytes(target);
         yield* saveProjectState(state, target);
         return old;
       }),
       (old, exit) =>
-        Effect.gen(function* () {
-          if (Exit.isSuccess(exit)) return;
-          const restore = old ? replaceFile(target, old) : fs.remove(target);
-          const result = yield* Effect.exit(restore);
-          if (Exit.isFailure(result) && invocation._tag === "Some")
-            yield* invocation.value.rollbackIncomplete(target);
-        }),
+        Exit.isSuccess(exit) ? Effect.void : restoreOldBytes({ target, old, invocation }),
     );
   });
 
@@ -165,11 +203,9 @@ const readStateFile = (file: string) =>
       Effect.try({ try: () => JSON.parse(text.value) as unknown, catch: () => undefined }),
     );
     if (parsed._tag === "None") return undefined;
-    const unknown = parsed.value;
-    const version = versionOf(unknown);
-    if (typeof version === "number" && Number.isFinite(version) && version > 1)
-      return { newer: version } as const;
-    return yield* Schema.decodeUnknownEffect(ProjectState)(unknown, {
+    const newer = newerSchemaVersion(parsed.value);
+    if (newer !== undefined) return { newer } as const;
+    return yield* Schema.decodeUnknownEffect(ProjectState)(parsed.value, {
       onExcessProperty: "error",
     }).pipe(
       Effect.map((state) => ({ state })),
@@ -178,9 +214,9 @@ const readStateFile = (file: string) =>
   });
 
 /**
- * The tamper check's lookup by id (1.3b): the record for `projectId` and its path, or `undefined`
- * when there is none or it is unreadable. A record a newer stacks wrote is `InvalidConfig`
- * with its path and version (Schema versions), never a silent fall back to manifest-only.
+ * The tamper check's lookup by id: the record for `projectId` and its path, or `undefined` when
+ * there is none or it is unreadable. A record a newer stacks wrote is `InvalidConfig` with its
+ * path and version, never a silent fall back to checking the manifest alone.
  */
 export const findProjectState = (
   projectId: string,
@@ -200,9 +236,9 @@ export const findProjectState = (
   });
 
 /**
- * The tamper check's lookup by path (1.3b): the first record, by file name, whose `manifestPath`
- * is `realManifestPath`. Records that can't be read, decoded or are newer are passed over. Linear
- * in the number of records.
+ * The tamper check's lookup by path, for a manifest whose project id was edited: the first
+ * record, by file name, whose `manifestPath` is `realManifestPath`. Records that can't be read,
+ * decoded or are newer are passed over. Linear in the number of records.
  */
 export const findProjectStateByPath = (
   realManifestPath: string,
@@ -234,21 +270,15 @@ export const removeProjectState = (
     : Effect.void;
 
 /**
- * The record for a project id, or `undefined` when there is none or it can't be read or decoded
- * (Schema versions: an unreadable record is treated as missing).
+ * The record for a project id, or `undefined` when there is none or it can't be read or decoded.
+ * Unlike `findProjectState`, a record a newer stacks wrote also reads as `undefined`.
  */
 export const readProjectState = (
   projectId: string,
 ): Effect.Effect<ProjectState | undefined, never, FileSystem.FileSystem | Path.Path | AppConfig> =>
   Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
     const target = yield* projectStatePath(projectId);
     if (target === undefined) return undefined;
-    return yield* fs.readFileString(target).pipe(
-      Effect.flatMap((text) =>
-        Effect.try({ try: () => JSON.parse(text) as unknown, catch: () => undefined }),
-      ),
-      Effect.flatMap(Schema.decodeUnknownEffect(ProjectState, { onExcessProperty: "error" })),
-      Effect.orElseSucceed(() => undefined),
-    );
+    const read = yield* readStateFile(target);
+    return read !== undefined && "state" in read ? read.state : undefined;
   });

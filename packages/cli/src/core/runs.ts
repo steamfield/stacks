@@ -1,11 +1,33 @@
+/**
+ * Summarizes one project's own history for `stacks runs`: how often verify ran, how it last
+ * ended, and how long the project took to go green.
+ *
+ * `commands/runs.ts` calls `projectRuns` from the working directory and prints `renderRuns`. The
+ * summary is put together from four places: the nearest manifest (`manifest.ts`), the state
+ * record outside the project (`project-state.ts`, for creation and first-green times), verify's
+ * run history (`.stacks/state/runs.jsonl`, one `RunRecord` JSON line per run, written by
+ * `verify/record.ts`) and `.stacks/NOTES.md`, where the agent lists the questions it had to ask a
+ * person under `## Asked`. `countAsked` counts those questions; telemetry's verify event
+ * (`telemetry/projects.ts`) reuses it.
+ *
+ * Missing pieces read as unknown rather than failing: no history file means zero runs, a line that
+ * doesn't decode is counted in `skippedLines`, and no notes file means `interventions` is null. A
+ * history file the CLI can't read is a `PermissionDenied` failure, though, since reporting zero
+ * runs there would be false.
+ */
 import { RunRecord } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { PermissionDenied } from "../errors";
+import { NOTES_PATH, RUNS_PATH } from "../project-layout";
 import type { ProjectRuns } from "../schemas/runs";
 import { locateManifest, readManifest } from "./manifest";
 import { findProjectState } from "./project-state";
 import { printable } from "./text";
 
+/**
+ * The fence still open after a fence marker line, or `undefined` once it closes. As in Markdown, a
+ * fence closes only on a marker of the same character that is at least as long.
+ */
 function nextFence(fence: string | undefined, marker: string): string | undefined {
   if (!fence) return marker;
   if (marker[0] === fence[0] && marker.length >= fence.length) return undefined;
@@ -32,15 +54,29 @@ export function countAsked(markdown: string): number {
   return count;
 }
 
-export const projectRuns = (cwd: string) =>
+const decodeRunLine = Schema.decodeUnknownResult(Schema.fromJsonString(RunRecord));
+
+/** What the history lines say: how many decoded, the last one's outcome, how many didn't. */
+function summarizeHistory(history: string) {
+  let verifyRuns = 0;
+  let lastOutcome: string | null = null;
+  let skippedLines = 0;
+  for (const line of history.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const decoded = decodeRunLine(line);
+    if (Result.isSuccess(decoded)) {
+      verifyRuns++;
+      lastOutcome = decoded.success.outcome;
+    } else skippedLines++;
+  }
+  return { verifyRuns, lastOutcome, skippedLines };
+}
+
+/** The history file's text; a missing file is empty, any other failure is `PermissionDenied`. */
+const readHistory = (historyPath: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const located = yield* locateManifest(cwd);
-    const manifest = yield* readManifest(located.path);
-    const state = (yield* findProjectState(manifest.projectId))?.state;
-    const historyPath = path.join(located.root, ".stacks/state/runs.jsonl");
-    const history = yield* fs
+    return yield* fs
       .readFileString(historyPath)
       .pipe(
         Effect.catch((error) =>
@@ -49,62 +85,60 @@ export const projectRuns = (cwd: string) =>
             : Effect.fail(new PermissionDenied({ details: { reason: "read", path: historyPath } })),
         ),
       );
-    let verifyRuns = 0;
-    let lastOutcome: string | null = null;
-    let skippedLines = 0;
-    for (const line of history.split(/\r?\n/)) {
-      if (!line.trim()) continue;
-      const decoded = yield* Effect.result(
-        Effect.try({ try: () => JSON.parse(line) as unknown, catch: () => undefined }).pipe(
-          Effect.flatMap(Schema.decodeUnknownEffect(RunRecord)),
-        ),
-      );
-      if (Result.isSuccess(decoded)) {
-        verifyRuns++;
-        lastOutcome = decoded.success.outcome;
-      } else skippedLines++;
-    }
-    const notes = yield* Effect.option(
-      fs.readFileString(path.join(located.root, ".stacks/NOTES.md")),
-    );
-    const minutes = (at: string | null | undefined) => {
-      if (!state || !at) return null;
-      const value = (Date.parse(at) - Date.parse(state.createdAt)) / 60_000;
-      return Number.isFinite(value) ? value : null;
-    };
+  });
+
+/** Minutes from `createdAt` to `at`, or null when either is missing or not a valid date. */
+function minutesBetween(createdAt: string | undefined, at: string | null | undefined) {
+  if (!createdAt || !at) return null;
+  const value = (Date.parse(at) - Date.parse(createdAt)) / 60_000;
+  return Number.isFinite(value) ? value : null;
+}
+
+/** The run summary for the project at or above `cwd`. */
+export const projectRuns = (cwd: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const located = yield* locateManifest(cwd);
+    const manifest = yield* readManifest(located.path);
+    const state = (yield* findProjectState(manifest.projectId))?.state;
+    const history = summarizeHistory(yield* readHistory(path.join(located.root, RUNS_PATH)));
+    const notes = yield* Effect.option(fs.readFileString(path.join(located.root, NOTES_PATH)));
     return {
       stack: manifest.stack?.id ?? null,
       fingerprint: manifest.fingerprint ?? null,
       createdAt: manifest.createdAt,
       ...(manifest.handoff ? { handoff: manifest.handoff.kind } : {}),
       briefWords: manifest.briefWords,
-      verifyRuns,
-      lastOutcome,
-      minutesToGreen: minutes(state?.firstGreenAt),
-      minutesToFirstTest: minutes(state?.firstTestPassAt),
+      verifyRuns: history.verifyRuns,
+      lastOutcome: history.lastOutcome,
+      minutesToGreen: minutesBetween(state?.createdAt, state?.firstGreenAt),
+      minutesToFirstTest: minutesBetween(state?.createdAt, state?.firstTestPassAt),
       interventions: Option.isSome(notes) ? countAsked(notes.value) : null,
       stateRecord: state !== undefined,
-      skippedLines,
+      skippedLines: history.skippedLines,
     } satisfies ProjectRuns;
   });
 
+/** Each summary field and its label, in the order the text report prints them. */
+const RUN_LABELS: ReadonlyArray<[keyof ProjectRuns, string]> = [
+  ["stack", "Stack"],
+  ["fingerprint", "Fingerprint"],
+  ["createdAt", "Created at"],
+  ["handoff", "Handoff"],
+  ["briefWords", "Brief words"],
+  ["verifyRuns", "Verify runs"],
+  ["lastOutcome", "Last outcome"],
+  ["minutesToGreen", "Minutes to green"],
+  ["minutesToFirstTest", "Minutes to first successful test command (run completion)"],
+  ["interventions", "Interventions"],
+  ["stateRecord", "State record"],
+  ["skippedLines", "Skipped lines"],
+];
+
+/** One `Label: value` line per present field; null prints as `unknown`. */
 export function renderRuns(result: ProjectRuns): string {
-  const labels: ReadonlyArray<[keyof ProjectRuns, string]> = [
-    ["stack", "Stack"],
-    ["fingerprint", "Fingerprint"],
-    ["createdAt", "Created at"],
-    ["handoff", "Handoff"],
-    ["briefWords", "Brief words"],
-    ["verifyRuns", "Verify runs"],
-    ["lastOutcome", "Last outcome"],
-    ["minutesToGreen", "Minutes to green"],
-    ["minutesToFirstTest", "Minutes to first successful test command (run completion)"],
-    ["interventions", "Interventions"],
-    ["stateRecord", "State record"],
-    ["skippedLines", "Skipped lines"],
-  ];
-  return labels
-    .filter(([key]) => result[key] !== undefined)
+  return RUN_LABELS.filter(([key]) => result[key] !== undefined)
     .map(
       ([key, label]) =>
         `${label}: ${result[key] === null ? "unknown" : printable(String(result[key]))}`,

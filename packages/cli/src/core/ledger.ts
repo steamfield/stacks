@@ -1,9 +1,29 @@
+/**
+ * Reads and appends the run ledger, `registry/runs.json`: the record of maintainer runs that
+ * scaffolded a bundled stack, let an agent (or no agent) build it, and verified the result.
+ *
+ * Each ledger record says which stack, added fragments, preset and agent were run, the result,
+ * and a fingerprint of the stack's content at the time. `list` and `show` print a stack's latest
+ * run as evidence (`lastRun`, `lastDefaultRecord`), and `validate` notes stacks whose content
+ * changed since their last pass (`validate/ledger-notes.ts` with `latestRecord` and
+ * `readCanaries`). Records are written only by maintainer scripts (`scripts/prove.ts`,
+ * `scripts/bench/`, `scripts/ledger-import.ts`) through `appendRecord`; the CLI itself only reads.
+ *
+ * Records are decoded one by one, so a record written by a newer stacks, or one that doesn't
+ * decode, is skipped and counted rather than failing the whole file. `appendRecord` keeps those
+ * skipped records: it rewrites the file from the raw envelope, not from what a reader decoded. Two appends running at once take turns on the `runs.json.lock` directory
+ * (creating a directory is atomic), and the new file replaces the old one with a single rename.
+ */
 import { AgentId } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Path, Result, Schedule, Schema } from "effect";
 import { InvalidConfig } from "../errors";
 import { Ledger, type LedgerLastRun, LedgerRecord } from "../schemas/ledger";
 import { replaceFile } from "./replace-file";
 
+/**
+ * What `readLedger` found. `present` is false only when the file doesn't exist; `fileValid` is
+ * false when it exists but can't be read or isn't a ledger envelope.
+ */
 export type LedgerRead = {
   readonly present: boolean;
   readonly fileValid: boolean;
@@ -12,7 +32,11 @@ export type LedgerRead = {
 };
 type LedgerKey = Pick<LedgerRecord, "stack" | "with" | "preset" | "agent">;
 
-/** Without a known target, an exact fingerprint decides between adapter candidates. */
+/**
+ * The agent sets a run could have targeted: just `agent` when it is a known id, otherwise every
+ * nonempty combination of known agents. Without a known target, an exact fingerprint decides
+ * between adapter candidates.
+ */
 export function ledgerAdapterSets(
   agent?: LedgerRecord["agent"],
 ): ReadonlyArray<ReadonlyArray<AgentId>> {
@@ -22,8 +46,11 @@ export function ledgerAdapterSets(
   return sets.filter((set) => set.length > 0);
 }
 
-/** Keep the raw envelope for append: records a reader skips must survive a write. */
-const readFile = (registryDir: string) =>
+/**
+ * The raw envelope, records undecoded, so an append can keep records a reader skips. A missing
+ * file is `present: false`; an unreadable or invalid one is `present: true` with no ledger.
+ */
+const readEnvelope = (registryDir: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = (yield* Path.Path).join(registryDir, "runs.json");
@@ -38,28 +65,40 @@ const readFile = (registryDir: string) =>
     return { present: true, ledger: Result.isSuccess(decoded) ? decoded.success : null };
   });
 
+/** Whether a raw record says a newer stacks wrote it (`schemaVersion` above 1). */
+function isNewerRecord(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "schemaVersion" in value &&
+    typeof value.schemaVersion === "number" &&
+    value.schemaVersion > 1
+  );
+}
+
+/** Decodes each raw record, counting the newer and invalid ones it skips. */
+function decodeRecords(raw: ReadonlyArray<unknown>): Omit<LedgerRead, "present" | "fileValid"> {
+  const records: LedgerRecord[] = [];
+  const skipped = { newer: 0, invalid: 0 };
+  for (const value of raw) {
+    if (isNewerRecord(value)) {
+      skipped.newer++;
+      continue;
+    }
+    const record = Schema.decodeUnknownResult(LedgerRecord)(value);
+    if (Result.isSuccess(record)) records.push(record.success);
+    else skipped.invalid++;
+  }
+  return { records, skipped };
+}
+
+/** The ledger in `registryDir`, with every record that decodes; never fails. */
 export const readLedger = (
   registryDir: string,
 ): Effect.Effect<LedgerRead, never, FileSystem.FileSystem | Path.Path> =>
   Effect.gen(function* () {
-    const { present, ledger } = yield* readFile(registryDir);
-    const records: LedgerRecord[] = [];
-    const skipped = { newer: 0, invalid: 0 };
-    for (const value of ledger?.records ?? []) {
-      if (
-        value !== null &&
-        typeof value === "object" &&
-        "schemaVersion" in value &&
-        typeof value.schemaVersion === "number" &&
-        value.schemaVersion > 1
-      ) {
-        skipped.newer++;
-        continue;
-      }
-      const record = Schema.decodeUnknownResult(LedgerRecord)(value);
-      if (Result.isSuccess(record)) records.push(record.success);
-      else skipped.invalid++;
-    }
+    const { present, ledger } = yield* readEnvelope(registryDir);
+    const { records, skipped } = decodeRecords(ledger?.records ?? []);
     return { present, fileValid: ledger !== null || !present, records, skipped };
   });
 
@@ -98,20 +137,21 @@ export const lastDefaultRecord = (records: ReadonlyArray<LedgerRecord>, stack: s
 /** A stack's latest run of its default composition, over every preset and agent. */
 export function lastRun(records: ReadonlyArray<LedgerRecord>, stack: string): LedgerLastRun | null {
   const found = lastDefaultRecord(records, stack);
-  return found === null
-    ? null
-    : {
-        date: found.date,
-        result: found.result,
-        agent: found.agent,
-        preset: found.preset,
-        fingerprint: found.fingerprint,
-      };
+  if (found === null) return null;
+  return {
+    date: found.date,
+    result: found.result,
+    agent: found.agent,
+    preset: found.preset,
+    fingerprint: found.fingerprint,
+  };
 }
+
+const Canaries = Schema.Struct({ stacks: Schema.Array(Schema.String) });
 
 /**
  * `registry/canaries.json`: the stacks whose proofs also cover shared fragment content. A registry
- * without one has no canaries.
+ * without one has no canaries; `null` means the file exists but can't be read or decoded.
  */
 export const readCanaries = (
   registryDir: string,
@@ -124,9 +164,11 @@ export const readCanaries = (
     const decoded = Schema.decodeUnknownResult(Schema.fromJsonString(Canaries))(read.success);
     return Result.isSuccess(decoded) ? decoded.success.stacks : null;
   });
-const Canaries = Schema.Struct({ stacks: Schema.Array(Schema.String) });
 
-/** Holds `runs.json.lock` (an atomic mkdir) so parallel appends can't drop each other's record. */
+/**
+ * Holds `runs.json.lock` (an atomic mkdir) so parallel appends can't drop each other's record.
+ * Waits up to a minute for another holder; the lock is removed when the caller's scope closes.
+ */
 const ledgerLock = (target: string, invalid: () => InvalidConfig) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -144,6 +186,11 @@ const ledgerLock = (target: string, invalid: () => InvalidConfig) =>
     );
   });
 
+/** The ledger file's text: the raw records, then the new one, as two-space JSON. */
+function encodeLedger(records: ReadonlyArray<unknown>): string {
+  return `${JSON.stringify({ schemaVersion: 1, records }, null, 2)}\n`;
+}
+
 /** Atomically replace the envelope, preserving unknown records and cleaning up on failure. */
 export const appendRecord = (
   registryDir: string,
@@ -158,9 +205,10 @@ export const appendRecord = (
         Effect.mapError(invalid),
       );
       yield* ledgerLock(target, invalid);
-      const { present, ledger } = yield* readFile(registryDir);
+      // Read only after taking the lock, so a record appended meanwhile is kept.
+      const { present, ledger } = yield* readEnvelope(registryDir);
       if (present && ledger === null) return yield* invalid();
-      const text = `${JSON.stringify({ schemaVersion: 1, records: [...(ledger?.records ?? []), decoded] }, null, 2)}\n`;
+      const text = encodeLedger([...(ledger?.records ?? []), decoded]);
       yield* replaceFile(target, text).pipe(Effect.mapError(invalid));
     }),
   );

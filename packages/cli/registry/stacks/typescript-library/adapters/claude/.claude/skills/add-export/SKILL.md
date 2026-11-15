@@ -5,13 +5,13 @@ description: Add a function, class, type or option to this TypeScript library's 
 
 # Add an export
 
-Follow the existing feature modules, `src/errors.ts`, `src/index.ts`, `tests/public-api.test.ts` and `tests/consumer/`. Read `docs/guidance/typescript-library/library.md` first.
+Follow the public API and options patterns in `docs/guidance/typescript-library/library.md`, the named exports in `src/index.ts`, the export and signature checks in `tests/public-api.test.ts`, and the installed-package calls in `tests/consumer/`.
 
 Before any code, write down: the name, its full signature with explicit types, each error code it can raise, and the release kind (patch, minor or major, from the table in the guidance). Ask before a change that is major: a removed or renamed export, a changed default, a new required parameter.
 
 1. **Failing tests** beside the module (`src/<name>.test.ts`): a `test.each` table of inputs and exact outputs, then one of inputs and the `{ code, field }` each raises. Run them and watch them fail.
 2. **Errors**: a new failure adds a code to `LibraryErrorCode` and its message to `messages` in `src/errors.ts`. Throw `new LibraryError(code, { field })`.
-3. **Options**, if it takes any: an interface of optional `readonly` fields, frozen defaults and a runtime check of every field.
+3. **Options**, if it takes any: an interface of optional `readonly` fields, frozen defaults and a resolve function that checks every value and rejects unknown keys with `LibraryError`. When the API first takes options, add `invalid_option` to `src/errors.ts` for these failures.
 4. **Code** in `src/<name>.ts` with explicit return types; private helpers in `src/internal/`. No `node:*`, `process` or `console`.
 5. **Export** it by name from `src/index.ts` (types with `type`), and add it to the sorted list in `tests/public-api.test.ts`.
 6. **Consumer**: call it in `tests/consumer/index.ts` with its types, and check a JavaScript misuse in `index.mjs` if it takes input.

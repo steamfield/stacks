@@ -54,7 +54,7 @@ While the version is `0.x`, a breaking change bumps the minor. Write what change
 
 ## Options and defaults
 
-For an API with options, use an interface of optional fields, frozen defaults, and a runtime check of every field, because JavaScript callers get no type checking. An unknown key is an `invalid_option` error naming the key, so a typo never passes silently.
+Use an interface of optional `readonly` fields, frozen defaults and a resolve function that fills omitted fields and checks every value at runtime for JavaScript callers. It rejects unknown keys with a typed `LibraryError` naming the key in `field`. When the API first takes options, the options module adds the `invalid_option` code and message to `src/errors.ts` for these failures.
 
 ## Runtime and side effects
 

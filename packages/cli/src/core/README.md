@@ -58,6 +58,7 @@ before an entry ships; `search/`, `show.ts` and `list.ts` read entries without w
 | `add.ts` | `add`, the orchestration of the steps in `add/` |
 | `create.ts`, `create-text.ts` | `create`: a skeleton or a copy of an entry in the user registry |
 | `show.ts`, `show-report.ts` | `show`: one entry's report and its text |
+| `show-last-run.ts` | The last-run line in `show`: the newest ledger record and whether it still matches today's content |
 | `list.ts`, `list-report.ts` | `list`: the catalog and the fragments a project can add |
 | `handoff.ts` | `decideHandoff`: whether to launch an agent, offer a choice, or print a prompt |
 | `prompting.ts` | Numbered pickers for a person at a terminal |

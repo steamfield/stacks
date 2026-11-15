@@ -1,6 +1,11 @@
 /**
- * The empty-target rule for `new`: which directories it may scaffold into, and what an earlier
- * scaffold left in one it refuses.
+ * Decides whether `stacks new` may build a project in the directory the user picked.
+ *
+ * `scaffold/new.ts` calls `inspectTarget` before writing anything. A missing or empty directory is
+ * fine, and so is one holding only `.git` or OS litter such as `.DS_Store`; anything else fails as
+ * `TargetNotEmpty`, so `new` never mixes its files into someone's work. When the leftover is an
+ * earlier scaffold's `.stacks/`, the error says whether that project ever passed verify, which
+ * tells the user whether it is safe to delete.
  */
 import { Effect, FileSystem, Option, Path } from "effect";
 import { PermissionDenied, TargetNotEmpty } from "../../errors";

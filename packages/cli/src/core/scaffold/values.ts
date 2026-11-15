@@ -1,6 +1,11 @@
 /**
- * Template values for every project writer: checks explicit `--scope`, `--author` and `--name`
- * values, then fills the fixed variables from them, the settings and git.
+ * Works out the values that fill an entry's `.tmpl` files, such as the project name and author,
+ * for `stacks new` and `stacks add`.
+ *
+ * `templateOverrides` checks the user's `--name`, `--author` and `--scope` early, so a bad flag
+ * fails before any slow work (`commands/new.ts`, `scaffold/new.ts` and `add/prepare.ts` call it).
+ * `templateValues` then builds the full set from those flags, the user's settings and git, and
+ * the composition renders files with it.
  */
 import { Clock, Effect, Option, Schema } from "effect";
 import { BadInput, InvalidConfig } from "../../errors";

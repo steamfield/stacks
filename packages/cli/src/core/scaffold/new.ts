@@ -1,6 +1,20 @@
 /**
- * `new`'s core program (`scaffold`): compose a stack, check the target, render every file in
- * memory, then write the project through the safe writer and `git init` it.
+ * When someone runs `stacks new <stack>`, this module builds the project on disk.
+ *
+ * A stack is a recipe for a whole new project, and fragments are reusable additions (CI, git
+ * hooks, a database) layered onto it. `commands/new.ts` parses the flags and calls `scaffold`,
+ * which composes the stack with its fragments (`compose/compose.ts`), checks the target directory
+ * (`scaffold/target.ts`) and asks git where it stands (`scaffold/git.ts`). It then renders every
+ * file in memory, including the brief (`.stacks/BRIEF.md`, the task text for the coding agent) and
+ * the manifest (`.stacks/manifest.json`, the committed record of what was composed and how to
+ * verify it). The result returns to `commands/new.ts`, which prints it and hands the project to an
+ * agent.
+ *
+ * Nothing is written until everything has rendered, so a dry run (`--dry-run`) stops right before
+ * the writer. The writes happen in a fixed order: the entry files and the rest of `.stacks/`, then
+ * the manifest, then the state record (a file outside the project holding the verify digests),
+ * then `git init`. Any failure from the first write on rolls all of it back. No command from any
+ * entry runs here (Trust model point 1). Start at `scaffold`.
  */
 import type { AgentId, Manifest } from "@steamfield/stacks-format";
 import { Effect, Exit, FileSystem, Option, Path } from "effect";

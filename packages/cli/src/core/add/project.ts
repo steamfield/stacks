@@ -1,3 +1,5 @@
+/** Reads the project an `add` extends: its manifest, tamper state, recorded stack and settings. */
+import type { AgentId, Manifest } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, VerifyChanged } from "../../errors";
@@ -21,14 +23,7 @@ export const readAddProject = (options: AddOptions) =>
       ? yield* checkTamper(previous, path.join(options.root, MANIFEST_PATH))
       : undefined;
     if (tamper?.changed) return yield* new VerifyChanged({ details: tamper.changed });
-    if (previous && options.sandbox && previous.preset !== "sandbox")
-      return yield* new BadInput({ details: { id: "sandbox", flag: "sandbox" } });
-    if (
-      previous &&
-      options.agents &&
-      [...new Set(options.agents)].sort().join(",") !== [...previous.agents].sort().join(",")
-    )
-      return yield* new BadInput({ details: { id: options.agents.join(","), flag: "agents" } });
+    if (previous) yield* checkFlagsMatch(options, previous);
     const registry = yield* Registry;
     const stack = yield* projectStack(registry, previous?.stack?.id);
     const warnings: Array<AddResult["warnings"][number]> =
@@ -44,6 +39,23 @@ export const readAddProject = (options: AddOptions) =>
   });
 export type AddProject = Effect.Success<ReturnType<typeof readAddProject>>;
 
+/**
+ * Reject `--sandbox` or `--agents` when they disagree with the manifest, since add extends the
+ * project as it was created rather than changing its preset or agents.
+ */
+const checkFlagsMatch = (options: AddOptions, previous: Manifest) =>
+  Effect.gen(function* () {
+    if (options.sandbox && previous.preset !== "sandbox")
+      return yield* new BadInput({ details: { id: "sandbox", flag: "sandbox" } });
+    if (options.agents && !sameAgents(options.agents, previous.agents))
+      return yield* new BadInput({ details: { id: options.agents.join(","), flag: "agents" } });
+  });
+
+/** Whether two agent lists name the same agents, ignoring order and duplicates in `requested`. */
+const sameAgents = (requested: ReadonlyArray<AgentId>, recorded: ReadonlyArray<AgentId>) =>
+  [...new Set(requested)].sort().join(",") === [...recorded].sort().join(",");
+
+/** The project's recorded stack from the registry, or `undefined` when it can't be found. */
 function projectStack(registry: Registry["Service"], id: string | undefined) {
   if (id === undefined) return Effect.succeed(undefined);
   return registry.get("stack", id).pipe(Effect.orElseSucceed(() => undefined));

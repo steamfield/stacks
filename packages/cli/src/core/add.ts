@@ -1,3 +1,4 @@
+/** The `add` program: applies fragments to an existing project without changing its live files. */
 import { Clock, Effect } from "effect";
 import { AppConfig } from "../config";
 import { BRIEF_PATH } from "../project-layout";

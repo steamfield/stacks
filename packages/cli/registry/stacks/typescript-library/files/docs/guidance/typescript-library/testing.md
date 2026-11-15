@@ -4,7 +4,7 @@ Read [engineering testing](../engineering/testing.md) for test layers, real depe
 
 Run Vitest with `bun run test`. It runs `src/**/*.test.ts` and `tests/**/*.test.ts` on Node. Never use `bun test` or `--bun`: those select Bun's test runner or runtime, bypassing the supported Vitest-on-Node setup and potentially changing test discovery, APIs and runtime behavior. No hook enforces this; choose the supported command yourself.
 
-- Put pure-logic tests beside the code (`src/slugify.test.ts`, `src/options.test.ts`, `src/errors.test.ts`). Use `test.each`: each row gives an input and exact output, or an input and the error `code` and `field` it raises. Assert errors with `expect.objectContaining({ code, field })`; fixed message wording isn't the caller's error contract.
+- Put pure-logic tests beside the code (`src/<feature>.test.ts` for a feature module). Use `test.each`: each row gives an input and exact output, or an input and the error `code` and `field` it raises. Assert errors with `expect.objectContaining({ code, field })`; fixed message wording isn't the caller's error contract.
 - Keep the sorted runtime export list and public error checks in `tests/public-api.test.ts`. A new export adds its name there, which forces the release decision.
 - Pin public signatures and inferred types with Vitest's `expectTypeOf`, as in `tests/public-api.test.ts`. These assertions do nothing at runtime; `bun run typecheck` checks them because `tsconfig.json` includes `src/` and `tests/`. Keep `@ts-expect-error` cases for calls the API must reject.
 - Keep Grit boundary probes in `tests/boundaries.test.ts`: each rule fires on a fixture file and stays quiet where the thing is allowed. A new rule adds a row to both tables.

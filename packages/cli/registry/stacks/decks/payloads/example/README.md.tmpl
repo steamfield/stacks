@@ -1,0 +1,28 @@
+# {{project_name}}
+
+Slide decks built with Decks (`@steamfield/decks`): MDX slides, React components and motion, served by the `decks` command.
+
+## Getting started
+
+<!-- stacks:fill: requirements (Bun, Node), the install command, the one-time `claude plugin install decks@steamfield --scope project` for each collaborator, and the toolchain versions recorded at setup -->
+
+## Run the example deck
+
+`decks/example/` is a four-slide reference deck: one claim per slide, bullets revealed by clicks, speaker notes, and a figure drawn from a data module with its source recorded in `data-sources.md`. To present it:
+
+```sh
+bun install
+bun run decks dev example
+```
+
+Open the URL it prints. The right arrow or Space steps through clicks and slides, `p` opens the presenter window with the notes, `o` shows every slide, and `f` goes fullscreen. Edit a slide in `decks/example/slides/` and the page updates as you save.
+
+When you no longer need it, delete `decks/example/` and the `example` entry in `decks.json`.
+
+## Decks
+
+<!-- stacks:fill: each alias in decks.json with its directory and one line on what the talk covers -->
+
+## Commands
+
+<!-- stacks:fill: the actual package scripts: dev, build, lint, typecheck, test, check, clean, and `bun run decks new <alias>` for another deck -->

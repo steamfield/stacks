@@ -1,0 +1,50 @@
+@import "@steamfield/decks/kit/styles.css";
+
+.od-slide.is-cover .od-title,
+.od-slide.is-close .od-title {
+  max-width: 1400px;
+}
+
+.word-bars {
+  margin: 16px 0 0;
+}
+
+.word-bars > div {
+  display: grid;
+  gap: 32px;
+  margin-top: 64px;
+}
+
+.word-bar {
+  display: grid;
+  grid-template-columns: 360px 1fr 96px;
+  align-items: center;
+  gap: 32px;
+  font-size: calc(32px * var(--deck-text-scale, 1));
+  color: var(--od-text);
+}
+
+.word-bar-track {
+  position: relative;
+  height: 40px;
+}
+
+.word-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--od-cyan);
+}
+
+.word-bar-budget {
+  position: absolute;
+  top: -12px;
+  bottom: -12px;
+  width: 4px;
+  background: var(--od-amber);
+}
+
+.word-bar-value {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}

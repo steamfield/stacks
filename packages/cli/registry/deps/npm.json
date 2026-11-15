@@ -526,6 +526,25 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "@steamfield/decks": {
+      "whatItIs": "A tool for making slide presentations as code: each slide is a text file, and the talk runs as a web page you present from a browser.",
+      "goodAt": [
+        "Talks with step-by-step reveals, speaker notes and charts",
+        "Slides a coding assistant writes and revises",
+        "Sharing a finished talk as a web page"
+      ],
+      "notGoodAt": [
+        "Arranging slides by dragging boxes around; use a visual slide editor for that."
+      ],
+      "example": "When a speaker saves a slide file, the open presentation updates, and the presenter window shows the notes for each click.",
+      "homepage": "https://decks.steamfield.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 3,
+        "reviewedAt": "2026-11-15"
+      }
+    },
     "@sveltejs/adapter-node": {
       "whatItIs": "Connects SvelteKit to Node, so the built app runs as an ordinary Node server.",
       "homepage": "https://svelte.dev/docs/kit/adapter-node",

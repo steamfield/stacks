@@ -3,14 +3,14 @@
   "kind": "stack",
   "id": "decks",
   "source": {
-    "digest": "sha256:104c4b3b9a7137bb5651016777d173a60d5d188eb92c4930f6765482a53b7eb5",
+    "digest": "sha256:7a1447afec9f16801533fb210b1d069ab7d2e514dca04882f43645350d80a261",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
     "reviewedAt": "2026-11-15"
   },
   "summary": "A project for presentation slide decks and data stories, written in MDX and React with Decks and presented from the browser.",
-  "description": "Sets up a Bun project around the decks command: one first deck scaffolded by the framework (a conventional talk or a data-driven story deck), scripts that serve, check, lint and build it, and a strict typecheck over deck code. It also wires the Decks agent skills for Codex and the Decks Claude Code plugin, so an agent writing slides follows the framework's prose, design and data rules. The talk's content, figures and data sources are yours to write. Hosting the built site is separate.",
+  "description": "Sets up a Bun project around the decks command: one first deck scaffolded by the framework (a conventional talk or a data-driven story deck), scripts that serve, check, lint and build it, and a strict typecheck over deck code. A four-slide example deck shows click reveals, speaker notes and a figure drawn from a data file, ready to present. It also wires the Decks agent skills for Codex and the Decks Claude Code plugin, so an agent writing slides follows the framework's prose, design and data rules. The talk's content, figures and data sources are yours to write. Hosting the built site is separate.",
   "seoDescription": "A Decks project for presentation slides in MDX and React: live dev server, static builds, prose lint and the Decks agent skills set up.",
   "projectExamples": [
     {

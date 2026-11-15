@@ -18,8 +18,8 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github]
-  optional: [rr, ce-plugin]
+  default: [claude-harness-docs, git-hooks, ci-github, ce-plugin]
+  optional: [rr]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
   - { name: lint, layer: lint, run: bun run lint }
@@ -100,7 +100,7 @@ The shipped code keeps these; new code does too. `docs/guidance/typescript-libra
 - Options are an interface of optional `readonly` fields, checked at runtime with frozen defaults; an unknown key is an `invalid_option` error.
 - `src/` imports no `node:*` or `bun`, reads no `process` and never logs. The Grit plugin fails lint on a break.
 - A dependency the build imports goes in `dependencies` (or `peerDependencies`), and so does a `@types/*` package a public type refers to. Adding one is the person's decision.
-- Publishing, `npm version`, tags and dist-tags are the person's steps; the guard hook denies them.
+- Publishing, `npm version`, tags and dist-tags are the person's steps; the destructive-command hook denies them.
 
 ## Testing
 
@@ -125,5 +125,5 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 - `attw` reports CommonJS resolution problems for an ESM-only package unless it runs with `--profile esm-only`. It packs with `npm pack`, so Node's `npm` must be on PATH.
 - Packing needs `version`. Without one, `bun pm pack`, publint and attw all fail before checking anything; keep the field.
 - Tests that import `src/` pass while the package is broken; only `test:consumer` sees the tarball.
-- The tests and scripts run on Node: never `bun test` or `--bun`. The guard hook denies them.
+- The tests and scripts run on Node: never `bun test` (Bun's own runner, which finds none of the Vitest setup) or `--bun`.
 - `instanceof LibraryError` fails across two installed copies of the package; `isLibraryError` doesn't.

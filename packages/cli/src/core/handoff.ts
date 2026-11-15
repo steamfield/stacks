@@ -1,3 +1,8 @@
+/**
+ * What `new` and `add` do with a written project: the pure handoff decision, the agent launchers
+ * it can pick from, the manifest's `handoff` record and the printed text for every outcome that
+ * isn't a launch.
+ */
 import type { AgentId, DetectedAgent, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../project-layout";
 import { type Audience, plainStyle, type Style } from "../services/output";
@@ -97,7 +102,16 @@ export const LAUNCH_ORDER: ReadonlyArray<Harness> = [
   "codex-app",
 ];
 
-/** The one constructor used by automatic selection and the picker. */
+/** The binaries of every terminal launcher, in launch order, as the no-agent-found line names them. */
+const TERMINAL_BINS = LAUNCH_ORDER.flatMap((agent) => {
+  const launcher = LAUNCH_ARGS[agent];
+  return launcher.via === "terminal" ? [launcher.bin] : [];
+});
+
+/**
+ * The one constructor used by automatic selection and the picker. `bin` is the path
+ * `Processes.which` found; an app launcher doesn't use it.
+ */
 export function launchDecision(agent: Harness, bin: string, prompt: string): LaunchDecision {
   const launcher = LAUNCH_ARGS[agent];
   return launcher.via === "app"
@@ -105,9 +119,14 @@ export function launchDecision(agent: Harness, bin: string, prompt: string): Lau
     : { kind: "launch", agent, via: "terminal", bin, args: launcher.args(prompt) };
 }
 
+/** The picker's question after `pickerText`'s numbered list of `count` agents. */
 export const pickerQuestion = (count: number) => `Hand the project to [1-${count}, Enter for 1]: `;
-export const pickerText = (options: ReadonlyArray<Harness>) =>
-  `Agents found:\n${options.map((agent, i) => `  ${i + 1}) ${LAUNCH_ARGS[agent].label}`).join("\n")}\n`;
+
+/** The picker's numbered list of the agents found, in the order given. */
+export const pickerText = (options: ReadonlyArray<Harness>) => {
+  const rows = options.map((agent, index) => `  ${index + 1}) ${LAUNCH_ARGS[agent].label}`);
+  return `Agents found:\n${rows.join("\n")}\n`;
+};
 
 /** The one prompt every outcome gives the agent. No quotes or backticks, so it pastes into a shell. */
 export const agentPrompt = (invocation: string) =>
@@ -138,50 +157,75 @@ export const candidates = (preferred: Harness | undefined, configured: ReadonlyA
   preferred ? [preferred] : [...new Set([...configured, ...LAUNCH_ORDER])];
 
 /**
- * The handoff, first matching rule wins: a detected agent; `--json`; `--no-launch`; no terminal;
- * an untrusted entry; else an explicit or configured harness, the only harness, or a choice.
- * An untrusted entry never reaches
- * `launch`.
+ * The handoff, decided by the first rule that matches. The order is the behavior: each rule
+ * outranks every rule below it. An untrusted entry stops at rule 5 at the latest, so it never
+ * reaches `launch` or `choose` (trust point 3), and nothing launches or asks without a person at
+ * a terminal (trust point 4).
  */
 export function decideHandoff(input: HandoffInput): HandoffDecision {
   const { untrusted } = input;
+  // 1. Already running under an agent: tell that agent what to do instead of starting another.
   if (input.detected !== "none") return { kind: "inside-agent", agent: input.detected, untrusted };
-  const print = (reason: PrintReason, agent?: Harness): HandoffDecision => ({
-    kind: "print",
-    reason,
-    ...(agent ? { agent } : {}),
-    untrusted,
-  });
-  if (input.json) return print("json");
-  if (!input.launch) return print("no-launch");
-  if (!input.stdinIsTTY || !input.stdoutIsTTY) return print("not-a-terminal");
-  if (untrusted.length) return print("untrusted");
+  // 2. `--json` callers read the result; nothing is launched for them.
+  if (input.json) return printDecision("json", untrusted);
+  // 3. `--no-launch` asks for the prompt only.
+  if (!input.launch) return printDecision("no-launch", untrusted);
+  // 4. A launch or the picker needs a person at a terminal on both stdin and stdout.
+  if (!input.stdinIsTTY || !input.stdoutIsTTY) return printDecision("not-a-terminal", untrusted);
+  // 5. An untrusted entry needs a person to read it before any agent acts on it.
+  if (untrusted.length > 0) return printDecision("untrusted", untrusted);
+  // 6. Everything is trusted and a person is at the terminal: pick an installed agent.
+  return pickInstalledAgent(input);
+}
+
+/**
+ * Rule 6 of `decideHandoff`: `--launch` if it's installed; else the first configured agent that
+ * is; else the only installed agent, or a choice between several.
+ */
+function pickInstalledAgent(input: HandoffInput): HandoffDecision {
+  const { untrusted, found, prompt } = input;
   if (input.preferred) {
-    const bin = input.found.get(input.preferred);
+    const bin = found.get(input.preferred);
     return bin
-      ? launchDecision(input.preferred, bin, input.prompt)
-      : print("agent-not-found", input.preferred);
+      ? launchDecision(input.preferred, bin, prompt)
+      : printDecision("agent-not-found", untrusted, input.preferred);
   }
   for (const agent of input.configured) {
-    const bin = input.found.get(agent);
-    if (bin) return launchDecision(agent, bin, input.prompt);
+    const bin = found.get(agent);
+    if (bin) return launchDecision(agent, bin, prompt);
   }
   const options = LAUNCH_ORDER.flatMap((agent) => {
-    const bin = input.found.get(agent);
-    return bin ? [launchDecision(agent, bin, input.prompt)] : [];
+    const bin = found.get(agent);
+    return bin ? [launchDecision(agent, bin, prompt)] : [];
   });
   const first = options[0];
-  if (!first) return print("no-agent-found");
+  if (!first) return printDecision("no-agent-found", untrusted);
   if (options.length > 1) return { kind: "choose", options, untrusted };
   return first;
 }
 
-const recordedAgent = (agent: Harness | "other"): AgentId | "other" => {
-  if (agent === "codex-app") return "codex";
-  return agent === "copilot" ? "other" : agent;
-};
+function printDecision(
+  reason: PrintReason,
+  untrusted: ReadonlyArray<string>,
+  agent?: Harness,
+): HandoffDecision {
+  return { kind: "print", reason, ...(agent ? { agent } : {}), untrusted };
+}
 
-/** The manifest's `handoff` record. */
+/**
+ * The agent the manifest records for a harness: the Codex app counts as `codex`, and Copilot,
+ * which has no `AgentId`, as `other`.
+ */
+function recordedAgent(agent: Harness | "other"): AgentId | "other" {
+  if (agent === "codex-app") return "codex";
+  if (agent === "copilot") return "other";
+  return agent;
+}
+
+/**
+ * The manifest's `handoff` record. A pending choice is recorded as `print` with no agent until
+ * the picker settles it.
+ */
 export const handoffRecord = (decision: HandoffDecision, at: string) => ({
   kind: decision.kind === "choose" ? "print" : decision.kind,
   ...(decision.kind === "print" || decision.kind === "choose"
@@ -190,9 +234,24 @@ export const handoffRecord = (decision: HandoffDecision, at: string) => ({
   at,
 });
 
+/** Text a POSIX shell takes literally without any quoting. */
+const SHELL_SAFE = /^[A-Za-z0-9._/+-]+$/;
+/** Characters a POSIX shell still expands or escapes inside double quotes. */
+const DOUBLE_QUOTE_SPECIAL = /["$`\\!]/;
+
 /** A prompt as a shell argument: double quotes read better when nothing inside expands. */
-const quote = (text: string) =>
-  /^[A-Za-z0-9._/+-]+$/.test(text) || !/^[^"$`\\!]*$/.test(text) ? shellArg(text) : `"${text}"`;
+function quote(text: string): string {
+  if (SHELL_SAFE.test(text) || DOUBLE_QUOTE_SPECIAL.test(text)) return shellArg(text);
+  return `"${text}"`;
+}
+
+type RenderContext = {
+  shown: string;
+  invocation: string;
+  audience: Audience;
+  agent: AgentId | undefined;
+  style?: Style;
+};
 
 /**
  * The text after `new`'s summary for an outcome other than `launch`. `shown` is how the summary
@@ -201,50 +260,83 @@ const quote = (text: string) =>
  */
 export function renderHandoff(
   decision: Exclude<HandoffDecision, { kind: "launch" | "choose" }>,
-  context: {
-    shown: string;
-    invocation: string;
-    audience: Audience;
-    agent: AgentId | undefined;
-    style?: Style;
-  },
+  context: RenderContext,
 ): string {
-  const ids = decision.untrusted.map(printable).join(", ");
+  if (decision.kind === "inside-agent") return insideAgentText(decision.untrusted, context);
+  return printedText(decision, context);
+}
+
+/** The instruction to the calling agent: start on the brief, or stop when an entry is untrusted. */
+function insideAgentText(untrusted: ReadonlyArray<string>, context: RenderContext): string {
+  if (untrusted.length > 0)
+    return `STOP: this project uses entries this machine hasn't trusted: ${untrustedIds(untrusted)}. Don't start. Show the user the list and ${BRIEF_PATH}'s first section, and continue only if they confirm.`;
   const where = context.shown === "." ? "the current directory" : printable(context.shown);
-  if (decision.kind === "inside-agent")
-    return decision.untrusted.length
-      ? `STOP: this project uses entries this machine hasn't trusted: ${ids}. Don't start. Show the user the list and ${BRIEF_PATH}'s first section, and continue only if they confirm.`
-      : `NEXT STEP FOR THE AGENT: read ${BRIEF_PATH} now and carry it out, working in ${where}. Loop on ${context.invocation} verify until it passes. Don't stop here to report back; the brief says when to ask the user.`;
+  return `NEXT STEP FOR THE AGENT: read ${BRIEF_PATH} now and carry it out, working in ${where}. Loop on ${context.invocation} verify until it passes. Don't stop here to report back; the brief says when to ask the user.`;
+}
+
+/** Why nothing launched (when that needs saying), then the prompt and, for a human, an example. */
+function printedText(
+  decision: Extract<HandoffDecision, { kind: "print" }>,
+  context: RenderContext,
+): string {
   const prompt = agentPrompt(context.invocation);
-  const requested = LAUNCH_ARGS[decision.agent ?? context.agent ?? "claude"];
-  const example = requested.via === "terminal" ? requested : LAUNCH_ARGS[context.agent ?? "claude"];
   const dir = printable(shellArg(context.shown));
-  const lines: string[] = [];
-  if (decision.reason === "untrusted")
-    lines.push(
-      `Not launching an agent: this project uses entries this machine hasn't trusted (${ids}; listed above). Read them and the brief's first section before an agent acts on it.`,
-    );
-  if (decision.reason === "agent-not-found")
-    lines.push(
-      requested.via === "app"
-        ? "The Codex app isn't installed (macOS only)."
-        : `${requested.bin} isn't on PATH.`,
-    );
-  if (decision.reason === "no-agent-found")
-    lines.push(
-      `No agent CLI found on PATH (looked for ${LAUNCH_ORDER.flatMap((id) => {
-        const launcher = LAUNCH_ARGS[id];
-        return launcher.via === "terminal" ? [launcher.bin] : [];
-      }).join(", ")}).`,
-    );
   const { style = plainStyle } = context;
-  lines.push(
+  const lines = [
+    ...printReasonLines(decision, context.agent),
     style("next", `Next: open ${dir} in your coding agent and give it this prompt:`),
     `  ${prompt}`,
-  );
-  if (context.audience === "human")
-    lines.push(
-      `For example: ${context.shown === "." ? "" : `cd ${dir} && `}${[example.bin, ...example.args(prompt).map(quote)].join(" ")}`,
-    );
+  ];
+  if (context.audience === "human") lines.push(exampleLine(decision, context, prompt));
   return lines.join("\n");
 }
+
+/** The agent a printed outcome talks about: the one asked for, else the configured one, else Claude. */
+const requestedLauncher = (decision: { agent?: Harness }, configured: AgentId | undefined) =>
+  LAUNCH_ARGS[decision.agent ?? configured ?? "claude"];
+
+/** The line explaining why no agent launched; most reasons are already obvious to the reader. */
+function printReasonLines(
+  decision: Extract<HandoffDecision, { kind: "print" }>,
+  configured: AgentId | undefined,
+): ReadonlyArray<string> {
+  switch (decision.reason) {
+    case "untrusted":
+      return [
+        `Not launching an agent: this project uses entries this machine hasn't trusted (${untrustedIds(decision.untrusted)}; listed above). Read them and the brief's first section before an agent acts on it.`,
+      ];
+    case "agent-not-found": {
+      const requested = requestedLauncher(decision, configured);
+      return [
+        requested.via === "app"
+          ? "The Codex app isn't installed (macOS only)."
+          : `${requested.bin} isn't on PATH.`,
+      ];
+    }
+    case "no-agent-found":
+      return [`No agent CLI found on PATH (looked for ${TERMINAL_BINS.join(", ")}).`];
+    case "json":
+    case "no-launch":
+    case "not-a-terminal":
+    case "not-chosen":
+      return [];
+  }
+}
+
+/**
+ * A ready-to-run command that starts the requested agent on the project. An app can't be started
+ * from a shell line, so the example falls back to the configured terminal agent, else Claude.
+ */
+function exampleLine(
+  decision: Extract<HandoffDecision, { kind: "print" }>,
+  context: RenderContext,
+  prompt: string,
+): string {
+  const requested = requestedLauncher(decision, context.agent);
+  const example = requested.via === "terminal" ? requested : LAUNCH_ARGS[context.agent ?? "claude"];
+  const command = [example.bin, ...example.args(prompt).map(quote)].join(" ");
+  const cd = context.shown === "." ? "" : `cd ${printable(shellArg(context.shown))} && `;
+  return `For example: ${cd}${command}`;
+}
+
+const untrustedIds = (untrusted: ReadonlyArray<string>) => untrusted.map(printable).join(", ");

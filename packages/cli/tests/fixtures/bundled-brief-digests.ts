@@ -22,16 +22,18 @@
  * The 0.7.0 version in the brief changed all six again on 2026-11-01.
  * astro-blog and python-react changed that day when posthog's Testing line named
  * astro-product-site; they await a bench run.
+ * All six changed on 2026-11-05 when agent-ops corrected why CLAUDE.md imports AGENTS.md; they
+ * await a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:14ff7925b2ef36819d5132aa7036e6e2b85de862d3a6c9974a568b99ba2c1d60",
-  "astro-blog:sandbox": "sha256:d8463b1d8e5178b0e11b73cfaa3782f017b3a240d91b0348cbfd1eac04c387f7",
-  "go-cli:default": "sha256:7e05a667ffbda97d054df2a0677bbdbea73c14dcd0f3ce2e0904d812ea5f130b",
-  "go-cli:sandbox": "sha256:8c5eba976c95a41aa280dd8800bb54fd280ba7293775583796ca81caab97bc80",
-  "python-react:default": "sha256:eddb45bf73d27462a481ab7f7c3c7a1969a29e8aa616dffdbc073d0c6f63d3b3",
-  "python-react:sandbox": "sha256:5da95bf3cc8df7989cc4b2b8937b3fa782cc44c3484fed1770200cf6edd55695",
+  "astro-blog:default": "sha256:1fe2dc13bf7036f4c84284037b97ff0169ab8f0e53a31baf177920fb12ac8e6b",
+  "astro-blog:sandbox": "sha256:74f7857b290f83c17f963ded79ef0998fa76c33c986603efebdbba3cbbb76802",
+  "go-cli:default": "sha256:57e899dda96f5394f829c17541b118e8aa0ee50e0066811db1e658a99b6b9475",
+  "go-cli:sandbox": "sha256:22d1543533cf64e19e5454f6439b90c9b2bd1362c3c2d89caa7cc1308c100cf4",
+  "python-react:default": "sha256:5d3471015a88e4e28612228cdc35ce8b5c2994526c5fa5009d83dee2af0196c5",
+  "python-react:sandbox": "sha256:4cc16a41f6e65e2a1353954c003f8d7332d906d0f41651ac4132df045724f11b",
 };

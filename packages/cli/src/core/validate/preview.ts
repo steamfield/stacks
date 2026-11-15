@@ -1,12 +1,28 @@
+/**
+ * Builds `stacks validate --brief <stack>`: the brief `stacks new` would write for one
+ * composition, its word count against the budget, and the findings that apply to it.
+ *
+ * A brief is the task text the CLI writes to `.stacks/BRIEF.md` for the coding agent, and a
+ * composition is a stack (a recipe for a whole project) combined with fragments (reusable
+ * additions). Authors use the preview to see exactly what an agent would read, without writing a
+ * project. `commands/validate.ts` calls `previewBrief` and prints the result; the brief and its
+ * fingerprint are compared by digest in tests, so the render must stay byte-identical.
+ *
+ * The preview composes through the same registry roots `validate` uses for the target and renders
+ * with `budget.ts::canonicalContext`, so its numbers are the ones the budget checks see. It then
+ * runs the registry checks from `index.ts::checks` over just the composed entries, leaving out the
+ * ones that describe the whole registry rather than this composition (see `previewChecks`).
+ * Compose failures (an unknown id, a conflict) fail the command instead of becoming findings.
+ */
 import { Effect, Path } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, NotFound } from "../../errors";
-import type { BriefPreview } from "../../schemas/validate";
+import type { BriefPreview, Finding } from "../../schemas/validate";
 import { targetAgents } from "../compose/agents";
 import { compose } from "../compose/compose";
-import type { ComposeOptions } from "../compose/types";
+import type { ComposeOptions, Composition } from "../compose/types";
 import { fingerprint } from "../fingerprint";
-import { type Entry, isRejected } from "../registry/entry";
+import { type Entry, isRejected, type RejectedEntry } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { addCompositionChecks } from "./add-compositions";
 import { canonicalBrief, composedLimit } from "./budget";
@@ -36,77 +52,124 @@ export const previewBrief = (target: Target, options: PreviewOptions) =>
   Effect.gen(function* () {
     const roots = yield* validationRoots(target);
     const settings = yield* (yield* AppConfig).get;
-    return yield* Effect.gen(function* () {
-      const registry = yield* Registry;
-      const all = yield* registry.all;
-      if (
-        !all.some((entry) => entry.kind === "stack" && entry.id === options.stack) &&
-        all.some((entry) => entry.kind === "fragment" && entry.id === options.stack)
-      )
-        return yield* new BadInput({ details: { id: options.stack, flag: "brief_stack" } });
-      const composeOptions: ComposeOptions = {
-        ...options,
-        agents: targetAgents(undefined, settings).slice(0, 1),
-        always: [],
-        mode: "new",
-      };
-      const composition = yield* compose(composeOptions).pipe(
-        // `list` doesn't read a root given to validate, so the not-found hint names this root.
-        Effect.mapError((error) =>
-          error._tag === "NotFound" && error.details && !target.bundled
-            ? new NotFound({ details: { ...error.details, root: target.root } })
-            : error,
-        ),
-      );
-      const path = yield* Path.Path;
-      const selected = [composition.stack, ...composition.fragments];
-      const wanted = (item: { kind: string; id: string }) =>
-        selected.some((entry) => entry.kind === item.kind && entry.id === item.id);
-      // Keep original bodies, including every conditional branch, for the entry checks.
-      const entries = all.filter((entry): entry is Entry => !isRejected(entry) && wanted(entry));
-      const sourceView: Omit<View, "composed"> = {
-        root: target.root,
-        bundled: target.bundled,
-        entries,
-        rejected: [],
-        all,
-        sources: yield* readSources(entries),
-        wanted,
-        ...rootPaths(path, target.root),
-        composition: { ...composition, options: composeOptions },
-      };
-      const view: View = {
-        ...sourceView,
-        composed: yield* Effect.cached(composedFiles(sourceView)),
-      };
-      // Loading already succeeded. Git checks depend on the checkout and start a process;
-      // compose-each checks fragment compatibility across stacks. Both are registry properties,
-      // outside this canonical, process-free preview of one composition.
-      const findings = (yield* Effect.forEach(
-        checks.filter(
-          (check) =>
-            check !== loadChecks &&
-            check !== gitChecks &&
-            check !== composeEachChecks &&
-            check !== addCompositionChecks,
-        ),
-        (check) => check(view),
-      ))
-        .flatMap((result) => result.findings)
-        .sort(compareFindings);
-      const brief = canonicalBrief(composition);
-      return {
-        stack: composition.stack.id,
-        preset: composition.preset,
-        fragments: composition.fragments.map((fragment) => fragment.id),
-        app: composition.app?.id ?? null,
-        briefWords: brief.briefWords,
-        fixedWords: brief.fixedWords,
-        limit: composedLimit(composition),
-        warnings: composition.warnings.map(({ code, id }) => ({ code, id })),
-        brief: brief.text,
-        fingerprint: yield* fingerprint(composition),
-        findings,
-      } satisfies BriefPreview;
-    }).pipe(Effect.provide(Registry.layer(roots)));
+    const composeOptions: ComposeOptions = {
+      ...options,
+      agents: targetAgents(undefined, settings).slice(0, 1),
+      always: [],
+      mode: "new",
+    };
+    return yield* previewInRegistry(target, composeOptions).pipe(
+      Effect.provide(Registry.layer(roots)),
+    );
+  });
+
+const previewInRegistry = (target: Target, options: ComposeOptions) =>
+  Effect.gen(function* () {
+    const all = yield* (yield* Registry).all;
+    if (namesOnlyAFragment(all, options.stack))
+      return yield* new BadInput({ details: { id: options.stack, flag: "brief_stack" } });
+    const composition = yield* composePreview(target, options);
+    const view = yield* previewView(target, { all, composition, options });
+    const findings = yield* previewFindings(view);
+    return yield* previewResult(composition, findings);
+  });
+
+/** `--brief` takes a stack; an id that only a fragment has is a usage mistake, not "not found". */
+function namesOnlyAFragment(all: ReadonlyArray<Entry | RejectedEntry>, id: string): boolean {
+  return (
+    !all.some((entry) => entry.kind === "stack" && entry.id === id) &&
+    all.some((entry) => entry.kind === "fragment" && entry.id === id)
+  );
+}
+
+/** Compose the selection; a not-found names the validated root, since `list` doesn't read it. */
+const composePreview = (target: Target, options: ComposeOptions) =>
+  compose(options).pipe(
+    Effect.mapError((error) =>
+      error._tag === "NotFound" && error.details && !target.bundled
+        ? new NotFound({ details: { ...error.details, root: target.root } })
+        : error,
+    ),
+  );
+
+/**
+ * A check view over just the composed entries, carrying the composition so the composition and
+ * rendered-file checks use it instead of building the registry's plans.
+ */
+const previewView = (
+  target: Target,
+  {
+    all,
+    composition,
+    options,
+  }: {
+    all: ReadonlyArray<Entry | RejectedEntry>;
+    composition: Composition;
+    options: ComposeOptions;
+  },
+) =>
+  Effect.gen(function* () {
+    const path = yield* Path.Path;
+    const selected = [composition.stack, ...composition.fragments];
+    const wanted = (item: { kind: string; id: string }) =>
+      selected.some((entry) => entry.kind === item.kind && entry.id === item.id);
+    // Keep original bodies, including every conditional branch, for the entry checks.
+    const entries = all.filter((entry): entry is Entry => !isRejected(entry) && wanted(entry));
+    const sourceView: Omit<View, "composed"> = {
+      root: target.root,
+      bundled: target.bundled,
+      entries,
+      rejected: [],
+      all,
+      sources: yield* readSources(entries),
+      wanted,
+      ...rootPaths(path, target.root),
+      composition: { ...composition, options },
+    };
+    const view: View = {
+      ...sourceView,
+      composed: yield* Effect.cached(composedFiles(sourceView)),
+    };
+    return view;
+  });
+
+/**
+ * The registry checks that apply to one composition. Loading already succeeded. Git checks
+ * depend on the checkout and start a process; compose-each and add-mode checks cover fragment
+ * compatibility across stacks. All of those are registry properties, outside this canonical,
+ * process-free preview of one composition.
+ */
+function previewChecks() {
+  return checks.filter(
+    (check) =>
+      check !== loadChecks &&
+      check !== gitChecks &&
+      check !== composeEachChecks &&
+      check !== addCompositionChecks,
+  );
+}
+
+/** Run the preview's checks one after another and sort their findings as `validate` does. */
+const previewFindings = (view: View) =>
+  Effect.map(
+    Effect.forEach(previewChecks(), (check) => check(view)),
+    (results) => results.flatMap((result) => result.findings).sort(compareFindings),
+  );
+
+const previewResult = (composition: Composition, findings: Finding[]) =>
+  Effect.gen(function* () {
+    const brief = canonicalBrief(composition);
+    return {
+      stack: composition.stack.id,
+      preset: composition.preset,
+      fragments: composition.fragments.map((fragment) => fragment.id),
+      app: composition.app?.id ?? null,
+      briefWords: brief.briefWords,
+      fixedWords: brief.fixedWords,
+      limit: composedLimit(composition),
+      warnings: composition.warnings.map(({ code, id }) => ({ code, id })),
+      brief: brief.text,
+      fingerprint: yield* fingerprint(composition),
+      findings,
+    } satisfies BriefPreview;
   });

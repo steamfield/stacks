@@ -1,9 +1,17 @@
+/**
+ * Lets `stacks search` show published stats beside a hit without making a request.
+ *
+ * `core/stats.ts` caches the published summary at `<cache>/stats/summary.json` when `list` runs.
+ * `core/search/input.ts` reads that file with `readStatsCache` and picks one entry's numbers with
+ * `cachedStats`. Search never refreshes the summary or writes the cache, and a missing, unreadable
+ * or invalid file means no stats.
+ */
 import type { SearchEvidence } from "@steamfield/stacks-format";
 import { type Kind, StatsSummary } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { AppConfig } from "../config";
 
-/** Read 4.2b's optional published summary. Search never refreshes it or writes a cache. */
+/** The cached published summary at any age, or undefined when it can't be read or decoded. */
 export const readStatsCache = Effect.fn("statsCache.read")(function* () {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -13,6 +21,8 @@ export const readStatsCache = Effect.fn("statsCache.read")(function* () {
     Effect.catch(() => Effect.succeed(undefined)),
   );
 });
+
+/** The search evidence for one entry, or undefined when unpublished, missing or suppressed. */
 export function cachedStats(
   summary: StatsSummary | undefined,
   ref: { id: string; kind: Kind },

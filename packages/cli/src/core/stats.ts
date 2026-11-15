@@ -1,8 +1,26 @@
+/**
+ * Fetches the published usage stats that `stacks list` and `stacks show` print beside an entry.
+ *
+ * The hosted API publishes how often projects made from each stack or fragment reach a green
+ * verify. `commands/list.ts` reads `Stats.summary` (every entry, from `<api>/v1/stats`) and
+ * `core/show.ts` reads `Stats.detail` (one entry, from `<api>/v1/<kind>s/<id>/stats`);
+ * `core/stats-text.ts` turns either into the printed `Stats:` line. Each resource is its own
+ * cached fetch (`core/cached-fetch.ts`) with its own body and state file under `<cache>/stats/`:
+ * `summary.json` and `<kind>-<id>.json`, each beside a `.state.json`.
+ *
+ * Stats are optional, so every failure means "no stats" and never a warning or a different exit.
+ * No request is made under `--offline`, and offline returns no stats even when a cached copy
+ * exists. A configured `STACKS_INDEX_URL` turns stats off, because the published numbers describe
+ * the official registry, not that one. The summary can arrive in pages joined by a cursor; the
+ * pages are fetched within one deadline and must agree on their header (window, date, population).
+ */
 import { type Kind, StatsDetail, StatsSummary } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
-import { type CacheFailure, makeCachedFetch } from "./cached-fetch";
+import { type Cache, type CacheFailure, makeCachedFetch } from "./cached-fetch";
+
+type Request = (at: string) => Effect.Effect<string, CacheFailure, Scope.Scope>;
 
 const decodeWireSummary = (text: string) =>
   Schema.decodeUnknownEffect(Schema.fromJsonString(StatsSummary))(text).pipe(
@@ -23,6 +41,15 @@ function sameRecord(
   );
 }
 
+function sameEntryPoints(left: StatsSummary, right: StatsSummary): boolean {
+  if (!left.published || !right.published) return true;
+  return (
+    sameRecord(left.entryPoints.handoff, right.entryPoints.handoff) &&
+    sameRecord(left.entryPoints.source, right.entryPoints.source)
+  );
+}
+
+/** True when two summary pages describe the same snapshot, so their items can be joined. */
 function sameHeader(left: StatsSummary, right: StatsSummary): boolean {
   return (
     left.generatedAt === right.generatedAt &&
@@ -30,41 +57,93 @@ function sameHeader(left: StatsSummary, right: StatsSummary): boolean {
     left.population === right.population &&
     left.window === right.window &&
     left.published === right.published &&
-    (left.published && right.published
-      ? sameRecord(left.entryPoints.handoff, right.entryPoints.handoff) &&
-        sameRecord(left.entryPoints.source, right.entryPoints.source)
-      : true)
+    sameEntryPoints(left, right)
   );
 }
 
-const summaryPages = Effect.fn("stats.summaryPages")(function* (
-  url: string,
-  request: (at: string) => Effect.Effect<string, CacheFailure, Scope.Scope>,
-) {
+function pageUrl(summaryUrl: string, cursor: string): string {
+  const next = new URL(summaryUrl);
+  next.searchParams.set("cursor", cursor);
+  return next.href;
+}
+
+/** Appends a page's items, decoding the joined summary again so its own checks still hold. */
+const appendPage = (joined: StatsSummary, page: StatsSummary) =>
+  Schema.decodeUnknownEffect(Schema.toType(StatsSummary))({
+    ...joined,
+    items: [...joined.items, ...page.items],
+  }).pipe(Effect.mapError((): CacheFailure => "invalid"));
+
+/**
+ * Fetches every summary page and joins them. A page whose header differs from the first, or a
+ * cursor seen before (a loop), fails as `invalid`.
+ */
+const summaryPages = Effect.fn("stats.summaryPages")(function* (url: string, request: Request) {
+  const fetchPage = (at: string) => request(at).pipe(Effect.flatMap(decodeWireSummary));
+  let page = yield* fetchPage(url);
+  let joined = page;
   const seen = new Set<string>();
-  let at = url;
-  let joined: StatsSummary | undefined;
-  while (true) {
-    const page = yield* decodeWireSummary(yield* request(at));
-    if (joined && !sameHeader(joined, page)) return yield* Effect.fail<CacheFailure>("invalid");
-    joined = joined
-      ? yield* Schema.decodeUnknownEffect(Schema.toType(StatsSummary))({
-          ...joined,
-          items: [...joined.items, ...page.items],
-        }).pipe(Effect.mapError((): CacheFailure => "invalid"))
-      : page;
-    if (page.nextCursor === undefined) break;
+  while (page.nextCursor !== undefined) {
     if (seen.has(page.nextCursor)) return yield* Effect.fail<CacheFailure>("invalid");
     seen.add(page.nextCursor);
-    const next = new URL(url);
-    next.searchParams.set("cursor", page.nextCursor);
-    at = next.href;
+    page = yield* fetchPage(pageUrl(url, page.nextCursor));
+    if (!sameHeader(joined, page)) return yield* Effect.fail<CacheFailure>("invalid");
+    joined = yield* appendPage(joined, page);
   }
-  if (!joined) return yield* Effect.fail<CacheFailure>("invalid");
   const { nextCursor: _nextCursor, ...value } = joined;
   return { value, cacheText: JSON.stringify(Schema.encodeSync(StatsSummary)(value)) };
 });
 
+/** A detail response must describe the entry that was asked for. */
+const decodeDetailFor = (kind: Kind, id: string) => (text: string) =>
+  decodeWireDetail(text).pipe(
+    Effect.flatMap((value) =>
+      value.kind === kind && value.id === id
+        ? Effect.succeed(value)
+        : Effect.fail<CacheFailure>("invalid"),
+    ),
+  );
+
+type StatsAccess = {
+  cache: Cache;
+  client: HttpClient.HttpClient;
+  /** The API's `/v1/` base URL. */
+  base: string;
+  offline: Effect.Effect<boolean>;
+};
+
+/** One entry's detail, through its own cached fetch. */
+const fetchDetail = Effect.fn("stats.detail")(function* (
+  access: StatsAccess,
+  kind: Kind,
+  id: string,
+) {
+  const detailUrl = new URL(`${kind}s/${encodeURIComponent(id)}/stats`, access.base).href;
+  const file = `${kind}-${id}`;
+  const decode = decodeDetailFor(kind, id);
+  const detail = yield* makeCachedFetch({
+    cache: access.cache,
+    client: access.client,
+    url: detailUrl,
+    bodyFile: `${file}.json`,
+    stateFile: `${file}.state.json`,
+    decode,
+    offline: access.offline,
+    load: (request) =>
+      Effect.map(request(detailUrl).pipe(Effect.flatMap(decode)), (value) => ({
+        value,
+        cacheText: JSON.stringify(Schema.encodeSync(StatsDetail)(value)),
+      })),
+  });
+  return yield* detail.current();
+});
+
+const noStats = {
+  summary: Effect.succeed(Option.none<StatsSummary>()),
+  detail: () => Effect.succeed(Option.none<StatsDetail>()),
+};
+
+/** Published stats for the official registry's entries. */
 export class Stats extends Context.Service<
   Stats,
   {
@@ -81,13 +160,8 @@ export class Stats extends Context.Service<
       const config = yield* AppConfig;
       const apiUrl = yield* config.apiUrl;
       const indexUrl = yield* config.indexUrl;
-      const enabled = apiUrl !== undefined && indexUrl === undefined;
       const cache = { fs, path, root: path.join((yield* config.paths).cache, "stats") };
-      if (!enabled || apiUrl === undefined)
-        return {
-          summary: Effect.succeed(Option.none<StatsSummary>()),
-          detail: () => Effect.succeed(Option.none<StatsDetail>()),
-        };
+      if (apiUrl === undefined || indexUrl !== undefined) return noStats;
       const base = new URL("/v1/", apiUrl).href;
       const url = new URL("stats", base).href;
       const summary = yield* makeCachedFetch({
@@ -100,6 +174,7 @@ export class Stats extends Context.Service<
         offline: config.offline,
         load: (request) => summaryPages(url, request),
       });
+      const access = { cache, client, base, offline: config.offline };
       return {
         summary: Effect.gen(function* () {
           if (yield* config.offline) return Option.none<StatsSummary>();
@@ -108,31 +183,7 @@ export class Stats extends Context.Service<
         detail: (kind: Kind, id: string) =>
           Effect.gen(function* () {
             if (yield* config.offline) return Option.none<StatsDetail>();
-            const detailUrl = new URL(`${kind}s/${encodeURIComponent(id)}/stats`, base).href;
-            const file = `${kind}-${id}`;
-            const decode = (text: string) =>
-              decodeWireDetail(text).pipe(
-                Effect.flatMap((value) =>
-                  value.kind === kind && value.id === id
-                    ? Effect.succeed(value)
-                    : Effect.fail<CacheFailure>("invalid"),
-                ),
-              );
-            const detail = yield* makeCachedFetch({
-              cache,
-              client,
-              url: detailUrl,
-              bodyFile: `${file}.json`,
-              stateFile: `${file}.state.json`,
-              decode,
-              offline: config.offline,
-              load: (request) =>
-                Effect.map(request(detailUrl).pipe(Effect.flatMap(decode)), (value) => ({
-                  value,
-                  cacheText: JSON.stringify(Schema.encodeSync(StatsDetail)(value)),
-                })),
-            });
-            return yield* detail.current();
+            return yield* fetchDetail(access, kind, id);
           }),
       };
     }),

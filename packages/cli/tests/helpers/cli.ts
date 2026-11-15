@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,6 +21,32 @@ const guide = join(import.meta.dirname, "..", "..", "docs", "authoring.md");
 export function tempDir() {
   const path = mkdtempSync(join(tmpdir(), "cli-base-"));
   return { path, cleanup: () => rmSync(path, { recursive: true, force: true }) };
+}
+const children = new Map<ChildProcess, { closed: Promise<void>; detached: boolean }>();
+/** Track process exit and stdio closure; detached children also own their process group. */
+export function trackChild(child: ChildProcess, detached = false) {
+  const closed = new Promise<void>((resolve) => {
+    child.once("close", () => {
+      children.delete(child);
+      resolve();
+    });
+  });
+  children.set(child, { closed, detached });
+}
+/** A timed-out test can leave its awaited promise running; reap children before deleting HOME. */
+export async function stopChildren() {
+  await Promise.all(
+    [...children].map(async ([child, { closed, detached }]) => {
+      if (child.pid !== undefined) {
+        try {
+          process.kill(detached ? -child.pid : child.pid, "SIGKILL");
+        } catch (error) {
+          if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
+        }
+      }
+      await closed;
+    }),
+  );
 }
 /** A terminal on stdout: with no agent marker in `env`, the invocation's audience is human. */
 export const terminal = { stdoutIsTTY: true } as const;

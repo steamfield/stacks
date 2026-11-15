@@ -17,6 +17,7 @@ import { copyEntry, emptyRegistry, minimal, writeEntry } from "./helpers/registr
 import {
   card,
   cardPath,
+  closeDecorateFixtures,
   copyVocabulary,
   type DecorateWorkspace,
   decorate,
@@ -33,7 +34,10 @@ import {
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
-afterEach(() => space.release());
+afterEach(async () => {
+  await closeDecorateFixtures();
+  space.release();
+});
 
 test("editorial descriptions and project ideas do not change lexical ranking", async () => {
   const { fixtureRecord, loadRank, vocabulary } = await import("./helpers/search-command");
@@ -457,7 +461,7 @@ test.each(["legacy", "enriched"])(
 );
 
 function newDraftFixture() {
-  const f = decorateWorkspace(space.dir());
+  const f = decorateWorkspace(space.dir(), []);
   seed(f.registry, stack);
   return f;
 }

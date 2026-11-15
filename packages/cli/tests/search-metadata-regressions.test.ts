@@ -5,11 +5,12 @@ import { quiet, runCli } from "./helpers/cli";
 import { minimal, writeEntry } from "./helpers/registry";
 import {
   bundled,
-  card,
   cardPath,
+  closeDecorateFixtures,
   copyVocabulary,
   decorate,
   decorateWorkspace,
+  draftCard,
   openRouter,
   put,
   readJson,
@@ -21,11 +22,14 @@ import {
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
-afterEach(() => space.release());
+afterEach(async () => {
+  await closeDecorateFixtures();
+  space.release();
+});
 const sample = { kind: "stack", id: "sample" } as const;
 
 test("draft prompts include reviewed registry cards when they are available", async () => {
-  const f = decorateWorkspace(space.dir());
+  const f = decorateWorkspace(space.dir(), [{ kind: "stack", id: "mobile-expo" }]);
   // The copied bundled cards are reviewed too; leave only this test's two as examples.
   for (const dir of ["stacks", "fragments"])
     rmSync(join(f.registry, "search", dir), { recursive: true });
@@ -36,7 +40,7 @@ test("draft prompts include reviewed registry cards when they are available", as
     put(cardPath(f.registry, ref), JSON.stringify({ ...value, summary: summaries[index] }));
   }
   const mobile = { kind: "stack", id: "mobile-expo" } as const;
-  const server = await openRouter([{ content: JSON.stringify(card(mobile)) }]);
+  const server = await openRouter([{ content: JSON.stringify(draftCard(mobile)) }]);
   try {
     const result = await decorate(f, [mobile.id], {
       env: {

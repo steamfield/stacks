@@ -2,12 +2,16 @@ import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
+import { stopChildren } from "./helpers/cli";
+import { searchServer } from "./helpers/search-api";
 import {
   card,
   cardPath,
+  closeDecorateFixtures,
   type DecorateWorkspace,
   decorate,
   decorateWorkspace,
+  draftCard,
   entryAt,
   openRouter,
   put,
@@ -21,30 +25,15 @@ import {
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
-afterEach(() => space.release());
+afterEach(async () => {
+  await closeDecorateFixtures();
+  space.release();
+});
 const mobile = { kind: "stack", id: "mobile-expo" } as const;
 const sentinel = "test-openrouter-secret-4-5b-never-persist";
 const model = "fixture/model";
-function draftCard(ref: Ref) {
-  return {
-    ...card(ref),
-    description: "Guidance and starter files for building the requested project.",
-    seoDescription: "Build a project from the selected recipe.",
-    projectExamples: [
-      {
-        title: "Illustrative project",
-        description: "An illustrative project built from the selected recipe.",
-      },
-    ],
-    plain: {
-      whatItIs: "A starter for a project using the selected recipe.",
-      goodAt: ["Building a small project"],
-      notGoodAt: ["Shipping a finished product without further work"],
-    },
-  };
-}
-function setup() {
-  const f = decorateWorkspace(space.dir());
+function setup(refs?: ReadonlyArray<Ref>) {
+  const f = decorateWorkspace(space.dir(), refs);
   rmSync(cardPath(f.registry, mobile), { force: true });
   return f;
 }
@@ -135,7 +124,7 @@ function files(root: string): string[] {
 }
 
 test("new drafts without plain copy are rejected after the correction retry [4.5f#1]", async () => {
-  const f = setup();
+  const f = setup([mobile]);
   const { plain: _plain, ...withoutPlain } = draftCard(mobile);
   const response = { ...withoutPlain, source: card(mobile).source };
   const server = await openRouter([
@@ -152,6 +141,31 @@ test("new drafts without plain copy are rejected after the correction retry [4.5
   } finally {
     await server.close();
   }
+});
+
+test("decorator teardown reaps an unfinished child before removing its workspace", async () => {
+  const f = setup([mobile]);
+  const server = await searchServer();
+  server.mode("hold");
+  let exited = false;
+  const result = decorate(f, [mobile.id], {
+    env: { OPENROUTER_BASE_URL: server.url, OPENROUTER_API_KEY: sentinel },
+  })
+    .finally(() => {
+      exited = true;
+    })
+    .catch((error: unknown) => error);
+  try {
+    await expect.poll(() => server.requests.length, { timeout: 3_000 }).toBe(1);
+    await stopChildren();
+    expect(exited).toBe(true);
+    expect(await result).toBeInstanceOf(Error);
+  } finally {
+    await server.close();
+    await result;
+  }
+  rmSync(f.root, { recursive: true });
+  expect(existsSync(f.root)).toBe(false);
 });
 
 test("dry-run prints prompt sizes without contacting OpenRouter [4.5b#8]", async () => {

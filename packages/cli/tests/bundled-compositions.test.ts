@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Duration, Effect, Exit, Schema } from "effect";
 import { afterAll, beforeEach, expect, test } from "vitest";
@@ -325,7 +325,20 @@ test.each(["astro-blog", "python-react"])(
 
 test("a shared fragment branch for another stack leaves gate briefs and fingerprints unchanged [3.3b#4]", async () => {
   const registry = join(home, "conditional-registry");
-  cpSync(bundled, registry, { recursive: true });
+  const payloads = new Set([
+    join("stacks", "go-cli"),
+    ...["agent-ops", "git-hooks", "ci-github"].map((id) => join("fragments", id)),
+  ]);
+  // Keep every entry's metadata for conditional/reference checks, and only this composition's files.
+  cpSync(bundled, registry, {
+    recursive: true,
+    filter: (path) => {
+      const [kind, id, file] = relative(bundled, path).split(sep);
+      if (kind !== "stacks" && kind !== "fragments") return true;
+      if (id === undefined || file === undefined) return true;
+      return file === "STACK.md" || file === "FRAGMENT.md" || payloads.has(join(kind, id));
+    },
+  });
   const previews = async () => {
     const result = [];
     for (const preset of presets) {
@@ -351,7 +364,7 @@ test("a shared fragment branch for another stack leaves gate briefs and fingerpr
     // The fingerprint hashes resolved bodies, so proof for these stacks still holds.
     expect(after[index]?.fingerprint).toBe(original.fingerprint);
   }
-}, 30_000);
+});
 
 const ConflictEnvelope = Schema.Struct({
   error: Schema.Struct({

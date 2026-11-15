@@ -171,3 +171,7 @@ DA (sonnet, on the plan) findings:
 4. Dropped: cross-lane imports are covered by frozen exports and the post-merge gate.
 5. Dropped: new sibling files are imported only by their owner, whose tests the grep finds.
 
+
+Final review (opus code-reviewer over 8a76a946..phase-6): no behavior change found. Nine fixes, all applied in 10edebcd after checking each against the code: verify selection docs (`--only` never leaves out setup or teardown; `--skip-tag` and default skips apply to every phase), the AGENTS.md map for the new modules, `secondsSinceCreated` moved to `verify/plan.ts` and `isAppStep` used in `tamper.ts`, the validate plan types moved to `validate/types.ts`, the processes, cached-fetch, registry-walk and tamper-lookup docs corrected, and the three "NotFound or BadResource" predicates unified as `core/absent.ts::isAbsent`.
+
+Done 2026-11-15. Harness: zero diff against `base2` (main at 8a76a946, with JSONL logs). Gate: `rr check` 7/7, CLI 210 files with 3,619 passed and 3 skipped, e2e 39, MCP 30, the same counts as the baseline. No test failed in any phase, so no `test(cli):` rewrites were needed. Load-sensitive tests (`build-directory`, `search-api`, `search-metadata-editorial`) timed out under machine load above about 40 and passed on rerun at low load.

@@ -1,7 +1,7 @@
 # HTTP boundary acceptance
 
 Implement `tests/http-contract.test.ts`; verify runs this application contract
-separately from hook tests and aggregate coverage. Use the real app and services,
+as its own step. Use the real app and services,
 fresh state, and captured structured logs. Test the same table through a Node
 server on an owned ephemeral port and the platform-free web fetch handler. The
 web build must use platform-free server services, with no Node-only dependency
@@ -28,5 +28,5 @@ Close every server/runtime in finalizers, and use no external network or secrets
 
 Extend the table for each endpoint's limits, errors, create Location/201 and
 body-less 204 behavior when those endpoints exist. Check response values and
-counts, not merely successful requests or high hook coverage. Read the shared
+counts, not merely successful requests or high aggregate coverage. Read the shared
 Effect API and testing guidance before implementing this suite.

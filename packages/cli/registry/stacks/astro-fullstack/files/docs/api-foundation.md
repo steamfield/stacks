@@ -12,12 +12,12 @@ Generate one server-target matrix in tests/helpers/targets.ts: write each HTTP c
 
 A testServer helper owns its scope and registers cleanup when the test ends; tempDir creates real temporary files and removes them on completion. An expectEnvelope helper checks the table's status, JSON content type and the body decoded with the envelope schema. Derive helper types from the app and contract rather than copying their shapes. Build these helpers against the installed Effect APIs; do not copy version-sensitive implementations.
 
-Set coverage floors to 90 percent for statements and lines, and 80 percent for branches and functions, and enforce them in the coverage command. Run all shipped harness tests on Node alongside application tests. Include tests/**/*.ts in the tooling typecheck, separating application tests when their module resolution differs.
+Set coverage floors to 90 percent for statements and lines, and 80 percent for branches and functions, and enforce them in the coverage command. Run shipped tooling tests on Node alongside application tests. Include scripts/**/*.ts in the tooling typecheck; check application tests with their owning project.
 
 ## Development records
 
 Wire logs to scripts/logs.ts and dev:status to scripts/dev-bg.ts status in the generated package scripts. Query status before starting more servers. Use logs --level warn --since 10m, --request <id>, --path <prefix>, --grep <text>, --tail <n>, --prev or --json to inspect failures. The wrapper records non-API output in logs/dev.jsonl, terminal output in logs/dev.log, and the API writes logs/server.jsonl through LOG_FILE. API terminal records are not duplicated. Each start preserves *.prev.*; an active file past 10 MiB rotates to *.old.*. The API's development file sink must enforce the same cap without replacing *.prev.*. A stopped server's signal-exit note is informational, not an application error. Production logs remain JSON on stdout.
 
-SessionStart reuses the status report and stays quiet when it fails; dev:status exposes failures for diagnosis. Test changes by running the shipped hook and script tests through the project's test command.
+SessionStart reuses the status report and stays quiet when it fails; dev:status exposes failures for diagnosis. Test changes with the shipped tooling tests and `.claude/hooks/smoke.sh`.
 
 Forward browser console errors and unhandled rejections through the installed Vite development console-forwarding facility into the dev server output, so logs --source web includes them. Check the installed Vite configuration API; this forwarding runs only in development. Keep Effect execution in lib/api.ts and let islands call its functions with an AbortSignal.

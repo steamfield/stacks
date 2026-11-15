@@ -7,7 +7,7 @@ Three layers test the app against its real code, with the external API as the on
 | Unit | `src/**/*.test.ts` beside the code | Vitest, happy-dom | MSW in Node (`tests/msw/server.ts`) |
 | Component | `src/app/routes.test.tsx` and new `*.test.tsx` | Vitest, happy-dom, Testing Library | MSW |
 | Browser | `e2e/*.spec.ts` | Playwright Chromium against `vite preview` of the build | `page.route` |
-| Repo checks | `tests/*.test.ts` (the Grit probes) and `tests/hooks/` | Vitest, Node | none |
+| Repo checks | `tests/*.test.ts` (the Grit probes) | Vitest, Node | none |
 
 ## Rules
 

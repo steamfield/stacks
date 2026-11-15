@@ -2,7 +2,7 @@
 
 ## What runs where
 
-- Vitest runs colocated `src/**/*.test.{ts,tsx}` and `tests/**/*.test.{ts,tsx}` (including harness hooks). It covers zod schemas, FormData parsing, server services and client components. It can't render async server components and has no Next request context, so it never calls a Server Action or a cache invalidation API.
+- Vitest runs colocated `src/**/*.test.{ts,tsx}` and `tests/**/*.test.{ts,tsx}`. It covers zod schemas, FormData parsing, server services and client components. It can't render async server components and has no Next request context, so it never calls a Server Action or a cache invalidation API.
 - Playwright (`e2e/`) runs against `next build` plus `next start`. It covers anything that needs the real server: async pages, Server Actions, revalidation after a write, route handlers and hydration.
 
 ## Vitest

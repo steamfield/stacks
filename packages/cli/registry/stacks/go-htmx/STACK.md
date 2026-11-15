@@ -110,7 +110,7 @@ Tagged integration tests build the binary once in TestMain, start it on PORT=0 a
 The shipped Makefile (`make help`) holds every declared command. Mirror them in AGENTS.md with a single-test command such as `go test -race -run TestHTMXPostWithErrorsRetargetsTheForm ./internal/web/`. Run `make serve` in the background when needed and stop only the pid you started.
 
 <!-- stacks:when with=agent-ops -->
-The stack's Claude settings allow its non-destructive make targets, go test and `go tool templ generate|fmt`. `.claude/hooks/guard-htmx.sh` denies edits to `*_templ.go` and `static/vendor/`, a bare `templ` command and a global `go install` of templ; `.claude/hooks/templ-generate.sh` regenerates a component after each `.templ` write and reports syntax errors. Their tests in `tests/hooks` run with `make test`. `.claude/skills/add-page` walks through adding a page or form. List both hooks and the skill in `.claude/README.md`. Add allow rules only for new commands.
+The stack's Claude settings allow its non-destructive make targets, go test and `go tool templ generate|fmt`. Generate `*_templ.go` with `make generate`, refresh vendor files with `make htmx`, and run templ through `go tool`. `.claude/hooks/templ-generate.sh` refreshes edited components and reports syntax errors. `.claude/skills/add-page` walks through adding a page or form. List the generation hook and skill in `.claude/README.md`. Add allow rules only for new commands.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->

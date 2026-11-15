@@ -100,7 +100,7 @@ The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, ch
 
 ## Gotchas
 
-- `cargo test --all-targets` skips doctests, and so does cargo-nextest. Use plain `cargo test` (the Claude guard hook denies `--all-targets` on `cargo test`).
+- `cargo test --all-targets` skips doctests, and so does cargo-nextest. Use plain `cargo test` to include doctests.
 - `cargo add serde --optional` without `--features derive` compiles with the feature off and fails with it on; `make check` catches it on the all-features pass.
 - `cargo package` warns "ignoring test ... not included in the published package" for each file under `tests/`: that is the `include` list working. It warns about a missing `repository` until one is set.
 - `cargo package` checks only what ships, with default features: an `include_str!` target or module left out of `include` fails there and nowhere else. The step also needs the crates.io index, which `make install` fetches.

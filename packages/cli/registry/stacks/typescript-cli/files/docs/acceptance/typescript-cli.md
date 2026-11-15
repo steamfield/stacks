@@ -1,7 +1,6 @@
 # Configuration and logging acceptance
 
-The shipped `tests/config-logging.test.ts` implements this matrix; the manifest runs it independently of
-hook tests. Use the real parser, AppLayer, configuration reader and logger through
+The shipped `tests/config-logging.test.ts` implements this matrix; the manifest runs it independently. Use the real parser, AppLayer, configuration reader and logger through
 `runCli`, with files under temporary HOME/XDG directories. Do not mock config or
 assert only the decoded setting: assert records actually emitted and suppressed.
 

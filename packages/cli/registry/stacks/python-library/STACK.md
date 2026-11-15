@@ -92,7 +92,7 @@ CI uses uv's setup action (cache on, Python from .python-version), then `make in
 ## Gotchas
 
 - `make build` fails until Setup adds `[build-system]`; that is deliberate, not a broken file.
-- An import error in tests means the package isn't installed: run `make install`. Keep pytest's settings in `pyproject.toml`: a `pytest.ini` or `pytest.toml` would be read instead and drop `filterwarnings = ["error"]`, `--strict-config` and the import mode (the guard hook refuses both).
+- An import error in tests means the package isn't installed: run `make install`. Keep pytest settings in `pyproject.toml`; another pytest config can replace the warning, strict-config and import-mode settings.
 - `uv run --isolated` in `test-min` builds a fresh environment each run, so it is slower than `make test`. It reads the lockfile, which uv resolves for every Python in `requires-python`.
 - mypy checks against the development Python, so it allows a newer stdlib API than the oldest supported release has. `test-min` catches it at runtime; read its failures that way.
 - `twine check --strict` fails on README markup PyPI can't render; fix the README, don't drop `--strict`.

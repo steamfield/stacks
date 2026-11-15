@@ -4,11 +4,11 @@
 
 | Runner | Runs | Command |
 | --- | --- | --- |
-| vitest on Node | `tests/**/*.test.ts` except `tests/tui/` (commands, programs, services, schemas, config, logging, hooks) | `bun run test:unit [file] [-t "<name>"]` |
+| vitest on Node | `tests/**/*.test.ts` except `tests/tui/` (commands, programs, services, schemas, config, logging) | `bun run test:unit [file] [-t "<name>"]` |
 | `bun test` | `tests/tui/` (OpenTUI's `testRender` needs Bun) | `bun run test:tui`, or `bun test ./tests/tui/<file>` |
 | `bun test` | `app-e2e/` (the compiled app in a PTY) | `bun run app:e2e` (builds first) |
 
-`bun run test` runs both unit and TUI suites and takes no arguments. A bare `bun test` is rooted at `tests/tui` by `bunfig.toml`, so it passes on the TUI tests alone and silently skips every vitest test; vitest on `tests/tui` can't load OpenTUI. The `guard-commands` hook denies both. Code that vitest imports must run on Node: that's the platform boundary in `cli.md`.
+`bun run test` runs both unit and TUI suites and takes no arguments. A bare `bun test` is rooted at `tests/tui` by `bunfig.toml`, so it passes on the TUI tests alone and silently skips every vitest test; vitest on `tests/tui` can't load OpenTUI. Code that vitest imports must run on Node: that's the platform boundary in `cli.md`.
 
 ## No network, no real state
 
@@ -30,10 +30,9 @@
 - The turn loop (`effect-ai.md`, Tests), the OpenRouter request body for each setting, the models cache TTL with `TestClock`, and retry schedules.
 - A key in the config file never reaching a request; a broken config file not breaking `--help`, `--version`, `doctor`.
 
-## Hooks, recorded fixtures, evals
+## Recorded fixtures and evals
 
-- `tests/hooks/` runs each hook in `.claude/hooks/` through its wired command, with a JSON payload on stdin (helpers in `tests/helpers/hooks.ts`); `wiring.test.ts` checks `settings.json`. A new guard pattern gets a deny row and a near miss that must pass. Rows are named after the command; the guards ignore quoted text, so `-t "<name>"` works. Run them with `bun run test:unit tests/hooks`.
-- `tests/fixtures/openrouter/*.sse` are real OpenRouter bodies replayed through the real provider; `tests/openrouter-replay.test.ts` asserts each one's text, tokens, and cost. Don't hand-edit them (a hook denies it); re-record with `bun run record:openrouter` (needs a key) after upgrading `effect` or `@effect/ai-openrouter`.
+- `tests/fixtures/openrouter/*.sse` are real OpenRouter bodies replayed through the real provider; `tests/openrouter-replay.test.ts` asserts each one's text, tokens, and cost. Re-record them with `bun run record:openrouter` (needs a key) after upgrading `effect` or `@effect/ai-openrouter`.
 - `bun run eval` calls the real API and costs money, so it's manual and never part of `bun run test` or CI. Its pure scoring is unit-tested. Reports follow `docs/eval-report.md` and land in the ignored `.eval/results/`; only `--dry-run`, which owns its stub, runs in verify (`scripts/check-eval-dry-run.ts`).
 
 ## Effect tests

@@ -25,7 +25,7 @@ One `llm call` log line from `finalize` in `runTurn`: requested model, served mo
 
 ## Recorded fixtures
 
-`tests/fixtures/openrouter/` holds real OpenRouter SSE bodies (`*.sse`) and `meta.json`, replayed through the real provider by the stub. Don't hand-edit them (a hook denies it); re-record with `bun run record:openrouter` (needs a key, costs a little) after upgrading `effect` or `@effect/ai-openrouter`. The replay test reads expected values from the fixtures, so it needs no edits after a re-record.
+`tests/fixtures/openrouter/` holds real OpenRouter SSE bodies (`*.sse`) and `meta.json`, replayed through the real provider by the stub. Re-record them with `bun run record:openrouter` (needs a key, costs a little) after upgrading `effect` or `@effect/ai-openrouter`. The replay test reads expected values from the fixtures, so it needs no edits after a re-record.
 
 ## No key
 

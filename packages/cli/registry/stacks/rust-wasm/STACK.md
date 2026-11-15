@@ -67,7 +67,7 @@ No generator.
 1. Add the crates with their features, so each resolves to its current release:
    - `cargo add wasm-bindgen js-sys serde-wasm-bindgen thiserror`
    - `cargo add serde --features derive`
-   - `cargo add --dev wasm-bindgen-test serde_json` (serde_json is for `tests/claude_hooks.rs`, the Claude guard hook's test; leave it out when that file isn't there)
+   - `cargo add --dev wasm-bindgen-test`
 2. Write the current Node LTS to `.node-version`. In `consumer/`, run `bun add -d typescript @types/node`, matching `@types/node` to that Node major, and set `packageManager` in `consumer/package.json` to the installed Bun (`bun --version`).
 3. Fill `Cargo.toml`'s `description` (`make pack` refuses the `stacks:fill` placeholder), the `license` decision, and `repository` once the user names one. wasm-pack copies them into `pkg/package.json`.
 4. Record the toolchain: set `channel` in `rust-toolchain.toml` to the installed stable release (`rustc --version`), keeping the components and the wasm32 target.
@@ -106,12 +106,12 @@ The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, te
 
 - serde-wasm-bindgen reads only the fields a struct names and ignores other keys, even with `#[serde(deny_unknown_fields)]`. `src/js.rs` checks keys against `Options::KEYS` first; keep that list in step.
 - Node prints `ExperimentalWarning: Importing WebAssembly module instances` when it loads the bundler-target package. The import works; the warning is Node's.
-- Bun can't load the bundler-target package (`wasm.__wbindgen_start is not a function`), so `bun test` fails; the guard hook denies it. Bun only installs and packs here.
+- Use `make test-js`; Bun's test runner cannot load the bundler-target package (`wasm.__wbindgen_start is not a function`). Bun only installs and packs here.
 - `bun add` of a `file:../pkg` dependency links every file in `pkg/`, ignoring `files` in its `package.json`. `make test-js` unpacks the packed tarball instead, so the consumer sees only what ships.
 - clippy's test allowance for `unwrap` sees a plain `#[cfg(test)]` but not `#[cfg(all(test, ...))]`; that's why `src/lib.rs` gates `web_tests` with two attributes.
 - Code behind `cfg(target_arch = "wasm32")` compiles only in clippy's second pass and in `make test-wasm`; a native-only check misses it.
 - `wasm-pack test` runs only `#[wasm_bindgen_test]` functions; plain `#[test]`s run natively.
-- Never install wasm-bindgen-cli yourself: its version must equal the `wasm-bindgen` crate in `Cargo.lock`, and wasm-pack already fetches that one. The guard hook denies `cargo install wasm-bindgen-cli`.
+- Never install wasm-bindgen-cli yourself: its version must equal the `wasm-bindgen` crate in `Cargo.lock`, and wasm-pack already fetches that one.
 - The first `make build` and `make test-wasm` need network to download the CLI and wasm-opt (no credentials). `make audit` needs it for the advisory database.
 - `make pack` refuses to run until Cargo.toml's `description` is filled, so `typecheck-js` and `test-js` fail on a fresh scaffold until step 3.
 - `to_lowercase` and `is_alphanumeric` pull in Unicode tables; most of the release `.wasm`'s size is them.

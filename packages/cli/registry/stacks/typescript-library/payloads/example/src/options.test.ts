@@ -1,3 +1,8 @@
+/**
+ * Checks option defaults, overrides and invalid values for the slugify API.
+ * These unit tests exercise the runtime validation that also protects JavaScript callers.
+ */
+
 import { expect, test } from "vitest";
 import { defaultOptions, resolveOptions, type SlugifyOptions } from "./options.ts";
 

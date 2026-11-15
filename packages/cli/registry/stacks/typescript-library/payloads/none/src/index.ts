@@ -1,4 +1,6 @@
-// The package's only entry point: package.json's "exports" maps "." to the build of this file.
-// Every name exported here is public API, listed in README.md's API section and pinned by
-// tests/public-api.test.ts. Export by name; never from src/internal/. Nothing is exported yet.
+/**
+ * Defines the package's public API, mapped by package.json to this file's build; it exports
+ * nothing yet. Add named exports here with matching README.md and public-API test updates.
+ */
+
 export {};

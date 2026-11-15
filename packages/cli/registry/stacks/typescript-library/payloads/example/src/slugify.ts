@@ -1,3 +1,8 @@
+/**
+ * Implements the public slugify API and its result-returning alternative.
+ * It combines option validation and private word helpers, exposing intentional failures as LibraryError.
+ */
+
 import { isLibraryError, LibraryError } from "./errors.ts";
 import { joinWithin, words } from "./internal/words.ts";
 import { resolveOptions, type SlugifyOptions } from "./options.ts";

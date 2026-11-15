@@ -1,5 +1,8 @@
-// Probes biome-plugins/boundaries.grit on real files: each rule must fire where it should and stay
-// quiet where the thing is allowed.
+/**
+ * Probes biome-plugins/boundaries.grit on real files to enforce the library's module boundaries.
+ * Each rule must report prohibited code and stay quiet where that code is allowed.
+ */
+
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

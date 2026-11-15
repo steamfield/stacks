@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
-// `prepare`, which bun runs after every `bun install`: the git hooks. CI sets CI and does its own
-// setup, so this does nothing there.
+/**
+ * Installs the project's git hooks during Bun's prepare lifecycle when lefthook.yml exists.
+ * CI owns its setup, so this local development step does nothing there.
+ */
+
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";

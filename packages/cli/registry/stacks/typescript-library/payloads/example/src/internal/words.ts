@@ -1,4 +1,9 @@
 /**
+ * Supplies word splitting and length-limited joining for the slugify implementation.
+ * These helpers stay behind the public modules and are never re-exported by src/index.ts.
+ */
+
+/**
  * Splits text into words: accents are dropped (é becomes e), and anything that isn't a letter or
  * a digit separates words. Internal: src/index.ts never re-exports from src/internal/.
  */

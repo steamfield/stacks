@@ -1,3 +1,8 @@
+/**
+ * Checks the error contract used by the library's public functions, including codes, context
+ * and recognition across installed copies. These unit tests sit beside the shared error module.
+ */
+
 import { expect, test } from "vitest";
 import { isLibraryError, LibraryError } from "./errors.ts";
 

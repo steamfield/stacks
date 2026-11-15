@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "code-docs",
+  "source": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "by": "drafted",
+    "model": "gpt-6",
+    "promptVersion": 3,
+    "reviewedAt": null
+  },
+  "summary": "Check source-file doc comments and guide agents to write folder READMEs explaining the architecture and where to start reading.",
+  "description": "Add a hygiene check for file-level documentation in TypeScript, JavaScript, Python, Go and Rust source. Agents write short headers explaining each file's role and folder READMEs describing architectural responsibilities and reading order. The check names missing headers while leaving README placement and documentation quality to judgment.",
+  "seoDescription": "Check source-file documentation headers and guide agents to write architecture READMEs for meaningful folders.",
+  "projectExamples": [
+    {
+      "title": "A library newcomers can navigate",
+      "description": "An illustrative TypeScript library with file headers explaining module roles and short folder guides pointing readers to its public API, internal helpers and tests.",
+      "stack": "typescript-library"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Checks that source files start with an explanation and asks agents to write folder guides.",
+    "goodAt": [
+      "Finding source files without introductory comments",
+      "Helping newcomers find architectural boundaries and entry points"
+    ],
+    "notGoodAt": [
+      "Judging whether an explanation is accurate or useful",
+      "Requiring a guide in every folder"
+    ]
+  },
+  "capabilities": [],
+  "requests": [
+    "require a doc comment explaining each source file",
+    "write folder READMEs that explain the system architecture",
+    "check for missing TypeScript JSDoc file headers",
+    "help newcomers find where to start reading the code"
+  ],
+  "useCases": ["code documentation", "codebase onboarding"],
+  "synonyms": ["module docstrings", "file headers", "directory guides", "architecture READMEs"],
+  "goodFor": ["source-file context", "folder responsibilities and reading order"],
+  "notFor": []
+}

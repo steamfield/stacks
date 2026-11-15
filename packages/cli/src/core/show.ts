@@ -1,3 +1,22 @@
+/**
+ * Builds the report `stacks show <id>` prints: everything a user or agent needs to judge one entry
+ * (a stack or a fragment) before building from it. Nothing the entry ships is run.
+ *
+ * `commands/show.ts` calls `showReport` and hands the result to `show-report.ts::renderShow` for
+ * text, or encodes it as is for `--json`. The report starts from the entry's `list` row
+ * (`list.ts::toRow`) and adds what only a close look needs: the guidance body, the shipped files,
+ * verify steps, word counts against the budgets in `validate/budget.ts`, plain-language copy from
+ * the entry's search sidecar (a JSON card kept beside the entry, written for people rather than
+ * for ranking), dependency cards (a short explanation of each dependency, bundled with the CLI)
+ * and the last recorded run, which `show-last-run.ts` picks and checks.
+ *
+ * For a stack, the report composes its default fragments, the composition a plain
+ * `stacks new <id>` would build, to measure the brief and to roll up the dependencies every
+ * fragment brings. Published stats are read only for bundled and index entries, the only ones the
+ * hosted stats count. A sidecar or dependency card that can't be read or decoded just leaves its
+ * field out, but a fragment the CLI isn't allowed to read fails the command, since showing less
+ * would hide that it couldn't look. Start at `showReport`.
+ */
 import {
   type AgentId,
   type DependencyCard,
@@ -16,98 +35,130 @@ import type { ShowReport } from "../schemas/show";
 import { Output } from "../services/output";
 import { countWords } from "./brief/words";
 import { targetAgents } from "./compose/agents";
-import { compose } from "./compose/compose";
 import { fitsStack } from "./compose/selection";
 import type { Composition } from "./compose/types";
 import { goAllowlistKey } from "./deps";
-import { fingerprint, proofFingerprint } from "./fingerprint";
-import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
+import { readLedger } from "./ledger";
 import { toRow } from "./list";
 import { type CatalogEntry, type Entry, isFragment } from "./registry/entry";
 import { Registry, type RegistryRoots, remoteRoots } from "./registry/registry";
 import { searchSourceDigest } from "./search/digest";
 import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
+import { composeNew, reportLastRun } from "./show-last-run";
 import { Stats } from "./stats";
 import { closest } from "./suggest";
 import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "./validate/budget";
 
-/** Full review data; neither entries nor tools are executed. */
+/**
+ * The full review of entry `id`, from `reviewRoots` or the usual roots (remote index included).
+ * Neither the entry nor any tool it names is executed.
+ */
 export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: RegistryRoots) =>
   Effect.gen(function* () {
     const roots = reviewRoots ?? (yield* remoteRoots);
     const settings = yield* (yield* AppConfig).get;
+    const records = yield* bundledRecords(roots);
+    // The brief is measured for the first agent the user targets by default.
+    const agents = targetAgents(undefined, settings).slice(0, 1);
+    return yield* reviewEntry({ id, kind, records, agents }).pipe(
+      Effect.provide(Registry.layer(roots)),
+    );
+  });
+
+/**
+ * The bundled ledger's records, with a warning when the ledger can't be fully read. None when
+ * there is no bundled root.
+ */
+const bundledRecords = (roots: RegistryRoots) =>
+  Effect.gen(function* () {
     const output = yield* Output;
     const bundled = roots.find((root) => root.origin === "bundled");
-    const ledger = bundled ? yield* readLedger(bundled.path) : undefined;
-    if (ledger && (!ledger.fileValid || ledger.skipped.invalid || ledger.skipped.newer))
+    if (!bundled) return [];
+    const ledger = yield* readLedger(bundled.path);
+    if (!ledger.fileValid || ledger.skipped.invalid || ledger.skipped.newer)
       yield* output.note(
         "Warning: the bundled ledger runs.json is unreadable or contains unsupported records.",
       );
-    const records = ledger?.records ?? [];
-    return yield* Effect.gen(function* () {
-      const registry = yield* Registry;
-      const all = yield* registry.catalog;
-      const match = yield* findEntry(all, id, kind);
-      const entry = yield* registry.get(match.kind, id);
-      const { stats: _summaryStats, ...row } = toRow(entry, records, yield* registry.authors);
-      const stats = yield* officialDetail(entry);
-      const { meta } = entry;
-      const fragments = yield* dependencyFragments(entry, registry);
-      const files = (yield* registry.files(entry)).map((file) => {
-        const condition = shippedPath(file.source)?.condition;
-        return {
-          source: file.source,
-          path: outputPath(file.path),
-          ...(condition?.kind === "agent" ? { agent: condition.id } : {}),
-          ...(condition?.kind === "stack" ? { stack: condition.id } : {}),
-        };
-      });
-      const composition = yield* defaultComposition(
-        entry,
-        targetAgents(undefined, settings).slice(0, 1),
-      );
-      const dependencyRollup = entryDependencyRollup(entry, fragments, composition);
-      const copy = yield* entryCopy(entry, registry, dependencyRollup);
-      const lastRun =
-        entry.indexEntry?.lastRun && row.lastRun
-          ? { ...row.lastRun, sameContent: yield* indexSameContent(entry) }
-          : yield* entryLastRun(entry, records, registry);
-      return {
-        ...row,
-        ...stats,
-        path: entry.dir,
-        deps: meta.deps,
-        ...(dependencyRollup === undefined ? {} : { dependencyRollup }),
-        ...copy,
-        tools: meta.tools,
-        decisions: meta.decisions,
-        env: meta.env,
-        commands: meta.commands,
-        verify: meta.verify,
-        ...(yield* selectionMetadata(entry, all, registry)),
-        files,
-        body: entry.body,
-        bodyWords: countWords(entry.body),
-        bodyCap: bodyLimit(entry),
-        briefWords: composition ? canonicalBrief(composition).briefWords : null,
-        briefCap: composition ? composedLimit(composition) : BUDGET.composed,
-        lastRun,
-      } satisfies ShowReport;
-    }).pipe(Effect.provide(Registry.layer(roots)));
+    return ledger.records;
   });
 
-const defaultComposition = (entry: Entry, agents: ReadonlyArray<AgentId>) =>
-  entry.kind === "stack"
-    ? compose({
-        stack: entry.id,
-        with: [],
-        without: [],
-        preset: "default",
-        agents,
-        always: [],
-        mode: "new",
-      })
-    : Effect.succeed(null);
+/** The report for one entry, read through the `Registry` built over the review roots. */
+const reviewEntry = Effect.fn("show.review")(function* (request: {
+  id: string;
+  kind: Kind | undefined;
+  records: ReadonlyArray<LedgerRecord>;
+  agents: ReadonlyArray<AgentId>;
+}) {
+  const { id, kind, records, agents } = request;
+  const registry = yield* Registry;
+  const catalog = yield* registry.catalog;
+  const match = yield* findEntry(catalog, id, kind);
+  const entry = yield* registry.get(match.kind, id);
+  // The list row's summary stats give way to the detailed stats below.
+  const { stats: _summaryStats, ...row } = toRow(entry, records, yield* registry.authors);
+  const stats = yield* officialDetail(entry);
+  const fragments = yield* dependencyFragments(entry, registry);
+  const files = yield* shippedFiles(entry, registry);
+  const composition = yield* defaultComposition(entry, agents);
+  const dependencyRollup = entryDependencyRollup(entry, fragments, composition);
+  const copy = yield* entryCopy(entry, registry, dependencyRollup);
+  const lastRun = yield* reportLastRun({ entry, indexRun: row.lastRun, records, registry });
+  const selection = yield* selectionMetadata(entry, catalog, registry);
+  const { meta } = entry;
+  return {
+    ...row,
+    ...stats,
+    path: entry.dir,
+    deps: meta.deps,
+    ...(dependencyRollup === undefined ? {} : { dependencyRollup }),
+    ...copy,
+    tools: meta.tools,
+    decisions: meta.decisions,
+    env: meta.env,
+    commands: meta.commands,
+    verify: meta.verify,
+    ...selection,
+    files,
+    body: entry.body,
+    bodyWords: countWords(entry.body),
+    bodyCap: bodyLimit(entry),
+    briefWords: composition ? canonicalBrief(composition).briefWords : null,
+    briefCap: composition ? composedLimit(composition) : BUDGET.composed,
+    lastRun,
+  } satisfies ShowReport;
+});
+
+/**
+ * The one catalog entry with `id` (and `kind`, when given). Two matches need `--kind`; none is
+ * `NotFound` with the closest ids of that kind as suggestions.
+ */
+const findEntry = (catalog: ReadonlyArray<CatalogEntry>, id: string, kind: Kind | undefined) =>
+  Effect.gen(function* () {
+    const ofKind = catalog.filter((entry) => kind === undefined || entry.kind === kind);
+    const matches = ofKind.filter((entry) => entry.id === id);
+    if (matches.length > 1)
+      return yield* new BadInput({ details: { id, flag: "kind", known: ["stack", "fragment"] } });
+    const match = matches[0];
+    if (!match)
+      return yield* new NotFound({
+        details: {
+          id,
+          ...(kind ? { kind } : {}),
+          suggestions: closest(
+            id,
+            ofKind.map((entry) => entry.id),
+          ),
+        },
+      });
+    return match;
+  });
+
+/** Published stats for bundled and index entries; other origins aren't counted, so none. */
+const officialDetail = Effect.fn("show.officialDetail")(function* (entry: Entry) {
+  if (entry.origin !== "bundled" && entry.origin !== "index") return {};
+  const detail = Option.getOrUndefined(yield* (yield* Stats).detail(entry.kind, entry.id));
+  return detail?.published ? { stats: detail } : {};
+});
 
 /** A stack's fragments and their `requires`, one lookup each; unresolvable ones are left out. */
 const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
@@ -117,6 +168,7 @@ const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
   const resolved: FragmentMeta[] = [];
   if (entry.meta.kind !== "stack") return resolved;
   const { fragments } = entry.meta;
+  // Grows as each fragment's `requires` are found, so the loop walks the whole closure.
   const pending = [...fragments.required, ...fragments.default, ...fragments.optional];
   const seen = new Set<string>();
   for (const id of pending) {
@@ -135,6 +187,27 @@ const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
   return resolved;
 });
 
+/** Each shipped file with its project path, and the agent or host stack it is limited to. */
+const shippedFiles = (entry: Entry, registry: Registry["Service"]) =>
+  Effect.map(registry.files(entry), (files) => files.map(shownFile));
+
+function shownFile(file: { source: string; path: string }) {
+  const condition = shippedPath(file.source)?.condition;
+  return {
+    source: file.source,
+    path: outputPath(file.path),
+    ...(condition?.kind === "agent" ? { agent: condition.id } : {}),
+    ...(condition?.kind === "stack" ? { stack: condition.id } : {}),
+  };
+}
+
+/** A stack's default composition, as a plain `stacks new` would build it; `null` for a fragment. */
+const defaultComposition = (entry: Entry, agents: ReadonlyArray<AgentId>) =>
+  entry.kind === "stack"
+    ? composeNew({ stack: entry.id, with: [], preset: "default", agents })
+    : Effect.succeed(null);
+
+/** Every dependency a stack brings, its own and its fragments'; `undefined` for a fragment. */
 function entryDependencyRollup(
   entry: Entry,
   fragments: ReadonlyArray<FragmentMeta>,
@@ -148,6 +221,7 @@ function entryDependencyRollup(
   return stackDependencies(entry.meta, [...fragments, ...(included ?? [])]);
 }
 
+/** The optional people-facing copy: the sidecar's `plain` text and the dependency cards. */
 const entryCopy = Effect.fn("show.copy")(function* (
   entry: Entry,
   registry: Registry["Service"],
@@ -158,6 +232,11 @@ const entryCopy = Effect.fn("show.copy")(function* (
   return { ...(plain ? { plain } : {}), ...(dependencyCards ? { dependencyCards } : {}) };
 });
 
+/**
+ * The sidecar's `plain` copy, with its first project example. It is marked `stale` when the entry
+ * changed after the copy was written, and `unreviewed` when the entry's own author wrote it.
+ * A missing, unreadable or mismatched sidecar gives no copy.
+ */
 const entryPlain = Effect.fn("show.plain")(function* (entry: Entry, registry: Registry["Service"]) {
   const loaded = yield* Effect.result(registry.search(entry));
   if (loaded._tag === "Failure" || loaded.success === undefined) return undefined;
@@ -172,25 +251,26 @@ const entryPlain = Effect.fn("show.plain")(function* (entry: Entry, registry: Re
     ...plain,
     ...(example ? { example: { title: example.title, description: example.description } } : {}),
     ...(card.source.digest !== searchSourceDigest(entry) ? { stale: true } : {}),
-    ...(entry.origin === "user" || entry.origin === "project" || !entry.trusted
-      ? { unreviewed: true }
-      : {}),
+    ...(isUnreviewed(entry) ? { unreviewed: true } : {}),
   };
 });
 
+/** Copy from a user, project or untrusted entry comes from its author, not the stacks review. */
+const isUnreviewed = (entry: Entry) =>
+  entry.origin === "user" || entry.origin === "project" || !entry.trusted;
+
+/**
+ * The bundled dependency cards for the entry's dependencies, keyed `<ecosystem>/<name>`.
+ * A card file that doesn't decode is skipped; `undefined` when no card matches.
+ */
 const entryDependencyCards = Effect.fn("show.dependencyCards")(function* (
   entry: Entry,
   registry: Registry["Service"],
   rollup: DependencyRollup | undefined,
 ) {
-  const wanted = new Set(
-    rollup === undefined
-      ? Object.values(entry.meta.deps).flat()
-      : [...rollup.included, ...rollup.optional.flatMap((optional) => optional.deps)].map(
-          (dep) => dep.name,
-        ),
-  );
+  const wanted = wantedDependencyNames(entry, rollup);
   if (!wanted.size) return undefined;
+  // Go cards are keyed by module path without its major-version suffix.
   const goWanted = new Set([...wanted].map(goAllowlistKey));
   const found: Record<string, DependencyCard> = {};
   const files = yield* registry.dependencyCards;
@@ -204,24 +284,30 @@ const entryDependencyCards = Effect.fn("show.dependencyCards")(function* (
   return Object.keys(found).length ? found : undefined;
 });
 
-const officialDetail = Effect.fn("show.officialDetail")(function* (entry: Entry) {
-  if (entry.origin !== "bundled" && entry.origin !== "index") return {};
-  const detail = Option.getOrUndefined(yield* (yield* Stats).detail(entry.kind, entry.id));
-  return detail?.published ? { stats: detail } : {};
-});
+/** Dependency names to find cards for: the rollup's, or the entry's own without one. */
+function wantedDependencyNames(entry: Entry, rollup: DependencyRollup | undefined) {
+  if (rollup === undefined) return new Set(Object.values(entry.meta.deps).flat());
+  const deps = [...rollup.included, ...rollup.optional.flatMap((optional) => optional.deps)];
+  return new Set(deps.map((dep) => dep.name));
+}
 
+/**
+ * How the entry is selected: a stack's fragment lists, or a fragment's fit fields and the stacks
+ * it fits. A fitting stack that fails to load is left out; index stacks aren't loaded, since that
+ * would download their bundles.
+ */
 function selectionMetadata(
   entry: Entry,
-  all: ReadonlyArray<CatalogEntry>,
+  catalog: ReadonlyArray<CatalogEntry>,
   registry: Registry["Service"],
 ) {
   const { meta } = entry;
   if (meta.kind === "stack") return Effect.succeed({ fragments: meta.fragments });
   return Effect.gen(function* () {
-    const stacks = all
+    const stacks = catalog
       .filter((candidate) => candidate.kind === "stack" && !candidate.rejected)
       .filter((stack) => fitsStack(meta.appliesTo, stack));
-    const checked = yield* Effect.forEach(stacks, (stack) =>
+    const loads = yield* Effect.forEach(stacks, (stack) =>
       stack.origin === "index"
         ? Effect.succeed(true)
         : Effect.result(registry.get("stack", stack.id)).pipe(Effect.map(Result.isSuccess)),
@@ -233,182 +319,7 @@ function selectionMetadata(
       conflicts: meta.conflicts,
       requiresTools: meta.requiresTools,
       needsOwnRepo: meta.needsOwnRepo,
-      fits: stacks.filter((_, index) => checked[index]).map((stack) => stack.id),
+      fits: stacks.filter((_, index) => loads[index]).map((stack) => stack.id),
     };
   });
 }
-
-const indexSameContent = Effect.fn("show.indexSameContent")(function* (entry: Entry) {
-  const proof = entry.indexEntry?.lastRun;
-  if (!proof || (proof.preset !== "default" && proof.preset !== "sandbox")) return false;
-  const preset = proof.preset;
-  const currents = yield* Effect.forEach(ledgerAdapterSets(proof.agent), (agents) =>
-    Effect.result(
-      compose({
-        stack: entry.id,
-        with: [],
-        without: [],
-        preset,
-        agents,
-        always: [],
-        mode: "new",
-      }).pipe(Effect.flatMap(proofFingerprint)),
-    ),
-  );
-  return currents.some(
-    (current) => Result.isSuccess(current) && current.success === proof.fingerprint,
-  );
-});
-
-const findEntry = (all: ReadonlyArray<CatalogEntry>, id: string, kind: Kind | undefined) =>
-  Effect.gen(function* () {
-    const matches = all.filter(
-      (entry) => entry.id === id && (kind === undefined || entry.kind === kind),
-    );
-    if (matches.length > 1)
-      return yield* new BadInput({ details: { id, flag: "kind", known: ["stack", "fragment"] } });
-    const match = matches[0];
-    if (!match)
-      return yield* new NotFound({
-        details: {
-          id,
-          ...(kind ? { kind } : {}),
-          suggestions: closest(
-            id,
-            all
-              .filter((entry) => kind === undefined || entry.kind === kind)
-              .map((entry) => entry.id),
-          ),
-        },
-      });
-    return match;
-  });
-
-const fragmentReachable = (
-  id: string,
-  ids: ReadonlyArray<string>,
-  metadata: ReadonlyMap<string, Entry["meta"]>,
-  seen = new Set<string>(),
-): boolean => {
-  for (const candidate of ids) {
-    if (candidate === id) return true;
-    if (seen.has(candidate)) continue;
-    seen.add(candidate);
-    const fragment = metadata.get(`fragment/${candidate}`);
-    if (fragment?.kind !== "fragment") return true;
-    if (fragmentReachable(id, fragment.requires, metadata, seen)) return true;
-  }
-  return false;
-};
-
-const recordConcerns = (
-  entry: Entry,
-  record: LedgerRecord,
-  metadata: ReadonlyMap<string, Entry["meta"]>,
-) => {
-  if (record.with.includes(entry.id)) return true;
-  const stack = metadata.get(`stack/${record.stack}`);
-  if (stack?.kind !== "stack") return true;
-  return fragmentReachable(
-    entry.id,
-    [...stack.fragments.required, ...stack.fragments.default, ...record.with],
-    metadata,
-  );
-};
-
-const recordIncludes = (entry: Entry, record: LedgerRecord) =>
-  Effect.gen(function* () {
-    const current = yield* Effect.result(
-      compose({
-        stack: record.stack,
-        with: record.with,
-        without: [],
-        preset: record.preset === "sandbox" ? "sandbox" : "default",
-        agents: ledgerAdapterSets(record.agent)[0] ?? targetAgents(undefined, {}),
-        always: [],
-        mode: "new",
-      }),
-    );
-    return (
-      Result.isSuccess(current) &&
-      current.success.fragments.some((fragment) => fragment.id === entry.id)
-    );
-  });
-
-const fragmentRecords = (
-  entry: Entry,
-  records: ReadonlyArray<LedgerRecord>,
-  metadata: ReadonlyMap<string, Entry["meta"]>,
-) =>
-  Effect.gen(function* () {
-    const candidates: LedgerRecord[] = [];
-    for (const record of entry.kind === "stack" ? [] : records) {
-      if (record.preset !== "default" && record.preset !== "sandbox") continue;
-      if (!recordConcerns(entry, record, metadata)) continue;
-      if (yield* recordIncludes(entry, record)) candidates.push(record);
-    }
-    return candidates;
-  });
-
-const bundledLastRun = (
-  entry: Entry,
-  records: ReadonlyArray<LedgerRecord>,
-  metadata: ReadonlyMap<string, Entry["meta"]>,
-) =>
-  Effect.gen(function* () {
-    const candidates = yield* fragmentRecords(entry, records, metadata);
-    const record =
-      entry.kind === "stack"
-        ? lastDefaultRecord(records, entry.id)
-        : latestMatchingRecord(candidates, () => true);
-    if (!record) return null;
-    const run = {
-      date: record.date,
-      result: record.result,
-      fingerprint: record.fingerprint,
-      agent: record.agent,
-      preset: record.preset,
-      ...(entry.kind === "fragment" ? { stack: record.stack } : {}),
-    };
-    if (record.preset !== "default" && record.preset !== "sandbox")
-      return { ...run, sameContent: false };
-    const preset = record.preset;
-    // A stack's proof covers its own content; a fragment's question is the whole composition.
-    const fragment = entry.kind === "fragment";
-    const recorded = fragment ? record.compositionFingerprint : record.fingerprint;
-    const currents = yield* Effect.forEach(ledgerAdapterSets(record.agent), (agents) =>
-      Effect.result(
-        compose({
-          stack: record.stack,
-          with: record.with,
-          without: [],
-          preset,
-          agents,
-          always: [],
-          mode: "new",
-        }).pipe(Effect.flatMap(fragment ? fingerprint : proofFingerprint)),
-      ),
-    );
-    return {
-      ...run,
-      sameContent: currents.some(
-        (current) => Result.isSuccess(current) && current.success === recorded,
-      ),
-    };
-  });
-
-const entryLastRun = (
-  entry: Entry,
-  records: ReadonlyArray<LedgerRecord>,
-  registry: Registry["Service"],
-) =>
-  entry.origin === "bundled"
-    ? // A bundled run is compared only to bundled inputs, never a local shadow of a fragment.
-      registry.bundled.pipe(
-        Effect.flatMap((bundled) =>
-          bundledLastRun(entry, records, bundled.metadata).pipe(
-            Effect.provideService(Registry, { ...registry, ...bundled }),
-          ),
-        ),
-      )
-    : Effect.succeed(null);

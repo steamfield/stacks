@@ -1,6 +1,21 @@
+/**
+ * Builds the rows `stacks list` reports: one per usable entry, with the facts someone picks an
+ * entry by (name, description, tags, origin, whether it is trusted, its author and last recorded
+ * run).
+ *
+ * `commands/list.ts` reads the registry, the bundled ledger (`registry/runs.json`, the record of
+ * bench runs) and published stats, then calls `listResult` for the `--json` result, `withStats` to
+ * attach stats and `projectChoices` to find the fragments a project can still add.
+ * `list-report.ts` writes the text. `show.ts` reuses `toRow` as the start of its fuller report.
+ *
+ * Entries split into three groups: stacks, fragments, and apps (fragments with category `app`).
+ * Last runs, authors and stats are only attached to bundled and index entries, since only those
+ * were proven or counted by the stacks maintainers. Start at `listResult`.
+ */
 import {
   type AuthorsFile,
   authorKey,
+  type Kind,
   type Manifest,
   type StatsSummary,
 } from "@steamfield/stacks-format";
@@ -41,24 +56,31 @@ export function toRow(
   };
 }
 
+/** The index entry's author, else the bundled `authors.json` entry for a bundled entry. */
 function rowAuthor(entry: Entry, authors: AuthorsFile): string | undefined {
   if (entry.indexEntry?.author !== undefined) return entry.indexEntry.author;
   const key = authorKey(entry.kind, entry.id);
   return entry.origin === "bundled" && Object.hasOwn(authors, key) ? authors[key] : undefined;
 }
 
+/** The index entry's signed proof, else a bundled stack's latest default run, else `null`. */
 function rowLastRun(entry: Entry, records: ReadonlyArray<LedgerRecord>) {
   if (entry.indexEntry?.lastRun)
     return Schema.decodeUnknownSync(LedgerLastRun)(entry.indexEntry.lastRun);
   return entry.kind === "stack" && entry.origin === "bundled" ? lastRun(records, entry.id) : null;
 }
 
+/** Whether `row` belongs to `group`; every row does when no group is given. */
 export const inGroup = (row: ListRow, group: Group | undefined) =>
   group === undefined ||
   (group === "stacks" && row.kind === "stack") ||
   (group === "fragments" && row.kind === "fragment" && row.category !== "app") ||
   (group === "apps" && row.category === "app");
 
+/**
+ * `rows` with the published summary's stats attached to each bundled or index row it covers.
+ * An unpublished or missing summary leaves the rows as they are.
+ */
 export function withStats(
   rows: ReadonlyArray<ListRow>,
   summary: StatsSummary | undefined,
@@ -80,8 +102,7 @@ export function listResult(
   records: ReadonlyArray<LedgerRecord> = [],
   authors: AuthorsFile = {},
 ): ListResult {
-  let kind: "stack" | "fragment" | undefined;
-  if (group !== undefined) kind = group === "stacks" ? "stack" : "fragment";
+  const kind = groupKind(group);
   return {
     entries: items
       .filter((item): item is Entry => !isRejected(item))
@@ -94,6 +115,17 @@ export function listResult(
   };
 }
 
+/** The entry kind a group holds (apps are fragments); `undefined` for every group. */
+function groupKind(group: Group | undefined): Kind | undefined {
+  if (group === undefined) return undefined;
+  return group === "stacks" ? "stack" : "fragment";
+}
+
+/**
+ * What a project can still add. `project` summarizes the manifest (its stack, applied fragments
+ * and addable ids) and is absent outside a project. `addable` holds the fragments not yet applied
+ * that fit the project's stack, or every unapplied fragment when the stack isn't in the registry.
+ */
 export function projectChoices(all: ReadonlyArray<ListRow>, manifest: Manifest | undefined) {
   const stack = all.find((row) => row.kind === "stack" && row.id === manifest?.stack?.id);
   const applied = manifest?.fragments.map((entry) => entry.id) ?? [];

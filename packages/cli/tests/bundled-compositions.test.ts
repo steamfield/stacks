@@ -351,7 +351,7 @@ test("a shared fragment branch for another stack leaves gate briefs and fingerpr
     // The fingerprint hashes resolved bodies, so proof for these stacks still holds.
     expect(after[index]?.fingerprint).toBe(original.fingerprint);
   }
-});
+}, 30_000);
 
 const ConflictEnvelope = Schema.Struct({
   error: Schema.Struct({

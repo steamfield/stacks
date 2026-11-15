@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # PreToolUse (Bash): keep foreground servers from hanging the session.
 set -euo pipefail
-command -v jq >/dev/null 2>&1 || { echo "guard-hono-api-commands.sh: jq is missing; allowing this call." >&2; exit 0; }
+command -v jq >/dev/null 2>&1 || { /bin/cat >/dev/null; echo "guard-hono-api-commands.sh: jq is missing; allowing this call." >&2; exit 0; }
 lib="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/.claude/hooks/_lib.sh"
-{ [ -r "$lib" ] && source "$lib"; } 2>/dev/null || { echo "guard-hono-api-commands.sh: shared helper unavailable; allowing this call." >&2; exit 0; }
+{ [ -r "$lib" ] && source "$lib"; } 2>/dev/null || { /bin/cat >/dev/null; echo "guard-hono-api-commands.sh: shared helper unavailable; allowing this call." >&2; exit 0; }
 input=$(cat 2>/dev/null) && [ -n "$input" ] || { echo "guard-hono-api-commands.sh: cannot read payload; allowing this call." >&2; exit 0; }
 command -v awk >/dev/null 2>&1 || { echo "guard-hono-api-commands.sh: awk is missing; allowing this call." >&2; exit 0; }
 lines=$(hook_foreground_argv "$input" 2>/dev/null) || { echo "guard-hono-api-commands.sh: unreadable payload or command; allowing this call." >&2; exit 0; }

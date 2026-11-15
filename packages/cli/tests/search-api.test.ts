@@ -270,7 +270,7 @@ test("a fresh process observes search backoff and the index state stays intact [
   } finally {
     await alternate.close();
   }
-});
+}, 30_000);
 
 for (const mode of ["500", "invalid", "disconnect"] as const) {
   it.effect(

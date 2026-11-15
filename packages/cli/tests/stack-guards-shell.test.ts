@@ -1,11 +1,18 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { basename, join } from "node:path";
 import { Schema } from "effect";
 import { afterAll, describe, expect, test } from "vitest";
 import { tempDir } from "./helpers/cli";
 
 const registry = join(import.meta.dirname, "..", "registry", "stacks");
+const jqHooks = readdirSync(registry, { recursive: true, withFileTypes: true })
+  .filter((entry) => entry.isFile() && entry.name.endsWith(".sh"))
+  .map((entry) => join(entry.parentPath, entry.name))
+  .filter(
+    (path) =>
+      path.includes("/.claude/hooks/") && readFileSync(path, "utf8").includes("command -v jq"),
+  );
 const recorded = Schema.decodeUnknownSync(
   Schema.Struct({
     "PreToolUse.Bash": Schema.Record(Schema.String, Schema.Unknown),
@@ -149,6 +156,40 @@ function runHook(stack: string, hook: string, input: string, path = process.env.
 function bashPayload(command: string) {
   return JSON.stringify({ ...recorded["PreToolUse.Bash"], tool_input: { command } });
 }
+
+describe.each(jqHooks)("%s early exits", (hook) => {
+  test("drains a large payload when jq is missing", () => {
+    const result = spawnSync("/bin/bash", [hook], {
+      input: "x".repeat(256 * 1024),
+      encoding: "utf8",
+      env: { PATH: "" },
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(`${basename(hook)}: jq is missing; allowing this call.\n`);
+  });
+
+  test("drains a large payload when the next prerequisite is missing", () => {
+    const dir = tempDir();
+    try {
+      symlinkSync(process.execPath, join(dir.path, "jq"));
+      const result = spawnSync("/bin/bash", [hook], {
+        input: "x".repeat(256 * 1024),
+        encoding: "utf8",
+        env: { PATH: dir.path, CLAUDE_PROJECT_DIR: dir.path },
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe("");
+      const reason =
+        basename(hook) === "templ-generate.sh" ? "go is missing" : "shared helper unavailable";
+      expect(result.stderr).toBe(`${basename(hook)}: ${reason}; allowing this call.\n`);
+    } finally {
+      dir.cleanup();
+    }
+  });
+});
 
 describe.each(guards)("$stack/$hook", ({ stack, hook, deny, allow, convention, file, reason }) => {
   test("denies the unsafe command with an actionable alternative", () => {

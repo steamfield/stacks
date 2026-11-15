@@ -10,7 +10,8 @@
 # tool_input.edits.[].new_string. Only string values are read.
 #
 # jq reads the payload when it is on PATH. Without it a small awk reader walks
-# the JSON instead, so every hook makes the same decision either way. The
+# the JSON instead. Foreground inspection needs jq to validate background flags;
+# it fails open with a note when jq is absent. The
 # reader decodes the standard escapes and \u escapes for printable ASCII; other
 # \u escapes stay as written, which no pattern in these hooks depends on.
 hook_get() {
@@ -213,87 +214,261 @@ check_patch() {
 # after splitting; background pipelines and positive timeouts are skipped together.
 foreground_commands() { shell_commands 1 "$1"; }
 
-# Publication checks also inspect detached and time-limited commands, with tab-separated argv.
+# Executable checks also inspect detached and time-limited commands, with tab-separated argv.
 executable_commands() { shell_commands 0 "$1"; }
 
+# Mode 2 also emits structural input, pipeline, redirect and function records.
 shell_commands() {
   local foreground=$1
   shift
   printf '%s\n' "$1" | LC_ALL=C awk -v foreground="$foreground" '
-    function emit(raw, depth, n, w, i, base, wrapped, started, out, limit) {
+    function expand(value, depth, consumer, key, at, size) {
+      while (match(value, /@exp[0-9]+@/)) {
+        key = substr(value, RSTART, RLENGTH); at = RSTART; size = RLENGTH
+        if (key in expansions) scan(expansions[key], depth + 1, consumer)
+        value = substr(value, 1, at - 1) "@value@" substr(value, at + size)
+      }
+      return value
+    }
+    function emit(raw, depth, previous, consumer, previous_program, n, w, i, base, wrapped, out, limit, input, j, p, count, program, value, first, payload) {
       if (depth > 8) return
-      n = words(raw, w); wrapped = 0; started = 0; out = ""
+      n = words(raw, w); wrapped = 0; out = ""
       for (i = 1; i <= n; i++) {
         if (w[i] == "") continue
-        if (!started) {
-          if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
-          base = w[i]; sub(/.*\//, "", base)
-          if (base == "timeout") {
-            limit = w[++i]
-            if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
-            if (foreground && limit + 0 > 0) return
-            wrapped = 1; continue
+        if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+        base = w[i]; sub(/.*\//, "", base)
+        if (base == "timeout") {
+          for (i++; i <= n && w[i] ~ /^-/; i++) {
+            if (w[i] ~ /^(-s|--signal|-k|--kill-after)$/) i++
           }
-          if (base ~ /^(sh|bash|zsh|dash|ksh)$/ && w[i + 1] ~ /^-[a-z]*c[a-z]*$/) {
-            scan(w[i + 2], depth + 1); return
-          }
-          if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
-          if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|xargs|busybox|stdbuf|uvx)$/) {
-            wrapped = 1; continue
-          }
-          if (wrapped && w[i] ~ /^(--with|--project|--directory|--env-file|-C|-u)$/) { i++; continue }
-          if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*$/)) continue
-          started = 1
+          limit = w[i]
+          if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
+          if (foreground == 1 && limit + 0 > 0) return
+          wrapped = 1; continue
         }
-        out = out (out == "" ? "" : (foreground ? " " : "\t")) w[i]
+        if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
+        if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|xargs|busybox|stdbuf|uvx|then|do|else|if|elif|while|until|!)$/) {
+          wrapped = 1; continue
+        }
+        if (wrapped && w[i] ~ /^(--with|--project|--directory|--env-file|--unset|-C|-u|-g|-I|-L|-n|-P)$/) { i++; continue }
+        if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*$/)) continue
+        break
+      }
+      first = i; program = base
+      if (w[first] in groups) return scan(groups[w[first]], depth + 1, consumer, previous, previous_program)
+      if (foreground == 2 && consumer != "") print "@pipe\t" program "\t" consumer
+      if (previous != "") {
+        count = words(previous, p); input = ""
+        for (j = 1; j <= count; j++) { value = p[j]; sub(/.*\//, "", value); if (value == previous_program) break }
+        j++
+        if (previous_program == "printf" && p[j] ~ /%/) j++
+        for (; j <= count; j++) input = input (input == "" ? "" : " ") (p[j] in feeds ? feeds[p[j]] : p[j])
+        if (previous_program ~ /^(echo|printf|cat)$/ && program ~ /^(sh|bash|zsh|dash|ksh)$/) scan(input, depth + 1, "")
+        if (foreground == 2) {
+          gsub(/\n/, "\036", input); gsub(/\t/, " ", input)
+          print "@stdin\t" program "\t" input
+          if (program ~ /^(sh|bash|zsh|dash|ksh)$/) print "@pipe\t" previous_program "\t" program
+        }
+      }
+      for (i = 1; i <= n; i++) w[i] = expand(w[i], depth, program ~ /^(sh|bash|zsh|dash|ksh|eval)$/ ? "sh" : consumer)
+      if (program == "eval") {
+        input = ""
+        for (j = first + 1; j <= n; j++) input = input (j == first + 1 ? "" : " ") w[j]
+        scan(input, depth + 1, ""); return program
+      }
+      if (program ~ /^(sh|bash|zsh|dash|ksh)$/) {
+        for (j = first + 1; j <= n; j++) {
+          if (w[j] ~ /^-[a-z]*c[a-z]*$/) { scan(w[j + 1], depth + 1, ""); break }
+        }
+      }
+      for (i = first; i <= n; i++) {
+        if (w[i] in feeds) {
+          input = feeds[w[i]]
+          if (program ~ /^(sh|bash|zsh|dash|ksh)$/) scan(input, depth + 1, "")
+          if (foreground == 2) { gsub(/\n/, "\036", input); gsub(/\t/, " ", input); print "@stdin\t" program "\t" input }
+          continue
+        }
+        value = w[i]; gsub(/\n/, "\036", value); gsub(/[\t\r]/, " ", value)
+        out = out (out == "" ? "" : (foreground == 1 ? " " : "\t")) value
       }
       gsub(/\n/, " ", out)
       if (out != "") print out
+      return program
+    }
+    function ansi(raw, start, c, digits, base, max, i, digit, value) {
+      c = substr(raw, start, 1); escape_size = 1
+      if (c == "n") return "\n"
+      if (c == "t") return "\t"
+      if (c == "r") return "\r"
+      if (c == "a") return sprintf("%c", 7)
+      if (c == "b") return "\b"
+      if (c == "e" || c == "E") return sprintf("%c", 27)
+      if (c == "f") return "\f"
+      if (c == "v") return sprintf("%c", 11)
+      if (c ~ /[0-7]/) { base = 8; max = 3; i = start }
+      else if (c ~ /^[xuU]$/) { base = 16; max = c == "x" ? 2 : (c == "u" ? 4 : 8); i = start + 1 }
+      else return c
+      value = 0; digits = 0
+      for (; digits < max && i <= length(raw); i++) {
+        digit = index("0123456789abcdef", tolower(substr(raw, i, 1))) - 1
+        if (digit < 0 || digit >= base) break
+        value = value * base + digit; digits++
+      }
+      if (!digits) return c
+      escape_size = i - start
+      return value > 0 && value < 128 ? sprintf("%c", value) : "@character@"
     }
     function words(raw, w, i, c, q, n, value, started) {
       n = 0; value = ""; q = ""; started = 0
       for (i = 1; i <= length(raw); i++) {
         c = substr(raw, i, 1)
-        if (c == "$" && substr(raw, i + 1, 1) == "\047" && q == "") continue
-        if (c == "\\" && q != "\047") { value = value substr(raw, ++i, 1); started = 1; continue }
-        if (q != "") { if (c == q) q = ""; else value = value c }
+        if (c == "$" && substr(raw, i + 1, 1) == "\047" && q == "") { q = "ansi"; i++; started = 1; continue }
+        if (c == "\\" && q != "\047") {
+          c = substr(raw, ++i, 1)
+          if (q == "ansi") { c = ansi(raw, i); i += escape_size - 1 }
+          value = value c; started = 1; continue
+        }
+        if (q != "") { if (c == q || (q == "ansi" && c == "\047")) q = ""; else value = value c }
         else if (c == "\047" || c == "\"") { q = c; started = 1 }
         else if (c ~ /[ \t\n]/) {
           if (started) w[++n] = value
           value = ""; started = 0
         } else { value = value c; started = 1 }
       }
+      if (q != "") return 0
       if (started) w[++n] = value
       return n
     }
-    function group(text, depth, at, part) {
-      while ((at = index(text, "\034")) > 0) {
+    function group(text, depth, consumer, previous, previous_program, at, part, separator, program) {
+      if (depth > 8) return
+      while (match(text, /[\034\035]/)) {
+        at = RSTART; separator = substr(text, at, 1)
         part = substr(text, 1, at - 1); text = substr(text, at + 1)
-        emit(part, depth)
+        program = emit(part, depth, previous, consumer, previous_program)
+        if (separator != "\035") { previous = ""; previous_program = "" }
+        else if (program != "cat" || previous == "") { previous = part; previous_program = program }
       }
-      emit(text, depth)
+      return emit(text, depth, previous, consumer, previous_program)
     }
-    function scan(text, depth, i, c, q, out, following, pipeline, here, at, raw, names, delimiter, line, stop) {
+    function here_header(text, start, i, raw, names, q, c) {
+      i = start + 2; here_trim = substr(text, i, 1) == "-"
+      if (here_trim) i++
+      while (substr(text, i, 1) ~ /[ \t]/) i++
+      raw = ""
+      for (; i <= length(text); i++) {
+        c = substr(text, i, 1)
+        if (c == "\\" && q != "\047") { raw = raw c substr(text, ++i, 1); continue }
+        if (q != "") { if (c == q) q = "" }
+        else if (c == "\047" || c == "\"") q = c
+        else if (c ~ /[ \t\n;&|()]/) break
+        raw = raw c
+      }
+      if (words(raw, names) != 1) return 0
+      here_name = names[1]; return i
+    }
+    function here_body(text, start, delimiter, trim, i, line) {
+      here_text = ""; i = start
+      while (i < length(text)) {
+        i++; line = ""
+        while (i <= length(text) && substr(text, i, 1) != "\n") line = line substr(text, i++, 1)
+        if (trim) sub(/^\t+/, "", line)
+        if (line == delimiter) return i
+        here_text = here_text line "\n"
+      }
+      return 0
+    }
+    # Heredoc text cannot close a surrounding command substitution or quote.
+    function closing(text, start, opener, closer, i, c, q, level, end, count, h, names, trims) {
+      level = 1; q = ""
+      for (i = start; i <= length(text); i++) {
+        c = substr(text, i, 1)
+        if (c == "\\" && q != "\047") { i++; continue }
+        if (q != "") { if (c == q || (q == "ansi" && c == "\047")) q = ""; continue }
+        if (c == "$" && substr(text, i + 1, 1) == "\047") { q = "ansi"; i++; continue }
+        if (c == "\047" || c == "\"") { q = c; continue }
+        if (c == "<" && substr(text, i + 1, 1) == "<" && substr(text, i + 2, 1) != "<") {
+          end = here_header(text, i); if (!end) return 0
+          names[++count] = here_name; trims[count] = here_trim; i = end - 1; continue
+        }
+        if (c == "\n" && count) {
+          for (h = 1; h <= count; h++) { i = here_body(text, i, names[h], trims[h]); if (!i) return 0 }
+          count = 0; continue
+        }
+        if (c == opener) level++
+        if (c == closer) { level--; if (level == 0) return i }
+      }
+      return 0
+    }
+    function scan(text, depth, consumer, previous, previous_program, i, c, q, out, following, pipeline, here, at, raw, names, delimiter, end, key, body, keys, h, program) {
+      if (depth > 8) return
       q = ""; out = ""; pipeline = ""; here = ""
+      if (previous != "") pipeline = previous "\035"
       for (i = 1; i <= length(text); i++) {
         c = substr(text, i, 1); following = substr(text, i + 1, 1)
         if (c == "\\" && q != "\047" && i < length(text)) {
           out = out c following; i++; continue
         }
-        if (q != "") { if (c == q) q = ""; out = out c; continue }
+        if ((q == "" || q == "\"") && ((c == "$" && following == "(") || (q == "" && c ~ /[<>]/ && following == "("))) {
+          end = closing(text, i + 2, "(", ")")
+          if (!end) { group(pipeline, depth, consumer); return }
+          key = "@exp" ++serial "@"; expansions[key] = substr(text, i + 2, end - i - 2)
+          out = out key; i = end; continue
+        }
+        if ((q == "" || q == "\"") && c == "`") {
+          end = i + 1
+          while (end <= length(text) && substr(text, end, 1) != "`") { if (substr(text, end, 1) == "\\") end++; end++ }
+          if (end > length(text)) { group(pipeline, depth, consumer); return }
+          key = "@exp" ++serial "@"; expansions[key] = substr(text, i + 1, end - i - 1)
+          out = out key; i = end; continue
+        }
+        if (q != "") { if (c == q || (q == "ansi" && c == "\047")) q = ""; out = out c; continue }
+        if (c == "$" && following == "\047") { q = "ansi"; out = out c following; i++; continue }
         if (c == "\047" || c == "\"") { q = c; out = out c; continue }
+        if (c == "(" || (c == "{" && out ~ /^[ \t]*$/)) {
+          end = closing(text, i + 1, c, c == "(" ? ")" : "}")
+          if (!end) { group(pipeline, depth, consumer); return }
+          body = substr(text, i + 1, end - i - 1)
+          if (c == "(" && body == "" && substr(text, end + 1) ~ /^[ \t]*\{/) {
+            # Function definitions are data until invoked; retain their structure for the fork-bomb rule.
+            raw = out; sub(/^[ \t]+/, "", raw); sub(/[ \t]+$/, "", raw)
+            i = end + 1; while (substr(text, i, 1) ~ /[ \t]/) i++
+            end = closing(text, i + 1, "{", "}"); if (!end) return
+            body = substr(text, i + 1, end - i - 1)
+            if (foreground == 2) print "@function\t" raw "\t" body
+            out = ""; i = end; continue
+          }
+          key = "@group" ++serial "@"; groups[key] = body
+          out = out " " key; i = end; continue
+        }
         if (c == "#" && (out == "" || out ~ /[ \t]$/)) {
           while (i <= length(text) && substr(text, i, 1) != "\n") i++
           c = "\n"; following = ""
         }
-        if (c == "<" && following == "<" && substr(text, i + 2, 1) != "<") {
-          i += 2
-          if (substr(text, i, 1) == "-") i++
-          while (substr(text, i, 1) ~ /[ \t]/) i++
-          raw = ""
-          while (i <= length(text) && substr(text, i, 1) !~ /[ \t\n;&|]/) raw = raw substr(text, i++, 1)
+        if (c == "<" && following == "<" && substr(text, i + 2, 1) == "<") {
+          # The remainder is one input word, decoded by the same argv reader.
+          i += 3; while (substr(text, i, 1) ~ /[ \t]/) i++
+          raw = ""; h = ""
+          for (; i <= length(text); i++) {
+            c = substr(text, i, 1)
+            if (c == "\\" && h != "\047") { raw = raw c substr(text, ++i, 1); continue }
+            if (c == "$" && substr(text, i + 1, 1) == "\047" && h == "") { h = "ansi"; raw = raw c "\047"; i++; continue }
+            if (h != "") { if (c == h || (h == "ansi" && c == "\047")) h = "" }
+            else if (c == "\047" || c == "\"") h = c
+            else if (c ~ /[ \t\n;&|]/) break
+            raw = raw c
+          }
           if (words(raw, names) != 1) return
-          here = here names[1] "\034"; i--; out = out " "; continue
+          key = "@feed" ++serial "@"; feeds[key] = names[1]; out = out " " key; i--; continue
+        }
+        if (c == "<" && following == "<") {
+          end = here_header(text, i); if (!end) return
+          key = "@feed" ++serial "@"
+          here = here here_name "\034"; keys = keys key "\034"; strips[key] = here_trim
+          i = end - 1; out = out " " key; continue
+        }
+        if (foreground == 2 && c == ">") {
+          raw = substr(text, i + 1); sub(/^[> \t]+/, "", raw); sub(/[ \t\n;&|].*$/, "", raw)
+          if (words(raw, names) == 1) print "@redirect\t" names[1]
         }
         if (c == "&" && (following == ">" || substr(text, i - 1, 1) ~ /[<>]/)) {
           out = out c; continue
@@ -302,39 +477,45 @@ shell_commands() {
           pipeline = pipeline out "\034"; out = ""; i++; continue
         }
         if (c == "|" && following != "|") {
-          pipeline = pipeline out "\034"; out = ""
+          pipeline = pipeline out "\035"; out = ""
           if (following == "&") i++
         } else if (c == ";" || c == "&" || c == "|" || c == "\n") {
-          if (c != "&" || !foreground) group(pipeline out, depth)
-          pipeline = ""; out = ""
           if (c == "\n") {
             while ((at = index(here, "\034")) > 0) {
               delimiter = substr(here, 1, at - 1); here = substr(here, at + 1)
-              stop = 0
-              while (i < length(text)) {
-                i++; line = ""
-                while (i <= length(text) && substr(text, i, 1) != "\n") line = line substr(text, i++, 1)
-                sub(/^\t+/, "", line)
-                if (line == delimiter) { stop = 1; break }
-              }
-              if (!stop) return
+              at = index(keys, "\034"); key = substr(keys, 1, at - 1); keys = substr(keys, at + 1)
+              i = here_body(text, i, delimiter, strips[key]); if (!i) return
+              feeds[key] = here_text
             }
           }
+          if (c != "&" || foreground != 1) program = group(pipeline out, depth, consumer)
+          pipeline = ""; out = ""
         } else out = out c
       }
-      if (q == "") group(pipeline out, depth)
+      if (q == "") return group(pipeline out, depth, consumer)
+      return group(pipeline, depth, consumer)
     }
     { text = text (NR == 1 ? "" : "\n") $0 }
-    END { scan(text, 0) }'
+    END { scan(text, 0, "") }'
 }
 
 # hook_foreground_commands <payload-json>: validate the native Bash input, then split it.
 hook_foreground_commands() {
   local command
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "agent-ops: jq missing; skipping foreground inspection and allowing call." >&2
+    return 1
+  fi
   command=$(printf '%s' "$1" | jq -r '
     if .tool_input.run_in_background == true then empty
     elif .tool_input.command == null then empty
     elif (.tool_input.command | type) == "string" then .tool_input.command
-    else error("invalid command") end') || return 1
-  foreground_commands "$command"
+    else error("invalid command") end' 2>/dev/null) || {
+      echo "agent-ops: unreadable payload; skipping foreground inspection and allowing call." >&2
+      return 1
+    }
+  foreground_commands "$command" || {
+    echo "agent-ops: splitter unavailable; skipping foreground inspection and allowing call." >&2
+    return 1
+  }
 }

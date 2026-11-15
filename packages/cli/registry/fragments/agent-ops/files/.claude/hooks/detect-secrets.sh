@@ -9,12 +9,17 @@
 # marker the detect-secrets tool uses), for test fixtures that must look real.
 set -euo pipefail
 
-hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+check_secrets() (
+hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || return 2
 # shellcheck source=_lib.sh
-source "$hook_dir/_lib.sh"
+source "$hook_dir/_lib.sh" || return 2
 
-input=$(cat)
-file_path=$(hook_get "$input" tool_input.file_path | head -n 1) || exit 0
+input=$(cat) || return 2
+file_path=$(hook_get "$input" tool_input.file_path | head -n 1) || return 2
+[ -n "$file_path" ] || return 2
+for required in grep sed tr awk basename; do
+  command -v "$required" >/dev/null 2>&1 || return 2
+done
 
 # .env files (and direnv's .envrc) hold the real values; only the committed
 # templates may be written.
@@ -39,39 +44,50 @@ esac
 # Write carries .content, Edit carries .new_string; the legacy MultiEdit tool
 # carries .edits[].new_string.
 text=$(
-  hook_get "$input" tool_input.content
-  hook_get "$input" tool_input.new_string
-  hook_get "$input" tool_input.edits.[].new_string
-) || exit 0
+  hook_get "$input" tool_input.content || exit 2
+  hook_get "$input" tool_input.new_string || exit 2
+  hook_get "$input" tool_input.edits.[].new_string || exit 2
+) || return 2
 [ -z "$text" ] && exit 0
 
 # Drop allowlisted lines before scanning.
-text=$(grep -v -e 'pragma: allowlist secret' <<<"$text" || true)
+matches() {
+  local status
+  if command grep "$@"; then return 0; else status=$?; fi
+  [ "$status" -eq 1 ] && return 1
+  exit 2
+}
+text=$(matches -v -e 'pragma: allowlist secret' <<<"$text") || { [ "$?" -eq 1 ] || return 2; }
 [ -z "$text" ] && exit 0
 
-has() { grep -qE -e "$1" <<<"$text"; }
+has() { matches -qE -e "$1" <<<"$text"; }
 # tokens <ere> [grep flag]: every matched string, one per line.
-tokens() { grep -oE ${2:+"$2"} -e "$1" <<<"$text" || true; }
+tokens() { matches -oE ${2:+"$2"} -e "$1" <<<"$text" || { [ "$?" -eq 1 ] || exit 2; }; }
 # has_real <ere>: some matched string doesn't look like a placeholder. Only the
 # match is tested, so a "TODO" comment beside a real key doesn't excuse it.
 has_real() {
   local found
-  found=$(tokens "$1")
-  [ -n "$found" ] && grep -qviE -e "$placeholder" <<<"$found"
+  found=$(tokens "$1") || exit 2
+  [ -n "$found" ] && matches -qviE -e "$placeholder" <<<"$found"
 }
 # has_real_i <ere>: has_real, ignoring case (apiKey, API_KEY and api_key alike).
 has_real_i() {
   local found
-  found=$(tokens "$1" -i)
-  [ -n "$found" ] && grep -qviE -e "$placeholder" <<<"$found"
+  found=$(tokens "$1" -i) || exit 2
+  [ -n "$found" ] && matches -qviE -e "$placeholder" <<<"$found"
 }
 placeholder='(your[-_]|changeme|replace|example|placeholder|xxxx|fake|dummy|redacted|TODO|FIXME|<[^>]*>)'
 # OpenAI-style keys mix upper case and digits in a long tail, which a long
 # lowercase slug (sk-learning-module-01-intro) doesn't. Anthropic keys have
 # their own rule.
 openai_key() {
-  tokens 'sk-(proj-|svcacct-)?[A-Za-z0-9_-]{40,}' | grep -v '^sk-ant-' | grep '[A-Z]' | grep '[0-9]' |
-    grep -qviE -e "$placeholder"
+  local found status filter
+  found=$(tokens 'sk-(proj-|svcacct-)?[A-Za-z0-9_-]{40,}') || exit 2
+  found=$(matches -v '^sk-ant-' <<<"$found") || { status=$?; [ "$status" -eq 1 ] && return 1; exit 2; }
+  for filter in '[A-Z]' '[0-9]'; do
+    found=$(matches "$filter" <<<"$found") || { status=$?; [ "$status" -eq 1 ] && return 1; exit 2; }
+  done
+  matches -qviE -e "$placeholder" <<<"$found"
 }
 
 findings=""
@@ -90,7 +106,7 @@ has 'AIza[0-9A-Za-z_-]{35}' && add "Google API key"
 has 'npm_[A-Za-z0-9]{36}' && add "npm token"
 has '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' && add "Private key (PEM)"
 has '(postgres|postgresql|mysql|mongodb(\+srv)?|redis|amqp)://[^:/[:space:]]+:[^@[:space:]]{8,}@' &&
-  ! grep -qiE -e '://[^:]+:(password|postgres|changeme|secret|pass|example)@' <<<"$text" &&
+  ! matches -qiE -e '://[^:]+:(password|postgres|changeme|secret|pass|example)@' <<<"$text" &&
   add "Connection string with an embedded password"
 has 'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' && add "JWT"
 
@@ -110,4 +126,11 @@ If this is a deliberate fixture, ask the user, then mark the line with a \"pragm
 Never work around this block."
 
 hook_deny "$reason"
+exit 0
+)
+if output=$(check_secrets 2>&1); then
+  [ -z "$output" ] || printf '%s\n' "$output"
+else
+  echo "agent-ops: secret guard unavailable or unreadable payload; allowing call." >&2
+fi
 exit 0

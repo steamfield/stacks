@@ -18,12 +18,7 @@ async function main(): Promise<void> {
   if (!given.endsWith(".ts") || !isFile(given)) return;
   const root = realpathSync(projectRoot());
   const written = relative(root, realpathSync(given));
-  if (
-    !["scripts/", ".claude/hooks/", "tests/hooks/", "tests/helpers/hooks.ts"].some((prefix) =>
-      written.startsWith(prefix),
-    )
-  )
-    return;
+  if (!["scripts/", ".claude/hooks/"].some((prefix) => written.startsWith(prefix))) return;
   const tsc = join(root, "node_modules/.bin/tsc");
   if (!isExecutable(tsc) || !isFile(join(root, "tsconfig.tools.json"))) return;
   const result = await run(

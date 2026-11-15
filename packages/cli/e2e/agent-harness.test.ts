@@ -85,11 +85,9 @@ test("the compiled binary ships hook smoke checks and no shared Vitest hook suit
       JSON.parse(readFileSync(join(project, ".stacks/manifest.json"), "utf8")),
     );
     const steps = manifest.verify.filter(
-      (step) =>
-        (step.owner === "claude-harness" && step.name === "harness-hooks") ||
-        (step.owner === "agent-ops" && step.name === "hooks-smoke"),
+      (step) => step.owner === "agent-ops" && step.name === "hooks-smoke",
     );
-    expect(steps).toHaveLength(2);
+    expect(steps.map((step) => step.name)).toEqual(["hooks-smoke"]);
     const selection = [
       binary,
       "verify",
@@ -117,10 +115,12 @@ test("the compiled binary ships hook smoke checks and no shared Vitest hook suit
         .every((step) => step.status === "passed"),
     ).toBe(true);
     expect(
-      verified.steps.filter(
-        (step) => steps.some((owned) => owned.name === step.name) && step.status === "passed",
-      ),
-    ).toHaveLength(2);
+      verified.steps
+        .filter(
+          (step) => steps.some((owned) => owned.name === step.name) && step.status === "passed",
+        )
+        .map((step) => step.name),
+    ).toEqual(["hooks-smoke"]);
 
     const smokePath = join(project, ".claude/hooks/smoke.sh");
     writeFileSync(smokePath, `${readFileSync(smokePath, "utf8")}\nexit 1\n`);

@@ -55,6 +55,16 @@ echo "npm $*" >> "$FAKE_DIR/commands.log"
 key() { echo "$1" | tr '/@' '__'; }
 case "$1" in
   view)
+    if [ -n "$FAKE_VIEW_HANG" ]; then exec sleep 5; fi
+    if [ -n "$FAKE_VIEW_TRANSIENT" ]; then
+      n=$(cat "$FAKE_DIR/transient" 2>/dev/null || echo 0)
+      if [ "$n" -lt "$FAKE_VIEW_TRANSIENT" ]; then
+        echo $((n + 1)) > "$FAKE_DIR/transient"
+        echo '{"error":{"code":"E503"}}'
+        echo "npm error code E503" >&2
+        exit 1
+      fi
+    fi
     if [ -n "$FAKE_VIEW_FAIL" ]; then
       echo "{\\"error\\":{\\"code\\":\\"$FAKE_VIEW_FAIL\\"}}"
       echo "npm error code $FAKE_VIEW_FAIL" >&2
@@ -84,7 +94,7 @@ case "$1" in
       echo "npm error Cannot publish over the previously published versions" >&2
       exit 1
     fi
-    if [ -z "$FAKE_UNCONFIRMED" ]; then
+    if [ "$FAKE_UNCONFIRMED" != 1 ] && [ "$FAKE_UNCONFIRMED" != "$spec" ]; then
       # FAKE_LAG is how many registry lookups answer 404 after the publish succeeds.
       cat "$FAKE_DIR/integrity/$(basename "$2")" > "$FAKE_DIR/pending/$(key "$spec")"
       echo "\${FAKE_LAG:-0}" > "$FAKE_DIR/pending/$(key "$spec").lag"
@@ -151,6 +161,7 @@ function environment(extra: Record<string, string> = {}) {
     RELEASE_CONFIRM_DELAY_MS: "0",
     RELEASE_CONFIRM_INTERVAL_MS: "0",
     RELEASE_CONFIRM_ATTEMPTS: "5",
+    RELEASE_RETRY_BASE_MS: "0",
     ...extra,
   };
 }
@@ -228,7 +239,7 @@ describe("publish step", () => {
     expect(result.stderr).toContain("::error title=Release failed::");
   });
 
-  it("fails on a registry error that is not a 404 without publishing", () => {
+  it("retries a transient registry error, then gives up without publishing", () => {
     stageRelease();
     const result = publish({ FAKE_VIEW_FAIL: "E500" });
     expect(result.status).toBe(1);
@@ -236,7 +247,73 @@ describe("publish step", () => {
     expect(result.stderr).toContain("npm view");
     expect(result.stderr).toContain("(E500)");
     expect(result.stderr).toContain("registry unavailable");
+    expect(result.stderr).toContain("(gave up after 4 attempts)");
+    expect(result.stdout.match(/retrying in/g)).toHaveLength(3);
     expect(result.stderr).toContain("On npm: none.");
+  });
+
+  it("retries a registry read that fails transiently and then succeeds", () => {
+    stageRelease();
+    const result = publish({ FAKE_VIEW_TRANSIENT: "2" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout.match(/failed with E503; retrying/g)).toHaveLength(2);
+    expect(result.published).toHaveLength(3);
+  });
+
+  it("never retries an auth error from the registry", () => {
+    stageRelease();
+    const result = publish({ FAKE_VIEW_FAIL: "E401" });
+    expect(result.status).toBe(1);
+    expect(result.stdout).not.toContain("retrying");
+    expect(result.stderr).not.toContain("gave up");
+    expect(result.stderr).toContain("(E401)");
+  });
+
+  it("never retries a failed publish", () => {
+    stageRelease();
+    const result = publish({ FAKE_PUBLISH_FAIL: "E503", FAKE_PUBLISH_FAIL_ON: specOf(format) });
+    expect(result.status).toBe(1);
+    expect(result.published).toHaveLength(1);
+  });
+
+  it("fails a hung registry call at its timeout instead of stalling", () => {
+    stageRelease();
+    const result = publish({
+      FAKE_VIEW_HANG: "1",
+      RELEASE_VIEW_TIMEOUT_MS: "1000",
+      RELEASE_VIEW_ATTEMPTS: "1",
+    });
+    expect(result.status).toBe(1);
+    expect(result.published).toEqual([]);
+    expect(result.stderr).toContain("timed out after 1s");
+    expect(result.stderr).toContain("rerun the failed job");
+    expect(result.stderr).not.toMatch(/\n\s+at /);
+  });
+
+  it("warns, and passes, when the last package is accepted but not yet visible", () => {
+    stageRelease();
+    const result = publish({ FAKE_UNCONFIRMED: specOf(mcp) });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.published).toHaveLength(3);
+    expect(result.stdout).toContain("::warning title=Release not yet visible on npm::");
+    expect(result.stdout).toContain(`npm accepted ${specOf(mcp)}`);
+    expect(result.stdout).toContain("npm view @steamfield/stacks-mcp version");
+  });
+
+  it("plain-prints that warning outside GitHub Actions", () => {
+    stageRelease();
+    const result = publish({ FAKE_UNCONFIRMED: specOf(mcp), GITHUB_ACTIONS: "" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(`warning: npm accepted ${specOf(mcp)}`);
+    expect(result.stdout).not.toContain("::warning");
+  });
+
+  it("still fails when a package another one depends on is not visible", () => {
+    stageRelease();
+    const result = publish({ FAKE_UNCONFIRMED: specOf(cli) });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Could not confirm ${specOf(cli)} on the registry`);
+    expect(result.published).toHaveLength(2);
   });
 
   it("explains a failed publish and lists what went out and what did not", () => {
@@ -398,12 +475,84 @@ describe("release workflow", () => {
     for (const line of uses) expect(line).toMatch(/uses: [\w./-]+@[0-9a-f]{40} # v\d/);
   });
 
-  it("runs the gate before it packs or publishes", () => {
-    const order = ["bun run check", "bun run pack", "bun scripts/publish.ts publish"].map((text) =>
-      workflow.indexOf(text),
-    );
-    expect(order.every((at) => at > -1)).toBe(true);
-    expect(order).toEqual([...order].sort((a, b) => a - b));
+  /** The text of one top-level job, up to the next job. */
+  function job(name: string): string {
+    const start = workflow.indexOf(`\n  ${name}:\n`);
+    if (start === -1) throw new Error(`release.yml has no job named ${name}`);
+    const rest = workflow.slice(start + 1);
+    const next = rest.slice(1).search(/\n {2}[a-z]+:\n/);
+    return next === -1 ? rest : rest.slice(0, next + 1);
+  }
+
+  it("splits into verify, build and publish, and publishes only after both pass", () => {
+    expect(job("verify")).toContain("bun run check");
+    expect(job("build")).toContain("bun run pack");
+    expect(job("build")).toContain("upload-artifact");
+    expect(job("build")).not.toContain("bun run check");
+    expect(job("publish")).toMatch(/needs: \[verify, build\]/);
+    expect(job("publish")).toContain("download-artifact");
+    expect(job("publish")).toContain("scripts/publish.ts publish");
+    expect(job("verify")).not.toContain("publish.ts publish");
+    expect(job("build")).not.toContain("publish.ts publish");
+  });
+
+  it("grants id-token only to the publish job", () => {
+    const top = workflow.slice(0, workflow.indexOf("\njobs:"));
+    expect(top).not.toContain("id-token");
+    expect(job("verify")).not.toContain("id-token");
+    expect(job("build")).not.toContain("id-token");
+    expect(job("publish")).toContain("id-token: write");
+    expect(job("publish")).not.toContain("upload-artifact");
+  });
+
+  it("runs one publish at a time and does not cancel one in flight", () => {
+    expect(job("publish")).toContain("group: npm-publish");
+    expect(job("publish")).toContain("cancel-in-progress: false");
+  });
+
+  describe("tag on main guard", () => {
+    let repoDir: string;
+    beforeEach(() => {
+      repoDir = mkdtempSync(join(tmpdir(), "tag-main-"));
+      const git = (...args: string[]) =>
+        spawnSync("git", args, {
+          cwd: repoDir,
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            GIT_AUTHOR_NAME: "t",
+            GIT_AUTHOR_EMAIL: "t@example.com",
+            GIT_COMMITTER_NAME: "t",
+            GIT_COMMITTER_EMAIL: "t@example.com",
+          },
+        });
+      git("init", "-b", "main");
+      git("commit", "--allow-empty", "-m", "on main");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      git("checkout", "-b", "side");
+      git("commit", "--allow-empty", "-m", "off main");
+    });
+    afterEach(() => rmSync(repoDir, { recursive: true, force: true }));
+
+    const sha = (ref: string) =>
+      spawnSync("git", ["rev-parse", ref], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+    const runGuard = (commit: string) =>
+      spawnSync("sh", ["-c", stepRun("Verify the tag is on main")], {
+        cwd: repoDir,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH ?? "", GITHUB_SHA: commit, GITHUB_REF_NAME: "v9.9.9" },
+      });
+
+    it("passes for a commit that is on main", () => {
+      expect(runGuard(sha("main")).status).toBe(0);
+    });
+
+    it("fails a commit that is not on main, naming the fix", () => {
+      const result = runGuard(sha("side"));
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("::error title=Tag is not on main::");
+      expect(result.stdout).toContain("git push origin :refs/tags/v9.9.9");
+    });
   });
 
   describe("version guard", () => {

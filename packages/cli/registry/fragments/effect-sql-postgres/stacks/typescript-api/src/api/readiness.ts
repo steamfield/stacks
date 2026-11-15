@@ -1,3 +1,7 @@
+/**
+ * Defines the readiness HTTP endpoint and its responses. Its handler checks the configured data store.
+ */
+
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { BadInputResponse, UnavailableResponse } from "../errors.ts";
 import { NoQuery } from "../schemas/index.ts";

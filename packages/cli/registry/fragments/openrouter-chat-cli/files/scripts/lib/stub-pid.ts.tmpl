@@ -1,3 +1,7 @@
+/**
+ * Reads and manages the local stub process record. The CLI’s stub commands use it to find the running servers.
+ */
+
 // logs/stub.pid holds "<pid> <openrouter port>" while scripts/stub-server.ts runs. Only when the
 // bun-release fragment is selected does the server add a third field, its stub releases port; without
 // it the release fields below are never read. Paths are relative to the repo root, which the scripts

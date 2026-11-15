@@ -1,3 +1,7 @@
+/**
+ * Implements item storage with Drizzle and Postgres. Server routes use the repository to read and add items.
+ */
+
 import { asc } from 'drizzle-orm';
 import { type Database, database } from './db/index.ts';
 import { items } from './db/schema.ts';

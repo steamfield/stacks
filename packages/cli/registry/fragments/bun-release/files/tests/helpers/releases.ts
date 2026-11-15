@@ -1,3 +1,7 @@
+/**
+ * Provides a local release server for installer tests. It records requests and serves release assets without GitHub.
+ */
+
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 

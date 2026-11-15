@@ -1,3 +1,7 @@
+/**
+ * Lists the API database migrations and supplies the loader used by the migration runner.
+ */
+
 import { Migrator } from "effect/sql";
 import items from "./0001_items.ts";
 

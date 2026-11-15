@@ -1,3 +1,7 @@
+/**
+ * Creates the Postgres pool and Drizzle database used by the server. It also provides the database readiness check.
+ */
+
 import "server-only";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";

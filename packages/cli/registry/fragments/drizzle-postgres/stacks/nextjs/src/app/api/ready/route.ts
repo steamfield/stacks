@@ -1,3 +1,7 @@
+/**
+ * Exposes database readiness as an HTTP response. The endpoint reports whether Postgres is available.
+ */
+
 import { isReady } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";

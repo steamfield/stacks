@@ -1,3 +1,7 @@
+/**
+ * Implements the readiness service with a bounded Postgres query. The API uses it to report database availability.
+ */
+
 // SELECT 1 through the pool, bounded so a dead database answers 503 in seconds. test:db covers
 // this file, so the Docker-free coverage run excludes it.
 import { Effect, Layer } from "effect";

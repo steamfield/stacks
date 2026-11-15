@@ -1,3 +1,7 @@
+/**
+ * Wires the SQL-backed items and readiness services to a Postgres client for the API runtime.
+ */
+
 import { Effect, Layer } from "effect";
 import { AppConfig } from "../config.ts";
 import { ItemsSql } from "../services/items-sql.ts";

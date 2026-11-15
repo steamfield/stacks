@@ -1,3 +1,7 @@
+/**
+ * Creates a migrated template before database tests and removes it afterward. Test workers use the template to make isolated databases.
+ */
+
 // Runs once per test:db run, before any worker: migrates the run's template and hands its name
 // to the test files. The returned function drops it when the run ends.
 import type { TestProject } from 'vitest/node';

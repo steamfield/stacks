@@ -1,3 +1,7 @@
+/**
+ * Defines the site’s analytics event names and property types. Tracking callers share this catalog without importing the SDK.
+ */
+
 // The event catalog. track() accepts only these names. Name events object_verb in
 // the past tense (install_copied) and keep properties snake_case. No SDK import here,
 // so server code and tests can read the catalog without loading posthog-js.

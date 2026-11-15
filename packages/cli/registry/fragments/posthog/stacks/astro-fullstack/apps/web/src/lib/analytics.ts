@@ -1,3 +1,7 @@
+/**
+ * Wraps the PostHog client for the site. Analytics stays disabled when no key is configured.
+ */
+
 // The only module that imports posthog-js. Analytics is off, and the SDK never
 // loads, while the key is empty: the normal state in dev, tests, CI and sandboxes.
 // The caller passes env read in lib/config.ts, so this module never touches import.meta.env.

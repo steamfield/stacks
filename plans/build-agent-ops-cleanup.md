@@ -1,5 +1,7 @@
 # Registry agent ops: destructive-only hooks, baked-in engineering guidance, documented code
 
+Status: done 2026-11-15 on `build/agent-ops-cleanup`. A fresh typescript-library scaffold runs 55 tests in 3.55 s (was 240 in 4.0 s, 196 of them hook tests). The serial gate passed on m4-mini (CLI 4,613 tests, e2e 39). Kept allowed by the maintainer's call: forced checkout/switch and Docker volume removal. Not done: `_shell.ts` still ships to TS stacks with no TS guard, and opting other Biome stacks into `code-docs`.
+
 ## Context
 
 The maintainer's feedback on `typescript-library` (demo scaffold `~/Projects/zod-clone2`) is about four things:

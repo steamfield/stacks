@@ -1,3 +1,8 @@
+/**
+ * Checks the shared error table and the encoding and decoding of declared failures.
+ * These unit tests keep server responses and typed client errors in agreement.
+ */
+
 import { Schema } from "effect";
 import { expect, it } from "vitest";
 import {

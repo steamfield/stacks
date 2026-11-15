@@ -1,3 +1,8 @@
+/**
+ * Builds the application with captured logs and test-only routes, then starts a real Node listener.
+ * HTTP tests receive a request function and records, with the listener scope closed after each test.
+ */
+
 import { createServer } from "node:http";
 import { NodeHttpServer } from "@effect/platform-node";
 import { ConfigProvider, Context, Effect, Exit, Layer, Logger, References, Scope } from "effect";

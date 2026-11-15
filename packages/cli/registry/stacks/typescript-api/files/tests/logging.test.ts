@@ -1,3 +1,8 @@
+/**
+ * Checks structured log records, redaction and terminal formatting with real Effect logger inputs.
+ * These tests pin the logging contract used by the runtime entry.
+ */
+
 import { Effect, Logger } from "effect";
 import { expect, it } from "vitest";
 import { defectInfo, entry, type LogEntry, makeLogger, terminalLine } from "../src/logging.ts";

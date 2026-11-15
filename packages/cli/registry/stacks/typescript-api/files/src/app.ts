@@ -1,3 +1,8 @@
+/**
+ * Composes the API handlers, application services and global request middleware.
+ * Both Node and web transports use this platform-free app for error envelopes, request IDs and logs.
+ */
+
 import { ByteSize, Cause, Clock, Effect, Layer, Logger, References } from "effect";
 import {
   HttpIncomingMessage,

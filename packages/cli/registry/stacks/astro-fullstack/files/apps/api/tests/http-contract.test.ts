@@ -1,3 +1,8 @@
+/**
+ * Runs the HTTP acceptance matrix against a Node listener and the web handler.
+ * It checks the shared contract, safe failures and logs, plus static-site serving without swallowing API errors.
+ */
+
 import { spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";

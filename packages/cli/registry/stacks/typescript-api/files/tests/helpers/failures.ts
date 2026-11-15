@@ -1,3 +1,8 @@
+/**
+ * Defines test-only routes for declared errors, defects and response encoding failures.
+ * The HTTP test app mounts them beside production routes to exercise middleware without production switches.
+ */
+
 import { Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/http";
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";

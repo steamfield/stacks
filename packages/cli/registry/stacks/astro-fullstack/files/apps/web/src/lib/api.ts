@@ -1,3 +1,8 @@
+/**
+ * Calls the shared health contract through Effect's fetch client and maps failures to safe display messages.
+ * The status island uses this browser boundary with an abort signal for each request.
+ */
+
 import { Effect } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { HttpApiClient } from "effect/http-api";

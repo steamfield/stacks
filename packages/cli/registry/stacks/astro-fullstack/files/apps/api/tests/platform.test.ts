@@ -1,3 +1,8 @@
+/**
+ * Exercises the Node listener and development file sink with real files and HTTP requests.
+ * These integration tests check log rotation, recovery and nonfatal sink failures at the runtime boundary.
+ */
+
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ConfigProvider, Context, Effect, Exit, Layer, Scope } from "effect";

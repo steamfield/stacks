@@ -1,3 +1,8 @@
+/**
+ * Reads and validates startup settings through Effect Config.
+ * The runtime entry and application layers share this service for ports, body limits and logging options.
+ */
+
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 
 // Node's port zero asks the listener to own an ephemeral port.

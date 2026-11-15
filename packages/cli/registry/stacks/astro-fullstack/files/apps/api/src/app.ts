@@ -1,3 +1,8 @@
+/**
+ * Composes the API handlers, services and global middleware, including optional static-site serving.
+ * Both Node and web transports use it for consistent envelopes, request IDs and logs while keeping API misses out of site fallback.
+ */
+
 import {
   ByteSize,
   Cause,

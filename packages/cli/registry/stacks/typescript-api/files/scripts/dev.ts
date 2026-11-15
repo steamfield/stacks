@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+/**
+ * Runs the API in the foreground and saves terminal output alongside structured development logs.
+ * It owns the session's PID record, log rotation and server shutdown.
+ */
+
 // `bun run dev`: the dev server, with everything it prints (Node, startup errors, app logs)
 // also saved to logs/dev.log with colors stripped. The app separately writes
 // structured JSON lines to logs/server.jsonl. Each start moves the previous run's files

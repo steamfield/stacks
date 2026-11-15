@@ -1,3 +1,8 @@
+/**
+ * Mounts the React window with its selected transport, providers and memory router.
+ * This browser entry connects the desktop or mock runtime to the application UI.
+ */
+
 import { appTransport } from "@core/app-transport";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";

@@ -1,3 +1,8 @@
+/**
+ * Defines the health response and the payload endpoint's path, query and body schemas.
+ * API declarations use these schemas to validate requests and describe responses.
+ */
+
 import { Schema } from "effect";
 
 export const HealthStatus = Schema.Struct({ status: Schema.Literal("ok") });

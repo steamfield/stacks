@@ -1,3 +1,8 @@
+/**
+ * Provides each React tree with its transport, query client and tick store.
+ * It owns tick subscriptions, reconnects ended streams and releases listeners when the tree unmounts.
+ */
+
 import type { Transport } from "@core/transport";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";

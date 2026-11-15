@@ -1,3 +1,8 @@
+/**
+ * Declares health and payload-check endpoints with their boundary schemas and expected errors.
+ * The API definition includes this group and the health handlers implement it.
+ */
+
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { BadInputResponse, UnsupportedMediaTypeResponse } from "../errors.ts";
 import { CheckParams, CheckPayload, CheckQuery, HealthStatus, NoQuery } from "../schemas/index.ts";

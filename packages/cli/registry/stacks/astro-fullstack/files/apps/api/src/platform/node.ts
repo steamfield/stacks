@@ -1,3 +1,8 @@
+/**
+ * Starts the application on Node with validated configuration and structured logging.
+ * This runtime boundary owns the HTTP listener, rotating file sink and startup failure reporting.
+ */
+
 import { appendFileSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname } from "node:path";

@@ -1,3 +1,8 @@
+/**
+ * Reads and validates API startup settings through Effect Config.
+ * The runtime and application layers share this service for ports, body limits, logging and the static-site directory.
+ */
+
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 
 // Node's port zero asks the listener to own an ephemeral port.

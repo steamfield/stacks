@@ -1,3 +1,20 @@
+/**
+ * Runs every check `stacks validate` makes over one registry root and collects the report.
+ *
+ * `commands/validate.ts` calls `validate` with the `Target` that `target.ts::resolveTarget` found
+ * (a registry root, or one entry under it). This module builds a `View`, the one read-only picture
+ * of the registry every check works from: the validated entries (those under the root), the
+ * resolution set (every entry of every origin, with the root's entries winning), their source
+ * text and a lazily rendered set of compositions. It then runs the check groups in `checks`, one
+ * module each, and sorts what they find.
+ *
+ * A problem in an entry is a finding (an error, warning or note), never a failure, so one bad
+ * entry can't hide the rest; the command fails `ValidationFailed` on any error finding. The order
+ * of `checks` and the sort in `compareFindings` decide the order a report lists findings in.
+ * `preview.ts` reuses `checks`, `compareFindings` and `validationRoots` for `validate --brief`.
+ *
+ * Start at `validate`.
+ */
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
 import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
@@ -26,12 +43,12 @@ import { readSources } from "./sources";
 import { submissionChecks } from "./submission";
 import type { Target } from "./target";
 import { templateChecks } from "./templates";
-import type { Check, View } from "./types";
+import type { Check, SourceView, View } from "./types";
 import { verifyNotes } from "./verify-notes";
 import { versionSensitiveChecks } from "./version-sensitive";
 import { rootPaths } from "./view";
 
-/** Every check group; each module owns one class of findings over the same view. */
+/** Every check group, run in this order; each module owns one class of findings over the view. */
 export const checks: ReadonlyArray<Check> = [
   loadChecks,
   searchChecks,
@@ -78,10 +95,17 @@ export const validationRoots = (target: Target) =>
   });
 
 const severityRank = { error: 0, warning: 1, note: 2 } as const;
+
+/** Registry-wide findings (no entry) come first, then stacks, then fragments. */
 const kindRank = (kind: Finding["kind"]) => {
   if (kind === undefined) return 0;
   return kind === "stack" ? 1 : 2;
 };
+
+/**
+ * The order a report lists findings in: by kind and entry id (so each entry's findings group
+ * together), then severity, file, line, check id and message.
+ */
 export function compareFindings(a: Finding, b: Finding): number {
   return (
     kindRank(a.kind) - kindRank(b.kind) ||
@@ -93,7 +117,14 @@ export function compareFindings(a: Finding, b: Finding): number {
     a.message.localeCompare(b.message, "en")
   );
 }
+
 const sizeRank = { body: 0, composed: 1, shipped: 2 } as const;
+
+/** Whether an entry is in the validated set: every entry, or only the one `target.only` names. */
+const wantedBy =
+  (only: Target["only"]) =>
+  (item: { kind: string; id: string }): boolean =>
+    only === undefined || (only.kind === item.kind && only.id === item.id);
 
 /**
  * The entries whose sources a check can read: the validated ones and every entry they compose
@@ -110,6 +141,63 @@ function sourceEntries(
   return entries.filter((item) => validated.includes(item) || isFragment(item));
 }
 
+/** The view every check reads, over the resolution set `all`. */
+const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
+  Effect.gen(function* () {
+    const path = yield* Path.Path;
+    const { inRoot, file } = rootPaths(path, target.root);
+    const wanted = wantedBy(target.only);
+    const validated = all.filter((item) => inRoot(item) && wanted(item));
+    const sourceView: SourceView = {
+      root: target.root,
+      bundled: target.bundled,
+      ...(target.only === undefined ? {} : { only: target.only }),
+      entries: validated.filter((item): item is Entry => !isRejected(item)),
+      rejected: validated.filter((item): item is RejectedEntry => isRejected(item)),
+      all,
+      sources: yield* readSources(sourceEntries(all, validated)),
+      wanted,
+      inRoot,
+      file,
+    };
+    // Rendering compositions is the slowest work; several checks share one run of it.
+    return {
+      ...sourceView,
+      composed: yield* Effect.cached(composedFiles(sourceView)),
+    } satisfies View;
+  });
+
+/** Runs each check in order, one after another, and concatenates what they return. */
+const runChecks = (view: View, list: ReadonlyArray<Check>) =>
+  Effect.gen(function* () {
+    const findings: Finding[] = [];
+    const sizes: SizeRow[] = [];
+    for (const check of list) {
+      const result = yield* check(view);
+      findings.push(...result.findings);
+      sizes.push(...(result.sizes ?? []));
+    }
+    return { findings, sizes };
+  });
+
+/** The report: entry counts of the validated set, sorted findings and sorted size rows. */
+function buildReport(
+  view: View,
+  { findings, sizes }: { findings: Finding[]; sizes: SizeRow[] },
+): ValidateReport {
+  const validated = [...view.entries, ...view.rejected];
+  const count = (kind: "stack" | "fragment") =>
+    validated.filter((item) => item.kind === kind).length;
+  return {
+    root: view.root,
+    bundled: view.bundled,
+    entries: { stacks: count("stack"), fragments: count("fragment") },
+    findings: findings.sort(compareFindings),
+    // Stable sort: within a kind, rows stay in the order the checks produced them.
+    sizes: sizes.sort((a, b) => sizeRank[a.kind] - sizeRank[b.kind]),
+  };
+}
+
 /**
  * Validates the entries under `target.root` (or the one entry `target.only` names). Never stops
  * at the first bad entry: every problem is a finding. Fails only when a root can't be read.
@@ -117,49 +205,13 @@ function sourceEntries(
  */
 export const validate = (target: Target, options: { submission?: boolean } = {}) =>
   Effect.gen(function* () {
-    const path = yield* Path.Path;
     const roots = yield* validationRoots(target);
+    const run = options.submission ? [...checks, submissionChecks] : checks;
+    // Checks share one snapshot of the registry, so repeated compositions reuse checked reads.
     return yield* Effect.flatMap(snapshotRegistry, (registry) =>
       Effect.gen(function* () {
-        const all = yield* registry.all;
-        const { inRoot, file } = rootPaths(path, target.root);
-        const wanted = (item: { kind: string; id: string }) =>
-          target.only === undefined ||
-          (target.only.kind === item.kind && target.only.id === item.id);
-        const validated = all.filter((item) => inRoot(item) && wanted(item));
-        const sourceView: Omit<View, "composed"> = {
-          root: target.root,
-          bundled: target.bundled,
-          ...(target.only === undefined ? {} : { only: target.only }),
-          entries: validated.filter((item): item is Entry => !isRejected(item)),
-          rejected: validated.filter((item): item is RejectedEntry => isRejected(item)),
-          all,
-          sources: yield* readSources(sourceEntries(all, validated)),
-          wanted,
-          inRoot,
-          file,
-        };
-        const view: View = {
-          ...sourceView,
-          composed: yield* Effect.cached(composedFiles(sourceView)),
-        };
-        const findings: Finding[] = [];
-        const sizes: SizeRow[] = [];
-        for (const check of options.submission ? [...checks, submissionChecks] : checks) {
-          const result = yield* check(view);
-          findings.push(...result.findings);
-          sizes.push(...(result.sizes ?? []));
-        }
-        const count = (kind: "stack" | "fragment") =>
-          validated.filter((item) => item.kind === kind).length;
-        return {
-          root: target.root,
-          bundled: target.bundled,
-          entries: { stacks: count("stack"), fragments: count("fragment") },
-          findings: findings.sort(compareFindings),
-          // Stable sort: within a kind, rows stay in the order the checks produced them.
-          sizes: sizes.sort((a, b) => sizeRank[a.kind] - sizeRank[b.kind]),
-        } satisfies ValidateReport;
+        const view = yield* buildView(target, yield* registry.all);
+        return buildReport(view, yield* runChecks(view, run));
       }).pipe(Effect.provideService(Registry, registry)),
     ).pipe(Effect.provide(Registry.layer(roots)));
   });

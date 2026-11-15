@@ -9,7 +9,7 @@ paths:
 # Protobuf and RPC rules
 
 - The `.proto` files are the contract. Never renumber, retype or reuse a field number or name; delete a field by adding `reserved` for its number and name. Add fields and methods rather than changing them.
-- After every `.proto` edit run `make generate`, then `make buf-lint generate-check`, and commit `proto/` and `gen/` together. Never edit `gen/`; the hook denies it.
+- After every `.proto` edit run `make generate`, then `make buf-lint generate-check`, and commit `proto/` and `gen/` together. Never edit `gen/` by hand; `make generate-check` fails when it drifts from `proto/`.
 - `make breaking` compares `proto/` with `main` (`BREAKING_AGAINST`). A breaking change needs a new package version (`notes.v2`) or the user's explicit approval.
 - Each RPC gets its own `XRequest` and `XResponse` messages (buf STANDARD lint). Mark read-only methods `option idempotency_level = NO_SIDE_EFFECTS;`.
 - Handlers in `internal/rpc` convert between messages and domain types and return domain errors from `internal/errors` unchanged. Only `toStatus` and `errorTable` pick status codes; never return `connect.NewError` with a cause's text. A downstream call's `*connect.Error` is a cause: wrap it in an `internal/errors` value, never return it as is (`toStatus` passes only a top-level one through).

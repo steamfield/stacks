@@ -1,3 +1,8 @@
+/**
+ * Renders API health, loading and retry states as a React island on the static site.
+ * It calls the typed client and aborts outstanding work when the status view unmounts.
+ */
+
 import { useEffect, useState } from "react";
 import { health } from "../lib/api";
 

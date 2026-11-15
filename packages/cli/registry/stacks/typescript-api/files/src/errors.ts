@@ -1,3 +1,8 @@
+/**
+ * Defines tagged API failures, their HTTP statuses and safe public response envelopes.
+ * Declarations and request middleware use the same table to keep error responses consistent.
+ */
+
 import { Schema, SchemaGetter } from "effect";
 import { HttpApiSchema } from "effect/http-api";
 

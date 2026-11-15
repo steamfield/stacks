@@ -1,3 +1,8 @@
+/**
+ * Exposes the same request-and-log interface for Node and web test transports.
+ * The HTTP acceptance suite uses it to run each case against both implementations.
+ */
+
 import { NodeHttpPlatform, NodeServices } from "@effect/platform-node";
 import { Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";

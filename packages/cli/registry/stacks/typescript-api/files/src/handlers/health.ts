@@ -1,3 +1,8 @@
+/**
+ * Connects the health API group's decoded requests to the Health service.
+ * This layer supplies handlers to the platform-free application.
+ */
+
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 import { Api } from "../api.ts";

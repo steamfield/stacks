@@ -1,3 +1,8 @@
+/**
+ * Checks the status island's loading, safe failure and retry behavior through rendered UI.
+ * Only fetch is replaced, so responses still pass through the real shared-contract client.
+ */
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Schema } from "effect";
 import { StrictMode } from "react";

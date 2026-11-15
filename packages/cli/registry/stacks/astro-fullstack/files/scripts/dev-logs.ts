@@ -1,3 +1,8 @@
+/**
+ * Defines development log paths and converts server output into shared records.
+ * The wrapper, log reader and status report use it to rotate files and inspect the session.
+ */
+
 // The dev session's log files and their record format, shared by scripts/dev.ts (which writes
 // logs/dev.jsonl), scripts/logs.ts (`bun run logs`, the reader) and the dev status report. Paths
 // are relative to the repo root, which every caller chdirs to first.

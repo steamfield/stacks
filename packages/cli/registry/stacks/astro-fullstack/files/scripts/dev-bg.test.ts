@@ -1,3 +1,8 @@
+/**
+ * Exercises background development startup and shutdown with temporary servers.
+ * These smoke tests check that the process wrapper manages only this checkout's processes.
+ */
+
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";

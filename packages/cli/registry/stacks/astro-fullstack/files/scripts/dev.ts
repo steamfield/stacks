@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+/**
+ * Runs the API and Astro development servers together, saving their terminal output and structured logs.
+ * It owns the session's PID record and log rotation, and stops both servers when either exits.
+ */
+
 // `bun run dev`: the API and the site's dev server, with everything they print (Node, Astro,
 // startup errors, app logs) shown with an [api] or [web] prefix and also saved to logs/dev.log
 // with colors stripped. The API separately writes structured JSON lines to logs/server.jsonl

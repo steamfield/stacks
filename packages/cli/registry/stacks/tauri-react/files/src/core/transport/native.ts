@@ -1,3 +1,8 @@
+/**
+ * Adapts generated Tauri commands and a window-owned channel to the frontend transport contract.
+ * It shares each native tick stream among observers and reports stream completion for reconnection.
+ */
+
 import { Channel } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { commands, type Tick } from "../generated/bindings";

@@ -1,3 +1,8 @@
+/**
+ * Probes the project's Biome boundary rules with temporary source files.
+ * These tooling tests keep runtime access and Effect conventions enforced as the app grows.
+ */
+
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

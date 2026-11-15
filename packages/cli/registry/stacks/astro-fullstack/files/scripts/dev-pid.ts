@@ -1,3 +1,8 @@
+/**
+ * Reads the development wrapper's PID record and identifies live or orphaned server groups.
+ * The foreground and background commands share it to track this checkout's processes.
+ */
+
 // logs/dev.pid holds "<pid> <api port> <web port> <server group>..." while scripts/dev.ts runs.
 // Shared by dev.ts and dev-bg.ts; paths are relative to the repo root, which both scripts chdir to.
 import { spawnSync } from "node:child_process";

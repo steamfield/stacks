@@ -18,7 +18,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github]
+  default: [claude-harness-docs, git-hooks, ci-github, code-docs]
   optional: [rr, ce-plugin]
 env:
   PORT_WEB: "1420"

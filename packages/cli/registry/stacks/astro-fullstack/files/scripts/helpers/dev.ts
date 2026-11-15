@@ -1,3 +1,8 @@
+/**
+ * Builds temporary projects containing the development scripts under test.
+ * The tooling smoke tests use these copies to exercise processes and logs without changing the checkout.
+ */
+
 // Fixtures for the shipped development script smoke tests.
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

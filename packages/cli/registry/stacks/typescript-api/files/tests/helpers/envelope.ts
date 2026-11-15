@@ -1,3 +1,8 @@
+/**
+ * Decodes an HTTP error body and checks its status and headers against the public error table.
+ * The contract suite shares this assertion across both transports.
+ */
+
 import { Schema } from "effect";
 import { expect } from "vitest";
 import { type ApiErrorTag, apiErrorTable, ErrorEnvelope } from "../../src/errors.ts";

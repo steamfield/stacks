@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+/**
+ * Filters and prints the current or previous development session's records as text or JSON lines.
+ * It reads the shared log format so callers can inspect failures without restarting servers.
+ */
+
 // `bun run logs`: the dev session's records from both servers, merged in time order, one line
 // each. The files and their format are in scripts/dev-logs.ts. `--help` lists the filters.
 import { join } from "node:path";

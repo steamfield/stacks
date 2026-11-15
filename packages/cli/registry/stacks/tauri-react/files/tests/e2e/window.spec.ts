@@ -1,3 +1,8 @@
+/**
+ * Exercises the browser window through Playwright on the mock transport.
+ * These end-to-end checks cover rendered metadata, changing ticks and visible command failures.
+ */
+
 import { expect, test } from "@playwright/test";
 
 test("browser window shows application info and a changing tick", async ({ page }) => {

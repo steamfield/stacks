@@ -1,3 +1,8 @@
+/**
+ * Converts Effect logger inputs into plain records with redacted annotations and restricted defect details.
+ * The runtime entry uses these records for JSON logs and readable terminal output.
+ */
+
 import { Logger, References } from "effect";
 
 export type LogEntry = {

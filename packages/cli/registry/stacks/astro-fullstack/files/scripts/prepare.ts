@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+/**
+ * Installs lefthook hooks after dependency installation when a hook configuration exists.
+ * It skips CI and reports an unavailable installer without failing project setup.
+ */
+
 // `prepare`, which bun runs after every `bun install`: the git hooks. CI sets CI and does its own
 // setup, so this does nothing there.
 import { spawnSync } from "node:child_process";

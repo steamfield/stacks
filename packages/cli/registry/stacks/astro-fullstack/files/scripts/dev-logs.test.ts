@@ -1,3 +1,8 @@
+/**
+ * Runs the development wrapper and log reader against temporary output.
+ * These smoke tests check saved terminal output and the text and JSON log views.
+ */
+
 import { spawn, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

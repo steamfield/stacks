@@ -1,3 +1,8 @@
+/**
+ * Checks startup defaults, setting precedence and rejection of invalid configuration.
+ * These tests build AppConfig with explicit environment records instead of the host environment.
+ */
+
 import { ConfigProvider, Context, Effect, Exit, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { AppConfig } from "../src/config.ts";

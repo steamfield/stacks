@@ -1,3 +1,8 @@
+/**
+ * Checks the tagged error table and each public envelope codec.
+ * These tests keep declared failures, safe messages and HTTP statuses in agreement.
+ */
+
 import { Schema } from "effect";
 import { expect, it } from "vitest";
 import {

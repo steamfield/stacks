@@ -19,7 +19,7 @@ decisions:
 merge: [.claude/settings.json, .codex/hooks.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github, effect, rest-api]
+  default: [claude-harness-docs, git-hooks, ci-github, effect, rest-api, code-docs]
   optional: [rr, ce-plugin, effect-sql-postgres, effect-otlp, docker-deploy, posthog]
 env:
   PORT_API: "3000"

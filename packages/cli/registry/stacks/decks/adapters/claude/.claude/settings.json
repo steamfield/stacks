@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run test)",
+      "Bash(bun run build)",
+      "Bash(bun run check)",
+      "Bash(bun run decks *)"
+    ]
+  }
+}

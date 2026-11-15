@@ -1,3 +1,17 @@
+/**
+ * The whole `stacks` command tree: every subcommand a user can type, attached to the root command.
+ *
+ * `main.ts` runs `cli` once per invocation; each subcommand's flags, help text and handler live in
+ * its own file under `commands/`, and this file only assembles them. The order of the subcommand
+ * list is the order `stacks --help` prints.
+ *
+ * Two things wrap every command here. Most subcommands first show the one-time telemetry notice
+ * (the line telling a new user what the CLI collects and how to turn it off) and ask `main` to send
+ * queued telemetry once the command's output is written; `new`, `add` and `verify` show the notice
+ * but send their events themselves, and `schema` and `telemetry` skip the notice entirely. Then the
+ * root applies the shared `--offline` and `--no-telemetry` flags to the configuration before any
+ * handler reads it.
+ */
 import { Effect } from "effect";
 import { Command } from "effect/cli";
 import { addCommand } from "./commands/add";
@@ -20,50 +34,58 @@ import { verifyCommand } from "./commands/verify";
 import { AppConfig } from "./config";
 import { Telemetry } from "./telemetry";
 
+/**
+ * Shows the telemetry notice if it is due; with `flushAfterOutput`, `main` also sends queued events
+ * after the command's output is written.
+ */
+const telemetryNotice = (flushAfterOutput: boolean) =>
+  Effect.flatMap(Telemetry, (telemetry) =>
+    telemetry.notify.pipe(
+      Effect.andThen(flushAfterOutput ? telemetry.markFlushAfterOutput : Effect.void),
+    ),
+  );
+
+/** Runs the telemetry notice before `command`'s handler. */
 const notify = <Name extends string, Input, ContextInput, E, R>(
   command: Command.Command<Name, Input, ContextInput, E, R>,
   flushAfterOutput = true,
-) =>
-  Command.provideEffectDiscard(
-    command,
-    Effect.flatMap(Telemetry, (telemetry) =>
-      telemetry.notify.pipe(
-        Effect.andThen(flushAfterOutput ? telemetry.markFlushAfterOutput : Effect.void),
-      ),
-    ),
+) => Command.provideEffectDiscard(command, telemetryNotice(flushAfterOutput));
+
+/** Applies the shared `--offline` and `--no-telemetry` flags to this invocation's config. */
+const applySharedFlags = ({
+  offline,
+  noTelemetry,
+}: {
+  readonly offline: boolean;
+  readonly noTelemetry: boolean;
+  readonly json: boolean;
+}) =>
+  Effect.flatMap(AppConfig, (config) =>
+    config.setOffline(offline).pipe(Effect.andThen(config.setNoTelemetry(noTelemetry))),
   );
+
 export const cli = root.pipe(
   Command.withDescription("Start projects from stacks your coding agent builds and verifies."),
   // No subcommand: the agent guide instead of the framework's help (`--help` keeps that).
-  Command.withHandler(() =>
-    Effect.flatMap(Telemetry, (telemetry) =>
-      telemetry.notify.pipe(
-        Effect.andThen(telemetry.markFlushAfterOutput),
-        Effect.andThen(printGuide),
-      ),
-    ),
-  ),
+  Command.withHandler(() => telemetryNotice(true).pipe(Effect.andThen(printGuide))),
   Command.withSubcommands([
-    addCommand.pipe((command) => notify(command, false)),
-    createCommand.pipe(notify),
-    doctorCommand.pipe(notify),
-    guideCommand.pipe(notify),
-    listCommand.pipe(notify),
-    newCommand.pipe((command) => notify(command, false)),
-    runsCommand.pipe(notify),
+    // `add`, `new` and `verify` send their own telemetry, so they don't ask `main` to.
+    notify(addCommand, false),
+    notify(createCommand),
+    notify(doctorCommand),
+    notify(guideCommand),
+    notify(listCommand),
+    notify(newCommand, false),
+    notify(runsCommand),
     schemaCommand,
-    searchCommand.pipe(notify),
-    showCommand.pipe(notify),
-    skillCommand.pipe(notify),
-    submitCommand.pipe(notify),
+    notify(searchCommand),
+    notify(showCommand),
+    notify(skillCommand),
+    notify(submitCommand),
     telemetryCommand,
-    updateCommand.pipe(notify),
-    validateCommand.pipe(notify),
-    verifyCommand.pipe((command) => notify(command, false)),
+    notify(updateCommand),
+    notify(validateCommand),
+    notify(verifyCommand, false),
   ]),
-  Command.provideEffectDiscard(({ offline, noTelemetry }) =>
-    Effect.flatMap(AppConfig, (config) =>
-      config.setOffline(offline).pipe(Effect.andThen(config.setNoTelemetry(noTelemetry))),
-    ),
-  ),
+  Command.provideEffectDiscard(applySharedFlags),
 );

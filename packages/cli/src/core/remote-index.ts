@@ -1,3 +1,21 @@
+/**
+ * Downloads and caches the signed remote index, the optional third registry root.
+ *
+ * Besides the project, user and bundled roots, the registry can read entries from an index
+ * published at a URL: the official one (bin passes `officialUrl` once a host exists) or one a user
+ * sets with `STACKS_INDEX_URL`. With neither, the origin is off and `status` reports `url: null`.
+ * `core/registry/remote.ts` merges what `RemoteIndex.current` returns below project and user
+ * entries and above bundled ones, and calls `RemoteIndex.bundle` to fetch an entry's files only
+ * when a command needs that entry. `core/doctor.ts` prints `status`.
+ *
+ * The index is fetched through `core/cached-fetch.ts` (24-hour cache, 1,500 ms deadline, persisted
+ * backoff) and checked by `remote-index/verification.ts`. Only the official URL's signature is
+ * required, since only its entries are trusted (`.claude/rules/architecture.md`, "Trust model",
+ * point 2). A bundle is accepted only when its id, kind and digest match the verified index, and it
+ * is extracted by `remote-index/files.ts` into `<cache>/index/entries/<digest>/`. When that cache
+ * can't be written, the bundle goes into a temporary directory that lives as long as the
+ * invocation, so the command still works.
+ */
 import {
   bundleDigest,
   EntryBundle,
@@ -15,6 +33,7 @@ import { type RemoteFailure, verifyIndex } from "./remote-index/verification";
 
 export { RemoteStatus } from "../schemas/remote-index";
 
+/** An index that passed `verifyIndex`. */
 type VerifiedIndex = RegistryIndex;
 type Access = {
   cache: Cache;
@@ -22,20 +41,34 @@ type Access = {
   url: string;
 };
 type BundleAccess = Access & {
+  /** The invocation's fallback directory, created on first use. */
   temporary: ReturnType<FileSystem.FileSystem["makeTempDirectory"]>;
 };
 
-function initialStatus(url: string | null, isDefaultUrl: boolean): RemoteStatus {
-  return {
-    url,
-    isDefaultUrl,
-    offline: false,
-    cachedAt: null,
-    lastAttempt: null,
-    lastOutcome: null,
-    backoffUntil: null,
-  };
+/**
+ * True for a URL the CLI may fetch: HTTPS, or HTTP to localhost or 127.0.0.1, with no credentials.
+ * Any other configured URL keeps the origin on but makes no request.
+ */
+function isFetchableUrl(text: string): boolean {
+  if (!URL.canParse(text)) return false;
+  const url = new URL(text);
+  if (url.username || url.password) return false;
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
 }
+
+const bundleUrl = (indexUrl: string, entry: IndexEntry) =>
+  new URL(`entries/${entry.kind}/${entry.id}/${entry.digest}.json`, indexUrl).href;
+
+const offStatus = (offline: boolean): RemoteStatus => ({
+  url: null,
+  isDefaultUrl: false,
+  offline,
+  cachedAt: null,
+  lastAttempt: null,
+  lastOutcome: null,
+  backoffUntil: null,
+});
 
 const readStatus = Effect.fn("remoteIndex.readStatus")(function* (
   options: Access,
@@ -54,6 +87,10 @@ const readStatus = Effect.fn("remoteIndex.readStatus")(function* (
   };
 });
 
+/**
+ * Extracts into a staging directory beside the cache, then renames it to its digest, so a cache
+ * directory named for a digest is never half written. Staging is removed whatever happens.
+ */
 const persistBundle = Effect.fn("remoteIndex.persistBundle")(function* (
   cache: Cache,
   bundle: EntryBundle,
@@ -76,15 +113,17 @@ const persistBundle = Effect.fn("remoteIndex.persistBundle")(function* (
   );
 });
 
+/** Stores a verified bundle in the cache, or in the invocation's temporary directory instead. */
 const storeBundle = Effect.fn("remoteIndex.storeBundle")(function* (
   options: Pick<BundleAccess, "cache" | "temporary">,
   bundle: EntryBundle,
   digest: string,
 ) {
   const { fs, path } = options.cache;
-  const cached = yield* Effect.result(persistBundle(options.cache, bundle, digest));
-  if (cached._tag === "Success") return cached.success;
+  const persisted = yield* Effect.result(persistBundle(options.cache, bundle, digest));
+  if (persisted._tag === "Success") return persisted.success;
   const target = path.join(yield* options.temporary, digest);
+  // An earlier call in this invocation may already have extracted it here.
   if (yield* directoryMatches({ id: bundle.id, kind: bundle.kind, digest, dir: target }))
     return target;
   yield* fs.makeDirectory(target, { recursive: true });
@@ -92,37 +131,41 @@ const storeBundle = Effect.fn("remoteIndex.storeBundle")(function* (
   return target;
 });
 
-const downloadBundle = Effect.fn("remoteIndex.downloadBundle")(function* (
+/** Decodes a downloaded bundle, checks it against its index entry, and stores it. */
+const acceptBundle = Effect.fn("remoteIndex.acceptBundle")(function* (
   options: Pick<BundleAccess, "cache" | "temporary">,
   entry: IndexEntry,
   text: string,
 ) {
-  const decoded = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(EntryBundle))(text).pipe(
+  const bundle = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(EntryBundle))(text).pipe(
     Effect.mapError((): RemoteFailure => "invalid"),
   );
   if (
-    decoded.id !== entry.id ||
-    decoded.kind !== entry.kind ||
-    (yield* bundleDigest(decoded)) !== entry.digest
+    bundle.id !== entry.id ||
+    bundle.kind !== entry.kind ||
+    (yield* bundleDigest(bundle)) !== entry.digest
   ) {
     yield* Effect.logWarning("Remote bundle integrity digest mismatch; using bundled entry.");
     return yield* Effect.fail<RemoteFailure>("invalid");
   }
-  return yield* storeBundle(options, decoded, entry.digest).pipe(
+  return yield* storeBundle(options, bundle, entry.digest).pipe(
     Effect.mapError((): RemoteFailure => "invalid"),
   );
 });
 
+/** An entry's verified files: the cached directory while it still matches, else a download. */
 const cachedBundle = Effect.fn("remoteIndex.cachedBundle")(function* (
   options: BundleAccess,
   entry: IndexEntry,
 ) {
-  if (!validUrl(options.url) || !Schema.is(RegistryIndex.fields.entries.value)(entry))
+  // `entry` comes from callers, so its shape is checked before its digest names a path.
+  if (!isFetchableUrl(options.url) || !Schema.is(RegistryIndex.fields.entries.value)(entry))
     return Option.none<string>();
   const dir = options.cache.path.join(options.cache.root, "entries", entry.digest);
   if (yield* directoryMatches({ ...entry, dir })) return Option.some(dir);
-  const at = bundleUrl(options.url, entry);
-  const fetched = yield* options.cached.get(at, (text) => downloadBundle(options, entry, text));
+  const fetched = yield* options.cached.get(bundleUrl(options.url, entry), (text) =>
+    acceptBundle(options, entry, text),
+  );
   return Option.map(fetched, ({ value }) => value);
 });
 
@@ -130,15 +173,19 @@ function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): RemoteInde
   return {
     current: Effect.succeed(Option.none()),
     bundle: () => Effect.succeed(Option.none()),
-    status: offline.pipe(Effect.map((offline) => ({ ...initialStatus(null, false), offline }))),
+    status: offline.pipe(Effect.map(offStatus)),
   };
 }
 
+/** The signed remote index: its verified entries, their files and its cache status. */
 export class RemoteIndex extends Context.Service<
   RemoteIndex,
   {
+    /** The verified index, refreshed when the cached copy is older than 24 hours. */
     readonly current: Effect.Effect<Option.Option<VerifiedIndex>>;
+    /** The directory holding the entry's verified files, downloading them if needed. */
     readonly bundle: (entry: IndexEntry) => Effect.Effect<Option.Option<string>>;
+    /** The cache state for `doctor`, with no request. */
     readonly status: Effect.Effect<RemoteStatus>;
   }
 >()("stacks/RemoteIndex") {
@@ -169,7 +216,7 @@ export class RemoteIndex extends Context.Service<
           stateFile: "state.json",
           decode: (text) => verifyIndex(text, verification),
           offline: config.offline,
-          fetchEnabled: validUrl(url),
+          fetchEnabled: isFetchableUrl(url),
         });
         // A scoped temporary root keeps this invocation usable if the cache cannot be written.
         const temporary = yield* Effect.cached(
@@ -189,18 +236,4 @@ export class RemoteIndex extends Context.Service<
         };
       }),
     );
-}
-
-const bundleUrl = (url: string, entry: IndexEntry) =>
-  new URL(`entries/${entry.kind}/${entry.id}/${entry.digest}.json`, url).href;
-
-function validUrl(text: string): boolean {
-  if (!URL.canParse(text)) return false;
-  const url = new URL(text);
-  return (
-    !url.username &&
-    !url.password &&
-    (url.protocol === "https:" ||
-      (url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)))
-  );
 }

@@ -1,3 +1,14 @@
+/**
+ * The shapes of what `stacks verify --json` prints: the result on stdout and the live events on
+ * stderr.
+ *
+ * Verify runs the steps in the project's manifest (`.stacks/manifest.json`), the project's
+ * definition of done, and reports whether the project is green. Before any step runs, it checks
+ * that the steps haven't changed since the project was made ("Trust model" point 5 in
+ * `.claude/rules/architecture.md`); `VerifyChange` says what differs when they have.
+ * `core/verify/run.ts` builds the result (`core/verify/tamper.ts` for a `changed` run) and
+ * `core/verify/events.ts` writes the events.
+ */
 import {
   FailureKind,
   Outcome,
@@ -32,7 +43,7 @@ export const StepResult = Schema.Struct({
 export type StepResult = typeof StepResult.Type;
 
 /**
- * How the verify steps differ from the copy they were checked against (D14). `against` is the copy
+ * How the verify steps differ from the copy they were checked against. `against` is the copy
  * that disagreed: the manifest's own `verifyDigest`, or the state record outside the project.
  * `reason: "project-id"` is a record found by the manifest's real path under another id. The step
  * lists and `settings` (`env` or `preset`) come from the state record's per-step digests, so they
@@ -51,7 +62,7 @@ export type VerifyChange = typeof VerifyChange.Type;
 /**
  * `verify --json`'s result. `green` is a full run with every step that ran passing and the tamper
  * check passed; `partial` is a `--only` or `--skip-tag` run that passed, which never counts as
- * green; `changed` is a run stopped before any step because the steps changed (D14).
+ * green; `changed` is a run stopped before any step because the steps changed.
  */
 export const VerifyResult = Schema.Struct({
   ...NoticeFields,

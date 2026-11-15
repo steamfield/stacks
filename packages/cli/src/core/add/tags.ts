@@ -1,3 +1,13 @@
+/**
+ * Guesses tags such as `node`, `bun` or `monorepo` from a project's files, for a `stacks add` into
+ * a project no known stack made.
+ *
+ * Fragment files can hold `stacks:when` blocks that render only for certain tags. A stack declares
+ * its tags, but a project `stacks new` didn't create has none, so `add/prepare.ts` calls
+ * `inferTags` and composition uses the guesses for those blocks alone. They never decide whether a
+ * fragment fits the project, and they aren't written to the manifest. Files are checked for
+ * existence or read as data; nothing runs.
+ */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 
 const Package = Schema.Struct({

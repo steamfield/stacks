@@ -1,3 +1,12 @@
+/**
+ * Works out the values that fill an entry's `.tmpl` files, such as the project name and author,
+ * for `stacks new` and `stacks add`.
+ *
+ * `templateOverrides` checks the user's `--name`, `--author` and `--scope` early, so a bad flag
+ * fails before any slow work (`commands/new.ts`, `scaffold/new.ts` and `add/prepare.ts` call it).
+ * `templateValues` then builds the full set from those flags, the user's settings and git, and
+ * the composition renders files with it.
+ */
 import { Clock, Effect, Option, Schema } from "effect";
 import { BadInput, InvalidConfig } from "../../errors";
 import { NpmScope, type Settings } from "../../schemas/config";
@@ -28,6 +37,26 @@ export const templateOverrides = (input: {
 
 type Overrides = { author: string | undefined; scope: string | undefined };
 
+/**
+ * The author: an explicit `--author`, else the `author` setting, else git's `user.name`, else
+ * empty. An unusable setting is `InvalidConfig`; an unusable git name is empty.
+ */
+const authorFor = (input: {
+  settings: Settings;
+  git: { cwd: string; installed: boolean };
+  overrides?: Overrides;
+}) =>
+  Effect.gen(function* () {
+    if (input.overrides?.author !== undefined) return input.overrides.author;
+    if (input.settings.author !== undefined) {
+      const author = authorValue(input.settings.author);
+      if (author === undefined) return yield* new InvalidConfig();
+      return author;
+    }
+    if (!input.git.installed) return "";
+    return authorValue(yield* gitUserName(input.git.cwd)) ?? "";
+  });
+
 /** One author precedence and one complete fixed-variable set for every project writer. */
 export const templateValues = (input: {
   name: string;
@@ -36,21 +65,14 @@ export const templateValues = (input: {
   overrides?: Overrides;
 }) =>
   Effect.gen(function* () {
-    let author: string | undefined;
-    if (input.overrides?.author !== undefined) author = input.overrides.author;
-    else if (input.settings.author !== undefined) author = authorValue(input.settings.author);
-    else if (input.git.installed) author = authorValue(yield* gitUserName(input.git.cwd)) ?? "";
-    else author = "";
-    if (author === undefined) return yield* new InvalidConfig();
+    const author = yield* authorFor(input);
     const projectSlug = slug(input.name);
+    const scope = input.overrides?.scope ?? input.settings.packageScope ?? "";
     return {
       project_name: input.name,
       project_slug: projectSlug,
       env_prefix: envPrefix(projectSlug),
-      package_scope: (input.overrides?.scope ?? input.settings.packageScope ?? "").replace(
-        /^@/,
-        "",
-      ),
+      package_scope: scope.replace(/^@/, ""),
       author,
       year: String(new Date(yield* Clock.currentTimeMillis).getUTCFullYear()),
     } satisfies TemplateValues;

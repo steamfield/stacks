@@ -1,3 +1,11 @@
+/**
+ * The bare `stacks` command and the three flags every subcommand accepts: `--json`, `--offline` and
+ * `--no-telemetry`.
+ *
+ * It lives in its own file so subcommands can import it without importing `cli.ts`, which imports
+ * them: `new` and `add` read `--json` with `yield* root` to decide whether they may launch an agent.
+ * `cli.ts` adds the description, the no-subcommand handler and the subcommands.
+ */
 import { Command, Flag } from "effect/cli";
 
 /**

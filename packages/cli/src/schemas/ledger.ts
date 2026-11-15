@@ -1,6 +1,16 @@
+/**
+ * The shape of the run ledger, `registry/runs.json`, which ships inside the bundled registry.
+ *
+ * The ledger is the bundled stacks' evidence: each record is one maintainer run that took a stack
+ * from scaffold to verify, with an agent or without one (`mode: "scaffold"`), and how it went.
+ * `list` and `show` print a stack's latest record as its `lastRun`, and `validate` compares the
+ * recorded fingerprints with the current content to note stacks whose proof is stale.
+ * `core/ledger.ts` reads and appends records; the maintainer scripts write them.
+ */
 import { DetectedAgent, RunRecord } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 
+/** `infra` is a run lost to the bench itself, such as an agent that errored before changing anything. */
 const LedgerResult = Schema.Literals(["pass", "partial", "fail", "infra"]);
 
 /** A recorded build, wrapping the Run record contract unchanged. */
@@ -45,7 +55,10 @@ export const LedgerLastRun = Schema.Struct({
 });
 export type LedgerLastRun = typeof LedgerLastRun.Type;
 
-/** Records are decoded separately so readers can skip newer or invalid records. */
+/**
+ * The ledger file's envelope. Records stay unknown here and are decoded one by one as
+ * `LedgerRecord`, so a reader can skip a record from a newer CLI or a broken one and keep the rest.
+ */
 export const Ledger = Schema.Struct({
   schemaVersion: Schema.Literal(1),
   records: Schema.Array(Schema.Unknown),

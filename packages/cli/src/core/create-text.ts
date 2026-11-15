@@ -1,9 +1,25 @@
+/**
+ * The fixed text `stacks create` writes for a new skeleton entry (the stack or fragment Markdown
+ * file and a stack's starter files), and the question it asks before copying an untrusted entry.
+ *
+ * `core/create.ts` uses these after it has checked the id, so the id is safe to place in the
+ * frontmatter. The skeleton leaves `stacks:fill` markers for the author to replace; the submission
+ * checks in `validate/submission.ts` flag any left before an entry is submitted. The text lives
+ * apart from `create.ts` so the long templates don't bury the logic.
+ */
 import type { Category, Kind } from "@steamfield/stacks-format";
 
-/** Fixed entry-format-v1 scaffolding; rendered only after the id has been validated. */
+/**
+ * Fixed entry-format-v1 scaffolding; rendered only after the id has been validated. `category`
+ * applies to fragments only.
+ */
 export function skeleton(kind: Kind, id: string, category: Category): string {
-  if (kind === "stack")
-    return `---
+  return kind === "stack" ? stackSkeleton(id) : fragmentSkeleton(id, category);
+}
+
+/** A stack that verifies through make targets, with every brief section to fill in. */
+function stackSkeleton(id: string): string {
+  return `---
 schema_version: 1
 id: ${JSON.stringify(id)}
 kind: stack
@@ -59,6 +75,10 @@ Describe the project commands.
 
 Describe common mistakes.
 `;
+}
+
+/** A fragment with no verify steps yet; an app fragment gets the application sections. */
+function fragmentSkeleton(id: string, category: Category): string {
   return `---
 schema_version: 1
 id: ${JSON.stringify(id)}
@@ -113,6 +133,7 @@ Describe the features.
 Describe how to prove it works.
 `;
 
+/** The files a stack skeleton ships under `files/` besides its `STACK.md`. */
 export const starterFiles = [
   { source: "files/.gitignore", text: ".stacks/state/\n" },
   {
@@ -120,4 +141,6 @@ export const starterFiles = [
     text: "<!-- stacks:fill: describe the project and its commands -->\n",
   },
 ];
+
+/** Asked after an untrusted entry's full report, unless `--yes` was given. */
 export const trustQuestion = "Copy this entry into your trusted user registry? [y/N]";

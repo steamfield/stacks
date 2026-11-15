@@ -1,3 +1,10 @@
+/**
+ * Builds the `ComposeConflict` failures composition raises when entries can't be combined.
+ *
+ * A conflict names its parties, the stack and the fragments involved, in `details`, so the user or
+ * agent can see which `--with` or `--without` to change. `selection.ts`, `plan-files.ts` and
+ * `compose.ts` raise them; `errors.ts` owns the tag and how it prints.
+ */
 import { ComposeConflict } from "../../errors";
 import type { Entry } from "../registry/entry";
 

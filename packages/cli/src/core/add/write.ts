@@ -1,3 +1,16 @@
+/**
+ * Writes a planned `stacks add` into the project as one all-or-nothing transaction.
+ *
+ * `core/add.ts` calls `applyAdd` with the plan from `add/plan.ts`, the merged manifest and the
+ * rendered brief. Every write goes through `scaffold/write.ts::openProject`, which never
+ * overwrites a file it didn't create unless asked to `rewrite` one, and rolls back everything on a
+ * failure or Ctrl+C. The order matters: entry files and parked copies first, then the rest of
+ * `.stacks/` and the brief, then the state record (the per-project file outside the project
+ * holding verify digests), and the manifest last, the same order `stacks new` uses.
+ * `.stacks/.gitignore` and `NOTES.md` are created only when missing; after that they belong to the
+ * project. A path the writer refuses because something is already there fails as
+ * `PermissionDenied` naming that path.
+ */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 import { PermissionDenied } from "../../errors";
@@ -25,7 +38,12 @@ import type { AddProject } from "./project";
 const encoder = new TextEncoder();
 const denied = (path: string) => new PermissionDenied({ details: { reason: "write", path } });
 
-/** Keep manifest-only projects manifest-only; a first add may lack writable external state. */
+/**
+ * Write the project's state record and say whether it was written. A project that has a manifest
+ * but no state record stays without one. An existing record keeps its creation and first-green
+ * times. On a first add an unwritable state directory is only a warning; once a record exists,
+ * failing to update it is a failure.
+ */
 const recordState = (
   manifest: Manifest,
   stateManifest: Manifest,
@@ -57,7 +75,39 @@ const recordState = (
     );
   });
 
-/** Write the delta as one transaction, state first and manifest last. */
+const STARTER_METADATA: ReadonlyArray<readonly [string, string]> = [
+  [IGNORE_PATH, IGNORE],
+  [NOTES_PATH, NOTES],
+];
+
+/**
+ * Every planned file write in path order: new project files are created, parked files are
+ * created under incoming, and a JSON merge replaces the file already parked there.
+ */
+function fileOperations(plan: AddPlan) {
+  return [
+    ...plan.write.map((file) => ({
+      file,
+      bytes: file.bytes,
+      destination: file.path,
+      rewrite: false,
+    })),
+    ...plan.park.map(({ file, bytes, incoming, action }) => ({
+      file,
+      bytes,
+      destination: incoming,
+      rewrite: action === "merge",
+    })),
+  ].sort((a, b) => {
+    if (a.file.path < b.file.path) return -1;
+    return a.file.path > b.file.path ? 1 : 0;
+  });
+}
+
+/**
+ * Write the delta as one transaction: entry files, then `.stacks/` metadata and the brief, the
+ * state record, and the manifest last. A failure rolls back everything the writer created.
+ */
 export const applyAdd = (input: {
   root: string;
   plan: AddPlan;
@@ -71,24 +121,13 @@ export const applyAdd = (input: {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const writer = yield* openProject(input.root);
-      const operations = [
-        ...input.plan.write.map((file) => ({
-          file,
-          bytes: file.bytes,
-          destination: file.path,
-          rewrite: false,
-        })),
-        ...input.plan.park.map(({ file, bytes, incoming, action }) => ({
-          file,
-          bytes,
-          destination: incoming,
-          rewrite: action === "merge",
-        })),
-      ].sort((a, b) => {
-        if (a.file.path < b.file.path) return -1;
-        return a.file.path > b.file.path ? 1 : 0;
-      });
-      for (const operation of operations) {
+      const exists = (rel: string) => fs.exists(path.join(writer.root, rel));
+      const writeOrReplace = (rel: string, text: string) =>
+        Effect.gen(function* () {
+          if (yield* exists(rel)) yield* writer.rewrite(rel, encoder.encode(text));
+          else yield* writer.write(rel, encoder.encode(text));
+        });
+      for (const operation of fileOperations(input.plan)) {
         if (operation.rewrite) yield* writer.rewrite(operation.destination, operation.bytes);
         else
           yield* writer.write(
@@ -97,28 +136,19 @@ export const applyAdd = (input: {
             (operation.file.mode & 0o111) !== 0,
           );
       }
-      const metadata = (rel: string, text: string) =>
-        Effect.gen(function* () {
-          if (yield* fs.exists(path.join(writer.root, rel)))
-            yield* writer.rewrite(rel, encoder.encode(text));
-          else yield* writer.write(rel, encoder.encode(text));
-        });
-      const metadataFiles: ReadonlyArray<readonly [string, string]> = [
-        [IGNORE_PATH, IGNORE],
-        [NOTES_PATH, NOTES],
-      ];
-      for (const [rel, text] of metadataFiles)
-        if (!(yield* fs.exists(path.join(writer.root, rel))))
-          yield* writer.write(rel, encoder.encode(text));
+      // The ignore file and NOTES.md belong to the project once written, so only a missing one
+      // is created.
+      for (const [rel, text] of STARTER_METADATA)
+        if (!(yield* exists(rel))) yield* writer.write(rel, encoder.encode(text));
       yield* writer.directory(STATE_DIR);
-      yield* metadata(BRIEF_PATH, input.brief.text);
+      yield* writeOrReplace(BRIEF_PATH, input.brief.text);
       const recorded = yield* recordState(
         input.manifest,
         input.stateManifest,
         input.project,
         writer.root,
       );
-      yield* metadata(MANIFEST_PATH, encodeManifest(input.manifest));
+      yield* writeOrReplace(MANIFEST_PATH, encodeManifest(input.manifest));
       return recorded;
     }),
   ).pipe(

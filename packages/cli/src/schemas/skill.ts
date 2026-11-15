@@ -1,3 +1,8 @@
+/**
+ * The shape of what `stacks skill install --json` prints. The CLI ships agent skills (Markdown
+ * instructions a coding agent loads) under its skills root; `core/skill.ts::installSkill` copies
+ * one into the user's or project's agent directory, or prints it with `--print`.
+ */
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";
 

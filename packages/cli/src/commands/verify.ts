@@ -1,4 +1,19 @@
-import { Clock, Effect, type FileSystem, type Path, Schema } from "effect";
+/**
+ * The `verify` command: runs the current project's verify steps (its definition of done) and
+ * reports which passed.
+ *
+ * The steps come from the manifest (`.stacks/manifest.json`, the committed record of what was
+ * composed). Before running anything, `core/verify/tamper.ts::checkTamper` compares them with the
+ * copy saved in the project's state record (a file outside the project): if someone changed the
+ * steps, nothing runs until a person accepts the change with `--accept-changes` (trust model
+ * point 5), and that flag is refused under an agent or without a terminal (point 4).
+ *
+ * The flow, in order: find and read the manifest, plan which steps run (`core/verify/plan.ts`),
+ * check for tampering, then either report the change or run the steps (`core/verify/run.ts`).
+ * Every run, including an interrupted one, appends a record through `core/verify/record.ts`. A
+ * failed step or changed steps fail the command with the report kept on stdout.
+ */
+import { Clock, Effect, type FileSystem, type Path, Ref, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { AppConfig } from "../config";
 import { locateManifest, readManifest } from "../core/manifest";
@@ -6,7 +21,13 @@ import { planVerify } from "../core/verify/plan";
 import { type RecordFacts, recordRun } from "../core/verify/record";
 import { renderVerify } from "../core/verify/report";
 import { runVerify } from "../core/verify/run";
-import { acceptChanges, changedResult, checkTamper, createdAtOf } from "../core/verify/tamper";
+import {
+  acceptChanges,
+  changedResult,
+  checkTamper,
+  createdAtOf,
+  type Tamper,
+} from "../core/verify/tamper";
 import { PermissionDenied, VerifyChanged, VerifyFailed } from "../errors";
 import { MANIFEST_PATH, RUNS_PATH } from "../project-layout";
 import { VerifyResult } from "../schemas/verify";
@@ -14,9 +35,121 @@ import { Host } from "../services/host";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
 
+type VerifyFlags = {
+  readonly only: ReadonlyArray<string>;
+  readonly skipTag: ReadonlyArray<string>;
+  readonly all: boolean;
+  readonly acceptChanges: boolean;
+};
+
+type Plan = Effect.Success<ReturnType<typeof planVerify>>;
+type RecordContext = Parameters<typeof recordRun>[0];
+
 /** Repeated flags, each value also split on commas: `--only a --only b,c`. */
 const names = (values: ReadonlyArray<string>) =>
   values.flatMap((value) => value.split(",")).filter((value) => value !== "");
+
+/** Fails unless a person at a terminal is running the command (trust model point 4). */
+const requireConfirmation = Effect.gen(function* () {
+  const config = yield* AppConfig;
+  const host = yield* Host;
+  if ((yield* config.agent) !== "none")
+    return yield* new PermissionDenied({ details: { reason: "agent" } });
+  if (!host.stdinIsTTY) return yield* new PermissionDenied({ details: { reason: "no-tty" } });
+});
+
+/**
+ * Finds and reads the manifest, plans the steps and checks them against the state record. With
+ * `--accept-changes`, the person is confirmed before planning and the current steps are recorded
+ * as the new baseline after the check.
+ */
+const prepareRun = (flags: VerifyFlags) =>
+  Effect.gen(function* () {
+    const located = yield* locateManifest((yield* Host).cwd);
+    const read = yield* readManifest(located.path);
+    if (flags.acceptChanges) yield* requireConfirmation;
+    const options = { only: names(flags.only), skipTags: names(flags.skipTag), all: flags.all };
+    const plan = yield* planVerify(read.verify, options);
+    const checked = yield* checkTamper(read, located.path);
+    // The report names what was accepted (`result.changed`), in every audience.
+    const { manifest, tamper } = flags.acceptChanges
+      ? yield* acceptChanges(read, located.path, checked)
+      : { manifest: read, tamper: checked };
+    return { located, options, plan, manifest, tamper };
+  });
+
+/** Writes the report in the invocation's audience. */
+const writeResult = (result: VerifyResult) =>
+  Effect.gen(function* () {
+    const host = yield* Host;
+    const output = yield* Output;
+    yield* output.result(
+      Schema.encodeSync(VerifyResult)(result),
+      renderVerify(result, {
+        invocation: host.invocation,
+        audience: output.audience,
+        style: output.style,
+      }),
+    );
+  });
+
+/** The changed-steps run: records it and reports which steps changed, running none of them. */
+const reportChanged = (input: {
+  context: RecordContext;
+  plan: Plan;
+  tamper: Tamper & { changed: NonNullable<Tamper["changed"]> };
+  started: number;
+}) =>
+  Effect.gen(function* () {
+    const { context, plan, tamper, started } = input;
+    const result = yield* changedResult(plan, context.manifest, tamper, started);
+    yield* recordRun(context, result);
+    yield* (yield* Telemetry).flush;
+    yield* writeResult(result);
+    return yield* new VerifyChanged({ details: tamper.changed });
+  });
+
+/**
+ * Runs the steps and returns the run with the facts its record settled (first green, state record
+ * written). The record is written in the runner's finalizer so interrupted runs are recorded too;
+ * the finalizer runs outside this context, so its services are captured here first.
+ */
+const runAndRecord = (
+  context: RecordContext,
+  project: Parameters<typeof runVerify>[0],
+  options: Parameters<typeof runVerify>[1],
+) =>
+  Effect.gen(function* () {
+    const services = yield* Effect.context<
+      FileSystem.FileSystem | Path.Path | AppConfig | Telemetry
+    >();
+    const facts = yield* Ref.make<RecordFacts>({ firstGreen: false, stateRecord: false });
+    const run = yield* runVerify(project, options, (finished) =>
+      recordRun(context, finished).pipe(
+        Effect.flatMap((settled) => Ref.set(facts, settled)),
+        Effect.provideContext(services),
+      ),
+    );
+    return { run, facts: yield* Ref.get(facts) };
+  });
+
+/** The failed steps, each with its failure kind and exit code, for `VerifyFailed`'s details. */
+function failedDetails(result: VerifyResult) {
+  return {
+    failed: result.steps.flatMap((step) =>
+      step.status === "failed" && step.failureKind
+        ? [
+            {
+              name: step.name,
+              failureKind: step.failureKind,
+              ...(step.exitCode === undefined ? {} : { exitCode: step.exitCode }),
+            },
+          ]
+        : [],
+    ),
+    ...(result.stages === undefined ? {} : { stages: result.stages }),
+  };
+}
 
 export const verifyCommand = Command.make(
   "verify",
@@ -48,87 +181,30 @@ export const verifyCommand = Command.make(
   },
   (flags) =>
     Effect.gen(function* () {
-      const host = yield* Host;
-      const output = yield* Output;
-      const telemetry = yield* Telemetry;
       const started = yield* Clock.currentTimeMillis;
-      const located = yield* locateManifest(host.cwd);
-      let manifest = yield* readManifest(located.path);
-      if (flags.acceptChanges) yield* requireConfirmation;
-      const options = { only: names(flags.only), skipTags: names(flags.skipTag), all: flags.all };
-      const plan = yield* planVerify(manifest.verify, options);
-      let tamper = yield* checkTamper(manifest, located.path);
-      // The report names what was accepted (`result.changed`), in every audience.
-      if (flags.acceptChanges)
-        ({ manifest, tamper } = yield* acceptChanges(manifest, located.path, tamper));
+      const { located, options, plan, manifest, tamper } = yield* prepareRun(flags);
       const context = {
         root: located.root,
         manifest,
         tamper,
         acceptedChanges: flags.acceptChanges,
       };
-      const write = (result: VerifyResult) =>
-        output.result(
-          Schema.encodeSync(VerifyResult)(result),
-          renderVerify(result, {
-            invocation: host.invocation,
-            audience: output.audience,
-            style: output.style,
-          }),
-        );
-
       const { changed } = tamper;
-      if (changed && !flags.acceptChanges) {
-        const result = yield* changedResult(plan, manifest, { ...tamper, changed }, started);
-        yield* recordRun(context, result);
-        yield* telemetry.flush;
-        yield* write(result);
-        return yield* new VerifyChanged({ details: changed });
-      }
+      if (changed && !flags.acceptChanges)
+        return yield* reportChanged({ context, plan, tamper: { ...tamper, changed }, started });
 
-      // The record is written in the runner's finalizer, so interrupted runs are recorded too; its
-      // services are captured here, before the callback leaves this context.
-      const services = yield* Effect.context<
-        FileSystem.FileSystem | Path.Path | AppConfig | Telemetry
-      >();
-      let facts: RecordFacts = { firstGreen: false, stateRecord: false };
       const project = { root: located.root, manifest, createdAt: createdAtOf(manifest, tamper) };
-      const run = yield* runVerify(project, options, (finished) =>
-        recordRun(context, finished).pipe(
-          Effect.tap((settled) =>
-            Effect.sync(() => {
-              facts = settled;
-            }),
-          ),
-          Effect.asVoid,
-          Effect.provideContext(services),
-        ),
-      );
+      const { run, facts } = yield* runAndRecord(context, project, options);
       const result: VerifyResult = {
         ...run,
         tamperCheck: tamper.tamperCheck,
         ...(changed ? { changed } : {}),
         ...facts,
       };
-      yield* telemetry.flush;
-      yield* write(result);
+      yield* (yield* Telemetry).flush;
+      yield* writeResult(result);
       if (result.outcome === "failed")
-        return yield* new VerifyFailed({
-          details: {
-            failed: result.steps.flatMap((step) =>
-              step.status === "failed" && step.failureKind
-                ? [
-                    {
-                      name: step.name,
-                      failureKind: step.failureKind,
-                      ...(step.exitCode === undefined ? {} : { exitCode: step.exitCode }),
-                    },
-                  ]
-                : [],
-            ),
-            ...(result.stages === undefined ? {} : { stages: result.stages }),
-          },
-        });
+        return yield* new VerifyFailed({ details: failedDetails(result) });
     }),
 ).pipe(
   Command.withDescription(
@@ -151,11 +227,3 @@ export const verifyCommand = Command.make(
     },
   ]),
 );
-
-const requireConfirmation = Effect.gen(function* () {
-  const config = yield* AppConfig;
-  const host = yield* Host;
-  if ((yield* config.agent) !== "none")
-    return yield* new PermissionDenied({ details: { reason: "agent" } });
-  if (!host.stdinIsTTY) return yield* new PermissionDenied({ details: { reason: "no-tty" } });
-});

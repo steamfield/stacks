@@ -1,3 +1,13 @@
+/**
+ * Facts about the machine and the running package that only the process entry point can know:
+ * the Node version, the working directory, whether each standard stream is a terminal and how
+ * wide it is, and where the bundled registry, skills and authoring guide were installed.
+ *
+ * `bin.ts` reads them from Node once and provides `Host.layer`; tests use `Host.memory`. Core
+ * code reads `Host` instead of `process` or `import.meta.url`, so it runs the same from source,
+ * from the packed bundle and under test, and a missing value is a type error rather than a
+ * fallback computed somewhere it breaks in the bundle.
+ */
 import { Context, Layer, Option } from "effect";
 export type HostInfo = {
   /** Node line, supplied by the platform boundary. */

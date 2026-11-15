@@ -1,3 +1,19 @@
+/**
+ * Asks a person for the arguments they left off `stacks new`, `stacks add` or `stacks create`,
+ * through numbered menus at the terminal.
+ *
+ * Running `stacks new` with no stack at a terminal shows a numbered list of stacks, then optional
+ * fragments, a preset and a directory. `commands/new.ts`, `commands/add.ts` and
+ * `commands/create.ts` call `pickNew`, `pickAdd` and `pickCreate`; each returns plain values the
+ * command then uses as if they had been typed as flags. Afterwards `runningCommand` prints the
+ * equivalent command line (`Running: stacks new ...`) so it can be rerun without the menus.
+ *
+ * Menus appear only for the `human` audience (a person at their own terminal) with a terminal on
+ * both stdin and stdout; `canPrompt` is that gate. An agent, `--json`, CI or a pipe gets the
+ * command's normal noninteractive behavior instead, because nobody is there to answer (Trust model
+ * point 4). Nothing is written while a menu is open, so Ctrl+C there leaves no trace.
+ * `displayPicker` is shared with the handoff picker in `commands/handoff.ts`.
+ */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, Path, Terminal } from "effect";
 import { AppConfig } from "../config";
@@ -16,92 +32,124 @@ import { shellArg } from "./shell";
 import { slug } from "./slug";
 import { printable } from "./text";
 
+/**
+ * Pickers run only for the human audience with a terminal on both stdin and stdout; agents,
+ * `--json`, CI and pipes keep the noninteractive behavior.
+ */
 export const canPrompt = (input: {
   audience: Audience;
   stdinIsTTY: boolean;
   stdoutIsTTY: boolean;
 }): boolean => input.audience === "human" && input.stdinIsTTY && input.stdoutIsTTY;
 
+/** `canPrompt` for this invocation. */
 export const promptingAllowed = Effect.gen(function* () {
   const host = yield* Host;
   const output = yield* Output;
   return canPrompt({ ...host, audience: output.audience });
 });
 
-/** Shared with the handoff picker: terminal writes retain the normal safe error mapping. */
+/**
+ * Writes picker text to the terminal. Shared with the handoff picker so a failed write maps like
+ * any other output write: a closed pipe to `BrokenPipe`, anything else to `PermissionDenied`.
+ */
 export const displayPicker = (terminal: Terminal.Terminal, text: string) =>
-  terminal.display(text).pipe(
-    Effect.mapError((error) => {
-      const cause = error.reason.cause;
-      return typeof cause === "object" &&
-        cause !== null &&
-        "code" in cause &&
-        cause.code === "EPIPE"
-        ? new BrokenPipe()
-        : new PermissionDenied({ details: { reason: "write" } });
-    }),
-  );
+  terminal
+    .display(text)
+    .pipe(
+      Effect.mapError((error) =>
+        isBrokenPipe(error.reason.cause)
+          ? new BrokenPipe()
+          : new PermissionDenied({ details: { reason: "write" } }),
+      ),
+    );
+
+const isBrokenPipe = (cause: unknown) =>
+  typeof cause === "object" && cause !== null && "code" in cause && cause.code === "EPIPE";
 
 type Choice<A> = { label: string; value: A };
 
-const promptSession = Effect.gen(function* () {
-  const terminal = yield* Terminal.Terminal;
-  const read = (question: string) =>
-    Effect.andThen(
-      displayPicker(terminal, question),
-      terminal.readLine.pipe(Effect.mapError(() => new Interrupted())),
-    );
-  const select = <A>(input: {
-    title: string;
-    choices: ReadonlyArray<Choice<A>>;
-    multiple?: "optional" | "required";
-    defaultIndex?: number;
-  }) =>
-    Effect.gen(function* () {
-      if (!input.choices.length && !input.multiple) return yield* new Usage();
-      yield* displayPicker(
-        terminal,
-        `\n${input.title} (Ctrl+C to quit)\n${input.choices
-          .map((choice, index) => `  ${index + 1}) ${printable(choice.label)}\n`)
-          .join("")}`,
-      );
-      while (true) {
-        const answer = (yield* read(selectionQuestion(input))).trim();
-        const indices = selectionIndices(answer, input);
-        const chosen = indices?.map((index) => input.choices[index]);
-        if (chosen?.every((choice) => choice !== undefined))
-          return chosen.map((choice) => choice.value);
-        yield* displayPicker(terminal, "Choose a listed number.\n");
-      }
-    });
-  const one = <A>(input: Omit<Parameters<typeof select<A>>[0], "multiple">) =>
-    select(input).pipe(
-      Effect.flatMap((values) => {
-        const value = values[0];
-        return value === undefined ? Effect.fail(new Usage()) : Effect.succeed(value);
-      }),
-    );
-  return { read, select, one };
-});
+/**
+ * How a picker takes its answer: one number (Enter takes `defaultIndex` when set), or a
+ * comma-separated list where Enter means none (`optional`) or isn't accepted (`required`).
+ */
+type SelectionMode = { multiple?: "optional" | "required"; defaultIndex?: number };
 
-function selectionQuestion(input: { multiple?: "optional" | "required"; defaultIndex?: number }) {
-  if (input.multiple === "optional") return "Numbers, separated by commas (Enter for none): ";
-  if (input.multiple === "required") return "Numbers, separated by commas (at least one): ";
-  if (input.defaultIndex !== undefined) return `Number (Enter for ${input.defaultIndex + 1}): `;
+type Selection<A> = SelectionMode & { title: string; choices: ReadonlyArray<Choice<A>> };
+
+/** Shows `question` and reads one line; a closed or interrupted terminal is `Interrupted`. */
+const readAnswer = (terminal: Terminal.Terminal, question: string) =>
+  Effect.andThen(
+    displayPicker(terminal, question),
+    terminal.readLine.pipe(Effect.mapError(() => new Interrupted())),
+  );
+
+/** Shows the numbered choices, then asks until the answer names only listed numbers. */
+const selectValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =>
+  Effect.gen(function* () {
+    if (!selection.choices.length && !selection.multiple) return yield* new Usage();
+    yield* displayPicker(terminal, menuText(selection));
+    while (true) {
+      const answer = (yield* readAnswer(terminal, selectionQuestion(selection))).trim();
+      const chosen = chosenValues(answer, selection);
+      if (chosen !== undefined) return chosen;
+      yield* displayPicker(terminal, "Choose a listed number.\n");
+    }
+  });
+
+/** A single-choice picker's one value. */
+const selectOne = <A>(terminal: Terminal.Terminal, selection: Omit<Selection<A>, "multiple">) =>
+  selectValues(terminal, selection).pipe(
+    Effect.flatMap((values) => {
+      const value = values[0];
+      return value === undefined ? Effect.fail(new Usage()) : Effect.succeed(value);
+    }),
+  );
+
+/** The terminal's question and picker operations, bound to one `Terminal`. */
+const promptSession = Effect.map(Terminal.Terminal, (terminal) => ({
+  read: (question: string) => readAnswer(terminal, question),
+  select: <A>(selection: Selection<A>) => selectValues(terminal, selection),
+  one: <A>(selection: Omit<Selection<A>, "multiple">) => selectOne(terminal, selection),
+}));
+
+type PromptSession = Effect.Success<typeof promptSession>;
+
+function menuText(selection: Selection<unknown>): string {
+  const rows = selection.choices.map(
+    (choice, index) => `  ${index + 1}) ${printable(choice.label)}\n`,
+  );
+  return `\n${selection.title} (Ctrl+C to quit)\n${rows.join("")}`;
+}
+
+function selectionQuestion(mode: SelectionMode): string {
+  if (mode.multiple === "optional") return "Numbers, separated by commas (Enter for none): ";
+  if (mode.multiple === "required") return "Numbers, separated by commas (at least one): ";
+  if (mode.defaultIndex !== undefined) return `Number (Enter for ${mode.defaultIndex + 1}): `;
   return "Number: ";
 }
 
-function selectionIndices(
-  answer: string,
-  input: { multiple?: "optional" | "required"; defaultIndex?: number },
-) {
+/** The values a trimmed answer picks, or undefined when it doesn't name only listed numbers. */
+function chosenValues<A>(answer: string, selection: Selection<A>): Array<A> | undefined {
+  const indices = selectionIndices(answer, selection);
+  if (indices === undefined) return undefined;
+  const chosen = indices.map((index) => selection.choices[index]);
+  if (!chosen.every((choice) => choice !== undefined)) return undefined;
+  return chosen.map((choice) => choice.value);
+}
+
+/**
+ * The zero-based indices an answer names, without duplicates and in the order typed; undefined
+ * when the answer isn't valid for the mode. Range is checked by the caller.
+ */
+function selectionIndices(answer: string, mode: SelectionMode): Array<number> | undefined {
   if (answer === "") {
-    if (input.multiple === "optional") return [];
-    return input.defaultIndex === undefined ? undefined : [input.defaultIndex];
+    if (mode.multiple === "optional") return [];
+    return mode.defaultIndex === undefined ? undefined : [mode.defaultIndex];
   }
   const parts = answer.split(",").map((part) => part.trim());
-  if ((!input.multiple && parts.length !== 1) || parts.some((part) => !/^[1-9]\d*$/.test(part)))
-    return undefined;
+  if (!mode.multiple && parts.length !== 1) return undefined;
+  if (parts.some((part) => !/^[1-9]\d*$/.test(part))) return undefined;
   return [...new Set(parts.map((part) => Number(part) - 1))];
 }
 
@@ -110,10 +158,28 @@ const rowChoice = (row: ListRow): Choice<string> => ({
   value: row.id,
 });
 
+/** Every usable entry across the current registry roots, as `list` shows them. */
 const catalog = Effect.gen(function* () {
   return listResult(yield* (yield* Registry).all, undefined).entries;
 });
 
+/**
+ * The fragments to offer for a stack: those that fit it, minus `included` (its required and
+ * default fragments plus any `--without` names).
+ */
+function optionalFragmentRows(
+  rows: ReadonlyArray<ListRow>,
+  stack: { id: string; tags: ReadonlyArray<string>; included: ReadonlyArray<string> },
+): ReadonlyArray<ListRow> {
+  return rows.filter(
+    (row) =>
+      row.kind === "fragment" &&
+      !stack.included.includes(row.id) &&
+      fitsStack(row.appliesTo ?? [], { id: stack.id, tags: stack.tags }),
+  );
+}
+
+/** Asks for each `new` argument the user didn't give: stack, optional fragments, preset, directory. */
 export const pickNew = Effect.fn("prompting.pickNew")(function* (
   input: Pick<NewOptions, "dir" | "name" | "with" | "without" | "preset" | "sandbox" | "dryRun">,
 ) {
@@ -126,51 +192,57 @@ export const pickNew = Effect.fn("prompting.pickNew")(function* (
   const entry = yield* (yield* Registry).get("stack", stack);
   const selected = entry.meta.kind === "stack" ? entry.meta.fragments : undefined;
   const included = [...(selected?.required ?? []), ...(selected?.default ?? []), ...input.without];
-  const choices = rows.filter(
-    (row) =>
-      row.kind === "fragment" &&
-      !included.includes(row.id) &&
-      fitsStack(row.appliesTo ?? [], { id: stack, tags: entry.meta.tags }),
-  );
+  const fragmentRows = optionalFragmentRows(rows, { id: stack, tags: entry.meta.tags, included });
   const withIds = input.with.length
     ? input.with
     : yield* prompt.select({
         title: "Optional fragments",
-        choices: choices.map(rowChoice),
+        choices: fragmentRows.map(rowChoice),
         multiple: "optional",
       });
   const preset = yield* pickPreset(input, prompt);
   const defaultDir = input.name === undefined ? stack : slug(input.name);
-  const dir =
-    input.dir ??
-    ((yield* prompt.read(`\nProject directory (Enter for ${printable(defaultDir)}): `)) ||
-      defaultDir);
+  const dir = input.dir ?? (yield* askDirectory(prompt, defaultDir));
   return { stack, with: withIds, preset, dir };
 });
 
+/** The project directory typed, or `defaultDir` on Enter. The answer isn't trimmed. */
+const askDirectory = (prompt: PromptSession, defaultDir: string) =>
+  prompt
+    .read(`\nProject directory (Enter for ${printable(defaultDir)}): `)
+    .pipe(Effect.map((answer) => answer || defaultDir));
+
+const PRESET_CHOICES: ReadonlyArray<Choice<NewPreset>> = [
+  { label: "Default", value: "default" },
+  { label: "Sandbox (local only, implies --yes)", value: "sandbox" },
+  { label: "Lean (no default fragments)", value: "lean" },
+];
+
+/**
+ * `--preset` or `--sandbox` when given; otherwise a picker whose Enter choice is the `preset`
+ * setting, or `default` for a preview, which ignores the setting.
+ */
 const pickPreset = Effect.fn("prompting.pickPreset")(function* (
   input: Pick<NewOptions, "preset" | "sandbox" | "dryRun">,
-  prompt: Effect.Success<typeof promptSession>,
+  prompt: PromptSession,
 ) {
   if (input.preset !== undefined) return input.preset;
   if (input.sandbox) return "sandbox";
+  // Settings are read even for a preview, so an invalid config file still fails here.
   const settings = yield* (yield* AppConfig).get;
   const preset = input.dryRun ? "default" : (settings.preset ?? "default");
-  const choices = [
-    { label: "Default", value: "default" },
-    { label: "Sandbox (local only, implies --yes)", value: "sandbox" },
-    { label: "Lean (no default fragments)", value: "lean" },
-  ] as const;
+  const presetIndex = PRESET_CHOICES.findIndex((choice) => choice.value === preset);
   return yield* prompt.one<NewPreset>({
     title: "Composition preset",
-    choices: [...choices],
-    defaultIndex: Math.max(
-      0,
-      choices.findIndex((choice) => choice.value === preset),
-    ),
+    choices: PRESET_CHOICES,
+    defaultIndex: Math.max(0, presetIndex),
   });
 });
 
+/**
+ * Asks which fragments to add to `project`, read without a manifest when it has none. With none
+ * addable it says so and returns an empty list.
+ */
 export const pickAdd = Effect.fn("prompting.pickAdd")(function* (project: string) {
   const path = yield* Path.Path;
   const manifest = yield* readManifest(path.join(project, MANIFEST_PATH)).pipe(
@@ -182,14 +254,14 @@ export const pickAdd = Effect.fn("prompting.pickAdd")(function* (project: string
     return [];
   }
   const prompt = yield* promptSession;
-  const fragments = yield* prompt.select({
+  return yield* prompt.select({
     title: "Fragments to add",
     choices: addable.map(rowChoice),
     multiple: "required",
   });
-  return fragments;
 });
 
+/** Asks what `create` should make: a skeleton (and its id) or a copy of an existing entry. */
 export const pickCreate = Effect.fn("prompting.pickCreate")(function* (input: {
   kind?: Kind;
   from?: Origin;
@@ -209,22 +281,31 @@ export const pickCreate = Effect.fn("prompting.pickCreate")(function* (input: {
     const id = yield* prompt.read(`\nNew ${kind} id (lowercase kebab-case): `);
     return { kind, id, from: input.from };
   }
-  // Resolve each copyable origin independently: a project override must not hide its bundled copy.
-  const roots = (yield* defaultRoots).filter((root) => root.origin !== "user");
-  const rows = (yield* Effect.forEach(roots, (root) =>
-    catalog.pipe(Effect.provide(Registry.layer([root]))),
-  )).flat();
-  const choices = rows
-    .toSorted((a, b) => Number(b.trusted) - Number(a.trusted))
-    .map((row) => ({
-      label: `${row.kind} ${row.id} (${row.origin}${row.trusted ? "" : ", untrusted"})`,
-      value: row,
-    }));
-  const row = yield* prompt.one({ title: "Copy source", choices });
+  const row = yield* pickCopySource(prompt);
   return { kind: row.kind, id: row.id, from: row.origin };
 });
 
-/** Reconstruct from parsed values, never argv; shell quoting also protects picked paths. */
+/** Asks which entry to copy, listing trusted entries before untrusted ones. */
+const pickCopySource = (prompt: PromptSession) =>
+  Effect.gen(function* () {
+    // Resolve each copyable origin independently: a project override must not hide its bundled copy.
+    const roots = (yield* defaultRoots).filter((root) => root.origin !== "user");
+    const rows = (yield* Effect.forEach(roots, (root) =>
+      catalog.pipe(Effect.provide(Registry.layer([root]))),
+    )).flat();
+    const choices = rows
+      .toSorted((a, b) => Number(b.trusted) - Number(a.trusted))
+      .map((row) => ({
+        label: `${row.kind} ${row.id} (${row.origin}${row.trusted ? "" : ", untrusted"})`,
+        value: row,
+      }));
+    return yield* prompt.one({ title: "Copy source", choices });
+  });
+
+/**
+ * The flags of the command a picker settled on, for the `Running:` line. Built from parsed
+ * values, never argv; `runningCommand` shell-quotes them, which also protects picked paths.
+ */
 export function replayFlags(
   flags: Readonly<Record<string, string | boolean | ReadonlyArray<string> | undefined>>,
 ) {
@@ -236,6 +317,7 @@ export function replayFlags(
   });
 }
 
+/** Prints the `Running:` line for the picked command and flushes it before the command runs. */
 export const runningCommand = Effect.fn("prompting.runningCommand")(function* (
   words: ReadonlyArray<string>,
 ) {

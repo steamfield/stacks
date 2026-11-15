@@ -1,0 +1,177 @@
+# Build: CLI readability refactor
+
+Started: 2026-11-15 12:42 CST. Timebox: none. Landing branch: `refactor/cli-readability` (worktree `.claude/worktrees/cli-readability`), merged locally to `main` at the end, not pushed.
+Gate: `rr check` from the landing worktree (about 30 s), then the behavior harness (below). Filtered tests: `bun run test:unit tests/<file>.test.ts` in `packages/cli`. Typecheck: `bun run typecheck` in `packages/cli`. Lint: `bun run lint` at the repo root.
+Worktree setup: `bun install --frozen-lockfile` at the worktree root (must not change `bun.lock`).
+Behavior harness: `$H/run.sh <worktree>/packages/cli <out dir>` after `bun run build` in `packages/cli`, then `diff -r $H/base <out dir>`, where `$H` is the session scratchpad's `harness/` directory (path given in each lane prompt). `base/` is the normalized output of 89 commands (help, list, show, search, schema, validate, new, add, verify, runs, create and 13 failure cases in agent, `--json` and human audiences) captured from `main` at 8a76a946; two baseline runs matched exactly.
+Scaffold commits: phase 1 (this file).
+
+## Spec
+
+A pure readability refactor of `packages/cli/src`: simpler logic and JSDoc where intent isn't obvious, so a developer new to the codebase can follow it. The CLI's behavior must not change at all.
+
+In scope: every file under `packages/cli/src/`.
+Out of scope: `packages/cli/scripts/`, `tests/`, `e2e/`, `registry/`, `packages/format`, `packages/mcp`, AGENTS.md, behavior changes of any size, new features or options.
+Assumptions (user can override): lanes are `ce:builder` agents on opus rather than Codex delegates (the user chose the build skill); `errors.ts` is done inline by the orchestrator; no timebox.
+Error model: unchanged. Every typed failure, its tag, message, `details`, exit code and the place it is raised stay as they are.
+
+### Ground rules (every lane)
+
+Behavior is frozen:
+- No change to any string a user, agent or test can see: messages, help and description text, brief text, `Next:` lines, JSON keys, log record fields. Brief and fingerprint digests are pinned by tests, so a text change goes red.
+- No change to ordering: sort comparators stay as written (`<` comparisons are not swapped for `localeCompare`), and Set/Map iteration order is preserved.
+- No change to Effect error semantics: which filesystem reasons count as absent versus `PermissionDenied`, where `mapError`/`catch` sit, defect versus failure, finalizer and rollback order, interruption handling, what runs concurrently.
+- Exported symbols keep their names, signatures and modules (AGENTS.md cites them as `file::symbol`, tests import them, and lanes depend on each other's exports). Non-exported helpers may be renamed, split, merged or moved. A file over about 400 lines may be split into a sibling module in the same directory that holds internal helpers; every existing export stays exported from its current file.
+- Tests are read-only for lanes.
+
+What to do:
+- Split long `Effect.gen` bodies and functions into named steps (AGENTS.md "Code structure"); flatten nesting with early returns; replace clever one-liners with plain code; lift inline helpers that don't close over state to module level; remove dead locals and redundant wrappers.
+- JSDoc only where warranted: a one-to-three-line module header saying what the file owns, and `/** */` on exports or steps whose purpose, invariant or reason isn't obvious from the name and types. Cite trust-model points from `.claude/rules/architecture.md` by number where code enforces one. No comments restating the signature, no type braces in JSDoc. Typed failures live in the Effect error channel, so name a failure tag in a doc comment only when the reason it's raised isn't obvious. Turn cryptic references (design ids such as "(D4)", "see above") into plain sentences.
+- `Effect.fn("module.name")` only for functions being rewritten anyway.
+- Repo rules apply: Biome limits (cognitive complexity 15, at most four parameters), no `as` casts or `!`, no new dependencies, `.claude/rules/typescript.md`, `.claude/rules/cli/effect.md`.
+
+### Test failures as findings
+
+A good test survives a behavior-preserving refactor, so a test that goes red is a finding. If the harness diff is non-empty, or the test pins observable behavior (exit code, streams, decoded `--json`, files on disk, an exported function's result), the refactor changed behavior: fix the code. If the harness is clean and the test fails only because it pinned an internal (a private helper's shape, an intermediate structure, unobservable call order), the lane keeps the refactor, leaves the test untouched and reports file, test name and the internal it pinned. The orchestrator rewrites such tests at landing to assert the same behavior through `runCli` or the public function, revert-verifies each, and commits them separately as `test(cli): ...`. Weakening or deleting an assertion is never the fix. Lanes also report tests that pass only because an internal is exported.
+
+### File headers (every file, added after phase 1 started)
+
+Every source file opens with a `/** ... */` header that lets someone with no prior context see what the file does and how it fits into the CLI. Write it in the ce:writer skill's Educator persona (patient, defines terms, explains why), within ce:writer's forbidden patterns. The skill lives at `~/.claude/plugins/cache/claude-essentials/ce/<newest>/skills/writer/`; read `SKILL.md`, `references/educator.md` and `references/forbidden-patterns.md` before writing headers.
+
+A header answers, in plain prose and in this order:
+1. What the file does, in one sentence a newcomer understands, tied to something a user does ("When someone runs `stacks add`, this file decides which fragment files can be written straight into their project.").
+2. Where it sits: who calls it and what it hands off to, by module path (`commands/add.ts` calls `planAdd`; the plan goes to `add/write.ts`).
+3. The terms a reader needs, defined in a clause the first time (use the glossary below, so every header uses the same words).
+4. Why it is shaped the way it is, when that isn't obvious: a trust-model point by number, an ordering that matters, a reason something is refused.
+5. Optionally, where to start reading ("Start at `planAdd`.").
+
+Size it to the file: two or three lines for a small, obvious file; up to about fifteen for a central one. Don't list every export, restate names, describe history or narrate the change. No em dashes, no triads, no "serves as", no hype words. Wrap at 100 columns like the code.
+
+Example (`core/add/plan.ts`):
+
+```ts
+/**
+ * Works out what `stacks add` will do to a project before anything is written.
+ *
+ * `add` applies fragments (reusable pieces such as CI or git hooks) to a project that already
+ * exists, so the files a fragment ships may collide with files the user has. For each rendered
+ * file this module decides one of three outcomes: write it (nothing is there), skip it (an
+ * identical copy is there) or park it under `.stacks/incoming/` for the user's agent to merge by
+ * hand. A live file is never overwritten.
+ *
+ * `core/add.ts` calls `planAdd` after rendering the fragments; `add/write.ts` carries out the plan.
+ * Every read goes through `readLive`, which refuses a path whose symlinks lead outside the project.
+ */
+```
+
+Glossary (use these words):
+- stack: a recipe for a whole new project (`registry/stacks/<id>/STACK.md` plus files). `stacks new` scaffolds one.
+- fragment: a reusable addition (CI, hooks, a database) that composes onto a stack; `stacks add` applies fragments to an existing project. An app is a fragment with category `app`.
+- entry: a stack or a fragment. registry: where entries are found; roots in priority order are project, user, the signed remote index and the bundled registry shipped in the package. origin: which root an entry came from.
+- trusted / untrusted: whether an entry's origin is trusted (`.claude/rules/architecture.md`, "Trust model", points 1 to 5).
+- composition: the result of combining a stack with fragments: files, verify steps, env and notes.
+- brief: `.stacks/BRIEF.md`, the task text the CLI writes for the coding agent. manifest: `.stacks/manifest.json`, the committed record of what was composed and the verify steps. state record: the per-project file outside the project (`Paths.state`) holding digests and first-green times.
+- verify: running the manifest's steps, the project's definition of done. handoff: launching or pointing a coding agent at the new project.
+- audience: `json`, `agent` or `human`; how one result is rendered.
+
+### Folder READMEs (added after phase 1)
+
+Every folder under `packages/cli/src/` gets a `README.md` that tells someone with no prior context what that folder's domain covers, in the same Educator voice and under the same forbidden-pattern rules as the file headers. A lane writes the README of each folder it owns entirely (`core/verify/README.md` for lane 2a). The orchestrator writes `src/README.md` and `core/README.md` last, since they span every lane.
+
+A folder README covers, in this order, sized to the folder (about 30 to 80 lines):
+1. What the folder is for, in one or two sentences tied to what a user does with the CLI.
+2. How it fits: what calls into it and what it depends on, by folder or module path, and the boundary rules that apply to it (from AGENTS.md "Conventions", such as `core/` never importing `platform/` or `commands/`).
+3. The main flow through it, as short prose or a small numbered list naming the functions in the order they run.
+4. A table of its files: file, then one line on what it owns.
+5. Terms specific to the folder, defined (glossary words keep their glossary meaning).
+6. Where to start reading, and which tests cover it (`packages/cli/tests/<name>.test.ts`).
+
+Sentence-case headings, no emoji, no em dashes, no absolute or home paths (tracked files must hold on any clone). Cite symbols as `file.ts::symbol`, never line numbers. A README describes the code as it is after the lane's refactor and must not contradict AGENTS.md; where AGENTS.md says more, link to its section instead of copying it.
+
+## Contracts (scaffold commit)
+
+No new types or stubs: the contracts are the existing exports, which are frozen. Layout stays as AGENTS.md "Architecture map" describes it. The scaffold commit is this plan.
+
+## Phases
+
+Each phase lands when its lanes merge, `rr check` is green and the harness diff is empty. Demo for every phase: `diff -r $H/base <phase output>` prints nothing, and `git diff phase-(N-1)..phase-N --stat` shows the area refactored. Lane briefs are the shared brief below plus the lane's row; every lane is opus, because keeping behavior identical depends on invariants (ordering, error mapping, finalizers) the tests only partly cover.
+
+### Shared lane brief
+
+- Goal: make the owned files as easy to follow as possible without changing behavior, following "Ground rules" above.
+- Interface: every export of the owned files keeps its name, signature and module.
+- Behavior: identical. The checks are the owned files' tests, lint, typecheck and the behavior harness.
+- Out of scope: other lanes' files, tests, AGENTS.md, any user-visible change, new options or abstractions with one caller.
+- Done when: (1) every test file that imports an owned module passes, found with `grep -rlE "src/(<owned paths as a regex>)" packages/cli/tests` and run with `bun run test:unit <files>` in `packages/cli`, or reported as brittle per "Test failures as findings"; (2) `bun run lint` at the root and `bun run typecheck` in `packages/cli` pass; (3) after `bun run build` in `packages/cli`, the harness diff against `base/` is empty; (4) committed on the lane branch as `refactor(cli): <area> readability`.
+
+### Phase 1: the add and new path (calibration)
+
+| Lane | Size | Owns files | Lines |
+| --- | --- | --- | --- |
+| a | SM | `core/add.ts`, `core/add/` | 844 |
+| b | SM | `commands/add.ts`, `commands/handoff.ts`, `commands/new.ts`, `commands/telemetry-hooks.ts` | 762 |
+| c | SM | `core/scaffold/` | 1,065 |
+| d | SM | `core/handoff.ts`, `core/prompting.ts`, `core/create.ts`, `core/create-text.ts` | 815 |
+
+Lane notes. a: `core/add/plan.ts::planAdd` is one 110-line generator with closures pushing into shared arrays; split it into named steps (walk incoming, reserve paths, classify, park) and replace "(D4)" with the reason. b: `commands/add.ts` wraps `Registry` in a needless `Effect.gen`; `commands/handoff.ts` is 370 lines. c: `scaffold/write.ts::openProject` owns rollback; finalizer order and the paths `rollbackIncomplete` records must not change. d: `core/handoff.ts::decideHandoff` is first-matching-rule-wins and enforces trust points 3 and 4; rule order is behavior.
+
+### Phase 2: project state, verify, submit, the other commands
+
+| Lane | Owns files | Lines |
+| --- | --- | --- |
+| a | `core/verify/` | 1,140 |
+| b | `core/submit/` | 1,021 |
+| c | `core/update/`, `core/project-state.ts`, `core/manifest.ts`, `core/replace-file.ts`, `core/runs.ts`, `core/ledger.ts`, `core/canonical-json.ts` | 985 |
+| d | `cli.ts` and the remaining `commands/*.ts` (create, doctor, guide, list, root, runs, schema, search, show, skill, submit, telemetry, update, validate, verify) | 1,366 |
+
+### Phase 3: registry and composition
+
+| Lane | Owns files | Lines |
+| --- | --- | --- |
+| a | `core/registry/` | 1,101 |
+| b | `core/compose/` | 1,270 |
+| c | `core/brief/` | 979 |
+| d | `core/search/`, `core/fingerprint.ts`, `core/template.ts`, `core/slug.ts`, `core/text.ts`, `core/suggest.ts`, `core/shell.ts` | 861 |
+
+### Phase 4: validate
+
+| Lane | Owns files (`core/validate/`) | Lines |
+| --- | --- | --- |
+| a | `index.ts`, `types.ts`, `view.ts`, `sources.ts`, `report.ts`, `format.ts`, `references.ts`, `reference-issue.ts`, `headings.ts`, `templates.ts`, `target.ts`, `git.ts` | 976 |
+| b | `compositions.ts`, `composed.ts`, `add-compositions.ts`, `compose-each.ts`, `budget.ts`, `preview.ts`, `snapshot.ts` | 1,223 |
+| c | `files.ts`, `shipped-refs.ts`, `native-config.ts`, `native-refs.ts`, `imports.ts`, `conditionals.ts`, `conditionals-reach.ts`, `commands.ts`, `patterns.ts` | 1,295 |
+| d | `search.ts`, `search-examples.ts`, `deps.ts`, `ledger-notes.ts`, `dated.ts`, `version-sensitive.ts`, `submission.ts`, `authors.ts`, `verify-notes.ts` | 1,150 |
+
+### Phase 5: entry, services, telemetry, schemas
+
+| Lane | Owns files | Lines |
+| --- | --- | --- |
+| a | `main.ts`, `bin.ts`, `runtime.ts`, `logging.ts`, `invocation.ts`, `version.ts`, `project-layout.ts`, `config.ts` | 1,027 |
+| b | `services/`, `platform/` | 1,257 |
+| c | `telemetry/` | 1,123 |
+| d | `schemas/`, `core/result-schemas.ts`, `core/doctor.ts`, `core/guide.ts` | 1,093 |
+
+### Phase 6: show, list, remote data, the rest
+
+| Lane | Owns files | Lines |
+| --- | --- | --- |
+| a | `core/show.ts`, `core/show-report.ts`, `core/list.ts`, `core/list-report.ts` | 932 |
+| b | `core/remote-index.ts`, `core/remote-index/`, `core/cached-fetch.ts`, `core/allowlist.ts`, `core/stats.ts`, `core/stats-cache.ts`, `core/stats-text.ts` | 783 |
+| c | `core/deps.ts`, `core/deps/`, `core/skill.ts`, `core/shown-path.ts`, `core/wrap.ts` | 598 |
+| inline | `errors.ts` (orchestrator) | 1,161 |
+
+Sizing check: lanes run 598 to 1,366 lines; the skill's four-file cap is stretched on purpose, since a readability pass over one directory is one capability and splitting further would multiply merge overhead for ~25k lines.
+
+## Log
+
+DA (sonnet, on the plan) findings:
+1. Applied: a lane's "brittle test" claim is judged by the orchestrator before that lane merges; a red test blocks the merge until classified. A test that pins an exported function's result, a file, an envelope or `details` is observable behavior, never brittle.
+2. Applied after phase 1: the harness gains JSONL log capture (`STACKS_LOG_FILE` per command, normalized) and a re-captured baseline from `main`; not changed mid-phase because phase 1 lanes diff against the current `base/`. Exit codes were already recorded. Rollback, signal and telemetry paths stay covered by their tests only, so lanes touching them (1c, 2a, 5b, 5c) get a closer inline read.
+3. Applied: phase 1 was already dispatched, so the shared brief is revised from phase 1's results before phase 2 dispatches.
+4. Dropped: cross-lane imports are covered by frozen exports and the post-merge gate.
+5. Dropped: new sibling files are imported only by their owner, whose tests the grep finds.
+
+
+Final review (opus code-reviewer over 8a76a946..phase-6): no behavior change found. Nine fixes, all applied in 10edebcd after checking each against the code: verify selection docs (`--only` never leaves out setup or teardown; `--skip-tag` and default skips apply to every phase), the AGENTS.md map for the new modules, `secondsSinceCreated` moved to `verify/plan.ts` and `isAppStep` used in `tamper.ts`, the validate plan types moved to `validate/types.ts`, the processes, cached-fetch, registry-walk and tamper-lookup docs corrected, and the three "NotFound or BadResource" predicates unified as `core/absent.ts::isAbsent`.
+
+Done 2026-11-15. Harness: zero diff against `base2` (main at 8a76a946, with JSONL logs). Gate: `rr check` 7/7, CLI 210 files with 3,619 passed and 3 skipped, e2e 39, MCP 30, the same counts as the baseline. No test failed in any phase, so no `test(cli):` rewrites were needed. Load-sensitive tests (`build-directory`, `search-api`, `search-metadata-editorial`) timed out under machine load above about 40 and passed on rerun at low load.

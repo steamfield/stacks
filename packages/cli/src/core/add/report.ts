@@ -1,3 +1,11 @@
+/**
+ * Turns the result of `stacks add` into the text summary a person or an agent reads.
+ *
+ * `commands/add.ts` calls `renderAdd` for the `human` and `agent` audiences (`--json` prints the
+ * result object instead). It borrows `warningLine` and `missingLine` from `scaffold/report.ts`, so
+ * `new` and `add` describe a warning or a missing tool the same way. The `Stop:` line appears when
+ * an untrusted step's digest wasn't recorded (Trust model point 4).
+ */
 import type { AddResult } from "../../schemas/add";
 import type { Audience } from "../../services/output";
 import { missingLine, warningLine } from "../scaffold/report";

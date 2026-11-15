@@ -1,8 +1,24 @@
+/**
+ * Flags prose that will stop being true when a tool ships a new release, when `stacks validate`
+ * runs.
+ *
+ * Entries are written once and read for years, while the tools they describe keep releasing. So
+ * the product rule is that stacks hold no version literals and no dated claims: an agent picks
+ * current versions when it builds the project. This check reads an entry's prose (its markdown
+ * body, its `decisions` strings and every Markdown file it ships, including adapters for agents
+ * not selected) and warns on two kinds of line: a dated phrase such as "as of March 2025", "rc" or
+ * "nightly" (`dated-phrase`), and a pinned `x.y.z` version (`pinned-version`). Fenced code blocks
+ * are skipped (`core/brief/headings.ts::proseLines`), since examples there are code, not claims.
+ *
+ * `core/validate/index.ts` runs `datedChecks`. `version-sensitive.ts` reuses `PINNED` to look for
+ * versions in shipped config files.
+ */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { proseLines } from "../brief/headings";
 import type { Entry } from "../registry/entry";
-import type { Check } from "./types";
+import type { EntrySources } from "./sources";
+import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
 
 const MONTHS =
@@ -20,46 +36,61 @@ const DATED = [
   ),
   new RegExp(`\\b(?:${MONTHS})\\s+\\d{4}\\b`),
 ];
+
+/** A pinned three-part version such as `1.2.3`, not part of a longer dotted number. */
 export const PINNED = /(?<![\d.])\d+\.\d+\.\d+(?![\d.])/;
+
+/**
+ * One piece of prose to scan. `offset` is added to each line number found in `text`, so a finding
+ * points at the line in `file` where the text starts.
+ */
+type ProseSource = { text: string; offset: number; file: string };
 
 /** Prose only: bodies, decision strings and shipped Markdown, including unselected adapters. */
 export const datedChecks: Check = (view) =>
-  Effect.sync(() => {
-    const findings: Finding[] = [];
-    for (const entry of view.entries) {
-      const sources = view.sources.get(entry.dir);
-      const texts = [
-        { text: entry.body, offset: sources?.bodyOffset ?? 0, file: entryFile(view, entry) },
-        ...entry.meta.decisions.map((text) => ({
-          text,
-          offset: Math.max(
-            0,
-            sources?.text.split("\n").findIndex((line) => line.includes(text.slice(0, 40))) ?? 0,
-          ),
-          file: entryFile(view, entry),
-        })),
-        ...(sources?.files ?? [])
-          .filter((file) => /\.md(?:\.tmpl)?$/i.test(file.path))
-          .map((file) => ({ text: file.text, offset: 0, file: view.file(entry, file.source) })),
-      ];
-      for (const source of texts) findings.push(...checkSource(entry, source));
-    }
-    return { findings };
-  });
-function checkSource(
-  entry: Entry,
-  source: { text: string; offset: number; file: string },
-): Finding[] {
-  const findings: Finding[] = [];
-  for (const line of proseLines(source.text)) {
-    findings.push(...lineFindings(entry, source, line));
-  }
-  return findings;
+  Effect.sync(() => ({
+    findings: view.entries.flatMap((entry) =>
+      proseSources(view, entry).flatMap((source) => checkSource(entry, source)),
+    ),
+  }));
+
+/** The body, each decision and each shipped Markdown file (`.md` or `.md.tmpl`) of an entry. */
+function proseSources(view: View, entry: Entry): ProseSource[] {
+  const sources = view.sources.get(entry.dir);
+  const markdown = entryFile(view, entry);
+  return [
+    { text: entry.body, offset: sources?.bodyOffset ?? 0, file: markdown },
+    ...entry.meta.decisions.map((text) => ({
+      text,
+      offset: decisionOffset(sources, text),
+      file: markdown,
+    })),
+    ...(sources?.files ?? [])
+      .filter((file) => /\.md(?:\.tmpl)?$/i.test(file.path))
+      .map((file) => ({ text: file.text, offset: 0, file: view.file(entry, file.source) })),
+  ];
 }
 
+/**
+ * Where a decision string sits in the entry's markdown file: the 0-based index of the first line
+ * holding its first 40 characters, or 0 when no line does. Decisions come from parsed frontmatter,
+ * which keeps no line numbers, so this finds the line by its text.
+ */
+function decisionOffset(sources: EntrySources | undefined, text: string): number {
+  return Math.max(
+    0,
+    sources?.text.split("\n").findIndex((line) => line.includes(text.slice(0, 40))) ?? 0,
+  );
+}
+
+function checkSource(entry: Entry, source: ProseSource): Finding[] {
+  return proseLines(source.text).flatMap((line) => lineFindings(entry, source, line));
+}
+
+/** One finding per pattern that matches the line, quoting the matched phrase. */
 function lineFindings(
   entry: Entry,
-  source: { file: string; offset: number },
+  source: ProseSource,
   line: { text: string; line: number },
 ): Finding[] {
   const findings: Finding[] = [];

@@ -1,3 +1,11 @@
+/**
+ * Assembles the CLI's application services and runs one invocation to an exit status.
+ *
+ * `bin.ts` builds `AppLayer` once per process over the platform layer (Node's filesystem, Host
+ * and the process registry) and hands `main(...)` to `runInvocation`; `tests/helpers/cli.ts` does
+ * the same once per `runCli`. `runInvocation` is the only place the CLI turns an Effect into a
+ * promise, which is why the exit status for an interrupted run (130) is decided here.
+ */
 import { Cause, Effect, Exit, Layer } from "effect";
 import { AppConfig, type Build, type Environment } from "./config";
 import { Logging } from "./logging";
@@ -6,7 +14,8 @@ import type { Output } from "./services/output";
 import { Processes } from "./services/processes";
 /**
  * Config, `output` (built over config and Host, so it can resolve the audience), logging and
- * Processes; the platform supplies FileSystem, Path, Host and Foreground.
+ * Processes; the platform supplies FileSystem, Path, Host and Foreground. An `env` of
+ * `undefined` reads the live process environment; tests pass their own.
  */
 export const AppLayer = (
   output: Layer.Layer<Output, never, Host | AppConfig>,
@@ -18,8 +27,11 @@ export const AppLayer = (
     Layer.provideMerge(env === undefined ? AppConfig.layer(build) : AppConfig.memory(env, build)),
   );
 
-// An interrupted fiber remains interrupted after main finishes its masked cleanup.
-// Map that final runtime outcome at the sole promise boundary as well.
+/**
+ * Runs `program` and returns its exit status. `main` settles output under a mask, but a fiber
+ * interrupted by `signal` stays interrupted after that cleanup, so an interrupt-only outcome maps
+ * to 130 here. Anything else that escapes `main` is rethrown for Node to report.
+ */
 export async function runInvocation(
   program: Effect.Effect<number>,
   signal?: AbortSignal,

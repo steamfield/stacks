@@ -1,4 +1,22 @@
-import { APP_TAG, type FragmentMeta, type StackMeta } from "@steamfield/stacks-format";
+/**
+ * The word-budget and composition checks `stacks validate` runs for every stack it validates.
+ *
+ * A composition is what a stack (a recipe for a whole project) becomes once fragments (reusable
+ * additions such as CI or a database) are combined onto it: files, verify steps and a brief, the
+ * task text the coding agent reads. An author can only see one composition at a time with
+ * `stacks new`, so this file builds the ones a user is likely to get and checks each:
+ * `compositionPlans` lists them (the defaults, each extra fragment alone, each compatible pair,
+ * in both the `default` and `sandbox` presets), `compositionChecks` composes each through
+ * `compose/compose.ts::compose` and records failures, compose warnings, over-budget briefs and
+ * missing verify layers in `composition-findings.ts`. `bodyChecks` holds each entry's own body to
+ * its limit from `budget.ts`.
+ *
+ * `index.ts` runs both checks over a registry; `preview.ts` runs `compositionChecks` over the one
+ * composition `validate --brief` previews (`View.composition`). `composed.ts`, `compose-each.ts`
+ * and `add-compositions.ts` reuse the plans, and `describe` turns a compose failure into the one
+ * line every one of them reports. Start at `compositionChecks`.
+ */
+import type { FragmentMeta } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type {
   BadInput,
@@ -12,21 +30,23 @@ import { countWords } from "../brief/words";
 import { targetAgents } from "../compose/agents";
 import { compose } from "../compose/compose";
 import { fitsStack } from "../compose/selection";
-import type { ComposeWarning, Composition } from "../compose/types";
-import type { Entry } from "../registry/entry";
-import { shellArg } from "../shell";
-import { bodyLimit, canonicalBrief, composedLimit } from "./budget";
-import type { Check, View } from "./types";
+import type { Composition } from "../compose/types";
+import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
+import { bodyLimit } from "./budget";
+import {
+  emptyResults,
+  recordBudget,
+  recordFailure,
+  recordMissingLayers,
+  recordWarnings,
+  type StackResults,
+  stackFindings,
+} from "./composition-findings";
+import { type Check, type PlanShape, PRESETS, type Preset, type Stack, type View } from "./types";
 import { entryFile, finding } from "./view";
 
-const PRESETS = ["default", "sandbox"] as const;
-type Preset = (typeof PRESETS)[number];
-type Stack = Entry & { meta: StackMeta };
 type ComposeFailure = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;
-/** D7: the layers every stack's default composition verifies. */
-const LAYERS = ["install", "lint", "typecheck", "test"] as const;
-/** Stacks with these tags also need a `serve` step with a probe. */
-const SERVED = ["web", "api"];
+type Fragment = Entry & { meta: FragmentMeta };
 
 /** Each entry's own body against its limit (stack, fragment or app), every branch counted. */
 export const bodyChecks: Check = (view) =>
@@ -50,21 +70,24 @@ export const bodyChecks: Check = (view) =>
     return { findings, sizes };
   });
 
-/** How a composition is named in findings and size rows: `go-cli (sandbox) + postgres`. */
-const subject = (stack: string, preset: string, added?: string) =>
-  `${stack} (${preset})${added === undefined ? "" : ` + ${added}`}`;
+/** A fragment that loaded, found by its directory kind as well as its metadata. */
+function isLoadedFragment(item: Entry | RejectedEntry): item is Fragment {
+  return item.kind === "fragment" && !isRejected(item) && isFragment(item);
+}
+
+function findFragment(view: Omit<View, "composed">, id: string): Fragment | undefined {
+  return view.all.find(
+    (entry): entry is Fragment => !isRejected(entry) && isFragment(entry) && entry.id === id,
+  );
+}
 
 /** Defaults an explicit addition replaces; required fragments can never be dropped. */
 export function replacementDefaults(view: Omit<View, "composed">, stack: Stack, id: string) {
-  const fragment = (id: string) =>
-    view.all.find(
-      (entry): entry is Entry & { meta: FragmentMeta } =>
-        "meta" in entry && entry.meta.kind === "fragment" && entry.id === id,
-    );
-  const added = fragment(id);
+  const added = findFragment(view, id);
   return stack.meta.fragments.default.filter((other) => {
     if (stack.meta.fragments.required.includes(other)) return false;
-    const existing = fragment(other);
+    const existing = findFragment(view, other);
+    // A composition holds at most one app, and declared conflicts hold in either direction.
     return (
       (added?.meta.category === "app" && existing?.meta.category === "app") ||
       (added?.meta.conflicts.includes(other) ?? false) ||
@@ -77,18 +100,8 @@ export function replacementDefaults(view: Omit<View, "composed">, stack: Stack, 
 export function compositionSingles(view: Omit<View, "composed">, stack: Stack) {
   const { required, optional } = stack.meta.fragments;
   const defaults = stack.meta.fragments.default;
-  const fits = (meta: FragmentMeta) =>
-    fitsStack(meta.appliesTo, { id: stack.id, tags: stack.meta.tags });
-  const apps = view.all.flatMap((item) =>
-    item.kind === "fragment" &&
-    "meta" in item &&
-    item.meta.kind === "fragment" &&
-    item.meta.category === "app" &&
-    fits(item.meta) &&
-    view.inRoot(item)
-      ? [item.id]
-      : [],
-  );
+  const apps = fittingApps(view, stack);
+  // Rejected fragments count as known here: their own load finding already reports them.
   const known = new Set(view.all.filter((item) => item.kind === "fragment").map((item) => item.id));
   const extras = [...new Set([...optional.filter((id) => known.has(id)), ...apps])]
     .filter((id) => !required.includes(id) && !defaults.includes(id))
@@ -103,6 +116,17 @@ export function compositionSingles(view: Omit<View, "composed">, stack: Stack) {
   ];
 }
 
+/** Apps under the validated root that fit the stack, so plans don't depend on this machine. */
+function fittingApps(view: Omit<View, "composed">, stack: Stack): string[] {
+  const fits = (meta: FragmentMeta) =>
+    fitsStack(meta.appliesTo, { id: stack.id, tags: stack.meta.tags });
+  return view.all.flatMap((item) =>
+    isLoadedFragment(item) && item.meta.category === "app" && fits(item.meta) && view.inRoot(item)
+      ? [item.id]
+      : [],
+  );
+}
+
 /**
  * The compositions each validated stack is budgeted in: its required and default fragments (with
  * any default app), each extra on its own, then each compatible unordered pair, all in both
@@ -115,42 +139,39 @@ export function compositionSingles(view: Omit<View, "composed">, stack: Stack) {
 export function compositionPlans(view: Omit<View, "composed">, stack: Stack) {
   const singles = compositionSingles(view, stack);
   const extras = singles.flatMap((plan) => (plan.added === undefined ? [] : [plan.added]));
+  return [...singles, ...pairPlans(view, stack, extras)];
+}
+
+/** Every unordered pair of extras that may share a composition, in `extras` order. */
+function pairPlans(view: Omit<View, "composed">, stack: Stack, extras: ReadonlyArray<string>) {
   const fragments = new Map(
-    view.all.flatMap((item) =>
-      item.kind === "fragment" && "meta" in item && item.meta.kind === "fragment"
-        ? [[item.id, item.meta] as const]
-        : [],
-    ),
+    view.all.flatMap((item) => (isLoadedFragment(item) ? [[item.id, item.meta] as const] : [])),
   );
-  return [
-    ...singles,
-    ...extras.flatMap((first, index) =>
-      extras.slice(index + 1).flatMap((second) => {
-        const left = fragments.get(first);
-        const right = fragments.get(second);
-        if (
-          !left ||
-          !right ||
-          (left.category === "app" && right.category === "app") ||
-          left.conflicts.includes(second) ||
-          right.conflicts.includes(first)
-        )
-          return [];
-        return [
-          {
-            added: `${first} + ${second}`,
-            with: [first, second],
-            without: [
-              ...new Set([
-                ...replacementDefaults(view, stack, first),
-                ...replacementDefaults(view, stack, second),
-              ]),
-            ],
-          },
-        ];
-      }),
-    ),
-  ];
+  return extras.flatMap((first, index) =>
+    extras.slice(index + 1).flatMap((second) => {
+      const left = fragments.get(first);
+      const right = fragments.get(second);
+      if (!left || !right || !canPair(left, right, [first, second])) return [];
+      return [
+        {
+          added: `${first} + ${second}`,
+          with: [first, second],
+          without: [
+            ...new Set([
+              ...replacementDefaults(view, stack, first),
+              ...replacementDefaults(view, stack, second),
+            ]),
+          ],
+        },
+      ];
+    }),
+  );
+}
+
+/** Two fragments can share a composition unless both are apps or one conflicts with the other. */
+function canPair(left: FragmentMeta, right: FragmentMeta, [first, second]: [string, string]) {
+  if (left.category === "app" && right.category === "app") return false;
+  return !left.conflicts.includes(second) && !right.conflicts.includes(first);
 }
 
 /** A compose failure as one line: what failed and the ids involved, never file content. */
@@ -186,12 +207,12 @@ function describeConflict(error: ComposeConflict): { check: string; message: str
 function describeInvalid(error: EntryInvalid): { check: string; message: string } {
   const details = error.details;
   if (!details) return { check: "compose", message: "an entry is invalid" };
-  const at = details.path
-    ? ` at ${details.path}${details.line === undefined ? "" : `:${details.line}`}`
-    : "";
+  const reason = details.problem ? `${details.reason}, ${details.problem}` : details.reason;
+  const line = details.line === undefined ? "" : `:${details.line}`;
+  const at = details.path ? ` at ${details.path}${line}` : "";
   return {
     check: "compose",
-    message: `${details.origin} entry ${details.id} is invalid (${details.reason}${details.problem ? `, ${details.problem}` : ""})${at}`,
+    message: `${details.origin} entry ${details.id} is invalid (${reason})${at}`,
   };
 }
 
@@ -201,54 +222,46 @@ function describeInvalid(error: EntryInvalid): { check: string; message: string 
  * checks rejected, or an id a validated entry names that `referenceChecks` found unknown.
  */
 function reportedElsewhere(view: View, error: ComposeFailure): boolean {
-  if (error._tag === "ComposeConflict") {
-    const details = error.details;
-    if (details?.reason !== "requires") return false;
-    // A requires edge: the stack (or the first fragment) names the last id.
-    const target = details.ids.at(-1);
-    const requirer =
-      details.stack !== undefined
-        ? { kind: "stack", id: details.stack }
-        : { kind: "fragment", id: details.ids[0] };
-    const known = view.all.some((item) => item.kind === "fragment" && item.id === target);
-    return (
-      !known &&
-      view.entries.some((entry) => entry.kind === requirer.kind && entry.id === requirer.id)
-    );
-  }
-  if (error._tag !== "EntryInvalid" || !error.details) return false;
+  if (error._tag === "ComposeConflict") return unknownRequirementReported(view, error);
+  if (error._tag === "EntryInvalid") return invalidEntryReported(view, error);
+  return false;
+}
+
+/** A `requires` edge to an unknown fragment, named by a validated entry. */
+function unknownRequirementReported(view: View, error: ComposeConflict): boolean {
+  const details = error.details;
+  if (details?.reason !== "requires") return false;
+  // A requires edge: the stack (or the first fragment) names the last id.
+  const target = details.ids.at(-1);
+  const requirer =
+    details.stack !== undefined
+      ? { kind: "stack", id: details.stack }
+      : { kind: "fragment", id: details.ids[0] };
+  const known = view.all.some((item) => item.kind === "fragment" && item.id === target);
+  return (
+    !known && view.entries.some((entry) => entry.kind === requirer.kind && entry.id === requirer.id)
+  );
+}
+
+/** A rejected fragment, or a validated entry's conditional or merged-JSON defect. */
+function invalidEntryReported(view: View, error: EntryInvalid): boolean {
+  if (!error.details) return false;
   const { id, origin, reason } = error.details;
-  if (
-    view.rejected.some(
-      (item) => item.kind === "fragment" && item.id === id && item.origin === origin,
-    )
-  )
-    return true;
+  const rejected = view.rejected.some(
+    (item) => item.kind === "fragment" && item.id === id && item.origin === origin,
+  );
+  if (rejected) return true;
   return (
     (reason === "conditional" || reason === "merge_json") &&
     view.entries.some((entry) => entry.id === id && entry.origin === origin)
   );
 }
 
-type CompositionPlan = ReturnType<typeof compositionPlans>[number];
-type CompositionCase = { stack: Stack; preset: Preset; plan: CompositionPlan };
-type StackResults = {
-  findings: Finding[];
-  sizes: SizeRow[];
-  missing: Map<string, Preset[]>;
-  unlabeled: Set<string>;
-  failed: Map<
-    string,
-    { check: string; added: string | undefined; message: string; presets: Preset[] }
-  >;
-  warned: Map<string, ComposeWarning & { added: string | undefined; presets: Preset[] }>;
-};
-
 /**
  * Each validated stack composed in each budgeted composition: a failure is a `compose` (or
  * `step-names`) error, a brief over its limit is `budget-composed`, and the default composition
- * must verify every D7 layer. Briefs are rendered with the canonical context; untrusted entries
- * get no special section.
+ * must verify every layer (`install`, `lint`, `typecheck`, `test`). Briefs are rendered with the
+ * canonical context; untrusted entries get no special section.
  */
 export const compositionChecks: Check = (view) =>
   Effect.gen(function* () {
@@ -263,207 +276,68 @@ export const compositionChecks: Check = (view) =>
     return { findings, sizes };
   });
 
+const PREVIEW_PLAN: PlanShape = { added: undefined, with: [], without: [] };
+
+/**
+ * A preview checks its one composition (already composed, with the caller's flags) in its own
+ * preset; registry validation checks every plan in both presets.
+ */
+function plansToCheck(view: View, stack: Stack) {
+  if (view.composition)
+    return { presets: [view.composition.preset], plans: [PREVIEW_PLAN] } as const;
+  return { presets: PRESETS, plans: compositionPlans(view, stack) } as const;
+}
+
 const checkStackCompositions = (view: View, stack: Stack) =>
   Effect.gen(function* () {
     const agents = targetAgents(undefined, {});
-    const missing = new Map<string, Preset[]>();
-    // Missing layers that a step of the same name, with no layer, probably meant to cover.
-    const unlabeled = new Set<string>();
-    // One finding per failure, naming every preset it happened in.
-    const failed = new Map<
-      string,
-      { check: string; added: string | undefined; message: string; presets: Preset[] }
-    >();
-    // Compose warnings, once per code and id, naming every preset they came up in.
-    const warned = new Map<
-      string,
-      ComposeWarning & { added: string | undefined; presets: Preset[] }
-    >();
-    const state: StackResults = { findings: [], sizes: [], missing, unlabeled, failed, warned };
-    const presets = view.composition ? [view.composition.preset] : PRESETS;
+    const state = emptyResults();
+    const { presets, plans } = plansToCheck(view, stack);
     for (const preset of presets) {
-      const plans = view.composition
-        ? [{ added: undefined, with: [], without: [] }]
-        : compositionPlans(view, stack);
       for (const plan of plans) {
-        const succeeded = yield* checkCompositionCase(view, { stack, preset, plan }, state, agents);
+        const succeeded = yield* checkComposition(view, { stack, preset, plan, agents }, state);
         // The added compositions fail the same way when the base one does.
         if (!succeeded && plan.added === undefined) break;
       }
     }
-    reportStackFindings(view, stack, state);
-    return { findings: state.findings, sizes: state.sizes };
+    return { findings: stackFindings(view, stack, state), sizes: state.sizes };
   });
 
-const checkCompositionCase = (
-  view: View,
-  { stack, preset, plan }: CompositionCase,
-  state: StackResults,
-  agents: Composition["agents"],
-) =>
+type CompositionCase = {
+  stack: Stack;
+  preset: Preset;
+  plan: PlanShape;
+  agents: Composition["agents"];
+};
+
+/** Compose one plan and record what it shows; false when it didn't compose. */
+const checkComposition = (view: View, check: CompositionCase, state: StackResults) =>
   Effect.gen(function* () {
-    const composed = yield* Effect.result(
-      view.composition
-        ? Effect.succeed(view.composition)
-        : compose({
-            stack: stack.id,
-            with: plan.with,
-            without: plan.without,
-            preset,
-            agents,
-            always: [],
-            mode: "new",
-          }),
-    );
+    const { stack, preset, plan } = check;
+    const composed = yield* Effect.result(composeCase(view, check));
     if (Result.isFailure(composed)) {
-      recordFailure(view, composed.failure, { preset, plan }, state);
+      if (!reportedElsewhere(view, composed.failure))
+        recordFailure(state, describe(composed.failure), { preset, plan });
       return false;
     }
     const composition = composed.success;
     // A preview's warnings come from the caller's --with and --without, not the stack's listing;
     // the preview returns them as warnings, as `new` does.
-    if (!view.composition) recordWarnings(composition, { preset, plan }, state);
-    recordBudget(view, composition, { stack, preset, plan }, state);
-    recordMissingLayers(stack, composition, { preset, plan }, state);
+    if (!view.composition) recordWarnings(state, composition, { preset, plan });
+    recordBudget(state, { view, stack, composition }, { preset, plan });
+    recordMissingLayers(state, { stack, composition }, { preset, plan });
     return true;
   });
 
-function recordFailure(
-  view: View,
-  error: ComposeFailure,
-  { preset, plan }: Pick<CompositionCase, "preset" | "plan">,
-  state: StackResults,
-) {
-  if (!reportedElsewhere(view, error)) {
-    const { check, message } = describe(error);
-    const key = `${check}\0${plan.added ?? ""}\0${message}`;
-    const prior = state.failed.get(key);
-    if (prior) prior.presets.push(preset);
-    else state.failed.set(key, { check, added: plan.added, message, presets: [preset] });
-  }
-}
-
-function recordWarnings(
-  composition: Composition,
-  { preset, plan }: Pick<CompositionCase, "preset" | "plan">,
-  state: StackResults,
-) {
-  for (const warning of composition.warnings) {
-    const key = `${warning.code}\0${warning.id}`;
-    const prior = state.warned.get(key);
-    if (prior) prior.presets.push(preset);
-    else state.warned.set(key, { ...warning, added: plan.added, presets: [preset] });
-  }
-}
-
-function recordBudget(
-  view: View,
-  composition: Composition,
-  { stack, preset, plan }: CompositionCase,
-  state: StackResults,
-) {
-  const file = entryFile(view, stack);
-  const name = subject(stack.id, preset, plan.added);
-  const brief = canonicalBrief(composition);
-  const limit = composedLimit(composition);
-  state.sizes.push({
-    kind: "composed",
-    entryKind: "stack",
-    entry: stack.id,
+function composeCase(view: View, { stack, preset, plan, agents }: CompositionCase) {
+  if (view.composition) return Effect.succeed(view.composition);
+  return compose({
+    stack: stack.id,
+    with: plan.with,
+    without: plan.without,
     preset,
-    ...(plan.added === undefined ? {} : { with: plan.added }),
-    words: brief.briefWords,
-    fixedWords: brief.fixedWords,
-    limit,
+    agents,
+    always: [],
+    mode: "new",
   });
-  if (brief.briefWords > limit)
-    state.findings.push(
-      finding(stack, {
-        check: "budget-composed",
-        severity: "error",
-        file,
-        message: `${name}: ${brief.briefWords.toLocaleString("en-US")} words, limit ${limit.toLocaleString("en-US")}${previewHint(view, stack, preset, plan)}`,
-      }),
-    );
-}
-
-function previewHint(view: View, stack: Stack, preset: Preset, plan: CompositionPlan) {
-  if (plan.with.length !== 2) return "";
-  const args = [
-    "stacks",
-    "validate",
-    ...(view.bundled ? [] : [view.root]),
-    "--brief",
-    stack.id,
-    ...(preset === "sandbox" ? ["--sandbox"] : []),
-    ...plan.with.flatMap((id) => ["--with", id]),
-    ...plan.without.flatMap((id) => ["--without", id]),
-  ];
-  return `; preview: ${args.map(shellArg).join(" ")}`;
-}
-
-function recordMissingLayers(
-  stack: Stack,
-  composition: Composition,
-  { preset, plan }: Pick<CompositionCase, "preset" | "plan">,
-  state: StackResults,
-) {
-  if (plan.added === undefined)
-    for (const layer of missingLayers(stack, composition)) {
-      state.missing.set(layer, [...(state.missing.get(layer) ?? []), preset]);
-      if (baseSteps(composition).some((step) => step.name === layer && step.layer === undefined))
-        state.unlabeled.add(layer);
-    }
-}
-
-function reportStackFindings(view: View, stack: Stack, state: StackResults) {
-  const file = entryFile(view, stack);
-  for (const { check, added, message, presets } of state.failed.values())
-    state.findings.push(
-      finding(stack, {
-        check,
-        severity: "error",
-        file,
-        message: `${subject(stack.id, presets.join(", "), added)}: ${message}`,
-      }),
-    );
-  // The stack lists a fragment that doesn't fit it: an error, like any other broken listing.
-  for (const { code, id, added, presets } of state.warned.values())
-    state.findings.push(
-      finding(stack, {
-        check: code === "with_not_applicable" ? "optional-fits" : "compose",
-        severity: "error",
-        file,
-        message:
-          code === "with_not_applicable"
-            ? `fragments.optional names ${id}, whose applies_to matches neither this stack nor its tags`
-            : `${subject(stack.id, presets.join(", "), added)}: compose warns ${code.replaceAll("_", " ")}: ${id}`,
-      }),
-    );
-  for (const [layer, presets] of state.missing)
-    state.findings.push(
-      finding(stack, {
-        check: "verify-layers",
-        severity: "error",
-        file,
-        message:
-          layer === "serve"
-            ? `no serve step with expect, which a stack tagged web or api needs (${presets.join(", ")})`
-            : `no verify step with layer ${layer} (${presets.join(", ")})${state.unlabeled.has(layer) ? `; step ${layer} has no layer: add layer: ${layer} to it` : ""}`,
-      }),
-    );
-}
-
-/** The steps D7 counts: not an app's, and not skipped by default. */
-const baseSteps = (composition: Composition) =>
-  composition.verify.filter((step) => !step.tags.includes(APP_TAG) && !step.skipByDefault);
-
-/** D7 layers the stack's own default composition doesn't cover; app steps don't count. */
-function missingLayers(stack: Stack, composition: Composition): string[] {
-  const steps = baseSteps(composition);
-  const layers = new Set(steps.map((step) => step.layer));
-  const missing: string[] = LAYERS.filter((layer) => !layers.has(layer));
-  const served = steps.some((step) => step.phase === "serve" && step.expect);
-  if (stack.meta.tags.some((tag) => SERVED.includes(tag)) && !served) missing.push("serve");
-  return missing;
 }

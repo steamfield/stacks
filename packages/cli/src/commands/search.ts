@@ -1,3 +1,13 @@
+/**
+ * The `search` command: takes what the user wants to build, in their own words, and returns the
+ * stacks and fragments that fit it best.
+ *
+ * This file checks the input and renders the result. `core/search/run.ts::search` does the ranking:
+ * it asks the hosted stacks API and ranks the local registry in parallel, then merges the two with
+ * local entries winning. `--local`, `--offline` and the telemetry opt-outs keep the request text on
+ * the machine. The request length and hit counts are added to the command's log record; the text
+ * itself is not.
+ */
 import { SearchResult } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
@@ -8,6 +18,24 @@ import { BadInput } from "../errors";
 import { Host } from "../services/host";
 import { Invocation } from "../services/invocation";
 import { Output } from "../services/output";
+
+const MAX_REQUEST_LENGTH = 500;
+const MAX_LIMIT = 20;
+
+/**
+ * Joins the request words and checks the request and `--limit` are in range. Length counts code
+ * points rather than UTF-16 units.
+ */
+const checkedRequest = (words: ReadonlyArray<string>, limit: number) =>
+  Effect.gen(function* () {
+    const request = words.join(" ").trim();
+    const length = [...request].length;
+    if (length === 0 || length > MAX_REQUEST_LENGTH)
+      return yield* new BadInput({ details: { flag: "request", length } });
+    if (limit < 1 || limit > MAX_LIMIT)
+      return yield* new BadInput({ details: { flag: "limit", value: String(limit) } });
+    return { request, length };
+  });
 
 export const searchCommand = Command.make(
   "search",
@@ -31,12 +59,7 @@ export const searchCommand = Command.make(
   },
   ({ request: words, kind, limit, local }) =>
     Effect.gen(function* () {
-      const request = words.join(" ").trim();
-      const length = [...request].length;
-      if (length === 0 || length > 500)
-        return yield* new BadInput({ details: { flag: "request", length } });
-      if (limit < 1 || limit > 20)
-        return yield* new BadInput({ details: { flag: "limit", value: String(limit) } });
+      const { request, length } = yield* checkedRequest(words, limit);
       const result = yield* search(request, {
         limit,
         kind: Option.getOrUndefined(kind),
@@ -50,12 +73,13 @@ export const searchCommand = Command.make(
         stacks: String(result.stacks.length),
         fragments: String(result.fragments.length),
       });
+      const human = output.audience === "human";
       yield* output.result(
         Schema.encodeSync(SearchResult)(result),
         renderSearch(result, {
           invocation: host.invocation,
-          human: output.audience === "human",
-          width: textWidth(output.audience === "human", host.columns),
+          human,
+          width: textWidth(human, host.columns),
           measure: host.stringWidth,
         }),
       );

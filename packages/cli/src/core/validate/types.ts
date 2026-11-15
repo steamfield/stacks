@@ -1,4 +1,12 @@
-import type { Kind } from "@steamfield/stacks-format";
+/**
+ * The shapes every `stacks validate` check shares: the `View` a check reads, the `Check`
+ * signature itself, and the composition plans `compositions.ts` checks each stack in.
+ *
+ * `index.ts::validate` (and `preview.ts::previewBrief` for `validate --brief`) builds one `View`
+ * and hands it to every check module in this folder. The types live here, apart from `index.ts`,
+ * so check modules can import them without importing the module that imports them.
+ */
+import type { Kind, StackMeta } from "@steamfield/stacks-format";
 import type { Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
 import type { PermissionDenied } from "../../errors";
@@ -10,10 +18,29 @@ import type { Entry, RejectedEntry } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import type { EntrySources } from "./sources";
 
+/** The presets every stack's compositions are checked in. */
+export const PRESETS = ["default", "sandbox"] as const;
+export type Preset = (typeof PRESETS)[number];
+export type Stack = Entry & { meta: StackMeta };
+
+/** One composition to check: `added` names the extra fragments, undefined for the base one. */
+export type PlanShape = {
+  added: string | undefined;
+  with: ReadonlyArray<string>;
+  without: ReadonlyArray<string>;
+};
+
+/** One composition and the files it renders to, as the rendered-file checks read them. */
 export type Composed = { composition: Composition; files: ReadonlyArray<RenderedFile> };
 
+/** A `View` before its compositions are rendered, which is what rendering them reads. */
 export type SourceView = Omit<View, "composed">;
 
+/**
+ * What rendering every composition under check produced (`composed.ts::composedFiles`): the
+ * rendered snapshots, the findings rendering raised, and a key for each composition that failed
+ * on a conflict, so `compose-each.ts` doesn't report the same conflict again.
+ */
 export type RenderState = {
   snapshots: Composed[];
   findings: Finding[];
@@ -34,7 +61,9 @@ export type View = {
   entries: ReadonlyArray<Entry>;
   rejected: ReadonlyArray<RejectedEntry>;
   all: ReadonlyArray<Entry | RejectedEntry>;
+  /** Each readable entry's markdown text and shipped files, keyed by the entry's directory. */
   sources: ReadonlyMap<string, EntrySources>;
+  /** Renders the compositions under check on first use; later runs return the same state. */
   composed: Effect.Effect<RenderState, never, FileSystem.FileSystem | Path.Path | Registry>;
   /** Whether an entry under the root is in the validated set (false for all but `only`). */
   wanted: (item: { kind: Kind; id: string }) => boolean;

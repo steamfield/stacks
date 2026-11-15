@@ -1,3 +1,22 @@
+/**
+ * Checks, before `stacks verify` runs anything, that the project's verify steps are still the
+ * ones that were recorded when the project was made (Trust model, point 5).
+ *
+ * The steps live in `.stacks/manifest.json`, inside the project, where an agent could edit a
+ * failing check into `true`. So the CLI keeps two digests (sha256 fingerprints) of them: one in
+ * the manifest itself (`verifyDigest`) and one in the state record, a file outside the project
+ * under `Paths.state` that the agent's edits to the project don't reach. `checkTamper` digests the
+ * steps again and compares in this order: with the manifest's own digest, then with the state
+ * record for the manifest's `projectId`. With no record under that id, it looks for a record
+ * holding this manifest's real path, and finding one counts as a change: the `projectId` changed
+ * while the path stayed (an edited id, or another project's manifest copied over this one). A
+ * project copied to a new directory keeps its id, so the by-id lookup finds the original's record. With no record at all, the check is `manifest-only`, which still runs
+ * but can't count as a full check.
+ *
+ * `commands/verify.ts` calls `checkTamper` right after reading the manifest. A change stops the
+ * run (`changedResult` builds its report) until a person at a terminal runs `--accept-changes`,
+ * which `acceptChanges` carries out; the command refuses it under an agent (Trust model, point 4).
+ */
 import type { Manifest, TamperCheck } from "@steamfield/stacks-format";
 import { Clock, Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
@@ -15,7 +34,7 @@ import {
   replaceProjectState,
 } from "../project-state";
 import { openProject } from "../scaffold/write";
-import type { VerifyPlan } from "./plan";
+import { isAppStep, secondsSinceCreated, skippedStep, type VerifyPlan } from "./plan";
 
 /**
  * The tamper check's finding. `record` is the state record for the manifest's `projectId`, the one
@@ -30,6 +49,8 @@ export type Tamper = {
   manifestPath: string;
 };
 
+const CHANGED = "not run: the verify steps changed since they were recorded";
+
 const sorted = (names: Iterable<string>) => [...names].sort();
 
 /** Which steps and settings differ from a state record, by its per-step and settings digests. */
@@ -42,12 +63,63 @@ function itemize(manifest: Manifest, state: ProjectState) {
     edited: sorted(
       [...now]
         .filter(([name, digest]) => was.has(name) && was.get(name) !== digest)
-        .map(([n]) => n),
+        .map(([name]) => name),
     ),
     settings: digestSettings(manifest) !== state.settingsDigest,
   };
 }
+/** With no state record there is nothing to name the change from. */
 const NOT_ITEMIZED = { removed: [], added: [], edited: [], settings: false };
+
+type RecordCheck = {
+  manifest: Manifest;
+  manifestPath: string;
+  /** The steps' digest as they are now. */
+  digest: string;
+  record: FoundState;
+};
+
+/**
+ * Compared with the record for this `projectId`. `against` names the first copy that disagreed:
+ * the manifest's own digest, else the record's. The change is itemized from the record either way.
+ */
+function checkAgainstRecord({ manifest, manifestPath, digest, record }: RecordCheck): Tamper {
+  const manifestOk = digest === manifest.verifyDigest;
+  const ok = manifestOk && record.state.verifyDigest === digest;
+  return {
+    tamperCheck: "full",
+    record,
+    manifestPath,
+    ...(ok
+      ? {}
+      : {
+          changed: {
+            against: manifestOk ? "state-record" : "manifest",
+            reason: "digest",
+            ...itemize(manifest, record.state),
+          },
+        }),
+  };
+}
+
+/** A record holds this manifest's path under another id: always a change, whatever the digests. */
+function staleRecordChange(manifest: Manifest, manifestPath: string, stale: FoundState): Tamper {
+  return {
+    tamperCheck: "full",
+    stale,
+    manifestPath,
+    changed: { against: "state-record", reason: "project-id", ...itemize(manifest, stale.state) },
+  };
+}
+
+/** No state record on this machine: only the manifest's own digest can be compared. */
+function manifestOnly(manifestPath: string, manifestOk: boolean): Tamper {
+  return {
+    tamperCheck: "manifest-only",
+    manifestPath,
+    ...(manifestOk ? {} : { changed: { against: "manifest", reason: "digest", ...NOT_ITEMIZED } }),
+  };
+}
 
 /**
  * The tamper check, before any step runs (Trust model, point 5). The manifest's steps are
@@ -67,45 +139,26 @@ export const checkTamper = (
       .realPath(manifestFile)
       .pipe(Effect.orElseSucceed(() => manifestFile));
     const digest = digestSteps(manifest);
-    const manifestOk = digest === manifest.verifyDigest;
     const record = yield* findProjectState(manifest.projectId);
-    if (record) {
-      const ok = manifestOk && record.state.verifyDigest === digest;
-      return {
-        tamperCheck: "full",
-        record,
-        manifestPath,
-        ...(ok
-          ? {}
-          : {
-              changed: {
-                against: manifestOk ? "state-record" : "manifest",
-                reason: "digest",
-                ...itemize(manifest, record.state),
-              },
-            }),
-      } satisfies Tamper;
-    }
+    if (record) return checkAgainstRecord({ manifest, manifestPath, digest, record });
     const stale = yield* findProjectStateByPath(manifestPath);
-    if (stale)
-      return {
-        tamperCheck: "full",
-        stale,
-        manifestPath,
-        changed: {
-          against: "state-record",
-          reason: "project-id",
-          ...itemize(manifest, stale.state),
-        },
-      } satisfies Tamper;
-    return {
-      tamperCheck: "manifest-only",
-      manifestPath,
-      ...(manifestOk
-        ? {}
-        : { changed: { against: "manifest", reason: "digest", ...NOT_ITEMIZED } }),
-    } satisfies Tamper;
+    if (stale) return staleRecordChange(manifest, manifestPath, stale);
+    return manifestOnly(manifestPath, digest === manifest.verifyDigest);
   });
+
+/**
+ * The state record that accepts the steps as they are now. It keeps `createdAt` and the timing
+ * fields of whichever record the check found, so accepting a change doesn't reset them.
+ */
+function acceptedState(accepted: Manifest, original: Manifest, tamper: Tamper): ProjectState {
+  const kept = tamper.record?.state ?? tamper.stale?.state;
+  return {
+    ...projectStateFor(accepted, tamper.manifestPath),
+    createdAt: kept?.createdAt ?? original.createdAt,
+    firstGreenAt: kept?.firstGreenAt ?? null,
+    firstTestPassAt: kept?.firstTestPassAt ?? null,
+  };
+}
 
 /**
  * `--accept-changes`, once the caller has checked that a person at a terminal asked: records the
@@ -131,13 +184,7 @@ export const acceptChanges = (
     const target = yield* projectStatePath(manifest.projectId);
     if (target === undefined)
       return yield* new PermissionDenied({ details: { reason: "state-unwritable" } });
-    const kept = tamper.record?.state ?? tamper.stale?.state;
-    const state: ProjectState = {
-      ...projectStateFor(accepted, tamper.manifestPath),
-      createdAt: kept?.createdAt ?? manifest.createdAt,
-      firstGreenAt: kept?.firstGreenAt ?? null,
-      firstTestPassAt: kept?.firstTestPassAt ?? null,
-    };
+    const state = acceptedState(accepted, manifest, tamper);
     // One uninterruptible region: an interrupt between the two writes would leave them disagreeing.
     yield* Effect.uninterruptible(
       Effect.scoped(
@@ -154,6 +201,7 @@ export const acceptChanges = (
               new TextEncoder().encode(encodeManifest(accepted)),
             );
           }
+          // Best effort: the record under the old id no longer matches any project.
           if (tamper.stale && tamper.stale.path !== target)
             yield* Effect.ignore(fs.remove(tamper.stale.path));
         }),
@@ -178,8 +226,6 @@ export const acceptChanges = (
 export const createdAtOf = (manifest: Manifest, tamper: Tamper): string =>
   (tamper.record ?? tamper.stale)?.state.createdAt ?? manifest.createdAt;
 
-const CHANGED = "not run: the verify steps changed since they were recorded";
-
 /**
  * The result of a run the tamper check stopped: every step skipped, nothing run (not even
  * teardown, since no setup ran). `started` is when the command began, from Clock.
@@ -192,27 +238,14 @@ export const changedResult = (
 ): Effect.Effect<VerifyResult> =>
   Effect.gen(function* () {
     const ended = yield* Clock.currentTimeMillis;
-    const created = Date.parse(createdAtOf(manifest, tamper));
     const result: VerifyResult = {
       outcome: "changed",
-      ...(plan.steps.some((step) => step.tags.includes("app"))
-        ? { stages: { base: "changed", app: null } }
-        : {}),
+      ...(plan.steps.some(isAppStep) ? { stages: { base: "changed", app: null } } : {}),
       scope: plan.scope,
-      steps: plan.steps.map((step) => ({
-        name: step.name,
-        phase: step.phase,
-        ...(step.layer ? { layer: step.layer } : {}),
-        command: step.run,
-        status: "skipped" as const,
-        durationMs: 0,
-        reason: CHANGED,
-      })),
+      steps: plan.steps.map((step) => skippedStep(step, CHANGED)),
       totals: { passed: 0, failed: 0, skipped: plan.steps.length },
       durationMs: ended - started,
-      secondsSinceCreated: Number.isFinite(created)
-        ? Math.max(0, Math.floor((ended - created) / 1000))
-        : 0,
+      secondsSinceCreated: secondsSinceCreated(createdAtOf(manifest, tamper), ended),
       tamperCheck: tamper.tamperCheck,
       changed: tamper.changed,
       firstGreen: false,

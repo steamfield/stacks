@@ -1,3 +1,14 @@
+/**
+ * Runs the few git commands `stacks new` and `stacks add` need: finding the enclosing repository,
+ * checking for commits, `git init` and reading `user.name`.
+ *
+ * `scaffold/new.ts` calls `probeGit` before writing and `gitInit` after; `add/plan.ts` and
+ * `add/prepare.ts` use `gitToplevel` and `gitInstalled`; `scaffold/values.ts` reads the author
+ * through `gitUserName`. Every command is a fixed string, so nothing from an entry ever reaches git
+ * (Trust model point 1). Each runs through `Processes` without the `GIT_DIR`-style variables a
+ * hook might export, so git finds the repository from the working directory alone, and with
+ * `LC_ALL=C`, so the "not a git repository" message `probeGit` looks for is never translated.
+ */
 import { Duration, Effect, FileSystem, Option } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
 import type { NewResult } from "../../schemas/new";
@@ -5,11 +16,6 @@ import { type Finished, Processes } from "../../services/processes";
 import type { GitState } from "../brief/types";
 import type { Target } from "./target";
 
-/**
- * Every git command `new` runs is one of these constants; no entry content reaches git. Each runs
- * without `GIT_REPOSITORY_VARIABLES`, so git finds the repository from `cwd` alone, and with
- * `LC_ALL=C`, so its messages are the untranslated ones `probeGit` reads.
- */
 const TIMEOUT = Duration.seconds(10);
 const TOPLEVEL = "git rev-parse --show-toplevel 2>&1";
 const HAS_COMMIT = "git rev-parse --verify --quiet HEAD >/dev/null 2>&1";
@@ -28,16 +34,26 @@ const git = (command: string, cwd: string) =>
       .pipe(Effect.catchTag("SpawnFailed", () => Effect.succeed(undefined)));
   });
 
+/** Whether the command started, exited 0 and didn't time out. */
 const ok = (finished: Finished | undefined): finished is Finished =>
   finished !== undefined && finished.exitCode === 0 && !finished.timedOut;
+
 /** A git command's exit code for a warning: 124 for a timeout, none when it couldn't start. */
 const exitOf = (finished: Finished | undefined) => {
   if (finished === undefined) return undefined;
   return finished.timedOut ? 124 : finished.exitCode;
 };
 
+/** The last line `git rev-parse --show-toplevel` printed, when it succeeded with one. */
 const toplevelOf = (finished: Finished | undefined) =>
   ok(finished) ? finished.tail.trim().split("\n").at(-1) || undefined : undefined;
+
+/** Whether git ran and said no repository encloses its working directory. */
+const isUnenclosed = (found: Finished | undefined) =>
+  found !== undefined &&
+  found.exitCode !== 0 &&
+  !found.timedOut &&
+  found.tail.includes(NOT_A_REPOSITORY);
 
 /** The repository root, if git can identify one from cwd alone. */
 export const gitToplevel = (cwd: string) => Effect.map(git(TOPLEVEL, cwd), toplevelOf);
@@ -57,17 +73,16 @@ export type GitProbe = {
   warning?: NewResult["warnings"][number];
 };
 
-function withoutToplevel(target: Target, found: Finished | undefined, none: GitProbe): GitProbe {
-  const unenclosed =
-    found !== undefined &&
-    found.exitCode !== 0 &&
-    !found.timedOut &&
-    found.tail.includes(NOT_A_REPOSITORY);
+const NO_GIT: GitProbe = { state: { kind: "none" }, init: false, own: false };
+
+/** The probe when git found no toplevel: fresh if git says there's no repository, else unusable. */
+function withoutToplevel(target: Target, found: Finished | undefined): GitProbe {
   // A `.git` in the target that git doesn't see as a repository is not ours to init over.
-  if (unenclosed && !target.git) return { state: { kind: "fresh" }, init: true, own: false };
+  if (isUnenclosed(found) && !target.git)
+    return { state: { kind: "fresh" }, init: true, own: false };
   const exitCode = exitOf(found);
   return {
-    ...none,
+    ...NO_GIT,
     warning: {
       code: "git_unusable",
       id: "git",
@@ -91,14 +106,11 @@ export const probeGit = (
   installed: boolean,
 ): Effect.Effect<GitProbe, never, FileSystem.FileSystem | Processes | AppConfig> =>
   Effect.gen(function* () {
-    const none: GitProbe = { state: { kind: "none" }, init: false, own: false };
-    if (!installed) return none;
+    if (!installed) return NO_GIT;
     const fs = yield* FileSystem.FileSystem;
     const found = yield* git(TOPLEVEL, target.nearest);
     const toplevel = toplevelOf(found);
-    if (!toplevel) {
-      return withoutToplevel(target, found, none);
-    }
+    if (!toplevel) return withoutToplevel(target, found);
     const real = (at: string) => fs.realPath(at).pipe(Effect.orElseSucceed(() => at));
     const own = target.exists && (yield* real(toplevel)) === (yield* real(target.path));
     if (!own)
@@ -114,6 +126,7 @@ export const gitInit = (root: string) =>
   Effect.gen(function* () {
     const finished = yield* git(INIT, root);
     if (!finished) return 127;
+    // A timed-out git that still reported 0 didn't finish its init.
     return finished.timedOut && finished.exitCode === 0 ? 124 : finished.exitCode;
   });
 

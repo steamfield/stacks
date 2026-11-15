@@ -1,11 +1,23 @@
 /**
+ * The text patterns `stacks validate --submission` uses to spot things an entry must not publish:
+ * credentials, absolute paths from one person's machine and real environment files.
+ *
+ * `validate/submission.ts` is the only caller; it runs these over every shipped line before an
+ * entry (a stack or fragment) is submitted to the shared registry. Each pattern is tuned toward
+ * few false positives, so a match is worth stopping for, and changing a regex changes which
+ * findings an author sees.
+ */
+
+/**
  * Credential shapes `validate --submission` refuses, after the repo's secret guard: high-confidence
  * formats only, so false positives stay rare. `loose` patterns also match documentation, so a match
  * that reads like a placeholder is let through; only the matched text is judged, never the rest of
  * the line. A pattern scan misses things; it backs up the author's own pass and maintainer review,
  * it doesn't replace them.
  */
-const SECRET_PATTERNS: ReadonlyArray<{ what: string; re: RegExp; loose?: true }> = [
+type SecretPattern = { what: string; re: RegExp; loose?: true };
+
+const SECRET_PATTERNS: ReadonlyArray<SecretPattern> = [
   { what: "an AWS access key ID", re: /AKIA[0-9A-Z]{16}/g },
   {
     what: "an AWS secret access key",
@@ -33,9 +45,12 @@ const PLACEHOLDER =
 
 /** What credential a line looks like it holds, or `undefined`. Never returns the matched text. */
 export function secretIn(line: string): string | undefined {
-  return SECRET_PATTERNS.find(({ re, loose }) =>
-    [...line.matchAll(re)].some((match) => !(loose && PLACEHOLDER.test(match[0]))),
-  )?.what;
+  return SECRET_PATTERNS.find((pattern) => holdsCredential(line, pattern))?.what;
+}
+
+/** Whether any match of the pattern in `line` is a credential rather than a loose placeholder. */
+function holdsCredential(line: string, { re, loose }: SecretPattern): boolean {
+  return [...line.matchAll(re)].some((match) => !(loose && PLACEHOLDER.test(match[0])));
 }
 
 /** `text` as a literal inside a regular expression. */
@@ -86,4 +101,8 @@ export function isEnvFile(name: string): boolean {
   return /^\.env(?:\..*)?$/.test(name) && !ENV_TEMPLATES.includes(name.replace(/\.tmpl$/, ""));
 }
 
+/**
+ * The marker an author leaves where the project's agent fills in text; a submitted entry may keep
+ * one only where a verify step checks that it was filled.
+ */
 export const FILL_MARKER = "stacks:fill";

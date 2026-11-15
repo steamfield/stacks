@@ -1,3 +1,17 @@
+/**
+ * Turns the arguments of `stacks submit` into the entries to submit.
+ *
+ * An argument is either a path to an entry directory (`./my-registry/stacks/demo-app`) or a bare
+ * id looked up in the user registry, where an author keeps personal stacks and fragments
+ * (`stacks create` writes them there). An id is refused unless it is kebab-case, so a value such
+ * as `../x` never reaches a lookup. An id found as both a stack and a fragment is ambiguous and
+ * refused; an id found nowhere gets a did-you-mean, plus a hint when the working directory has a
+ * folder by that name.
+ *
+ * `submit.ts::submit` calls `resolveEntries` before any network work; `assemble.ts` copies the
+ * resulting directories into the upstream clone. Path arguments resolve through
+ * `validate/target.ts::resolveTarget`, the same rule `stacks validate <path>` uses.
+ */
 import { Kebab, type Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { AppConfig } from "../../config";
@@ -34,6 +48,24 @@ const checkId = (id: string) =>
  */
 const isPath = (value: string) => /[/\\]/.test(value) || /^[.~]/.test(value);
 
+/** The `NotFound` for an id in neither kind, with a did-you-mean over every user registry id. */
+const unknownId = Effect.fn("submit.unknownId")(function* (
+  id: string,
+  known: ReadonlyArray<string>,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  // A folder by that name in the working directory was probably meant as a path.
+  const local = yield* isDirectory(fs, path.resolve((yield* Host).cwd, id));
+  return yield* new NotFound({
+    details: {
+      id,
+      suggestions: closest(id, [...new Set(known)]),
+      ...(local ? { directory: `./${id}` } : {}),
+    },
+  });
+});
+
 /** An id in the user registry: the one kind that has it, or a did-you-mean over both. */
 const userEntry = Effect.fn("submit.userEntry")(function* (id: string) {
   yield* checkId(id);
@@ -50,19 +82,32 @@ const userEntry = Effect.fn("submit.userEntry")(function* (id: string) {
     );
   }
   const [only, ...more] = found;
-  if (only === undefined) {
-    // A folder by that name in the working directory was probably meant as a path.
-    const local = yield* isDirectory(fs, path.resolve((yield* Host).cwd, id));
-    return yield* new NotFound({
-      details: {
-        id,
-        suggestions: closest(id, [...new Set(known)]),
-        ...(local ? { directory: `./${id}` } : {}),
-      },
-    });
-  }
+  if (only === undefined) return yield* unknownId(id, known);
   if (more.length) return yield* new BadInput({ details: { id, flag: "submit_entry" } });
   return only;
+});
+
+/** `~` and `~/...` name the home directory, for a caller that passed the path unexpanded. */
+const expandHome = Effect.fn("submit.expandHome")(function* (value: string) {
+  if (value !== "~" && !value.startsWith("~/")) return value;
+  const path = yield* Path.Path;
+  return path.join((yield* (yield* AppConfig).paths).home, value.slice(1));
+});
+
+/** A path argument: it must name exactly one entry directory, not a whole registry. */
+const directoryEntry = Effect.fn("submit.directoryEntry")(function* (value: string) {
+  const path = yield* Path.Path;
+  const target: Target = yield* resolveTarget(yield* expandHome(value));
+  if (target.only === undefined)
+    return yield* new BadInput({ details: { id: value, flag: "submit_entry" } });
+  const { kind, id } = target.only;
+  yield* checkId(id);
+  return {
+    kind,
+    id,
+    root: target.root,
+    dir: path.join(target.root, kindDir(kind), id),
+  } satisfies SubmittedEntry;
 });
 
 /**
@@ -80,26 +125,4 @@ export const resolveEntries = Effect.fn("submit.resolveEntries")(function* (
       entries.push(entry);
   }
   return entries;
-});
-
-/** `~` and `~/...` name the home directory, for a caller that passed the path unexpanded. */
-const expandHome = Effect.fn("submit.expandHome")(function* (value: string) {
-  if (value !== "~" && !value.startsWith("~/")) return value;
-  const path = yield* Path.Path;
-  return path.join((yield* (yield* AppConfig).paths).home, value.slice(1));
-});
-
-const directoryEntry = Effect.fn("submit.directoryEntry")(function* (value: string) {
-  const path = yield* Path.Path;
-  const target: Target = yield* resolveTarget(yield* expandHome(value));
-  if (target.only === undefined)
-    return yield* new BadInput({ details: { id: value, flag: "submit_entry" } });
-  const { kind, id } = target.only;
-  yield* checkId(id);
-  return {
-    kind,
-    id,
-    root: target.root,
-    dir: path.join(target.root, kindDir(kind), id),
-  } satisfies SubmittedEntry;
 });

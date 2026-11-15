@@ -1,3 +1,11 @@
+/**
+ * The `runs` command: summarizes how the current project's `stacks verify` runs have gone, from its
+ * run history, its state record (the per-project file outside the project holding first-green
+ * times) and the `## Asked` list in `.stacks/NOTES.md`.
+ *
+ * `core/runs.ts::projectRuns` finds the nearest project and reads all three; `renderRuns` writes the
+ * text. This file connects them to the working directory and the output.
+ */
 import { Effect, Schema } from "effect";
 import { Command } from "effect/cli";
 import { projectRuns, renderRuns } from "../core/runs";
@@ -7,8 +15,9 @@ import { Output } from "../services/output";
 
 export const runsCommand = Command.make("runs", {}, () =>
   Effect.gen(function* () {
-    const result = yield* projectRuns((yield* Host).cwd);
-    yield* (yield* Output).result(Schema.encodeSync(ProjectRuns)(result), renderRuns(result));
+    const host = yield* Host;
+    const runs = yield* projectRuns(host.cwd);
+    yield* (yield* Output).result(Schema.encodeSync(ProjectRuns)(runs), renderRuns(runs));
   }),
 ).pipe(
   Command.withDescription(

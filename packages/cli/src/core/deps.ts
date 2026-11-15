@@ -1,197 +1,246 @@
+/**
+ * Lists which well-known libraries a project depends on, and at which major version, by reading
+ * its manifest and lock files as plain data.
+ *
+ * After a green `stacks verify`, telemetry may report the project's dependencies so published
+ * stats can say which libraries stacks projects use (`telemetry/projects.ts` calls
+ * `readDependencies`). Four ecosystems are read from the project root: npm (`package.json`, with
+ * installed versions from `node_modules/<name>/package.json`), PyPI (`pyproject.toml` with
+ * `uv.lock` or `poetry.lock`), Go (`go.mod`) and crates (`Cargo.toml` with `Cargo.lock`). Only
+ * names on the signed dependency allowlist (`DependencyAllowlist`, fetched by
+ * `core/allowlist.ts`) are kept, so a private package name never leaves the machine.
+ *
+ * The CLI executes nothing it reads (`.claude/rules/architecture.md`, "Trust model", point 1), so
+ * nothing here asks `npm`, `pip`, `go` or `cargo`: files are parsed as data by `deps/parse.ts`
+ * and read through `deps/files.ts`, which keeps every read inside the project and small. A file
+ * that is missing, unreadable or malformed adds nothing. The result is sorted and capped at 100
+ * entries so it stays the same between runs. `goAllowlistKey` is shared with `show` and
+ * `validate`, which match Go modules against the allowlist the same way. Start at
+ * `readDependencies`.
+ */
 import type { Dependency, DependencyAllowlist } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 import { readProjectFile } from "./deps/files";
 import { json, major, names, object, packageMajors, toml } from "./deps/parse";
 
+/** Reads a project file by root-relative path; `null` when it is absent or refused. */
 type Read = (relative: string) => Effect.Effect<string | null>;
+type GoDependency = { name: string; version: string };
+
+/** The most dependencies one report carries, per ecosystem read and in total. */
+const MAX_DEPENDENCIES = 100;
+/** A plain or scoped npm package name; anything else (a URL, a path) is left out. */
+const NPM_NAME = /^(?:@[a-zA-Z0-9_.-]+\/)?[a-zA-Z0-9_.-]+$/u;
+/** The distribution name at the start of a PEP 508 requirement such as `requests>=2`. */
+const PYTHON_REQUIREMENT_NAME = /^\s*([A-Za-z0-9][A-Za-z0-9._-]*)/u;
+/** A `go.mod` directive that opens a parenthesized block. */
+const GO_BLOCK_OPEN = /^(require|tool|replace|exclude|retract|godebug)\s+\($/u;
+const GO_REQUIRE = "require ";
+
+/** PEP 503 normalization: `Typing_Extensions` and `typing.extensions` are one package. */
 const normalizePython = (name: string) => name.toLowerCase().replace(/[-_.]+/gu, "-");
 
+const asString = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+/** A project file parsed with `parse`, or `null` when it is absent or doesn't parse. */
+const readParsed = (
+  read: Read,
+  relative: string,
+  parse: (text: string) => Record<string, unknown> | null,
+) => read(relative).pipe(Effect.map((text) => (text === null ? null : parse(text))));
+
 function npmNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
-  return [...new Set([...names(manifest.dependencies), ...names(manifest.devDependencies)])].filter(
-    (name) => /^(?:@[a-zA-Z0-9_.-]+\/)?[a-zA-Z0-9_.-]+$/u.test(name),
-  );
+  const declared = new Set([...names(manifest.dependencies), ...names(manifest.devDependencies)]);
+  return [...declared].filter((name) => NPM_NAME.test(name));
 }
 
-function pythonNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
-  const result = new Set<string>();
-  const project = object(manifest.project);
-  if (Array.isArray(project?.dependencies)) {
-    for (const requirement of project.dependencies) {
-      if (typeof requirement !== "string") continue;
-      const match = /^\s*([A-Za-z0-9][A-Za-z0-9._-]*)/u.exec(requirement);
-      if (match?.[1] !== undefined) result.add(normalizePython(match[1]));
-    }
+function projectRequirementNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
+  const requirements = object(manifest.project)?.dependencies;
+  if (!Array.isArray(requirements)) return [];
+  const found: string[] = [];
+  for (const requirement of requirements) {
+    if (typeof requirement !== "string") continue;
+    const name = PYTHON_REQUIREMENT_NAME.exec(requirement)?.[1];
+    if (name !== undefined) found.push(name);
   }
+  return found;
+}
+
+function poetryNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
   const poetry = object(object(object(manifest.tool)?.poetry)?.dependencies);
-  if (poetry !== null) {
-    for (const name of Object.keys(poetry)) {
-      if (name !== "python") result.add(normalizePython(name));
-    }
-  }
-  return [...result];
+  // Poetry lists the Python version itself as a dependency named `python`.
+  return poetry === null ? [] : Object.keys(poetry).filter((name) => name !== "python");
 }
 
+/** `[project].dependencies` then `[tool.poetry.dependencies]`, normalized and deduplicated. */
+function pythonNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
+  const all = [...projectRequirementNames(manifest), ...poetryNames(manifest)];
+  return [...new Set(all.map(normalizePython))];
+}
+
+/** Crate names from `[dependencies]` and `[dev-dependencies]`, following `package =` renames. */
 function cargoNames(manifest: Record<string, unknown>): ReadonlyArray<string> {
-  const result = new Set<string>();
+  const found = new Set<string>();
   for (const section of [manifest.dependencies, manifest["dev-dependencies"]]) {
     const entries = object(section);
     if (entries === null) continue;
     for (const [key, value] of Object.entries(entries)) {
-      const alias = object(value);
-      result.add(typeof alias?.package === "string" ? alias.package : key);
+      found.add(asString(object(value)?.package) ?? key);
     }
   }
-  return [...result];
+  return [...found];
 }
 
+/**
+ * A Go module path as the allowlist lists it, without a major-version suffix:
+ * `github.com/a/b/v2` becomes `github.com/a/b`.
+ */
 export function goAllowlistKey(name: string): string {
   return name.replace(/\/v(?:[2-9]|[1-9][0-9]+)$/u, "");
 }
 
-function goEntry(text: string): { name: string; version: string } | null {
+/** `<module> <version>`, or `null` for any other shape. */
+function goEntry(text: string): GoDependency | null {
   const fields = text.trim().split(/\s+/u);
   if (fields.length !== 2 || fields[0] === undefined || fields[1] === undefined) return null;
   return { name: goAllowlistKey(fields[0]), version: fields[1] };
 }
 
+/** The `go.mod` block a line is in: `require (...)`, another block, or none. */
 type GoBlock = "require" | "skip" | null;
 type GoLine =
   | { kind: "skip" | "close" | "error" }
   | { kind: "open"; block: Exclude<GoBlock, null> }
-  | { kind: "entry"; value: { name: string; version: string } };
+  | { kind: "entry"; value: GoDependency };
 
+/** Classifies one comment-stripped `go.mod` line, given the block it sits in. */
 function parseGoLine(line: string, block: GoBlock): GoLine {
   if (line === "") return { kind: "skip" };
-  const open = /^(require|tool|replace|exclude|retract|godebug)\s+\($/u.exec(line);
-  if (open)
-    return block === null
-      ? { kind: "open", block: open[1] === "require" ? "require" : "skip" }
-      : { kind: "error" };
+  const open = GO_BLOCK_OPEN.exec(line);
+  if (open) {
+    if (block !== null) return { kind: "error" };
+    return { kind: "open", block: open[1] === "require" ? "require" : "skip" };
+  }
   if (line === ")") return { kind: block === null ? "error" : "close" };
   if (block === "skip") return { kind: "skip" };
-  if (block === null && !line.startsWith("require ")) return { kind: "skip" };
-  const entry = goEntry(block === "require" ? line : line.slice(8));
+  if (block === null && !line.startsWith(GO_REQUIRE)) return { kind: "skip" };
+  const entry = goEntry(block === "require" ? line : line.slice(GO_REQUIRE.length));
   return entry === null ? { kind: "error" } : { kind: "entry", value: entry };
 }
 
-function goDependencies(text: string): ReadonlyArray<{ name: string; version: string }> | null {
-  const result: Array<{ name: string; version: string }> = [];
+/**
+ * Every `require` of a `go.mod`, from single lines and `require (...)` blocks. A file this
+ * reader doesn't understand (a nested or unclosed block, a malformed require) gives `null`, so a
+ * misread never reports a wrong dependency.
+ */
+function goDependencies(text: string): ReadonlyArray<GoDependency> | null {
+  const found: GoDependency[] = [];
   let block: GoBlock = null;
   for (const raw of text.split(/\r?\n/u)) {
-    const line = raw.replace(/\/\/.*$/u, "").trim();
-    const parsed = parseGoLine(line, block);
+    const parsed = parseGoLine(raw.replace(/\/\/.*$/u, "").trim(), block);
     if (parsed.kind === "error") return null;
-    if (parsed.kind === "open") {
-      block = parsed.block;
-      continue;
-    }
-    if (parsed.kind === "close") {
-      block = null;
-      continue;
-    }
-    if (parsed.kind === "entry") result.push(parsed.value);
+    if (parsed.kind === "open") block = parsed.block;
+    if (parsed.kind === "close") block = null;
+    if (parsed.kind === "entry") found.push(parsed.value);
   }
-  return block === null ? result : null;
+  return block === null ? found : null;
 }
 
+/** An npm dependency with the major of the copy installed under `node_modules`, if any. */
+const installedNpm = (read: Read, name: string) =>
+  readParsed(read, `node_modules/${name}/package.json`, json).pipe(
+    Effect.map((installed): Dependency => {
+      return { ecosystem: "npm", name, major: major(installed?.version) };
+    }),
+  );
+
+/** Allowed npm names, each with its installed major. */
 const readNpm = Effect.fn("deps.readNpm")(function* (read: Read, allowlist: DependencyAllowlist) {
-  const text = yield* read("package.json");
-  const manifest = text === null ? null : json(text);
+  const manifest = yield* readParsed(read, "package.json", json);
   if (manifest === null) return [];
   const allowed = new Set(allowlist.names.npm);
-  const result: Dependency[] = [];
   const selected = npmNames(manifest)
     .filter((name) => allowed.has(name))
     .sort()
-    .slice(0, 100);
-  for (const name of selected) {
-    const installed = yield* read(`node_modules/${name}/package.json`);
-    result.push({
-      ecosystem: "npm",
-      name,
-      major: major(installed === null ? null : json(installed)?.version),
-    });
-  }
-  return result;
+    .slice(0, MAX_DEPENDENCIES);
+  return yield* Effect.forEach(selected, (name) => installedNpm(read, name));
 });
 
+/** `uv.lock`, or `poetry.lock` when there is no readable `uv.lock`. */
+const readPythonLock = (read: Read) =>
+  Effect.gen(function* () {
+    const uv = yield* readParsed(read, "uv.lock", toml);
+    return uv ?? (yield* readParsed(read, "poetry.lock", toml));
+  });
+
+/** Allowed PyPI names, with majors from the lockfile. */
 const readPython = Effect.fn("deps.readPython")(function* (
   read: Read,
   allowlist: DependencyAllowlist,
 ) {
-  const text = yield* read("pyproject.toml");
-  const manifest = text === null ? null : toml(text);
+  const manifest = yield* readParsed(read, "pyproject.toml", toml);
   if (manifest === null) return [];
   const allowed = new Set(allowlist.names.pypi);
   const selected = pythonNames(manifest).filter((name) => allowed.has(name));
   if (selected.length === 0) return [];
-  const uv = yield* read("uv.lock");
-  let lock = uv === null ? null : toml(uv);
-  if (lock === null) {
-    const poetry = yield* read("poetry.lock");
-    lock = poetry === null ? null : toml(poetry);
-  }
+  const lock = yield* readPythonLock(read);
   const rootName = object(manifest.project)?.name ?? object(object(manifest.tool)?.poetry)?.name;
-  const majors = packageMajors(
-    lock?.package,
-    normalizePython,
-    typeof rootName === "string" ? rootName : undefined,
-  );
+  const majors = packageMajors(lock?.package, normalizePython, asString(rootName));
   return selected.map(
     (name): Dependency => ({ ecosystem: "pypi", name, major: majors.get(name) ?? null }),
   );
 });
 
+/** Allowed Go modules, with majors from the versions `go.mod` requires. */
 const readGo = Effect.fn("deps.readGo")(function* (read: Read, allowlist: DependencyAllowlist) {
   const text = yield* read("go.mod");
   if (text === null) return [];
-  const allowed = new Set(allowlist.names.go);
   const dependencies = goDependencies(text);
   if (dependencies === null) return [];
+  const allowed = new Set(allowlist.names.go);
   return dependencies
     .filter(({ name }) => allowed.has(name))
     .map(({ name, version }): Dependency => ({ ecosystem: "go", name, major: major(version) }));
 });
 
+/** Allowed crates, with majors from `Cargo.lock`. */
 const readCargo = Effect.fn("deps.readCargo")(function* (
   read: Read,
   allowlist: DependencyAllowlist,
 ) {
-  const text = yield* read("Cargo.toml");
-  const manifest = text === null ? null : toml(text);
+  const manifest = yield* readParsed(read, "Cargo.toml", toml);
   if (manifest === null) return [];
   const allowed = new Set(allowlist.names.crates);
   const selected = cargoNames(manifest).filter((name) => allowed.has(name));
   if (selected.length === 0) return [];
-  const lockText = yield* read("Cargo.lock");
-  const rootName = object(manifest.package)?.name;
-  const majors = packageMajors(
-    lockText === null ? null : toml(lockText)?.package,
-    (name) => name,
-    typeof rootName === "string" ? rootName : undefined,
-  );
+  const lock = yield* readParsed(read, "Cargo.lock", toml);
+  const rootName = asString(object(manifest.package)?.name);
+  const majors = packageMajors(lock?.package, (name) => name, rootName);
   return selected.map(
     (name): Dependency => ({ ecosystem: "crates", name, major: majors.get(name) ?? null }),
   );
 });
 
-function sortDependencies(deps: ReadonlyArray<Dependency>): ReadonlyArray<Dependency> {
+const dependencyKey = (dep: Dependency) => `${dep.ecosystem}\u0000${dep.name}`;
+
+/** One entry per ecosystem and name; two disagreeing majors make the major unknown. */
+function mergeDuplicates(deps: ReadonlyArray<Dependency>): Array<Dependency> {
   const unique = new Map<string, Dependency>();
   for (const dep of deps) {
-    const key = `${dep.ecosystem}\u0000${dep.name}`;
+    const key = dependencyKey(dep);
     const previous = unique.get(key);
     if (previous === undefined) unique.set(key, dep);
     else if (previous.major !== dep.major) unique.set(key, { ...dep, major: null });
   }
-  return [...unique.values()]
-    .sort((a, b) => {
-      const left = `${a.ecosystem}\u0000${a.name}`;
-      const right = `${b.ecosystem}\u0000${b.name}`;
-      if (left < right) return -1;
-      if (left > right) return 1;
-      return 0;
-    })
-    .slice(0, 100);
+  return [...unique.values()];
+}
+
+function byEcosystemThenName(a: Dependency, b: Dependency): number {
+  const left = dependencyKey(a);
+  const right = dependencyKey(b);
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 /** Read root manifest names and installed majors without running project code. */
@@ -204,10 +253,11 @@ export const readDependencies = Effect.fn("deps.readDependencies")(function* (
   const realRoot = yield* fs.realPath(root).pipe(Effect.orElseSucceed(() => null));
   if (realRoot === null) return [];
   const read: Read = (relative) => readProjectFile(fs, path, realRoot, relative);
-  return sortDependencies([
+  const found = [
     ...(yield* readNpm(read, allowlist)),
     ...(yield* readPython(read, allowlist)),
     ...(yield* readGo(read, allowlist)),
     ...(yield* readCargo(read, allowlist)),
-  ]);
+  ];
+  return mergeDuplicates(found).sort(byEcosystemThenName).slice(0, MAX_DEPENDENCIES);
 });

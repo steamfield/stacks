@@ -1,3 +1,14 @@
+/**
+ * The `validate` command: checks a registry, or one stack or fragment in it, before anyone builds
+ * from it, and with `--brief` prints the brief (the task text for the coding agent) a composition
+ * would produce.
+ *
+ * The checks live in `core/validate/`: `target.ts::resolveTarget` works out what the path points at,
+ * `index.ts::validate` runs every check, and `preview.ts::previewBrief` composes one stack for
+ * `--brief`. This file checks the flags against each other, picks between the two modes and
+ * renders the report. Any error finding fails the command as `ValidationFailed`, which keeps the
+ * report on stdout so the caller can read what to fix.
+ */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { shownPath } from "../core/shown-path";
@@ -11,23 +22,40 @@ import {
 } from "../core/validate/report";
 import { resolveTarget, type Target } from "../core/validate/target";
 import { BadInput, Usage, ValidationFailed } from "../errors";
-import { BriefPreview, type Severity, ValidateReport } from "../schemas/validate";
+import { BriefPreview, type Finding, ValidateReport } from "../schemas/validate";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
+
+type CompositionFlags = {
+  with: ReadonlyArray<string>;
+  without: ReadonlyArray<string>;
+  sandbox: boolean;
+};
 
 /** Repeated flags, each value also split on commas: `--with a --with b,c`. */
 const ids = (values: ReadonlyArray<string>) =>
   values.flatMap((value) => value.split(",")).filter((value) => value !== "");
 
-function compositionFlag(flags: {
-  with: ReadonlyArray<string>;
-  without: ReadonlyArray<string>;
-  sandbox: boolean;
-}) {
+/** The first composition flag given, for the error when one is used without `--brief`. */
+function compositionFlag(flags: CompositionFlags) {
   if (flags.with.length) return "--with";
   if (flags.without.length) return "--without";
   if (flags.sandbox) return "--sandbox";
   return undefined;
+}
+
+/** The failure for a set of findings holding at least one error, or `undefined` when none do. */
+function validationFailure(findings: ReadonlyArray<Finding>) {
+  const count = (severity: Finding["severity"]) =>
+    findings.filter((finding) => finding.severity === severity).length;
+  if (!count("error")) return undefined;
+  return new ValidationFailed({ details: { errors: count("error"), warnings: count("warning") } });
+}
+
+/** The stack the report suggests previewing next: the first composed one, once nothing errs. */
+function firstStack(report: ValidateReport) {
+  if (report.findings.some((finding) => finding.severity === "error")) return undefined;
+  return report.sizes.find((row) => row.kind === "composed")?.entry;
 }
 
 const printPreview = (target: Target, options: Parameters<typeof previewBrief>[1]) =>
@@ -36,21 +64,37 @@ const printPreview = (target: Target, options: Parameters<typeof previewBrief>[1
     const preview = yield* previewBrief(target, options);
     yield* output.result(Schema.encodeSync(BriefPreview)(preview), renderPreviewBrief(preview));
     if (output.audience === "human") yield* output.progress(renderPreview(preview));
-    const count = (severity: Severity) =>
-      preview.findings.filter((finding) => finding.severity === severity).length;
-    if (count("error")) {
-      // A closed diagnostic stream must not replace the kept-result validation failure.
-      if (output.audience !== "json")
-        yield* output.note(renderPreviewErrors(preview)).pipe(Effect.ignore);
-      return yield* new ValidationFailed({
-        details: { errors: count("error"), warnings: count("warning") },
-      });
-    }
+    const failure = validationFailure(preview.findings);
+    if (failure === undefined) return;
+    // A closed diagnostic stream must not replace the kept-result validation failure.
+    if (output.audience !== "json")
+      yield* output.note(renderPreviewErrors(preview)).pipe(Effect.ignore);
+    return yield* failure;
+  });
+
+const printReport = (target: Target, options: { path?: string; submission: boolean }) =>
+  Effect.gen(function* () {
+    const host = yield* Host;
+    const output = yield* Output;
+    const report = yield* validate(target, { submission: options.submission });
+    yield* output.result(
+      Schema.encodeSync(ValidateReport)(report),
+      renderReport(report, {
+        invocation: host.invocation,
+        path: options.path,
+        firstStack: firstStack(report),
+        audience: output.audience,
+        submission: options.submission,
+        root: output.audience === "agent" ? yield* shownPath(host.cwd, report.root) : report.root,
+      }),
+    );
+    const failure = validationFailure(report.findings);
+    if (failure !== undefined) return yield* failure;
   });
 
 /** The flags checked against each other, then the target they apply to. */
 const checkedTarget = (
-  flags: Parameters<typeof compositionFlag>[0] & { submission: boolean },
+  flags: CompositionFlags & { submission: boolean },
   given: { path: string | undefined; stack: string | undefined },
 ) =>
   Effect.gen(function* () {
@@ -113,41 +157,17 @@ export const validateCommand = Command.make(
   },
   (flags) =>
     Effect.gen(function* () {
-      const host = yield* Host;
-      const output = yield* Output;
       const path = Option.getOrUndefined(flags.path);
       const stack = Option.getOrUndefined(flags.brief);
       const target = yield* checkedTarget(flags, { path, stack });
-      if (stack !== undefined) {
-        yield* printPreview(target, {
-          stack,
-          with: ids(flags.with),
-          without: ids(flags.without),
-          preset: flags.sandbox ? "sandbox" : "default",
-        });
-        return;
-      }
-      const report = yield* validate(target, { submission: flags.submission });
-      const firstStack = report.findings.some((finding) => finding.severity === "error")
-        ? undefined
-        : report.sizes.find((row) => row.kind === "composed")?.entry;
-      yield* output.result(
-        Schema.encodeSync(ValidateReport)(report),
-        renderReport(report, {
-          invocation: host.invocation,
-          path,
-          firstStack,
-          audience: output.audience,
-          submission: flags.submission,
-          root: output.audience === "agent" ? yield* shownPath(host.cwd, report.root) : report.root,
-        }),
-      );
-      const count = (severity: Severity) =>
-        report.findings.filter((finding) => finding.severity === severity).length;
-      if (count("error"))
-        return yield* new ValidationFailed({
-          details: { errors: count("error"), warnings: count("warning") },
-        });
+      if (stack === undefined)
+        return yield* printReport(target, { path, submission: flags.submission });
+      yield* printPreview(target, {
+        stack,
+        with: ids(flags.with),
+        without: ids(flags.without),
+        preset: flags.sandbox ? "sandbox" : "default",
+      });
     }),
 ).pipe(
   Command.withDescription(

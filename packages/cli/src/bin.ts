@@ -1,3 +1,23 @@
+/**
+ * The CLI's process entry point: the only module that touches Node's process directly, and the
+ * place one run of `stacks` starts and ends.
+ *
+ * The packaged `dist/stacks` script checks the Node version and imports the bundle built from this
+ * file. Top to bottom, it reads `--json` from argv (the one argv read before parsing, because the
+ * output audience must exist even when parsing fails), creates the stdout and stderr writers,
+ * builds the platform layer (Node services, the `Host` facts about this process and where the
+ * package's assets live, the network layer, the process-group registry) and the application layer
+ * from `runtime.ts::AppLayer`, installs the signal policy (`platform/signals.ts`), runs
+ * `main.ts::main` through `runtime.ts::runInvocation` and sets `process.exitCode` from the status
+ * it returns. The order is deliberate: stream error handlers come first, and the signal policy is
+ * removed only after the run has settled.
+ *
+ * Bun replaces three build-time constants. `PACKAGED_ESCAPES` lists the registry files the packer
+ * had to rename (npm drops literal `.gitignore` and `bunfig.toml` members, so they ship as
+ * `<name>.stacks`), and `packagedFiles` maps reads of those paths back to the original name, for
+ * the bundled registry only. `STACKS_RELEASE_BUILD` marks a release, and
+ * `STACKS_PUBLISHED_TELEMETRY` the one build that may send telemetry to the official endpoint.
+ */
 import { fileURLToPath } from "node:url";
 import { NodeServices } from "@effect/platform-node";
 import { INDEX_PUBLIC_KEYS } from "@steamfield/stacks-format";
@@ -16,6 +36,7 @@ import { Host } from "./services/host";
 import { Output, type Writer } from "./services/output";
 import { Foreground } from "./services/processes";
 
+/** Writes to a Node stream, resolving once the stream accepted the text and failing on its error. */
 const writer =
   (stream: NodeJS.WriteStream): Writer =>
   (text) =>
@@ -51,10 +72,18 @@ const packagedFiles = Layer.effect(
         (file) => `${registry}${file}`,
       ),
     );
+    // An escaped file is read from its `.stacks` copy when one exists.
     const resolve = (file: string) =>
       escapedPaths.has(file)
         ? Effect.map(fs.exists(`${file}.stacks`), (exists) => (exists ? `${file}.stacks` : file))
         : Effect.succeed(file);
+    // A directory listing shows an escaped file under its original name.
+    const originalName = (directory: string, name: string) => {
+      const original = name.slice(0, -".stacks".length);
+      return name.endsWith(".stacks") && escapedPaths.has(`${directory}/${original}`)
+        ? original
+        : name;
+    };
     return {
       ...fs,
       exists: (file: string) => Effect.flatMap(resolve(file), fs.exists),
@@ -67,16 +96,7 @@ const packagedFiles = Layer.effect(
       readDirectory: (...args: Parameters<typeof fs.readDirectory>) =>
         fs
           .readDirectory(...args)
-          .pipe(
-            Effect.map((names) =>
-              names.map((name) =>
-                name.endsWith(".stacks") &&
-                escapedPaths.has(`${args[0]}/${name.slice(0, -".stacks".length)}`)
-                  ? name.slice(0, -".stacks".length)
-                  : name,
-              ),
-            ),
-          ),
+          .pipe(Effect.map((names) => names.map((name) => originalName(args[0], name)))),
     };
   }),
 ).pipe(Layer.provide(NodeServices.layer));
@@ -111,6 +131,7 @@ const application = AppLayer(output, undefined, {
   releaseBuild: typeof STACKS_RELEASE_BUILD !== "undefined" && STACKS_RELEASE_BUILD,
   defaultApiUrl: DEFAULT_API_URL,
 });
+// No official index host exists yet, so the remote origin is off unless STACKS_INDEX_URL is set.
 const remote = RemoteIndex.layer({ keys: INDEX_PUBLIC_KEYS, officialUrl: undefined }).pipe(
   Layer.provide(application),
 );

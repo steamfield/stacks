@@ -1,4 +1,18 @@
-import type { RolledDependency } from "@steamfield/stacks-format";
+/**
+ * Turns a `ShowReport` into the text `stacks show` prints for a person or an agent.
+ *
+ * `commands/show.ts` builds the report with `show.ts::showReport` and calls `renderShow`; `--json`
+ * prints the report itself and never comes here. The text leads with the entry's plain-language
+ * copy, then its metadata and dependencies, verify steps and shipped files, its size against the
+ * word budgets, the last recorded run and published stats, and finally the entry's whole guidance
+ * body. Nothing is filtered by agent or condition, so a reviewer reads every branch.
+ *
+ * Every line goes through `printable` (`text.ts`), because names, paths and the body come from
+ * entry files and an untrusted entry must not be able to steer the terminal with escape codes.
+ * A `layout`, passed only for the human audience, wraps prose to the terminal's width; agents get
+ * each line whole. Start at `renderShow`.
+ */
+import type { RolledDependency, StackStatsDetail } from "@steamfield/stacks-format";
 import type { ShowReport } from "../schemas/show";
 import { plainStyle, type Style } from "../services/output";
 import { goAllowlistKey } from "./deps";
@@ -7,37 +21,59 @@ import { printable } from "./text";
 import { BUDGET } from "./validate/budget";
 import { wrap, wrapWords } from "./wrap";
 
+/** The terminal width and the display-width measure that wraps human text. */
+type Layout = { width: number; measure: (text: string) => number };
+
+const DAY_MS = 86_400_000;
+
+/** `line` with control characters escaped; tabs are kept so indented guidance stays aligned. */
 const safeLine = (line: string) => line.split("\t").map(printable).join("\t");
 
-function lastRunLine(lastRun: ShowReport["lastRun"]): string {
-  if (!lastRun) return "Last run: none";
-  return `Last run: ${lastRun.result} ${lastRun.date}${lastRun.stack ? ` on ${lastRun.stack}` : ""}, ${lastRun.sameContent ? "same content" : "changed content"}`;
+const listOrNone = (values: ReadonlyArray<string>) => (values.length ? values.join(", ") : "none");
+
+const count = (value: number) => value.toLocaleString("en-US");
+
+/** Complete text review, including commands and every unfiltered guidance branch. */
+export function renderShow(
+  report: ShowReport,
+  invocation: string,
+  layout?: Layout,
+  style: Style = plainStyle,
+): string {
+  const wrapped = (line: string) =>
+    layout ? wrapWords(line, layout.width, layout.measure).split("\n") : [line];
+  const lines = [
+    titleLine(report),
+    ...plainLines(report.plain).flatMap(wrapped),
+    ...metadataLines(report, layout !== undefined),
+    ...selectionLines(report),
+    ...verifyLines(report.verify),
+    ...fileLines(report.files),
+    ...sizeLines(report),
+    lastRunLine(report.lastRun),
+    ...statsLines(report.stats).flatMap((line) =>
+      line.startsWith("Stats:") ? wrapped(line) : [line],
+    ),
+    "",
+    "--- guidance ---",
+    ...guidanceLines(report.body, layout),
+    "",
+    nextLine(report, invocation),
+  ];
+  return lines
+    .map((line) => {
+      const safe = safeLine(line);
+      return safe.startsWith("Next:") ? style("next", safe) : safe;
+    })
+    .join("\n");
 }
 
-function statsLines(stats: ShowReport["stats"]): string[] {
-  if (!stats?.published) return [];
-  const lines = [statsLine(statsFields(stats, stats))];
-  if (stats.kind !== "stack") return lines;
-  const steps = Object.entries(stats.stepFailureShares)
-    .flatMap(([name, share]) => (share.suppressed ? [] : [{ name, value: share.value }]))
-    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
-    .slice(0, 3);
-  if (steps.length)
-    lines.push(
-      "Steps failing before first green:",
-      ...steps.map(({ name, value }) => `  ${name} ${Math.round(value * 100)}%`),
-    );
-  const start = new Date(Date.parse(`${stats.through}T00:00:00Z`) - (stats.window - 1) * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-  const latest = stats.series
-    .flatMap((point) => point.changes.map((change) => change.day))
-    .sort()
-    .at(-1);
-  if (latest && latest > start) lines.push(`content changed ${latest}`);
-  return lines;
+function titleLine(report: ShowReport): string {
+  const trust = report.trusted ? "trusted" : "untrusted";
+  return `${report.name} (${report.id}), ${report.kind}, origin ${report.origin}, ${trust}`;
 }
 
+/** The sidecar's plain-language copy, with notes on where it came from and how current it is. */
 function plainLines(plain: ShowReport["plain"]): string[] {
   if (!plain) return [];
   return [
@@ -50,17 +86,48 @@ function plainLines(plain: ShowReport["plain"]): string[] {
   ];
 }
 
-function dependencySource(dep: RolledDependency, own: boolean): string {
-  return own ? "" : ` (from ${dep.fragments.join(", ")})`;
+/** Description, author, path, tags, dependencies, tools, decisions, env and commands. */
+function metadataLines(report: ShowReport, human: boolean): string[] {
+  return [
+    report.description,
+    ...(report.author === undefined ? [] : [`Author: @${report.author}`]),
+    `Path: ${report.path}`,
+    `Shadows: ${listOrNone(report.shadows)}`,
+    `Tags: ${listOrNone(report.tags)}`,
+    ...dependencyLines(report, human),
+    `Tools: ${listOrNone(report.tools)}`,
+    ...(report.decisions.length
+      ? ["Decisions:", ...report.decisions.map((decision) => `  - ${decision}`)]
+      : ["Decisions: none"]),
+    ...Object.entries(report.env).map(([key, value]) => `Environment: ${key}=${value}`),
+    ...Object.entries(report.commands).map(([key, value]) => `Command: ${key}: ${value}`),
+  ];
 }
 
+/** One line per dependency role, then one per optional fragment that would add dependencies. */
+function dependencyLines(report: ShowReport, human: boolean): string[] {
+  const included = dependencyGroups(report).flatMap(({ role, deps }) =>
+    role === "app" && human && deps.length > 0
+      ? appDependencyLines(report, deps)
+      : [`Dependencies (${role}): ${listOrNone(deps.map((dep) => dep.label))}`],
+  );
+  const optional = report.kind === "stack" ? (report.dependencyRollup?.optional ?? []) : [];
+  return [...included, ...optional.map(optionalDependencyLine)];
+}
+
+type DependencyLabel = { name: string; label: string };
+
+/**
+ * Dependencies grouped by role. A fragment, or a stack without a rollup, lists its own `deps`; a
+ * stack with one lists everything included, each labeled with the fragments it came from.
+ */
 function dependencyGroups(report: ShowReport) {
   if (report.kind !== "stack" || report.dependencyRollup === undefined)
     return Object.entries(report.deps).map(([role, names]) => ({
       role,
       deps: names.map((name) => ({ name, label: name })),
     }));
-  const groups = new Map<string, Array<{ name: string; label: string }>>();
+  const groups = new Map<string, DependencyLabel[]>();
   for (const dep of report.dependencyRollup.included) {
     const group = groups.get(dep.role) ?? [];
     group.push({ name: dep.name, label: dep.name + dependencySource(dep, dep.stack) });
@@ -72,139 +139,158 @@ function dependencyGroups(report: ShowReport) {
   return [...groups].map(([role, deps]) => ({ role, deps }));
 }
 
-function dependencyLines(report: ShowReport, human: boolean): string[] {
-  const list = (values: ReadonlyArray<string>) => (values.length ? values.join(", ") : "none");
-  const included = dependencyGroups(report).flatMap(({ role, deps }) => {
-    if (role !== "app" || !human || deps.length === 0)
-      return [`Dependencies (${role}): ${list(deps.map((dep) => dep.label))}`];
-    return [
-      "Dependencies (app):",
-      ...deps.map(({ name, label }) => {
-        const matches = Object.entries(report.dependencyCards ?? {}).filter(
-          ([key]) =>
-            key.slice(key.indexOf("/") + 1) ===
-            (key.startsWith("go/") ? goAllowlistKey(name) : name),
-        );
-        const card = matches.length === 1 ? matches[0]?.[1] : undefined;
-        return `  ${label}${card ? `: ${card.whatItIs}` : ""}`;
-      }),
-    ];
-  });
-  const optional = report.kind === "stack" ? (report.dependencyRollup?.optional ?? []) : [];
+/** ` (from <fragments>)` after a dependency a fragment brought; nothing for the stack's own. */
+function dependencySource(dep: RolledDependency, own: boolean): string {
+  return own ? "" : ` (from ${dep.fragments.join(", ")})`;
+}
+
+/** The human view of app dependencies: one per line, with its card's summary when it has one. */
+function appDependencyLines(report: ShowReport, deps: ReadonlyArray<DependencyLabel>): string[] {
   return [
-    ...included,
-    ...optional.map(
-      ({ fragment, deps }) =>
-        `Optional dependencies (with ${fragment}): ${deps
-          .map(
-            (dep) =>
-              `${dep.name} (${dep.role})${dependencySource(
-                dep,
-                dep.fragments.every((id) => id === fragment),
-              )}`,
-          )
-          .join(", ")}`,
-    ),
+    "Dependencies (app):",
+    ...deps.map(({ name, label }) => {
+      const card = dependencyCard(report, name);
+      return `  ${label}${card ? `: ${card.whatItIs}` : ""}`;
+    }),
   ];
 }
 
-/** Complete text review, including commands and every unfiltered guidance branch. */
-export function renderShow(
-  report: ShowReport,
-  invocation: string,
-  layout?: { width: number; measure: (text: string) => number },
-  style: Style = plainStyle,
-): string {
-  const list = (values: ReadonlyArray<string>) => (values.length ? values.join(", ") : "none");
-  const out = [
-    `${report.name} (${report.id}), ${report.kind}, origin ${report.origin}, ${report.trusted ? "trusted" : "untrusted"}`,
-    ...plainLines(report.plain).flatMap((line) =>
-      layout ? wrapWords(line, layout.width, layout.measure).split("\n") : [line],
-    ),
-    report.description,
-    ...(report.author === undefined ? [] : [`Author: @${report.author}`]),
-    `Path: ${report.path}`,
-    `Shadows: ${list(report.shadows)}`,
-    `Tags: ${list(report.tags)}`,
-    ...dependencyLines(report, layout !== undefined),
-    `Tools: ${list(report.tools)}`,
-    ...(report.decisions.length
-      ? ["Decisions:", ...report.decisions.map((decision) => `  - ${decision}`)]
-      : ["Decisions: none"]),
-    ...Object.entries(report.env).map(([key, value]) => `Environment: ${key}=${value}`),
-    ...Object.entries(report.commands).map(([key, value]) => `Command: ${key}: ${value}`),
-  ];
+/** The card for dependency `name` in any ecosystem, only when exactly one ecosystem has one. */
+function dependencyCard(report: ShowReport, name: string) {
+  const matches = Object.entries(report.dependencyCards ?? {}).filter(
+    ([key]) =>
+      key.slice(key.indexOf("/") + 1) === (key.startsWith("go/") ? goAllowlistKey(name) : name),
+  );
+  return matches.length === 1 ? matches[0]?.[1] : undefined;
+}
+
+function optionalDependencyLine({
+  fragment,
+  deps,
+}: NonNullable<ShowReport["dependencyRollup"]>["optional"][number]): string {
+  const labels = deps.map(
+    (dep) =>
+      `${dep.name} (${dep.role})${dependencySource(
+        dep,
+        dep.fragments.every((id) => id === fragment),
+      )}`,
+  );
+  return `Optional dependencies (with ${fragment}): ${labels.join(", ")}`;
+}
+
+/** A stack's fragment lists, or a fragment's fit fields; one or the other is present. */
+function selectionLines(report: ShowReport): string[] {
+  const lines: string[] = [];
   if (report.fragments)
-    out.push(
-      `Fragments: required ${list(report.fragments.required)}; default ${list(report.fragments.default)}; optional ${list(report.fragments.optional)}`,
+    lines.push(
+      `Fragments: required ${listOrNone(report.fragments.required)}; default ${listOrNone(report.fragments.default)}; optional ${listOrNone(report.fragments.optional)}`,
     );
   if (report.category)
-    out.push(
+    lines.push(
       `Category: ${report.category}`,
-      `Applies to: ${list(report.appliesTo ?? [])}`,
-      `Fits: ${list(report.fits ?? [])}`,
-      `Requires: ${list(report.requires ?? [])}`,
-      `Conflicts: ${list(report.conflicts ?? [])}`,
-      `Requires tools: ${list(report.requiresTools ?? [])}`,
+      `Applies to: ${listOrNone(report.appliesTo ?? [])}`,
+      `Fits: ${listOrNone(report.fits ?? [])}`,
+      `Requires: ${listOrNone(report.requires ?? [])}`,
+      `Conflicts: ${listOrNone(report.conflicts ?? [])}`,
+      `Requires tools: ${listOrNone(report.requiresTools ?? [])}`,
       `Needs own repository: ${report.needsOwnRepo ? "yes" : "no"}`,
     );
-  out.push(
+  return lines;
+}
+
+/** Each step as `name: run`, with its other fields after it, e.g. `(phase setup, layer install)`. */
+function verifyLines(steps: ShowReport["verify"]): string[] {
+  return [
     "Verify:",
-    ...report.verify.map((step) => {
-      // Everything but the name and command, e.g. `phase setup, layer install`.
-      const { name, run, ...rest } = step;
+    ...steps.map(({ name, run, ...rest }) => {
       const extra = Object.entries(rest).map(
         ([key, value]) => `${key} ${typeof value === "string" ? value : JSON.stringify(value)}`,
       );
       return `  ${name}: ${run}${extra.length ? ` (${extra.join(", ")})` : ""}`;
     }),
-  );
-  out.push(
-    "Files:",
-    ...(report.files.length
-      ? report.files.map(
-          (file) =>
-            `  ${file.path}${file.agent ? ` (${file.agent})` : ""}${file.stack ? ` (stack ${file.stack})` : ""} <- ${file.source}`,
-        )
-      : ["  none"]),
-  );
-  out.push(
-    `Body: ${report.bodyWords.toLocaleString("en-US")} words (cap ${report.bodyCap.toLocaleString("en-US")})`,
-  );
-  if (report.briefWords !== null)
-    out.push(
-      `Brief: ${report.briefWords.toLocaleString("en-US")} words with defaults (cap ${report.briefCap.toLocaleString("en-US")}; ${BUDGET.composedWithApp.toLocaleString("en-US")} with an app)`,
-    );
-  out.push(lastRunLine(report.lastRun));
-  out.push(
-    ...statsLines(report.stats).flatMap((line) =>
-      layout && line.startsWith("Stats:")
-        ? wrapWords(line, layout.width, layout.measure).split("\n")
-        : [line],
-    ),
-  );
-  out.push(
-    "",
-    "--- guidance ---",
-    ...(layout
-      ? wrap(
-          report.body.trimEnd().split("\n").map(safeLine).join("\n"),
-          layout.width,
-          layout.measure,
-        )
-      : report.body.trimEnd()
-    ).split("\n"),
-    "",
-    nextLine(report, invocation),
-  );
-  return out
-    .map((line) => {
-      const safe = safeLine(line);
-      return safe.startsWith("Next:") ? style("next", safe) : safe;
-    })
-    .join("\n");
+  ];
 }
 
+/** Each shipped file as `project path <- source`, with the agent or stack it is limited to. */
+function fileLines(files: ShowReport["files"]): string[] {
+  if (!files.length) return ["Files:", "  none"];
+  return [
+    "Files:",
+    ...files.map(
+      (file) =>
+        `  ${file.path}${file.agent ? ` (${file.agent})` : ""}${file.stack ? ` (stack ${file.stack})` : ""} <- ${file.source}`,
+    ),
+  ];
+}
+
+/** Word counts of the body and, for a stack, of its default brief, against their caps. */
+function sizeLines(report: ShowReport): string[] {
+  const body = `Body: ${count(report.bodyWords)} words (cap ${count(report.bodyCap)})`;
+  if (report.briefWords === null) return [body];
+  return [
+    body,
+    `Brief: ${count(report.briefWords)} words with defaults (cap ${count(report.briefCap)}; ${count(BUDGET.composedWithApp)} with an app)`,
+  ];
+}
+
+function lastRunLine(lastRun: ShowReport["lastRun"]): string {
+  if (!lastRun) return "Last run: none";
+  const on = lastRun.stack ? ` on ${lastRun.stack}` : "";
+  const content = lastRun.sameContent ? "same content" : "changed content";
+  return `Last run: ${lastRun.result} ${lastRun.date}${on}, ${content}`;
+}
+
+/**
+ * The `Stats:` line, and for a stack the steps that most often fail before a first green and the
+ * latest content change inside the stats window.
+ */
+function statsLines(stats: ShowReport["stats"]): string[] {
+  if (!stats?.published) return [];
+  const lines = [statsLine(statsFields(stats, stats))];
+  if (stats.kind !== "stack") return lines;
+  const steps = topFailingSteps(stats);
+  if (steps.length)
+    lines.push(
+      "Steps failing before first green:",
+      ...steps.map(({ name, value }) => `  ${name} ${Math.round(value * 100)}%`),
+    );
+  const latest = latestContentChange(stats);
+  if (latest && latest > windowStart(stats)) lines.push(`content changed ${latest}`);
+  return lines;
+}
+
+/** Up to three published step-failure shares, largest first, ties by step name. */
+function topFailingSteps(stats: StackStatsDetail) {
+  return Object.entries(stats.stepFailureShares)
+    .flatMap(([name, share]) => (share.suppressed ? [] : [{ name, value: share.value }]))
+    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name))
+    .slice(0, 3);
+}
+
+/** The first day (`YYYY-MM-DD`, UTC) of the window that ends on `through`. */
+function windowStart(stats: StackStatsDetail): string {
+  const through = Date.parse(`${stats.through}T00:00:00Z`);
+  return new Date(through - (stats.window - 1) * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** The latest day any series point records a content change, if any. */
+function latestContentChange(stats: StackStatsDetail): string | undefined {
+  return stats.series
+    .flatMap((point) => point.changes.map((change) => change.day))
+    .sort()
+    .at(-1);
+}
+
+/** The guidance body, wrapped for a terminal when there is a layout. */
+function guidanceLines(body: string, layout: Layout | undefined): string[] {
+  const text = body.trimEnd();
+  if (!layout) return text.split("\n");
+  // Escape before wrapping, so widths are measured on the text that will be printed.
+  const escaped = text.split("\n").map(safeLine).join("\n");
+  return wrap(escaped, layout.width, layout.measure).split("\n");
+}
+
+/** What to try next: a fragment on a stack, an index stack in a dry run, or a stack's brief. */
 function nextLine(report: ShowReport, invocation: string): string {
   if (report.kind === "fragment") return `Next: ${invocation} new <stack> --with ${report.id}`;
   if (report.origin === "index")

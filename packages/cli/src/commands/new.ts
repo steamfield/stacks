@@ -1,7 +1,23 @@
+/**
+ * Defines `stacks new <stack> [dir]`: its flags and help text, and the steps from parsed flags to
+ * a written project handed to a coding agent.
+ *
+ * A stack is a recipe for a whole new project. This handler resolves the arguments (asking a
+ * person at a terminal for any that are missing, through `core/prompting.ts::pickNew`, then
+ * printing the equivalent command), refreshes the dependency allowlist, decides the handoff
+ * preferences (`commands/handoff.ts::prepareHandoff`) and calls `core/scaffold/new.ts::scaffold`
+ * to build the project. `completeHandoff` then prints the result and launches or points an agent
+ * at it, the same flow `add` uses.
+ *
+ * Bad flag combinations and bad template values fail before the picker asks anything, so a person
+ * never answers questions for a command that can't run. A dry run (`--dry-run`) records no
+ * telemetry. Start at `newCommand`.
+ */
 import { Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
-import { handoffRecord } from "../core/handoff";
+import type { Composition } from "../core/compose/types";
+import { type HandoffDecision, handoffRecord } from "../core/handoff";
 import { pickNew, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
 import { Registry, remoteRoots } from "../core/registry/registry";
@@ -83,10 +99,9 @@ const newFlags = {
 
 type NewFlags = Command.Command.Config.Infer<typeof newFlags>;
 
-const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: NewFlags) {
-  const stack = Option.getOrUndefined(flags.stack);
-  if (stack === undefined && !(yield* promptingAllowed)) return yield* new Usage();
-  const options = {
+/** The scaffold options the parsed flags give, apart from the stack and the handoff. */
+function flagOptions(flags: NewFlags) {
+  return {
     dir: Option.getOrUndefined(flags.dir),
     name: Option.getOrUndefined(flags.name),
     author: Option.getOrUndefined(flags.author),
@@ -101,9 +116,20 @@ const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: New
     agents: flags.agents.length ? flags.agents : undefined,
     scope: Option.getOrUndefined(flags.scope),
   };
+}
+
+/**
+ * The scaffold options from the flags, with the stack and directory a person picks when no stack
+ * was named. After a pick, prints the equivalent command so it can be rerun without the picker.
+ */
+const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: NewFlags) {
+  const stack = Option.getOrUndefined(flags.stack);
+  if (stack === undefined && !(yield* promptingAllowed)) return yield* new Usage();
+  const options = flagOptions(flags);
   if (flags.sandbox && options.preset !== undefined && options.preset !== "sandbox")
     return yield* new Usage({ details: { flags: ["--sandbox", `--preset ${options.preset}`] } });
   if (stack !== undefined) return { ...options, stack };
+  // Checks --name, --author and --scope before the picker, so a bad value fails before any question.
   yield* templateOverrides(options);
   const picked = yield* pickNew(options);
   const resolved = { ...options, ...picked };
@@ -111,6 +137,7 @@ const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: New
   return resolved;
 });
 
+/** The `new` command line that reproduces a picked run. */
 function newReplay(
   options: Omit<NewOptions, "handoff">,
   flags: Pick<NewFlags, "launch" | "noLaunch">,
@@ -139,6 +166,50 @@ function newReplay(
   ];
 }
 
+type Scaffolded = Effect.Success<ReturnType<typeof scaffold>>;
+
+/** The fragment ids telemetry reports as left out: `--without`, plus the stack's defaults under lean. */
+function leftOutFragments(composition: Composition, without: ReadonlyArray<string>) {
+  const dropped =
+    composition.lean && isStack(composition.stack) ? composition.stack.meta.fragments.default : [];
+  return [...new Set([...without, ...dropped])];
+}
+
+/**
+ * Records the `new` telemetry event with the settled handoff, then flushes the spool. A preview
+ * records nothing, and without consent the left-out fragments aren't looked up.
+ */
+const recordNew =
+  (input: {
+    telemetry: Telemetry["Service"];
+    registry: Registry["Service"];
+    scaffolded: Scaffolded;
+    without: ReadonlyArray<string>;
+    source: Effect.Success<ReturnType<typeof sourceValue>>;
+  }) =>
+  (settled: HandoffDecision) =>
+    Effect.gen(function* () {
+      const { telemetry, registry } = input;
+      const { result, manifest, composition } = input.scaffolded;
+      if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
+      const without = yield* Effect.forEach(leftOutFragments(composition, input.without), (id) =>
+        registry
+          .get("fragment", id)
+          .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
+      );
+      yield* telemetry.recordScaffold(
+        {
+          type: "new",
+          manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
+          without,
+          source: input.source,
+          steps: officialSteps(composition),
+        },
+        registry,
+      );
+      yield* telemetry.flush;
+    });
+
 export const newCommand = Command.make("new", newFlags, (flags) =>
   Effect.gen(function* () {
     const { json } = yield* root;
@@ -147,7 +218,8 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
     const options = yield* resolveArguments(flags);
     yield* (yield* Allowlist).refresh;
     const handoff = yield* prepareHandoff(flags, json);
-    const { result, decision, manifest, composition } = yield* scaffold({ ...options, handoff });
+    const scaffolded = yield* scaffold({ ...options, handoff });
+    const { result, decision } = scaffolded;
     const telemetry = yield* Telemetry;
     const registry = yield* Registry;
     yield* completeHandoff({
@@ -156,33 +228,13 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
       untrusted: result.untrusted,
       decision,
       preview: result.dryRun,
-      beforeHandoff: (settled) =>
-        Effect.gen(function* () {
-          if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
-          // Lean leaves the stack's defaults out, so telemetry reports them as left out.
-          const dropped =
-            composition.lean && isStack(composition.stack)
-              ? composition.stack.meta.fragments.default
-              : [];
-          const without = yield* Effect.forEach(
-            [...new Set([...options.without, ...dropped])],
-            (id) =>
-              registry
-                .get("fragment", id)
-                .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
-          );
-          yield* telemetry.recordScaffold(
-            {
-              type: "new",
-              manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
-              without,
-              source,
-              steps: officialSteps(composition),
-            },
-            registry,
-          );
-          yield* telemetry.flush;
-        }),
+      beforeHandoff: recordNew({
+        telemetry,
+        registry,
+        scaffolded,
+        without: options.without,
+        source,
+      }),
       render: (context) =>
         renderNew({ ...result, untrusted: context.untrusted }, { ...context, style: output.style }),
       encode: (handoff) => Schema.encodeSync(NewResult)({ ...result, handoff }),

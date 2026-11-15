@@ -1,16 +1,46 @@
+/**
+ * The `doctor` command: prints where this copy of the CLI keeps its files and whether its
+ * configuration reads, so a user can check an install before filing a bug.
+ *
+ * `core/doctor.ts::doctor` gathers the report without failing on a broken `config.json` (that is
+ * listed as a problem instead); this file only renders it.
+ */
 import { Effect } from "effect";
 import { Command } from "effect/cli";
 import { doctor } from "../core/doctor";
+import type { DoctorReport } from "../schemas/doctor";
 import type { RemoteStatus } from "../schemas/remote-index";
 import { Output } from "../services/output";
+
+/** ` (not found)` after a path the CLI looked for and didn't find. */
+const missing = (found: boolean) => (found ? "" : " (not found)");
+
+function remoteMode(status: RemoteStatus): string {
+  if (status.url === null) return "off";
+  return status.offline ? "offline" : "enabled";
+}
+
+/** The text form of the report: one labeled line per fact, then the config problems or `ok`. */
+function renderDoctor(report: DoctorReport): string {
+  const remote = report.remoteIndex;
+  return [
+    `stacks ${report.version}`,
+    `Platform: ${report.platform}`,
+    `Config: ${report.paths.config}`,
+    `Data: ${report.paths.data}`,
+    `User entries: ${report.paths.user}`,
+    `Registry: ${report.registry.path}${missing(report.registry.found)}`,
+    `Skill: ${report.skill.path}${missing(report.skill.found)}`,
+    `Remote index: ${remoteMode(remote)}; ${remote.lastOutcome ?? "not fetched"}`,
+    `Index cached: ${remote.cachedAt ?? "never"}`,
+    report.configErrors.length ? report.configErrors.join("\n") : "Configuration: ok",
+  ].join("\n");
+}
+
 export const doctorCommand = Command.make("doctor", {}, () =>
   Effect.gen(function* () {
     const report = yield* doctor;
-    const output = yield* Output;
-    yield* output.result(
-      report,
-      `stacks ${report.version}\nPlatform: ${report.platform}\nConfig: ${report.paths.config}\nData: ${report.paths.data}\nUser entries: ${report.paths.user}\nRegistry: ${report.registry.path}${report.registry.found ? "" : " (not found)"}\nSkill: ${report.skill.path}${report.skill.found ? "" : " (not found)"}\nRemote index: ${remoteMode(report.remoteIndex)}; ${report.remoteIndex.lastOutcome ?? "not fetched"}\nIndex cached: ${report.remoteIndex.cachedAt ?? "never"}\n${report.configErrors.length ? report.configErrors.join("\n") : "Configuration: ok"}`,
-    );
+    yield* (yield* Output).result(report, renderDoctor(report));
   }),
 ).pipe(
   Command.withDescription(
@@ -22,8 +52,3 @@ export const doctorCommand = Command.make("doctor", {}, () =>
     { command: `${commandPath.join(" ")} --json`, description: "Get one DoctorReport object" },
   ]),
 );
-
-function remoteMode(status: RemoteStatus): string {
-  if (status.url === null) return "off";
-  return status.offline ? "offline" : "enabled";
-}

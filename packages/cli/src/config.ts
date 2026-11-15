@@ -1,3 +1,23 @@
+/**
+ * The CLI's configuration: the one module that reads environment variables, plus the user's
+ * `config.json` settings, served to every command through the `AppConfig` service.
+ *
+ * `runtime.ts::AppLayer` builds the service once per invocation (from the live environment in
+ * `bin.ts`, from a test's own record in `tests/helpers/cli.ts`). The layer copies the environment
+ * once and every later read uses that copy, including `childEnv`, which builds the whole
+ * environment of each child process the CLI starts, so nothing is inherited behind the CLI's back.
+ *
+ * Every field is lazy and read on its own. That matters because `stacks doctor` and `--version`
+ * must still work when `config.json` is broken: building the layer never opens the file, and
+ * `paths`, `logging` and `color` never touch it. Only `get` and `settings` read and decode it, and
+ * they fail with `InvalidConfig` for the command that asked. An unknown `LOG_LEVEL` falls back to
+ * `warn` rather than failing.
+ *
+ * It also owns agent detection: `AgentMarkers` lists the environment variables coding agents set
+ * in their shells, and `AppConfig.agent` picks the agent output audience and refuses
+ * confirmations under an agent (Trust model point 4). Verify strips those markers and the CLI's
+ * own `STACKS_*` settings from a step's environment (`AGENT_MARKER_NAMES`, `CLI_SETTING_NAMES`).
+ */
 import { homedir } from "node:os";
 import { AgentId, type DetectedAgent } from "@steamfield/stacks-format";
 import { Config, ConfigProvider, Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
@@ -32,8 +52,8 @@ export type LogSettings = {
 /**
  * One agent session marker: the environment variable `name`, set and non-empty (and equal to
  * `equals` when given), means `agent`; `"by-value"` reads the agent from the value itself.
- * `confirmed` is the date the marker was last checked against the agent's documentation; it is
- * unset until someone has checked (none has been yet; the 1.2b plan lists them for 1.3b).
+ * `confirmed` is the date the marker was last checked against the agent's documentation; no
+ * marker has been checked yet, so none carries it.
  */
 const AgentMarker = Schema.Struct({
   name: Schema.String.check(Schema.isPattern(/^[A-Z][A-Z0-9_]*$/, { expected: "a variable name" })),
@@ -69,7 +89,10 @@ export const AgentMarkers: ReadonlyArray<AgentMarker> = Schema.decodeUnknownSync
   marker("CURSOR_EXTENSION_HOST_ROLE", "cursor", "agent-exec"),
   marker("AI_AGENT", "by-value"),
 ]);
-/** Every marker variable: `childEnv`'s `remove` list for a verify step's environment (1.3a). */
+/**
+ * Every marker variable, once each: `childEnv`'s `remove` list for a verify step, so a project's
+ * own tools don't think they run under an agent.
+ */
 export const AGENT_MARKER_NAMES: ReadonlyArray<string> = [
   ...new Set(AgentMarkers.map((item) => item.name)),
 ];
@@ -125,6 +148,7 @@ export function detectAgent(env: Environment): DetectedAgent {
   }
   return "none";
 }
+/** A config provider over `env` with blank values removed, so a blank variable reads as unset. */
 function provider(env: Environment) {
   return ConfigProvider.layer(
     ConfigProvider.fromEnvRecord(
@@ -133,17 +157,68 @@ function provider(env: Environment) {
   );
 }
 const text = (key: string, fallback = "") => Config.String(key).pipe(Config.withDefault(fallback));
+
+const LOG_LEVELS: Readonly<Record<string, LogSettings["level"]>> = {
+  trace: "Trace",
+  debug: "Debug",
+  info: "Info",
+  warn: "Warn",
+  error: "Error",
+  fatal: "Fatal",
+  none: "None",
+};
+/** A `LOG_LEVEL` value, matched without case; anything unknown is `Warn`. */
+function logLevel(value: string): LogSettings["level"] {
+  const name = value.toLowerCase();
+  // Own keys only: `constructor` or `__proto__` would otherwise read Object.prototype.
+  return (Object.hasOwn(LOG_LEVELS, name) ? LOG_LEVELS[name] : undefined) ?? "Warn";
+}
+
+/** An opt-out variable is on when set to anything but blank, `0` or `false`. */
+const switchedOff = (value: string | undefined) =>
+  value !== undefined && !["", "0", "false"].includes(value);
+
+/**
+ * The hosted API URL: `STACKS_DEV_API_URL` when it is a plain http(s) loopback URL in a source
+ * build (no credentials, query or fragment), else the build's default.
+ */
+function apiUrlFor(value: string, build: Build): string | undefined {
+  const { releaseBuild, defaultApiUrl } = build;
+  if (releaseBuild || !URL.canParse(value)) return defaultApiUrl;
+  const url = new URL(value);
+  const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
+  return loopback &&
+    ["http:", "https:"].includes(url.protocol) &&
+    !url.username &&
+    !url.password &&
+    !url.search &&
+    !url.hash
+    ? url.href
+    : defaultApiUrl;
+}
+
+/** A child's whole environment: what was captured, minus `remove`, plus `set`. */
+const childEnvFrom =
+  (captured: Environment) =>
+  (remove: readonly string[], set: Record<string, string> = {}) => {
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(captured))
+      if (value !== undefined && !remove.includes(key)) env[key] = value;
+    return { ...env, ...set };
+  };
+
 /** Facts fixed when the CLI is built: bin supplies them; source builds and tests use `SOURCE_BUILD`. */
 export type Build = { releaseBuild: boolean; defaultApiUrl: string | undefined };
 export const SOURCE_BUILD: Build = { releaseBuild: false, defaultApiUrl: undefined };
 function configLayer(env: Environment | undefined, build: Build) {
-  const { releaseBuild, defaultApiUrl } = build;
+  // Copied when the layer is created, so later changes to the live environment aren't seen.
   const captured = { ...(env ?? process.env) };
   return Layer.effect(
     AppConfig,
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
+      // Every variable read has a default, so a failure here is a bug rather than bad input.
       const read = <A>(program: Config.Config<A>) =>
         program.pipe(Effect.provide(provider(captured)), Effect.orDie);
       const paths = Effect.gen(function* () {
@@ -169,6 +244,7 @@ function configLayer(env: Environment | undefined, build: Build) {
           ...(registry ? { registry } : {}),
         };
       });
+      // A missing file is no settings; any read, parse or decode failure is InvalidConfig.
       const settings = Effect.gen(function* () {
         const locations = yield* paths;
         const exists = yield* fs.exists(locations.config);
@@ -189,18 +265,7 @@ function configLayer(env: Environment | undefined, build: Build) {
         }).pipe(Effect.mapError(() => new InvalidConfig())),
       );
       const logging = Effect.gen(function* () {
-        const raw = (yield* read(text(CLI_ENV.logLevel, "warn"))).toLowerCase();
-        const levels: Readonly<Record<string, LogSettings["level"]>> = {
-          trace: "Trace",
-          debug: "Debug",
-          info: "Info",
-          warn: "Warn",
-          error: "Error",
-          fatal: "Fatal",
-          none: "None",
-        };
-        // Own keys only: `constructor` or `__proto__` would otherwise read Object.prototype.
-        const level = (Object.hasOwn(levels, raw) ? levels[raw] : undefined) ?? "Warn";
+        const level = logLevel(yield* read(text(CLI_ENV.logLevel, "warn")));
         const format = yield* read(text(CLI_ENV.logFormat));
         return {
           level,
@@ -209,76 +274,48 @@ function configLayer(env: Environment | undefined, build: Build) {
           noColor: Boolean(yield* read(text("NO_COLOR"))),
         };
       });
-      // A child's whole environment: what was captured, minus `remove`, plus `set`. Nothing is
-      // inherited from the live process environment.
-      const childEnv = (remove: readonly string[], set: Record<string, string> = {}) => {
-        const env: Record<string, string> = {};
-        for (const [key, value] of Object.entries(captured))
-          if (value !== undefined && !remove.includes(key)) env[key] = value;
-        return { ...env, ...set };
-      };
-      const agent = Effect.sync(() => detectAgent(captured));
-      const color = Effect.succeed({
-        noColor: Boolean(captured.NO_COLOR),
-        forceColor: captured.FORCE_COLOR === "1",
-      });
+      // `--offline` and `--no-telemetry` set these per invocation, on top of the environment.
       let offlineFlag = false;
-      const offline = Effect.sync(() => offlineFlag || captured[CLI_ENV.offline] === "1");
-      const setOffline = (value: boolean) =>
-        Effect.sync(() => {
-          offlineFlag = value;
-        });
       let telemetryFlag = false;
-      const noTelemetry = Effect.sync(() => telemetryFlag);
-      const setNoTelemetry = (value: boolean) =>
-        Effect.sync(() => {
-          telemetryFlag = value;
-        });
-      const switchedOff = (value: string | undefined) =>
-        value !== undefined && !["", "0", "false"].includes(value);
-      const telemetry = {
-        doNotTrack: switchedOff(captured.DO_NOT_TRACK),
-        disabled: switchedOff(captured[CLI_ENV.telemetryDisabled]),
-        debug: captured[CLI_ENV.telemetryDebug] === "1",
-        url: captured[CLI_ENV.telemetryUrl] || undefined,
-      };
-      const indexUrl = read(text(CLI_ENV.indexUrl)).pipe(Effect.map((url) => url || undefined));
-      const apiUrl = read(text(CLI_ENV.devApiUrl)).pipe(
-        Effect.map((value) => {
-          if (releaseBuild || !URL.canParse(value)) return defaultApiUrl;
-          const url = new URL(value);
-          const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
-          return loopback &&
-            ["http:", "https:"].includes(url.protocol) &&
-            !url.username &&
-            !url.password &&
-            !url.search &&
-            !url.hash
-            ? url.href
-            : defaultApiUrl;
-        }),
-      );
       return {
         get,
         settings,
         paths,
-        releaseBuild,
-        telemetry,
-        noTelemetry,
-        setNoTelemetry,
+        releaseBuild: build.releaseBuild,
+        telemetry: {
+          doNotTrack: switchedOff(captured.DO_NOT_TRACK),
+          disabled: switchedOff(captured[CLI_ENV.telemetryDisabled]),
+          debug: captured[CLI_ENV.telemetryDebug] === "1",
+          url: captured[CLI_ENV.telemetryUrl] || undefined,
+        },
+        noTelemetry: Effect.sync(() => telemetryFlag),
+        setNoTelemetry: (value: boolean) =>
+          Effect.sync(() => {
+            telemetryFlag = value;
+          }),
         logging,
-        childEnv,
-        agent,
-        color,
+        childEnv: childEnvFrom(captured),
+        agent: Effect.sync(() => detectAgent(captured)),
+        color: Effect.succeed({
+          noColor: Boolean(captured.NO_COLOR),
+          forceColor: captured.FORCE_COLOR === "1",
+        }),
         ci: captured.CI !== undefined,
-        indexUrl,
-        apiUrl,
-        offline,
-        setOffline,
+        indexUrl: read(text(CLI_ENV.indexUrl)).pipe(Effect.map((url) => url || undefined)),
+        apiUrl: read(text(CLI_ENV.devApiUrl)).pipe(Effect.map((value) => apiUrlFor(value, build))),
+        offline: Effect.sync(() => offlineFlag || captured[CLI_ENV.offline] === "1"),
+        setOffline: (value: boolean) =>
+          Effect.sync(() => {
+            offlineFlag = value;
+          }),
       };
     }),
   );
 }
+/**
+ * The invocation's configuration. `get` is the file's settings with environment defaults
+ * applied, read once and cached; `settings` rereads the file each time.
+ */
 export class AppConfig extends Context.Service<
   AppConfig,
   {
@@ -287,7 +324,7 @@ export class AppConfig extends Context.Service<
     noTelemetry: Effect.Effect<boolean>;
     setNoTelemetry: (value: boolean) => Effect.Effect<void>;
     indexUrl: Effect.Effect<string | undefined>;
-    /** No hosted default yet; a loopback development endpoint is source-only. */
+    /** The hosted API: the build's default, or a loopback development endpoint in a source build. */
     apiUrl: Effect.Effect<string | undefined>;
     offline: Effect.Effect<boolean>;
     setOffline: (value: boolean) => Effect.Effect<void>;

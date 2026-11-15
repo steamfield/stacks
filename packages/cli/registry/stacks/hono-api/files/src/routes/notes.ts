@@ -1,3 +1,8 @@
+/**
+ * Declares and handles the notes list, get and create endpoints. It combines shared schemas
+ * and error responses with an injected store, leaving persistence outside the HTTP layer.
+ */
+
 import { createRoute } from "@hono/zod-openapi";
 import { errorResponse, NotFoundError } from "../errors.ts";
 import { createRouter } from "../router.ts";

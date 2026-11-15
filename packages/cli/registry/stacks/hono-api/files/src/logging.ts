@@ -1,3 +1,8 @@
+/**
+ * Creates the API's pino logger and request-log middleware. The app uses them to record
+ * request metadata with secret-key redaction and without raw URLs or bodies.
+ */
+
 import type { MiddlewareHandler } from "hono";
 import { routePath } from "hono/route";
 import { type DestinationStream, type Logger, type LoggerOptions, pino } from "pino";

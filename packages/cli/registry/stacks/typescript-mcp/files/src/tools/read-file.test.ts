@@ -1,3 +1,8 @@
+/**
+ * Exercises the file reader's path, size and text restrictions against temporary files. These
+ * unit tests check the filesystem boundary beneath the MCP tool registration.
+ */
+
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "vitest";

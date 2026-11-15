@@ -1,3 +1,8 @@
+/**
+ * Creates the browser logger used by the API client and route error boundary. It writes
+ * structured console records at the configured level and accepts scalar metadata.
+ */
+
 export const LOG_LEVELS = ["debug", "info", "warn", "error", "silent"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 

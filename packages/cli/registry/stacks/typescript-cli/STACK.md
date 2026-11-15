@@ -15,7 +15,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github, effect]
+  default: [claude-harness-docs, git-hooks, ci-github, effect, code-docs]
   optional: [rr, ce-plugin, bun-release, openrouter-ai, openrouter-chat-cli]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }

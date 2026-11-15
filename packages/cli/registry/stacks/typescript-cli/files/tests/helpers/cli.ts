@@ -1,3 +1,8 @@
+/**
+ * Runs CLI invocations with real Node services, isolated paths and captured output. Tests use
+ * its temporary directories and JSON-line decoder to inspect observable results.
+ */
+
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

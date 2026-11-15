@@ -1,3 +1,8 @@
+/**
+ * Validates Vite's public build-time settings for the API base URL and browser log level. The
+ * browser entry loads this configuration before creating services or rendering routes.
+ */
+
 import { z } from "zod";
 import { LOG_LEVELS, type LogLevel } from "./logging";
 

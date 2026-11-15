@@ -1,3 +1,8 @@
+/**
+ * Checks note creation and pagination with an injected clock and id generator. This tests the
+ * in-memory store independently of the HTTP routes.
+ */
+
 import { expect, it } from "vitest";
 import { createMemoryNotes } from "./notes.ts";
 

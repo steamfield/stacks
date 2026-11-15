@@ -1,3 +1,8 @@
+/**
+ * Tracks the command name for one invocation's final log record. Handlers report their name
+ * through this service, keeping state isolated between runs.
+ */
+
 import { Context, Effect, Layer } from "effect";
 
 /** What the running command reports back to main for its `command` record; fresh per run. */

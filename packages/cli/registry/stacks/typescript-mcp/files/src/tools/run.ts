@@ -1,3 +1,8 @@
+/**
+ * Wraps tool calls in the shared MCP result and error policy. It returns structured content or
+ * safe error text and logs the outcome and duration without arguments or results.
+ */
+
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import { INTERNAL_ERROR_MESSAGE, ToolError } from "../errors.ts";
 import type { Logger } from "../logging.ts";

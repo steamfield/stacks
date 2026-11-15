@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
-// `prepare`, which bun runs after every `bun install`: installs the git hooks. CI sets CI and
-// does its own setup, so this does nothing there.
+/**
+ * Installs lefthook hooks during dependency installation when lefthook.yml exists. It skips CI
+ * and reports an unavailable installer without failing bun install.
+ */
+
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";

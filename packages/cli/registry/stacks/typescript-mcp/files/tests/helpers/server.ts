@@ -1,5 +1,8 @@
-// An in-memory client connected to a fresh server over a linked transport pair, with a temporary
-// root directory and the server's log records captured.
+/**
+ * Builds connected in-memory MCP clients and servers for integration tests. It also supplies
+ * temporary roots and captured logger records used by source unit tests.
+ */
+
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

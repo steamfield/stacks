@@ -1,3 +1,8 @@
+/**
+ * Exercises configuration precedence and emitted logs through real CLI invocations and
+ * temporary files. It covers invalid settings, sink failures and isolation between runs.
+ */
+
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Schema } from "effect";

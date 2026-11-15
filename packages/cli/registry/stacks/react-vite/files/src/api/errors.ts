@@ -1,4 +1,9 @@
 /**
+ * Defines typed API failures and their shared retry and user-message policies. The fetch
+ * client creates these errors and the query cache and UI decide how to handle them.
+ */
+
+/**
  * Every failed API call rejects with an ApiError:
  *   http     the API answered with a non-2xx status
  *   network  no response (offline, DNS, CORS, the server is down)

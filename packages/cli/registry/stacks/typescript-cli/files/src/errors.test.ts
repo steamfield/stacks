@@ -1,3 +1,8 @@
+/**
+ * Checks every declared error's stable exit code and safe envelope. Cause tests keep defects
+ * and interruption distinct at the invocation boundary.
+ */
+
 import { Cause, Schema } from "effect";
 import { expect, it } from "vitest";
 import {

@@ -1,6 +1,8 @@
-// Tool errors: failures the model can act on. Each code has one fixed message written for the
-// model (what went wrong and what to try instead); it never carries a path, a value or an
-// exception's own message, which could leak the host's file layout.
+/**
+ * Defines the fixed tool-error messages a model can act on and the generic unexpected-failure
+ * message. The tool runner uses these to keep host paths and exception details out of protocol
+ * responses.
+ */
 
 export const TOOL_ERRORS = {
   invalid_path:

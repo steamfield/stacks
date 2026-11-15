@@ -1,3 +1,8 @@
+/**
+ * Validates the server's environment settings, resolves its root path and checks that it is a
+ * directory. The stdio entry loads this configuration before constructing tool dependencies.
+ */
+
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { z } from "zod";

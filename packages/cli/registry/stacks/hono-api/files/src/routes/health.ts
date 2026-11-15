@@ -1,3 +1,8 @@
+/**
+ * Declares the health probe and its OpenAPI response schema. The app mounts this router
+ * outside the versioned resource routes.
+ */
+
 import { createRoute, z } from "@hono/zod-openapi";
 import { createRouter } from "../router.ts";
 

@@ -1,3 +1,8 @@
+/**
+ * Registers the doctor command and presents its core diagnostic through Output. This thin
+ * handler records the command name and supplies both text and JSON result forms.
+ */
+
 import { Effect } from "effect";
 import { Command } from "effect/cli";
 import { doctor } from "../core/doctor";

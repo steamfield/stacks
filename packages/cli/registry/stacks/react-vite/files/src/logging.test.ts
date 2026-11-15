@@ -1,3 +1,8 @@
+/**
+ * Checks structured browser log records, level filtering and reserved fields. Console spies
+ * verify the logger's observable output without writing test records to the real console.
+ */
+
 import { afterEach, expect, test, vi } from "vitest";
 import { createLogger } from "./logging";
 

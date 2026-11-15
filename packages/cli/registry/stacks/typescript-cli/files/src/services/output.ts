@@ -1,3 +1,8 @@
+/**
+ * Owns per-invocation output buffering and text or JSON presentation. Results flush to stdout
+ * on success, while notes and safe errors go to stderr through injected writers.
+ */
+
 import { Context, Effect, Layer } from "effect";
 import { type AppError, BrokenPipe, errorEnvelope, errorTable, PermissionDenied } from "../errors";
 

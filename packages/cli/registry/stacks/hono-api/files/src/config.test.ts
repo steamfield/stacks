@@ -1,3 +1,8 @@
+/**
+ * Checks the API's environment defaults, port precedence and invalid settings. These unit
+ * tests pin the configuration the process entry uses at startup.
+ */
+
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "./config.ts";
 

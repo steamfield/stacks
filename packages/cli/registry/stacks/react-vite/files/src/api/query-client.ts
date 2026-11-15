@@ -1,3 +1,8 @@
+/**
+ * Creates the app's TanStack Query cache with the shared retry policy. Browser startup and
+ * test rendering each request a fresh client.
+ */
+
 import { QueryClient } from "@tanstack/react-query";
 import { isRetryable } from "./errors";
 

@@ -1,3 +1,8 @@
+/**
+ * Checks the server logger's JSON records, level filtering and secret-key redaction. It
+ * captures the real logger through the shared test helpers.
+ */
+
 import { expect, test } from "vitest";
 import { captureLogger } from "../tests/helpers/server.ts";
 

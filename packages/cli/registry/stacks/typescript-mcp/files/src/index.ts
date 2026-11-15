@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-// The stdio entry: the only module that reads process (env, cwd, signals) or starts a transport.
-// stdout is the protocol channel; everything else goes to stderr through the logger.
+/**
+ * Starts the MCP server on stdio after loading configuration and creating the logger. This
+ * entry owns process access and signals, keeping stdout reserved for JSON-RPC.
+ */
+
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import pkg from "../package.json" with { type: "json" };
 import { ConfigError, loadConfig } from "./config.ts";

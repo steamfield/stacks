@@ -1,3 +1,8 @@
+/**
+ * Defines item response schemas and query options for the list and detail pages. Query
+ * functions pass cancellation signals to the shared API client and return decoded data.
+ */
+
 import { queryOptions } from "@tanstack/react-query";
 import { z } from "zod";
 import type { ApiClient } from "./client";

@@ -1,3 +1,8 @@
+/**
+ * Exercises the app's real routes with Testing Library and an MSW-backed API. It covers
+ * list-to-detail navigation, empty and failed responses, retries and route errors.
+ */
+
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";

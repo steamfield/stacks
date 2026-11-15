@@ -1,3 +1,20 @@
+/**
+ * The extra checks an entry must pass before it goes to the public registry, run by
+ * `stacks validate --submission` and by `stacks submit` before it opens a pull request.
+ *
+ * Normal validation asks whether an entry works. Submission also asks whether it is safe and
+ * finished enough to publish, so this check group reads every file in the entry directory, author
+ * notes included, since they travel with a submission even though they never ship into a project.
+ * Each text file is scanned line by line for a `stacks:fill` marker the author left (a placeholder
+ * the CLI or an agent is meant to replace), a string shaped like a credential, and an absolute
+ * path from the author's machine. A `.env` file and a missing search card are reported too.
+ *
+ * A fill marker in a shipped file is allowed when a verify step checks the project for markers in
+ * that file, because then the project's own agent must fill it before verify passes.
+ *
+ * `core/validate/index.ts::validate` appends `submissionChecks` to the normal checks when asked.
+ * Credential and path patterns live in `patterns.ts`. Start at `submissionChecks`.
+ */
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -29,11 +46,6 @@ export const submissionChecks: Check = (view) =>
     return { findings };
   });
 
-/** A shipped file's path in the project: without `files/` or `adapters/<agent>/`. */
-function projectPath(source: string): string | undefined {
-  return shippedPath(source)?.path;
-}
-
 /** Whether `run` names `file` as a whole path, not as the tail of a longer one. */
 function names(run: string, file: string): boolean {
   return new RegExp(`(?:^|[\\s'"\`=(]|\\./)${escapeRegExp(file)}(?![\\w./-])`).test(run);
@@ -45,7 +57,8 @@ function names(run: string, file: string): boolean {
  * shipped or with `.tmpl` dropped.
  */
 function fillChecked(entry: Entry, source: string): boolean {
-  const shipped = projectPath(source);
+  // The file's path in the project: without `files/` or `adapters/<agent>/`.
+  const shipped = shippedPath(source)?.path;
   if (shipped === undefined) return false;
   const paths = new Set([shipped, outputPath(shipped)]);
   return entry.meta.verify.some(
@@ -53,44 +66,48 @@ function fillChecked(entry: Entry, source: string): boolean {
   );
 }
 
+/** Every file in the entry directory, then the entry's search card. */
 const entryFindings = (view: View, entry: Entry) =>
   Effect.gen(function* () {
     const registry = yield* Registry;
-    const findings: Finding[] = [];
     const tree = yield* Effect.result(registry.tree(entry));
     if (Result.isFailure(tree)) return [unreadable(view, entry, tree.failure)];
-    for (const { source } of tree.success.files) {
-      const file = view.file(entry, source);
-      if (isEnvFile(source.slice(source.lastIndexOf("/") + 1)))
-        findings.push(
-          finding(entry, {
-            check: "env-file",
-            severity: "error",
-            file,
-            message: "Environment files don't ship; keep only .env.example, with placeholders.",
-          }),
-        );
-      const text = yield* Effect.result(registry.read(entry, source));
-      if (Result.isFailure(text)) {
-        findings.push(unreadable(view, entry, text.failure));
-        continue;
-      }
-      // Binary files hold no text to scan.
-      if (text.success.includes("\0")) continue;
-      findings.push(
-        ...scan({
-          entry,
-          file,
-          text: text.success,
-          area: areaOf(entry, source),
-          fillsChecked: fillChecked(entry, source),
-        }),
-      );
-    }
-    findings.push(...(yield* cardFindings(entry)));
-    return findings;
+    const files = yield* Effect.forEach(tree.success.files, ({ source }) =>
+      fileFindings({ view, entry, source, registry }),
+    );
+    return [...files.flat(), ...(yield* cardFindings(entry))];
   });
 
+/** The findings for one file of the entry, given by its path inside the entry directory. */
+const fileFindings = (options: {
+  view: View;
+  entry: Entry;
+  source: string;
+  registry: Registry["Service"];
+}) =>
+  Effect.gen(function* () {
+    const { view, entry, source, registry } = options;
+    const file = view.file(entry, source);
+    const findings: Finding[] = [];
+    if (isEnvFile(source.slice(source.lastIndexOf("/") + 1)))
+      findings.push(
+        finding(entry, {
+          check: "env-file",
+          severity: "error",
+          file,
+          message: "Environment files don't ship; keep only .env.example, with placeholders.",
+        }),
+      );
+    const text = yield* Effect.result(registry.read(entry, source));
+    if (Result.isFailure(text)) return [...findings, unreadable(view, entry, text.failure)];
+    // Binary files hold no text to scan.
+    if (text.success.includes("\0")) return findings;
+    const area = areaOf(entry, source);
+    const fillsChecked = fillChecked(entry, source);
+    return [...findings, ...scan({ entry, file, text: text.success, area, fillsChecked })];
+  });
+
+/** A warning when the entry has no search card; otherwise the card's text, scanned. */
 const cardFindings = (entry: Entry) =>
   Effect.gen(function* () {
     const loaded = yield* Effect.result((yield* Registry).search(entry));

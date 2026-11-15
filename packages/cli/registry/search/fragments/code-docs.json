@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "code-docs",
   "source": {
-    "digest": "sha256:0adfa86ffdb770eae88902ac37af90dc4ff16675c73621fc6ba3c7b119f23b47",
+    "digest": "sha256:db3c133fe2013a814dbd709bb60be747e8defb1522b2f98337776ab1051fed17",
     "by": "drafted",
     "model": "gpt-6",
     "promptVersion": 3,

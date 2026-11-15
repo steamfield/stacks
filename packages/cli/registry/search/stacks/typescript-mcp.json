@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "typescript-mcp",
   "source": {
-    "digest": "sha256:e365b6c3d226cef566a5fc68132c2894a28f5054522e1789f5e7c881b32bce46",
+    "digest": "sha256:de396b8f7aaa9d02545c925bb1abb98a66cbd0ad46fafcb7eb8034e873b36f56",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,

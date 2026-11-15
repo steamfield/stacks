@@ -17,6 +17,8 @@ const excluded = new Set([
   "__pycache__",
   "fixtures",
   "__snapshots__",
+  "generated",
+  "__generated__",
   ".claude",
 ]);
 

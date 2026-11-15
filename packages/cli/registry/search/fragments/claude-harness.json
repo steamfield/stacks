@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:644c1d5af6ab754edeae6be439ecf8d9d189c617315ff916b913b642a085452c",
+    "digest": "sha256:6e5318b7a6969988b8b6847dc15e0e3b35d7e570bb7cd215ff5b3c82db7f6f33",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,

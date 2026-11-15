@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "astro-fullstack",
   "source": {
-    "digest": "sha256:308cfe4097cca60784bf9afe61cb5f0a44b32674a76d1853f7e07c66e2e03904",
+    "digest": "sha256:236028fa39be44f660dcb77b4d98fd0e23d704ed3aaeeac8ce865cbcb431506d",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,

@@ -2,7 +2,7 @@
 
 `stacks` starts projects for coding agents. You pick a stack (a recipe for one kind of project), stacks writes a few starter files and a build brief, your coding agent builds the project from the brief, and `stacks verify` runs the checks that define done. Browse the catalog at [stacks.steamfield.io](https://stacks.steamfield.io).
 
-The CLI never generates code and never calls a model, and it never runs anything it reads from a stack. It composes text and files; `verify` runs only the steps in your project's own manifest. The only other programs it starts are `git init` for a new project, the coding agent you hand the project to, and npm when you run `stacks update`.
+The CLI never generates code and never calls a model, and it never runs anything it reads from a stack. It composes text and files; `verify` runs only the steps in your project's own manifest. The only other programs it starts are `git init` for a new project, the coding agent you hand the project to, npm when you run `stacks update`, and `gh` and `git` when you run `stacks submit`.
 
 ## Install
 
@@ -71,6 +71,9 @@ Agents can also read `stacks guide`, which is what `stacks` prints with no argum
 | `stacks runs` | Show this project's verify history and timings |
 | `stacks create stack\|fragment <id>` | Write a personal entry to edit, from scratch or copied from an existing one |
 | `stacks validate [path]` | Check a registry or one entry; `--brief <stack>` previews a composed brief |
+| `stacks submit <entry...>` | Open a draft pull request adding your entries to the public registry |
+| `stacks guide` | Print the guide for coding agents; `guide author [topic]` prints the authoring guide |
+| `stacks skill install [name]` | Install the bundled agent skills for your coding agent |
 | `stacks doctor` | Report the runtime, paths and configuration |
 | `stacks schema <name>` | Print the JSON Schema of a `--json` result |
 | `stacks telemetry <status\|enable\|disable\|reset\|flush>` | Inspect, change or flush usage telemetry |
@@ -84,6 +87,7 @@ Every command takes `--json` and writes exactly one result object to stdout; a f
 | --- | --- | --- |
 | `astro-blog` | Static Astro blog: MDX posts in a validated collection, React islands, Tailwind, RSS and sitemap | |
 | `astro-fullstack` | Bun workspace: a static Astro site with React islands and an Effect HttpApi server on Node, sharing a typed contract package | |
+| `astro-product-site` | Static Astro site for a product or open-source project: a landing page driven by one config file, a Markdown docs section with sidebar, table of contents and pager, llms.txt, generated social cards, Tailwind, React, and Playwright with axe | |
 | `cloudflare-react-router` | React Router on the local Workers runtime with typed bindings and Workers integration tests | |
 | `django` | Server-rendered Django web app managed with uv: env-validated settings, a model with its migration, admin and form, request-id logs, pytest-django page tests on a real database, a missing-migration check, gunicorn and whitenoise | |
 | `django-api` | Django REST Framework JSON API managed with uv: the ORM, migrations and admin, one error envelope for every failure, cursor pages, request-id logs, a drf-spectacular OpenAPI drift check, pytest-django API tests on a real database | |
@@ -128,7 +132,7 @@ A stack pulls in default fragments (CI, git hooks, agent guardrails and so on); 
 
 ## Network and privacy
 
-Commands work offline against the bundled registry. With a network, `search` asks the hosted API at stacks.steamfield.io first and falls back to local ranking; `list` and `show` add published usage stats for bundled and index entries when they're available; `list`, `show` and `new` refresh a small signed allowlist of dependency names that telemetry may report; `update` makes one request to the npm registry. The search, stats and allowlist requests are best-effort: a slow or missing response never fails the command or changes its exit code. `--offline` or `STACKS_OFFLINE=1` makes no requests at all.
+Commands work offline against the bundled registry. With a network, `search` asks the hosted API at stacks.steamfield.io first and falls back to local ranking; `list` and `show` add published usage stats for bundled and index entries when they're available; once the maintainers publish index signing keys, `list`, `show` and `new` will also refresh a small signed allowlist of dependency names that telemetry may report (this release ships no keys, so it makes no allowlist request); `update` makes one request to the npm registry, and `submit` reaches GitHub through `gh` and `git`. The search, stats and allowlist requests are best-effort: a slow or missing response never fails the command or changes its exit code. `--offline` or `STACKS_OFFLINE=1` makes no requests at all.
 
 Published releases collect anonymous usage after a first-run notice. Source builds and local packs have no official telemetry endpoint. Run `stacks telemetry disable` to turn collection off; `DO_NOT_TRACK`, `STACKS_TELEMETRY_DISABLED` or any `CI` value also disable it. [Telemetry](docs/reference/telemetry.md) lists every field and what is never sent; the [privacy page](https://stacks.steamfield.io/telemetry) explains the policy.
 

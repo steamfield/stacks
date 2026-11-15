@@ -2,7 +2,8 @@ import { Effect, Path } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { markdownFile, type RejectedEntry } from "../registry/entry";
 import { Registry, type Skipped } from "../registry/registry";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 /** What a rejected entry's error means, as a check id. */
 function rejectedCheck(reason: string | undefined, error: string) {

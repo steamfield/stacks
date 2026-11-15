@@ -6,10 +6,11 @@ import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { renderBrief } from "../src/core/brief/render";
 import { versions } from "../src/core/brief/text";
-import { type Composition, missingTools } from "../src/core/compose/compose";
+import { missingTools } from "../src/core/compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../src/core/compose/files";
+import type { Composition } from "../src/core/compose/types";
 import { fingerprint } from "../src/core/fingerprint";
-import { TEMPLATE_VARIABLES } from "../src/core/scaffold/template";
+import { TEMPLATE_VARIABLES } from "../src/core/template";
 import type { EntryInvalid, PermissionDenied } from "../src/errors";
 import {
   BODY,

@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 /** What a command reported about this invocation, for `main` to apply once it succeeded. */
-export type InvocationState = {
+type InvocationState = {
   /** The exit status in place of 0: a launched agent's (1.4). Unset means 0. */
   status: number | undefined;
   /** Scalar fields added to the `command` log record, such as `handoff` and `agent`. */

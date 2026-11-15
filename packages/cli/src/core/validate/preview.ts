@@ -3,7 +3,8 @@ import { AppConfig } from "../../config";
 import { BadInput, NotFound } from "../../errors";
 import type { BriefPreview } from "../../schemas/validate";
 import { targetAgents } from "../compose/agents";
-import { type ComposeOptions, compose } from "../compose/compose";
+import { compose } from "../compose/compose";
+import type { ComposeOptions } from "../compose/types";
 import { fingerprint } from "../fingerprint";
 import { type Entry, isRejected } from "../registry/entry";
 import { Registry } from "../registry/registry";
@@ -16,9 +17,10 @@ import { gitChecks } from "./git";
 import { checks, compareFindings, validationRoots } from "./index";
 import { readSources } from "./sources";
 import type { Target } from "./target";
-import { rootPaths, type View } from "./view";
+import type { View } from "./types";
+import { rootPaths } from "./view";
 
-export type PreviewOptions = {
+type PreviewOptions = {
   stack: string;
   with: ReadonlyArray<string>;
   without: ReadonlyArray<string>;

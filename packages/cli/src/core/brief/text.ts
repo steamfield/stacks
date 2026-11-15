@@ -4,7 +4,7 @@ import { INCOMING, MANIFEST_PATH, METADATA_DIR, NOTES_PATH } from "../../project
  * `cli` is `Host.invocation`; `code` wraps a value as inline code. Nothing else in the CLI writes
  * brief prose; `render.ts` only arranges these and the entries' own text.
  */
-import type { GitState } from "./render";
+import type { GitState } from "./types";
 
 export const code = (text: string) => (text.includes("`") ? `\`\` ${text} \`\`` : `\`${text}\``);
 const verify = (cli: string, flags = "") => code(`${cli} verify${flags}`);

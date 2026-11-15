@@ -2,11 +2,11 @@ import { Effect, FileSystem, Path } from "effect";
 import { ComposeConflict, PermissionDenied } from "../../errors";
 import { Host } from "../../services/host";
 import { Output } from "../../services/output";
-import type { AddOptions } from "../add";
 import { targetAgents } from "../compose/agents";
-import { type Composition, compose } from "../compose/compose";
+import { compose } from "../compose/compose";
 import { composeFiles } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
+import type { Composition } from "../compose/types";
 import { buildManifest } from "../manifest";
 import type { Entry } from "../registry/entry";
 import { gitInstalled } from "../scaffold/git";
@@ -16,6 +16,7 @@ import { inferName } from "./name";
 import { type AddPlan, planAdd } from "./plan";
 import type { AddProject } from "./project";
 import { inferTags } from "./tags";
+import type { AddOptions } from "./types";
 
 /** Compose only the requested delta, then render and classify its files before opening a writer. */
 export const prepareAdd = (options: AddOptions, project: AddProject) =>

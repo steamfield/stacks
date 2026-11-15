@@ -1,5 +1,5 @@
 import { AuthorsFile, authorKey, Kind, type SearchMetadata } from "@steamfield/stacks-format";
-import { Effect, FileSystem, Path, type PlatformError, Result, Schema } from "effect";
+import { Effect, FileSystem, Path, type PlatformError, Predicate, Result, Schema } from "effect";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { Registry } from "../registry/registry";
 import { searchSourceDigest } from "../search/digest";
@@ -127,7 +127,7 @@ const copyEntry = Effect.fn("submit.copyEntry")(function* (registry: string, ent
  * `search-stale` that would block the submission. `undefined` means leave the card unchanged.
  */
 function freshCard(raw: Record<string, unknown>, card: SearchMetadata, digest: string) {
-  const source = isRecord(raw.source) ? raw.source : {};
+  const source = Predicate.isObject(raw.source) ? raw.source : {};
   if (card.source.by === "author" && card.source.reviewedAt === null)
     return { ...raw, source: { ...source, digest } };
   if (card.source.digest === digest) return undefined;
@@ -160,7 +160,7 @@ const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry
     Result.isSuccess(loaded) &&
     Result.isSuccess(decoded) &&
     Result.isSuccess(raw) &&
-    isRecord(raw.success)
+    Predicate.isObject(raw.success)
       ? freshCard(raw.success, decoded.success, searchSourceDigest(loaded.success))
       : undefined;
   if (fresh !== undefined)
@@ -170,10 +170,6 @@ const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry
     );
   else if (own !== undefined) yield* writePermission(fs.writeFile(target, own), target);
 });
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * Builds the outgoing registry in the clone: each entry under `stacks/` or `fragments/`, its card

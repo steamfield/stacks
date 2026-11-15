@@ -52,7 +52,7 @@ Every field has a use on the receiving side. `stacks schema telemetry` covers th
 | `outcome` | `verify` | The run outcome; green rate |
 | `tamperCheck` | `verify` | How much of verify's tamper check ran |
 | `steps` | `verify` | Each step's name, phase, layer, status, failure kind and duration bucket (`5s`, `30s`, `2m`, `10m`, `longer`); step failures and environment blockage |
-| `stepsChanged` | `verify` | How many steps changed; changed-step share |
+| `stepsChanged` | `verify` | How many of the run's steps are outside the project's recorded step list (every step when the project has no state record); changed-step share. The hosted stats count a run with any such step as an attempt that is not green |
 | `secondsSinceScaffold` | `verify` | Time to green |
 | `secondsToFirstTestPass` | `verify` | Time to the first successful test command |
 | `asked` | `verify` | Counts agent questions before verify |

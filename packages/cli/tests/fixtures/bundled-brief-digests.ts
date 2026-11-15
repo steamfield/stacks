@@ -27,16 +27,18 @@
  * verify, verify --all as done), the hygiene steps and the claude-harness-docs split; they
  * await a bench run.
  * The 0.9.0 version in the brief changed all six again on 2026-11-14.
+ * All six changed on 2026-11-15 when agent-ops corrected why CLAUDE.md imports AGENTS.md; they
+ * await a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:b36f538baf33b98fad0eb2f40f2a91d722a8290002cb9c168ab3d19cb683a48f",
-  "astro-blog:sandbox": "sha256:9f02644a34559338f39e588d4da279e5eca4b8072f2b6e2723328490b7c0de3d",
-  "go-cli:default": "sha256:6bb63357e3099087ec4e3c1f983eaed66d114f98840a896f3cdb8525ad59be92",
-  "go-cli:sandbox": "sha256:3772bb8d2f5d6d3fc323d4e106c3cdc80eca7f3667b163a981a3d4734086aee3",
-  "python-react:default": "sha256:e9cdc6d12a19b1be4c934d68099947147f5ead9b8830ad2a2cd98633377a1d69",
-  "python-react:sandbox": "sha256:5ee81dcccd647a9fbb64d65b9c98d4e9ac5d97fd79755b4c8c017802088b6d86",
+  "astro-blog:default": "sha256:a571340db3d9806165f1ac66e32ed11f540dc0d576937ed096900f211878cca0",
+  "astro-blog:sandbox": "sha256:bfa4265e640101e4023914bfbc0ce179eefd8a205d2954e9a78ed4d78d8ce5b0",
+  "go-cli:default": "sha256:c8b7715b0e948a4173889817c3d85d20f3387d0115a82af00c0b19796c78838d",
+  "go-cli:sandbox": "sha256:8400db69b99272dcca1bbb1cdf4b129aa9bf3b66c147e2a140793c7d17d72e22",
+  "python-react:default": "sha256:fc576f45b0298a46e629aee920642cc2e4e365e92c5c36fe01310297532039fa",
+  "python-react:sandbox": "sha256:53d7646d75f153c739a3439c43b617af94724f8d4872bff1b4c0c646412af3fa",
 };

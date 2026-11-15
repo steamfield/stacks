@@ -3,7 +3,7 @@ import { type Phase, type ResolvedStep, withStepDefaults } from "@steamfield/sta
 import { Effect } from "effect";
 import { BadInput } from "../../errors";
 
-export const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
+const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
 /** Steps that check the project's hygiene (fill markers, harness, CI, hooks), not its code. */
 export const HYGIENE_TAG = "hygiene";
 export const HYGIENE_SKIPPED = "a hygiene check; --all or --only <name> runs it";

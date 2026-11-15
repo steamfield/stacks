@@ -43,7 +43,7 @@ const AgentMarker = Schema.Struct({
     Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/, { expected: "a date" })),
   ),
 });
-export type AgentMarker = typeof AgentMarker.Type;
+type AgentMarker = typeof AgentMarker.Type;
 const marker = (name: string, agent: AgentMarker["agent"], equals?: string) => ({
   name,
   agent,
@@ -136,7 +136,7 @@ const text = (key: string, fallback = "") => Config.String(key).pipe(Config.with
 /** Facts fixed when the CLI is built: bin supplies them; source builds and tests use `SOURCE_BUILD`. */
 export type Build = { releaseBuild: boolean; defaultApiUrl: string | undefined };
 export const SOURCE_BUILD: Build = { releaseBuild: false, defaultApiUrl: undefined };
-export function configLayer(env: Environment | undefined, build: Build) {
+function configLayer(env: Environment | undefined, build: Build) {
   const { releaseBuild, defaultApiUrl } = build;
   const captured = { ...(env ?? process.env) };
   return Layer.effect(

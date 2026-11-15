@@ -1,5 +1,5 @@
-import type { Composition } from "../compose/compose";
 import type { RenderedFile } from "../compose/files";
+import type { Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
 
 /** A line that is only a commands marker: `<!-- stacks:fill:commands ... -->`. */

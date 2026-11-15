@@ -1,7 +1,7 @@
 import { FailureKind, Kind } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
-import { TEMPLATE_VARIABLES } from "./core/scaffold/template";
 import { shellArg } from "./core/shell";
+import { TEMPLATE_VARIABLES } from "./core/template";
 import { printable } from "./core/text";
 import { verifyNext } from "./core/verify/next";
 import { BRIEF_PATH, MANIFEST_PATH } from "./project-layout";
@@ -136,12 +136,13 @@ export class BadInput extends Schema.TaggedError<BadInput>()("BadInput", {
 /**
  * `id` and `kind`: the stack or fragment id that wasn't found, so a caller can tell a wrong stack
  * from a wrong `--with`/`--without` id. `kind: "project"` (1.3a, with no `id`): `verify` found no
- * `.stacks/manifest.json` walking up from `looked`.
+ * `.stacks/manifest.json` walking up from `looked`. `kind: "cwd"`: the working directory was removed
+ * after the shell entered it, so no command ran.
  */
 export const NotFoundDetails = Schema.Struct({
   suggestions: Schema.Array(Schema.String),
   id: Schema.optionalKey(Schema.String),
-  kind: Schema.optionalKey(Schema.Literals([...Kind.literals, "project"])),
+  kind: Schema.optionalKey(Schema.Literals([...Kind.literals, "project", "cwd"])),
   looked: Schema.optionalKey(Schema.String),
   root: Schema.optionalKey(Schema.String),
   /** A missing bundled asset directory (skill install). */
@@ -629,6 +630,11 @@ function notFoundGuide(error: NotFound, invocation: string): FailureGuide {
       [`Path: ${printable(details.path)}`],
       `restore the bundled skill directory or reinstall @steamfield/stacks, then run ${invocation} doctor.`,
     );
+  if (details.kind === "cwd")
+    return guide(
+      ["The working directory no longer exists."],
+      "cd to a directory that exists, then run the command again.",
+    );
   if (details.kind === "project")
     return guide(
       [
@@ -775,7 +781,10 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
     case "create_target":
       return guide([`Path: ${id}`], "edit the existing entry, or choose an unused id.");
     case "from":
-      return guide([`Origin: ${id}`], "copy from bundled or project; user is the destination.");
+      return guide(
+        [`Origin: ${id}`],
+        "copy from bundled, index or project; user is the destination.",
+      );
     case "confirmation":
       return guide(
         ["The copy was declined. Nothing was changed."],

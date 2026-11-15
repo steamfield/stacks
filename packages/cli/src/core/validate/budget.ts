@@ -1,7 +1,8 @@
 import { projectFiles } from "../../project-layout";
 import { VERSION } from "../../version";
-import { type Brief, type BriefContext, renderBrief } from "../brief/render";
-import type { Composition } from "../compose/compose";
+import { renderBrief } from "../brief/render";
+import type { Brief, BriefContext } from "../brief/types";
+import type { Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
 
 /**

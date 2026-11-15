@@ -10,12 +10,14 @@ import type {
 import type { Finding, SizeRow } from "../../schemas/validate";
 import { countWords } from "../brief/words";
 import { targetAgents } from "../compose/agents";
-import { type ComposeWarning, type Composition, compose } from "../compose/compose";
+import { compose } from "../compose/compose";
 import { fitsStack } from "../compose/selection";
+import type { ComposeWarning, Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
 import { shellArg } from "../shell";
 import { bodyLimit, canonicalBrief, composedLimit } from "./budget";
-import { type Check, entryFile, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { entryFile, finding } from "./view";
 
 const PRESETS = ["default", "sandbox"] as const;
 type Preset = (typeof PRESETS)[number];

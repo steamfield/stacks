@@ -12,7 +12,8 @@ import {
   shippedPath,
 } from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { type Check, entryFile, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { entryFile, finding } from "./view";
 
 /**
  * Shipped files: every `merge` path is one of the entry's own files, each copy of a merge file

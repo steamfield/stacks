@@ -31,7 +31,7 @@ export function resolveAudience(
   return !ci && stdoutIsTTY && agent === "none" ? "human" : "agent";
 }
 export type Writer = (text: string) => Promise<void>;
-export type StyleKind = "error" | "warn" | "ok" | "skip" | "dim" | "next";
+type StyleKind = "error" | "warn" | "ok" | "skip" | "dim" | "next";
 export type Style = (kind: StyleKind, text: string) => string;
 export const plainStyle: Style = (_kind, text) => text;
 const formats = {

@@ -133,7 +133,7 @@ export function splitFrontmatter(text: string): { frontmatter: string; body: str
   };
 }
 
-export type Decoded =
+type Decoded =
   | { _tag: "Meta"; meta: StackMeta | FragmentMeta; body: string }
   /** `schema_version` above 1: the caller skips this copy and uses the next origin's. */
   | { _tag: "Newer"; version: number }

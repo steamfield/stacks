@@ -1,5 +1,7 @@
 # stacks — demo preparation
 
+Historical: written for the hackathon stacks was first built for and not kept current. [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) is the maintained description of the product.
+
 Status: DRAFT 2026-10-28 — rehearsal checklist for discovery to a verified local starter. Unchecked items are tasks, not completed capabilities.
 
 ## Finish line

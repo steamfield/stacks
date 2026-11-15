@@ -4,7 +4,8 @@ import type { Finding } from "../../schemas/validate";
 import { scanConditionals } from "../compose/conditionals";
 import { fitsStack } from "../compose/selection";
 import { type Entry, isStack } from "../registry/entry";
-import { type Check, entryFile, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { entryFile, finding } from "./view";
 
 function reachFinding(
   view: View,

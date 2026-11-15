@@ -2,11 +2,9 @@
 
 `stacks` starts projects for coding agents. It writes starter files and a build brief from a recipe (a stack), hands the project to your coding agent, and runs the project's declared checks so you and the agent agree on when it's done. Browse the catalog at [stacks.steamfield.io](https://stacks.steamfield.io).
 
-This repository holds the CLI and the shared format package. The hosted side (the directory site, search and stats API) lives in a separate repository, `stacks-api`.
+This repository holds the CLI, the shared format package and the MCP server. The hosted side (the catalog site, search and stats API) lives in a separate repository.
 
-## Submission: architecture, demo, and data
-
-Public repo: [steamfield/stacks](https://github.com/steamfield/stacks). The CLI uses TypeScript and Effect 4, bundled by Bun for Node 22+. Recipes are Markdown; your existing coding agent builds the application. The FastAPI + React example uses uv, pytest, Vite, and a generated OpenAPI client.
+## How it works
 
 ```mermaid
 flowchart LR
@@ -17,49 +15,9 @@ flowchart LR
   V -- "checks pass" --> P["Working project foundation"]
 ```
 
-### Reproduce the local FastAPI + React demo
+A stack says what a project is made of, how it's laid out and what "working" means, and never names a version. Your agent installs current releases, builds the project from the brief and fixes whatever the checks catch. The CLI calls no model, needs no API key and runs nothing it reads from a stack; `verify` runs only the steps in your project's own manifest. [product/PROBLEM_STATEMENT.md](product/PROBLEM_STATEMENT.md) explains who it's for and why it's built this way.
 
-Install Node 22+, git, Bun, uv, make, jq, and lefthook, and authenticate your coding agent. From a fresh directory, use the published CLI version checked for this submission:
-
-```sh
-npx --yes @steamfield/stacks@0.9.0 show python-react
-npx --yes @steamfield/stacks@0.9.0 new python-react stacks-demo --sandbox --no-launch
-cd stacks-demo
-cp .env.example .env
-```
-
-Open `stacks-demo` in your coding agent and ask: **“Read .stacks/BRIEF.md and implement it without weakening the checks; finish by running npx --yes @steamfield/stacks@0.9.0 verify --all.”** Then inspect the result:
-
-```sh
-npx --yes @steamfield/stacks@0.9.0 verify --all
-npx --yes @steamfield/stacks@0.9.0 runs
-make dev
-```
-
-Open `http://localhost:5173`; the API health endpoint is `http://localhost:8000/health`. Check that all required verification steps passed, since a partial run can also exit 0. Generation and timing vary with the agent and dependencies; this reproduces the workflow, not a historical timed run.
-
-The CLI calls no model and needs no API keys or `.env`. Your agent needs its own provider login or credentials. The generated app includes a [sample `.env.example`](packages/cli/registry/stacks/python-react/files/.env.example) with local defaults:
-
-```dotenv
-PORT_API=8000
-PORT_WEB=5173
-ENVIRONMENT=development
-LOG_LEVEL=INFO
-CORS_ORIGINS=["http://localhost:5173"]
-VITE_API_BASE_URL=
-```
-
-No Rho, database, or analytics key is needed for this local starter. Optional integrations need separate credentials. Keep secrets out of Git and browser-exposed `VITE_` variables. The CLI does not autoload `.env`; the generated app reads its own configuration.
-
-### Data and provenance
-
-No external dataset is required for the local starter. Recipes and starter assets are in the [maintainer-controlled registry](packages/cli/registry); inspect their Git history for provenance. The public [run ledger](packages/cli/registry/runs.json) records historical agent sessions, versions, fingerprints, outcomes, and steps. At this revision it contains 8 records: 7 labeled pass and 1 fail. Five records skip the production build. Full run narratives referenced under `plans/runs/` are not public; these summaries do not establish a current success rate or an 8.8-minute reproduction.
-
-The directory's [stats API](https://stacks.steamfield.io/v1/stats) identified its population as **seeded development data** on October 29, 2026. Its synthetic usage and outcome metrics illustrate the analytics interface, not community adoption. This repo documents reproduction of the CLI workflow rather than the hosted site's synthetic dataset. Record your own session metrics with `stacks runs`; illustrative homepage timings are not controlled benchmarks.
-
-### Limitations and next steps
-
-The CLI supports macOS and Linux on Node 22+; recipes need their own tools and agent access. Verification proves only the declared checks, not application quality or production readiness. Hosted search can fall back to local ranking. The catalog and historical evidence are limited, directory metrics are synthetic, and the [MCP server](packages/mcp/README.md) is a placeholder. Next steps are broader recipe coverage, public reproducible run artifacts, real outcome data with appropriate disclosure, and MCP support.
+Verification proves the declared checks pass, not that the application is good or ready for production. The usage and outcome numbers on the catalog site are seeded development data until real telemetry replaces them.
 
 ## Install and try it
 
@@ -84,7 +42,7 @@ The package is `@steamfield/stacks` and the command is `stacks`; `npx @steamfiel
 | [packages/cli](packages/cli/README.md) | `@steamfield/stacks`, the CLI: Effect 4 on Node, bundled by Bun. Holds the bundled registry of stacks and fragments, the agent skill and the [user docs](packages/cli/docs/README.md) |
 | [packages/format](packages/format/README.md) | `@steamfield/stacks-format`, the contracts the CLI and the hosted API share: entry format, manifest, run records, telemetry events, bundles, the signed index and stats shapes |
 | [packages/mcp](packages/mcp/README.md) | `@steamfield/stacks-mcp`, the MCP server: a stdio server on Effect's MCP modules that wraps the CLI's `--json` contract as typed tools and resources, so an agent whose client prefers MCP tools gets the same results and trust boundary |
-| `product/` | The problem statement, pitch and demo outline |
+| `product/` | The [problem statement](product/PROBLEM_STATEMENT.md), plus the pitch, prep notes and demo outline from the hackathon stacks was first built for |
 | `.claude/`, [docs/harness.md](docs/harness.md) | The agent harness: hooks, rules, skills and agents, with their tests in `tests/hooks/` and `tests/scripts/` |
 
 ## Development
@@ -124,4 +82,4 @@ To add a package:
 
 ## Releasing
 
-Maintainers publish both packages with `bun run release` from an up-to-date `main`; `bun run release:dry-run` packs both and publishes nothing, and `bun run release:format` publishes the format package alone. [packages/format/README.md](packages/format/README.md#publishing) has the steps and the checks the script makes.
+Maintainers publish all three packages with `bun run release` from an up-to-date `main`; `bun run release:dry-run` packs them and publishes nothing, and `bun run release:format` publishes the format package alone. [packages/format/README.md](packages/format/README.md#publishing) has the steps and the checks the script makes.

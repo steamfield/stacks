@@ -96,7 +96,15 @@ const install = Command.make(
 );
 
 export const skillCommand = Command.make("skill").pipe(
-  Command.withDescription("Manage the bundled stacks agent skills."),
-  Command.withShortDescription("Manage the bundled agent skills."),
+  Command.withDescription(
+    "Install the agent skills that ship with stacks, so your coding agent knows how to pick a stack, start a project and verify it. install is the only subcommand; its --help lists the skill names, targets and exits.",
+  ),
+  Command.withShortDescription("Install the bundled agent skills."),
+  Command.withExamples(({ commandPath }) => [
+    {
+      command: `${commandPath.join(" ")} install`,
+      description: "Install the stacks skill for your user",
+    },
+  ]),
   Command.withSubcommands([install]),
 );

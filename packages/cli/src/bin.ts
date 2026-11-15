@@ -4,8 +4,10 @@ import { INDEX_PUBLIC_KEYS } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Layer, Option } from "effect";
 import { Allowlist } from "./core/allowlist";
 import { RemoteIndex } from "./core/remote-index";
+import { NotFound } from "./errors";
 import { invocationFor } from "./invocation";
 import { hasFlag, main } from "./main";
+import { workingDirectory } from "./platform/cwd";
 import { NetLayer } from "./platform/net";
 import { installSignalPolicy } from "./platform/signals";
 import { stringWidth } from "./platform/width";
@@ -32,6 +34,7 @@ const output = Output.layer(
 // This invocation's process groups and interactive child, shared with the signal policy.
 const holder = Foreground.make();
 const registry = fileURLToPath(new URL("../registry/", import.meta.url));
+const cwd = workingDirectory();
 // Replaced by Bun at build time; source development has no escaped asset paths.
 declare const PACKAGED_ESCAPES: ReadonlyArray<string>;
 declare const STACKS_RELEASE_BUILD: boolean;
@@ -86,7 +89,8 @@ const platform = Layer.mergeAll(
     nodeMajor: Number(process.versions.node.split(".")[0]),
     platform: process.platform,
     executable: process.execPath,
-    cwd: process.cwd(),
+    // With no working directory no command runs (below), so nothing reads this root.
+    cwd: Option.getOrElse(cwd, () => "/"),
     stdinIsTTY: process.stdin.isTTY === true,
     stdoutIsTTY: process.stdout.isTTY === true,
     stderrIsTTY: process.stderr.isTTY === true,
@@ -112,11 +116,14 @@ const remote = RemoteIndex.layer({ keys: INDEX_PUBLIC_KEYS, officialUrl: undefin
 );
 const allowlist = Allowlist.layer({ keys: INDEX_PUBLIC_KEYS }).pipe(Layer.provide(application));
 const layer = Layer.mergeAll(application, remote, allowlist).pipe(Layer.provideMerge(platform));
+// The shell's directory was removed after it entered it: every command reads or writes relative
+// to it, so fail before parsing rather than guess another directory.
+const missingDirectory = Effect.fail(new NotFound({ details: { suggestions: [], kind: "cwd" } }));
 const controller = new AbortController();
 const removeSignalPolicy = installSignalPolicy(holder, () => controller.abort());
 try {
   process.exitCode = await runInvocation(
-    main(args, undefined, {
+    main(args, Option.isSome(cwd) ? undefined : missingDirectory, {
       officialUrl:
         typeof STACKS_PUBLISHED_TELEMETRY !== "undefined" && STACKS_PUBLISHED_TELEMETRY
           ? DEFAULT_API_URL

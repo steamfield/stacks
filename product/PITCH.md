@@ -1,5 +1,7 @@
 # stacks — pitch
 
+Historical: written for the hackathon stacks was first built for and not kept current. [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) is the maintained description of the product.
+
 Status: DRAFT 2026-10-28 — aligned with the current CLI and live directory. Recheck the deployed dataset and installed release before recording.
 
 ## The promise

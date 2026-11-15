@@ -3,8 +3,9 @@ import { Effect, Result } from "effect";
 import type { ComposeConflict, EntryInvalid } from "../../errors";
 import type { Finding } from "../../schemas/validate";
 import { targetAgents } from "../compose/agents";
-import { type ComposeOptions, type Composition, compose } from "../compose/compose";
+import { compose } from "../compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../compose/files";
+import type { ComposeOptions, Composition } from "../compose/types";
 import {
   type Entry,
   isFragment,
@@ -16,20 +17,13 @@ import {
 import { Registry } from "../registry/registry";
 import { compositionPlans, describe, replacementDefaults } from "./compositions";
 import type { Source } from "./sources";
-import { type Check, entryFile, finding, type View } from "./view";
+import type { Check, Composed, RenderState, SourceView, View } from "./types";
+import { entryFile, finding } from "./view";
 
-export type Composed = { composition: Composition; files: ReadonlyArray<RenderedFile> };
-
-type SourceView = Omit<View, "composed">;
 type CompositionRun = {
   stack: Entry;
   preset: ComposeOptions["preset"];
   plan: Pick<ComposeOptions, "with" | "without">;
-};
-type RenderState = {
-  snapshots: Composed[];
-  findings: Finding[];
-  failures: Set<string>;
 };
 type AdapterRun = {
   stack: Entry;
@@ -38,7 +32,7 @@ type AdapterRun = {
 };
 
 /** The preview selection or registry matrix, rendered independently for every shipped adapter. */
-export const composedFiles = (view: SourceView) =>
+export const composedFiles = (view: SourceView): View["composed"] =>
   Effect.gen(function* () {
     const state: RenderState = { snapshots: [], findings: [], failures: new Set() };
     for (const run of compositionRuns(view)) yield* renderRun(view, run, state);

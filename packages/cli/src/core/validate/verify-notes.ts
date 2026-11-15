@@ -1,9 +1,10 @@
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
-import type { Composition } from "../compose/compose";
+import type { Composition } from "../compose/types";
 import { isFragment } from "../registry/entry";
 import { uniqueFindings } from "./composed";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 /** Verification gaps are authoring notes, never warnings or composition failures. */
 export const verifyNotes: Check = (view) =>

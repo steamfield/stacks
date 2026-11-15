@@ -5,7 +5,7 @@ import { InvalidConfig, NotFound, PermissionDenied } from "../errors";
 import { MANIFEST_PATH } from "../project-layout";
 import { VERSION } from "../version";
 import { canonicalJson } from "./canonical-json";
-import type { Composition } from "./compose/compose";
+import type { Composition } from "./compose/types";
 import type { Entry } from "./registry/entry";
 
 /** Where a project's manifest lives, relative to its root. */
@@ -39,7 +39,7 @@ export function digestSteps(input: DigestInput): string {
   return sha256({ verify: input.verify.map(digestable), env: input.env, preset: input.preset });
 }
 
-const entryRef = (entry: Entry) => ({
+const manifestEntryRef = (entry: Entry) => ({
   id: entry.id,
   origin: entry.origin,
   trusted: entry.trusted,
@@ -79,8 +79,8 @@ export const buildManifest = (
       cli: VERSION,
       mode: facts.mode ?? "new",
       agents: [...composition.agents],
-      stack: composition.stack ? entryRef(composition.stack) : null,
-      fragments: composition.fragments.map(entryRef),
+      stack: composition.stack ? manifestEntryRef(composition.stack) : null,
+      fragments: composition.fragments.map(manifestEntryRef),
       commands: { ...composition.commands },
       ...body,
       verifyDigest: digestSteps(body),
@@ -95,7 +95,7 @@ export function encodeManifest(manifest: Manifest): string {
 
 const isMissing = (error: PlatformError.PlatformError) =>
   error.reason._tag === "NotFound" || error.reason._tag === "BadResource";
-const versionOf = (value: unknown) =>
+export const versionOf = (value: unknown) =>
   value !== null && typeof value === "object" && "schemaVersion" in value
     ? value.schemaVersion
     : undefined;

@@ -1,7 +1,7 @@
 import { bundleDigest, type EntryBundle, type IndexEntry } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 
-export const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
+const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
   entry: Pick<IndexEntry, "id" | "kind"> & { dir: string },
 ) {
   const fs = yield* FileSystem.FileSystem;

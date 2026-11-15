@@ -301,7 +301,7 @@ const BadInputDetails = Schema.Union([
 const NotFoundDetails = Schema.Struct({
   suggestions: Schema.Array(Schema.String),
   id: Schema.optionalKey(Schema.String),
-  kind: Schema.optionalKey(Schema.Literals([...Kind.literals, "project"])),
+  kind: Schema.optionalKey(Schema.Literals([...Kind.literals, "project", "cwd"])),
   looked: Schema.optionalKey(Schema.String),
   root: Schema.optionalKey(Schema.String),
   path: Schema.optionalKey(Schema.String),

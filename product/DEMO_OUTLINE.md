@@ -1,5 +1,7 @@
 # stacks — demo outline
 
+Historical: written for the hackathon stacks was first built for and not kept current. [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) is the maintained description of the product.
+
 Status: DRAFT 2026-10-28 — a produced 4:45 video backed by an actual agent-build recording. Confirm the event's limit and submission rules before export.
 
 ## The story

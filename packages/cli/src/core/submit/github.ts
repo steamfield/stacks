@@ -12,7 +12,7 @@ import { shellArg } from "../shell";
  * 1). The CLI holds no credentials: `gh` authenticates its own requests and git's pushes.
  */
 export type Tools = { gh: string; git: string; login: string };
-export type Step = "auth" | "clone" | "fork" | "push" | "pr";
+type Step = "auth" | "clone" | "fork" | "push" | "pr";
 
 const QUICK = Duration.seconds(60);
 const NETWORK = Duration.minutes(5);

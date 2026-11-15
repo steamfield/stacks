@@ -1,9 +1,10 @@
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
-import type { Composition } from "../compose/compose";
+import type { Composition } from "../compose/types";
 import { shellTokens, shellWords } from "../shell";
 import { uniqueFindings } from "./composed";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 /** A complete project-command token, with Claude's permission wildcard removed separately. */
 export function runnerTarget(command: string): string | undefined {

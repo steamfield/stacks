@@ -2,7 +2,8 @@ import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { type Entry, isStack } from "../registry/entry";
 import { closest } from "../suggest";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 /**
  * Every id an entry names resolves in the resolution set: a stack's `fragments.*`, a fragment's

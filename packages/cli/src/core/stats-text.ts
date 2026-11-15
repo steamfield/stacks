@@ -2,7 +2,7 @@ import type { CountCell, RateCell, ShareCell, ValueCell } from "@steamfield/stac
 import type { ListRow } from "../schemas/list";
 
 /** The flat stats a `list` row carries; `show` renders its detail through the same shape. */
-export type StatsFields = NonNullable<ListRow["stats"]>;
+type StatsFields = NonNullable<ListRow["stats"]>;
 
 /** The cells a summary item or a detail carries; a fragment's detail has no verify timings. */
 type Metrics = {

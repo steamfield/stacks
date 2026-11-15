@@ -5,7 +5,7 @@ import { Kebab, Kind } from "../entry.js";
 import { StatsPopulation } from "../stats.js";
 
 const Origin = Schema.Literals(["project", "user", "index", "bundled"]);
-const LastRun = Schema.Struct({
+const SearchLastRun = Schema.Struct({
   date: Schema.String,
   result: Schema.Literals(["pass", "partial", "fail", "infra"]),
   agent: DetectedAgent,
@@ -119,7 +119,7 @@ export const SearchEvidence = Schema.Struct({
       window: Schema.Literals([7, 28]),
     }),
   ),
-  lastRun: Schema.optionalKey(Schema.NullOr(LastRun)),
+  lastRun: Schema.optionalKey(Schema.NullOr(SearchLastRun)),
 });
 export type SearchEvidence = typeof SearchEvidence.Type;
 export const SearchWhy = Schema.Struct({
@@ -179,7 +179,7 @@ export type SearchResult = typeof SearchResult.Type;
 
 const ResponseEvidence = Schema.Struct({
   ...SearchEvidence.fields,
-  lastRun: Schema.NullOr(LastRun),
+  lastRun: Schema.NullOr(SearchLastRun),
 });
 
 /**

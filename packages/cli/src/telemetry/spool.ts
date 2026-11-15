@@ -4,8 +4,8 @@ import { DAY, directory, names, read, remove, type Storage, uuid, write } from "
 
 const Event = Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3]);
 const EventJson = Schema.fromJsonString(Event);
-export type Pending = { file: string; event: typeof Event.Type };
-export const pending = Effect.fn("telemetry.pending")(function* (store: Storage) {
+type Pending = { file: string; event: typeof Event.Type };
+const pending = Effect.fn("telemetry.pending")(function* (store: Storage) {
   const events: Pending[] = [];
   for (const name of yield* names(store, "spool")) {
     if (name.startsWith(".write-")) continue;

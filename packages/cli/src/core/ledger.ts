@@ -1,7 +1,7 @@
 import { AgentId } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Path, Result, Schedule, Schema } from "effect";
 import { InvalidConfig } from "../errors";
-import { type LastRun, Ledger, LedgerRecord } from "../schemas/ledger";
+import { Ledger, type LedgerLastRun, LedgerRecord } from "../schemas/ledger";
 import { replaceFile } from "./replace-file";
 
 export type LedgerRead = {
@@ -10,7 +10,7 @@ export type LedgerRead = {
   readonly records: ReadonlyArray<LedgerRecord>;
   readonly skipped: { readonly newer: number; readonly invalid: number };
 };
-export type LedgerKey = Pick<LedgerRecord, "stack" | "with" | "preset" | "agent">;
+type LedgerKey = Pick<LedgerRecord, "stack" | "with" | "preset" | "agent">;
 
 /** Without a known target, an exact fingerprint decides between adapter candidates. */
 export function ledgerAdapterSets(
@@ -96,7 +96,7 @@ export const lastDefaultRecord = (records: ReadonlyArray<LedgerRecord>, stack: s
   latestMatchingRecord(records, (record) => record.stack === stack && record.with.length === 0);
 
 /** A stack's latest run of its default composition, over every preset and agent. */
-export function lastRun(records: ReadonlyArray<LedgerRecord>, stack: string): LastRun | null {
+export function lastRun(records: ReadonlyArray<LedgerRecord>, stack: string): LedgerLastRun | null {
   const found = lastDefaultRecord(records, stack);
   return found === null
     ? null

@@ -17,7 +17,7 @@ import { TestClock } from "effect/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
 import type { RemoteIndex, RemoteStatus } from "../src/core/remote-index";
 import { DoctorReport } from "../src/schemas/doctor";
-import { LastRun } from "../src/schemas/ledger";
+import { LedgerLastRun } from "../src/schemas/ledger";
 import { ListResult } from "../src/schemas/list";
 import { NewResult } from "../src/schemas/new";
 import { ShowReport } from "../src/schemas/show";
@@ -94,7 +94,7 @@ function makeDifferentBundled() {
   );
 }
 function listedProof() {
-  return Schema.decodeUnknownSync(LastRun)(named(fixture.index, "stack", "sample").lastRun);
+  return Schema.decodeUnknownSync(LedgerLastRun)(named(fixture.index, "stack", "sample").lastRun);
 }
 function readRemote(env: Parameters<typeof remoteLayer>[2] = {}) {
   return Effect.gen(function* () {

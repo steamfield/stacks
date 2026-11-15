@@ -10,15 +10,14 @@ import { portAnswers, portClosed, probeReady, probeTarget } from "./probe";
 import { outputLine } from "./report";
 
 /** Where steps run: the project root as found, its real path, and the step environment. */
-export type StepContext = { root: string; realRoot: string; env: Record<string, string> };
+type StepContext = { root: string; realRoot: string; env: Record<string, string> };
 
-export const PIPES_HELD_REASON =
-  "the step left a process holding its output; it was stopped after 2 s";
+const PIPES_HELD_REASON = "the step left a process holding its output; it was stopped after 2 s";
 const EARLY_EXIT_REASON =
   "serve command exited before its probe passed; serve commands must stay in the foreground";
 
 /** "500ms", "90s", "10m" (the entry format's duration pattern). */
-export function parseDuration(text: string): Duration.Duration {
+function parseDuration(text: string): Duration.Duration {
   const match = /^(\d+)(ms|s|m)$/.exec(text);
   const value = Number(match?.[1] ?? 0);
   if (match?.[2] === "ms") return Duration.millis(value);

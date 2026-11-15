@@ -173,7 +173,7 @@ const recordHandoff = (project: string, decision: HandoffDecision) =>
     }),
   );
 
-export type SummaryContext = {
+type SummaryContext = {
   shown: string;
   audience: Audience;
   untrusted: NewResult["untrusted"];

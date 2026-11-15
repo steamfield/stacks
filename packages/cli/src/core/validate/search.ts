@@ -8,7 +8,8 @@ import { Registry } from "../registry/registry";
 import { searchSourceDigest } from "../search/digest";
 import { decodeSidecar, decodeVocabulary, readSearchFile, sidecarPath } from "../search/sidecar";
 import { exampleProblems } from "./search-examples";
-import { type Check, finding, type View } from "./view";
+import type { Check, View } from "./types";
+import { finding } from "./view";
 
 function aliasProblems(vocabulary: SearchVocabulary): string[] {
   const problems: string[] = [];

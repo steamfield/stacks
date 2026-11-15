@@ -5,7 +5,8 @@ import { compose } from "../compose/compose";
 import { fingerprint, proofFingerprint } from "../fingerprint";
 import { latestRecord, ledgerAdapterSets, readCanaries, readLedger } from "../ledger";
 import type { Entry } from "../registry/entry";
-import { type Check, entryFile, finding } from "./view";
+import type { Check } from "./types";
+import { entryFile, finding } from "./view";
 
 export const ledgerChecks: Check = (view) =>
   Effect.gen(function* () {

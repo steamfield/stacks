@@ -5,7 +5,8 @@ import {
   type IndexEntry,
 } from "@steamfield/stacks-format";
 import { Effect } from "effect";
-import { type Composition, compose } from "../../src/core/compose/compose";
+import { compose } from "../../src/core/compose/compose";
+import type { Composition } from "../../src/core/compose/types";
 import { proofFingerprint } from "../../src/core/fingerprint";
 import { latestMatchingRecord, ledgerAdapterSets, readLedger } from "../../src/core/ledger";
 import { type Entry, isFragment, isRejected, isStack } from "../../src/core/registry/entry";

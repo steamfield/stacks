@@ -1,18 +1,16 @@
-import { Effect, Result } from "effect";
+import { Effect, Predicate, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { proseLines } from "../brief/headings";
 import { shellWords } from "../shell";
 import { runnerTarget } from "./commands";
-import { type Composed, sourceOf, uniqueFindings } from "./composed";
+import { sourceOf, uniqueFindings } from "./composed";
 import { isNativeConfig, parseNativeConfig } from "./native-config";
 import { nativeReferences } from "./native-refs";
 import type { ReferenceIssue } from "./reference-issue";
 import type { Source } from "./sources";
-import { type Check, finding, type View } from "./view";
+import type { Check, Composed, View } from "./types";
+import { finding } from "./view";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 function strings(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
@@ -20,7 +18,7 @@ function strings(value: unknown): string[] {
 }
 function hookCommands(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(hookCommands);
-  if (!isRecord(value)) return [];
+  if (!Predicate.isObject(value)) return [];
   return Object.entries(value).flatMap(([key, item]) =>
     key === "command" && typeof item === "string" ? [item] : hookCommands(item),
   );
@@ -125,11 +123,12 @@ function fileReferences(
     return;
   }
   const json = decoded.success;
-  if (file.path === ".claude/settings.json" && isRecord(json)) {
+  if (file.path === ".claude/settings.json" && Predicate.isObject(json)) {
     permissionReferences(json, declared, emit);
     hookReferences(json, paths, emit);
   }
-  if (file.path === ".vscode/launch.json" && isRecord(json)) launchReferences(json, declared, emit);
+  if (file.path === ".vscode/launch.json" && Predicate.isObject(json))
+    launchReferences(json, declared, emit);
   portReferences(snapshot.composition.env, text, emit);
 }
 
@@ -138,7 +137,7 @@ function permissionReferences(
   declared: (target: string) => boolean,
   emit: Emit,
 ) {
-  const permissions = isRecord(json.permissions) ? json.permissions : {};
+  const permissions = Predicate.isObject(json.permissions) ? json.permissions : {};
   for (const list of ["allow", "deny"])
     for (const rule of strings(permissions[list])) {
       const command = /^Bash\((.*)\)$/s.exec(rule)?.[1];
@@ -156,7 +155,9 @@ function permissionReferences(
 
 function hasPermission(json: unknown, list: string, rule: string): boolean {
   return (
-    isRecord(json) && isRecord(json.permissions) && strings(json.permissions[list]).includes(rule)
+    Predicate.isObject(json) &&
+    Predicate.isObject(json.permissions) &&
+    strings(json.permissions[list]).includes(rule)
   );
 }
 
@@ -170,7 +171,7 @@ function hookReferences(json: Record<string, unknown>, paths: ReadonlySet<string
         severity: "error",
         needle: command,
         message: `hook references ${target}, which no composed entry ships`,
-        matches: (json) => isRecord(json) && hookCommands(json.hooks).includes(command),
+        matches: (json) => Predicate.isObject(json) && hookCommands(json.hooks).includes(command),
       });
     }
 }
@@ -181,7 +182,7 @@ function launchReferences(
   emit: Emit,
 ) {
   for (const config of Array.isArray(json.configurations) ? json.configurations : []) {
-    if (!isRecord(config)) continue;
+    if (!Predicate.isObject(config)) continue;
     for (const field of ["args", "runtimeArgs"]) {
       const target = launchTarget(config[field]);
       if (!target || declared(target)) continue;
@@ -198,9 +199,11 @@ function launchReferences(
 
 function hasLaunchTarget(json: unknown, field: string, target: string): boolean {
   return (
-    isRecord(json) &&
+    Predicate.isObject(json) &&
     Array.isArray(json.configurations) &&
-    json.configurations.some((config) => isRecord(config) && launchTarget(config[field]) === target)
+    json.configurations.some(
+      (config) => Predicate.isObject(config) && launchTarget(config[field]) === target,
+    )
   );
 }
 

@@ -5,7 +5,7 @@ import { shellArg } from "./shell";
 import { printable } from "./text";
 
 /** Why `new` printed the prompt instead of launching an agent. */
-export type PrintReason =
+type PrintReason =
   | "json"
   | "no-launch"
   | "not-a-terminal"

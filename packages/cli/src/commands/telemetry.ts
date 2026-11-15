@@ -101,8 +101,15 @@ const reset = Command.make("reset", {}, () =>
 );
 export const telemetryCommand = Command.make("telemetry").pipe(
   Command.withDescription(
-    "Control anonymous usage telemetry. Disable and reset work without a terminal or under an agent.",
+    "Control anonymous usage telemetry. Disable and reset work without a terminal or under an agent; enable needs a person. Each subcommand's --help lists its exits.",
   ),
+  Command.withExamples(({ commandPath }) => [
+    {
+      command: `${commandPath.join(" ")} status`,
+      description: "See whether collection is on, and why",
+    },
+    { command: `${commandPath.join(" ")} disable`, description: "Turn collection off" },
+  ]),
   Command.withShortDescription("Inspect, disable or reset anonymous usage telemetry."),
   Command.withSubcommands([
     status,

@@ -1,3 +1,9 @@
+/**
+ * Builds the doctor diagnostic from host information and lazy application configuration.
+ * Configuration failures become report fields so the command remains usable when settings are
+ * broken.
+ */
+
 import { Effect } from "effect";
 import { AppConfig } from "../config";
 import { errorTable } from "../errors";

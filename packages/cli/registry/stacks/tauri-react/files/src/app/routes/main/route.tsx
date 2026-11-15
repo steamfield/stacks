@@ -1,3 +1,8 @@
+/**
+ * Displays application metadata and live ticks through the provider's transport and store.
+ * Separate subscribers keep tick updates from rerendering the connection-status view.
+ */
+
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "zustand";
 import { useApp } from "../../providers";

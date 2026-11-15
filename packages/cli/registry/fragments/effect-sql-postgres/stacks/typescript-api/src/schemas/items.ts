@@ -1,3 +1,7 @@
+/**
+ * Defines the item and readiness schemas used at the API boundary and by its services.
+ */
+
 import { Schema } from "effect";
 
 export const ItemId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand("ItemId"));

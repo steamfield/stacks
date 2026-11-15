@@ -1,3 +1,8 @@
+/**
+ * Builds the window's memory router and renders route failures visibly.
+ * The entry selects the initial route using the transport's window label.
+ */
+
 import { createMemoryRouter, useRouteError } from "react-router";
 import { MainRoute } from "./routes/main/route";
 

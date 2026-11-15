@@ -1,3 +1,7 @@
+/**
+ * Exercises the items repository and database readiness against an isolated Postgres database.
+ */
+
 import { eq } from 'drizzle-orm';
 import { expect, it } from 'vitest';
 import { createDatabase, isReady } from '#lib/server/db/index.ts';

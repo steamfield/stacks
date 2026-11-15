@@ -1,3 +1,8 @@
+/**
+ * Defines the frontend contract for application metadata and tick subscriptions.
+ * Native and mock implementations share the generated Rust data types behind this interface.
+ */
+
 import type { AppInfo, CommandError, Tick } from "./generated/bindings";
 
 export type InfoResult = { status: "ok"; data: AppInfo } | { status: "error"; error: CommandError };

@@ -1,4 +1,9 @@
 /**
+ * Provides the base error type and recognition helper for the library's first API.
+ * It stays private until src/index.ts exports it alongside a public function that can fail.
+ */
+
+/**
  * Why a call failed. Each code is public API once src/index.ts exports this module: callers
  * branch on it, so renaming or removing one is a breaking change, and adding one is a minor
  * release. Add the codes the first real export needs, each with a fixed message below.

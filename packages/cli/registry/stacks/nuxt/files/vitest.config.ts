@@ -8,14 +8,13 @@ export default defineConfig({
   test: {
     projects: [
       {
-        // Plain Node: shared schemas, server utilities and the harness hook tests.
+        // Plain Node: shared schemas and server utilities.
         resolve: { alias: { "#shared": shared } },
         test: {
           name: "unit",
           environment: "node",
           include: ["shared/**/*.test.ts", "server/**/*.test.ts", "tests/**/*.test.ts"],
           exclude: ["tests/db/**"],
-          // Hook tests spawn git and bun; 5 s is too tight on a busy machine.
           testTimeout: 30_000,
         },
       },

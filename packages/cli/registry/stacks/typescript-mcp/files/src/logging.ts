@@ -1,3 +1,8 @@
+/**
+ * Creates the server's pino logger with JSON records, level filtering and secret-key
+ * redaction. Its default destination is stderr so logging cannot corrupt the stdio protocol.
+ */
+
 import { type DestinationStream, type Logger, type LoggerOptions, pino } from "pino";
 
 export type { Logger } from "pino";

@@ -1,3 +1,7 @@
+/**
+ * Connects the readiness endpoint to the readiness service. The API builder installs this handler in the server.
+ */
+
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 import { Api } from "../api.ts";

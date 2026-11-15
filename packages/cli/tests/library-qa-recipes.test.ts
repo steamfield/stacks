@@ -110,7 +110,7 @@ test("adding CLI chat supplies a helper accepted by the prescribed base formatte
   expect(formatted.stdout).toBe(source);
 });
 
-test("absent optional hook tests cannot set the first test milestone", async () => {
+test("hook smoke cannot set the first test milestone", async () => {
   const home = space.temp();
   const env = stateEnv(home);
   const { project } = await scaffoldAdapters({
@@ -121,7 +121,8 @@ test("absent optional hook tests cannot set the first test milestone", async () 
     env,
   });
   const before = readManifestAt(project);
-  const result = await runCli(["verify", "--only", "harness-hooks", "--json"], {
+  expect(before.verify.map((step) => step.name)).not.toContain("harness-hooks");
+  const result = await runCli(["verify", "--only", "hooks-smoke", "--json"], {
     home,
     env: { ...quiet, ...env, PATH: process.env.PATH ?? "" },
     host: { cwd: project },
@@ -133,7 +134,7 @@ test("absent optional hook tests cannot set the first test milestone", async () 
     .map((line) => Schema.decodeUnknownSync(VerifyEvent)(JSON.parse(line)));
   expect(events.length).toBeGreaterThanOrEqual(2);
   expect(Schema.decodeUnknownSync(VerifyResult)(JSON.parse(result.stdout)).steps).toContainEqual(
-    expect.objectContaining({ name: "harness-hooks", layer: "check", status: "passed" }),
+    expect.objectContaining({ name: "hooks-smoke", layer: "check", status: "passed" }),
   );
   expect(readRecord(recordPath(home, before.projectId)).firstTestPassAt).toBeNull();
   expect(readManifestAt(project)).toEqual(before);

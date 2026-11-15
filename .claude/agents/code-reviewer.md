@@ -56,12 +56,12 @@ Check every item. Each was a real defect that reached review in this repo.
    abort or signal against work that can finish first, and a whole-registry or matrix test with
    no stated time budget.
 6. Duplicated sources: a change to a file that has a copy elsewhere without saying whether the
-   copy follows. `_lib.ts` and `_shell.ts` in `.claude/hooks/` are byte-identical with the
-   `claude-harness` fragment's copies (`tests/hooks/harness-sync.test.ts`). Every other repo hook
+   copy follows. `_lib.ts` in `.claude/hooks/` is byte-identical with the `claude-harness`
+   fragment's copy (`tests/hooks/harness-sync.test.ts`). Every other repo hook
    is maintained separately from its shipped namesake on purpose (docs/harness.md, "Repo hooks
    and shipped hooks"): the shell hooks, whose shipped counterparts are the `agent-ops`
-   fragment's, and `guard-commands.ts`, `guard-generated.ts` and `typecheck-on-write.ts`, which
-   share names with the `claude-harness` fragment's.
+   fragment's, and `typecheck-on-write.ts`, which shares its name with the `claude-harness`
+   fragment's.
 7. Caches, cursors and incremental passes, in either repository: list yourself, from the code,
    every table, setting and file read by any function whose output a cache, cursor or skipped
    re-check stands in for (follow the calls, such as a classifier a reconcile step calls), without
@@ -73,9 +73,12 @@ Check every item. Each was a real defect that reached review in this repo.
    AGENTS.md's architecture map or command table out of date with the diff.
 9. Safety, on any change to a guard, a hook, its wiring, a trust rule, or a write that could
    replace something. Each of these reached production review here after a clean first review.
-   - Fail closed. If the guard, hook script or config it depends on is missing, unreadable or
-     crashes, the action is refused, not allowed. Read the wiring (`settings.json`,
-     `hooks.json`, adapter configs) as well as the script.
+   - Failure behavior. This repo's own guards (`.claude/hooks/`) fail closed: if the guard, hook
+     script or config it depends on is missing, unreadable or crashes, the action is refused.
+     Shipped guards (`packages/cli/registry/`) deny only destructive or irreversible work and
+     fail open with one stderr note; a shipped guard that fails closed, or skips silently, is a
+     finding. Read the wiring (`settings.json`, `hooks.json`, adapter configs) as well as the
+     script.
    - Evasions of a shipped command guard (`packages/cli/registry/`): for each new or changed
      pattern, check it against these forms by reading the code (and, if you can run commands,
      by running the guard on a sample payload), and list each form with "caught" or "missed":

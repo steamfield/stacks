@@ -97,7 +97,7 @@ No generator.
 The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, check, test, snapshots, build, smoke, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md. No target starts the UI. Checks run with `--locked`, so `Cargo.lock` must match `Cargo.toml`; commit it.
 <!-- stacks:when with=agent-ops -->
 
-**Agent ops.** The stack's Claude settings allow its non-destructive make targets and cargo checks, and `.claude/hooks/guard-tui.sh` denies hand edits to `src/snapshots/`, `Cargo.lock` and `target/`, and running anything under `script`, `unbuffer`, `tmux` or `screen`; `tests/claude_hooks.rs` tests it under `make test`. List the hook in `.claude/README.md`. The `add-screen` skill walks through a new screen.
+Regenerate snapshots with `make snapshots`, update dependencies through Cargo, and rebuild generated output. Exercise the UI through tests, headless flags or a user's terminal. List the anti-hang hook in `.claude/README.md`. The `add-screen` skill walks through a new screen.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 

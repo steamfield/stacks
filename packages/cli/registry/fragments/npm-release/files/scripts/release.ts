@@ -1,4 +1,8 @@
 #!/usr/bin/env bun
+/**
+ * Prepares a package release by updating versioned files and the lockfile. Publishing remains the release workflow’s job.
+ */
+
 // `bun run release <x.y.z>` prepares a release: it rewrites every place the version lives, so a
 // bump can't miss one, and refreshes the lockfile. It never commits, tags or pushes. Pushing the
 // tag `v<x.y.z>` runs .github/workflows/release.yml, which publishes. Write the changelog section

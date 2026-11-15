@@ -16,7 +16,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github]
+  default: [claude-harness-docs, git-hooks, ci-github, code-docs]
   optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
@@ -95,10 +95,10 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Gotchas
 
-- Tutorials and model memory show the v1 SDK (`@modelcontextprotocol/sdk/server/mcp.js`, `server.tool()`, `McpError`). v2 split it into `@modelcontextprotocol/server` and `@modelcontextprotocol/client` and renamed APIs; the guard hook denies installing v1.
+- Tutorials and model memory show the v1 SDK (`@modelcontextprotocol/sdk/server/mcp.js`, `server.tool()`, `McpError`). Use the v2 split packages `@modelcontextprotocol/server` and `@modelcontextprotocol/client`; read their installed declarations for current APIs.
 - `server.connect(new StdioServerTransport())` serves only 2025-era clients. `serveStdio(factory)` serves both eras, which is why `createServer` is a factory.
 - `InMemoryTransport.createLinkedPair()` connects on the 2025 era only; `tests/stdio.test.ts` covers 2026-07-28 with `versionNegotiation: { mode: "auto" }`.
 - One stray stdout write before or during the handshake breaks the session with an error on the host's side, not yours. MCP logging notifications are deprecated in the 2026-07-28 protocol; logs go to stderr.
 - `@modelcontextprotocol/inspector` is large (it carries its web UI) and its CLI flags have changed between releases; read `node_modules/.bin/mcp-inspector --cli --help` before changing `scripts/smoke.ts`. Its `postinstall` is blocked by Bun and isn't needed for the CLI. Call its binary by path, never `bunx mcp-inspector`: without the local install, bunx fetches the unrelated npm package of that name.
-- The server and tests run on Node: never `bun test`, `--bun`, or `bun src/index.ts`. The guard hook denies them. Node runs `src/*.ts` by stripping types, so relative imports keep `.ts` and the code uses only erasable syntax.
+- Run Vitest with `bun run test`, run the server on Node, and omit `--bun`. Node runs `src/*.ts` by stripping types, so relative imports keep `.ts` and the code uses only erasable syntax.
 - A host starts the server with its own working directory, often `/`; give `MCP_ROOT` as an absolute path in host config.

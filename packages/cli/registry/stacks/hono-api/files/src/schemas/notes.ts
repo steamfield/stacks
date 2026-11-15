@@ -1,3 +1,8 @@
+/**
+ * Defines the notes resource's request, response and pagination schemas with OpenAPI names.
+ * Routes validate against these schemas and the store derives its types from them.
+ */
+
 import { z } from "@hono/zod-openapi";
 
 export const Note = z

@@ -1,3 +1,8 @@
+/**
+ * Declares the shared health and payload-check endpoints with request schemas and API errors.
+ * Server handlers and the site's generated client both use this resource group.
+ */
+
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
 import { apiErrors } from "../errors.ts";
 import { CheckParams, CheckPayload, CheckQuery, HealthStatus, NoQuery } from "../schemas/index.ts";

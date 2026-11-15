@@ -1,5 +1,8 @@
-// The HTTP contract, through app.request() on the real app: statuses, envelopes, headers and the
-// request log. Extend the tables for every new endpoint.
+/**
+ * Exercises the real app through app.request to check the public HTTP contract. It covers
+ * health, OpenAPI, notes, error envelopes, response headers and request logging.
+ */
+
 import { describe, expect, it } from "vitest";
 import { ErrorEnvelope, errorTable } from "../src/errors.ts";
 import { Note, NotePage } from "../src/schemas/notes.ts";

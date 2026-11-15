@@ -1,3 +1,8 @@
+/**
+ * Defines shared tagged failures, HTTP status mappings and safe response envelope codecs.
+ * Both the API server and the site's typed client use this error contract.
+ */
+
 import { Schema, SchemaGetter } from "effect";
 import { HttpApiSchema } from "effect/http-api";
 

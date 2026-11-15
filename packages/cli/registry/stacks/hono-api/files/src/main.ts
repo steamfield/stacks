@@ -1,4 +1,8 @@
-// The entry point: the only module that reads process.env or handles signals.
+/**
+ * Starts the API from environment configuration and handles process signals. It connects the
+ * platform-free app to the Node server and coordinates shutdown logging and deadlines.
+ */
+
 import { createApp } from "./app.ts";
 import { ConfigError, loadConfig } from "./config.ts";
 import { createLogger } from "./logging.ts";

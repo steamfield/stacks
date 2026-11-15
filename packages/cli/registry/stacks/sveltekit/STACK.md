@@ -59,7 +59,7 @@ An items page with a server load, zod-validated form action, enhanced form and i
 
 ## Layout
 
-Routes stay in `src/routes/`, shared schemas and components in `src/lib/`, and state or external I/O in `src/lib/server/`. Tests sit beside their code; `tests/` holds shared test helpers and hook tests, and `e2e/` covers the production server.
+Routes stay in `src/routes/`, shared schemas and components in `src/lib/`, and state or external I/O in `src/lib/server/`. Tests sit beside their code; `tests/` holds shared helpers, and `e2e/` covers the production server.
 
 ## Setup
 

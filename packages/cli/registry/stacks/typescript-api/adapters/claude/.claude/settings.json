@@ -38,17 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-api-commands.ts\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-boundaries.ts\"",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -f \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-api-commands.sh\" ]; then bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-api-commands.sh\" || echo \"Note: stack guard could not run; allowing this call.\" >&2; else echo \"Note: stack guard unavailable; allowing this call.\" >&2; fi",
             "timeout": 10
           }
         ]

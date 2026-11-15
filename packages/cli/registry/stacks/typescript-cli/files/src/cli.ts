@@ -1,3 +1,8 @@
+/**
+ * Builds the Effect command tree with the shared JSON flag and doctor subcommand. The
+ * invocation boundary supplies the executable name and handles framework output.
+ */
+
 import { Effect } from "effect";
 import { CliError, Command, Flag } from "effect/cli";
 import { doctorCommand } from "./commands/doctor";

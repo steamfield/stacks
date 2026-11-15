@@ -1,3 +1,8 @@
+/**
+ * Renders real app routes in a memory router with fresh services and a query cache. Component
+ * tests use this helper with MSW to exercise navigation and request states.
+ */
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { createMemoryRouter, type RouteObject, RouterProvider } from "react-router";

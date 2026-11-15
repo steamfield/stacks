@@ -1,3 +1,7 @@
+/**
+ * Exposes database readiness as an HTTP response. The endpoint reports whether Postgres is available.
+ */
+
 import { json } from '@sveltejs/kit';
 import { isReady } from '#lib/server/db/index.ts';
 

@@ -1,3 +1,8 @@
+/**
+ * Runs the HTTP acceptance matrix against both a Node listener and the web handler.
+ * It checks real request decoding, safe failures, response headers and correlated logs.
+ */
+
 import { spawnSync } from "node:child_process";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";

@@ -14,7 +14,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github, rest-api]
+  default: [claude-harness-docs, git-hooks, ci-github, rest-api, code-docs]
   optional: [rr, ce-plugin]
 env:
   PORT_API: "3000"
@@ -100,5 +100,5 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 - The validation hook belongs to each `OpenAPIHono` instance, not to the app a router is mounted on. A router made with `new OpenAPIHono()` answers bad input with Hono's plain-text 400; use `createRouter()`.
 - `c.req.json()` throws on a malformed body and skips the schema; declare the body in `createRoute()` and let the validator parse it.
 - Hono answers a wrong method on a declared path with 404, not 405; the contract tests pin that.
-- Bun runs Hono natively, which tempts a switch of runtime. The server and tests run on Node: never `bun test`, `--bun`, or `bun src/main.ts`. The guard hook denies them.
+- Bun runs Hono natively, which tempts a switch of runtime. Run Vitest with `bun run test`, run the server on Node with the declared scripts, and omit `--bun`.
 - Node runs `src/*.ts` by stripping types, so relative imports keep their `.ts` extension and the code uses only erasable syntax (no enums, no parameter properties).

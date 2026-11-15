@@ -1,3 +1,8 @@
+/**
+ * Renders the items list from its shared API query options. The index route uses this page for
+ * pending, failed, empty and populated results.
+ */
+
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { itemsQuery } from "../../api/items";

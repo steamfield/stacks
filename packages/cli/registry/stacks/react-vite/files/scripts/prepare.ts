@@ -1,6 +1,10 @@
 #!/usr/bin/env bun
-// `prepare`, which bun runs after every `bun install`: the git hooks and the browser the
-// Playwright tests use. CI sets CI and does its own setup, so this does nothing there.
+/**
+ * Prepares local development by installing git hooks and Playwright's Chromium browser when
+ * their tools are present. Dependency installation runs it outside CI and reports setup
+ * failures for manual retry.
+ */
+
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";

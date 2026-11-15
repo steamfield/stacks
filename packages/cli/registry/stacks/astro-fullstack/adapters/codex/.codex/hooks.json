@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && [ -f \"$root/.claude/hooks/guard-api-commands.ts\" ]; then if ! bun \"$root/.claude/hooks/guard-api-commands.ts\"; then echo \"BLOCKED: .claude/hooks/guard-api-commands.ts failed to run, so the command is refused rather than run unguarded.\" >&2; exit 2; fi; else echo \"BLOCKED: .claude/hooks/guard-api-commands.ts not found under this checkout's git root, so the command is refused rather than run unguarded.\" >&2; exit 2; fi",
+            "command": "payload=$(cat); if root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && [ -r \"$root/.claude/hooks/guard-api-commands.sh\" ] && command -v bash >/dev/null 2>&1; then if err=$(mktemp); then trap 'rm -f \"$err\"' EXIT; if decision=$(printf '%s' \"$payload\" | bash \"$root/.claude/hooks/guard-api-commands.sh\" 2>\"$err\"); then cat \"$err\" >&2; [ -z \"$decision\" ] || printf '%s\\n' \"$decision\"; else echo 'guard-api-commands.sh: hook failed; allowing call.' >&2; fi; else echo 'guard-api-commands.sh: cannot capture diagnostics; allowing call.' >&2; fi; else echo 'guard-api-commands.sh: hook unavailable; allowing call.' >&2; fi; exit 0",
             "timeout": 10
           }
         ]

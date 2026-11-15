@@ -1,3 +1,8 @@
+/**
+ * Implements the app's fetch boundary with schema decoding and typed API failures. Resource
+ * query modules use it to receive validated data and pass cancellation through unchanged.
+ */
+
 import type { z } from "zod";
 import type { Logger } from "../logging";
 import { ApiError } from "./errors";

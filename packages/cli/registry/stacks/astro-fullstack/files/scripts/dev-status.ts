@@ -1,3 +1,8 @@
+/**
+ * Reports the checkout's development processes, HTTP readiness and logged problems.
+ * The background command and agent startup hook use this view to diagnose the current session.
+ */
+
 // What this checkout's dev servers are doing: running or not, their ports, whether each answers,
 // and how many warn/error records this run has. `bun run dev:status` prints it, and the
 // SessionStart hook (.claude/hooks/dev-server-status.ts) puts it in an agent's context. Paths

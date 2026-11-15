@@ -15,19 +15,5 @@
       "Bash(make api-check)",
       "Bash(make ci)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-maven.sh\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }

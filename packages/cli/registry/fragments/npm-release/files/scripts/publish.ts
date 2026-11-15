@@ -1,4 +1,8 @@
 #!/usr/bin/env bun
+/**
+ * Packs and publishes the package for the release workflow. Registry integrity checks make publishing safe to rerun.
+ */
+
 // The release workflow's two npm steps, kept out of inline shell so tests can run them:
 //   bun scripts/publish.ts pack <dir>      pack the package into <dir> and record its integrity
 //   bun scripts/publish.ts publish <dir>   publish that tarball; safe to rerun

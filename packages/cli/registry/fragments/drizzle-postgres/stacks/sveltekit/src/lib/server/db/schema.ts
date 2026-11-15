@@ -1,3 +1,7 @@
+/**
+ * Defines the Drizzle items table. Both application queries and the migration tooling read this schema.
+ */
+
 // Drizzle tables. drizzle-kit loads this file under plain Node: no #lib or $app imports and no
 // imports from app code.
 import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';

@@ -1,3 +1,8 @@
+/**
+ * Selects the native transport inside Tauri or the mock transport for browser use.
+ * The frontend entry calls this boundary, which also validates the explicit transport setting.
+ */
+
 import { isTauri } from "@tauri-apps/api/core";
 import { MockTransport } from "./mock-transport";
 import { createNativeTransport } from "./transport/native";

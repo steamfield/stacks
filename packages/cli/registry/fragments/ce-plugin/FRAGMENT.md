@@ -30,12 +30,13 @@ Enable the `ce` Claude Code plugin and connect its skills through project rules.
 | --- | --- | --- |
 | `testing.md` | test files and test directories | `ce:writing-tests`, including flaky tests |
 | `error-handling.md` | source files (TS/JS, Python, Go, Rust) | `ce:handling-errors` |
+| `architecture.md` | source files | `ce:architecting-systems` |
 | `debugging.md` | always | the debugging budget in `AGENTS.md`, the `ce:log-reader` agent |
 | `writing.md` | Markdown and `docs/` | `ce:writer` |
 
 Check the `paths:` globs against the real layout; narrow overly broad matches. Put stack-specific testing rules in `testing.md` under `## Project specifics`, without repeating AGENTS.md. Add other rules only where matching files exist: migrations and SQL to `ce:managing-databases`, UI components to `ce:design`; skip `ce:effect` when the project ships its own Effect skill.
 
-Don't copy skill content into rules or AGENTS.md. List added rules in `.claude/README.md`.
+Each rule points first at `docs/guidance/engineering/` (agent-ops's condensed version of these skills), then at the skill for depth. List added rules in `.claude/README.md`.
 
 ## Gotchas
 

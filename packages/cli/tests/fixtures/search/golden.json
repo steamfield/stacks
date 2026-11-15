@@ -765,6 +765,19 @@
       ]
     },
     {
+      "id": "fragment-code-docs",
+      "pool": "fragment",
+      "split": "tune",
+      "query": "add file introductions and directory navigation notes",
+      "relevant": [
+        {
+          "kind": "fragment",
+          "id": "code-docs",
+          "grade": 2
+        }
+      ]
+    },
+    {
       "id": "fragment-ci-hooks",
       "pool": "fragment",
       "split": "tune",

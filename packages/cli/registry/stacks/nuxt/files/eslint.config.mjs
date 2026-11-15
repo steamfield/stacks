@@ -20,9 +20,4 @@ export default withNuxt(
     // Prettier owns formatting and writes void elements as <input />.
     rules: { "vue/html-self-closing": "off" },
   },
-  {
-    // The harness's hook test helper restores environment variables by key.
-    files: ["tests/helpers/hooks.ts"],
-    rules: { "@typescript-eslint/no-dynamic-delete": "off" },
-  },
 );

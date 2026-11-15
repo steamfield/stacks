@@ -1,5 +1,8 @@
-// The server through a real MCP client over an in-memory transport: what a host sees from
-// tools/list and tools/call, including tool errors and invalid input.
+/**
+ * Tests the server through a real MCP client over an in-memory transport. Tool listing and
+ * calls cover schemas, successful reads, expected failures and invalid requests.
+ */
+
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";

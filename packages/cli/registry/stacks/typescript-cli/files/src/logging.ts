@@ -1,3 +1,8 @@
+/**
+ * Formats safe structured records and buffers Effect logs for each invocation. The invocation
+ * boundary flushes them to stderr and an optional best-effort file sink.
+ */
+
 import { Context, Effect, FileSystem, Layer, Logger, Path, References } from "effect";
 import type { LogSettings } from "./config";
 import { Output } from "./services/output";

@@ -1,3 +1,8 @@
+/**
+ * Checks browser transport selection and rejection of invalid configuration.
+ * These tests exercise the same transport factory used by the frontend entry.
+ */
+
 import { afterEach, expect, test, vi } from "vitest";
 import { appTransport } from "./app-transport";
 

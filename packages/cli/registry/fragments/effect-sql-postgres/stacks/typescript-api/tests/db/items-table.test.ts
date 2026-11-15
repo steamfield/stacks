@@ -1,3 +1,7 @@
+/**
+ * Checks the items migration through the SQL client against an isolated Postgres database.
+ */
+
 // The first migration's table, through the SQL client alone. The service and HTTP tests for
 // items sit beside this file and use the same harness.
 import { Effect, Exit, Redacted } from "effect";

@@ -1,3 +1,8 @@
+/**
+ * Connects the CLI to Bun services, package metadata, process streams and signals. It supplies
+ * the platform and application layers before running the shared invocation boundary.
+ */
+
 import { BunServices } from "@effect/platform-bun";
 import { Effect, Layer, Schema } from "effect";
 import rawMetadata from "../package.json";

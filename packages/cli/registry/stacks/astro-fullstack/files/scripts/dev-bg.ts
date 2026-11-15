@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+/**
+ * Starts, reuses or stops this checkout's development session for noninteractive callers.
+ * It coordinates the foreground wrapper through its PID record and waits for server readiness.
+ */
+
 // `bun run dev:bg` / `bun run dev:stop`: the API and site dev servers for agents and scripts,
 // which can't sit in a foreground terminal.
 //

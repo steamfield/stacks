@@ -1,12 +1,9 @@
 #!/usr/bin/env bun
-// `bun run dev -- <args>`: {{project_slug}} from source, the way a person or agent runs it while working
-// here. Adds what the installed binary doesn't do:
-//   - LOG_LEVEL defaults to info (the binary's default is warn), so each run logs its
-//     command records.
-//   - JSON log lines go to logs/cli.jsonl ({{env_prefix}}_LOG_FILE), appended across runs.
-//   - stderr is copied to logs/cli.log. Both files move to *.prev.* past 5 MB.
-//   - Development data is saved in .dev/data ({{env_prefix}}_DATA_DIR), not your real ~/.local/share/{{project_slug}}.
-// Everything else (stdin, stdout, the exit code, Ctrl+C) passes straight through.
+/**
+ * Runs the CLI from source with checkout-local logs and development data. It rotates log files
+ * and preserves stdin, stdout, terminal behavior and the child exit status.
+ */
+
 import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 

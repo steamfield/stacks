@@ -1,3 +1,8 @@
+/**
+ * Installs DOM matchers and the MSW lifecycle for Vitest's browser-like tests. It cleans
+ * rendered components and resets request handlers after each test.
+ */
+
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";

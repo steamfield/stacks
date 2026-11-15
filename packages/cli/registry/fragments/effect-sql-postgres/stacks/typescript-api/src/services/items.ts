@@ -1,3 +1,7 @@
+/**
+ * Defines the items service and its in-memory implementation. API handlers use this interface independently of the storage layer.
+ */
+
 import { Clock, Context, DateTime, Effect, Layer, Ref } from "effect";
 import { Conflict, type Unavailable } from "../errors.ts";
 import { type Item, ItemId } from "../schemas/items.ts";

@@ -1,3 +1,8 @@
+/**
+ * Renders the application router inside real providers with a controllable mock transport.
+ * Route tests use the returned transport to push ticks and choose failure scenarios.
+ */
+
 import { MockTransport } from "@core/mock-transport";
 import { render } from "@testing-library/react";
 import { RouterProvider } from "react-router";

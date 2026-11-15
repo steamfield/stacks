@@ -18,8 +18,8 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github]
-  optional: [rr, ce-plugin]
+  default: [claude-harness-docs, git-hooks, ci-github, ce-plugin, code-docs]
+  optional: [rr]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
   - { name: lint, layer: lint, run: bun run lint }
@@ -67,7 +67,7 @@ Link `docs/guidance/typescript-library/index.md` from AGENTS.md.
 <!-- stacks:when payload=example -->
 ## Replacing the example
 
-`slugify` is a placeholder payload. `stacks new typescript-library <dir> --payload none` starts with an empty public API instead. When the person asks for a real library, delete `src/slugify.ts`, `src/options.ts`, `src/internal/words.ts` and their tests, and the slugify rows in README.md and `tests/consumer/`. Keep the patterns and rewrite their contents for the new API: `src/errors.ts` (new codes and messages), `src/index.ts`, `tests/public-api.test.ts` (export list and type tests), `tests/boundaries.test.ts` and the `tests/consumer/` project. Keep an options module only if the new API takes options.
+`slugify` is a placeholder payload. `stacks new typescript-library <dir> --payload none` starts with an empty public API instead. When the person asks for a real library, delete `src/slugify.ts`, `src/options.ts`, `src/internal/words.ts` and their tests, and the slugify rows and single-file test command in README.md and the slugify rows in `tests/consumer/`. Keep the patterns and rewrite their contents for the new API: `src/errors.ts` (new codes and messages), `src/index.ts`, `tests/public-api.test.ts` (export list and type tests), `tests/boundaries.test.ts`, the `tests/consumer/` project, `src/README.md` and `src/internal/README.md`. Keep an options module only if the new API takes options.
 <!-- stacks:end -->
 <!-- stacks:when payload=none -->
 ## Adding the API
@@ -83,11 +83,11 @@ Build the first export the person asks for in `src/<feature>.ts` with tests besi
 
 ## Setup
 
-1. Add every declared dependency at its current release with the `bun add -d` command the brief's first section gives; the package has no runtime dependencies. Match `@types/node` to the chosen Node major.
-2. Write the Node LTS to `.node-version` and the Bun version to `packageManager`. `package.json` ships a placeholder `version`; keep a `0.x` version while the API settles.
-3. Fill `description` in `package.json`, and rename the package if the person chose a scoped name (update `tests/consumer/` imports with it).
-4. Run `stacks verify`, which runs the code checks (lint, typecheck, coverage, build, `lint:package`, `test:consumer`). Where an installed release rejects shipped code or config (a moved tsdown option, a renamed attw flag), update it from that release's docs or declarations, keeping every check, lint rule and assertion.
-5. Fill the README's remaining `stacks:fill` markers and AGENTS.md (a single-file test example, the public API rule, the guidance link), then run `stacks verify --all` until green.
+1. Choose the current Node LTS and record it in `.node-version`; record the Bun version in `packageManager`.
+2. Add the declared dev dependencies with the brief's `bun add -d` command, replacing `@types/node` with `@types/node@<chosen-major>`. The package has no runtime dependencies.
+3. Replace or keep the payload. Fill `description` in `package.json` and rename the package if needed, updating `tests/consumer/` imports. Keep its placeholder `0.x` version while the API settles.
+4. Run `stacks verify`. If an installed release rejects shipped code or config, update it from that release's docs or declarations without weakening checks, rules or assertions.
+5. Fill the README's remaining `stacks:fill` markers and AGENTS.md (a single-file test example, the public API rule, the guidance link). Use `bun run gate` while iterating; finish with `stacks verify --all` until green.
 
 ## Conventions
 
@@ -100,7 +100,7 @@ The shipped code keeps these; new code does too. `docs/guidance/typescript-libra
 - Options are an interface of optional `readonly` fields, checked at runtime with frozen defaults; an unknown key is an `invalid_option` error.
 - `src/` imports no `node:*` or `bun`, reads no `process` and never logs. The Grit plugin fails lint on a break.
 - A dependency the build imports goes in `dependencies` (or `peerDependencies`), and so does a `@types/*` package a public type refers to. Adding one is the person's decision.
-- Publishing, `npm version`, tags and dist-tags are the person's steps; the guard hook denies them.
+- Ask the user before publishing, bumping versions, creating release tags or changing dist-tags.
 
 ## Testing
 
@@ -112,7 +112,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/errors.test.ts`. AGENTS.md names `bun run gate` (lint, typecheck, `vitest run`) as the check after each change and `bun run check` (adding coverage thresholds, publint, attw and the consumer install) as the check before calling work done or publishing. `bun pm pack --dry-run` lists what would ship.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/errors.test.ts`. `bun pm pack --dry-run` lists what would ship.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer.
@@ -125,5 +125,5 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 - `attw` reports CommonJS resolution problems for an ESM-only package unless it runs with `--profile esm-only`. It packs with `npm pack`, so Node's `npm` must be on PATH.
 - Packing needs `version`. Without one, `bun pm pack`, publint and attw all fail before checking anything; keep the field.
 - Tests that import `src/` pass while the package is broken; only `test:consumer` sees the tarball.
-- The tests and scripts run on Node: never `bun test` or `--bun`. The guard hook denies them.
+- The tests and scripts run on Node: never `bun test` (Bun's own runner, which finds none of the Vitest setup) or `--bun`.
 - `instanceof LibraryError` fails across two installed copies of the package; `isLibraryError` doesn't.

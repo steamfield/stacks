@@ -98,7 +98,7 @@ Deploy the shipped static `dist/`; no Astro server adapter is needed. Headers an
 <!-- stacks:end -->
 <!-- stacks:when with=claude-harness -->
 
-Include `.claude/hooks/` in Astro checking and retain `tests/hooks/**/*.test.ts` in Vitest. Those hook tests need the Node environment; set a per-file environment directive when adding them.
+Include `.claude/hooks/` in Astro checking. Run project tests with Vitest on Node.
 <!-- stacks:end -->
 
 ## Gotchas

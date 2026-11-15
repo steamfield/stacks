@@ -4,12 +4,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler"
   },
-  "include": [
-    "*.ts",
-    "scripts/**/*.ts",
-    ".claude/hooks/**/*.ts",
-    "tests/hooks/**/*.ts",
-    "tests/helpers/hooks.ts"
-  ],
+  "include": ["*.ts", "scripts/**/*.ts", ".claude/hooks/**/*.ts"],
   "exclude": []
 }

@@ -1,7 +1,7 @@
 # `.claude/`: Claude Code config
 
 ```
-settings.json        shared config: hooks wiring, read-only allow rules, destructive-command deny rules
+settings.json        shared config: hooks wiring, merged allow rules, destructive-command deny rules
 settings.local.json  your machine-only overrides (gitignored, create as needed)
 hooks/               hooks, described below
 ```
@@ -13,24 +13,24 @@ Project instructions live in `AGENTS.md` at the repo root, which every coding ag
 | Hook | Event | What it does |
 | --- | --- | --- |
 | `session-start.sh` | SessionStart | Adds branch, dirty-file count, a warning on `main`, a pointer to `.stacks/BRIEF.md` while `AGENTS.md` is still a skeleton, uninstalled dependencies (a `package.json` without `node_modules/` or a `pyproject.toml` without `.venv/`, at the root or one directory down, with the install command), and compose services that aren't running. At most 15 lines. |
-| `block-destructive.sh` | PreToolUse `Bash` | Denies commands that destroy work or data: `rm` of `/`, `~`, `.`, `..` or a bare `*`, a hard git reset, a forced git clean, `git checkout .`, a forced checkout or switch, `git restore .`, `git branch -D`, dropping the stash, force push (`--force-with-lease` and `--force-if-includes` are allowed), a push that deletes remote branches (`--mirror`, `--delete`, `:<ref>`), `--no-verify`, `chmod 777`, a recursive `chown` of `/` or `~`, `dd` or `mkfs` on a disk, a fork bomb, a download piped into a shell, `sudo`, `DROP TABLE`, `docker compose down -v`, publishing a release, infrastructure teardown (`terraform destroy`, `pulumi destroy`, `kubectl delete`, a recursive `aws s3 rm`). Git, release and infrastructure rules match only the command being run, so a commit message or PR body that mentions one is allowed. The other shell rules match the raw command text, so write docs that name these commands with Edit/Write, not a shell heredoc. |
+| `block-destructive.sh` | PreToolUse `Bash` | Uses `_destructive-patterns.sh` to deny destructive or irreversible work: deleting root, home or the working directory, discarding git changes or history, force pushes and remote branch deletes, dropped tables, disk writes, publishing and cloud deletes, or piping downloads into a shell. A deny asks the agent to consult the user. Inspection failures allow the call with a note. |
 | `detect-secrets.sh` | PreToolUse `Edit\|Write` | Denies any write to `.env`, `.env.*` or `.envrc` other than `.env.example` (or `.sample`, `.template`), and writes containing credential-shaped strings (cloud and SaaS keys, private keys, tokens, connection strings with passwords). The reason names the kind of secret, never the matched text. |
 | `lint-on-write.sh` | PostToolUse `Edit\|Write` | Runs the project's linter on the file just written (ruff, biome or eslint, golangci-lint or gofmt, shellcheck) and hands diagnostics back to the agent, one line each. Formatting isn't reported, since `format-changed.sh` fixes it. Rust and Java files get no per-write lint, since clippy checks a whole crate and Maven starts a JVM; run the project's lint target. Also records the path for `format-changed.sh`. |
 | `format-changed.sh` | Stop | Formats the files this session wrote with the formatters the project has configured (ruff, biome or prettier, gofmt, rustfmt with the edition from the nearest `Cargo.toml`, and Spotless through `./mvnw` for Java), then forgets them. Ruff's safe fixes run too, except removing unused imports (one written this turn may be used next turn). `lint-on-write.sh` records each path written through Edit/Write in a per-session list under `$TMPDIR/stacks-hooks/`, keyed by the session id. Files you or other agents in the same checkout are editing aren't touched; no session id means nothing is formatted. |
 | `_destructive-patterns.sh` | (sourced) | The pattern list behind `block-destructive.sh`. Reuse it from any hook that approves or rewrites Bash commands. |
-| `smoke.sh` | (not wired) | The `hooks-smoke` verify step: feeds each guard a deny and a near miss, and checks every hook config present parses and wires its guard. Add a case here when you add a guard. |
+| `smoke.sh` | (not wired) | The project's only hook test, run by `hooks-smoke`: a deny and a near miss per guard, plus config parsing and wiring. Add a case here when you add a guard. |
 | `_lib.sh` | (sourced) | Shared helpers: the payload reader, the deny and context responses, project root, `find_up`, a portable `with_timeout`, the per-session file list. |
 | <!-- stacks:fill One row per other file in hooks/ (harness, stack, and app hooks such as TypeScript guards): name, event and matcher from settings.json, what it does. Delete this row if there are none. --> | | |
 
 How they behave:
 
-- **A block means ask the user.** A guard's deny tells the agent why; the agent asks you instead of rephrasing the command, splitting it up, or writing the file another way. Never work around a deny.
-- **Accidents, not adversaries.** The shell guards match regexes against the command or file text, not a shell parse. Quoting, `eval`, aliases and scripts that run a command indirectly get past them, and so does a machine without `grep`, `sed` or `awk`.
-- **Quiet when there's nothing to do.** A hook whose tool isn't installed exits 0 with no output. The hooks read their input with jq when it's on PATH and with a small awk reader otherwise, so they decide the same way on a machine without jq.
-- **Guards deny; everything else advises.** Only guards block anything: `block-destructive.sh`, `detect-secrets.sh`, and any guard listed above. Lint results arrive as context and never block a write.
-- **Nothing is downloaded.** Linters and formatters run only from the project's own install (`.venv`, `node_modules/.bin`) or from PATH. The hooks never call `npx`, `bunx`, or `uv run`, which could fetch packages or sync environments mid-session.
-- **Timeouts everywhere.** Each external call runs under a timeout, so a stuck linter or Docker daemon can't stall the session.
-- Scripts are invoked as `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/<name>.sh"`, so they don't need the executable bit, and they target bash 3.2 (the macOS default) under `set -euo pipefail`.
+- A block means ask the user. Never rephrase a command, split it up or write a file another way to work around a deny.
+- Guards deny destructive or irreversible work, secrets and session hangs. Keep runner choices, generated-file ownership and import boundaries in guidance and lint.
+- Guards prevent accidents, not deliberate bypasses. They fail open if inspection is unavailable. The command guard reports this with a note; the secret guard can skip inspection silently.
+- Lint and type feedback arrives as context after a write. Missing tools and advisory timeouts never block work. The TypeScript harness adds typecheck-on-write; list it in the hook table when installed.
+- Linters and formatters run from the project's install or PATH. Hooks never download packages to run a check.
+- External calls have timeouts so a stuck linter or Docker daemon cannot stall the session.
+- Shell scripts run as `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/<name>.sh"`, so they need no executable bit. They target Bash 3.2 under `set -euo pipefail`.
 
 To try a hook by hand, pipe it a payload:
 
@@ -45,14 +45,14 @@ echo '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' | bash .
 ### Changing them
 
 - Add a shell destructive pattern to `_destructive-patterns.sh`, not to `block-destructive.sh`.
-- Project-specific checks (generated files that must not be hand-edited, a missing symlink at session start) go in the relevant hook or a new one wired in `settings.json`. A hook that fires on every tool call should cost milliseconds.
-- If the project has hook tests, add a case for each new pattern: one command that must be denied and one near miss that must pass.
+- Keep convention checks in guidance and lint. Hooks may deny only destructive work or session hangs; other project checks advise.
+- Add a case to `.claude/hooks/smoke.sh` for each new guard: one deny and one near miss that must pass. Run `bash .claude/hooks/smoke.sh` after changes.
 
 ## Settings
 
 `settings.json` is shared and committed. Some keys (permission allow rules, plugin marketplaces) only take effect after each person trusts the folder in Claude Code; deny rules apply right away. Put anything personal (extra permissions, env, personal MCP servers) in `settings.local.json`.
 
-`permissions.allow` starts with read-only git only (`status`, `diff`, `log`, `show`, `branch --show-current`). Add the project's own non-destructive commands (lint, test, typecheck) as they settle; leave deploy, publish, and anything destructive to prompt.
+`permissions.allow` contains read-only git rules (`status`, `diff`, `log`, `show`, `branch --show-current`) plus rules merged from the stack and fragments. See `.claude/settings.json` for the actual permissions. Add the project's own non-destructive commands (lint, test, typecheck) as they settle; leave deploy, publish, and anything destructive to prompt.
 
 `permissions.deny` repeats the worst destructive shapes (`rm -rf /`, `rm -rf ~`, `rm -rf .`, force push, `git reset --hard`, `--no-verify` on commit and push) so they stay blocked with hooks turned off. They are exact rules on purpose: a wildcard such as `Bash(rm -rf /*)` would match every `rm -rf /some/abs/path`, and a deny rule can't be overridden by an allow rule. It also denies reading `.env`, `.env.local`, `.env.*.local`, `.env.production` and `.envrc`, at the root and in any subdirectory (`.env.example` stays readable), and editing `.stacks/manifest.json`: the manifest records the verify steps the project was generated with, and `stacks verify` fails a changed step, so the agent changes it only by asking you.
 

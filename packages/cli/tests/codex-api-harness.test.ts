@@ -1,8 +1,14 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, symlinkSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { adapterWorkspace, guardCommands, scaffoldAdapters } from "./helpers/native-adapters";
+import {
+  adapterWorkspace,
+  guardCommands,
+  runGuard,
+  scaffoldAdapters,
+} from "./helpers/native-adapters";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -19,9 +25,10 @@ test.each(cases)(
       stack,
       agents: selection === "codex" ? ["codex"] : ["claude", "codex"],
     });
+    expect(existsSync(join(result.project, "tests/hooks"))).toBe(false);
     const commands = guardCommands(result.project, "codex", "Bash");
     expect(commands).toHaveLength(2);
-    for (const file of ["block-destructive.sh", "guard-api-commands.ts"]) {
+    for (const file of ["block-destructive.sh", "guard-api-commands.sh"]) {
       expect(commands.filter((command) => command.includes(`/.claude/hooks/${file}`))).toHaveLength(
         1,
       );
@@ -34,8 +41,9 @@ test.each(cases)(
         expect(existsSync(join(result.project, path ?? "")), command).toBe(true);
       }
     }
-    for (const file of ["_lib.ts", "_shell.ts", "_lib.sh", "_destructive-patterns.sh"])
+    for (const file of ["_lib.ts", "_lib.sh", "_destructive-patterns.sh"])
       expect(existsSync(join(result.project, ".claude/hooks", file)), file).toBe(true);
+    expect(existsSync(join(result.project, ".claude/hooks/_shell.ts"))).toBe(false);
 
     const agents = readFileSync(join(result.project, "AGENTS.md"), "utf8");
     expect(agents).toContain("## Agent harness");
@@ -44,35 +52,73 @@ test.each(cases)(
     expect(agents).toContain("reads the rules covering the files it changes");
     expect(agents).toContain("../.claude/skills");
 
-    // Run the project's own tests without installing or building the application.
-    symlinkSync(
-      join(import.meta.dirname, "../node_modules"),
-      join(result.project, "node_modules"),
-      "dir",
+    const guard = commands.find((command) => command.includes("guard-api-commands.sh"));
+    expect(guard).toBeDefined();
+    if (guard === undefined) throw new Error("Missing API guard");
+    const recorded = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
+      JSON.parse(
+        readFileSync(
+          join(import.meta.dirname, "fixtures/native-adapters/codex-pretooluse.json"),
+          "utf8",
+        ),
+      ),
     );
-    const run = spawnSync(
-      process.execPath,
-      [
-        join(import.meta.dirname, "../node_modules/vitest/vitest.mjs"),
-        "run",
-        "--config",
-        join(import.meta.dirname, "fixtures/native-adapters/vitest-hooks.config.ts"),
-        "tests/hooks/codex-wiring.test.ts",
-        "--maxWorkers",
-        "1",
-      ],
-      {
-        cwd: result.project,
-        env: { HOME: result.project, PATH: process.env.PATH ?? "" },
-        encoding: "utf8",
-        timeout: 20_000,
-      },
-    );
-    expect(run.error).toBeUndefined();
-    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+    const run = runGuard({
+      project: result.project,
+      command: guard,
+      agent: "codex",
+      payload: { ...recorded, cwd: result.project, tool_input: { command: "bun run dev" } },
+    });
+    expect(run.status).toBe(0);
     expect(run.stderr).toBe("");
-    expect(run.stdout).toContain("4 passed");
+    const deny = Schema.decodeUnknownSync(
+      Schema.Struct({
+        hookSpecificOutput: Schema.Struct({
+          hookEventName: Schema.Literal("PreToolUse"),
+          permissionDecision: Schema.Literal("deny"),
+          permissionDecisionReason: Schema.String,
+        }),
+      }),
+    )(JSON.parse(run.stdout));
+    expect(deny.hookSpecificOutput.permissionDecisionReason).toContain("bun run dev:bg");
   },
-  // Real scaffolding and a nested Vitest run of the shipped hooks, with no application install.
+  // Real scaffolding and the wired guard, with no application install.
+  30_000,
+);
+
+test.each(["astro-fullstack", "typescript-api"])(
+  "%s Codex wrapper fails open",
+  async (stack) => {
+    const result = await scaffoldAdapters({ home: space.temp(), stack, agents: ["codex"] });
+    const command = guardCommands(result.project, "codex", "Bash").find((item) =>
+      item.includes("guard-api-commands.sh"),
+    );
+    if (command === undefined) throw new Error("Missing API guard");
+    const malformed = spawnSync("/bin/sh", ["-c", command], {
+      cwd: result.project,
+      input: "{broken",
+      encoding: "utf8",
+      env: { PATH: process.env.PATH },
+    });
+    expect(malformed.status).toBe(0);
+    expect(malformed.stdout).toBe("");
+    expect(malformed.stderr.trim().split("\n")).toHaveLength(1);
+    expect(malformed.stderr).toContain("allowing");
+    const script = join(result.project, ".claude/hooks/guard-api-commands.sh");
+    for (const failure of ["missing", "failing"]) {
+      if (failure === "missing") rmSync(script);
+      else writeFileSync(script, "#!/usr/bin/env bash\nexit 7\n");
+      const run = runGuard({
+        project: result.project,
+        command,
+        agent: "codex",
+        payload: { tool_name: "Bash", tool_input: { command: "bun run dev" } },
+      });
+      expect(run.status).toBe(0);
+      expect(run.stdout).toBe("");
+      expect(run.stderr.trim().split("\n")).toHaveLength(1);
+      expect(run.stderr).toContain("allowing");
+    }
+  },
   30_000,
 );

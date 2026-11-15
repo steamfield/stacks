@@ -30,8 +30,6 @@
     "node_modules",
     ".claude/worktrees",
     ".claude/hooks",
-    "scripts",
-    "tests/hooks",
-    "tests/helpers/hooks.ts"
+    "scripts"
   ]
 }

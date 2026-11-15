@@ -20,19 +20,5 @@
       "Bash(uv run python manage.py sqlmigrate *)",
       "Bash(uv run python manage.py check *)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-django-api.sh\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }

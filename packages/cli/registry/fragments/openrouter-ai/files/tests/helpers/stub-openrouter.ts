@@ -1,3 +1,7 @@
+/**
+ * Provides a local OpenRouter-compatible server for tests and development. It records requests and supports scripted responses.
+ */
+
 // A local OpenRouter for tests and no-key development runs. It serves the models and
 // chat-completions endpoints under /api/v1 in OpenRouter's wire format (docs: openrouter.ai/docs),
 // records what it received, and can be scripted per test. It uses only node:http, so it runs under

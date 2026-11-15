@@ -1,3 +1,8 @@
+/**
+ * Creates fresh apps with isolated notes stores and captured logger records for integration
+ * tests. It also builds JSON request options shared by the HTTP and socket checks.
+ */
+
 import { createApp } from "../../src/app.ts";
 import { createLogger } from "../../src/logging.ts";
 import { createMemoryNotes, type NotesStore } from "../../src/services/notes.ts";

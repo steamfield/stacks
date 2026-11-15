@@ -10,6 +10,5 @@ Unit tests next to errors.ts and logging.ts cover pure contracts. tests/config-l
 
 e2e/binary.test.ts starts the compiled artifact with a clean env and real temp files. Keep file-only logging, env overrides, version, compiled doctor, usage errors and disabled dotenv/bunfig autoload covered. Never mock application services. Owned local servers may stand in for third parties.
 
-Selected Claude hooks have tests under tests/hooks, run by the same Node runner. Add deny and near-miss cases for new guard patterns. Their shipped helpers own temp projects and execute the actual wired hooks.
 
 When the Effect testing fragment is selected, use fresh real layers with @effect/vitest. Test time-based programs under TestClock, not through runCli's live clock. Never sleep to await an outcome. A filter matching no tests is not a pass; read runner counts.

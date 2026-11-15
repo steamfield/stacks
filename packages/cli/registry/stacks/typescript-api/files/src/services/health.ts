@@ -1,3 +1,8 @@
+/**
+ * Provides the health operations used by the HTTP handlers.
+ * This platform-free service is the proving slice's domain boundary.
+ */
+
 import { Context, Effect, Layer } from "effect";
 import type { CheckPayload, HealthStatus } from "../schemas/index.ts";
 

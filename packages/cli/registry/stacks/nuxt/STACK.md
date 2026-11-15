@@ -69,7 +69,7 @@ Nuxt moved app code under `app/` in its current major, and model memory often wr
 - `app/`: `app.vue`, `layouts/`, `pages/`, `components/`, `error.vue` and `assets/`. Composables go in `app/composables/`, auto-imported.
 - `server/api/`: one file per route and method; `server/utils/` (auto-imported into server code): state, config, logging; `server/plugins/`: Nitro lifecycle hooks.
 - `shared/`: code both sides import as `#shared/...`; it imports neither `app/` nor `server/`.
-- Tests beside the code (`*.test.ts`); `e2e/` for Playwright; `tests/` for harness hook tests and helpers.
+- Tests beside the code (`*.test.ts`); `e2e/` for Playwright; `tests/` for shared helpers.
 - `scripts/prepare.ts`: runs `nuxt prepare`, then git hooks and Chromium outside CI.
 
 ## Setup
@@ -94,7 +94,7 @@ Nuxt moved app code under `app/` in its current major, and model memory often wr
 
 `nuxt.config.ts` registers the `@nuxt/eslint` module, which writes `.nuxt/eslint.config.mjs` on prepare; `eslint.config.mjs` imports it as `#nuxt-eslint` (the `imports` map in `package.json`; keep that name) and extends it with ignores and turns off only `vue/html-self-closing`, which conflicts with Prettier. `lint` runs ESLint with zero warnings, then the Prettier check.
 
-`tsconfig.json` references Nuxt's generated app, server, shared and node configs plus `tsconfig.tools.json` (configs, scripts, e2e, hook tests and hooks). Keep all five references; `typecheck` is `nuxt typecheck`, which runs `vue-tsc -b` over them. Strict mode and unchecked index access come from Nuxt's generated configs.
+`tsconfig.json` references Nuxt's generated app, server, shared and node configs plus `tsconfig.tools.json` (configs, scripts, e2e and hooks). Keep all five references; `typecheck` is `nuxt typecheck`, which runs `vue-tsc -b` over them. Strict mode and unchecked index access come from Nuxt's generated configs.
 
 `vitest.config.ts` has two projects: `unit` (Node) for `shared/`, `server/` and `tests/`, with the `#shared` alias, and `nuxt` (`defineVitestProject`, happy-dom) for `app/`. Keep `tests/db/` out of `unit`. Playwright uses Chromium, one worker, CI forbidOnly, failure traces and a fresh built server on `PORT_E2E` (default 3100); the separate `web` probe uses `PORT_WEB` (default 3000).
 

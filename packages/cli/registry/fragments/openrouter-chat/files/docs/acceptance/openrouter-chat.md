@@ -1,7 +1,7 @@
 # Web chat acceptance
 
 Implement `tests/app-acceptance.test.ts`. Verify runs it, the browser flow and the
-stub-only eval dry run independently of hook tests. Use real programs, services,
+stub-only eval dry run as separate steps. Use real programs, services,
 route boundaries and local provider stubs; keep credentials blank before imports.
 
 ## Scripts and reports

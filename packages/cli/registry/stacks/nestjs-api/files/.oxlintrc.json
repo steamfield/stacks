@@ -15,7 +15,7 @@
   },
   "overrides": [
     {
-      "files": ["scripts/**", ".claude/hooks/**", "tests/hooks/**"],
+      "files": ["scripts/**", ".claude/hooks/**"],
       "rules": { "no-console": "off" }
     },
     {

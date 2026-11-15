@@ -1,3 +1,9 @@
+/**
+ * Runs one CLI invocation and coordinates framework output, application errors and command
+ * logging. It flushes buffered results on success and renders failures through the shared
+ * output service.
+ */
+
 import { Cause, Clock, Console, Effect, Exit, Logger, Random, References, Schema } from "effect";
 import { CliConfig, CliError, CliOutput, Command, GlobalFlag } from "effect/cli";
 import { cli } from "./cli";

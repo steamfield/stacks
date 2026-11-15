@@ -1,3 +1,8 @@
+/**
+ * Exercises the main window with a real provider tree and the mock transport.
+ * These UI tests cover visible failures, pushed ticks, reconnection, cleanup and independent subscriber renders.
+ */
+
 import { MockTransport } from "@core/mock-transport";
 import { act, render, screen } from "@testing-library/react";
 import { Profiler } from "react";

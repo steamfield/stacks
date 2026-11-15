@@ -1,3 +1,7 @@
+/**
+ * Tests the site’s analytics integration and layout wiring. The browser-like test environment exercises tracking without a live PostHog service.
+ */
+
 // @vitest-environment happy-dom
 import type { PostHog } from "posthog-js";
 import { afterEach, describe, expect, it, vi } from "vitest";

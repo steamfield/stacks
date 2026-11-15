@@ -1,3 +1,8 @@
+/**
+ * Creates OpenAPI routers with the API's shared validation hook. Route modules use this
+ * factory so rejected inputs reach the same error envelope as other failures.
+ */
+
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { BadRequestError, type Issue } from "./errors.ts";

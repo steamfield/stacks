@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "typescript-mcp",
   "source": {
-    "digest": "sha256:2c413c73d30439a60f16d23e4159a56db0e412b298f3c146c7883ee6d57facd9",
+    "digest": "sha256:de396b8f7aaa9d02545c925bb1abb98a66cbd0ad46fafcb7eb8034e873b36f56",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "A TypeScript MCP server that gives AI assistants such as Claude your own tools, run as a local stdio process.",
   "description": "Start a Model Context Protocol server in TypeScript on the official SDK. The starter has one tool that reads text files under a configured folder, with input and output schemas, a description written for the model, and errors the model can act on. The server runs over stdio, so Claude Code, Claude Desktop, Cursor and other hosts start it as a local process, and its logs go to stderr so they never corrupt the protocol. Tests drive it through a real MCP client in memory and over stdio, and MCP Inspector lists the built server's tools. Replace the sample tool with your own; remote hosting over HTTP is a later decision.",

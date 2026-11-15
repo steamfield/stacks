@@ -1,3 +1,8 @@
+/**
+ * Exercises slug conversion and the throwing and result-returning error paths.
+ * These unit tests cover the example feature through its public functions.
+ */
+
 import { describe, expect, test } from "vitest";
 import { LibraryError } from "./errors.ts";
 import { safeSlugify, slugify } from "./slugify.ts";

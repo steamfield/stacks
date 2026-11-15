@@ -70,7 +70,7 @@ Next changes routing, caching and config conventions between majors. Look things
 - `src/components/add-item-form.tsx`: client form with action state, field errors and pending feedback.
 - `src/lib/item-schema.ts`: shared input parser and serializable action state.
 - `src/lib/server/`: config, items service and structured logging; each imports `server-only`.
-- Colocated `*.test.ts(x)`: unit and component tests. `tests/helpers/`: Vitest setup. The harness adds `tests/hooks/`.
+- Colocated `*.test.ts(x)`: unit and component tests. `tests/helpers/`: Vitest setup.
 - `e2e/items.spec.ts`: real production-server page, action, health and 404 tests.
 - `scripts/prepare.ts`: git hooks and Chromium installation outside CI.
 

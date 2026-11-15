@@ -31,16 +31,18 @@
  * await a bench run.
  * The 0.10.0 version in the brief changed all six again on 2026-11-15.
  * The 0.11.0 version in the brief changed all six again on 2026-11-15.
+ * All six changed again that day when agent-ops stated the destructive-only hook policy and
+ * pointed agents at the shipped engineering guidance; they await a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:0c2c5bd54358a290c3ee6f1da82119c66a9153c3b22e70ab22f378f9d396661b",
-  "astro-blog:sandbox": "sha256:dc4a8800a443548cf0ad0bbd1d728bba073c0888e859146f26a8a07ccb8d1974",
-  "go-cli:default": "sha256:46424f1a73de5e3c1ada187c463da5860852ef7f8979850fc0722282382c0aa7",
-  "go-cli:sandbox": "sha256:97319cf1aa7677ea3336384edcb1dbed0ce59d903aee0ae3b5f6cf7ec339e98a",
-  "python-react:default": "sha256:81df7d631634e57f89324ef3b2743dc69ffb1587a5105927e23b91f3892da113",
-  "python-react:sandbox": "sha256:a8fb373f0fda46b14b2fed4706f12a195983e70c873f45998606e68bf37f6dca",
+  "astro-blog:default": "sha256:a858ee138b268d4e8247dd4c44dc637b2530b6f2307a2a786b72018db371b78c",
+  "astro-blog:sandbox": "sha256:e7eb4514010fdb7aa9fd7c3099c1a433c425a24d9964ec9478a878dc42368110",
+  "go-cli:default": "sha256:fc863634c8fb6454f8457fad1507d85d88dfcdaad71daa5ad7e898ed725c1383",
+  "go-cli:sandbox": "sha256:209d505303d3c8213577b452c80e9e51e291f8ff26cc2496a9f6de5d75c7f96c",
+  "python-react:default": "sha256:e8f5b421dd1985be5fb32509a5efa246c882306f7a7c4e5d2708d10c8f377ec8",
+  "python-react:sandbox": "sha256:8f467c38c83cd4e198d475b65da13aae392b8065879a2854e8fb84743f598fa9",
 };

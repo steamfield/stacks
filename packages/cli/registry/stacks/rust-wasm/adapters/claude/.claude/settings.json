@@ -22,19 +22,5 @@
       "Bash(wasm-pack build *)",
       "Bash(wasm-pack test *)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash|Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-rust-wasm.sh\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }

@@ -15,7 +15,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github, effect]
+  default: [claude-harness-docs, git-hooks, ci-github, effect, code-docs]
   optional: [rr, ce-plugin, bun-release, openrouter-ai, openrouter-chat-cli]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
@@ -65,7 +65,7 @@ Read `docs/guidance/typescript-cli/index.md` before changing the corresponding c
 - Extend `errors.ts` with a tagged class and an exhaustive error-table row. Preserve stable exit codes and safe messages; defects remain generic failures. Add upstream/retry policies only with an upstream integration.
 - Output buffers stdout until success. Results, help and version belong there; failures leave it empty and render once on stderr. `--json` returns one JSON value, with a final stderr error envelope on failure. JSON logs on stderr precede that envelope. EPIPE exits quietly.
 - Use Effect logging with scalar annotations. `logging.ts` owns UTC JSON records, reserved names, secret-key redaction, and the best-effort file sink. Never log argument values, payloads, credentials or raw third-party errors.
-- Keep core code platform-free. Both the shipped Grit plugin and Claude's guards enforce Bun, environment, schema and stdout boundaries. Keep those rules when adapting tool configs.
+- Keep core code platform-free. Keep the shipped Grit rules for Bun, environment, schema and stdout boundaries when adapting tool configs.
 
 ## Testing and commands
 

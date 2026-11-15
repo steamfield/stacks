@@ -1,3 +1,8 @@
+/**
+ * Checks conversion of application, Hono and unexpected errors into the shared API error
+ * policy. Envelope assertions keep optional validation issues and safe messages consistent.
+ */
+
 import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
 import { AppError, BadRequestError, envelope, NotFoundError, toAppError } from "./errors.ts";

@@ -29,7 +29,7 @@ Read `docs/guidance/effect/index.md` before writing Effect code. The stack owns 
 
 1. Add `@effect/vitest` as a dev dependency at the same version as `effect`.
 <!-- stacks:when stack=astro-fullstack -->
-   Add it to `apps/api`, and move `tests/effect-testkit.test.ts` to `apps/api/tests/`: the root `tests/` directory belongs to the `hooks` Vitest project.
+   Add it to `apps/api`, and move `tests/effect-testkit.test.ts` to `apps/api/tests/`: tooling tests belong in `scripts/`.
 <!-- stacks:end -->
 2. Run `bun run test effect-testkit`. The shipped test is the pattern for Effect tests (TestClock, `Layer.fresh`, typed failures, defects, a fresh `ConfigProvider`). If a release renames a name it uses, fix the test against the installed declarations without dropping a case.
 3. Once the project typechecks, write `docs/guidance/effect/api.md` as `docs/guidance/effect/effect.md` describes, and link it from `docs/guidance/effect/index.md`. Its first line is exactly `Verified against effect <version>`, the installed version. Every agent's Effect rule or skill links that index, so write no per-agent copy.

@@ -1,3 +1,9 @@
+/**
+ * Provides lazy application settings and logging configuration from environment and optional
+ * JSON configuration. Each invocation resolves its paths and caches file reads without
+ * requiring valid application settings for diagnostics.
+ */
+
 import { Config, ConfigProvider, Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { InvalidConfig, PermissionDenied } from "./errors";
 import { Host } from "./services/host";

@@ -1,5 +1,8 @@
-// Probes biome-plugins/boundaries.grit on real files: each rule must fire where it should and stay
-// quiet in the one place the thing is allowed.
+/**
+ * Probes the Biome boundary plugin with temporary source files. Rejected and permitted cases
+ * check the API's Node, process, console and schema-import boundaries.
+ */
+
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

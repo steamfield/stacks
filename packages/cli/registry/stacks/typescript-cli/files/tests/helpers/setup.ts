@@ -1,3 +1,9 @@
+/**
+ * Isolates both test runners from inherited secrets and application environment settings
+ * before modules load. It redirects configuration and data paths to a temporary home removed
+ * on process exit.
+ */
+
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

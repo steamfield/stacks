@@ -1,5 +1,7 @@
 # Public API, errors and packaging
 
+Read [architecture](../engineering/architecture.md) for module boundaries, [code style](../engineering/code-style.md) for file headers and folder READMEs, and [error handling](../engineering/errors.md) for propagation and recovery. The rules below describe this library's TypeScript contracts and packaging.
+
 ## The public API
 
 - `src/index.ts` is the only entry point. `package.json`'s `exports` maps `.` to its build (`dist/index.js` and `dist/index.d.ts`) and `./package.json` to itself; nothing else is importable.
@@ -46,13 +48,13 @@ While the version is `0.x`, a breaking change bumps the minor. Write what change
     }
   }
   ```
-- Wrap a lower-level failure with `cause` rather than rethrowing it, so callers still get a code.
+- Translate a lower-level failure into `LibraryError` with `cause` in `LibraryErrorOptions`, so callers still get a code and the original failure. A caught value is `unknown`: narrow it with `isLibraryError` before reading `code` or `field`; never cast it to hide a different failure.
 - `isLibraryError` checks name and code, so it works across two installed copies of the package; `instanceof` doesn't.
-- A function that can fail on caller input gets a `safe*` form returning `Result<T>` only when callers need it; it returns `LibraryError` and lets anything else (a bug) throw.
+- A function that can fail on caller input gets a `safe*` form returning `Result<T>` only when callers need it; it returns `LibraryError` and lets anything else (a bug) throw. Callers narrow the discriminated union before reading its value or error; never convert every caught exception into a Result failure.
 
 ## Options and defaults
 
-`resolveOptions` in `src/options.ts` is the pattern: one interface of optional fields, one frozen `defaultOptions`, and a runtime check of every field, because JavaScript callers get no type checking. An unknown key is an `invalid_option` error naming the key, so a typo never passes silently.
+For an API with options, use an interface of optional fields, frozen defaults, and a runtime check of every field, because JavaScript callers get no type checking. An unknown key is an `invalid_option` error naming the key, so a typo never passes silently.
 
 ## Runtime and side effects
 

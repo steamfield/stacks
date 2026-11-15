@@ -19,7 +19,7 @@ decisions:
 merge: [.claude/settings.json, .codex/hooks.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github, effect, rest-api]
+  default: [claude-harness-docs, git-hooks, ci-github, effect, rest-api, code-docs]
   optional: [rr, ce-plugin, effect-sql-postgres, effect-otlp, docker-deploy, posthog]
 env:
   PORT_API: "3000"
@@ -78,7 +78,7 @@ Read `docs/guidance/astro-fullstack/index.md` before implementation; it supplies
 - `apps/api/src/` holds `app.ts`, `config.ts`, `logging.ts`, `handlers/`, `services/` and the only runtime entry, `platform/node.ts`.
 - `apps/api/tests/http-contract.test.ts` runs the HTTP acceptance matrix on Node and web transports. Configuration, error and logging unit tests sit beside their source; platform tests and HTTP helpers stay in `tests/`.
 - `apps/web/src/` holds `layouts/BaseLayout.astro`, `pages/index.astro`, `pages/404.astro`, `islands/ApiStatus.tsx` with its test, `lib/api.ts` and Tailwind styles.
-- Root package scripts, TypeScript and Vitest projects configure the workspace; `biome.json` loads `biome-plugins/boundaries.grit`. `scripts/` owns development servers and logs; `tests/hooks/` checks the scripts and agent hooks.
+- Root package scripts, TypeScript and Vitest projects configure the workspace; `biome.json` loads `biome-plugins/boundaries.grit`. `scripts/` owns development servers, logs and their tooling tests.
 
 Workspaces use fixed internal names `@app/contract`, `@app/api` and `@app/web`. Application imports cross only the contract's public `packages/contract/index.ts`, using relative paths so Node can load source without workspace transpilation. The site never imports the API.
 
@@ -102,7 +102,7 @@ Read `docs/api-foundation.md` for lint, testing and development requirements.
 
 ## Testing
 
-`vitest.config.ts` names `api`, `web` and `hooks` projects. The HTTP suite implements `docs/acceptance/astro-fullstack.md`: real Node listeners and the web handler, fresh layers, safe error bodies and logs, request ids, payload limits and static files. Extend it with new endpoints. The island's Testing Library tests replace only fetch and return contract-encoded bodies; never mock the client or contract. `bun run build` integrates every Astro route and bundles the Node entry. Keep the coverage floors in `docs/api-foundation.md`. Follow `docs/guidance/astro-fullstack/testing.md`.
+`vitest.config.ts` names `api`, `web` and `tooling` projects. The HTTP suite implements `docs/acceptance/astro-fullstack.md`: real Node listeners and the web handler, fresh layers, safe error bodies and logs, request ids, payload limits and static files. Extend it with new endpoints. The island's Testing Library tests replace only fetch and return contract-encoded bodies; never mock the client or contract. `bun run build` integrates every Astro route and bundles the Node entry. Keep the coverage floors in `docs/api-foundation.md`. Follow `docs/guidance/astro-fullstack/testing.md`.
 
 <!-- stacks:when with=ci-github -->
 CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and the build. No credentials are needed.

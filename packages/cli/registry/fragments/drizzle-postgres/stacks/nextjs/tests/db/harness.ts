@@ -1,3 +1,7 @@
+/**
+ * Provides each database test file with an isolated clone of the migrated template and cleans it up after the tests.
+ */
+
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, inject } from "vitest";

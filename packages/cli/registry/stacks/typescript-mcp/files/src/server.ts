@@ -1,5 +1,8 @@
-// Builds the MCP server and registers every tool. No transport here: src/index.ts serves it over
-// stdio, and the tests connect an in-memory client to it.
+/**
+ * Builds a fresh MCP server and registers its tools for each connection. The stdio entry and
+ * in-memory tests supply the transport separately.
+ */
+
 import { McpServer } from "@modelcontextprotocol/server";
 import type { ToolDeps } from "./tools/deps.ts";
 import { registerReadFile } from "./tools/read-file.ts";

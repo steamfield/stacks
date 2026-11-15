@@ -1,3 +1,9 @@
+/**
+ * Checks how the shared tool runner formats successful results, expected tool errors and
+ * unexpected failures. Captured log records verify that private error details stay out of
+ * model responses and logs.
+ */
+
 import { expect, test } from "vitest";
 import { captureLogger } from "../../tests/helpers/server.ts";
 import { INTERNAL_ERROR_MESSAGE, TOOL_ERRORS, ToolError } from "../errors.ts";

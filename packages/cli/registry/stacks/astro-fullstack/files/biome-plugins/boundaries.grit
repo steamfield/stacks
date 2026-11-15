@@ -1,5 +1,5 @@
 // Workspace platform, schema, environment, time, runtime and logging boundaries. Each branch has
-// a probe on a real file in tests/hooks/boundaries-lint.test.ts.
+// a probe on a real file in scripts/boundaries-lint.test.ts.
 language js
 
 or {

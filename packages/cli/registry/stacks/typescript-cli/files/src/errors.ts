@@ -1,3 +1,8 @@
+/**
+ * Defines tagged application errors and their stable exit codes and safe envelopes. The
+ * invocation boundary maps Effect causes and parser failures through this shared policy.
+ */
+
 import { Cause, Schema } from "effect";
 import { CliError } from "effect/cli";
 

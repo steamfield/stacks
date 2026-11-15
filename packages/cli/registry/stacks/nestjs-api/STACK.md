@@ -42,7 +42,7 @@ commands:
   typecheck: Run tsc over the app, tests and tooling
   lint: Run oxlint with type-aware rules, then the Prettier check
   format: Apply Prettier formatting
-  test: Run the unit specs and harness hook tests once
+  test: Run the unit specs once
   test:e2e: Run the Supertest contract tests against the real app module
   test:watch: Watch the unit specs
   coverage: Run both test projects with coverage thresholds
@@ -91,7 +91,7 @@ The shipped code keeps these; new code does too. `docs/guidance/nestjs-api/api.m
 
 ## Testing
 
-Vitest has two projects: `unit` (`src/**/*.spec.ts` and the harness hook tests) and `e2e` (`tests/e2e/**/*.e2e-spec.ts`); verify runs each as its own step. Unit specs build services through `Test.createTestingModule`. Contract specs call `testApp()` and assert statuses, bodies, headers, request records and `/openapi.json`; a new endpoint adds its success, every error status it returns, its validation edges and its path there. Override a provider through `testApp({ notes })` only for failures the real one can't produce. Details in `docs/guidance/nestjs-api/testing.md`.
+Vitest has `unit` (`src/**/*.spec.ts`) and `e2e` (`tests/e2e/**/*.e2e-spec.ts`) projects; verify runs each separately. Unit specs build services through `Test.createTestingModule`. Contract specs call `testApp()` and assert statuses, bodies, headers, request records and `/openapi.json`; a new endpoint adds its success, every error status it returns, its validation edges and its path there. Override a provider through `testApp({ notes })` only for failures the real one can't produce. Details in `docs/guidance/nestjs-api/testing.md`.
 
 <!-- stacks:when with=ci-github -->
 CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage and the build. No credentials are needed.
@@ -108,7 +108,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 ## Gotchas
 
 - `import type` of an injected class or a DTO compiles, then Nest injects `undefined` or skips validation, silently. oxlint's consistent-type-imports rule would demand exactly that, so it stays off.
-- Node can't run `src/*.ts` directly (decorators aren't erasable syntax), and `bun src/main.ts` runs the server on a runtime the project doesn't serve on. The guard hook denies both, plus `bun test`, `--bun`, Jest and ts-node installs, `nest new`, and a `typescript` add without a version.
+- Node can't run `src/*.ts` directly (decorators aren't erasable syntax), and `bun src/main.ts` runs the server on a runtime the project doesn't serve on. Use Vitest and Nest's build for decorator metadata; extend with `nest g`, and keep TypeScript within the installed Nest CLI's declared range.
 - `nest g` writes unformatted code, registers in the nearest module (generate the module first), and without `--no-spec` writes a spec that uses Jest globals, which typecheck rejects.
 - The app is created with `bodyParser: false` so `configureApp` sets the limit; a test app created without it parses bodies with Nest's default limit first.
 - The request record is written when the response finishes, sometimes after Supertest resolves; tests wait with `vi.waitFor`.

@@ -1,3 +1,8 @@
+/**
+ * Exercises the real parser and invocation boundary through the shared Node test runner. It
+ * checks text and JSON output, safe failures, defect logging and closed output pipes.
+ */
+
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Effect, Schema } from "effect";

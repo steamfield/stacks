@@ -91,7 +91,7 @@ No generator. Use the shipped files; `pyproject.toml` has no `requires-python` b
 
 ## Testing
 
-`make coverage` (the verify test step) runs pytest-django with xdist, random order, warnings as errors and an 85% branch floor. Serializer and settings rules get unit tests beside their code. Give each endpoint test-client cases in `tests/` with `pytestmark = pytest.mark.django_db`: success, each validation error, 404, the wrong method, and the envelope through `tests.assertions.assert_error`. Assert log lines with `structlog.testing.capture_logs`. `tests/test_django_api_guard.py` exercises the Claude hook when that adapter is present.
+`make coverage` (the verify test step) runs pytest-django with xdist, random order, warnings as errors and an 85% branch floor. Serializer and settings rules get unit tests beside their code. Give each endpoint test-client cases in `tests/` with `pytestmark = pytest.mark.django_db`: success, each validation error, 404, the wrong method, and the envelope through `tests.assertions.assert_error`. Assert log lines with `structlog.testing.capture_logs`.
 
 ## Commands
 

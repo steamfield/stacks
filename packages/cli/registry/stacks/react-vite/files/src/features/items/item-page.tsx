@@ -1,3 +1,8 @@
+/**
+ * Renders one item using the route parameter and shared detail query options. It distinguishes
+ * a missing item from other request failures and links back to the list.
+ */
+
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../../api/errors";

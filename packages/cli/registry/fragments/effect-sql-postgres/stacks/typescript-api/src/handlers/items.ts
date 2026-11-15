@@ -1,3 +1,7 @@
+/**
+ * Connects the items HTTP endpoints to the items service. The API builder installs these handlers in the server.
+ */
+
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/http-api";
 import { Api } from "../api.ts";

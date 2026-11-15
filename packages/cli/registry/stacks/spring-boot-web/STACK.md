@@ -117,6 +117,6 @@ The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compi
 - `failOnWarning` covers javac's lint warnings too, deprecations included. Move off a deprecated API rather than dropping the flag.
 - Without the parent POM nothing configures Failsafe for Boot: its `classesDirectory` points at `target/classes`, because the repackaged jar keeps classes under `BOOT-INF/`.
 - Surefire's `argLine` starts with `@{argLine}` so JaCoCo's agent survives, and `pom.xml` declares an empty `argLine` so the reference resolves when JaCoCo is skipped.
-- `make serve` runs the built jar, not `./mvnw spring-boot:run`, which forks a JVM that a signal to Maven can leave running. The guard hook denies `spring-boot:run`, `mvn` without the wrapper, and npm, pnpm, yarn or bun installs.
+- `make serve` runs the built jar, not `./mvnw spring-boot:run`, which forks a JVM that a signal to Maven can leave running. Use the Maven wrapper and WebJars for browser dependencies.
 - A `${PORT:8080}` placeholder resolves an empty `PORT` to empty, not the default; unset a variable rather than blanking it.
 - The agent-ops format hook runs `./mvnw spotless:apply` on the session's Java files at Stop; it needs the wrapper and finds the JDK from `.java-version` like the Makefile.

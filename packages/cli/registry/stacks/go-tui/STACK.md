@@ -92,7 +92,7 @@ Test the model as a state machine: build it with `New`, send `tea.WindowSizeMsg`
 The shipped Makefile (`make help`) has install, build, vet, lint, lint-fix, fmt, fmt-check, tidy-check, test, test-integration, coverage, golden, vuln, smoke, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with a single-test command such as `go test -race -run TestFrames/detail ./internal/ui/`. No target starts the UI.
 
 <!-- stacks:when with=agent-ops -->
-The stack's Claude settings allow its non-destructive make checks and go test, and `.claude/hooks/guard-tui.sh` denies hand edits to golden files and running anything under `script`, `unbuffer`, `tmux`, `screen`, `expect` or Python's `pty` module, however the command is quoted, prefixed or wrapped in `sh -c`. It needs jq and denies every call without it. Its tests in `tests/hooks` run with `make test` and fail without jq. List the hook in `.claude/README.md`. Add allow rules only for new commands.
+The stack's Claude settings allow its non-destructive make checks and go test. Regenerate golden frames with `make golden`. Exercise the UI through teatest, headless flags or a user's terminal. `.claude/hooks/guard-tui.sh` blocks foreground interactive launches in a fake terminal; detached terminal sessions can run normally. An unavailable guard allows the call with a note. List the hook in `.claude/README.md`. Add allow rules only for new commands.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->

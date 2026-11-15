@@ -1,6 +1,9 @@
-// Pins the public API: the names src/index.ts exports at runtime. A change here is a release
-// decision (a new export is minor, a removed or renamed one is major), so update README.md's API
-// section in the same change.
+/**
+ * Pins the public entry's runtime exports and TypeScript signatures for library callers.
+ * Changes here accompany README.md API updates and a release decision: new exports are minor,
+ * while removed or renamed exports are major.
+ */
+
 import { expect, expectTypeOf, test } from "vitest";
 import * as api from "../src/index.ts";
 

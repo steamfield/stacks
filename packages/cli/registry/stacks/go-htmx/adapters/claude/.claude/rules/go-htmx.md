@@ -8,7 +8,7 @@ paths:
 
 # templ and htmx rules
 
-- Edit `.templ` files, never `*_templ.go`; the hook denies it and regenerates the component after each `.templ` write. Run `make generate` after a rename or delete, then `make generate-check templ-fmt-check`, and commit the `.templ` and `_templ.go` files together.
+- Edit `.templ` files, never `*_templ.go`, which the hook regenerates after each `.templ` write. Run `make generate` after a rename or delete, then `make generate-check templ-fmt-check`, and commit the `.templ` and `_templ.go` files together.
 - Components take the view types in `internal/views/models.go` and never import a domain package or call a store. Handlers in `internal/web` load data, convert it with `viewNote`-style functions and call `render`.
 - Every htmx endpoint also works as a plain request: a form keeps `action` and `method` beside `hx-post`, a valid plain post answers 303 to a page, and an invalid one re-renders the whole page with 422. Branch on `isHTMX(r)` only to choose a fragment over a page.
 - Validation errors are 422 with the form re-rendered, field messages in `Form.Errors` and the submitted values kept. For htmx, set `HX-Retarget` and `HX-Reswap` so the form replaces itself. Never answer an htmx request with a 3xx; htmx follows it and swaps the result into the target. Use `HX-Redirect` with a 200 for a full navigation.

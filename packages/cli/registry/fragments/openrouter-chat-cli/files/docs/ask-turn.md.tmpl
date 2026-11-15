@@ -38,8 +38,8 @@ The retry happens inside a step only while nothing has been emitted: once a delt
 
 | Mistake | Prevention | Blocked or flagged | Backstop |
 | --- | --- | --- | --- |
-| Importing `@opentui/*` outside `src/tui/`, or `effect` in a TUI component | shared `tui.md` guidance | `chat-boundaries.grit` flags it for every adapter; Claude additionally ships the `guard-chat-boundaries.ts` write guard | vitest fails to load the module on Node, then CI |
-| `{{project_slug}} mcp` writing anything but JSON-RPC to stdout | shared `cli.md` and `effect-ai.md` guidance | the Grit plugin flags `console.*` and raw stdout writes; Claude additionally has the write guard | `tests/mcp.test.ts` checks every stdout line is JSON-RPC |
+| Importing `@opentui/*` outside `src/tui/`, or `effect` in a TUI component | shared `tui.md` guidance | `chat-boundaries.grit` flags it for every adapter | vitest fails to load the module on Node, then CI |
+| `{{project_slug}} mcp` writing anything but JSON-RPC to stdout | shared `cli.md` and `effect-ai.md` guidance | the Grit plugin flags `console.*` and raw stdout writes | `tests/mcp.test.ts` checks every stdout line is JSON-RPC |
 | The TUI and the programs disagree (event shapes, errors) | `tui.md` rule | `tests/tui/closed-loop.test.tsx` renders `App` over the real bridge against the stub | the PTY e2e drives the binary's TUI |
 | OpenTUI taking over signals or Ctrl+C | `tui.md` rule | `tests/tui/launch.test.ts` pins the renderer options | the PTY e2e checks Ctrl+C exits 0 and leaves the alternate screen |
 | A binary that builds but can't load its native library | `tui.md` rule | `doctor --tui` in the app e2e | the release workflow runs it on each OS and CPU when bun-release is selected |

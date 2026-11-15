@@ -1,3 +1,8 @@
+/**
+ * Assembles the API's middleware, resource routes, OpenAPI document and error handlers. The
+ * resulting fetch handler runs through the Node server or directly in HTTP contract tests.
+ */
+
 import { bodyLimit } from "hono/body-limit";
 import { requestId } from "hono/request-id";
 import type { AppConfig } from "./config.ts";

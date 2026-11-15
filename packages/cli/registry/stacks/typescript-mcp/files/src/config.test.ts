@@ -1,3 +1,8 @@
+/**
+ * Checks environment defaults, validation and root-directory resolution for server startup.
+ * Temporary directories exercise the filesystem checks in loadConfig.
+ */
+
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, test } from "vitest";

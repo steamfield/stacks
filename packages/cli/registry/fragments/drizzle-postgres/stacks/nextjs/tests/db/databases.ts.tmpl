@@ -1,3 +1,7 @@
+/**
+ * Creates, migrates and removes run-owned test databases. The database test harness uses these helpers to isolate concurrent runs.
+ */
+
 // Run-owned databases on the db-test server. A run creates names only it knows and drops only
 // those names: nothing is listed or dropped by prefix, so a concurrent run keeps its databases.
 // Leftovers from a crashed run are for a person to remove.

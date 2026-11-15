@@ -1,3 +1,8 @@
+/**
+ * Validates environment settings for the API's port, log level and request-body limit. The
+ * process entry loads these values before building the app and starting its server.
+ */
+
 import { z } from "@hono/zod-openapi";
 import { LOG_LEVELS, type LogLevel } from "./logging.ts";
 

@@ -1,3 +1,9 @@
+/**
+ * Defines the notes store interface and its process-local in-memory implementation. Routes
+ * depend on the interface, while tests can supply clocks and ids to make store behavior
+ * deterministic.
+ */
+
 import type { Note, NoteInput, NoteListQuery, NotePage } from "../schemas/notes.ts";
 
 /** Where notes live. The routes see only this interface, so a database store can replace it. */

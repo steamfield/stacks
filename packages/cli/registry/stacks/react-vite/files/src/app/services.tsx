@@ -1,3 +1,8 @@
+/**
+ * Provides the API client and logger to React components through context. The browser entry
+ * and test renderer supply service instances at the app boundary.
+ */
+
 import { createContext, type ReactNode, use } from "react";
 import type { ApiClient } from "../api/client";
 import type { Logger } from "../logging";

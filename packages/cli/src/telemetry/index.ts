@@ -1,5 +1,24 @@
-// Telemetry is best effort: failures and defects are swallowed only at this boundary, because
-// collection must never change a command's output or exit. Debug logs omit error messages.
+/**
+ * The `Telemetry` service: how commands record anonymous usage events and send them later.
+ *
+ * Commands call it at a few points: `new` and `add` record a scaffold (`recordScaffold`), `show`
+ * an entry view, `commands/telemetry-hooks.ts` a failed `new` or `add`, and verify's
+ * `core/verify/record.ts` a finished run. Recording builds the event body (`events.ts`), wraps it
+ * in an envelope (install id, CLI version, platform, agent, time), validates it against
+ * `TelemetryEventV3` and writes it to the spool (`spool.ts`). Nothing goes over the network until
+ * a flush (`client.ts::deliver`): `new`, `add` and `verify` flush themselves, and `main` calls
+ * `flushAfterOutput` for any other command that asked for it, once its output is written.
+ *
+ * Every record and flush first asks `consent.ts::consent` whether telemetry is on. The first run
+ * that would send shows a one-time notice instead (`notice.ts`): that notice run sends nothing,
+ * though `new` and `add` on it save their scaffold under `deferred/` and link the project, and the
+ * next enabled run sends the saved scaffold first. With `STACKS_TELEMETRY_DEBUG=1` events are
+ * printed as notes instead of queued.
+ *
+ * Telemetry is best effort. Every method runs inside `safe`, which turns any failure, defect or
+ * interruption into a fixed fallback and a debug log, so collection never changes a command's
+ * output or exit. That is why this boundary may use `catchCause`.
+ */
 import { type RunRecord, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Cause, Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { HttpClient } from "effect/http";
@@ -22,7 +41,7 @@ import {
   type ScaffoldFacts,
   type ShowFacts,
 } from "./events";
-import { settleNotice, showNotice } from "./notice";
+import { NO_NOTICE, type NoticeOutcome, settleNotice, showNotice } from "./notice";
 import { markDepsSent, scaffold, verify } from "./projects";
 import { enqueue } from "./spool";
 import {
@@ -39,11 +58,24 @@ import {
   write,
 } from "./storage";
 
+/** An event body: everything but the envelope fields. */
+type EventBody = Omit<TelemetryEventV3, keyof Envelope>;
+
+/** Flush deadlines in milliseconds: after a command's output, and for `stacks telemetry flush`. */
+const FLUSH_AFTER_COMMAND_MS = 800;
+const FLUSH_NOW_MS = 5000;
+
 /** The privacy page is `/telemetry` on the host that receives the events. */
 const notice = (endpoint: string) =>
   `stacks collects anonymous usage and verify results, including allowlisted dependency names and major versions from project manifest and lock files after green verify runs. It never sends your code, paths or command output. Privacy and allowlist: ${new URL("/telemetry", endpoint).href}. Turn it off: stacks telemetry disable`;
 const dependencyNotice = (endpoint: string) =>
   `stacks now sends allowlisted dependency names and major versions from project manifest and lock files after green verify runs, normally no more than once every 7 days per project. Privacy and allowlist: ${new URL("/telemetry", endpoint).href}. Turn it off: stacks telemetry disable`;
+
+/**
+ * Runs a telemetry effect so that nothing it does can escape: any failure, defect or interruption
+ * becomes `fallback`, logged at debug level with the defect's class and frames and never its
+ * message.
+ */
 const safe = <A, E, R>(effect: Effect.Effect<A, E, R>, fallback: A) =>
   effect.pipe(
     Effect.catchCause((cause) =>
@@ -53,12 +85,18 @@ const safe = <A, E, R>(effect: Effect.Effect<A, E, R>, fallback: A) =>
       ),
     ),
   );
+
+/**
+ * Assembles an event from its envelope and body, validates it, then queues it, or in debug mode
+ * prints it as a note. `eventId` replaces the envelope's fresh id for a deferred scaffold, which
+ * keeps the id it was saved with.
+ */
 const emitEvent = Effect.fn("telemetry.emitEvent")(function* (input: {
   store: Storage;
   output: Output["Service"] | undefined;
   debug: boolean;
   envelope: Effect.Effect<Envelope, unknown>;
-  build: Effect.Effect<Omit<TelemetryEventV3, keyof Envelope>, unknown>;
+  build: Effect.Effect<EventBody, unknown>;
   onQueued?: (event: TelemetryEventV3) => Effect.Effect<void, unknown>;
   eventId?: string;
 }) {
@@ -76,6 +114,34 @@ const emitEvent = Effect.fn("telemetry.emitEvent")(function* (input: {
   yield* enqueue(input.store, event);
   if (input.onQueued) yield* input.onQueued(event);
 });
+
+/** The envelope for a new event; creates the install id the first time it is needed. */
+const makeEnvelope = (input: {
+  store: Storage;
+  host: Host["Service"];
+  config: AppConfig["Service"];
+}) =>
+  Effect.gen(function* (): Effect.fn.Return<Envelope, unknown> {
+    const { store, host, config } = input;
+    return {
+      schemaVersion: 3,
+      eventId: yield* uuid,
+      installId: yield* installId(store),
+      cliVersion: VERSION,
+      os: host.platform === "darwin" || host.platform === "linux" ? host.platform : "other",
+      nodeMajor: host.nodeMajor,
+      agent: yield* config.agent,
+      sentAt: yield* timestamp,
+    };
+  });
+
+/**
+ * Whether a scaffold is recorded at all: when telemetry is enabled, and on the notice run, where
+ * consent still reads `not_notified` but the scaffold is saved for later.
+ */
+const recordsScaffold = (reason: Consent, noticeRun: boolean) =>
+  reason === "enabled" || (noticeRun && reason === "not_notified");
+
 export class Telemetry extends Context.Service<
   Telemetry,
   {
@@ -104,29 +170,23 @@ export class Telemetry extends Context.Service<
         const client = yield* HttpClient.HttpClient;
         const allowlist = yield* Allowlist;
         const files = yield* Effect.context<FileSystem.FileSystem | Path.Path>();
-        const output = yield* Effect.serviceOption(Output);
+        const output = Option.getOrUndefined(yield* Effect.serviceOption(Output));
         const store: Storage = {
           fs,
           path,
           root: path.join((yield* config.paths).state, "telemetry"),
         };
         const url = config.telemetry.url ?? options.officialUrl;
-        let noticeRun = false;
-        let ownsNotice: string | undefined;
-        let previousNotice: typeof Notice.Type | undefined;
+        // This invocation's state: the notice outcome and whether main should flush after output.
+        let noticeOutcome: NoticeOutcome = NO_NOTICE;
         let flushAfterOutput = false;
-        let drainDeferred: Effect.Effect<void, unknown> = Effect.void;
         yield* Effect.addFinalizer(() =>
           safe(
-            settleNotice(
-              store,
-              Option.isSome(output) ? output.value : undefined,
-              ownsNotice,
-              previousNotice,
-            ),
+            settleNotice(store, output, noticeOutcome.claimId, noticeOutcome.previous),
             undefined,
           ),
         );
+
         const purge = Effect.gen(function* () {
           yield* remove(store, "spool");
           yield* remove(store, "claims");
@@ -135,83 +195,80 @@ export class Telemetry extends Context.Service<
         const check = consent({ config, store, url }).pipe(
           Effect.tap((reason) => (standingOff(reason) ? safe(purge, undefined) : Effect.void)),
         );
-        const notify = safe(
-          Effect.gen(function* () {
-            if (noticeRun || url === undefined) return;
-            const shown = yield* showNotice({
-              store,
-              output: Option.isSome(output) ? output.value : undefined,
-              reason: yield* check,
-              firstText: notice(url),
-              secondText: dependencyNotice(url),
-            });
-            noticeRun = shown.shown;
-            ownsNotice = shown.claimId;
-            previousNotice = shown.previous;
-            if (!noticeRun && !config.telemetry.debug && (yield* check) === "enabled")
-              yield* drainDeferred;
-          }),
-          undefined,
-        );
-        const envelope = Effect.gen(function* (): Effect.fn.Return<Envelope, unknown> {
-          return {
-            schemaVersion: 3,
-            eventId: yield* uuid,
-            installId: yield* installId(store),
-            cliVersion: VERSION,
-            os: host.platform === "darwin" || host.platform === "linux" ? host.platform : "other",
-            nodeMajor: host.nodeMajor,
-            agent: yield* config.agent,
-            sentAt: yield* timestamp,
-          };
-        });
+        const envelope = makeEnvelope({ store, host, config });
         const onVerifyQueued = (event: TelemetryEventV3) =>
           event.type === "verify" && event.deps !== undefined
             ? markDepsSent(store, host.cwd, event.sentAt).pipe(Effect.provideContext(files))
             : Effect.void;
         const sendEvent = (
-          build: Effect.Effect<Omit<TelemetryEventV3, keyof Envelope>, unknown>,
-          verifyRun = false,
-          eventId?: string,
+          build: Effect.Effect<EventBody, unknown>,
+          sendOptions: { verifyRun?: boolean; eventId?: string } = {},
         ) =>
           emitEvent({
             store,
-            output: Option.isSome(output) ? output.value : undefined,
+            output,
             debug: config.telemetry.debug,
             envelope,
             build,
-            ...(verifyRun ? { onQueued: onVerifyQueued } : {}),
-            ...(eventId === undefined ? {} : { eventId }),
+            ...(sendOptions.verifyRun ? { onQueued: onVerifyQueued } : {}),
+            ...(sendOptions.eventId === undefined ? {} : { eventId: sendOptions.eventId }),
           });
-        drainDeferred = Effect.gen(function* () {
-          for (const name of (yield* names(store, "deferred"))
-            .filter((name) => name.endsWith(".json"))
-            .sort()) {
+
+        /** Sends every scaffold saved on the notice run, oldest file name first. */
+        const drainDeferred = Effect.gen(function* () {
+          const saved = (yield* names(store, "deferred")).filter((name) => name.endsWith(".json"));
+          for (const name of saved.sort()) {
             const file = store.path.join("deferred", name);
-            const saved = yield* Effect.result(read(store, file, DeferredScaffold));
-            if (saved._tag === "Failure") {
-              yield* remove(store, file);
-              continue;
+            const deferred = yield* Effect.result(read(store, file, DeferredScaffold));
+            if (deferred._tag === "Success") {
+              const { eventId, ...event } = deferred.success;
+              yield* sendEvent(Effect.succeed(event), { eventId });
             }
-            const { eventId, ...event } = saved.success;
-            yield* sendEvent(Effect.succeed(event), false, eventId);
             yield* remove(store, file);
           }
         });
-        const queue = (
-          build: Effect.Effect<Omit<TelemetryEventV3, keyof Envelope>, unknown>,
-          verifyRun = false,
-        ) =>
+
+        /**
+         * Shows the notice if one is due, once per invocation. A run that isn't a notice run sends
+         * the deferred scaffolds first, so they keep their place ahead of this run's events.
+         */
+        const notify = safe(
+          Effect.gen(function* () {
+            if (noticeOutcome.shown || url === undefined) return;
+            noticeOutcome = yield* showNotice({
+              store,
+              output,
+              reason: yield* check,
+              firstText: notice(url),
+              secondText: dependencyNotice(url),
+            });
+            if (!noticeOutcome.shown && !config.telemetry.debug && (yield* check) === "enabled")
+              yield* drainDeferred;
+          }),
+          undefined,
+        );
+
+        /** Records an event when telemetry is enabled and this isn't the notice run. */
+        const queue = (build: Effect.Effect<EventBody, unknown>, verifyRun = false) =>
           safe(
             notify.pipe(
               Effect.andThen(check),
               Effect.flatMap((reason) => {
-                if (noticeRun || reason !== "enabled") return Effect.void;
-                return sendEvent(build, verifyRun);
+                if (noticeOutcome.shown || reason !== "enabled") return Effect.void;
+                return sendEvent(build, { verifyRun });
               }),
             ),
             undefined,
           );
+
+        // The notice run queues nothing, but links the project now so its first verify counts.
+        const deferScaffold = (value: ScaffoldFacts) =>
+          Effect.gen(function* () {
+            const event = yield* scaffold(store, value);
+            const file = store.path.join("deferred", `${value.manifest.projectId}.json`);
+            yield* write(store, file, { ...event, eventId: yield* uuid });
+          });
+
         const recordScaffold = (input: ScaffoldFacts, registry: Registry["Service"]) => {
           const facts: Effect.Effect<ScaffoldFacts, unknown> =
             input.type === "new"
@@ -224,11 +281,10 @@ export class Telemetry extends Context.Service<
             notify.pipe(
               Effect.andThen(check),
               Effect.flatMap((reason) => {
-                if (reason !== "enabled" && !(noticeRun && reason === "not_notified"))
-                  return Effect.void;
+                if (!recordsScaffold(reason, noticeOutcome.shown)) return Effect.void;
                 return facts.pipe(
                   Effect.flatMap((value) =>
-                    noticeRun ? deferScaffold(value) : sendEvent(scaffold(store, value)),
+                    noticeOutcome.shown ? deferScaffold(value) : sendEvent(scaffold(store, value)),
                   ),
                 );
               }),
@@ -236,13 +292,7 @@ export class Telemetry extends Context.Service<
             undefined,
           );
         };
-        // The notice run queues nothing, but links the project now so its first verify counts.
-        const deferScaffold = (value: ScaffoldFacts) =>
-          Effect.gen(function* () {
-            const event = yield* scaffold(store, value);
-            const file = store.path.join("deferred", `${value.manifest.projectId}.json`);
-            yield* write(store, file, { ...event, eventId: yield* uuid });
-          });
+
         const recordVerify = (record: RunRecord) =>
           queue(
             verify({
@@ -253,12 +303,14 @@ export class Telemetry extends Context.Service<
             }).pipe(Effect.provideContext(files)),
             true,
           );
+
+        /** Sends queued events within `deadline` ms; otherwise reports why nothing was sent. */
         const flush = (deadline: number) =>
           safe(
             Effect.gen(function* (): Effect.fn.Return<TelemetryFlush, unknown> {
               const reason = yield* check;
               if (standingOff(reason)) yield* purge;
-              if (reason !== "enabled" || noticeRun || config.telemetry.debug || !url)
+              if (reason !== "enabled" || noticeOutcome.shown || config.telemetry.debug || !url)
                 return {
                   sent: 0,
                   kept: (yield* names(store, "spool")).length,
@@ -269,27 +321,31 @@ export class Telemetry extends Context.Service<
             }),
             { sent: 0, kept: 0, rejected: 0, reason: "home_not_writable" } satisfies TelemetryFlush,
           );
+
         const status = safe(
           Effect.gen(function* (): Effect.fn.Return<TelemetryStatus, unknown> {
             const reason = yield* check;
             const install = yield* read(store, "install.json", Install).pipe(Effect.option);
-            const notice = yield* read(store, "notice.json", Notice).pipe(Effect.option);
+            const shown = yield* read(store, "notice.json", Notice).pipe(Effect.option);
             return {
               reason,
               ...(Option.isSome(install) ? install.value : {}),
-              ...(Option.isSome(notice) && !notice.value.pending
-                ? { noticeShownAt: notice.value.noticeShownAt }
+              ...(Option.isSome(shown) && !shown.value.pending
+                ? { noticeShownAt: shown.value.noticeShownAt }
                 : {}),
               spooled: (yield* names(store, "spool")).length,
             };
           }),
           { reason: "home_not_writable", spooled: 0 } satisfies TelemetryStatus,
         );
+
         return {
+          // The notice run reads as enabled, so `new` goes on to record (and defer) its scaffold.
           consent: safe(
             check.pipe(
               Effect.map(
-                (reason): Consent => (noticeRun && reason === "not_notified" ? "enabled" : reason),
+                (reason): Consent =>
+                  noticeOutcome.shown && reason === "not_notified" ? "enabled" : reason,
               ),
             ),
             "home_not_writable",
@@ -299,7 +355,7 @@ export class Telemetry extends Context.Service<
             flushAfterOutput = true;
           }),
           flushAfterOutput: Effect.suspend(() =>
-            flushAfterOutput ? flush(800).pipe(Effect.asVoid) : Effect.void,
+            flushAfterOutput ? flush(FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid) : Effect.void,
           ),
           status,
           recordScaffold,
@@ -309,8 +365,8 @@ export class Telemetry extends Context.Service<
               Effect.sync(() => ({ type: "show" as const, kind: entry.kind, id: publicId(entry) })),
             ),
           recordError: (input: ErrorFacts) => queue(Effect.sync(() => errorEvent(input))),
-          flush: flush(800).pipe(Effect.asVoid),
-          flushNow: flush(5000),
+          flush: flush(FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid),
+          flushNow: flush(FLUSH_NOW_MS),
           clear: (reset: boolean) =>
             safe(
               Effect.gen(function* () {

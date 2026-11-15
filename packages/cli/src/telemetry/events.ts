@@ -1,7 +1,23 @@
+/**
+ * Turns what a command did into the body of a telemetry event, keeping out anything that could
+ * identify a person or a private entry.
+ *
+ * Each telemetry event is an envelope (event id, install id, CLI version, platform, agent, time)
+ * plus a body that depends on its type: `new` and `add` (a project was scaffolded or extended),
+ * `show`, `error` and `verify`. The shapes are `TelemetryEventV3` from `@steamfield/stacks-format`,
+ * a wire contract with the server, so a field here changes only with that schema. This module
+ * builds the bodies as pure functions; `telemetry/index.ts` adds the envelope and validates the
+ * whole event against the schema before it is queued.
+ *
+ * The privacy rule is in `official` and `publicId`: only an entry that is both trusted and from
+ * the bundled registry or the signed remote index is reported by id. Every other id becomes
+ * `custom`, and verify step names the CLI didn't write itself are reported as `custom` too.
+ */
 import type {
   EntryRef,
   Manifest,
   RunRecord,
+  RunStep,
   TelemetryErrorEvent,
   TelemetryEventV3,
   TelemetryNewEvent,
@@ -10,6 +26,10 @@ import type {
 import type { Entry } from "../core/registry/entry";
 import type { Project } from "./storage";
 
+/**
+ * What `new` or `add` hands to telemetry: the manifest it wrote, the default fragments left out,
+ * the `--source` flag and the names of the verify steps the CLI composed.
+ */
 export type ScaffoldFacts = {
   type: "new" | "add";
   manifest: Manifest;
@@ -23,26 +43,50 @@ export type ErrorFacts = {
   code: string;
   stack?: Pick<Entry, "id" | "origin" | "trusted">;
 };
+/** The fields every event carries whatever its type. */
 export type Envelope = Pick<
   TelemetryEventV3,
   "schemaVersion" | "eventId" | "installId" | "cliVersion" | "os" | "nodeMajor" | "agent" | "sentAt"
 >;
+
+/** Whether an entry is official: from the bundled registry or the remote index, and not untrusted. */
 export const official = (entry: { origin: string; trusted?: boolean }) =>
   entry.trusted !== false && (entry.origin === "bundled" || entry.origin === "index");
+
+/** The id telemetry may report for an entry: its own when official, otherwise `custom`. */
 export const publicId = (entry: { id: string; origin: string; trusted?: boolean }) =>
   official(entry) ? entry.id : "custom";
 
+/** Which official origins a project's entries came from, or `undefined` when none is official. */
+function officialOrigin(entries: ReadonlyArray<EntryRef>): TelemetryNewEvent["origin"] {
+  const origins = new Set(entries.filter(official).map((entry) => entry.origin));
+  if (origins.size > 1) return "mixed";
+  if (origins.has("bundled")) return "bundled";
+  if (origins.has("index")) return "index";
+  return undefined;
+}
+
+/**
+ * Counts of entries that aren't official: user and project entries by origin, and every other
+ * non-official entry (an untrusted override of the bundled registry or index, an unknown id) as
+ * `source`.
+ */
+function nonOfficialCounts(entries: ReadonlyArray<EntryRef>) {
+  const count = (origin: string) => entries.filter((entry) => entry.origin === origin).length;
+  const source = entries.filter(
+    (entry) => !official(entry) && !["user", "project"].includes(entry.origin),
+  ).length;
+  return { user: count("user"), project: count("project"), source };
+}
+
+/**
+ * The body of a `new` or `add` event. Official fragments are listed first, and the manifest's
+ * fingerprint is reported only when every entry is official.
+ */
 export function scaffoldEvent(input: ScaffoldFacts) {
   const { manifest } = input;
   const entries = [...(manifest.stack ? [manifest.stack] : []), ...manifest.fragments];
-  const origins = new Set(entries.filter(official).map((entry) => entry.origin));
-  const origin: TelemetryNewEvent["origin"] = origins.size > 1 ? "mixed" : undefined;
-  const single: TelemetryNewEvent["origin"] = origins.has("bundled") ? "bundled" : undefined;
-  const resolved = origin ?? single ?? (origins.has("index") ? "index" : undefined);
-  const count = (origin: string) => entries.filter((entry) => entry.origin === origin).length;
-  const sourceCount = entries.filter(
-    (entry) => !official(entry) && !["user", "project"].includes(entry.origin),
-  ).length;
+  const origin = officialOrigin(entries);
   return {
     type: input.type,
     stack: manifest.stack ? publicId(manifest.stack) : "custom",
@@ -54,14 +98,16 @@ export function scaffoldEvent(input: ScaffoldFacts) {
     targetAgents: manifest.agents,
     handoff: manifest.handoff?.kind ?? "print",
     ...(input.source === undefined ? {} : { source: input.source }),
-    ...(resolved === undefined ? {} : { origin: resolved }),
-    nonOfficial: { user: count("user"), project: count("project"), source: sourceCount },
+    ...(origin === undefined ? {} : { origin }),
+    nonOfficial: nonOfficialCounts(entries),
     ...(entries.every(official) && manifest.fingerprint
       ? { fingerprint: manifest.fingerprint }
       : {}),
   };
 }
-const codes: readonly string[] = [
+
+/** Error tags reported by name; any other tag is reported as `other`. */
+const KNOWN_ERROR_CODES: readonly string[] = [
   "ComposeConflict",
   "EntryInvalid",
   "TargetNotEmpty",
@@ -71,22 +117,53 @@ const codes: readonly string[] = [
   "Interrupted",
   "Defect",
 ];
+
 function errorCode(code: string): TelemetryErrorEvent["code"] {
-  return codes.find((known): known is TelemetryErrorEvent["code"] => known === code) ?? "other";
+  return (
+    KNOWN_ERROR_CODES.find((known): known is TelemetryErrorEvent["code"] => known === code) ??
+    "other"
+  );
 }
+
+/** The body of an `error` event; the stack is named only when it is official. */
 export const errorEvent = (input: ErrorFacts) => ({
   type: "error" as const,
   command: input.command,
   code: errorCode(input.code),
   ...(input.stack && official(input.stack) ? { stack: input.stack.id } : {}),
 });
-function duration(ms: number): TelemetryVerifyEventV3["steps"][number]["duration"] {
+
+/** A step's duration as the smallest bucket that holds it; events never carry exact timings. */
+function durationBucket(ms: number): TelemetryVerifyEventV3["steps"][number]["duration"] {
   if (ms <= 5000) return "5s";
   if (ms <= 30000) return "30s";
   if (ms <= 120000) return "2m";
   if (ms <= 600000) return "10m";
   return "longer";
 }
+
+/** One verify step as reported: names the CLI didn't compose become `custom`. */
+function stepFacts(step: RunStep, known: ReadonlySet<string>) {
+  return {
+    name: known.has(step.name) ? step.name : "custom",
+    phase: step.phase,
+    ...(step.layer === undefined ? {} : { layer: step.layer }),
+    status: step.status,
+    ...(step.failureKind === undefined ? {} : { failureKind: step.failureKind }),
+    duration: durationBucket(step.durationMs),
+  };
+}
+
+/** Seconds from an ISO time to a millisecond clock reading, never negative. */
+const secondsSince = (from: string, to: number) => Math.max(0, (to - Date.parse(from)) / 1000);
+
+/**
+ * The body of a `verify` event. `project` is the project's telemetry link when it has one: it
+ * supplies the known step names, the telemetry project id and the scaffold time. Without it every
+ * step counts as changed and the run record's `secondsSinceCreated` stands in for the time since
+ * scaffold.
+ * `asked` is the number of questions listed in the project's NOTES file.
+ */
 export function verifyEvent(
   record: RunRecord,
   project: Project | undefined,
@@ -99,27 +176,20 @@ export function verifyEvent(
     scope: record.scope,
     outcome: record.outcome,
     tamperCheck: record.tamperCheck,
-    steps: record.steps.map((step) => ({
-      name: known.has(step.name) ? step.name : "custom",
-      phase: step.phase,
-      ...(step.layer === undefined ? {} : { layer: step.layer }),
-      status: step.status,
-      ...(step.failureKind === undefined ? {} : { failureKind: step.failureKind }),
-      duration: duration(step.durationMs),
-    })),
+    steps: record.steps.map((step) => stepFacts(step, known)),
     stepsChanged: project
       ? record.steps.filter((step) => !known.has(step.name)).length
       : record.steps.length,
     ...(asked === undefined ? {} : { asked }),
     secondsSinceScaffold: project
-      ? Math.max(0, (now - Date.parse(project.scaffoldedAt)) / 1000)
+      ? secondsSince(project.scaffoldedAt, now)
       : record.secondsSinceCreated,
     ...(project ? { projectId: project.telemetryProjectId } : {}),
     ...(project?.firstTestPassAt
       ? {
-          secondsToFirstTestPass: Math.max(
-            0,
-            (Date.parse(project.firstTestPassAt) - Date.parse(project.scaffoldedAt)) / 1000,
+          secondsToFirstTestPass: secondsSince(
+            project.scaffoldedAt,
+            Date.parse(project.firstTestPassAt),
           ),
         }
       : {}),

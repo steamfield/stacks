@@ -1,3 +1,11 @@
+/**
+ * The shape of what `stacks runs --json` prints: a summary of one project's own verify history.
+ *
+ * Verify appends a run record to `.stacks/state/runs.jsonl` each time it runs, and the state
+ * record (kept outside the project) holds the first-green times. `core/runs.ts::projectRuns`
+ * reads both, plus the `## Asked` list in `.stacks/NOTES.md` (`interventions`), into this summary.
+ * `skippedLines` counts history lines it couldn't decode.
+ */
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";
 

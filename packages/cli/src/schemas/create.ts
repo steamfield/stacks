@@ -1,3 +1,7 @@
+/**
+ * The shape of what `stacks create --json` prints: where the new personal stack or fragment was
+ * written in the user registry, and the authoring guide to read next. `core/create.ts` builds it.
+ */
 import { Kind } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";

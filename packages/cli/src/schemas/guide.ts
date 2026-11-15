@@ -1,3 +1,10 @@
+/**
+ * The shapes of what `stacks guide --json` and `stacks guide author --json` print.
+ *
+ * The guide is the short text that teaches a coding agent the loop (search, show, new, verify);
+ * the author guide is the skill for writing a stack or fragment. The text itself lives in
+ * `core/guide.ts`; these schemas only wrap it for `--json` callers.
+ */
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";
 

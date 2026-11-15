@@ -1,3 +1,12 @@
+/**
+ * The shapes of what `stacks validate --json` prints, and of one finding.
+ *
+ * `validate` checks a registry (or one entry) for problems before anyone uses it
+ * (`core/validate/`). A finding is one problem, tied to an entry, file and line where it can be,
+ * and `SizeRow`s are the word counts checked against the budgets. `validate --brief <stack>`
+ * prints a `BriefPreview` instead: the brief `new` would write, without writing a project.
+ * `submit` reuses `Finding` for the entries it checks.
+ */
 import { Kind } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { ConditionalProblem } from "../errors";
@@ -7,6 +16,7 @@ import { NoticeFields } from "./notice";
 export const Severity = Schema.Literals(["error", "warning", "note"]);
 export type Severity = typeof Severity.Type;
 
+/** One problem `validate` found. */
 export const Finding = Schema.Struct({
   /** Stable kebab-case check id, such as `budget-composed`. */
   check: Schema.String,
@@ -24,6 +34,7 @@ export const Finding = Schema.Struct({
 });
 export type Finding = typeof Finding.Type;
 
+/** One word count `validate` measured, and the budget it was checked against. */
 export const SizeRow = Schema.Struct({
   /** `body`: an entry's own prose; `composed`: a rendered brief; `shipped`: Markdown under `files/` and `adapters/`. */
   kind: Schema.Literals(["body", "composed", "shipped"]),
@@ -42,6 +53,7 @@ export const SizeRow = Schema.Struct({
 });
 export type SizeRow = typeof SizeRow.Type;
 
+/** `validate --json`'s result for one registry root. */
 export const ValidateReport = Schema.Struct({
   ...NoticeFields,
   /** The registry root, absolute. */

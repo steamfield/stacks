@@ -228,7 +228,7 @@ Claude Code orchestrates; Codex takes the coding tasks Claude delegates (the per
 
 Release pipeline, once: on npmjs.com, for each of `@steamfield/stacks-format`, `@steamfield/stacks` and `@steamfield/stacks-mcp`, Settings, Trusted Publisher, GitHub Actions, `steamfield`, `stacks`, workflow `release.yml`, environment blank; then set Publishing access to "Require two-factor authentication and disallow bypass 2fa tokens". Until the three are configured the first tagged run fails at publish and a rerun after configuring finishes it.
 
-Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published and 0.7.1, which adds its `repository` field for provenance, ships with the first tagged release): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; cut the release ("Releasing"); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
+Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published; 0.8.0, which adds its `repository` field for provenance, ships with the first tagged release): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; cut the release ("Releasing"); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
 
 ## Deeper context
 

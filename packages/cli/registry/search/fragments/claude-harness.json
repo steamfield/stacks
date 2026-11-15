@@ -3,32 +3,32 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:857eaddda9ba85e1a0c2dc5c2bcf56aec99f442e70cf7223c8744b0a9eaa4500",
+    "digest": "sha256:11e0ba37fd29f9b7a3b37cc9b13dd5f2e1d238c1067b063a3b3aeb7a78efccce",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
-  "summary": "Add reusable TypeScript hook helpers and a Claude Code adapter with command guards, incremental type checks and hook tests.",
-  "description": "Build project-specific agent guards on shared Bun TypeScript hook helpers. For Claude Code, the adapter adds guarded commands and incremental typechecking, with regression tests for each hook. The shared helpers can also support stack-owned Codex hooks. Each guard must be wired once and documented with its own regression cases.",
-  "seoDescription": "Shared Bun TypeScript hook helpers plus Claude Code guards with command checks, incremental typechecking and hook tests.",
+  "summary": "Add shared Bun TypeScript hook helpers and incremental type checks after each Claude Code edit.",
+  "description": "Give a TypeScript project on Bun the shared helpers its own Claude Code hooks build on: payload parsing and a shell lexer that reads commands the way bash runs them. For Claude Code, the adapter type-checks the project incrementally after each edit and reports the errors back. Destructive-command and secret guards come from agent-ops; stack hooks built on these helpers only stop commands that would hang the session.",
+  "seoDescription": "Shared Bun TypeScript hook helpers and incremental TypeScript checking after each Claude Code edit.",
   "projectExamples": [
     {
-      "title": "Generated client protection",
-      "description": "Use the shared hook helpers to add a tested project guard for generated files. The stack or product must declare which paths it owns.",
-      "stack": "astro-fullstack"
+      "title": "Dev server guard",
+      "description": "A stack hook uses the shared shell lexer to stop a foreground dev server that would hold the agent's session open, and points at the background script instead.",
+      "stack": "typescript-api"
     },
     {
-      "title": "CLI development harness",
-      "description": "Extend the TypeScript CLI's existing harness with tested project guards. Keep paid operations and publishing outside automatic permissions.",
+      "title": "Type errors after each edit",
+      "description": "Claude Code sees the TypeScript errors its last edit introduced before it moves on, without running the whole check.",
       "stack": "typescript-cli"
     }
   ],
   "plain": {
-    "whatItIs": "Adds tested guards and helper commands to Claude Code in a TypeScript project that uses Bun, a JavaScript runtime.",
+    "whatItIs": "Adds type checking after each Claude Code edit, and shared helpers for hooks, to a TypeScript project that uses Bun, a JavaScript runtime.",
     "goodAt": [
-      "Blocking certain commands and edits to generated files in Claude Code",
-      "Testing each guard against blocked actions and similar safe ones"
+      "Showing Claude Code the TypeScript errors its last edit caused",
+      "Reading shell commands safely inside a project's own hooks"
     ],
     "notGoodAt": [
       "Sandboxing untrusted code; use a separate sandbox for that.",
@@ -40,21 +40,21 @@
   ],
   "requests": [
     "catch TypeScript errors after Claude changes a file",
-    "keep the agent from editing generated files or using the wrong package manager",
-    "build project-specific agent guards using shared helpers and regression tests"
+    "stop the agent from starting a dev server that never exits",
+    "write a Claude Code hook in TypeScript with Bun"
   ],
   "useCases": [
     "Claude Code development workflows",
-    "tested agent hooks"
+    "incremental type checking"
   ],
   "synonyms": [
     "Bun hooks",
     "incremental typecheck",
-    "generated-file guard"
+    "typecheck on write"
   ],
   "goodFor": [
     "shared hook payload and shell parsing",
-    "guard denial and near-miss tests"
+    "TypeScript feedback after each edit"
   ],
   "notFor": [
     "sandboxing untrusted code",

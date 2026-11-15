@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "sveltekit",
   "source": {
-    "digest": "sha256:b73e30c9502aaea795a52887e3234fdd0b2a748484230033c4e0b320373d1a14",
+    "digest": "sha256:9c4ee2f78eb0721528c1f01ed183269073d03ea350efffae1739f10da1084628",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "A SvelteKit app on Node with server load functions, zod-validated form actions and browser tests against the production build.",
   "description": "Start a SvelteKit project that the Node adapter builds into a standalone server you run with node. Pages load their data on the server from a server-only service, forms post to form actions that validate with zod and return field errors, and the forms still work with JavaScript turned off. Vitest covers schemas, services, actions and components; Playwright drives the production build in Chromium. There is no database, sign-in or hosting setup; add those for a real product.",

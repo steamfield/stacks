@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "code-docs",
   "source": {
-    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "digest": "sha256:0adfa86ffdb770eae88902ac37af90dc4ff16675c73621fc6ba3c7b119f23b47",
     "by": "drafted",
     "model": "gpt-6",
     "promptVersion": 3,
-    "reviewedAt": null
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Check source-file doc comments and guide agents to write folder READMEs explaining the architecture and where to start reading.",
   "description": "Add a hygiene check for file-level documentation in TypeScript, JavaScript, Python, Go and Rust source. Agents write short headers explaining each file's role and folder READMEs describing architectural responsibilities and reading order. The check names missing headers while leaving README placement and documentation quality to judgment.",
@@ -37,8 +37,19 @@
     "check for missing TypeScript JSDoc file headers",
     "help newcomers find where to start reading the code"
   ],
-  "useCases": ["code documentation", "codebase onboarding"],
-  "synonyms": ["module docstrings", "file headers", "directory guides", "architecture READMEs"],
-  "goodFor": ["source-file context", "folder responsibilities and reading order"],
+  "useCases": [
+    "code documentation",
+    "codebase onboarding"
+  ],
+  "synonyms": [
+    "module docstrings",
+    "file headers",
+    "directory guides",
+    "architecture READMEs"
+  ],
+  "goodFor": [
+    "source-file context",
+    "folder responsibilities and reading order"
+  ],
   "notFor": []
 }

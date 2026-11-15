@@ -9,8 +9,8 @@
  * group killed, and the result says so (`Finished.pipesHeld`). `interactive` is the exception: the
  * child joins the CLI's own group so the terminal and its Ctrl+C belong to it.
  *
- * Callers never touch Node's process APIs. Those live in `platform/process.ts`, which only this
- * file may import (a Grit rule in `biome-plugins/boundaries.grit` enforces it). The live groups and
+ * Callers never touch Node's process APIs. Those live in `platform/process.ts`, which no other
+ * core or services file may import (a Grit rule in `biome-plugins/boundaries.grit` enforces it). The live groups and
  * the interactive child are recorded in `Foreground`, a holder `bin.ts` shares with the signal
  * policy (`platform/signals.ts`), so a forced exit can SIGKILL whatever is still running.
  *

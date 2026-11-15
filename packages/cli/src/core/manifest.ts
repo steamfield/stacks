@@ -16,10 +16,11 @@
  */
 import { createHash } from "node:crypto";
 import { Manifest, type ManifestStep, withStepDefaults } from "@steamfield/stacks-format";
-import { Clock, Effect, FileSystem, Path, type PlatformError, Random, Schema } from "effect";
+import { Clock, Effect, FileSystem, Path, Random, Schema } from "effect";
 import { InvalidConfig, NotFound, PermissionDenied } from "../errors";
 import { MANIFEST_PATH } from "../project-layout";
 import { VERSION } from "../version";
+import { isAbsent } from "./absent";
 import { canonicalJson } from "./canonical-json";
 import type { Composition } from "./compose/types";
 import type { Entry } from "./registry/entry";
@@ -114,10 +115,6 @@ export function encodeManifest(manifest: Manifest): string {
   return `${JSON.stringify(Schema.encodeSync(Manifest)(manifest), null, 2)}\n`;
 }
 
-/** `BadResource` (ENOTDIR) counts too: a file where a directory was expected holds no manifest. */
-const isMissing = (error: PlatformError.PlatformError) =>
-  error.reason._tag === "NotFound" || error.reason._tag === "BadResource";
-
 /** The `schemaVersion` field of a parsed JSON object, whatever its type, if it has one. */
 export const versionOf = (value: unknown) =>
   value !== null && typeof value === "object" && "schemaVersion" in value
@@ -150,7 +147,7 @@ export const readManifest = (
       .readFileString(path)
       .pipe(
         Effect.mapError((error) =>
-          isMissing(error)
+          isAbsent(error)
             ? new NotFound()
             : new PermissionDenied({ details: { reason: "read", path } }),
         ),
@@ -181,7 +178,7 @@ const isManifestFile = (candidate: string) =>
       .stat(candidate)
       .pipe(
         Effect.catch((error) =>
-          isMissing(error)
+          isAbsent(error)
             ? Effect.succeed(undefined)
             : Effect.fail(new PermissionDenied({ details: { reason: "read", path: candidate } })),
         ),

@@ -78,6 +78,7 @@ before an entry ships; `search/`, `show.ts` and `list.ts` read entries without w
 | `result-schemas.ts` | The JSON Schemas `stacks schema` prints |
 | `canonical-json.ts` | Sorted-key JSON, the input to every digest |
 | `replace-file.ts` | Atomic file replacement |
+| `absent.ts` | `isAbsent`: which filesystem failures mean nothing is at a path |
 | `template.ts` | The `.tmpl` tokenizer and renderer |
 | `slug.ts`, `shell.ts`, `suggest.ts`, `text.ts`, `shown-path.ts`, `wrap.ts` | Small text helpers: slugs, shell quoting, did-you-mean, printable text, shown paths, wrapping |
 

@@ -4,8 +4,9 @@
  * An entry is a directory of text and files that `stacks new` and `stacks add` copy into a
  * project, and a registry root may come from a checkout the user doesn't control. A symlink inside
  * an entry could point anywhere on the machine (the user's SSH keys, `/`), so every name here is
- * `lstat`ed before anything reads or descends into it, and the first symlink stops the read with
- * an `EntryInvalid` failure.
+ * `lstat`ed before anything reads or descends into it, and the first symlink stops the walk.
+ * `walkEntry` returns that link as a `Link` result rather than failing; `load.ts` reports it as
+ * a rejected entry, and `entryTree` and `readEntryFile` fail with `EntryInvalid`.
  *
  * `load.ts` uses `walkEntry` for the per-entry deep check that `get`, `files`, `tree`, `read`,
  * `bytes` and `all` run. `registry.ts` uses `entryTree` for `Registry.tree` and `Registry.files`,
@@ -14,15 +15,9 @@
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
 import { EntryInvalid, PermissionDenied } from "../../errors";
+import { isAbsent } from "../absent";
 import type { Entry, EntryFile } from "./entry";
 import type { FileAccess, Walked } from "./types";
-
-/**
- * Whether a filesystem failure means "nothing there". `BadResource` (ENOTDIR, a file where a
- * directory was expected) counts too; any other reason means the CLI couldn't look.
- */
-export const isAbsent = (error: PlatformError.PlatformError) =>
-  error.reason._tag === "NotFound" || error.reason._tag === "BadResource";
 
 /** One name inside an entry: a symlink stops the walk, a directory is walked in turn. */
 const walkChild = (

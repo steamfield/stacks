@@ -27,6 +27,7 @@ import {
   type PlannedStep,
   planVerify,
   type SelectOptions,
+  secondsSinceCreated,
   skippedStep,
   type VerifyPlan,
 } from "./plan";
@@ -295,12 +296,6 @@ const summarize = (state: RunState, options: SummaryOptions) =>
     };
     return result;
   });
-
-/** Whole seconds from `createdAt` to `now`, never negative; 0 when `createdAt` doesn't parse. */
-export const secondsSinceCreated = (createdAt: string, now: number) => {
-  const created = Date.parse(createdAt);
-  return Number.isFinite(created) ? Math.max(0, Math.floor((now - created) / 1000)) : 0;
-};
 
 function runOutcome(
   interrupted: boolean,

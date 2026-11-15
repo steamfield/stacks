@@ -18,9 +18,10 @@
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
 import { PermissionDenied } from "../../errors";
+import { isAbsent } from "../absent";
 import { printable } from "../text";
 import { decodeEntry, markdownFile, type Origin } from "./entry";
-import { isAbsent, walkEntry } from "./tree";
+import { walkEntry } from "./tree";
 import type {
   Candidate,
   FileAccess,

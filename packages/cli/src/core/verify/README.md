@@ -53,7 +53,8 @@ the rest of `core/`, nothing here imports `platform/` or `commands/` or uses Nod
 
 - **Phase**: when a step runs within its stage. `setup` prepares (install, start a database),
   `check` tests, `serve` starts a server and probes a URL, `teardown` cleans up. Setup stops at
-  its first failure; every check runs; teardown always runs, from the stage's finalizer.
+  its first failure; every check runs; teardown runs from the stage's finalizer however the stage
+  ended. `--only` never leaves out setup or teardown, but `--skip-tag` and the default skips can.
 - **Stage**: `base` holds every step not tagged `app`; `app` holds the steps an application
   fragment added. The app stage runs only after a green base, since its checks assume one.
 - **Scope**: `full`, or `partial` when `--only` or `--skip-tag` left steps out. A partial run is

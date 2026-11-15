@@ -13,25 +13,14 @@
  * Every stack's default composition must verify all four, plus a `serve` step with an `expect`
  * probe when the stack is tagged `web` or `api`. Finding messages here are user-visible text.
  */
-import { APP_TAG, type StackMeta } from "@steamfield/stacks-format";
+import { APP_TAG } from "@steamfield/stacks-format";
 import type { Finding, SizeRow } from "../../schemas/validate";
 import type { ComposeWarning, Composition } from "../compose/types";
-import type { Entry } from "../registry/entry";
 import { shellArg } from "../shell";
 import { canonicalBrief, composedLimit } from "./budget";
-import type { View } from "./types";
+import type { PlanShape, Preset, Stack, View } from "./types";
 import { entryFile, finding } from "./view";
 
-export const PRESETS = ["default", "sandbox"] as const;
-export type Preset = (typeof PRESETS)[number];
-export type Stack = Entry & { meta: StackMeta };
-
-/** One composition to check: `added` names the extra fragments, undefined for the base one. */
-export type PlanShape = {
-  added: string | undefined;
-  with: ReadonlyArray<string>;
-  without: ReadonlyArray<string>;
-};
 type Occurrence = { preset: Preset; plan: PlanShape };
 
 /** The layers every stack's default composition verifies. */

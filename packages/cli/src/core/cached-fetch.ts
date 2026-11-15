@@ -60,7 +60,10 @@ export type CachedResource<A> = {
   current: () => Effect.Effect<Option.Option<A>>;
   /** The cached body at any age, with no request. */
   cached: Effect.Effect<Option.Option<A>>;
-  /** Requests another URL under the same state file and backoff rules; nothing is stored. */
+  /**
+   * Requests another URL under the same state file and backoff rules. The response isn't kept as
+   * this resource's cached body, but a failure still backs that URL off in the state file.
+   */
   get: <B, R>(at: string, read: Decoder<B, R>) => Effect.Effect<Option.Option<Loaded<B>>, never, R>;
   status: Effect.Effect<CacheState>;
 };

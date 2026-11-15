@@ -35,18 +35,14 @@ import { type Entry, isFragment, isRejected, type RejectedEntry } from "../regis
 import { bodyLimit } from "./budget";
 import {
   emptyResults,
-  type PlanShape,
-  PRESETS,
-  type Preset,
   recordBudget,
   recordFailure,
   recordMissingLayers,
   recordWarnings,
-  type Stack,
   type StackResults,
   stackFindings,
 } from "./composition-findings";
-import type { Check, View } from "./types";
+import { type Check, type PlanShape, PRESETS, type Preset, type Stack, type View } from "./types";
 import { entryFile, finding } from "./view";
 
 type ComposeFailure = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;

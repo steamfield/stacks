@@ -8,8 +8,9 @@
  * under `Paths.state` that the agent's edits to the project don't reach. `checkTamper` digests the
  * steps again and compares in this order: with the manifest's own digest, then with the state
  * record for the manifest's `projectId`. With no record under that id, it looks for a record
- * holding this manifest's real path (a copied project, or an edited `projectId`), and finding
- * one counts as a change. With no record at all, the check is `manifest-only`, which still runs
+ * holding this manifest's real path, and finding one counts as a change: the `projectId` changed
+ * while the path stayed (an edited id, or another project's manifest copied over this one). A
+ * project copied to a new directory keeps its id, so the by-id lookup finds the original's record. With no record at all, the check is `manifest-only`, which still runs
  * but can't count as a full check.
  *
  * `commands/verify.ts` calls `checkTamper` right after reading the manifest. A change stops the
@@ -33,8 +34,7 @@ import {
   replaceProjectState,
 } from "../project-state";
 import { openProject } from "../scaffold/write";
-import { skippedStep, type VerifyPlan } from "./plan";
-import { secondsSinceCreated } from "./run";
+import { isAppStep, secondsSinceCreated, skippedStep, type VerifyPlan } from "./plan";
 
 /**
  * The tamper check's finding. `record` is the state record for the manifest's `projectId`, the one
@@ -240,9 +240,7 @@ export const changedResult = (
     const ended = yield* Clock.currentTimeMillis;
     const result: VerifyResult = {
       outcome: "changed",
-      ...(plan.steps.some((step) => step.tags.includes("app"))
-        ? { stages: { base: "changed", app: null } }
-        : {}),
+      ...(plan.steps.some(isAppStep) ? { stages: { base: "changed", app: null } } : {}),
       scope: plan.scope,
       steps: plan.steps.map((step) => skippedStep(step, CHANGED)),
       totals: { passed: 0, failed: 0, skipped: plan.steps.length },

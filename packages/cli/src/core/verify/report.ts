@@ -32,7 +32,7 @@ function stepLines(step: StepResult, width: number, partial: boolean, style: Sty
     ...(step.exitCode !== undefined && step.status === "failed" ? [`exit ${step.exitCode}`] : []),
     ...(step.status === "skipped" ? [] : [seconds(step.durationMs)]),
   ].join(", ");
-  // A selection never skips setup, so say why an unselected setup step failed the run.
+  // `--only` never skips setup, so say why an unselected setup step failed the run.
   const why = [
     step.reason ?? step.note,
     ...(partial && step.status === "failed" && step.phase === "setup"

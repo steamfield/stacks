@@ -20,6 +20,7 @@ import { rmdir } from "node:fs/promises";
 import { Effect, Exit, FileSystem, Option, Path, type PlatformError, type Scope } from "effect";
 import { PermissionDenied, TargetNotEmpty } from "../../errors";
 import { Invocation } from "../../services/invocation";
+import { isAbsent } from "../absent";
 
 /**
  * The one way `new` and `add` write into a project. Every file is created exclusively (never over an existing file or through a final
@@ -73,9 +74,6 @@ const escapes = (at: string) => new PermissionDenied({ details: { reason: "escap
 
 const isAlreadyExists = (error: PlatformError.PlatformError) =>
   error.reason._tag === "AlreadyExists";
-
-const isMissing = (error: PlatformError.PlatformError) =>
-  error.reason._tag === "NotFound" || error.reason._tag === "BadResource";
 
 /** Whether a finished write failed only because the file was already there. */
 const failedAsExisting = (exit: Exit.Exit<void, PlatformError.PlatformError>) =>
@@ -279,7 +277,7 @@ export function openProject(
       fs.lstat(at).pipe(
         Effect.map((value) => value.type),
         Effect.catch((error) =>
-          isMissing(error) ? Effect.succeed("Missing" as const) : Effect.fail(unwritable(at)),
+          isAbsent(error) ? Effect.succeed("Missing" as const) : Effect.fail(unwritable(at)),
         ),
       );
     /** Creates `at` if missing; a symlink must resolve inside the root, a file is in the way. */

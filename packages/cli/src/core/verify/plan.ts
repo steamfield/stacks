@@ -6,7 +6,8 @@
  * `app` form a second stage that runs after the base steps. `planVerify` puts the steps in run
  * order (base then app, each by phase, then manifest order) and applies the selection flags
  * (`--only`, `--skip-tag`, `--all`), recording a fixed reason for every step it leaves out.
- * Selection never skips setup or teardown, because the checks depend on them.
+ * `--only` picks among check and serve steps and never leaves out setup or teardown, because the
+ * checks depend on them; `--skip-tag` and the default skips apply to every phase.
  *
  * `commands/verify.ts` calls `planVerify` to reject a bad `--only` name early and to build a
  * `changed` result; `run.ts::runVerify` plans again and runs the plan. Nothing here touches the
@@ -58,10 +59,16 @@ export const skippedStep = (step: PlannedStep, reason: string): StepResult => ({
   reason,
 });
 
+/** Whole seconds from `createdAt` to `now`, never negative; 0 when `createdAt` doesn't parse. */
+export const secondsSinceCreated = (createdAt: string, now: number) => {
+  const created = Date.parse(createdAt);
+  return Number.isFinite(created) ? Math.max(0, Math.floor((now - created) / 1000)) : 0;
+};
+
 /** Whether the step belongs to the app stage, which runs after the base steps. */
 export const isAppStep = (step: PlannedStep) => step.tags.includes("app");
 
-/** Only check and serve steps can be picked with `--only`; setup and teardown always run. */
+/** Only check and serve steps can be picked with `--only`, which never leaves out setup or teardown. */
 const isSelectable = (step: PlannedStep) => step.phase === "check" || step.phase === "serve";
 
 /**

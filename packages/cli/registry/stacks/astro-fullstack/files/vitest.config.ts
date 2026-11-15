@@ -19,9 +19,9 @@ export default defineConfig({
       "./apps/web/vitest.config.ts",
       {
         test: {
-          name: "hooks",
+          name: "tooling",
           environment: "node",
-          include: ["tests/hooks/**/*.test.ts"],
+          include: ["scripts/**/*.test.ts"],
           testTimeout: 30_000,
         },
       },

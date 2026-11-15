@@ -5,11 +5,6 @@
     "moduleResolution": "bundler",
     "types": ["bun", "node"]
   },
-  "include": [
-    "scripts/**/*.ts",
-    ".claude/hooks/**/*.ts",
-    "tests/hooks/**/*.ts",
-    "tests/helpers/hooks.ts"
-  ],
+  "include": ["scripts/**/*.ts", ".claude/hooks/**/*.ts"],
   "exclude": []
 }

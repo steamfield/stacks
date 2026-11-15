@@ -1,5 +1,2 @@
-# Harness files stacks composed; their owners format them
-tests/hooks/
-tests/helpers/hooks.ts
 # Written by stacks; verify checks the manifest
 .stacks/

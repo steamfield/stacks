@@ -2,7 +2,7 @@
  * Plans an `add` without writing: which rendered files go straight into the project, which are
  * already there, and which are parked under `.stacks/incoming/` because a live file differs.
  */
-import { Effect, FileSystem, Path, type PlatformError } from "effect";
+import { Effect, FileSystem, Option, Path, type PlatformError } from "effect";
 import { ComposeConflict, PermissionDenied } from "../../errors";
 import { INCOMING, METADATA_DIR } from "../../project-layout";
 import type { AddResult } from "../../schemas/add";
@@ -162,16 +162,15 @@ function reservedPaths(candidates: ReadonlyArray<Candidate>, parked: ReadonlyArr
   return reserved;
 }
 
-/** Deep-merge two JSON documents as pretty JSON, or `undefined` when either isn't JSON. */
-function mergedJson(parked: Uint8Array, incoming: Uint8Array): string | undefined {
-  try {
-    const previous: unknown = JSON.parse(decoder.decode(parked));
-    const next: unknown = JSON.parse(decoder.decode(incoming));
-    return `${JSON.stringify(deepMerge(previous, next), null, 2)}\n`;
-  } catch {
-    return undefined;
-  }
-}
+/** Deep-merge two JSON documents as pretty JSON, or `None` when either isn't JSON. */
+const mergedJson = (parked: Uint8Array, incoming: Uint8Array) =>
+  Effect.option(
+    Effect.try(() => {
+      const previous: unknown = JSON.parse(decoder.decode(parked));
+      const next: unknown = JSON.parse(decoder.decode(incoming));
+      return `${JSON.stringify(deepMerge(previous, next), null, 2)}\n`;
+    }),
+  );
 
 /** The first `destination.N` (from 2) that is neither reserved nor present on disk. */
 const numberedCopyPath = (root: string, destination: string, reserved: ReadonlySet<string>) =>
@@ -199,11 +198,11 @@ const parkConflict = (root: string, rendered: RenderedFile, reserved: ReadonlySe
     if (parked === undefined)
       return parkPlacement({ file, bytes, incoming: destination, action: "new" });
     if (sameBytes(parked, bytes)) return skipPlacement;
-    const merged = mergedJson(parked, bytes);
-    if (merged !== undefined)
+    const merged = yield* mergedJson(parked, bytes);
+    if (Option.isSome(merged))
       return parkPlacement({
-        file: { ...file, kind: "merge", content: merged },
-        bytes: encoder.encode(merged),
+        file: { ...file, kind: "merge", content: merged.value },
+        bytes: encoder.encode(merged.value),
         incoming: destination,
         action: "merge",
       });

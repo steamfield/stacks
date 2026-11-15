@@ -1,3 +1,20 @@
+/**
+ * Warns when a config file an entry ships pins a tool version, when `stacks validate` runs.
+ *
+ * Stacks ship files such as `package.json`, `tsconfig.json`, a Dockerfile or a CI workflow, but
+ * never the versions inside them: versions age, and the agent building the project picks current
+ * ones (`.claude/rules/architecture.md`, "Humans own what lasts and agents own what ages"). This
+ * check looks only at files whose format is tied to a tool's version (`VERSION_SENSITIVE`) and
+ * reports the first version literal in each (`version-sensitive-file`). A literal is a pinned
+ * `x.y.z` (`dated.ts::PINNED`), a semver range such as `^5` or `>=18`, a GitHub Action pinned by
+ * tag or commit, a Go toolchain line, or a `"packageManager"` or `"engines"` key, which only ever
+ * holds versions.
+ *
+ * Two places hold the project's own version rather than a tool's and are exempt: the leading
+ * `"version"` of a `package.json` and the `<version>` directly under a Maven pom's `<project>`.
+ *
+ * `core/validate/index.ts` runs `versionSensitiveChecks`.
+ */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { PINNED } from "./dated";
@@ -18,6 +35,7 @@ const VERSION_SENSITIVE = [
   /(?:^|\/)(?:\.mvn\/wrapper\/maven-wrapper|gradle\/wrapper\/gradle-wrapper)\.properties$/,
 ];
 
+/** Any version literal: pinned, a range, an Action ref, or a Go toolchain directive. */
 const VERSION_LITERAL = new RegExp(
   [
     PINNED.source,
@@ -27,9 +45,15 @@ const VERSION_LITERAL = new RegExp(
   ].join("|"),
   "m",
 );
+
+/**
+ * Comments, JSON strings, and the `"packageManager"` and `"engines"` keys (capture group 1).
+ * Matching comments and strings as whole tokens keeps those key names from matching inside them.
+ */
 const VERSION_KEY =
   /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|("(?:packageManager|engines)")(?=\s*:)|"(?:[^"\\]|\\.)*"/g;
 
+/** The first version literal or version key in the text, whichever comes first. */
 function firstVersion(text: string): string | undefined {
   const version = VERSION_LITERAL.exec(text);
   for (const token of text.matchAll(VERSION_KEY)) {
@@ -43,6 +67,7 @@ const POM_ELEMENT = /<([\w.-]+)\b[^>]*?(?<!\/)>[\s\S]*?<\/\1\s*>/g;
 const POM_VERSION =
   /<(version|release|maven\.compiler\.(?:release|source|target)|[\w.-]+\.version)\s*>\s*(\d[^<]*?)\s*<\/\1\s*>/;
 
+/** The first version a pom's `<project>` children set, outside comments. */
 function firstPomVersion(text: string): string | undefined {
   const uncommented = text.replace(/<!--[\s\S]*?-->/g, "");
   const project = /<project\b[^>]*>([\s\S]*?)<\/project\s*>/.exec(uncommented)?.[1] ?? "";
@@ -58,6 +83,7 @@ function firstPomVersion(text: string): string | undefined {
 /** The package's own `version`, like a pom's, is exempt: it versions the project, not a tool. */
 const OWN_VERSION = /^\{\s*(?:"[^"]*"\s*:\s*"[^"]*"\s*,\s*)*?"version"\s*:\s*"[^"]*"/;
 
+/** The version literal to report for a file, by its project path, or undefined when it has none. */
 function fileVersion(output: string, text: string): string | undefined {
   if (/(?:^|\/)pom\.xml$/.test(output)) return firstPomVersion(text);
   if (/(?:^|\/)package\.json$/.test(output))
@@ -70,6 +96,7 @@ export const versionSensitiveChecks: Check = (view) =>
     const findings: Finding[] = [];
     for (const entry of view.entries)
       for (const file of view.sources.get(entry.dir)?.files ?? []) {
+        // Templates are judged by the name they render to.
         const output = file.path.replace(/\.tmpl$/, "");
         if (!VERSION_SENSITIVE.some((pattern) => pattern.test(output))) continue;
         const literal = fileVersion(output, file.text);

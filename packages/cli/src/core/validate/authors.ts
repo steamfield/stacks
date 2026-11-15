@@ -1,3 +1,11 @@
+/**
+ * Checks the author credits file of a registry when `stacks validate` runs on a whole root.
+ *
+ * `authors.json` maps an entry key (`stack/<id>` or `fragment/<id>`) to the GitHub login of the
+ * person who owns it, the one who may update it. `stacks submit` records the login for each
+ * submitted entry (`core/submit/assemble.ts`). `core/validate/index.ts` runs `authorChecks`, which
+ * errors when the file doesn't decode or when a key names no entry in that root.
+ */
 import { authorKey } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";

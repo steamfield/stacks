@@ -9,6 +9,17 @@ Start here, then read repo `AGENTS.md`, the README's
 next steps, who owns each. When it grows past a couple of screens, move the dated detail
 to `archive/` and leave a link.
 
+## Queued work, in priority order (2026-11-15)
+
+1. Remote-first index and the registry repository split, designed and landed together after the
+   `feat/agent-dx` release: [remote-first index](feature-request-remote-first-registry-2026-11-14.md)
+   and [registry repository](feature-request-registry-repo-2026-11-15.md) (decided 2026-11-15).
+   The registry RFC can be written now; its interim step (registry-only CI for PRs touching only
+   `packages/cli/registry/**`) can land any time.
+2. Recipe pages on the website (`/stacks/:id/recipe/`, `/fragments/:id/recipe/`): rendered guidance
+   and a file browser, built in stacks-api. Waits on publishing `@steamfield/stacks-format` 0.8.0
+   (`bun run release:format`), which exports `shippedPath` and `outputPath` for it.
+
 ## Plain-language metadata (2026-10-29)
 
 [4.5f](archive/phases/phase-4.5f-plain-language-metadata-2026-10-30.md) is executed (D40). Every bundled

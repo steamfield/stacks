@@ -19,6 +19,6 @@ Shared hook helpers (`_lib.ts`, `_shell.ts`) ship for every target. Stacks can u
 
 When Claude is a target, its adapter adds incremental type checking after each edit. Stacks and apps own their specialized hooks and permissions; each contribution merges its agent's hook config and wires only files it owns. Hooks follow agent-ops's policy: deny only destructive work or a command that would hang the session; conventions go in guidance and lint.
 
-Include `.claude/hooks/` in TypeScript checking. Helpers use Node APIs even though Bun executes them. A stack can supply `.claude/hooks/before-typecheck.ts` for generated types; the typecheck hook awaits it before tsc. Keep it bounded and quiet when tools are absent. `harness-hooks` runs Vitest tests under `tests/hooks/` if the project adds any; scaffolds ship none, so it does nothing until then. It uses the `check` layer because this conditional success cannot establish a test milestone.
+Include `.claude/hooks/` in TypeScript checking. Helpers use Node APIs even though Bun executes them. A stack can supply `.claude/hooks/before-typecheck.ts` for generated types; the typecheck hook awaits it before tsc. Keep it bounded and quiet when tools are absent.
 
 Populate `.claude/README.md` with the actual hooks, rules, commands, skills, and agents. Add project commands to permissions only when safe to run without another prompt; leave paid and live third-party operations interactive. Each hook appears exactly once in merged settings, and a hook you add gets a case in `.claude/hooks/smoke.sh`.

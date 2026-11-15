@@ -89,10 +89,32 @@ function npmErrorLines(stderr: string): string[] {
     .slice(0, 6);
 }
 
+/** A hung registry call fails the step instead of running until the job's timeout. */
+function npmTimeout(command: string | undefined): number | undefined {
+  if (command === "view") return milliseconds("RELEASE_VIEW_TIMEOUT_MS", 60_000);
+  if (command === "publish") return milliseconds("RELEASE_PUBLISH_TIMEOUT_MS", 300_000);
+  if (command === "pack") return 300_000;
+  return undefined;
+}
+
 /** Runs npm. A failure carries the command, npm's error lines and a hint, not a child-process dump. */
 function npm(args: readonly string[], cwd = root): string {
-  const result = spawnSync("npm", [...args], { cwd, encoding: "utf8" });
-  if (result.error) throw new PublishFailed(`could not run npm: ${result.error.message}`);
+  const timeout = npmTimeout(args[0]);
+  const result = spawnSync("npm", [...args], {
+    cwd,
+    encoding: "utf8",
+    timeout,
+    killSignal: "SIGKILL",
+  });
+  if (result.error) {
+    if (timeout !== undefined && "code" in result.error && result.error.code === "ETIMEDOUT")
+      throw new NpmFailed(
+        `npm ${args[0] ?? ""} timed out after ${Math.round(timeout / 1000)}s. The registry is slow or unreachable; rerun the failed job.`,
+        "",
+        "ETIMEDOUT",
+      );
+    throw new PublishFailed(`could not run npm: ${result.error.message}`);
+  }
   if (result.status === 0) return result.stdout;
   const stderr = result.stderr ?? "";
   const code = /^npm error code (\w+)/m.exec(stderr)?.[1];
@@ -116,12 +138,44 @@ function registryErrorCode(stdout: string): unknown {
   }
 }
 
+/**
+ * Failures worth another try: registry overload (429, 5xx), our own call timeout and network
+ * drops. Auth, 404 and anything else npm reports are answers, not hiccups, and fail at once.
+ */
+const TRANSIENT =
+  /^(E429|E5\d\d|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ENETUNREACH|EPIPE)$/;
+
+/**
+ * `npm view` is a read, so retrying it is safe. Backoff doubles from the base with full jitter
+ * (about 5s, 10s, 20s by default). `npm publish` is never retried: a rerun of the job checks the
+ * registry first.
+ */
+function viewIntegrity(spec: string): string {
+  const attempts = milliseconds("RELEASE_VIEW_ATTEMPTS", 4);
+  const base = milliseconds("RELEASE_RETRY_BASE_MS", 5000);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return npm(["view", spec, "dist.integrity", "--json", "--prefer-online"]);
+    } catch (error) {
+      if (!(error instanceof NpmFailed)) throw error;
+      const code = error.code ?? registryErrorCode(error.stdout);
+      if (typeof code !== "string" || !TRANSIENT.test(code) || attempt >= attempts) {
+        if (attempt > 1) error.message += `\n(gave up after ${attempt} attempts)`;
+        throw error;
+      }
+      const delay = Math.round(Math.random() * base * 2 ** (attempt - 1));
+      console.log(
+        `npm view ${spec} failed with ${code}; retrying in ${Math.round(delay / 1000)}s (attempt ${attempt + 1} of ${attempts}).`,
+      );
+      sleep(delay);
+    }
+  }
+}
+
 /** The integrity npm serves for a version, or null when the registry says it does not exist. */
 function publishedIntegrity(spec: string): string | null {
   try {
-    const served: unknown = JSON.parse(
-      npm(["view", spec, "dist.integrity", "--json", "--prefer-online"]),
-    );
+    const served: unknown = JSON.parse(viewIntegrity(spec));
     if (typeof served !== "string")
       throw new PublishFailed(`npm returned an unexpected integrity for ${spec}`);
     return served;
@@ -197,9 +251,18 @@ function milliseconds(name: string, fallback: number): number {
 
 const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
+/** A GitHub annotation in Actions, a plain line elsewhere; the run still passes. */
+function warn(title: string, message: string): void {
+  if (process.env.GITHUB_ACTIONS) console.log(`::warning title=${title}::${message}`);
+  else console.log(`warning: ${message}`);
+}
+
 /**
  * npm reports a publish well before the registry serves it, usually within 3 to 5 minutes. Wait
  * for the first check, then poll. A different integrity is a real conflict and fails at once.
+ * Nothing depends on this package, so one npm accepted but the registry has not shown yet warns
+ * instead of failing the run. A project that publishes a package another one depends on should
+ * fail for that first package instead.
  */
 function confirmPublished(packed: Packed): void {
   const delay = milliseconds("RELEASE_CONFIRM_DELAY_MS", 120_000);
@@ -218,8 +281,9 @@ function confirmPublished(packed: Packed): void {
       throw new PublishFailed(`${spec} is on npm with different contents than the build.`);
     if (attempt < attempts) sleep(interval);
   }
-  throw new PublishFailed(
-    `Could not confirm ${spec} on the registry after ${Math.round((delay + attempts * interval) / 1000)}s. npm reported the publish, so rerun the job: it skips a version already published.`,
+  warn(
+    "Release not yet visible on npm",
+    `npm accepted ${spec} but the registry had not shown it after ${Math.round((delay + attempts * interval) / 1000)}s. Check \`npm view ${packed.name} version\` in a few minutes; rerun this job only if it never appears.`,
   );
 }
 

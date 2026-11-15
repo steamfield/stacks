@@ -102,6 +102,7 @@ Each deck lives in `decks/<alias>/` and is registered in `decks.json`; `decks ne
 - `decks build` empties its output directory and refuses one it didn't write; keep other files out of `dist/`.
 - `decks build` writes `og.png` with Chromium and only warns when it is missing, so a build without Chromium still passes.
 - `decks check` passing doesn't mean the slides compile; build the deck you changed.
+- `decks init` writes `.claude/settings.json` even when Claude Code isn't a target. agent-ops' `hooks-smoke` checks every hook config present, so wire its guards into that file too: add the `hooks` block agent-ops writes for Claude Code (each event running its script in `.claude/hooks/`, which every scaffold has), keeping the plugin keys `decks init` added. Don't delete the file; the next `decks init` writes it again.
 <!-- stacks:when payload=example -->
 - The example deck holds the alias `example`, so a project named `example` can't register its own deck under that name: tell the person, and remove the example deck first if they want to keep the name.
 <!-- stacks:end -->

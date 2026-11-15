@@ -1,18 +1,17 @@
 /**
- * Provides a local OpenRouter-compatible server for tests and development. It records requests and supports scripted responses.
+ * A local OpenRouter for tests and no-key development runs. It serves the models and
+ * chat-completions endpoints under /api/v1 in OpenRouter's wire format (docs: openrouter.ai/docs),
+ * records what it received, and can be scripted per test. It uses only node:http, so it runs under
+ * Vitest on Node and under Bun (scripts, Playwright web servers).
+ *
+ *   const stub = await startStubOpenRouter();   // ephemeral port; pass a fixed one for e2e
+ *   OPENROUTER_BASE_URL = stub.baseUrl          // http://127.0.0.1:<port>/api/v1
+ *   stub.toolCalls.push({ name: "currentTime", arguments: { timeZone: "UTC" } });
+ *   stub.failCompletions(429, { retryAfter: 1, times: 1 });
+ *   expect(stub.chatRequests[0]).toMatchObject({ models: ["a/b"] });
+ *   await stub.close();
  */
 
-// A local OpenRouter for tests and no-key development runs. It serves the models and
-// chat-completions endpoints under /api/v1 in OpenRouter's wire format (docs: openrouter.ai/docs),
-// records what it received, and can be scripted per test. It uses only node:http, so it runs under
-// Vitest on Node and under Bun (scripts, Playwright web servers).
-//
-//   const stub = await startStubOpenRouter();   // ephemeral port; pass a fixed one for e2e
-//   OPENROUTER_BASE_URL = stub.baseUrl          // http://127.0.0.1:<port>/api/v1
-//   stub.toolCalls.push({ name: "currentTime", arguments: { timeZone: "UTC" } });
-//   stub.failCompletions(429, { retryAfter: 1, times: 1 });
-//   expect(stub.chatRequests[0]).toMatchObject({ models: ["a/b"] });
-//   await stub.close();
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 

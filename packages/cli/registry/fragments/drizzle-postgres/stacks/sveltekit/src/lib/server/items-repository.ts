@@ -1,5 +1,6 @@
 /**
- * Implements item storage with Drizzle and Postgres. Server routes use the repository to read and add items.
+ * Item storage on Drizzle and Postgres. defaultItemsRepository() uses the shared pool;
+ * duplicate names return { status: "duplicate" }.
  */
 
 import { asc } from 'drizzle-orm';

@@ -1,5 +1,6 @@
 /**
- * Defines the items service and its in-memory implementation. API handlers use this interface independently of the storage layer.
+ * Defines the items service and its in-memory implementation. API handlers use this interface
+ * independently of the storage layer.
  */
 
 import { Clock, Context, DateTime, Effect, Layer, Ref } from "effect";

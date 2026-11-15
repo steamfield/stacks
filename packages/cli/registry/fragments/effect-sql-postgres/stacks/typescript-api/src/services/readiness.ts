@@ -1,5 +1,6 @@
 /**
- * Defines the readiness service and its in-memory implementation. The API handler uses it to check the data store.
+ * Defines the readiness service and its in-memory implementation. The API handler uses it to check
+ * the data store.
  */
 
 import { Context, Effect, Layer } from "effect";

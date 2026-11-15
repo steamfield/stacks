@@ -1,9 +1,9 @@
 /**
- * Tests the site’s analytics integration and layout wiring. The browser-like test environment exercises tracking without a live PostHog service.
+ * Tests analytics tracking and layout wiring in a browser-like environment without live PostHog.
+ * The .tsx extension matches the web project's test include.
+ * @vitest-environment happy-dom
  */
 
-// @vitest-environment happy-dom
-// A .tsx name so the web project's src/**/*.test.tsx include picks it up.
 import type { PostHog } from "posthog-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as analytics from "./analytics";

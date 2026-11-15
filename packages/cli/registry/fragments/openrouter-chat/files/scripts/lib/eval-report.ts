@@ -1,5 +1,6 @@
 /**
- * Defines and validates evaluation report data. The evaluation scripts use it to check and summarize model results.
+ * Defines and validates evaluation report data. The evaluation scripts use it to check and
+ * summarize model results.
  */
 
 export type Verdict = "pass" | "fail" | "error" | "truncated";

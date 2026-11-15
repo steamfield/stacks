@@ -1,8 +1,9 @@
 /**
- * Resolves the mobile app’s Clerk configuration and checks whether authentication can be enabled.
+ * Resolves the mobile app's Clerk key and auth bypass. Release builds reject a missing or
+ * placeholder publishable key and EXPO_PUBLIC_AUTH_BYPASS=1; development can run anonymous.
+ * Placeholder keys match the unfilled values used in EAS profiles and docs.
  */
 
-// Shapes EAS profiles and docs use for a key nobody filled in.
 const PLACEHOLDER = /replace_me|_xxx$/;
 
 /**

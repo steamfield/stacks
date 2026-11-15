@@ -1,5 +1,6 @@
 /**
- * Exercises the migration command against isolated databases, including its check and apply behavior.
+ * Exercises the migration command against isolated databases, including its check and apply
+ * behavior.
  */
 
 import { spawnSync } from "node:child_process";

@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Checks migration history and schema drift without modifying the committed migrations. The project runs it as its database check.
+ * db:check: fails when the migration history is inconsistent or when the schema has changes no
+ * committed migration covers. It writes nothing to drizzle/ and needs no database: it generates
+ * into a temporary copy of drizzle/ and fails if the copy gains anything.
  */
 
-// db:check: fails when the migration history is inconsistent or when the schema has changes no
-// committed migration covers. It writes nothing to drizzle/ and needs no database: it generates
-// into a temporary copy of drizzle/ and fails if the copy gains anything.
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

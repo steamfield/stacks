@@ -1,5 +1,6 @@
 /**
- * Defines the readiness HTTP endpoint and its responses. Its handler checks the configured data store.
+ * Defines the readiness HTTP endpoint and its responses. Its handler checks the configured data
+ * store.
  */
 
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api";

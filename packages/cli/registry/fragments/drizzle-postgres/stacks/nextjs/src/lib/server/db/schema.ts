@@ -1,9 +1,8 @@
 /**
- * Defines the Drizzle items table. Both application queries and the migration tooling read this schema.
+ * Drizzle tables. drizzle-kit loads this file under plain Node: no server-only import, no path
+ * aliases and no imports from app code.
  */
 
-// Drizzle tables. drizzle-kit loads this file under plain Node: no server-only import, no path
-// aliases and no imports from app code.
 import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const items = pgTable("items", {

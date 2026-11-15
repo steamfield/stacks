@@ -1,11 +1,10 @@
 /**
- * Applies or checks database migrations for the API. It uses the same database configuration as the server.
+ * db:migrate applies pending migrations to DATABASE_URL. db:check (--check) applies nothing and
+ * fails when a migration file is missing from the index, or when the database's applied
+ * migrations differ from the index (pending, unknown or renamed). It is not a checksum: an edited
+ * applied migration goes unnoticed. The URL is AppConfig's databaseUrl, as the server reads it.
  */
 
-// db:migrate applies pending migrations to DATABASE_URL. db:check (--check) applies nothing and
-// fails when a migration file is missing from the index, or when the database's applied
-// migrations differ from the index (pending, unknown or renamed). It is not a checksum: an edited
-// applied migration goes unnoticed. The URL is AppConfig's databaseUrl, as the server reads it.
 import { readdirSync } from "node:fs";
 import { NodeRuntime } from "@effect/platform-node";
 import { Cause, Effect, Logger } from "effect";

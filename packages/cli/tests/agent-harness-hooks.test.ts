@@ -91,16 +91,16 @@ function denied(result: ReturnType<typeof run>) {
   expect(decision.hookSpecificOutput.permissionDecisionReason).toMatch(/ask the user first/i);
 }
 
-test.each(patterns)("the shared guard enforces $pattern", ({ blocked, allowed }) => {
-  const root = project();
-  for (const command of blocked) denied(hook(root, command));
-  for (const command of allowed)
-    expect({ command, ...hook(root, command) }).toEqual({
-      command,
-      status: 0,
-      stdout: "",
-      stderr: "",
-    });
+test.each(
+  patterns.flatMap(({ pattern, blocked }) => blocked.map((command) => ({ pattern, command }))),
+)("the shared guard denies $command ($pattern)", ({ command }) => {
+  denied(hook(project(), command));
+});
+
+test.each(
+  patterns.flatMap(({ pattern, allowed }) => allowed.map((command) => ({ pattern, command }))),
+)("the shared guard allows $command ($pattern)", ({ command }) => {
+  expect(hook(project(), command)).toEqual({ status: 0, stdout: "", stderr: "" });
 });
 
 test.each(patterns.flatMap(({ blocked }) => blocked))(

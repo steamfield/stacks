@@ -12,6 +12,7 @@ merge: [.claude/settings.json]
 verify:
   - name: ce-plugin-wired
     layer: check
+    tags: [hygiene]
     run: "test ! -f .claude/settings.json || grep -q '\"ce@claude-essentials\"' .claude/settings.json"
 ---
 

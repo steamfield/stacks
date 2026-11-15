@@ -16,7 +16,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [git-hooks, ci-github]
+  default: [claude-harness-docs, git-hooks, ci-github]
   optional: [rr, ce-plugin]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }
@@ -28,6 +28,7 @@ verify:
   - { name: smoke, layer: test, run: bun run smoke }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   build: Bundle the server into dist/index.js
@@ -61,7 +62,7 @@ Link `docs/guidance/typescript-mcp/index.md` from AGENTS.md.
 ## Setup
 
 1. Add every declared app and dev dependency at its current release with `bun add` and `bun add -d`. Use the v2 packages the frontmatter names; `@modelcontextprotocol/sdk` is v1. Check `@modelcontextprotocol/server`'s zod range before adding zod, and match `@types/node` to the chosen Node major.
-2. Write the Node LTS to `.node-version` and the Bun version to `packageManager`. Add a `version` field (a `0.x` pre-release) and fill `description` in `package.json`: the server reports both to every client, and typecheck fails without `version`.
+2. Write the Node LTS to `.node-version` and the Bun version to `packageManager`. `package.json` ships a placeholder `version`; keep a `0.x` version, and fill `description`: the server reports both to every client, and typecheck fails without `version`.
 3. Read the installed SDK declarations (`node_modules/@modelcontextprotocol/server/dist/index.d.mts`, `stdio.d.mts`, and the client's) before changing any SDK call.
 4. Run `bun run lint`, `bun run typecheck`, `bun run coverage`, `bun run build` and `bun run smoke`. Where an installed release rejects shipped code or config (a renamed export, a changed Inspector flag), update it from that release's declarations or `--help`, keeping every check, lint rule and assertion.
 5. Fill the README's `stacks:fill` markers and AGENTS.md (commands, a single-file test example, the stdout rule, the guidance link), then run `stacks verify` until green.

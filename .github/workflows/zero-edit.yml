@@ -1,0 +1,38 @@
+name: Zero-edit scaffold
+# Nightly and on demand: `bun run prove` each stack outside any repository with no edits, install
+# the latest releases with the brief's own install command, and run the code checks. A red run
+# means a new upstream release broke a shipped file; fix the template, not the check.
+# The run's scaffold records are the `zero-edit-ledger` artifact. Nothing commits them back: to
+# keep a run as proof, download the artifact and run
+#   bun run --cwd packages/cli ledger:import -- <downloaded>/runs.json
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  typescript-library:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # A CI run is not a user's project: send no telemetry.
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun run install:ci
+      - name: Prove with no edits
+        working-directory: packages/cli
+        run: bun run prove typescript-library --ledger "$RUNNER_TEMP/zero-edit"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: zero-edit-ledger
+          path: ${{ runner.temp }}/zero-edit/runs.json
+          if-no-files-found: warn

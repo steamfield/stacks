@@ -62,7 +62,8 @@ test.each(["default", "sandbox"] as const)(
 test("with an app, the definition of done is split: the base with --skip-tag app, then the application [1.1#14a]", async () => {
   const brief = renderBrief(await composed({}), context()).text;
   expect(headings(brief)).toEqual([
-    "## Your job",
+    "## Start here",
+    "## Facts",
     "## Versions",
     "## Ground rules",
     "## Decisions",
@@ -109,7 +110,7 @@ test("with an app, the definition of done is split: the base with --skip-tag app
     "| `PORT_TODO`",
   ]);
   expect(application).toContain("| `PORT_TODO` | `5180` |");
-  expect(application).toContain("Done is a full `stacks verify` (no `--skip-tag`)");
+  expect(application).toContain("Done is a full `stacks verify --all` (no `--skip-tag`)");
   expect(brief.indexOf("APP-BODY")).toBeGreaterThan(brief.indexOf("## Then: the application"));
   // Without an app, neither heading appears.
   const plain = renderBrief(await composed({ without: ["todo-app"] }), context()).text;
@@ -124,7 +125,8 @@ test("the brief holds every section in order, every step, the env defaults, ever
   const invocation = "npx -y stacks@1.2.3";
   const brief = renderBrief(composition, context({ invocation, yes: true })).text;
   expect(headings(brief)).toEqual([
-    "## Your job",
+    "## Start here",
+    "## Facts",
     "## Versions",
     "## Ground rules",
     "## Decisions",
@@ -170,7 +172,7 @@ test("the brief holds every section in order, every step, the env defaults, ever
   expect(done).toContain(`\`PORT_WEB=<free port> ${invocation} verify\``);
   expect(done).toContain("Don't change the defaults in `.stacks/manifest.json`");
   for (const rule of [
-    `- Run \`${invocation} verify\` from the project root.`,
+    `- Run \`${invocation} verify --all\` from the project root.`,
     "- A command a step calls that doesn't exist yet is yours to create",
     "- Don't weaken the definition of done.",
     "- Stop any dev server you started before running verify",
@@ -331,12 +333,52 @@ test("briefWords counts the whole brief; fixedWords is all of it when entries br
   expect(brief.text).not.toContain("## Dependencies and tools");
 });
 
+test.each([
+  {
+    tags: "[python, cli]",
+    tools: "[uv]",
+    start: "   uv add typer\n   uv add --dev ruff pytest\n",
+  },
+  // Go needs `go mod init <module path>` and Rust crates need features: no generated command.
+  { tags: "[go, cli]", tools: "[go]", start: null },
+  { tags: "[rust, cli]", tools: "[cargo]", start: null },
+])("step 1 spells the install for uv stacks only: $tags", async ({ tags, tools, start }) => {
+  const user = temp();
+  writeEntry({
+    root: user,
+    kind: "stack",
+    dir: "language",
+    frontmatter: minimal(
+      "stack",
+      "language",
+      `tags: ${tags}\ntools: ${tools}\ndeps:\n  runtime: [typer]\n  dev: [ruff, pytest]`,
+    ),
+    body: "",
+  });
+  const composition = await composed(
+    { stack: "language" },
+    { roots: [{ origin: "user", path: user }] },
+  );
+  const brief = renderBrief(composition, context()).text;
+  if (start === null) {
+    expect(section(brief, "## Start here")).not.toContain("```sh");
+    expect(section(brief, "## Dependencies and tools")).toContain("- runtime: typer\n");
+  } else {
+    expect(section(brief, "## Start here")).toContain(`   \`\`\`sh\n${start}   \`\`\`\n`);
+    expect(section(brief, "## Dependencies and tools")).toContain(
+      "Packages: see Start here, step 1.\n",
+    );
+  }
+});
+
 test("deps merge by role into one line; a missing tool gets its install hint and the --without that drops it [1.1#21]", async () => {
   const composition = await composed({});
   const missing = missingTools(composition, (tool) => tool === "bun-never");
   const brief = renderBrief(composition, context({ missing })).text;
   const deps = section(brief, "## Dependencies and tools");
-  expect(deps).toContain("- test: vitest, playwright\n");
+  // A Bun scripts stack: step 1 of Start here spells the install, and Dependencies points at it.
+  expect(section(brief, "## Start here")).toContain("   bun add -d vitest playwright\n");
+  expect(deps).toContain("Packages: see Start here, step 1.\n");
   expect(deps).toContain("- `bun`: not found. Install it from https://bun.sh/docs/installation.\n");
   expect(deps).toContain(
     "- `actionlint`: not found. Install it with the system package manager. `--without ci` would have left it out.",
@@ -438,7 +480,8 @@ test("the realistic typescript-cli stack renders with and without its app, its c
   const base = await composed({ stack: "typescript-cli" }, { roots });
   const brief = renderBrief(base, context({ project: "chatter" })).text;
   expect(headings(brief)).toEqual([
-    "## Your job",
+    "## Start here",
+    "## Facts",
     "## Versions",
     "## Ground rules",
     "## Decisions",
@@ -483,3 +526,37 @@ test("the realistic typescript-cli stack renders with and without its app, its c
   expect(rows(application).map((row) => row.split(" | ")[0])).toContain("| `app-stub`");
   expect(app).not.toMatch(/stacks:(when|end)/);
 });
+
+test.each([
+  ["a Go stack", "tags: [go, make]"],
+  ["a Bun monorepo", "tags: [bun, scripts, monorepo]"],
+])(
+  "for %s stacks spells no install command: step 1 points at the package list, which stays",
+  async (_, tags) => {
+    const user = temp();
+    writeEntry({
+      root: user,
+      kind: "stack",
+      dir: "plain-stack",
+      frontmatter: minimal(
+        "stack",
+        "plain-stack",
+        `${tags}\ndeps:\n  dev: [linter]\n  app: [server]`,
+      ),
+      body: "",
+    });
+    const composition = await composed(
+      { stack: "plain-stack" },
+      { roots: [{ origin: "user", path: user }] },
+    );
+    const brief = renderBrief(composition, context()).text;
+    const start = section(brief, "## Start here");
+    expect(start).toContain("1. Install the packages under Dependencies and tools");
+    expect(start).not.toContain("bun add");
+    expect(start).toContain("2. Run `stacks verify` (the code checks)");
+    expect(start).toContain("4. Done: `stacks verify --all`");
+    const deps = section(brief, "## Dependencies and tools");
+    expect(deps).toContain("- dev: linter\n");
+    expect(deps).toContain("- app: server\n");
+  },
+);

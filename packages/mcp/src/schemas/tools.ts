@@ -13,7 +13,7 @@ export type ListSuccess = typeof ListSuccess.Type;
 export const NewParams = Schema.Struct({
   stack: Schema.String,
   dir: AbsoluteDir,
-  preset: Schema.optionalKey(Schema.Literals(["default", "sandbox"])),
+  preset: Schema.optionalKey(Schema.Literals(["default", "sandbox", "lean"])),
   with: Schema.optionalKey(Schema.Array(Schema.String)),
   without: Schema.optionalKey(Schema.Array(Schema.String)),
 });

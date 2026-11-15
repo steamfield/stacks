@@ -1667,6 +1667,32 @@ test("a stack with a stacks/ directory is an overlay-fragment-only error, since 
   ]);
 });
 
+test("payloads/ hold only the example and none variants, and only in stacks", async () => {
+  const root = temp();
+  const host = stack(root, "host");
+  const entry = fragment(root, "carrier");
+  for (const [dir, source] of [
+    [host, "payloads/example/src/index.ts"],
+    [host, "payloads/none/src/index.ts"],
+    [host, "payloads/demo/src/index.ts"],
+    [entry, "payloads/none/src/index.ts"],
+  ] as const) {
+    mkdirSync(join(dir, source, ".."), { recursive: true });
+    writeFileSync(join(dir, source), "export {};\n");
+  }
+  const { report: got } = await report([root]);
+  expect(only(got.findings, "payload-unknown")).toEqual([
+    expect.objectContaining({
+      severity: "error",
+      entry: "host",
+      message: expect.stringContaining("payloads/demo/"),
+    }),
+  ]);
+  expect(only(got.findings, "payload-stack-only")).toEqual([
+    expect.objectContaining({ severity: "error", entry: "carrier" }),
+  ]);
+});
+
 test("shipped files reject conditional markers in shared, adapter and stack files but accept fill", async () => {
   const root = temp();
   stack(root, "host");

@@ -36,6 +36,7 @@ verify:
     expect: { http: "http://127.0.0.1:${PORT}/actuator/health", within: 120s }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   env: Check the JDK, the Maven wrapper and that every pom.xml version property is filled

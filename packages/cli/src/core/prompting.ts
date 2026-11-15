@@ -3,6 +3,7 @@ import { Effect, Path, Terminal } from "effect";
 import { AppConfig } from "../config";
 import { BrokenPipe, Interrupted, PermissionDenied, Usage } from "../errors";
 import type { ListRow } from "../schemas/list";
+import type { NewPreset } from "../schemas/new";
 import type { Origin } from "../schemas/origin";
 import { Host } from "../services/host";
 import { type Audience, Output } from "../services/output";
@@ -155,13 +156,18 @@ const pickPreset = Effect.fn("prompting.pickPreset")(function* (
   if (input.sandbox) return "sandbox";
   const settings = yield* (yield* AppConfig).get;
   const preset = input.dryRun ? "default" : (settings.preset ?? "default");
-  return yield* prompt.one<"default" | "sandbox">({
+  const choices = [
+    { label: "Default", value: "default" },
+    { label: "Sandbox (local only, implies --yes)", value: "sandbox" },
+    { label: "Lean (no default fragments)", value: "lean" },
+  ] as const;
+  return yield* prompt.one<NewPreset>({
     title: "Composition preset",
-    choices: [
-      { label: "Default", value: "default" },
-      { label: "Sandbox (local only, implies --yes)", value: "sandbox" },
-    ],
-    defaultIndex: preset === "sandbox" ? 1 : 0,
+    choices: [...choices],
+    defaultIndex: Math.max(
+      0,
+      choices.findIndex((choice) => choice.value === preset),
+    ),
   });
 });
 

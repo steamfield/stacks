@@ -24,7 +24,7 @@ export const verify = (prepared: Prepared) =>
     const historyFile = path.join(prepared.project, ".stacks/state/runs.jsonl");
     const before = (yield* readOptional(historyFile)) ?? "";
     const checked = yield* processes.exec({
-      argv: [prepared.cli, "verify", "--json"],
+      argv: [prepared.cli, "verify", "--all", "--json"],
       cwd: prepared.project,
       env: prepared.env,
     });

@@ -1,10 +1,10 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { AgentId } from "@steamfield/stacks-format";
 import { Effect, Exit, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { fingerprint } from "../src/core/fingerprint";
+import { fingerprint, proofFingerprint } from "../src/core/fingerprint";
 import type { LedgerRecord } from "../src/schemas/ledger";
 import { bundledAt, composeExit } from "./helpers/compose";
 import { ledgerRecord, ledgerRegistry, writeLedger } from "./helpers/ledger";
@@ -48,7 +48,7 @@ async function record(root: string, overrides: Partial<LedgerRecord> = {}) {
   return {
     ...base,
     fingerprint: await Effect.runPromise(
-      fingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)),
+      proofFingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)),
     ),
   };
 }
@@ -248,4 +248,67 @@ test("last pass uses date then file order, and a current green clears an earlier
     ["ledger-changed", "note", { entry: "sample", text: ["sample"] }],
   ]);
   expect(report.findings[1]?.message).toContain(current.date);
+});
+
+test("a scaffold proof of the current content clears another agent's stale pass of that preset", async () => {
+  const root = registry();
+  const pass = await record(root);
+  stack(root, "sample", "", `${setupBody}\nChanged.\n`);
+  const scaffold = { ...(await record(root)), agent: "none", mode: "scaffold", date: "2026-10-28" };
+  writeLedger(root, [pass]);
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+    ["ledger-changed", "note", { entry: "sample", text: ["sample"] }],
+  ]);
+  writeLedger(root, [pass, scaffold]);
+  findingsAre((await validate(root)).report.findings, [
+    ...missingSearchNotes({ stacks: ["sample"] }),
+  ]);
+});
+
+test("only a canary reports a shared fragment change, and a pass of the whole composition clears it", async () => {
+  const root = registry();
+  stack(root, "sample", "fragments:\n  default: [shared]");
+  stack(root, "other", "fragments:\n  default: [shared]");
+  const shared = fragment(root, "shared");
+  writeFileSync(join(root, "canaries.json"), JSON.stringify({ stacks: ["sample"] }));
+  const whole = async (id: string) => {
+    const exit = await composeExit(
+      { stack: id, preset: "sandbox", agents: ["claude"] },
+      { roots: bundledAt(root) },
+    );
+    if (Exit.isFailure(exit)) throw new Error("Canary fixture did not compose");
+    return Effect.runPromise(fingerprint(exit.value).pipe(Effect.provide(NodeServices.layer)));
+  };
+  const proofOf = async (id: string) => ({
+    ...(await record(root, { stack: id })),
+    compositionFingerprint: await whole(id),
+  });
+  writeLedger(root, [await proofOf("sample"), await proofOf("other")]);
+  const clean = missingSearchNotes({ stacks: ["other", "sample"], fragments: ["shared"] });
+  findingsAre((await validate(root)).report.findings, [...clean]);
+
+  writeFileSync(
+    join(shared, "FRAGMENT.md"),
+    `${readFileSync(join(shared, "FRAGMENT.md"), "utf8")}\nChanged.\n`,
+  );
+  const before = [await proofOf("other")];
+  const { report } = await validate(root);
+  findingsAre(report.findings, [
+    ...clean,
+    ["ledger-canary", "note", { entry: "sample", text: ["sample", "canary"] }],
+  ]);
+  writeLedger(root, [...before, await proofOf("sample")]);
+  findingsAre((await validate(root)).report.findings, [...clean]);
+});
+
+test("a canaries.json naming an unknown stack is a warning", async () => {
+  const root = registry();
+  writeLedger(root, [await record(root)]);
+  writeFileSync(join(root, "canaries.json"), JSON.stringify({ stacks: ["missing"] }));
+  const { report } = await validate(root);
+  expect(report.findings.find((finding) => finding.check === "ledger-canaries")).toMatchObject({
+    severity: "warning",
+    message: expect.stringContaining("unknown: missing"),
+  });
 });

@@ -11,7 +11,7 @@ import { NodeServices } from "@effect/platform-node";
 import type { AgentId } from "@steamfield/stacks-format";
 import { Effect, Exit, Schema } from "effect";
 import { expect } from "vitest";
-import { fingerprint } from "../../src/core/fingerprint";
+import { fingerprint, proofFingerprint } from "../../src/core/fingerprint";
 import { BriefPreview } from "../../src/schemas/validate";
 import { bundledAt, composeExit } from "./compose";
 import { minimal, writeEntry } from "./registry";
@@ -80,15 +80,22 @@ export async function fingerprintFor(
     agents?: AgentId[];
     with?: string[];
     without?: string[];
+    /** The ledger's scoped `proofFingerprint` instead of the whole composition's. */
+    proof?: boolean;
   } = {},
 ) {
+  const { proof: _proof, ...compose } = options;
   const composed = await composeExit(
-    { stack: "sample", preset: "sandbox", agents: ["claude"], ...options },
+    { stack: "sample", preset: "sandbox", agents: ["claude"], ...compose },
     { roots: bundledAt(root) },
   );
   if (Exit.isFailure(composed))
     throw new Error(`Fixture composition failed: ${JSON.stringify(composed)}`);
-  return Effect.runPromise(fingerprint(composed.value).pipe(Effect.provide(NodeServices.layer)));
+  return Effect.runPromise(
+    (options.proof ? proofFingerprint : fingerprint)(composed.value).pipe(
+      Effect.provide(NodeServices.layer),
+    ),
+  );
 }
 
 type Run = { status: number; stdout: string; stderr: string };

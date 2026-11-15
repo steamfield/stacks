@@ -4,6 +4,9 @@ import { Effect } from "effect";
 import { BadInput } from "../../errors";
 
 export const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
+/** Steps that check the project's hygiene (fill markers, harness, CI, hooks), not its code. */
+export const HYGIENE_TAG = "hygiene";
+export const HYGIENE_SKIPPED = "a hygiene check; --all or --only <name> runs it";
 
 /** A manifest step with its defaults applied. */
 export type PlannedStep = ResolvedStep & { skipByDefault: boolean };
@@ -22,20 +25,25 @@ export type VerifyPlan = {
   scope: "full" | "partial";
 };
 
+const defaultSkip = (step: PlannedStep) =>
+  step.tags.includes(HYGIENE_TAG)
+    ? HYGIENE_SKIPPED
+    : "skipped by default in this preset; --all or --only <name> runs it";
+
 /**
  * Orders the steps and applies the selection flags. `--only` and `--skip-tag` make the scope
- * `partial`; `skipByDefault` steps (`prod` under `--sandbox`) run with `--all` or an explicit
- * `--only` name. `--all` keeps the scope `full`. An `--only` name that is no check or serve step
- * is `BadInput`, listing those names.
+ * `partial`; `skipByDefault` steps (`prod` under `--sandbox`, and every `hygiene` step) run with
+ * `--all` or an explicit `--only` name. `--all` keeps the scope `full`. An `--only` name that is
+ * no check or serve step is `BadInput`, listing those names.
  */
 export function planVerify(
   manifestSteps: ReadonlyArray<ManifestStep>,
   options: SelectOptions,
 ): Effect.Effect<VerifyPlan, BadInput> {
-  const resolved = manifestSteps.map(({ owner: _owner, skipByDefault, ...step }) => ({
-    ...withStepDefaults(step),
-    skipByDefault,
-  }));
+  const resolved = manifestSteps.map(({ owner: _owner, skipByDefault, ...step }) => {
+    const defaults = withStepDefaults(step);
+    return { ...defaults, skipByDefault: skipByDefault || defaults.tags.includes(HYGIENE_TAG) };
+  });
   const steps = [false, true].flatMap((app) =>
     PHASES.flatMap((phase) =>
       resolved.filter((step) => step.tags.includes("app") === app && step.phase === phase),
@@ -50,7 +58,7 @@ export function planVerify(
   for (const step of steps) {
     const tag = step.tags.find((item) => options.skipTags.includes(item));
     if (step.skipByDefault && !options.all && !options.only.includes(step.name))
-      skipped.set(step.name, "skipped by default in this preset; --all or --only <name> runs it");
+      skipped.set(step.name, defaultSkip(step));
     else if (
       options.only.length &&
       (step.phase === "check" || step.phase === "serve") &&

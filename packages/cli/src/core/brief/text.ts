@@ -11,6 +11,32 @@ const verify = (cli: string, flags = "") => code(`${cli} verify${flags}`);
 
 export const title = (project: string, stack: string) => `# Build ${project}: ${stack}`;
 
+/**
+ * The first screen: an ordered action list. Step 1 installs the declared packages (the command
+ * when stacks can spell it, else a pointer to the list), step 2 runs the code checks, step 4 is
+ * the single done command.
+ */
+export const start = {
+  heading: "## Start here",
+  did: "stacks wrote the starter files and this brief and ran nothing. Next:",
+  install: "1. Install the declared packages, latest versions:",
+  installListed: (what: "packages" | "tools" | "none") =>
+    ({
+      packages:
+        "1. Install the packages under Dependencies and tools at their latest versions with the stack's package manager.",
+      tools: "1. Install any tool under Dependencies and tools that isn't on PATH.",
+      none: "1. Nothing to install.",
+    })[what],
+  verify: (cli: string) =>
+    `2. Run ${verify(cli)} (the code checks); fix the code, never the steps, until it is ${code("green")}.`,
+  build: (decisions: boolean, app: boolean) =>
+    `3. Do what the Stack and Fragment sections ask${decisions ? ", taking the Decisions" : ""}${app ? ", then the application" : ""}, and replace every \`stacks:fill\` marker.`,
+  done: (cli: string) =>
+    `4. Done: ${verify(cli, " --all")}, which adds the hygiene checks, exits 0 with outcome ${code("green")}.`,
+  reference: "Everything below is reference.",
+  facts: "## Facts",
+};
+
 export const facts = {
   stack: (name: string, id: string) => `- Stack: ${name} (${code(id)})`,
   project: (slug: string, prefix: string) =>
@@ -18,8 +44,9 @@ export const facts = {
   fragments: (ids: ReadonlyArray<string>) =>
     `- Fragments: ${ids.length ? ids.map(code).join(", ") : "none"}`,
   app: (name: string, id: string) => `- Application: ${name} (${code(id)}), built after the base`,
-  preset: (sandbox: boolean) =>
-    `- Preset: ${sandbox ? "sandbox (local only, never deployed)" : "default"}`,
+  preset: (preset: "default" | "sandbox" | "lean") =>
+    `- Preset: ${{ default: "default", sandbox: "sandbox (local only, never deployed)", lean: "lean (no default fragments)" }[preset]}`,
+  payload: (payload: string) => `- Payload: ${code(payload)}`,
   agents: (ids: ReadonlyArray<string>) => `- Target agents: ${ids.join(", ")}`,
   root: `- Project root: the directory containing \`${METADATA_DIR}/\`. Run every command from there.`,
   written: "- Files stacks wrote:",
@@ -91,6 +118,7 @@ export const dependencies = {
   heading: "## Dependencies and tools",
   packages:
     "Packages, by role. Install the current stable version of each; these are names, not versions:",
+  inStart: "Packages: see Start here, step 1.",
   tools: "Tools:",
   found: (tool: string) => `- ${code(tool)}: found on PATH`,
   unchecked: (tool: string) => `- ${code(tool)}: required; PATH not checked in this preview`,
@@ -137,7 +165,8 @@ export const done = {
   base: "## Definition of done: base",
   baseFirst: (cli: string) =>
     `Build the base first and start the application only once the base is done. Check the base with ${verify(cli, " --skip-tag app")}, which skips the application's steps and so reports outcome ${code("partial")}, never ${code("green")}.`,
-  steps: (cli: string) => `${verify(cli)} runs these steps, in this order:`,
+  steps: (cli: string) =>
+    `${verify(cli, " --all")} runs these steps, in this order; ${verify(cli)} skips the ones marked hygiene:`,
   baseSteps: (cli: string) => `${verify(cli, " --skip-tag app")} runs these steps, in this order:`,
   commandsBelow: "Each step's command, exactly as verify runs it:",
   noSteps: (cli: string) =>
@@ -154,6 +183,7 @@ export const done = {
   },
   within: (url: string, within: string) => `${code(url)} within ${within}`,
   skipped: "skipped (`prod`, sandbox)",
+  hygiene: "hygiene",
   timeout: (timeout: string) => `timeout ${timeout}`,
   inDir: (cwd: string) => ` (in ${cwd})`,
   commands: "### Commands",
@@ -166,7 +196,7 @@ export const done = {
   rules: "### Rules",
   rule: {
     run: (cli: string) =>
-      `- Run ${verify(cli)} from the project root. Done is exit 0 with outcome ${code("green")}.`,
+      `- Run ${verify(cli, " --all")} from the project root. Done is exit 0 with outcome ${code("green")}.`,
     runBase: (cli: string) =>
       `- Run ${verify(cli, " --skip-tag app")} from the project root. The base is done when every step above passes and the outcome is ${code("partial")}; the project is done only at the end of the application section.`,
     create:
@@ -189,7 +219,7 @@ export const done = {
     "Verify only checks exit codes and HTTP probes. Run the dev, test and build commands yourself, fix the warnings in their output, and exercise what you built.",
   ],
   after: "### After green",
-  docs: "1. Check that `AGENTS.md` and `README.md` describe the project you built: real commands, no `stacks:fill` markers left. Verify doesn't check this unless a step does.",
+  docs: "1. Check that `AGENTS.md` and `README.md` describe the project you built, with real commands.",
   commit: (git: GitState, project: string, stack: string) => {
     if (git.kind === "fresh")
       return `2. Commit everything with the message ${code(`chore: scaffold ${project} from the ${stack} stack`)}.`;
@@ -209,7 +239,7 @@ export const application = {
   commands: "### Application commands",
   environment: "### Application environment",
   done: (cli: string) =>
-    `Done is a full ${verify(cli)} (no \`--skip-tag\`) with outcome ${code("green")}: base and application steps together.`,
+    `Done is a full ${verify(cli, " --all")} (no \`--skip-tag\`) with outcome ${code("green")}: base and application steps together.`,
 };
 
 export const sandbox = [
@@ -230,7 +260,7 @@ export const add = {
   applied: (ids: ReadonlyArray<string>) =>
     `- Already applied: ${ids.length ? ids.map(code).join(", ") : "none"}`,
   job: (cli: string) =>
-    `Apply the new fragments without breaking what's there. stacks installed nothing and ran no verify steps. You're done when ${verify(cli)} checks the whole manifest and exits 0 with outcome ${code("green")}.`,
+    `Apply the new fragments without breaking what's there. stacks installed nothing and ran no verify steps. You're done when ${verify(cli, " --all")} checks the whole manifest and exits 0 with outcome ${code("green")}.`,
   merge: "## Merge needed",
   mergeTask: `Bring in what each incoming copy adds; keep the project's choices where they conflict. Delete \`${INCOMING}/\` when every merge is done.`,
   required: "## Missing required fragments",
@@ -239,5 +269,5 @@ export const add = {
   git: "- This repository already exists. Preserve its layout and history; don't commit without the user's permission.",
   ignore: `- Exclude \`${METADATA_DIR}/\` from the repository's formatter and linter (Biome \`"!${METADATA_DIR}"\` in \`files.includes\`, \`.prettierignore\`, ruff \`extend-exclude\`), then format the files this brief added.`,
   done: (cli: string) =>
-    `Run ${verify(cli)} over the whole manifest, keeping all existing checks green.`,
+    `Run ${verify(cli, " --all")} over the whole manifest, keeping all existing checks green.`,
 };

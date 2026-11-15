@@ -4,6 +4,7 @@ import type { StepResult, VerifyResult } from "../../schemas/verify";
 import { type Audience, plainStyle, type Style, stripAnsi } from "../../services/output";
 import { printable } from "../text";
 import { nextLine } from "./next";
+import { HYGIENE_SKIPPED } from "./plan";
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 /** One line of step output, safe for a terminal; tabs become spaces rather than escapes. */
@@ -35,15 +36,19 @@ function stepLines(step: StepResult, width: number, partial: boolean, style: Sty
 function visibleSteps(result: VerifyResult, audience: Audience) {
   if (audience === "human") return result.steps;
   if (result.outcome === "changed") return [];
-  return result.steps.filter((step) => step.status !== "passed");
+  return result.steps.filter((step) => step.status !== "passed" && !hygieneSkip(step));
 }
+
+const hygieneSkip = (step: StepResult) =>
+  step.status === "skipped" && step.reason === HYGIENE_SKIPPED;
 
 /**
  * The text result: stage lines when present, a summary, accepted changes, one row per step
  * (a failed step's output tail under it), and for a run that isn't green the fixed `Next:`
  * line last. A human gets every row. An agent gets only the failed and skipped rows (the summary
- * counts the passed ones), and no rows on a `changed` run, where every step is skipped for the
- * same reason and the error's detail lines itemize the change.
+ * counts the passed ones), with skipped hygiene checks as one line, and no rows on a `changed`
+ * run, where every step is skipped for the same reason and the error's detail lines itemize the
+ * change.
  */
 export function renderVerify(
   result: VerifyResult,
@@ -61,6 +66,10 @@ export function renderVerify(
     step.failureKind ? [step.failureKind] : [],
   );
   const next = nextLine(result.outcome, invocation, kinds, result.stages);
+  const hygiene =
+    context.audience === "human" || result.outcome === "changed"
+      ? 0
+      : result.steps.filter(hygieneSkip).length;
   return [
     ...(result.stages
       ? [`base: ${result.stages.base}`, `app: ${result.stages.app ?? "not run"}`]
@@ -80,6 +89,12 @@ export function renderVerify(
       : []),
     ...(steps.length
       ? ["", ...steps.flatMap((step) => stepLines(step, width, partial, style))]
+      : []),
+    ...(hygiene
+      ? [
+          "",
+          `Skipped ${hygiene} hygiene check${hygiene === 1 ? "" : "s"} (fill markers, harness, CI, hooks); ${invocation} verify --all runs them.`,
+        ]
       : []),
     ...(next ? ["", style("next", next)] : []),
   ].join("\n");

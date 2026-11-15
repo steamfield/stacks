@@ -2,7 +2,14 @@ import type { AgentId } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import { EntryInvalid } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
-import { type Entry, type EntryFile, entryRef, outputPath, shipsFor } from "../registry/entry";
+import {
+  type Entry,
+  type EntryFile,
+  entryRef,
+  outputPath,
+  type Payload,
+  shipsFor,
+} from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import type { PlannedFile } from "./compose";
 import { conflict, parties } from "./conflicts";
@@ -31,18 +38,24 @@ const checkPlannedPath = (path: string) =>
   });
 
 type Writer = { entry: Entry; source: string; template: boolean; mode: number };
+/** What selects an entry's overlays: the target agents, the host stack and its payload. */
+export type FileSelection = {
+  agents: ReadonlyArray<AgentId>;
+  stack: string | null;
+  payload: Payload;
+};
 
 function fileWriters(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
-  agents: ReadonlyArray<AgentId>,
-  stack: string | null,
+  selection: FileSelection,
 ) {
   return Effect.gen(function* () {
+    const { agents, stack, payload } = selection;
     const byPath = new Map<string, Writer[]>();
     const addWriter = (entry: Entry, file: EntryFile) =>
       Effect.gen(function* () {
-        if (!shipsFor(file.source, agents, stack)) return;
+        if (!shipsFor(file.source, agents, stack, payload)) return;
         // A template needs a name before the suffix: a file called just `.tmpl` is copied as is.
         const path = outputPath(file);
         const template = path !== file.path;
@@ -73,11 +86,10 @@ function fileWriters(
 export function planFiles(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
-  agents: ReadonlyArray<AgentId>,
-  stack: string | null,
+  selection: FileSelection,
 ) {
   return Effect.gen(function* () {
-    const byPath = yield* fileWriters(registry, entries, agents, stack);
+    const byPath = yield* fileWriters(registry, entries, selection);
     const planned: PlannedFile[] = [];
     /** Folded file paths, and folded directories on the way to one, each to a path that made it. */
     const files = new Map<string, string>();

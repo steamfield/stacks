@@ -676,11 +676,13 @@ export class Registry extends Context.Service<
             Effect.gen(function* () {
               yield* checkEntry(entry);
               const walked = yield* tree(entry);
-              // Stack overlays belong only to fragments; validate reports misplaced stack files.
+              // Stack overlays belong only to fragments and payloads only to stacks; validate
+              // reports misplaced files.
+              const misplaced = entry.kind === "stack" ? "stack" : "payload";
               return walked.files
                 .flatMap(({ source, mode }) => {
                   const shipped = shippedPath(source);
-                  return shipped && !(entry.kind === "stack" && shipped.condition?.kind === "stack")
+                  return shipped && shipped.condition?.kind !== misplaced
                     ? [{ source, path: shipped.path, mode }]
                     : [];
                 })

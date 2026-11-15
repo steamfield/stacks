@@ -54,8 +54,14 @@ function firstPomVersion(text: string): string | undefined {
   return undefined;
 }
 
+/** The package's own `version`, like a pom's, is exempt: it versions the project, not a tool. */
+const OWN_VERSION = /^\{\s*(?:"[^"]*"\s*:\s*"[^"]*"\s*,\s*)*?"version"\s*:\s*"[^"]*"/;
+
 function fileVersion(output: string, text: string): string | undefined {
-  return /(?:^|\/)pom\.xml$/.test(output) ? firstPomVersion(text) : firstVersion(text);
+  if (/(?:^|\/)pom\.xml$/.test(output)) return firstPomVersion(text);
+  if (/(?:^|\/)package\.json$/.test(output))
+    return firstVersion(text.replace(OWN_VERSION, (head) => head.replace(/"[^"]*"$/, '""')));
+  return firstVersion(text);
 }
 
 export const versionSensitiveChecks: Check = (view) =>

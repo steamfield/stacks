@@ -22,16 +22,21 @@
  * The 0.7.0 version in the brief changed all six again on 2026-11-01.
  * astro-blog and python-react changed that day when posthog's Testing line named
  * astro-product-site; they await a bench run.
+ * The 0.8.0 version in the brief changed all six again on 2026-11-14.
+ * All six changed again that day for the Start here action list (install commands, code-layer
+ * verify, verify --all as done), the hygiene steps and the claude-harness-docs split; they
+ * await a bench run.
+ * The 0.9.0 version in the brief changed all six again on 2026-11-14.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:14ff7925b2ef36819d5132aa7036e6e2b85de862d3a6c9974a568b99ba2c1d60",
-  "astro-blog:sandbox": "sha256:d8463b1d8e5178b0e11b73cfaa3782f017b3a240d91b0348cbfd1eac04c387f7",
-  "go-cli:default": "sha256:7e05a667ffbda97d054df2a0677bbdbea73c14dcd0f3ce2e0904d812ea5f130b",
-  "go-cli:sandbox": "sha256:8c5eba976c95a41aa280dd8800bb54fd280ba7293775583796ca81caab97bc80",
-  "python-react:default": "sha256:eddb45bf73d27462a481ab7f7c3c7a1969a29e8aa616dffdbc073d0c6f63d3b3",
-  "python-react:sandbox": "sha256:5da95bf3cc8df7989cc4b2b8937b3fa782cc44c3484fed1770200cf6edd55695",
+  "astro-blog:default": "sha256:b36f538baf33b98fad0eb2f40f2a91d722a8290002cb9c168ab3d19cb683a48f",
+  "astro-blog:sandbox": "sha256:9f02644a34559338f39e588d4da279e5eca4b8072f2b6e2723328490b7c0de3d",
+  "go-cli:default": "sha256:6bb63357e3099087ec4e3c1f983eaed66d114f98840a896f3cdb8525ad59be92",
+  "go-cli:sandbox": "sha256:3772bb8d2f5d6d3fc323d4e106c3cdc80eca7f3667b163a981a3d4734086aee3",
+  "python-react:default": "sha256:e9cdc6d12a19b1be4c934d68099947147f5ead9b8830ad2a2cd98633377a1d69",
+  "python-react:sandbox": "sha256:5ee81dcccd647a9fbb64d65b9c98d4e9ac5d97fd79755b4c8c017802088b6d86",
 };

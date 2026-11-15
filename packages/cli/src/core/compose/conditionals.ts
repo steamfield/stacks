@@ -11,6 +11,7 @@
  * example has to indent it or break its spelling.
  */
 import type { ConditionalProblem } from "../../errors";
+import { DEFAULT_PAYLOAD, PAYLOADS, type Payload } from "../registry/entry";
 
 /** What a block's condition is matched against. */
 export type ConditionContext = {
@@ -20,9 +21,11 @@ export type ConditionContext = {
   preset: "default" | "sandbox";
   /** Every fragment id in the composition, an app included. */
   with: ReadonlyArray<string>;
+  /** The stack's payload variant (`new --payload`); absent is the example. */
+  payload?: Payload;
 };
 
-type Key = "stack" | "tag" | "tag!=" | "mode" | "preset" | "with";
+type Key = "stack" | "tag" | "tag!=" | "mode" | "preset" | "with" | "payload";
 export type Condition = Partial<Record<Key, ReadonlyArray<string>>>;
 /** A malformed marker: its 1-based line in the body and what is wrong with it. */
 export type ConditionalError = { line: number; problem: ConditionalProblem };
@@ -33,10 +36,11 @@ const MARKER = /^\s*<!--\s*stacks:(\S+)(.*?)-->\s*$/;
  * replaces; they are not conditionals and stay as written.
  */
 const isFill = (directive: string) => directive === "fill" || directive.startsWith("fill:");
-const KEYS: ReadonlyArray<Key> = ["stack", "tag", "tag!=", "mode", "preset", "with"];
+const KEYS: ReadonlyArray<Key> = ["stack", "tag", "tag!=", "mode", "preset", "with", "payload"];
 const VALUES: Partial<Record<Key, ReadonlyArray<string>>> = {
   mode: ["new", "add"],
   preset: ["default", "sandbox"],
+  payload: PAYLOADS,
 };
 
 /** True for a `when` or `end` marker line, which `countWords` leaves out. */
@@ -75,6 +79,7 @@ function matches(condition: Condition, context: ConditionContext): boolean {
     mode: (value) => value === context.mode,
     preset: (value) => value === context.preset,
     with: (value) => context.with.includes(value),
+    payload: (value) => value === (context.payload ?? DEFAULT_PAYLOAD),
   };
   return KEYS.every((key) => {
     const values = condition[key];

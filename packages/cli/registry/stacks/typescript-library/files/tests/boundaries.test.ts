@@ -49,6 +49,7 @@ test.each([
   ["src/index.ts", 'export { slugify } from "./slugify.ts";'],
   ["src/slugify.ts", 'import { words } from "./internal/words.ts";'],
   ["src/x.ts", 'throw new LibraryError("invalid_input");'],
+  ["src/x.ts", "throw new ParseError(pos);"],
   ["src/x.test.ts", 'console.log("debugging a test");'],
   ["scripts/x.ts", 'import { join } from "node:path";\nconsole.log(process.cwd(), join("a"));'],
   ["tests/x.test.ts", 'throw new Error("fixture");'],

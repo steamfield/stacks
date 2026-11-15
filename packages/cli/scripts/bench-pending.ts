@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 // `bun run bench:pending [--list] [bench options]`: bench every bundled stack that has no current
 // green run from the bench's agent (Codex unless `--agent` says otherwise). The list comes from
-// `validate`'s ledger notes (`ledger-unproven`, `ledger-changed`), so it matches what validate
-// reports. `ledger-changed` is keyed by agent, so a stale proof from another agent counts only
+// `validate`'s ledger notes (`ledger-unproven`, `ledger-changed`, `ledger-canary`), so it matches
+// what validate reports. Proofs cover a stack's own content, so a change to shared fragments alone
+// lists only the canaries in registry/canaries.json. A current `bun run prove` (scaffold) record
+// clears a stack's `ledger-changed` notes too. `ledger-changed` is keyed by agent, so a stale proof from another agent counts only
 // while this agent has no sandbox run of the stack at all; once it has one, its own note says
 // whether that run is current. Remaining arguments pass to each `bun run bench <stack>`; runs go
 // one at a time, and an interrupted run (exit 130) stops the rest.
@@ -43,7 +45,8 @@ function ledgerNote(finding: unknown): Note | undefined {
   if (!("kind" in finding) || finding.kind !== "stack") return undefined;
   if (!("entry" in finding) || typeof finding.entry !== "string") return undefined;
   const check = "check" in finding ? finding.check : undefined;
-  if (check === "ledger-unproven") return { stack: finding.entry, agent: undefined };
+  if (check === "ledger-unproven" || check === "ledger-canary")
+    return { stack: finding.entry, agent: undefined };
   if (check !== "ledger-changed") return undefined;
   const message =
     "message" in finding && typeof finding.message === "string" ? finding.message : "";

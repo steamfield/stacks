@@ -200,3 +200,20 @@ test.skipIf(process.getuid?.() === 0)(
     }
   },
 );
+
+test("parallel appends keep every record, and the lock is released", async () => {
+  const root = ledgerRegistry(space.dir());
+  const record = await ledgerRecord(root);
+  writeLedger(root, []);
+  const dates = Array.from({ length: 12 }, (_, n) => `2026-11-${String(n + 1).padStart(2, "0")}`);
+  await Promise.all(
+    dates.map((date) =>
+      Effect.runPromise(
+        appendRecord(root, { ...record, date }).pipe(Effect.provide(NodeServices.layer)),
+      ),
+    ),
+  );
+  const { records } = await read(root);
+  expect(records.map((row) => row.date).sort()).toEqual(dates);
+  expect(readdirSync(root)).not.toContain("runs.json.lock");
+});

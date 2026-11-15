@@ -11,7 +11,7 @@ import {
   projectFiles,
   STATE_DIR,
 } from "../../project-layout";
-import type { NewResult } from "../../schemas/new";
+import type { NewPreset, NewResult } from "../../schemas/new";
 import { Host } from "../../services/host";
 import { Output } from "../../services/output";
 import { type GitState, renderBrief } from "../brief/render";
@@ -23,7 +23,9 @@ import { fingerprintFromFiles } from "../fingerprint";
 import { type HandoffDecision, handoffRecord } from "../handoff";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../manifest";
 import { removeProjectState, writeProjectState } from "../project-state";
+import { DEFAULT_PAYLOAD, type Payload } from "../registry/entry";
 import { hasControl } from "../text";
+import { fillMarkers } from "./fill";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "./git";
 import { slug } from "./slug";
 import { inspectTarget } from "./target";
@@ -40,7 +42,11 @@ export type NewOptions = {
   with: ReadonlyArray<string>;
   without: ReadonlyArray<string>;
   sandbox: boolean;
-  preset?: "default" | "sandbox";
+  preset?: NewPreset;
+  /** `--payload`; absent is the stack's example. */
+  payload?: Payload;
+  /** `--own-repo`: inside another repository, give the project its own. */
+  ownRepo?: boolean;
   yes: boolean;
   agents: ReadonlyArray<AgentId> | undefined;
   /** `--scope`, as given. */
@@ -60,8 +66,17 @@ export type Scaffolded = {
   composition: Composition;
 };
 
-function scaffoldPreset(options: NewOptions, setting: NewOptions["preset"]) {
+function scaffoldPreset(options: NewOptions, setting: NewOptions["preset"]): NewPreset {
   return options.preset ?? (options.sandbox ? "sandbox" : (setting ?? "default"));
+}
+
+/**
+ * `--own-repo` inside another work tree: the target becomes its own fresh repository. The target
+ * is empty but for `.git` and OS files, so the enclosing repository tracks nothing in it.
+ */
+function ownRepository(git: GitProbe, ownRepo: boolean | undefined): GitProbe {
+  if (!ownRepo || git.state.kind !== "parent" || git.own) return git;
+  return { state: { kind: "fresh" }, init: true, own: true };
 }
 
 const encoder = new TextEncoder();
@@ -111,13 +126,17 @@ export const scaffold = (options: NewOptions) =>
     const name = options.name ?? basename;
     yield* templateOverrides({ name });
 
-    // Explicit flags (including --sandbox), then the setting, then default.
+    // Explicit flags (including --sandbox), then the setting, then default. Lean composes and
+    // records as default, minus the default fragments.
     const preset = scaffoldPreset(options, settings.preset);
+    const payload = options.payload ?? DEFAULT_PAYLOAD;
     const composition = yield* compose({
       stack: options.stack,
       with: options.with,
       without: options.without,
-      preset,
+      preset: preset === "lean" ? "default" : preset,
+      lean: preset === "lean",
+      payload,
       agents: targetAgents(options.agents, settings),
       always: settings.always ?? [],
       mode: "new",
@@ -125,7 +144,7 @@ export const scaffold = (options: NewOptions) =>
 
     const target = yield* inspectTarget(dir);
     const installed = yield* gitInstalled;
-    const git = yield* probeGit(target, installed);
+    const git = ownRepository(yield* probeGit(target, installed), options.ownRepo);
     yield* checkOwnRepo(composition, git);
 
     const missing = yield* missingToolsOnPath(composition);
@@ -136,7 +155,10 @@ export const scaffold = (options: NewOptions) =>
       overrides,
       git: { cwd: target.nearest, installed },
     });
-    const { files, neutralFiles } = yield* composeFilesWithNeutral(composition, values);
+    const composed = yield* composeFilesWithNeutral(composition, values);
+    const { neutralFiles } = composed;
+    // Markers stacks can fill from the composition alone; neutral files keep them for the fingerprint.
+    const files = fillMarkers(composed.files, composition);
     const contentFingerprint = fingerprintFromFiles(composition, neutralFiles);
 
     const written = projectFiles(files);
@@ -227,6 +249,7 @@ export const scaffold = (options: NewOptions) =>
       stack: composition.stack.id,
       fragments: composition.fragments.map((fragment) => fragment.id),
       preset,
+      payload,
       agents: [...composition.agents],
       written,
       brief: BRIEF_PATH,

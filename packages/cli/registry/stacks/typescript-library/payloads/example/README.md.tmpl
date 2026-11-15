@@ -53,8 +53,18 @@ Use `isLibraryError(error)` rather than `instanceof` when an app may have two co
 
 ## Development
 
-<!-- stacks:fill: requirements (Bun, Node), bun install, the package scripts (build, lint, lint:package, typecheck, test, test:consumer, coverage, check) with a single-file test example, and the toolchain versions recorded at setup -->
+Bun installs dependencies and runs the scripts; Node runs Vitest and the consumer check. Versions this project was set up with:
+
+<!-- stacks:fill:toolchain the Bun and Node versions recorded at setup -->
+
+Install with `bun install`, then:
+
+| Command | What it does |
+| --- | --- |
+<!-- stacks:fill:commands one row per package script -->
+
+Run one test file with `bun run test src/slugify.test.ts`.
 
 ## Releasing
 
-<!-- stacks:fill: how a release is cut (version bump, changelog, who runs npm publish and from where); the package stays "private" until the maintainer decides to publish -->
+The package keeps `"private": true` until the maintainer decides to publish. A release is the maintainer's step: bump `version` (a `0.x` minor or patch while the API settles), note the change, remove `private` for the first release, and run `npm publish` from their machine or from CI with npm provenance.

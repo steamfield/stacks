@@ -136,6 +136,7 @@ test("a bundled fragment names the newest containing run's stack and compares th
       with: ["helper"],
       preset: "default",
       agents: ["codex"],
+      proof: true,
     }),
   });
   const newest = await ledgerRecord(registry, {
@@ -144,7 +145,15 @@ test("a bundled fragment names the newest containing run's stack and compares th
     date: "2026-10-29",
     preset: "default",
     agent: "codex",
-    fingerprint: await fingerprintFor(registry, { preset: "default", agents: ["codex"] }),
+    fingerprint: await fingerprintFor(registry, {
+      preset: "default",
+      agents: ["codex"],
+      proof: true,
+    }),
+    compositionFingerprint: await fingerprintFor(registry, {
+      preset: "default",
+      agents: ["codex"],
+    }),
   });
   writeLedger(registry, [newest, { ...explicit, date: "2026-10-30", with: [] }, explicit, old]);
   const report = await showReport(await show(["helper"]));

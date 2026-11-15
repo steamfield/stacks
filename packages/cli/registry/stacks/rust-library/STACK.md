@@ -32,6 +32,7 @@ verify:
   - { name: package, layer: build, run: make package }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
   install: Install the toolchain rust-toolchain.toml selects and fetch crates

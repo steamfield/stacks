@@ -1,5 +1,6 @@
 import { AgentId } from "@steamfield/stacks-format";
 import { Schema } from "effect";
+import { NewPreset } from "./new";
 
 /** An npm scope, with or without its leading `@`: lowercase and URL-safe, no `/`. */
 export const NpmScope = Schema.String.check(
@@ -20,7 +21,7 @@ export const Settings = Schema.Struct({
   /** The `author` template variable (1.2a). */
   author: Schema.optional(Schema.String),
   /** Default for `new`, overridden by its preset flags. */
-  preset: Schema.optional(Schema.Literals(["default", "sandbox"])),
+  preset: Schema.optional(NewPreset),
   /** The `package_scope` template variable (1.2a), when `new --scope` isn't given. */
   packageScope: Schema.optional(NpmScope),
 })

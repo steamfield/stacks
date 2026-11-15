@@ -2,11 +2,12 @@ import { NodeServices } from "@effect/platform-node";
 import { Console, Duration, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES, SOURCE_BUILD } from "../src/config";
 import { type ComposeOptions, compose } from "../src/core/compose/compose";
-import { fingerprint } from "../src/core/fingerprint";
+import { fingerprint, proofFingerprint } from "../src/core/fingerprint";
 import { appendRecord, readLedger } from "../src/core/ledger";
 import { Registry } from "../src/core/registry/registry";
 import { printable } from "../src/core/text";
-import { LedgerRecord } from "../src/schemas/ledger";
+import type { InvalidConfig } from "../src/errors";
+import { Ledger, LedgerRecord } from "../src/schemas/ledger";
 import { Foreground, Processes } from "../src/services/processes";
 import { parseLedgerNote } from "./ledger-note";
 
@@ -26,6 +27,51 @@ const importArguments = (args: string[]) =>
       else notes.push(arg);
     }
     return { notes, dryRun };
+  });
+
+/** Appends the records of another ledger file that this one lacks, each naming a known commit. */
+const importLedger = (
+  file: string,
+  known: ReadonlyArray<LedgerRecord>,
+  io: {
+    commitExists: (commit: string) => Effect.Effect<string, Error>;
+    append: (
+      record: LedgerRecord,
+    ) => Effect.Effect<void, InvalidConfig, FileSystem.FileSystem | Path.Path>;
+  },
+) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const text = yield* fs
+      .readFileString(file)
+      .pipe(Effect.mapError(() => new Error("could not read the ledger file")));
+    const ledger = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Ledger))(text).pipe(
+      Effect.mapError(() => new Error("not a runs.json ledger")),
+    );
+    const same = (a: LedgerRecord, b: LedgerRecord) =>
+      a.repoCommit === b.repoCommit &&
+      a.stack === b.stack &&
+      a.date === b.date &&
+      a.mode === b.mode &&
+      a.agent === b.agent &&
+      a.preset === b.preset &&
+      a.fingerprint === b.fingerprint;
+    const added: LedgerRecord[] = [];
+    for (const value of ledger.records) {
+      const record = yield* Schema.decodeUnknownEffect(LedgerRecord)(value).pipe(
+        Effect.mapError(() => new Error("a record does not match the ledger schema")),
+      );
+      yield* io
+        .commitExists(record.repoCommit)
+        .pipe(Effect.mapError(() => new Error(`unknown commit ${record.repoCommit}`)));
+      if (![...known, ...added].some((other) => same(other, record))) added.push(record);
+    }
+    // Every record is checked before any is appended, so a bad file appends nothing.
+    for (const record of added)
+      yield* io
+        .append(record)
+        .pipe(Effect.mapError(() => new Error("could not append the ledger")));
+    return added;
   });
 
 const program = Effect.scoped(
@@ -52,13 +98,35 @@ const program = Effect.scoped(
         );
     const { notes, dryRun } = yield* importArguments(process.argv.slice(2));
     if (!notes.length)
-      return yield* Effect.fail(new Error("Usage: ledger-import.ts <notes>... [--dry-run]"));
+      return yield* Effect.fail(
+        new Error("Usage: ledger-import.ts <notes or runs.json files>... [--dry-run]"),
+      );
     const root = yield* exec(["git", "rev-parse", "--show-toplevel"]);
     const registry = path.join(root, "packages/cli/registry");
     const existing = yield* readLedger(registry);
     const records: LedgerRecord[] = [];
     let failed = false;
     for (const note of notes) {
+      // A ledger file (`bun run prove --ledger`, the nightly zero-edit artifact): its records
+      // already carry fingerprints computed at their commit, so they are checked, not recomputed.
+      if (note.endsWith(".json")) {
+        const added = yield* importLedger(
+          path.resolve(cwd, note),
+          [...existing.records, ...records],
+          {
+            commitExists: (commit) =>
+              exec(["git", "rev-parse", "--verify", `${commit}^{commit}`], root),
+            append: (record) => (dryRun ? Effect.void : appendRecord(registry, record)),
+          },
+        ).pipe(
+          Effect.catch((error: Error) =>
+            Console.error(`${printable(note)}: ${printable(error.message)}`).pipe(Effect.as(null)),
+          ),
+        );
+        if (added === null) failed = true;
+        else records.push(...added);
+        continue;
+      }
       const imported = yield* Effect.result(
         Effect.scoped(
           Effect.gen(function* () {
@@ -114,7 +182,8 @@ const program = Effect.scoped(
                 ...parsed,
                 repoCommit: commit,
                 with: parsed.with.filter((id) => !defaults.has(id)),
-                fingerprint: yield* fingerprint(composition),
+                fingerprint: yield* proofFingerprint(composition),
+                compositionFingerprint: yield* fingerprint(composition),
                 note: path.relative(root, path.resolve(cwd, note)).split(path.sep).join("/"),
               });
             }).pipe(Effect.provide(Registry.layer([{ origin: "bundled", path: oldRegistry }])));

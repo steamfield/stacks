@@ -20,5 +20,19 @@
       "Bash(rr tasks)",
       "Bash(rr tasks *)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/rr-route-tests.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

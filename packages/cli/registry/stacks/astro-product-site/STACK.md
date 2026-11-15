@@ -33,6 +33,7 @@ verify:
   - { name: browser, layer: test, run: node scripts/e2e.mjs }
   - name: readme-filled
     layer: check
+    tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
   - name: web
     phase: serve

@@ -4,6 +4,42 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-14
+
+### Added
+
+- The brief opens with "Start here": a short ordered list whose first step is the exact install command, spelled from the declared package names with no versions (`bun add` for single-package Bun stacks, `uv add` for uv Python stacks), then `stacks verify`, the remaining work, and `stacks verify --all` as done. The rest of the brief is reference.
+- `new --preset lean` leaves out the stack's default fragments (git hooks, CI, the long-lived harness docs) for short, timed work. The manifest records `default`.
+- `new --payload none` writes a stack's empty variant instead of its example; `typescript-library` ships one. Stacks without it refuse the flag.
+- `new --own-repo` gives the project its own git repository inside another one, so `ci-github` and `git-hooks` stay; the `needs_own_repo` error suggests it.
+- `new` fills `<!-- stacks:fill:commands -->` markers with the declared commands; `typescript-library`'s README and every stack's AGENTS.md use it.
+- A nightly workflow scaffolds `typescript-library` with no edits, installs the latest releases with the brief's command and runs `verify`.
+- The bundled ledger (`registry/runs.json`) accepts `scaffold` records: a zero-edit proof with no agent (scaffold, the brief's install command, `verify`), which counts as a stack's historical pass.
+
+### Changed
+
+- Plain `verify` runs the code checks; steps tagged `hygiene` (fill markers, the harness doc, the CI workflow, git hooks) run with `--all`, which is the definition of done. Skipped hygiene steps leave the outcome `green`.
+- `claude-harness` is the hooks core; its `/check`, `/test` and `/feature` commands, architect and reviewer agents and `docs/harness.md` move to the new `claude-harness-docs` fragment, a default of every stack that had them.
+- A ledger record's fingerprint covers the stack's own content and verify steps, not shared fragments, so a fragment change no longer marks every stack's historical pass out of date; the whole composition's fingerprint is kept as `compositionFingerprint`.
+- `typescript-library` and `typescript-mcp` ship `"version": "0.0.0"`, and `typescript-library` adds a `@ts-expect-error` type test and its strict-flag patterns to the brief.
+
+### Fixed
+
+- `typescript-library` and `typescript-mcp` format `package.json` the way current Biome does, so `lint` passes on a fresh scaffold.
+
+## [0.8.0] - 2026-11-14
+
+### Added
+
+- The `astro-product-site` stack: a static Astro landing page with `/docs`, generated OG images, Markdown exports and `llms.txt`.
+- `typescript-library` covers libraries whose failures carry data: a subclass of `LibraryError` with a typed payload, guidance for inference-heavy APIs under `isolatedDeclarations` (TS9013 and its fix), an `expectTypeOf` type test that `typecheck` enforces, a `gate` script for the check after each change, and a note on what to delete when replacing the example.
+- The `rr` fragment can queue runs on this machine under one lock instead of remote hosts, and its Claude Code adapter ships a hook that routes the project's test commands through rr, with a verify step that tests it.
+
+### Fixed
+
+- `typescript-library`'s `lint:package` builds before publint packs, so it and `check` pass on a tree with no `dist/`.
+- `validate` no longer repeats work that grows with the registry size.
+
 ## [0.7.0] - 2026-11-01
 
 ### Added
@@ -145,6 +181,8 @@ First release, as the npm package `@steamfield/stacks` installed as `stacks` (No
 - Commands: `list`, `show`, `new`, `add`, `create`, `validate`, `verify`, `runs`, `schema`, `guide`, `skill` and `doctor`, each with `--json` output, fixed exit codes and error envelopes with a next action.
 - Bundled stacks: `astro-blog`, `cloudflare-react-router`, `go-cli`, `mobile-expo`, `python-react`, `react-router`, `tauri-react` and `typescript-cli`, with 19 fragments.
 
+[0.9.0]: https://github.com/steamfield/stacks/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/steamfield/stacks/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/steamfield/stacks/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/steamfield/stacks/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/steamfield/stacks/compare/v0.4.0...v0.5.0

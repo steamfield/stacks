@@ -784,7 +784,7 @@ describe("build paths", () => {
       agent: "claude",
       agentVersion: "1.2.3",
       repoCommit: f.commit,
-      fingerprint: expected.fingerprint,
+      compositionFingerprint: expected.fingerprint,
       briefWords: expected.briefWords,
       mode: "headless",
       result: "pass",

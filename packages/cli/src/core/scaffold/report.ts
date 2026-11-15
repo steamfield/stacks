@@ -66,7 +66,7 @@ export function renderNew(
   const human = context.audience === "human";
   const { style = plainStyle } = context;
   const lines = [
-    `${result.dryRun ? "Planned" : "Created"} ${printable(context.shown)} from ${printable(result.stack)}${result.preset === "sandbox" ? " (sandbox)" : ""}.`,
+    `${result.dryRun ? "Planned" : "Created"} ${printable(context.shown)} from ${printable(result.stack)}${result.preset === "default" ? "" : ` (${result.preset})`}.`,
     // `shown` is the absolute path when the project isn't under the current directory.
     ...(human && context.shown !== result.project ? [`Project: ${printable(result.project)}`] : []),
     `Fragments: ${result.fragments.length ? result.fragments.map(printable).join(", ") : "none"}`,

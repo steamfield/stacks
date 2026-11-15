@@ -1,0 +1,18 @@
+// A JavaScript user of the published package, with no types to lean on. scripts/consumer.ts runs
+// it with Node after installing the packed tarball.
+import * as api from "{{project_slug}}";
+
+function check(condition, message) {
+  if (!condition) throw new Error(`consumer (mjs): ${message}`);
+}
+
+check(Object.keys(api).length === 0, "the package exports nothing yet");
+
+// Only "exports" is reachable: the build's internals stay private.
+const internal = await import("{{project_slug}}/dist/index.js").then(
+  () => "resolved",
+  (error) => error.code,
+);
+check(internal === "ERR_PACKAGE_PATH_NOT_EXPORTED", `deep import gave ${internal}`);
+
+console.log("consumer (mjs): ok");

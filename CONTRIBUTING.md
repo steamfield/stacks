@@ -33,6 +33,10 @@ A new entry's PR stays a draft, and CI stays red until a maintainer finishes the
 - Run the entry through the bench: a headless agent builds it from an empty directory and stacks verifies the result.
 - Mark the PR ready once CI is green, merge it, and sign the entry into the next published index.
 
+## Landing a one-stack change (maintainers)
+
+Edit the stack, then `bun run prove <stack>` from `packages/cli` (or `bun run bench <stack>` when it needs an agent) and commit the record with the change. Run `bunx vitest run tests/bundled-registry.test.ts` and the tests that cover the stack, merge, and deploy. Other stacks keep their proofs; a shared fragment change needs only the canaries in `registry/canaries.json`. [Maintaining](packages/cli/docs/maintaining.md#landing-a-one-stack-change) has the details.
+
 ## Updating your entry
 
 Edit your copy, prove it again, and run `stacks submit` with the same id. An existing id is accepted only when `authors.json` names the same GitHub login as the account submitting; otherwise it's refused as a collision. To change someone else's entry, open an issue or a regular PR.

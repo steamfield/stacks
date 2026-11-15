@@ -6,6 +6,13 @@ import { Origin } from "./origin";
 
 const EntryRef = Schema.Struct({ kind: Kind, id: Schema.String });
 
+/**
+ * `new`'s composition presets. `lean` composes like `default` (and records `default` in the
+ * manifest) but selects none of the stack's default fragments.
+ */
+export const NewPreset = Schema.Literals(["default", "sandbox", "lean"]);
+export type NewPreset = typeof NewPreset.Type;
+
 /** What `new` wrote or planned and what to do next; `new --json` prints one. */
 export const NewResult = Schema.Struct({
   ...NoticeFields,
@@ -18,7 +25,9 @@ export const NewResult = Schema.Struct({
   stack: Schema.String,
   /** Composition order. */
   fragments: Schema.Array(Schema.String),
-  preset: Schema.Literals(["default", "sandbox"]),
+  preset: NewPreset,
+  /** The stack's payload variant: `example` (its shipped example) or `none` (`--payload none`). */
+  payload: Schema.Literals(["example", "none"]),
   agents: Schema.Array(AgentId),
   /**
    * Every file written (or, for a dry run, planned), relative to the project root, sorted; OS

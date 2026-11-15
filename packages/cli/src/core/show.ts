@@ -17,7 +17,7 @@ import { targetAgents } from "./compose/agents";
 import { type Composition, compose } from "./compose/compose";
 import { fitsStack } from "./compose/selection";
 import { goAllowlistKey } from "./deps";
-import { fingerprint } from "./fingerprint";
+import { fingerprint, proofFingerprint } from "./fingerprint";
 import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
 import { toRow } from "./list";
 import {
@@ -255,7 +255,7 @@ const indexSameContent = Effect.fn("show.indexSameContent")(function* (entry: En
         agents,
         always: [],
         mode: "new",
-      }).pipe(Effect.flatMap(fingerprint)),
+      }).pipe(Effect.flatMap(proofFingerprint)),
     ),
   );
   return currents.some(
@@ -376,6 +376,9 @@ const bundledLastRun = (
     if (record.preset !== "default" && record.preset !== "sandbox")
       return { ...run, sameContent: false };
     const preset = record.preset;
+    // A stack's proof covers its own content; a fragment's question is the whole composition.
+    const fragment = entry.kind === "fragment";
+    const recorded = fragment ? record.compositionFingerprint : record.fingerprint;
     const currents = yield* Effect.forEach(ledgerAdapterSets(record.agent), (agents) =>
       Effect.result(
         compose({
@@ -386,13 +389,13 @@ const bundledLastRun = (
           agents,
           always: [],
           mode: "new",
-        }).pipe(Effect.flatMap(fingerprint)),
+        }).pipe(Effect.flatMap(fragment ? fingerprint : proofFingerprint)),
       ),
     );
     return {
       ...run,
       sameContent: currents.some(
-        (current) => Result.isSuccess(current) && current.success === record.fingerprint,
+        (current) => Result.isSuccess(current) && current.success === recorded,
       ),
     };
   });

@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse (Bash|Edit|Write|MultiEdit): frame snapshots are accepted with
-# `make snapshots`, Cargo.lock and target/ are written by cargo, and the
-# full-screen UI must never get a fake terminal inside the agent's shell, where
-# it waits for keys nobody sends and the session hangs. Deny each with the fix.
+# PreToolUse (Bash): prevent commands that would hold the session open.
 set -euo pipefail
-command -v jq >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || { echo "guard-tui.sh: jq is missing; allowing this call." >&2; exit 0; }
 
-input="$(cat)"
+input="$(cat)" || { echo "guard-tui.sh: cannot read payload; allowing this call." >&2; exit 0; }
 
 deny() {
   jq -n --arg reason "$1" '{hookSpecificOutput: {
@@ -17,43 +14,81 @@ deny() {
   exit 0
 }
 
-command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
-if [ -n "$command" ]; then
-  # A pseudo-terminal wrapper at the start of a command or after ; & | ( or $(.
-  if printf '%s\n' "$command" | grep -Eq '(^|[;&|(]|\$\()[[:space:]]*(script|unbuffer|tmux|screen)([[:space:]]|$)'; then
-    deny "Don't run the UI under a fake terminal. Test it with make test (frame snapshots and the headless event loop), use --no-tui or --json for output, or ask the user to run it in their terminal."
+# Split executable segments before unquoting arguments, as the shared shell guard does.
+# Known wrappers are unwrapped without executing the payload; opaque forms pass.
+commands() {
+  printf '%s\n' "$1" | LC_ALL=C awk -v anti_hang=1 '
+    function emit(raw, depth, n, w, i, base, wrapped, started, out, rest, limit) {
+      if (depth > 2 || (anti_hang && raw ~ /&[ \t]*$/)) return
+      sub(/&[ \t]*$/, "", raw)
+      gsub(/\n/, " ", raw)
+      gsub(/\$\047/, "\047", raw)
+      gsub(/[\047"\\]/, "", raw)
+      n = split(raw, w, /[ \t]+/); wrapped = 0; started = 0; out = ""
+      for (i = 1; i <= n; i++) {
+        if (w[i] == "") continue
+        if (!started) {
+          if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+          base = w[i]; sub(/.*\//, "", base)
+          if (base == "timeout") {
+            limit = w[++i]
+            if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
+            if (anti_hang && limit + 0 > 0) return
+            wrapped = 1; continue
+          }
+          if (base ~ /^(sh|bash|zsh|dash|ksh)$/ && w[i + 1] ~ /^-[a-z]*c[a-z]*$/) {
+            rest = ""; for (i += 2; i <= n; i++) rest = rest " " w[i]
+            scan(rest, depth + 1); return
+          }
+          if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
+          if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|xargs|busybox|stdbuf|uvx)$/) {
+            wrapped = 1; continue
+          }
+          if (wrapped && w[i] ~ /^(--with|--project|--directory|--env-file|-C|-u)$/) { i++; continue }
+          if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*$/)) continue
+          started = 1
+        }
+        out = out (out == "" ? "" : " ") w[i]
+      }
+      if (out != "") print out
+    }
+    function scan(text, depth, i, c, q, out, following) {
+      q = ""; out = ""
+      for (i = 1; i <= length(text); i++) {
+        c = substr(text, i, 1); following = substr(text, i + 1, 1)
+        if (c == "\\" && q != "\047" && i < length(text)) {
+          out = out c following; i++; continue
+        }
+        if (q != "") { if (c == q) q = ""; out = out c; continue }
+        if (c == "\047" || c == "\"") { q = c; out = out c; continue }
+        if (c == ";" || c == "&" || c == "|" || c == "\n") {
+          if (c == "&" && following != "&") out = out " &"
+          emit(out, depth); out = ""
+          if (following == c) i++
+        } else out = out c
+      }
+      if (q == "") emit(out, depth)
+    }
+    { text = text (NR == 1 ? "" : "\n") $0 }
+    END { scan(text, 0) }'
+}
+
+command="$(printf '%s' "$input" | jq -r 'if (.tool_input.command == null) then empty elif (.tool_input.command | type) == "string" then .tool_input.command else error("invalid command") end' 2>/dev/null)" || { echo "guard-tui.sh: unreadable payload; allowing this call." >&2; exit 0; }
+command -v awk >/dev/null 2>&1 && command -v grep >/dev/null 2>&1 || { echo "guard-tui.sh: required tools are missing; allowing this call." >&2; exit 0; }
+lines="$(commands "$command" 2>/dev/null)" || { echo "guard-tui.sh: cannot parse command; allowing this call." >&2; exit 0; }
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  if printf '%s\n' "$line" | grep -Eq '(^|[[:space:]])(--help|--version|-h)([[:space:]]|$)'; then continue; fi
+  if ! printf '%s\n' "$line" | grep -Eq '(cargo([[:space:]]+\+[^[:space:]]+)?[[:space:]]+run|target/(debug|release)/)' ||
+    printf '%s\n' "$line" | grep -Eq '(^|[[:space:]])--(no-tui|json)([[:space:]]|$)'; then
+    continue
   fi
-  exit 0
-fi
-
-root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)}"
-physical="$(cd "$root" 2>/dev/null && pwd -P)" || physical="$root"
-# Normalize dot segments and recognize both logical and physical project roots.
-rel="$(printf '%s' "$input" | jq -r --arg root "$root" --arg physical "$physical" '
-  def normalize:
-    split("/") | reduce .[] as $part ([];
-      if $part == "" or $part == "." then .
-      elif $part == ".." and length > 0 and .[-1] != ".." then .[:-1]
-      else . + [$part] end) | join("/");
-  .tool_input.file_path | select(type == "string" and length > 0) as $path |
-  ($path | normalize) as $file |
-  ($root | normalize) as $logical |
-  ($physical | normalize) as $real |
-  if ($path | startswith("/")) then
-    if ($file | startswith($logical + "/")) then $file[($logical | length) + 1:]
-    elif ($file | startswith($real + "/")) then $file[($real | length) + 1:]
-    else empty end
-  else $file end
-' 2>/dev/null)" || exit 0
-
-case "$rel" in
-  *.snap | *.snap.new | *.pending-snap)
-    deny "Frame snapshots are generated. Change the view, run make snapshots, and review the diff with the user."
-    ;;
-  Cargo.lock | */Cargo.lock)
-    deny "Cargo.lock is written by cargo. Change dependencies with cargo add, cargo remove or cargo update -p <crate>."
-    ;;
-  target/*)
-    deny "target/ is cargo's build output. Edit the source and rebuild."
-    ;;
-esac
+  if printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?(tmux|screen)[[:space:]]' &&
+    printf '%s\n' "$line" | grep -Eq '[[:space:]]-(d|dm|dmS)([[:space:]]|$)'; then
+    continue
+  fi
+  if printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?(script|unbuffer|tmux|screen)([[:space:]]|$)'; then
+    deny "The interactive UI waits for keys in a fake terminal. Run make test, or use --no-tui or --json."
+  fi
+done <<<"$lines"
+exit 0

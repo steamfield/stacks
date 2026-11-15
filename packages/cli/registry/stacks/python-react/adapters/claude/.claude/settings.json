@@ -12,19 +12,5 @@
       "Bash(uv run pytest *)",
       "Bash(bunx vitest run *)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-generated.sh\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }

@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse (Bash, Edit|Write): keep Maven going through the committed
-# wrapper and keep hands off what Maven writes.
-#   Bash: `mvn` itself (the wrapper pins the project's Maven; `mvn -N
-#   wrapper:wrapper` and `mvn -v` stay allowed) and `spring-boot:run` (it forks
-#   a JVM that a signal to Maven can leave running; `make serve` runs the jar).
-#   Edit|Write: mvnw, mvnw.cmd, .mvn/wrapper/ and target/.
+# PreToolUse (Bash): prevent commands that would hold the session open.
 set -euo pipefail
-command -v jq >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || { echo "guard-maven.sh: jq is missing; allowing this call." >&2; exit 0; }
 
-input="$(cat)"
+input="$(cat)" || { echo "guard-maven.sh: cannot read payload; allowing this call." >&2; exit 0; }
 
 deny() {
   jq -n --arg reason "$1" '{hookSpecificOutput: {
@@ -19,48 +14,74 @@ deny() {
   exit 0
 }
 
-command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
-if [ -n "$command" ]; then
-  # Each check looks at one shell command at a time, split on ; & | and newlines.
-  segments="$(printf '%s\n' "$command" | awk '{ gsub(/[;&|]/, "\n"); print }')"
-  while IFS= read -r segment; do
-    if printf '%s' "$segment" | grep -Eq '(^|[[:space:]/])mvn([[:space:]]|$)' &&
-      ! printf '%s' "$segment" | grep -Eq '[[:space:]](wrapper:wrapper|-v|--version)([[:space:]]|$)'; then
-      deny "Run Maven through the project's wrapper: use the make targets (make help), or ./mvnw with the same arguments. The wrapper pins the Maven version CI uses; mvn is only for generating the wrapper (mvn -N wrapper:wrapper -Dtype=only-script)."
-    fi
-    if printf '%s' "$segment" | grep -Eq '(^|[[:space:]])spring-boot:run([[:space:]]|$)'; then
-      deny "spring-boot:run forks a JVM that can outlive a signal to Maven. Run make serve (the built jar in the foreground) in the background and stop the pid you started."
-    fi
-  done <<<"$segments"
-  exit 0
-fi
+# Split executable segments before unquoting arguments, as the shared shell guard does.
+# Known wrappers are unwrapped without executing the payload; opaque forms pass.
+commands() {
+  printf '%s\n' "$1" | LC_ALL=C awk -v anti_hang=1 '
+    function emit(raw, depth, n, w, i, base, wrapped, started, out, rest, limit) {
+      if (depth > 2 || (anti_hang && raw ~ /&[ \t]*$/)) return
+      sub(/&[ \t]*$/, "", raw)
+      gsub(/\n/, " ", raw)
+      gsub(/\$\047/, "\047", raw)
+      gsub(/[\047"\\]/, "", raw)
+      n = split(raw, w, /[ \t]+/); wrapped = 0; started = 0; out = ""
+      for (i = 1; i <= n; i++) {
+        if (w[i] == "") continue
+        if (!started) {
+          if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+          base = w[i]; sub(/.*\//, "", base)
+          if (base == "timeout") {
+            limit = w[++i]
+            if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
+            if (anti_hang && limit + 0 > 0) return
+            wrapped = 1; continue
+          }
+          if (base ~ /^(sh|bash|zsh|dash|ksh)$/ && w[i + 1] ~ /^-[a-z]*c[a-z]*$/) {
+            rest = ""; for (i += 2; i <= n; i++) rest = rest " " w[i]
+            scan(rest, depth + 1); return
+          }
+          if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
+          if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|xargs|busybox|stdbuf|uvx)$/) {
+            wrapped = 1; continue
+          }
+          if (wrapped && w[i] ~ /^(--with|--project|--directory|--env-file|-C|-u)$/) { i++; continue }
+          if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*$/)) continue
+          started = 1
+        }
+        out = out (out == "" ? "" : " ") w[i]
+      }
+      if (out != "") print out
+    }
+    function scan(text, depth, i, c, q, out, following) {
+      q = ""; out = ""
+      for (i = 1; i <= length(text); i++) {
+        c = substr(text, i, 1); following = substr(text, i + 1, 1)
+        if (c == "\\" && q != "\047" && i < length(text)) {
+          out = out c following; i++; continue
+        }
+        if (q != "") { if (c == q) q = ""; out = out c; continue }
+        if (c == "\047" || c == "\"") { q = c; out = out c; continue }
+        if (c == ";" || c == "&" || c == "|" || c == "\n") {
+          if (c == "&" && following != "&") out = out " &"
+          emit(out, depth); out = ""
+          if (following == c) i++
+        } else out = out c
+      }
+      if (q == "") emit(out, depth)
+    }
+    { text = text (NR == 1 ? "" : "\n") $0 }
+    END { scan(text, 0) }'
+}
 
-root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)}"
-physical="$(cd "$root" 2>/dev/null && pwd -P)" || physical="$root"
-# Normalize dot segments and recognize both logical and physical project roots.
-rel="$(printf '%s' "$input" | jq -r --arg root "$root" --arg physical "$physical" '
-  def normalize:
-    split("/") | reduce .[] as $part ([];
-      if $part == "" or $part == "." then .
-      elif $part == ".." and length > 0 and .[-1] != ".." then .[:-1]
-      else . + [$part] end) | join("/");
-  .tool_input.file_path | select(type == "string" and length > 0) as $path |
-  ($path | normalize) as $file |
-  ($root | normalize) as $logical |
-  ($physical | normalize) as $real |
-  if ($path | startswith("/")) then
-    if ($file | startswith($logical + "/")) then $file[($logical | length) + 1:]
-    elif ($file | startswith($real + "/")) then $file[($real | length) + 1:]
-    else empty end
-  else $file end
-' 2>/dev/null)" || exit 0
-
-case "$rel" in
-  mvnw | mvnw.cmd | .mvn/wrapper/*)
-    deny "The Maven wrapper is generated. To change the Maven version, run ./mvnw wrapper:wrapper -Dmaven=<version> -Dtype=only-script and commit the result."
-    ;;
-  target/*)
-    deny "target/ is Maven's build output. Edit the source and rebuild."
-    ;;
-esac
+command="$(printf '%s' "$input" | jq -r 'if (.tool_input.command == null) then empty elif (.tool_input.command | type) == "string" then .tool_input.command else error("invalid command") end' 2>/dev/null)" || { echo "guard-maven.sh: unreadable payload; allowing this call." >&2; exit 0; }
+command -v awk >/dev/null 2>&1 && command -v grep >/dev/null 2>&1 || { echo "guard-maven.sh: required tools are missing; allowing this call." >&2; exit 0; }
+lines="$(commands "$command" 2>/dev/null)" || { echo "guard-maven.sh: cannot parse command; allowing this call." >&2; exit 0; }
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  if printf '%s\n' "$line" | grep -Eq '(^|[[:space:]])(--help|--version|-h)([[:space:]]|$)'; then continue; fi
+  if printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?mvnw?([[:space:]]|$)' &&
+    printf '%s\n' "$line" | grep -Eq '[[:space:]]spring-boot:run([[:space:]]|$)'; then
+    deny "spring-boot:run holds a JVM open. Run make serve in the background and stop the pid you started."
+  fi
+done <<<"$lines"
 exit 0

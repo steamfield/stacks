@@ -9,12 +9,12 @@
 # through the normal permission rules. Needs jq; without it every call passes unchanged.
 set -eu
 
-command -v jq >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || { echo "rr-route-tests.sh: jq is missing; allowing this call." >&2; exit 0; }
 routes="$(dirname "${BASH_SOURCE[0]}")/rr-routes.txt"
-[ -f "$routes" ] || exit 0
+[ -r "$routes" ] || { echo "rr-route-tests.sh: routes are unreadable; allowing this call." >&2; exit 0; }
 
-payload=$(cat)
-cmd=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
+payload=$(cat) || { echo "rr-route-tests.sh: cannot read payload; allowing this call." >&2; exit 0; }
+cmd=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null) || { echo "rr-route-tests.sh: unreadable payload; allowing this call." >&2; exit 0; }
 case "$cmd" in
   '' | *[\;\&\|\<\>\`\$\(\)]* | *$'\n'*) exit 0 ;;
 esac

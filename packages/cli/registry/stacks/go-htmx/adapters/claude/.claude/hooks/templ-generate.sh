@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # PostToolUse (Edit|Write): regenerate the component after a .templ edit, so Go
 # code never compiles against the previous version of it. A syntax error goes
-# back to the agent as context. Quiet when jq or go is missing.
+# back to the agent as context. Missing tools allow the call with a note.
 set -euo pipefail
-command -v jq >/dev/null 2>&1 || exit 0
-command -v go >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || { echo "templ-generate.sh: jq is missing; allowing this call." >&2; exit 0; }
+command -v go >/dev/null 2>&1 || { echo "templ-generate.sh: go is missing; allowing this call." >&2; exit 0; }
 
-input="$(cat)"
-path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)" || exit 0
+input="$(cat)" || { echo "templ-generate.sh: cannot read payload; allowing this call." >&2; exit 0; }
+path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)" || { echo "templ-generate.sh: unreadable payload; allowing this call." >&2; exit 0; }
 case "$path" in
   *.templ) ;;
   *) exit 0 ;;

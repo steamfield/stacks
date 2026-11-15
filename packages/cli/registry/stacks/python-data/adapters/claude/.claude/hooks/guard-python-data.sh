@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse (Bash|Edit|Write): raw data is input and processed data is output, so neither is
-# hand-edited; dependencies go through uv add; marimo's editor and app servers stay with people.
+# PreToolUse (Bash): prevent commands that would hold the session open.
 set -euo pipefail
-command -v jq >/dev/null 2>&1 || exit 0
+command -v jq >/dev/null 2>&1 || { echo "guard-python-data.sh: jq is missing; allowing this call." >&2; exit 0; }
 
-input="$(cat)"
+input="$(cat)" || { echo "guard-python-data.sh: cannot read payload; allowing this call." >&2; exit 0; }
 
 deny() {
   jq -n --arg reason "$1" '{hookSpecificOutput: {
@@ -15,58 +14,73 @@ deny() {
   exit 0
 }
 
-command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)" || exit 0
-if [ -n "$command" ]; then
-  # A command starts a line or follows ; & | ( ` $( or sh -c; it may be quoted and sit behind
-  # VAR=value, sudo, env, nice, exec, command, timeout 30, uv run --flags or uvx.
-  q="[\"']?"
-  start='(^|[;&|(`]|\$\(|[[:space:]]-c[[:space:]]+)[[:space:]]*\$?'"$q"
-  assign='[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+'
-  flags='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
-  wrapper="(sudo|command|exec|nice|env|uvx|uv[[:space:]]+run|timeout${flags}[[:space:]]+[0-9][^[:space:]]*)${flags}[[:space:]]+(${assign})*"
-  prefix="${start}(${assign})*(${wrapper})*${q}"
-  python='([^[:space:]]*/)?python[0-9.]*[[:space:]]+-m[[:space:]]+'
-  # pip, pip3.12, a venv's pip, python -m pip and uv pip, with any flags before install.
-  pip_install="${prefix}(uv[[:space:]]+pip|(${python}|([^[:space:]]*/)?)pip[0-9.]*)${q}${flags}[[:space:]]+install([[:space:]]|$)"
-  # marimo or python -m marimo, with global flags before the subcommand.
-  marimo_server="${prefix}(${python})?marimo${flags}[[:space:]]+(edit|run|new|tutorial)([[:space:]]|$)"
-  if printf '%s\n' "$command" | grep -Eq "$pip_install"; then
-    deny "pip install bypasses pyproject.toml and uv.lock. Use uv add <package> (uv add --dev for tools)."
-  fi
-  if printf '%s\n' "$command" | grep -Eq "$marimo_server"; then
-    deny "marimo edit, run, new and tutorial start a server that waits for a browser. Run make notebooks to execute the notebooks headlessly, and ask the user to open the editor."
-  fi
-  exit 0
-fi
+# Split executable segments before unquoting arguments, as the shared shell guard does.
+# Known wrappers are unwrapped without executing the payload; opaque forms pass.
+commands() {
+  printf '%s\n' "$1" | LC_ALL=C awk -v anti_hang=1 '
+    function emit(raw, depth, n, w, i, base, wrapped, started, out, rest, limit) {
+      if (depth > 2 || (anti_hang && raw ~ /&[ \t]*$/)) return
+      sub(/&[ \t]*$/, "", raw)
+      gsub(/\n/, " ", raw)
+      gsub(/\$\047/, "\047", raw)
+      gsub(/[\047"\\]/, "", raw)
+      n = split(raw, w, /[ \t]+/); wrapped = 0; started = 0; out = ""
+      for (i = 1; i <= n; i++) {
+        if (w[i] == "") continue
+        if (!started) {
+          if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+          base = w[i]; sub(/.*\//, "", base)
+          if (base == "timeout") {
+            limit = w[++i]
+            if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
+            if (anti_hang && limit + 0 > 0) return
+            wrapped = 1; continue
+          }
+          if (base ~ /^(sh|bash|zsh|dash|ksh)$/ && w[i + 1] ~ /^-[a-z]*c[a-z]*$/) {
+            rest = ""; for (i += 2; i <= n; i++) rest = rest " " w[i]
+            scan(rest, depth + 1); return
+          }
+          if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
+          if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|xargs|busybox|stdbuf|uvx)$/) {
+            wrapped = 1; continue
+          }
+          if (wrapped && w[i] ~ /^(--with|--project|--directory|--env-file|-C|-u)$/) { i++; continue }
+          if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*$/)) continue
+          started = 1
+        }
+        out = out (out == "" ? "" : " ") w[i]
+      }
+      if (out != "") print out
+    }
+    function scan(text, depth, i, c, q, out, following) {
+      q = ""; out = ""
+      for (i = 1; i <= length(text); i++) {
+        c = substr(text, i, 1); following = substr(text, i + 1, 1)
+        if (c == "\\" && q != "\047" && i < length(text)) {
+          out = out c following; i++; continue
+        }
+        if (q != "") { if (c == q) q = ""; out = out c; continue }
+        if (c == "\047" || c == "\"") { q = c; out = out c; continue }
+        if (c == ";" || c == "&" || c == "|" || c == "\n") {
+          if (c == "&" && following != "&") out = out " &"
+          emit(out, depth); out = ""
+          if (following == c) i++
+        } else out = out c
+      }
+      if (q == "") emit(out, depth)
+    }
+    { text = text (NR == 1 ? "" : "\n") $0 }
+    END { scan(text, 0) }'
+}
 
-root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)}"
-physical="$(cd "$root" 2>/dev/null && pwd -P)" || physical="$root"
-# Normalize dot segments and recognize both logical and physical project roots.
-rel="$(printf '%s' "$input" | jq -r --arg root "$root" --arg physical "$physical" '
-  def normalize:
-    split("/") | reduce .[] as $part ([];
-      if $part == "" or $part == "." then .
-      elif $part == ".." and length > 0 and .[-1] != ".." then .[:-1]
-      else . + [$part] end) | join("/");
-  .tool_input.file_path | select(type == "string" and length > 0) as $path |
-  ($path | normalize) as $file |
-  ($root | normalize) as $logical |
-  ($physical | normalize) as $real |
-  if ($path | startswith("/")) then
-    if ($file | startswith($logical + "/")) then $file[($logical | length) + 1:]
-    elif ($file | startswith($real + "/")) then $file[($real | length) + 1:]
-    else empty end
-  else $file end
-' 2>/dev/null)" || exit 0
-
-case "$rel" in
-  data/raw/*)
-    deny "data/raw/ holds input exactly as it arrived; never edit it. Handle bad rows with a rule in transform.py, or add a case to data/fixtures/orders.csv for tests."
-    ;;
-  data/processed/*)
-    deny "data/processed/ is pipeline output. Change the transforms and run make pipeline."
-    ;;
-  uv.lock)
-    deny "uv.lock is generated. Change dependencies with uv add or uv remove, or run uv lock."
-    ;;
-esac
+command="$(printf '%s' "$input" | jq -r 'if (.tool_input.command == null) then empty elif (.tool_input.command | type) == "string" then .tool_input.command else error("invalid command") end' 2>/dev/null)" || { echo "guard-python-data.sh: unreadable payload; allowing this call." >&2; exit 0; }
+command -v awk >/dev/null 2>&1 && command -v grep >/dev/null 2>&1 || { echo "guard-python-data.sh: required tools are missing; allowing this call." >&2; exit 0; }
+lines="$(commands "$command" 2>/dev/null)" || { echo "guard-python-data.sh: cannot parse command; allowing this call." >&2; exit 0; }
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  if printf '%s\n' "$line" | grep -Eq '(^|[[:space:]])(--help|--version|-h)([[:space:]]|$)'; then continue; fi
+  if printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?(python[0-9.]*[[:space:]]+-m[[:space:]]+)?marimo([[:space:]]+-[^[:space:]]+)*[[:space:]]+(edit|run|new|tutorial)([[:space:]]|$)'; then
+    deny "marimo starts a server that waits for a browser. Run make notebooks to execute it headlessly."
+  fi
+done <<<"$lines"
+exit 0

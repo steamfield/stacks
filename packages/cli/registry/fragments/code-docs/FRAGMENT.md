@@ -22,7 +22,7 @@ Start every source file with a file-level doc comment in its language's conventi
 
 Give a folder a `README.md` when it represents a meaningful unit of the architecture. Say what it owns, how it fits the system, what it depends on and where to start reading. Use judgment: skip fixtures, generated output and a folder with one obvious file. Avoid repeating the parent guide.
 
-The `file-headers` hygiene step checks source under `src/`, `scripts/` and `tests/`, at the root and in each `apps/*` or `packages/*` workspace member, excluding `generated/` folders, other generated code and fixtures. It reports each missing header; it does not judge the explanation or require folder READMEs.
+The `file-headers` hygiene step checks `src/`, `scripts/` and `tests/` at the root and in `apps/*` and `packages/*`, skipping generated code and fixtures. It reports each missing header; it does not judge the explanation or require folder READMEs.
 
 ## AGENTS.md
 

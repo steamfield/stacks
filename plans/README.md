@@ -2,7 +2,7 @@
 
 Status: DRAFT 2026-10-26. Planning; the CLI base is in place with no product code. The
 plan is written to the demo-first proposal (D23).
-**Start with [HANDOFF.md](HANDOFF.md)**, then [requirements.md](requirements.md) and
+**Start with [HANDOFF.md](HANDOFF.md)** (the one tracking doc: where everything stands and what to do next), then [requirements.md](requirements.md) and
 [roadmap.md](roadmap.md).
 
 ## Restored plans and current review
@@ -40,7 +40,7 @@ statement needs a change first.
 
 | File | What it answers |
 |---|---|
-| [HANDOFF.md](HANDOFF.md) | Current state, next steps and who owns each |
+| [HANDOFF.md](HANDOFF.md) | Current state, next steps and who owns each. Rewritten 2026-11-15; the earlier dated log is [archive/handoff-2026-10-28.md](archive/handoff-2026-10-28.md) |
 | [../product/PROBLEM_STATEMENT.md](../product/PROBLEM_STATEMENT.md) | Who has the problem, what's broken today, evidence, jobs, success measures, assumptions |
 | [requirements.md](requirements.md) | What release 1 builds, for whom, in and out of scope, proposed decisions, how success is measured |
 | [roadmap.md](roadmap.md) | Every phase and sub-phase with its goal, trace and dependencies; the MVP cutline; the shared contracts and schema versions; the trust model; the repo and stack facts the plan relies on; open architecture questions A1-A4 |
@@ -96,7 +96,7 @@ then it moves here with an ID that never changes.
 | D21 | 2026-10-27 | The default registry index, and every file its build signs (`v1/names.json`, `v1/allowlist.json`), is signed inline by `build:index --key` with one maintainer-held Ed25519 key, kept off the repository and shared machines; the public half is committed to `packages/format` (`INDEX_PUBLIC_KEYS`, a list so a second key can ship before it signs) and compiled into the CLI, which ignores a file that fails verification. The index serves only proven content (open question 14): a stack enters at its current content only when a green ledger run with zero interventions and `tamperCheck: "full"` matches its fingerprint, a changed stack carries its last proven entry forward, and a never-proven stack is omitted. A same-host digest proves nothing if the host is compromised, and the index changes what agents build. | [4.0c](archive/phases/phase-4.0c-registry-index-2026-10-30.md), [roadmap, Trust model](roadmap.md#trust-model) |
 | D35 | 2026-10-27 | The hosted API (phase 4) lives in a separate private repository, `stacks-api`, so its source isn't published; its plans stay public here, and `packages/api` is removed. In plans, a path written `stacks-api/...` is relative to that repository's root. It is a bun workspace scaffolded from the bundled `astro-api` stack: `apps/api` (the Effect `HttpApi` server), `apps/web` (an Astro static site with React islands, which holds the directory and stats pages that used to be planned here) and `packages/contract` (the `HttpApi` definition and its schemas, imported by both apps; islands call the API through Effect's `HttpApiClient`). It runs first as a Node HTTP server on a host the maintainers control, under a maintainers' domain that stays the same after the move, so the hackathon demo needs no Cloudflare account. Before the move it serves only `/healthz`, `/openapi.json`, the signed index files and the built site; storage and telemetry wait for Workers (D16; D41 replaced the Workers target on 2026-11-01, and storage stays on the Node container). To keep the move an adapter swap (under D41 there is no move to Workers; the API stays on Node behind a static edge): routes are one `HttpApi` served through `HttpRouter`, only `apps/api/src/platform/` knows the runtime (including static file serving), and scheduled work is an Effect program that a platform entry triggers. Shared schemas reach it as the published `@steamfield/stacks-format` package (4.0a), through an npm alias so the import name stays `@steamfield/stacks-format`, because a workspace link can't cross repositories. The index and `names.json` are still built and signed in this repository, because they need CLI code. Amended 2026-10-27: search (`GET /v1/search`, [4.5e](archive/phases/phase-4.5e-search-endpoint-2026-10-30.md)) also runs on Node before the move, because it reads only the signed index files and needs no store. | [4.0b](archive/phases/phase-4.0b-api-skeleton-on-node-2026-10-30.md), [roadmap, Repository and stack](roadmap.md#repository-and-stack) |
 | D17 | 2026-10-27 | Telemetry is opt-out with 4.1a's protections: a first run sends nothing and shows a notice, `DO_NOT_TRACK`, `STACKS_TELEMETRY_DISABLED`, `--no-telemetry` and `stacks telemetry disable` turn it off, consent is checked at enqueue and at flush, disabling deletes the spool, ids are random and kept outside the project, and every event field is in the published, frozen schema. This answers open question 5. 4.2a and 4.2b keep their full scope. | [4.1a](archive/phases/phase-4.1a-telemetry-cli-client-2026-10-30.md) to [4.1c](archive/phases/phase-4.1c-telemetry-maintenance-and-retention-2026-10-30.md) |
-| D36 | 2026-10-28 | Published packages use the maintainers' npm scope, `@steamfield`: the CLI is `@steamfield/stacks` and `packages/format` publishes as `@steamfield/stacks-format`, by hand from its packed tarball (`packages/format/README.md`, "Publishing"). `stacks-api` depends on the published package instead of copying its schemas. The npm `@stacks` scope belongs to an unrelated project, which corrects open question 23. | [4.5e](archive/phases/phase-4.5e-search-endpoint-2026-10-30.md), [4.3](phases/phase-4.3-mcp-server.md) |
+| D36 | 2026-10-28 | Published packages use the maintainers' npm scope, `@steamfield`: the CLI is `@steamfield/stacks` and `packages/format` publishes as `@steamfield/stacks-format`, by hand from its packed tarball (`packages/format/README.md`, "Publishing"). `stacks-api` depends on the published package instead of copying its schemas. The npm `@stacks` scope belongs to an unrelated project, which corrects open question 23. | [4.5e](archive/phases/phase-4.5e-search-endpoint-2026-10-30.md), [4.3](archive/phases/phase-4.3-mcp-server-2026-11-15.md) |
 | D38 | 2026-10-28 | API list responses are columnar, within reason, for payload size: a list of rows (the stats summary's `items`, every history series, breakdown lists) is one object of equal-length column arrays, not an array of row objects. The shapes are `@steamfield/stacks-format` schemas, so TypeScript enforces them on the API and every client (the site, the CLI); a nested cell becomes one column per field (`greenRate.value`, `greenRate.lower`, ...). Single entities and error envelopes stay objects. Search results are columnar too (amended 2026-10-28: the token-efficient shape for the agents and the MCP server that will read them). | [4.2a](archive/phases/phase-4.2a-stats-rollup-and-routes-2026-10-30.md), [4.2f](phases/phase-4.2f-stats-pages-and-charts.md), [4.5e](archive/phases/phase-4.5e-search-endpoint-2026-10-30.md), [4.2e](archive/phases/phase-4.2e-dependency-trends-and-pages-2026-10-30.md) |
 | D25 | 2026-10-28 | Dependency versions are collected, limited to a signed allowlist: a green `verify` sends allowlisted package names with their major version under telemetry `schemaVersion: 2`, read from the project's manifest and lock files without executing anything (D2), and published under the same suppression and capping as every other stat. | [4.2d](archive/phases/phase-4.2d-dependency-telemetry-client-and-ingest-2026-10-30.md), [4.2e](archive/phases/phase-4.2e-dependency-trends-and-pages-2026-10-30.md) |
 | D39 | 2026-10-29 | The `astro-api` stack is renamed `astro-fullstack`, because it builds a static Astro site and a separate Node API and "api" read as an API built with Astro. `registry/removed.json` records the old id with `replacedBy`; projects created from `astro-api` keep that id and `add` reports `stack_unknown` there. Other weak ids (`rest-api`, `ce-plugin`) stay until a release decides them. | [4.2c](phases/phase-4.2c-directory-browsing.md) |
@@ -112,8 +112,9 @@ Every plan file opens with a status line, updated as work lands:
 Status: DRAFT <date> | AGREED <date> | IN PROGRESS <date> | EXECUTING | EXECUTED <date> | PARTIALLY EXECUTED (what was deferred and why) | DEFERRED <date> (why, and until when) | WITHDRAWN <date> (why) | SUPERSEDED <date> by <plan or decision>
 ```
 
-`tests/acceptance/status.test.ts` checks each plan's Status keyword and date against its roadmap
-row.
+Keep each plan's Status keyword and date in step with its roadmap row by hand: the
+`tests/acceptance/status.test.ts` that used to check it, and the `trace.test.ts` described below,
+are no longer in the repository (checked 2026-11-15).
 
 `DRAFT` is written but not agreed with the maintainers. `IN PROGRESS` is for a file whose
 work is owned by people rather than an agent (0.0's reviews and decisions). Anything after
@@ -138,10 +139,10 @@ the numbering. Those are the cases from `.claude/rules/cli/testing.md` "Realisti
 cases" that apply to this sub-phase, and each becomes a test like any other item. Every
 item's test carries a tag in its name, `[<sub-phase>#<number>]`, such as
 `test("a second new into the same directory is TargetNotEmpty [1.2a#4]", ...)`. A plan
-opts into checking with a line `Acceptance tests: traced` under its status line; from
-then on the root `tests/acceptance/trace.test.ts` fails when a number has no tagged test
-under any package's `tests/` or `e2e/` (`packages/<name>/tests`), or when a tag names a number the plan
-doesn't list.
+opts into checking with a line `Acceptance tests: traced` under its status line. The root
+`tests/acceptance/trace.test.ts` that enforced it (a number with no tagged test under any package's
+`tests/` or `e2e/`, or a tag naming a number the plan doesn't list) is no longer in the repository,
+so the tags are a convention to keep by hand until the check is restored.
 
 Each new sub-phase, starting with 1.3a, gets its acceptance tests before its code. A test
 author, a different agent from the implementer, writes them from the plan as tagged,

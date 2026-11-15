@@ -6,7 +6,7 @@ Status: REVIEWED 2026-11-01 by one devils-advocate pass (its findings are applie
 
 A fragment says which stacks it fits in `applies_to`, as stack ids or tags (`core/compose/selection.ts::fitsStack`, with a copy in `packages/format/src/search/rank.ts::fits`). Sixteen of the 23 bundled fragments use stack ids (14 fragments and both apps). For every one of them the admitted set is exactly the set of stacks that already list the fragment in `fragments.required`, `default` or `optional`, which the review confirmed entry by entry. The fragment's list is a hand-written reverse dependency.
 
-That makes the relationship N×M. Adding the 27 stacks in `plans/stack-expansion-rfc-2026-10-31.md` meant editing `claude-harness` and `rest-api` to add ids, and `docker-deploy` and `goreleaser` would have needed the same. Each such edit costs more than the line:
+That makes the relationship N×M. Adding the 27 stacks in `plans/archive/stack-expansion-rfc-2026-10-31.md` meant editing `claude-harness` and `rest-api` to add ids, and `docker-deploy` and `goreleaser` would have needed the same. Each such edit costs more than the line:
 
 - `fingerprint.ts::fingerprintFromFiles` hashes each composed entry's `canonicalJson(meta)`, so one id added to `claude-harness` changes the fingerprint of every stack composing it and stales those `runs.json` proofs.
 - `core/search/digest.ts::searchSourceDigest` hashes the same meta, so the fragment's reviewed search card goes `search-stale` and needs a maintainer restamp (five cards on 2026-11-01).

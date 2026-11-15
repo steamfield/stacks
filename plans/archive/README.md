@@ -15,6 +15,7 @@ R13, release, submission, and judging operations. See the [active index](../READ
 ## Existing history
 
 - [Handoff from 2026-10-26](handoff-2026-10-26.md)
+- [Handoff from 2026-10-28](handoff-2026-10-28.md): the running log of phase 4, the submission queue and the registry metadata pass, retired on 2026-11-15 when [HANDOFF.md](../HANDOFF.md) was rewritten as a short current-state tracker. Its "Next steps" table predates most of what it lists; read it for history, not for what to do next.
 - [Dogfooding log from 2026-10-27](dogfooding-log-2026-10-27.md): written in the checkout the MCP work was first built in, under the project's earlier name, before it was ported here. Its binary, directory and package names are that checkout's.
 
 ## Completed plans
@@ -82,6 +83,8 @@ R13, release, submission, and judging operations. See the [active index](../READ
 | Proving slices in every bundled stack | [stack-slices.md](stack-slices-2026-10-31.md) |
 | stacks-api architecture RFC | [stacks-api-architecture-rfc.md](stacks-api-architecture-rfc-2026-10-31.md) |
 | Agent friction fixes | [agent-friction-fixes-rfc.md](agent-friction-fixes-rfc-2026-10-31.md) |
+| Stack expansion RFC (27 stacks, EXECUTED 2026-11-01), with its five per-language [research reports](research/) | [stack-expansion-rfc-2026-10-31.md](stack-expansion-rfc-2026-10-31.md) |
+| Phase 4.3: MCP server (executed 2026-10-31; `@steamfield/stacks-mcp` is published) | [phase-4.3-mcp-server.md](phases/phase-4.3-mcp-server-2026-11-15.md) |
 | R0. Release baseline, in-flight work and demo scope | [r0-baseline.md](submission-readiness/r0-baseline-2026-10-30.md) |
 | R1. Search and guidance an agent can follow | [r1-search-contracts.md](submission-readiness/r1-search-contracts-2026-10-30.md) |
 | R2. Seed data that looks right on the site | [r2-seed.md](submission-readiness/r2-seed-2026-10-30.md) |
@@ -94,3 +97,4 @@ R13, release, submission, and judging operations. See the [active index](../READ
 | Plan | Archived file |
 | --- | --- |
 | Phase 4.0f: Workers migration (superseded by D41) | [phase-4.0f-workers-migration.md](phases/phase-4.0f-workers-migration-2026-11-01.md) |
+| Phase 3.5a: The `app` entry kind (withdrawn 2026-10-26; an app is a fragment with `category: app`) | [phase-3.5a-app-entry-kind.md](phases/phase-3.5a-app-entry-kind-2026-11-15.md) |

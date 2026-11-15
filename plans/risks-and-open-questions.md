@@ -100,7 +100,7 @@ say so and keep their numbers, because plans link to them by number.
     when the current content isn't proven. Blocks 4.0c and
     [4.0d](archive/phases/phase-4.0d-cli-remote-origin-2026-10-30.md). Answered 2026-10-27: yes, proven only,
     with carry-forward; recorded with D21 in the decisions log.
-15. What starts the MCP server ([4.3](phases/phase-4.3-mcp-server.md))? Revised proposal:
+15. What starts the MCP server ([4.3](archive/phases/phase-4.3-mcp-server-2026-11-15.md))? Revised proposal:
     documented agent struggles with the shell path (2.0b bench notes, issues), or a user
     asking for a client that has no shell tool. A majority of handoffs from inside an agent
     (4.2a, if D17 is agreed) shows the shell path works, so it is supporting context, not
@@ -132,7 +132,7 @@ say so and keep their numbers, because plans link to them by number.
     are recorded and reported against the 20-minute target, as 1.6b did; its counting runs
     reached green in 3 to 5 minutes.
 23. Do the maintainers own, or want to reserve, the `@stacks` npm scope? The MCP
-    server ([4.3](phases/phase-4.3-mcp-server.md)) publishes as `@stacks/mcp`, with
+    server ([4.3](archive/phases/phase-4.3-mcp-server-2026-11-15.md)) publishes as `@stacks/mcp`, with
     `stacks-mcp` as the fallback name. Answered 2026-10-27: a maintainer reserved the
     `@stacks` scope. Corrected 2026-10-28: the npm `@stacks` scope belongs to an unrelated
     project; the maintainers own `@steamfield`, where the CLI and the format package publish

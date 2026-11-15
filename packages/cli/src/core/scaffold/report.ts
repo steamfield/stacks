@@ -1,3 +1,4 @@
+/** `new`'s text summary, plus the warning and missing-tool lines `add` shares. */
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { collapsePaths } from "../brief/paths";
@@ -6,6 +7,7 @@ import { printable } from "../text";
 /** Warnings the Git line already reports, so the Warnings list leaves them out. */
 const GIT_WARNINGS: ReadonlyArray<string> = ["git_init_failed", "git_unusable"];
 
+/** The text after `Git:`; a git failure is reported here rather than among the warnings. */
 const gitLine = (result: Pick<NewResult, "warnings" | "git" | "dryRun">) => {
   if (result.dryRun && result.git === "fresh") return "would create a new repository";
   const failed = result.warnings.find((warning) => warning.code === "git_init_failed");
@@ -42,6 +44,7 @@ export const warningLine = (warning: { code: string; id: string }) => {
   }
 };
 
+/** One missing tool, the entries that need it and the flags that would drop them. */
 export const missingLine = (item: NewResult["missingTools"][number]) => {
   const owners = item.owners.map((owner) => printable(owner.id)).join(", ");
   const skip = item.drop

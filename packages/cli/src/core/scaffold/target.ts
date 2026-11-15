@@ -1,4 +1,8 @@
-import { Effect, FileSystem, Path } from "effect";
+/**
+ * The empty-target rule for `new`: which directories it may scaffold into, and what an earlier
+ * scaffold left in one it refuses.
+ */
+import { Effect, FileSystem, Option, Path } from "effect";
 import { PermissionDenied, TargetNotEmpty } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
 import { MANIFEST_PATH, readManifest } from "../manifest";
@@ -7,6 +11,9 @@ import { readProjectState } from "../project-state";
 /** Files an OS drops into any directory a person opened: treated as absent, left alone. */
 const isLitter = (name: string) =>
   name === ".DS_Store" || name === "Thumbs.db" || name === "desktop.ini" || name.startsWith("._");
+
+/** At most this many names are listed when a target isn't empty. */
+const LISTED_ENTRIES = 10;
 
 export type Target = {
   /** Absolute. */
@@ -31,20 +38,24 @@ const scaffoldOf = (manifestPath: string) =>
     Effect.orElseSucceed(() => "unfinished" as const),
   );
 
+const notEmpty = (dir: string, entries: ReadonlyArray<string>, scaffold?: "unfinished" | "green") =>
+  new TargetNotEmpty({
+    details: { path: dir, entries: [...entries], ...(scaffold ? { scaffold } : {}) },
+  });
+
+/** A target that doesn't exist yet: usable when its nearest existing ancestor is a directory. */
 const inspectMissingTarget = (dir: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    const exists = (at: string) => Effect.map(Effect.option(fs.lstat(at)), Option.isSome);
     let nearest = path.dirname(dir);
-    while (
-      (yield* Effect.option(fs.lstat(nearest)))._tag === "None" &&
-      path.dirname(nearest) !== nearest
-    )
+    while (!(yield* exists(nearest)) && path.dirname(nearest) !== nearest)
       nearest = path.dirname(nearest);
     // Stop at links too: a dangling link cannot become a parent directory for the writer.
     const ancestor = yield* Effect.option(fs.stat(nearest));
     if (ancestor._tag === "None" || ancestor.value.type !== "Directory")
-      return yield* new TargetNotEmpty({ details: { path: dir, entries: [] } });
+      return yield* notEmpty(dir, []);
     return { path: dir, exists: false, git: false, nearest } satisfies Target;
   });
 
@@ -58,26 +69,22 @@ export const inspectTarget = (dir: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const notEmpty = (entries: ReadonlyArray<string>, scaffold?: "unfinished" | "green") =>
-      new TargetNotEmpty({
-        details: { path: dir, entries: [...entries], ...(scaffold ? { scaffold } : {}) },
-      });
     const present = yield* Effect.option(fs.lstat(dir));
-    if (present._tag === "None") {
-      return yield* inspectMissingTarget(dir);
-    }
+    if (present._tag === "None") return yield* inspectMissingTarget(dir);
     const info = yield* Effect.option(fs.stat(dir));
-    if (info._tag === "None" || info.value.type !== "Directory") return yield* notEmpty([]);
+    if (info._tag === "None" || info.value.type !== "Directory") return yield* notEmpty(dir, []);
     const names = yield* fs
       .readDirectory(dir)
       .pipe(
         Effect.mapError(() => new PermissionDenied({ details: { reason: "read", path: dir } })),
       );
     const other = names.filter((name) => name !== ".git" && !isLitter(name)).sort();
-    if (other.length)
-      return yield* notEmpty(
-        other.slice(0, 10),
-        other.includes(METADATA_DIR) ? yield* scaffoldOf(path.join(dir, MANIFEST_PATH)) : undefined,
-      );
+    if (other.length) {
+      // A `.stacks/` among them means an earlier scaffold; say how far it got.
+      const scaffold = other.includes(METADATA_DIR)
+        ? yield* scaffoldOf(path.join(dir, MANIFEST_PATH))
+        : undefined;
+      return yield* notEmpty(dir, other.slice(0, LISTED_ENTRIES), scaffold);
+    }
     return { path: dir, exists: true, git: names.includes(".git"), nearest: dir } satisfies Target;
   });

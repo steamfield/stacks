@@ -1,3 +1,7 @@
+/**
+ * Checks the evaluation dry run using synthetic models and isolated output. The project uses it to verify evaluation without provider credentials.
+ */
+
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";

@@ -1,3 +1,7 @@
+/**
+ * Exercises the items and readiness routes with in-memory services. Database-backed coverage lives in the database tests.
+ */
+
 // The items and readiness routes over the in-memory services, with no database. tests/db runs
 // the same routes against Postgres.
 import { Schema } from "effect";

@@ -1,3 +1,7 @@
+/**
+ * Checks that database test runs keep their resources isolated, including teardown of one run while another remains.
+ */
+
 import { expect, it } from "vitest";
 import {
   cloneDatabase,

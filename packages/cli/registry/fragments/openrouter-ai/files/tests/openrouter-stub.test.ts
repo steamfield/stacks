@@ -1,3 +1,7 @@
+/**
+ * Checks the local OpenRouter stub’s wire behavior so clients can use it in offline tests.
+ */
+
 // Proves the stub speaks OpenRouter's wire format, so tests that point a real client at it test
 // something true. Plain fetch only: the stub must not depend on any client library.
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";

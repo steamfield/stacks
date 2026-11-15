@@ -1,3 +1,7 @@
+/**
+ * Builds the scoped Postgres client layer used by the API’s SQL services and migration runner.
+ */
+
 import { PgClient } from "@effect/sql-pg";
 import type { Redacted } from "effect";
 

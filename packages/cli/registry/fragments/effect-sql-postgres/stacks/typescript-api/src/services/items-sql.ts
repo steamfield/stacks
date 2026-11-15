@@ -1,3 +1,7 @@
+/**
+ * Implements the items service with Postgres. The platform supplies its SQL client layer.
+ */
+
 // The Postgres layer of Items, through the SQL client service only; the platform supplies the
 // driver. test:db covers this file, so the Docker-free coverage run excludes it.
 import { Effect, Layer, Schema } from "effect";

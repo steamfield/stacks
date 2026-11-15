@@ -1,3 +1,7 @@
+/**
+ * Resolves the mobile app’s Clerk configuration and checks whether authentication can be enabled.
+ */
+
 // Shapes EAS profiles and docs use for a key nobody filled in.
 const PLACEHOLDER = /replace_me|_xxx$/;
 

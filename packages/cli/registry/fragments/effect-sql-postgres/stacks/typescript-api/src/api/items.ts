@@ -1,3 +1,7 @@
+/**
+ * Defines the items HTTP endpoints and their schemas. The API handlers implement this group through the items service.
+ */
+
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api";
 import {
   BadInputResponse,

@@ -1,3 +1,7 @@
+/**
+ * Exercises the release workflow’s pack and publish commands using isolated fixtures and a stub registry.
+ */
+
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {

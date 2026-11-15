@@ -1,3 +1,7 @@
+/**
+ * Creates the items table and its constraints. The migration runner applies it to the API database.
+ */
+
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 

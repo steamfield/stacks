@@ -1,3 +1,7 @@
+/**
+ * Exercises the migration command against isolated databases, including its check and apply behavior.
+ */
+
 import { spawnSync } from "node:child_process";
 import { afterEach, expect, it } from "vitest";
 import { cloneName, createEmpty, databaseUrl, dropDatabase, newRunId } from "./databases.ts";

@@ -1,3 +1,7 @@
+/**
+ * Provides each database test file with an isolated clone of the migrated template and cleans it up after the tests.
+ */
+
 import { Redacted } from "effect";
 import { afterAll, beforeAll, inject } from "vitest";
 import { pgLayer } from "../../src/platform/database.ts";

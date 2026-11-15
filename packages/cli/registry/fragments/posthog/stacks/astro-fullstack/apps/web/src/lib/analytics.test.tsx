@@ -1,3 +1,7 @@
+/**
+ * Tests the site’s analytics integration and layout wiring. The browser-like test environment exercises tracking without a live PostHog service.
+ */
+
 // @vitest-environment happy-dom
 // A .tsx name so the web project's src/**/*.test.tsx include picks it up.
 import type { PostHog } from "posthog-js";

@@ -10,12 +10,12 @@
     "reviewedAt": "2026-11-15"
   },
   "summary": "Add shared Bun TypeScript hook helpers and incremental type checks after each Claude Code edit.",
-  "description": "Give a TypeScript project on Bun the shared helpers its own Claude Code hooks build on: payload parsing and a shell lexer that reads commands the way bash runs them. For Claude Code, the adapter type-checks the project incrementally after each edit and reports the errors back. Destructive-command and secret guards come from agent-ops; stack hooks built on these helpers only stop commands that would hang the session.",
+  "description": "Give a TypeScript project on Bun a shared hook helper for payloads, bounded child processes and hook responses. For Claude Code, the adapter type-checks the project incrementally after each edit and reports the errors back. Destructive-command and secret guards come from agent-ops, and stack guards only stop commands that would hang the session.",
   "seoDescription": "Shared Bun TypeScript hook helpers and incremental TypeScript checking after each Claude Code edit.",
   "projectExamples": [
     {
       "title": "Dev server guard",
-      "description": "A stack hook uses the shared shell lexer to stop a foreground dev server that would hold the agent's session open, and points at the background script instead.",
+      "description": "A stack hook stops a foreground dev server that would hold the agent's session open, and points at the background script instead.",
       "stack": "typescript-api"
     },
     {
@@ -28,7 +28,7 @@
     "whatItIs": "Adds type checking after each Claude Code edit, and shared helpers for hooks, to a TypeScript project that uses Bun, a JavaScript runtime.",
     "goodAt": [
       "Showing Claude Code the TypeScript errors its last edit caused",
-      "Reading shell commands safely inside a project's own hooks"
+      "Writing a project's own hooks in TypeScript on Bun"
     ],
     "notGoodAt": [
       "Sandboxing untrusted code; use a separate sandbox for that.",
@@ -53,7 +53,7 @@
     "typecheck on write"
   ],
   "goodFor": [
-    "shared hook payload and shell parsing",
+    "shared hook payload handling",
     "TypeScript feedback after each edit"
   ],
   "notFor": [

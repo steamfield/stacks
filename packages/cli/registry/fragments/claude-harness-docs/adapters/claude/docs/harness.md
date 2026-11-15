@@ -25,7 +25,7 @@ What's in the tree:
 
 `format-changed.sh` formats this session's edited files on Stop. `session-start.sh` reports repository state, missing dependencies and local services at SessionStart. Per-hook details and settings live in [`.claude/README.md`](../.claude/README.md).
 
-The TypeScript helpers use Node APIs even though Bun executes them. `_lib.ts` handles payloads, bounded child processes and hook responses; `_shell.ts` identifies executable commands for stack-specific anti-hang guards. Keep these helpers in TypeScript checking.
+The TypeScript helpers use Node APIs even though Bun executes them. `_lib.ts` handles payloads, bounded child processes and hook responses; keep it in TypeScript checking. Shell guards, including stack anti-hang guards, split commands with `_lib.sh`.
 
 Hooks deny destructive or irreversible work and foreground commands that would hang the session. Keep runner choices, package choices, generated-file ownership and import boundaries in guidance and lint. Lint and type feedback advises after a write; missing tools never turn those checks into denials.
 

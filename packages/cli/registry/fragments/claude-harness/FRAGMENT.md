@@ -15,7 +15,7 @@ verify: []
 
 # Claude development harness
 
-Shared hook helpers (`_lib.ts`, `_shell.ts`) ship for every target. Stacks can use them from Claude Code or Codex hooks. Claude's remaining harness is adapter-only; the instructions below about Claude apply when it is a target.
+The shared TypeScript hook helper `_lib.ts` ships for every target; stack guards are bash on agent-ops' `_lib.sh`. Claude's remaining harness is adapter-only; the instructions below about Claude apply when it is a target.
 
 When Claude is a target, its adapter adds incremental type checking after each edit. Stacks and apps own their specialized hooks and permissions; each contribution merges its agent's hook config and wires only files it owns. Hooks follow agent-ops's policy: deny only destructive work or a command that would hang the session; conventions go in guidance and lint.
 

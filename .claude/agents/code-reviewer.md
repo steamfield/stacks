@@ -56,8 +56,8 @@ Check every item. Each was a real defect that reached review in this repo.
    abort or signal against work that can finish first, and a whole-registry or matrix test with
    no stated time budget.
 6. Duplicated sources: a change to a file that has a copy elsewhere without saying whether the
-   copy follows. `_lib.ts` and `_shell.ts` in `.claude/hooks/` are byte-identical with the
-   `claude-harness` fragment's copies (`tests/hooks/harness-sync.test.ts`). Every other repo hook
+   copy follows. `_lib.ts` in `.claude/hooks/` is byte-identical with the `claude-harness`
+   fragment's copy (`tests/hooks/harness-sync.test.ts`). Every other repo hook
    is maintained separately from its shipped namesake on purpose (docs/harness.md, "Repo hooks
    and shipped hooks"): the shell hooks, whose shipped counterparts are the `agent-ops`
    fragment's, and `typecheck-on-write.ts`, which shares its name with the `claude-harness`

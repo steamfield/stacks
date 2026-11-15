@@ -1,3 +1,25 @@
+/**
+ * Combines a stack with its fragments into one composition, the plan every later step works from.
+ *
+ * A composition is the result of combining a stack (a recipe for a whole project) with fragments
+ * (reusable additions such as CI or a database): the files to write, the verify steps, env
+ * defaults, commands, decisions, tools and the notes the brief shows. `scaffold/new.ts` calls
+ * `compose` for `stacks new`, `add/prepare.ts` for `stacks add`, and `show`, `validate` and
+ * telemetry call it to preview or check compositions. The brief, the manifest and the fingerprint
+ * are all built from what it returns, so the order of every list here is behavior: tests pin the
+ * results by digest.
+ *
+ * `compose` runs in steps: `selection.ts::selectFragments` picks and orders the fragments, each
+ * entry's `stacks:when` blocks are resolved for this composition (`conditionals.ts`),
+ * `plan-files.ts::planFiles` decides which entry writes each file, and the merge helpers below
+ * aggregate steps, env, commands and the rest in composition order. It reads entries only through
+ * `Registry` and runs nothing (Trust model point 1 in `.claude/rules/architecture.md`).
+ *
+ * In `add` mode the stack is context only: its body and steps aren't emitted again, and its
+ * blocks that name an added fragment become the brief's recipe notes. `missingTools` and
+ * `dropFlags` turn a composition's tool needs into the hints `new` and `add` print. Start at
+ * `compose`.
+ */
 import { APP_TAG, shippedPath, withStepDefaults } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import {
@@ -16,7 +38,7 @@ import {
   type Payload,
 } from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { resolveConditionals } from "./conditionals";
+import { type ConditionContext, resolveConditionals } from "./conditionals";
 import { conflict, parties } from "./conflicts";
 import { planFiles } from "./plan-files";
 import { selectFragments } from "./selection";
@@ -31,11 +53,12 @@ import type {
 /** The step tag `--sandbox` skips by default (`verify --all` still runs it). */
 const PROD_TAG = "prod";
 
+type ComposeError = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;
+
 /**
  * A stack id plus `--with`/`--without`, `Settings.always` and a preset, composed into what `new`
  * writes and the brief describes. Reads only through `Registry`; otherwise pure.
  */
-type ComposeError = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;
 export function compose(
   options: ComposeOptions,
 ): Effect.Effect<Composition, ComposeError, Registry>;
@@ -51,20 +74,17 @@ export function compose(
       registry,
       options,
     );
-    const sandbox = options.preset === "sandbox";
     const payload = options.payload ?? DEFAULT_PAYLOAD;
     yield* checkPayload(registry, stack, payload);
-    const context = {
-      stack: stack?.id ?? "",
-      tags: stack?.meta.tags ?? options.inferredTags ?? [],
-      mode: options.mode,
-      preset: options.preset,
-      with: [...existing, ...ordered.map((fragment) => fragment.id)],
+    const context = conditionContext(options, {
+      stack,
       payload,
-    };
+      ids: [...existing, ...ordered.map((fragment) => fragment.id)],
+    });
     const resolve = resolver(registry, context);
     const resolvedStack = stack ? yield* resolve(stack) : null;
     const fragments = yield* Effect.forEach(ordered, resolve);
+    // In add mode the project already has the stack, so only the new fragments emit anything.
     const entries: ReadonlyArray<Entry> = [
       ...(options.mode === "new" && resolvedStack ? [resolvedStack] : []),
       ...fragments,
@@ -95,31 +115,36 @@ export function compose(
         stack: stack?.id ?? null,
         payload,
       }),
-      verify: yield* steps(entries, app, sandbox),
+      verify: yield* steps(entries, app, options.preset === "sandbox"),
       commands: mergeCommands(entries),
       env: yield* mergeEnv(entries),
-      decisions: entries.flatMap((entry) =>
-        entry.meta.decisions.map((text) => ({
-          owner: entryRef(entry),
-          text: entry === resolvedStack ? text : `${entry.id}: ${text}`,
-        })),
-      ),
-      tools: grouped(entries, (entry) =>
-        isFragment(entry) ? [...entry.meta.tools, ...entry.meta.requiresTools] : entry.meta.tools,
-      ).map(([tool, owners]) => ({ tool, owners: owners.map(entryRef) })),
+      decisions: decisions(entries, resolvedStack),
+      tools: toolOwners(entries),
       deps: mergeDeps(entries),
       needsOwnRepo: fragments.filter((fragment) => fragment.meta.needsOwnRepo).map((f) => f.id),
-      // Trust point 3: every recipe contributing prose participates in handoff trust.
-      untrusted: [
-        ...new Map(
-          [...entries, ...addNotes.map((note) => note.entry)].map((entry) => [entry.dir, entry]),
-        ).values(),
-      ]
-        .filter((entry) => !entry.trusted)
-        .map(({ id, kind, origin, dir }) => ({ id, kind, origin, dir })),
+      untrusted: untrustedEntries([...entries, ...addNotes.map((note) => note.entry)]),
       warnings,
     } satisfies Composition<Entry | null>;
   });
+}
+
+/**
+ * What `stacks:when` blocks are matched against. Without a stack (an `add` to a project no known
+ * stack made), tags inferred from the project's files stand in for the stack's.
+ */
+function conditionContext(
+  options: ComposeOptions<"new" | "add">,
+  composed: { stack: Entry | null; payload: Payload; ids: ReadonlyArray<string> },
+): ConditionContext {
+  const { stack, payload, ids } = composed;
+  return {
+    stack: stack?.id ?? "",
+    tags: stack?.meta.tags ?? options.inferredTags ?? [],
+    mode: options.mode,
+    preset: options.preset,
+    with: ids,
+    payload,
+  };
 }
 
 /** Lean and a non-default payload are recorded only when chosen, so other compositions are unchanged. */
@@ -143,9 +168,14 @@ const checkPayload = Effect.fn("compose.checkPayload")(function* (
   if (!shipped) return yield* new BadInput({ details: { id: payload, flag: "payload" } });
 });
 
+/**
+ * Add mode only: for each added fragment, the blocks of the stack and the already applied
+ * fragments that name it with `with=`, so the brief can tell the agent how the existing recipe
+ * expects the new fragment to fit. An entry with no such block contributes nothing.
+ */
 const recipeNotes = Effect.fn("compose.recipeNotes")(function* (
   registry: Registry["Service"],
-  context: Parameters<typeof resolveConditionals>[1],
+  context: ConditionContext,
   fragments: ReadonlyArray<Entry>,
   { stack, applied }: { stack: Entry | null; applied: ReadonlyArray<Entry> },
 ) {
@@ -161,11 +191,7 @@ const recipeNotes = Effect.fn("compose.recipeNotes")(function* (
 });
 
 /** Each entry with its body's conditional blocks resolved; a malformed block is `EntryInvalid`. */
-function resolver(
-  registry: Registry["Service"],
-  context: Parameters<typeof resolveConditionals>[1],
-  withFragment?: string,
-) {
+function resolver(registry: Registry["Service"], context: ConditionContext, withFragment?: string) {
   return <E extends Entry>(entry: E) =>
     Effect.gen(function* () {
       const resolved = resolveConditionals(entry.body, context, withFragment);
@@ -235,6 +261,23 @@ export function mergeEnv(entries: ReadonlyArray<Entry>) {
   });
 }
 
+/** Every entry's decisions in composition order; a fragment's are prefixed with its id. */
+function decisions(entries: ReadonlyArray<Entry>, stack: Entry | null): Composition["decisions"] {
+  return entries.flatMap((entry) =>
+    entry.meta.decisions.map((text) => ({
+      owner: entryRef(entry),
+      text: entry === stack ? text : `${entry.id}: ${text}`,
+    })),
+  );
+}
+
+/** Each tool an entry needs, in first-seen order, with the entries that need it. */
+function toolOwners(entries: ReadonlyArray<Entry>): Composition["tools"] {
+  const tools = (entry: Entry) =>
+    isFragment(entry) ? [...entry.meta.tools, ...entry.meta.requiresTools] : entry.meta.tools;
+  return grouped(entries, tools).map(([tool, owners]) => ({ tool, owners: owners.map(entryRef) }));
+}
+
 /** Items each entry names, in first-seen order, with the entries that named each. */
 function grouped(
   entries: ReadonlyArray<Entry>,
@@ -247,6 +290,10 @@ function grouped(
   return [...owners];
 }
 
+/**
+ * Declared dependencies grouped by role in first-seen order, names deduplicated. An entry that
+ * lists a role with no names doesn't count as one of its owners.
+ */
 function mergeDeps(entries: ReadonlyArray<Entry>): Composition["deps"] {
   const roles = new Map<string, { names: string[]; owners: Entry[] }>();
   for (const entry of entries)
@@ -264,11 +311,23 @@ function mergeDeps(entries: ReadonlyArray<Entry>): Composition["deps"] {
 }
 
 /**
- * Tools not on PATH, each with the flags that would have left it out (1.2a reports these). A tool
- * goes only when every fragment needing it goes, and a fragment goes only when everything that
- * requires it goes too, so the hint covers that whole set: `--without` for a default or `always`
- * fragment, dropping `--with` for one the user added. A fragment pulled in only by `requires`
- * needs no flag of its own. Nothing can drop a tool the stack or its required fragments need.
+ * The untrusted entries among those contributing prose, one per directory. Trust point 3: every
+ * recipe that reaches the brief, add notes included, takes part in the handoff's trust decision.
+ */
+function untrustedEntries(contributors: ReadonlyArray<Entry>): Composition["untrusted"] {
+  const byDir = new Map(contributors.map((entry) => [entry.dir, entry]));
+  return [...byDir.values()]
+    .filter((entry) => !entry.trusted)
+    .map(({ id, kind, origin, dir }) => ({ id, kind, origin, dir }));
+}
+
+/**
+ * Tools not on PATH, each with the flags that would have left it out; `new` and `add` print these
+ * as warnings. A tool goes only when every fragment needing it goes, and a fragment goes only when
+ * everything that requires it goes too, so the hint covers that whole set: `--without` for a
+ * default or `always` fragment, dropping `--with` for one the user added. A fragment pulled in
+ * only by `requires` needs no flag of its own. Nothing can drop a tool the stack or its required
+ * fragments need.
  */
 export function missingTools(
   composition: Composition<Entry | null>,
@@ -289,21 +348,30 @@ export function dropFlags(
 ): MissingTool["drop"] {
   if (owners.some((owner) => owner.kind === "stack")) return [];
   const via = new Map(composition.selection.map((item) => [item.id, item.via]));
-  const requirers = (id: string) =>
-    composition.fragments
-      .filter((fragment) => isFragment(fragment) && fragment.meta.requires.includes(id))
-      .map((fragment) => fragment.id);
-  const removed = new Set<string>();
-  const pending = owners.map((owner) => owner.id);
-  for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
-    if (removed.has(id)) continue;
-    removed.add(id);
-    pending.push(...requirers(id));
-  }
+  const removed = withRequirers(
+    composition.fragments,
+    owners.map((owner) => owner.id),
+  );
   if ([...removed].some((id) => via.get(id) === "required")) return [];
   return [...removed].sort().flatMap((id): MissingTool["drop"] => {
     const how = via.get(id);
     if (how === "with") return [{ id, flag: "with" }];
     return how === "default" || how === "always" ? [{ id, flag: "without" }] : [];
   });
+}
+
+/** `ids` plus every fragment that requires one of them, directly or through other fragments. */
+function withRequirers(fragments: ReadonlyArray<Entry>, ids: ReadonlyArray<string>): Set<string> {
+  const requirers = (id: string) =>
+    fragments
+      .filter((fragment) => isFragment(fragment) && fragment.meta.requires.includes(id))
+      .map((fragment) => fragment.id);
+  const removed = new Set<string>();
+  const pending = [...ids];
+  for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
+    if (removed.has(id)) continue;
+    removed.add(id);
+    pending.push(...requirers(id));
+  }
+  return removed;
 }

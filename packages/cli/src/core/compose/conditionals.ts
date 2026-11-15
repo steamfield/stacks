@@ -1,5 +1,8 @@
 /**
- * Conditional prose in entry bodies:
+ * Resolves the conditional blocks in an entry's markdown body for one composition.
+ *
+ * An entry (a stack or a fragment) can hold prose meant only for some compositions, such as a
+ * paragraph that matters only when the `postgres` fragment is present or only under `--sandbox`:
  *
  *   <!-- stacks:when stack=go-cli,python-react preset=default -->
  *   ...
@@ -8,7 +11,13 @@
  * Commas are OR within a key, several keys are AND, blocks don't nest and each marker is alone on
  * its line. A matching block loses its marker lines; a non-matching block is removed whole.
  * Markers are found on every line, code fences included: an entry that shows a marker as an
- * example has to indent it or break its spelling.
+ * example has to indent it or break its spelling. `stacks:fill` markers are a different thing
+ * (text the agent replaces) and pass through untouched.
+ *
+ * `compose.ts` calls `resolveConditionals` on every composed body before the brief is rendered,
+ * and again with `withFragment` to pull out the recipe notes `stacks add` shows. `validate` uses
+ * `scanConditionals` to report malformed markers, and `brief/words.ts` uses `isConditionalMarker`
+ * so marker lines don't count toward word budgets.
  */
 import type { ConditionalProblem } from "../../errors";
 import { DEFAULT_PAYLOAD, PAYLOADS, type Payload } from "../registry/entry";
@@ -56,12 +65,14 @@ function parseCondition(spec: string): Condition | ConditionalProblem {
   const condition: Condition = {};
   for (const part of parts) {
     const match = /^([a-z]+)(!?=)(.*)$/.exec(part);
-    const key = KEYS.find(
-      (known) => match && known === `${match[1]}${match[2] === "!=" ? "!=" : ""}`,
-    );
-    if (!match || !key) return "unknown_key";
+    if (!match) return "unknown_key";
+    const [, name = "", operator, valueList = ""] = match;
+    // `tag!=x` is its own key; every other key takes `=` only.
+    const spelled = operator === "!=" ? `${name}!=` : name;
+    const key = KEYS.find((known) => known === spelled);
+    if (!key) return "unknown_key";
     // Every comma-separated value is non-empty: `stack=`, `stack=a,,b` and `stack=a,` are refused.
-    const values = (match[3] ?? "").split(",");
+    const values = valueList.split(",");
     if (values.some((value) => !value)) return "bad_value";
     if (condition[key]) return "repeated";
     const allowed = VALUES[key];
@@ -71,6 +82,7 @@ function parseCondition(spec: string): Condition | ConditionalProblem {
   return condition;
 }
 
+/** Whether every key in `condition` holds: any listed value matches, or for `tag!=`, none does. */
 function matches(condition: Condition, context: ConditionContext): boolean {
   const has: Record<Key, (value: string) => boolean> = {
     stack: (value) => value === context.stack,
@@ -91,11 +103,13 @@ function matches(condition: Condition, context: ConditionContext): boolean {
 /** A well-formed block: its `when` and `end` lines (1-based in the body) and its condition. */
 type ConditionalBlock = { start: number; end: number; condition: Condition };
 
+/** The scan so far: the block whose `when` has no `end` yet, and the blocks already closed. */
 type MarkerState = {
   open: { line: number; condition: Condition } | undefined;
   blocks: ConditionalBlock[];
 };
 
+/** Applies one marker line to the scan, or reports what is wrong with it. */
 function scanMarker(
   match: RegExpExecArray,
   line: number,
@@ -147,8 +161,10 @@ export function resolveConditionals(
 ): { text: string } | ConditionalError {
   const scanned = scanConditionals(body);
   if (!("blocks" in scanned)) return scanned;
-  const drop = new Set<number>();
-  if (withFragment !== undefined) for (const [index] of body.split("\n").entries()) drop.add(index);
+  const lines = body.split("\n");
+  // Indexes of lines to drop. For add notes, start with every line dropped, so only the inside
+  // of a block naming the fragment survives.
+  const drop = new Set<number>(withFragment === undefined ? [] : lines.keys());
   for (const block of scanned.blocks) {
     // Marker lines always go; a block whose condition doesn't match goes whole.
     const keep =
@@ -159,9 +175,10 @@ export function resolveConditionals(
       else drop.delete(line - 1);
     }
   }
-  return { text: keepLines(body.split("\n"), drop) };
+  return { text: keepLines(lines, drop) };
 }
 
+/** `lines` without the dropped ones, skipping a blank line that a removal would leave doubled. */
 function keepLines(lines: ReadonlyArray<string>, drop: ReadonlySet<number>): string {
   const out: string[] = [];
   let removed = false;

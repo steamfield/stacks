@@ -1,3 +1,13 @@
+/**
+ * The shapes composition takes in and hands out, kept apart so the modules in `core/compose/` and
+ * their callers import them in one direction.
+ *
+ * `ComposeOptions` is what a command asks for (a stack, `--with`, `--without`, a preset, target
+ * agents). `Composition` is the answer `compose.ts::compose` returns: the chosen fragments and how
+ * each was selected, the `PlannedFile` list, verify steps, env, commands and the rest. The brief
+ * (`core/brief/`), the manifest (`core/manifest.ts`) and the fingerprint (`core/fingerprint.ts`)
+ * are all built from a `Composition`.
+ */
 import type { AgentId, Kind, ResolvedStep } from "@steamfield/stacks-format";
 import type { Entry, Origin, Payload } from "../registry/entry";
 
@@ -80,7 +90,7 @@ export type Composition<S extends Entry | null = Entry> = {
     names: ReadonlyArray<string>;
     owners: ReadonlyArray<CompositionEntryRef>;
   }>;
-  /** Fragment ids that refuse an enclosing repository (1.2a). */
+  /** Fragment ids that need the project to be its own git repository, not inside another one. */
   needsOwnRepo: ReadonlyArray<string>;
   untrusted: ReadonlyArray<{ id: string; kind: Kind; origin: Origin; dir: string }>;
   warnings: ReadonlyArray<ComposeWarning>;

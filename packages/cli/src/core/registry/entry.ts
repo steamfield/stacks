@@ -1,4 +1,10 @@
-import { FragmentMeta, type IndexEntry, type Kind, StackMeta } from "@steamfield/stacks-format";
+import {
+  FragmentMeta,
+  type IndexEntry,
+  type Kind,
+  StackMeta,
+  shippedPath,
+} from "@steamfield/stacks-format";
 import { Effect, Result, Schema, SchemaIssue } from "effect";
 import { parseDocument } from "yaml";
 import type { Origin } from "../../schemas/origin";
@@ -51,23 +57,6 @@ export const PAYLOADS = ["example", "none"] as const;
 export type Payload = (typeof PAYLOADS)[number];
 export const DEFAULT_PAYLOAD: Payload = "example";
 
-const OVERLAY_KINDS = { adapters: "agent", stacks: "stack", payloads: "payload" } as const;
-
-/** Map an entry-relative source to its project path and the selection that ships it. */
-export function shippedPath(source: string):
-  | {
-      path: string;
-      condition: { kind: "agent" | "stack" | "payload"; id: string } | null;
-    }
-  | undefined {
-  const shared = /^files\/(.+)$/.exec(source);
-  if (shared?.[1]) return { path: shared[1], condition: null };
-  const overlay = /^(adapters|stacks|payloads)\/([^/]+)\/(.+)$/.exec(source);
-  const kind = overlay?.[1] as keyof typeof OVERLAY_KINDS | undefined;
-  if (!overlay?.[2] || !overlay[3] || !kind) return undefined;
-  return { path: overlay[3], condition: { kind: OVERLAY_KINDS[kind], id: overlay[2] } };
-}
-
 /** Whether a source is one agent's adapter file or one stack's overlay file. */
 export function shippedOnlyFor(source: string, kind: "agent" | "stack", id: string): boolean {
   const condition = shippedPath(source)?.condition;
@@ -90,15 +79,6 @@ export function shipsFor(
   if (condition.kind === "agent") return agents.includes(condition.id);
   if (condition.kind === "payload") return condition.id === payload;
   return condition.id === stack;
-}
-
-/** Output path of a shipped file; a literal `.tmpl` basename is copied unchanged. */
-export function outputPath(file: Pick<EntryFile, "path">): string {
-  const suffix = ".tmpl";
-  const base = file.path.slice(file.path.lastIndexOf("/") + 1);
-  return base.endsWith(suffix) && base.length > suffix.length
-    ? file.path.slice(0, -suffix.length)
-    : file.path;
 }
 
 export function isRejected(value: Entry | RejectedEntry): value is RejectedEntry {

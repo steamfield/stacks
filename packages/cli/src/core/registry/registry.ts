@@ -1,4 +1,4 @@
-import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
+import { type AuthorsFile, Ecosystem, type Kind, shippedPath } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Path, type PlatformError } from "effect";
 import { AppConfig } from "../../config";
 import { EntryInvalid, NotFound, PermissionDenied } from "../../errors";
@@ -14,7 +14,6 @@ import {
   markdownFile,
   type Origin,
   type RejectedEntry,
-  shippedPath,
 } from "./entry";
 import { remoteRegistry } from "./remote";
 

@@ -4,6 +4,8 @@ import {
   type DependencyRollup,
   type FragmentMeta,
   type Kind,
+  outputPath,
+  shippedPath,
   stackDependencies,
 } from "@steamfield/stacks-format";
 import { Effect, Option, Result } from "effect";
@@ -21,13 +23,7 @@ import { goAllowlistKey } from "./deps";
 import { fingerprint, proofFingerprint } from "./fingerprint";
 import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets, readLedger } from "./ledger";
 import { toRow } from "./list";
-import {
-  type CatalogEntry,
-  type Entry,
-  isFragment,
-  outputPath,
-  shippedPath,
-} from "./registry/entry";
+import { type CatalogEntry, type Entry, isFragment } from "./registry/entry";
 import { Registry, type RegistryRoots, remoteRoots } from "./registry/registry";
 import { searchSourceDigest } from "./search/digest";
 import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
@@ -61,7 +57,7 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
         const condition = shippedPath(file.source)?.condition;
         return {
           source: file.source,
-          path: outputPath(file),
+          path: outputPath(file.path),
           ...(condition?.kind === "agent" ? { agent: condition.id } : {}),
           ...(condition?.kind === "stack" ? { stack: condition.id } : {}),
         };

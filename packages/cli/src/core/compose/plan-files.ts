@@ -1,15 +1,8 @@
-import type { AgentId } from "@steamfield/stacks-format";
+import { type AgentId, outputPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import { EntryInvalid } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
-import {
-  type Entry,
-  type EntryFile,
-  entryRef,
-  outputPath,
-  type Payload,
-  shipsFor,
-} from "../registry/entry";
+import { type Entry, type EntryFile, entryRef, type Payload, shipsFor } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import { conflict, parties } from "./conflicts";
 import { deepMerge } from "./merge";
@@ -57,7 +50,7 @@ function fileWriters(
       Effect.gen(function* () {
         if (!shipsFor(file.source, agents, stack, payload)) return;
         // A template needs a name before the suffix: a file called just `.tmpl` is copied as is.
-        const path = outputPath(file);
+        const path = outputPath(file.path);
         const template = path !== file.path;
         yield* checkPlannedPath(path);
         if (path.split("/").some(reservedSegment))

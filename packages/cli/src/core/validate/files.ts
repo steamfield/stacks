@@ -1,16 +1,10 @@
+import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { Finding, SizeRow } from "../../schemas/validate";
 import { countWords } from "../brief/words";
 import { isConditionalMarker, scanConditionals } from "../compose/conditionals";
 import { fitsStack } from "../compose/selection";
-import {
-  type Entry,
-  type EntryFile,
-  isStack,
-  outputPath,
-  PAYLOADS,
-  shippedPath,
-} from "../registry/entry";
+import { type Entry, type EntryFile, isStack, PAYLOADS } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
@@ -66,7 +60,7 @@ const checkEntryFiles = (view: View, entry: Entry) =>
     findings.push(...(yield* misplacedOverlay(view, entry)));
     const checkMerge = (target: string) =>
       Effect.gen(function* () {
-        const copies = files.filter((file) => outputPath(file) === target);
+        const copies = files.filter((file) => outputPath(file.path) === target);
         if (!copies.length)
           findings.push(
             finding(entry, {
@@ -138,7 +132,7 @@ const checkShippedText = Effect.fn("validate.shippedText")(function* (
       findings.push(unreadable(view, entry, text.failure));
       continue;
     }
-    if (/\.md$/i.test(outputPath(file))) words += countWords(text.success);
+    if (/\.md$/i.test(outputPath(file.path))) words += countWords(text.success);
     findings.push(...shippedConditionals(view, entry, file, text.success));
   }
   return { words, findings };
@@ -168,7 +162,9 @@ function overlayFindings(view: View, entry: Entry, files: ReadonlyArray<EntryFil
   if (entry.meta.kind !== "fragment") return [];
   const findings: Finding[] = [];
   const shared = new Set(
-    files.filter((file) => shippedPath(file.source)?.condition === null).map(outputPath),
+    files
+      .filter((file) => shippedPath(file.source)?.condition === null)
+      .map((file) => outputPath(file.path)),
   );
   const checked = new Set<string>();
   for (const file of files) {
@@ -179,13 +175,13 @@ function overlayFindings(view: View, entry: Entry, files: ReadonlyArray<EntryFil
       const issue = overlayStackFinding(view, entry, condition.id, file.source);
       if (issue) findings.push(issue);
     }
-    if (shared.has(outputPath(file)))
+    if (shared.has(outputPath(file.path)))
       findings.push(
         finding(entry, {
           check: "overlay-path-duplicate",
           severity: "error",
           file: view.file(entry, file.source),
-          message: `overlay path ${outputPath(file)} duplicates this fragment's files/ path`,
+          message: `overlay path ${outputPath(file.path)} duplicates this fragment's files/ path`,
         }),
       );
   }
@@ -217,7 +213,7 @@ const checkMergeCopy = (view: View, entry: Entry, copy: EntryFile) =>
     const registry = yield* Registry;
     const findings: Finding[] = [];
     // A template on a merge path is 1.1's merge_template; compose reports it.
-    if (outputPath(copy) !== copy.path) return findings;
+    if (outputPath(copy.path) !== copy.path) return findings;
     const text = yield* Effect.result(registry.read(entry, copy.source));
     if (Result.isFailure(text)) {
       findings.push(unreadable(view, entry, text.failure));

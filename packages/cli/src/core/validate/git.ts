@@ -1,8 +1,9 @@
+import { shippedPath } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Option, Path, Result } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
 import type { Finding } from "../../schemas/validate";
 import { Processes } from "../../services/processes";
-import { type Entry, markdownFile, shippedPath } from "../registry/entry";
+import { type Entry, markdownFile } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import type { Check } from "./types";
 import { finding } from "./view";

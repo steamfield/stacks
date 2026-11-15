@@ -1,6 +1,7 @@
+import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
-import { type Entry, markdownFile, outputPath, shippedPath } from "../registry/entry";
+import { type Entry, markdownFile } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
 import { unreadable } from "./files";
@@ -46,7 +47,7 @@ function names(run: string, file: string): boolean {
 function fillChecked(entry: Entry, source: string): boolean {
   const shipped = projectPath(source);
   if (shipped === undefined) return false;
-  const paths = new Set([shipped, outputPath({ path: shipped })]);
+  const paths = new Set([shipped, outputPath(shipped)]);
   return entry.meta.verify.some(
     (step) => step.run.includes(FILL_MARKER) && [...paths].some((file) => names(step.run, file)),
   );

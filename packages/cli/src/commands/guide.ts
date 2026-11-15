@@ -1,3 +1,12 @@
+/**
+ * The `guide` command and `guide author`: print the text a coding agent reads to learn how to use
+ * stacks, and the guide to writing new stacks and fragments.
+ *
+ * Running `stacks` with no subcommand prints the same agent guide (`cli.ts` calls `printGuide`). The
+ * text itself comes from `core/guide.ts`; this file picks which text each audience gets. A person at
+ * a terminal gets an extra opening line and text wrapped to the terminal width; an agent gets the
+ * guide unwrapped.
+ */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command } from "effect/cli";
 import { AUTHOR_TOPICS, authorGuide, guideCommands, guideText, humanLead } from "../core/guide";
@@ -5,6 +14,10 @@ import { wrap } from "../core/wrap";
 import { GuideAuthorResult, GuideResult } from "../schemas/guide";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
+
+/** Wraps text to the terminal's width when the terminal reports one. */
+const wrapToTerminal = (host: typeof Host.Service, text: string) =>
+  Option.isSome(host.columns) ? wrap(text, host.columns.value, host.stringWidth) : text;
 
 /**
  * Prints the agent guide; the root with no subcommand runs the same handler. A human first gets
@@ -15,13 +28,11 @@ export const printGuide = Effect.gen(function* () {
   const { invocation } = host;
   const output = yield* Output;
   const text = guideText(invocation);
-  const human = `${humanLead(invocation)}\n\n${text}`;
-  const wrapped = Option.isSome(host.columns)
-    ? wrap(human, host.columns.value, host.stringWidth)
-    : human;
   yield* output.result(
     Schema.encodeSync(GuideResult)({ guide: text, commands: guideCommands(invocation) }),
-    output.audience === "human" ? wrapped : text,
+    output.audience === "human"
+      ? wrapToTerminal(host, `${humanLead(invocation)}\n\n${text}`)
+      : text,
   );
 });
 
@@ -43,9 +54,7 @@ const authorCommand = Command.make(
       const text = result.text.replace(/\n$/, "");
       yield* output.result(
         Schema.encodeSync(GuideAuthorResult)(result),
-        output.audience === "human" && Option.isSome(host.columns)
-          ? wrap(text, host.columns.value, host.stringWidth)
-          : text,
+        output.audience === "human" ? wrapToTerminal(host, text) : text,
       );
     }),
 ).pipe(

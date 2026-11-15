@@ -1,3 +1,15 @@
+/**
+ * The `create stack` and `create fragment` commands: start a new entry (a stack or a fragment) in
+ * the user's own registry, either as a skeleton to fill in or, with `--from`, as a copy of an
+ * existing entry to edit.
+ *
+ * `core/create.ts::createEntry` does the writing and, for an untrusted copy, shows the full report
+ * and asks a person to accept it (trust model point 3). This file reads the flags and renders the
+ * entry path, the authoring guide and the next step. When the id is missing, a person at a terminal
+ * is asked for it through `core/prompting.ts::pickCreate`, which also prints the equivalent
+ * command; anyone else gets a usage error. Plain `stacks create` asks what to create the same way,
+ * or shows its help when nobody can answer.
+ */
 import { Category, type Kind } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { Argument, CliError, Command, Flag } from "effect/cli";
@@ -11,28 +23,29 @@ import { Origin } from "../schemas/origin";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 
+/** What a prompt can start from: whatever flags were given, with defaults for the rest. */
+type PromptInput = { kind?: Kind; from?: Origin; category: Category; yes: boolean };
+
+/** A path single-quoted for the shell, whether or not it needs it. */
+const quoted = (path: string) => `'${path.replaceAll("'", "'\\''")}'`;
+
 const runCreate = Effect.fn("create.runCreate")(function* (options: CreateOptions) {
   const result = yield* createEntry(options);
   const output = yield* Output;
   const host = yield* Host;
   const path = output.audience === "agent" ? yield* shownPath(host.cwd, result.path) : result.path;
-  const directory = `'${path.replaceAll("'", "'\\''")}'`;
   yield* output.result(
     Schema.encodeSync(CreateResult)(result),
     [
       `Created ${options.kind} ${printable(result.id)}: ${printable(path)}`,
       `Guide: ${printable(result.guide)}`,
-      `Next: edit the entry, then run ${host.invocation} validate ${printable(directory)}.`,
+      `Next: edit the entry, then run ${host.invocation} validate ${printable(quoted(path))}.`,
     ].join("\n"),
   );
 });
 
-const promptedCreate = Effect.fn("create.promptedCreate")(function* (input: {
-  kind?: Kind;
-  from?: Origin;
-  category: Category;
-  yes: boolean;
-}) {
+/** Asks a person for what's missing, prints the command they could have typed, then creates. */
+const promptedCreate = Effect.fn("create.promptedCreate")(function* (input: PromptInput) {
   const picked = yield* pickCreate(input);
   yield* runningCommand([
     "create",
@@ -47,50 +60,50 @@ const promptedCreate = Effect.fn("create.promptedCreate")(function* (input: {
   yield* runCreate({ ...picked, category: input.category, yes: input.yes });
 });
 
+/** The flags of `create <kind>`; only a fragment takes `--category`. */
+const entryFlags = (kind: Kind) => ({
+  id: Argument.String("id").pipe(
+    Argument.withDescription("A lowercase kebab-case entry id."),
+    Argument.optional,
+  ),
+  from: Flag.Literals("from", Origin.literals).pipe(
+    Flag.withDescription(
+      "Copy this id from the bundled, index or project registry into the user registry; user is refused (exit 2), because the entry is already there.",
+    ),
+    Flag.optional,
+  ),
+  ...(kind === "fragment"
+    ? {
+        category: Flag.Literals("category", Category.literals).pipe(
+          Flag.withDescription(
+            "Category for a fresh fragment. Apps need applies_to filled before validation.",
+          ),
+          Flag.withDefault("tooling"),
+        ),
+      }
+    : {}),
+  yes: Flag.Boolean("yes").pipe(
+    Flag.withDescription(
+      "Skip the trust question after the full report; requires a person and terminal for untrusted copies.",
+    ),
+    Flag.withDefault(false),
+  ),
+});
+
 const entryCommand = (kind: Kind) =>
-  Command.make(
-    kind,
-    {
-      id: Argument.String("id").pipe(
-        Argument.withDescription("A lowercase kebab-case entry id."),
-        Argument.optional,
-      ),
-      from: Flag.Literals("from", Origin.literals).pipe(
-        Flag.withDescription(
-          "Copy this id from the bundled, index or project registry into the user registry; user is refused (exit 2), because the entry is already there.",
-        ),
-        Flag.optional,
-      ),
-      ...(kind === "fragment"
-        ? {
-            category: Flag.Literals("category", Category.literals).pipe(
-              Flag.withDescription(
-                "Category for a fresh fragment. Apps need applies_to filled before validation.",
-              ),
-              Flag.withDefault("tooling"),
-            ),
-          }
-        : {}),
-      yes: Flag.Boolean("yes").pipe(
-        Flag.withDescription(
-          "Skip the trust question after the full report; requires a person and terminal for untrusted copies.",
-        ),
-        Flag.withDefault(false),
-      ),
-    },
-    (flags) =>
-      Effect.gen(function* () {
-        const options = {
-          kind,
-          from: Option.getOrUndefined(flags.from),
-          category: flags.category ?? "tooling",
-          yes: flags.yes,
-        };
-        const id = Option.getOrUndefined(flags.id);
-        if (id !== undefined) return yield* runCreate({ ...options, id });
-        if (!(yield* promptingAllowed)) return yield* new Usage();
-        yield* promptedCreate(options);
-      }),
+  Command.make(kind, entryFlags(kind), (flags) =>
+    Effect.gen(function* () {
+      const options = {
+        kind,
+        from: Option.getOrUndefined(flags.from),
+        category: flags.category ?? "tooling",
+        yes: flags.yes,
+      };
+      const id = Option.getOrUndefined(flags.id);
+      if (id !== undefined) return yield* runCreate({ ...options, id });
+      if (!(yield* promptingAllowed)) return yield* new Usage();
+      yield* promptedCreate(options);
+    }),
   ).pipe(
     Command.withDescription(
       `Create a ${kind} in the user registry without running any tools: a skeleton, or with --from a copy of an existing entry. Prints the entry path and the authoring guide. Exits 0, 2 on a bad id, an id another registry already has, an occupied target, an unknown source or a declined confirmation, 6 when the user registry can't be written or an untrusted copy can't be confirmed by a person at a terminal, 130 when interrupted.`,

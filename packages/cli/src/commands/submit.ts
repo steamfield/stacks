@@ -1,3 +1,13 @@
+/**
+ * The `submit` command: opens a draft pull request that adds the user's own stacks or fragments to
+ * the public registry on GitHub.
+ *
+ * `core/submit/submit.ts::submit` does the work through the GitHub CLI (`gh`) and `git` with fixed
+ * arguments: it clones the upstream registry, checks the entries against it, then forks, pushes and
+ * opens the pull request. With `--dry-run` it stops after the checks. This file collects the flags
+ * and renders the outcome; a dry run's `Next:` line repeats the command without `--dry-run`, so an
+ * agent shows the user the dry run and the user decides whether to send it.
+ */
 import { Effect, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { shellArg } from "../core/shell";
@@ -17,10 +27,8 @@ function rerun(invocation: string, options: SubmitOptions): string {
   ].join(" ");
 }
 
-function renderSubmit(
-  result: SubmitResult,
-  options: { invocation: string; given: SubmitOptions },
-): string {
+/** The opening lines: whether anything was sent, where, as whom, and the branch and pull request. */
+function summaryLines(result: SubmitResult): string[] {
   const entries = result.entries
     .map((entry) => `${entry.kind} ${printable(entry.id)} (${entry.update ? "update" : "new"})`)
     .join(", ");
@@ -33,25 +41,37 @@ function renderSubmit(
     lines.push(
       `Pull request: ${printable(result.prUrl)} (draft${result.reused ? "; the open one was updated" : ""})`,
     );
-  lines.push("", "Files:", ...result.files.map((file) => `  ${printable(file)}`));
-  const width = Math.max(0, ...result.findings.map((finding) => finding.check.length));
-  if (result.findings.length)
-    lines.push(
-      "",
-      "Findings:",
-      ...result.findings.map(
-        (finding) =>
-          `  ${finding.severity.padEnd(7)}  ${printable(finding.check).padEnd(width)}  ${finding.file === undefined ? "" : `${printable(finding.file)}: `}${printable(finding.message)}`,
-      ),
-    );
-  if (result.body !== undefined) lines.push("", "Pull request body:", "", result.body.trimEnd());
-  lines.push(
+  return lines;
+}
+
+/** The validation findings as aligned rows, or nothing when there are none. */
+function findingLines(findings: SubmitResult["findings"]): string[] {
+  if (!findings.length) return [];
+  const width = Math.max(0, ...findings.map((finding) => finding.check.length));
+  const row = (finding: SubmitResult["findings"][number]) => {
+    const file = finding.file === undefined ? "" : `${printable(finding.file)}: `;
+    return `  ${finding.severity.padEnd(7)}  ${printable(finding.check).padEnd(width)}  ${file}${printable(finding.message)}`;
+  };
+  return ["", "Findings:", ...findings.map(row)];
+}
+
+function renderSubmit(
+  result: SubmitResult,
+  options: { invocation: string; given: SubmitOptions },
+): string {
+  const next = result.dryRun
+    ? `Next: show the user this dry run; once they agree, run ${rerun(options.invocation, options.given)}`
+    : `Next: a maintainer reviews the draft pull request; run the same command again to update it.`;
+  return [
+    ...summaryLines(result),
     "",
-    result.dryRun
-      ? `Next: show the user this dry run; once they agree, run ${rerun(options.invocation, options.given)}`
-      : `Next: a maintainer reviews the draft pull request; run the same command again to update it.`,
-  );
-  return lines.join("\n");
+    "Files:",
+    ...result.files.map((file) => `  ${printable(file)}`),
+    ...findingLines(result.findings),
+    ...(result.body === undefined ? [] : ["", "Pull request body:", "", result.body.trimEnd()]),
+    "",
+    next,
+  ].join("\n");
 }
 
 export const submitCommand = Command.make(

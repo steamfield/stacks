@@ -1,3 +1,16 @@
+/**
+ * The `telemetry` command group: lets a user see, turn on, turn off, reset or send the anonymous
+ * usage events the CLI collects.
+ *
+ * The events, the queue and the consent rules live in `telemetry/` (`telemetry/index.ts::Telemetry`
+ * and `telemetry/consent.ts`); this file is the user's controls over them. Turning telemetry on is
+ * a person's decision, so `enable` refuses under a detected agent or without a terminal on stdin
+ * (trust model point 4). `disable` and `reset` work anywhere, because declining never needs a
+ * person. The consent choice is saved as the `telemetry` setting in `config.json`.
+ *
+ * `cli.ts` leaves this group out of the one-time telemetry notice, so a user reading or changing
+ * the setting never sees it.
+ */
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { Command } from "effect/cli";
 import { AppConfig } from "../config";
@@ -14,13 +27,18 @@ import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
 import { write } from "../telemetry/storage";
 
-const setConsent = Effect.fn("telemetry.setConsent")(function* (enabled: boolean) {
+/** Fails unless a person at a terminal is running the command (trust model point 4). */
+const requirePerson = Effect.gen(function* () {
   const config = yield* AppConfig;
   const host = yield* Host;
-  if (enabled && (yield* config.agent) !== "none")
+  if ((yield* config.agent) !== "none")
     return yield* new PermissionDenied({ details: { reason: "agent" } });
-  if (enabled && !host.stdinIsTTY)
-    return yield* new PermissionDenied({ details: { reason: "no-tty" } });
+  if (!host.stdinIsTTY) return yield* new PermissionDenied({ details: { reason: "no-tty" } });
+});
+
+/** Writes `config.json` with its `telemetry` setting replaced, keeping every other setting. */
+const saveSetting = Effect.fn("telemetry.saveSetting")(function* (enabled: boolean) {
+  const config = yield* AppConfig;
   const settings = yield* config.settings;
   const paths = yield* config.paths;
   const fs = yield* FileSystem.FileSystem;
@@ -34,19 +52,35 @@ const setConsent = Effect.fn("telemetry.setConsent")(function* (enabled: boolean
       () => new PermissionDenied({ details: { reason: "write", path: paths.config } }),
     ),
   );
+});
+
+/**
+ * `enable` and `disable`. Disabling also removes the queued events, identity and project links;
+ * when that removal fails the setting still counts and the result says the data remains.
+ */
+const setConsent = Effect.fn("telemetry.setConsent")(function* (enabled: boolean) {
+  if (enabled) yield* requirePerson;
+  yield* saveSetting(enabled);
   const cleared = enabled || (yield* (yield* Telemetry).clear(false));
   yield* (yield* Output).result(
     Schema.encodeSync(TelemetrySetting)({ enabled, ...(!cleared ? { cleared: false } : {}) }),
     `Telemetry ${enabled ? "enabled" : "disabled"}.${cleared ? "" : " Pending data could not be removed."}`,
   );
 });
+
+function renderStatus(value: TelemetryStatus): string {
+  return [
+    `Telemetry: ${value.reason}`,
+    `Queued: ${value.spooled}`,
+    ...(value.installId ? [`Install: ${value.installId}`] : []),
+    ...(value.noticeShownAt ? [`Notice shown: ${value.noticeShownAt}`] : []),
+  ].join("\n");
+}
+
 const status = Command.make("status", {}, () =>
   Effect.gen(function* () {
     const value = yield* (yield* Telemetry).status;
-    yield* (yield* Output).result(
-      Schema.encodeSync(TelemetryStatus)(value),
-      `Telemetry: ${value.reason}\nQueued: ${value.spooled}${value.installId ? `\nInstall: ${value.installId}` : ""}${value.noticeShownAt ? `\nNotice shown: ${value.noticeShownAt}` : ""}`,
-    );
+    yield* (yield* Output).result(Schema.encodeSync(TelemetryStatus)(value), renderStatus(value));
   }),
 ).pipe(
   Command.withDescription(
@@ -58,6 +92,32 @@ const status = Command.make("status", {}, () =>
     { command: `${commandPath.join(" ")} --json`, description: "Get telemetry status as JSON" },
   ]),
 );
+
+const enable = Command.make("enable", {}, () => setConsent(true)).pipe(
+  Command.withDescription(
+    "Enable collection; requires a person with terminal stdin. Exits 0, 2 on usage errors, 3 on invalid settings (InvalidConfig), 6 on a missing person or write permission (PermissionDenied), 130 when interrupted.",
+  ),
+  Command.withShortDescription("Enable telemetry with a person's consent."),
+  Command.withExamples(({ commandPath }) => [
+    { command: commandPath.join(" "), description: "Enable from your own terminal" },
+    { command: `${commandPath.join(" ")} --json`, description: "Enable and return JSON" },
+  ]),
+);
+
+const disable = Command.make("disable", {}, () => setConsent(false)).pipe(
+  Command.withDescription(
+    "Disable collection and delete pending events, identity and project links. Exits 0, 2 on usage errors, 3 on invalid settings (InvalidConfig), 6 on write permissions (PermissionDenied), 130 when interrupted.",
+  ),
+  Command.withShortDescription("Disable telemetry and remove pending data."),
+  Command.withExamples(({ commandPath }) => [
+    { command: commandPath.join(" "), description: "Turn collection off" },
+    {
+      command: `${commandPath.join(" ")} --json`,
+      description: "Disable under an agent or in a script",
+    },
+  ]),
+);
+
 const flush = Command.make("flush", {}, () =>
   Effect.gen(function* () {
     const value = yield* (yield* Telemetry).flushNow;
@@ -79,6 +139,7 @@ const flush = Command.make("flush", {}, () =>
     },
   ]),
 );
+
 const reset = Command.make("reset", {}, () =>
   Effect.gen(function* () {
     const reset = yield* (yield* Telemetry).clear(true);
@@ -99,6 +160,7 @@ const reset = Command.make("reset", {}, () =>
     { command: `${commandPath.join(" ")} --json`, description: "Reset without terminal output" },
   ]),
 );
+
 export const telemetryCommand = Command.make("telemetry").pipe(
   Command.withDescription(
     "Control anonymous usage telemetry. Disable and reset work without a terminal or under an agent; enable needs a person. Each subcommand's --help lists its exits.",
@@ -111,32 +173,5 @@ export const telemetryCommand = Command.make("telemetry").pipe(
     { command: `${commandPath.join(" ")} disable`, description: "Turn collection off" },
   ]),
   Command.withShortDescription("Inspect, disable or reset anonymous usage telemetry."),
-  Command.withSubcommands([
-    status,
-    Command.make("enable", {}, () => setConsent(true)).pipe(
-      Command.withDescription(
-        "Enable collection; requires a person with terminal stdin. Exits 0, 2 on usage errors, 3 on invalid settings (InvalidConfig), 6 on a missing person or write permission (PermissionDenied), 130 when interrupted.",
-      ),
-      Command.withShortDescription("Enable telemetry with a person's consent."),
-      Command.withExamples(({ commandPath }) => [
-        { command: commandPath.join(" "), description: "Enable from your own terminal" },
-        { command: `${commandPath.join(" ")} --json`, description: "Enable and return JSON" },
-      ]),
-    ),
-    Command.make("disable", {}, () => setConsent(false)).pipe(
-      Command.withDescription(
-        "Disable collection and delete pending events, identity and project links. Exits 0, 2 on usage errors, 3 on invalid settings (InvalidConfig), 6 on write permissions (PermissionDenied), 130 when interrupted.",
-      ),
-      Command.withShortDescription("Disable telemetry and remove pending data."),
-      Command.withExamples(({ commandPath }) => [
-        { command: commandPath.join(" "), description: "Turn collection off" },
-        {
-          command: `${commandPath.join(" ")} --json`,
-          description: "Disable under an agent or in a script",
-        },
-      ]),
-    ),
-    reset,
-    flush,
-  ]),
+  Command.withSubcommands([status, enable, disable, reset, flush]),
 );

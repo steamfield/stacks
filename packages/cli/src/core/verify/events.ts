@@ -1,3 +1,12 @@
+/**
+ * The live events `stacks verify` emits while it runs, so a caller can follow a long run.
+ *
+ * `run.ts` calls `stepStarted` before each step and `stepFinished` after it. Both go through
+ * `Output.event`, which renders them by audience: with `--json`, one JSON line per event on stderr
+ * (the `VerifyEvent` shape, printed by `stacks schema verify-event`, which agents and the MCP
+ * server parse, so its fields are a contract); for an agent, a short `> name` line when a step
+ * starts; for a person, nothing, since the human view has its own live progress line.
+ */
 import { Effect, Schema } from "effect";
 import { type StepResult, VerifyEvent } from "../../schemas/verify";
 import { Output } from "../../services/output";

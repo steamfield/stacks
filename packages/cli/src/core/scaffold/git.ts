@@ -1,7 +1,13 @@
 /**
- * The git commands `new` and `add` run, all constants: no entry content reaches git (Trust model
- * point 1). Each runs without `GIT_REPOSITORY_VARIABLES`, so git finds the repository from `cwd`
- * alone, and with `LC_ALL=C`, so its messages are the untranslated ones `probeGit` reads.
+ * Runs the few git commands `stacks new` and `stacks add` need: finding the enclosing repository,
+ * checking for commits, `git init` and reading `user.name`.
+ *
+ * `scaffold/new.ts` calls `probeGit` before writing and `gitInit` after; `add/plan.ts` and
+ * `add/prepare.ts` use `gitToplevel` and `gitInstalled`; `scaffold/values.ts` reads the author
+ * through `gitUserName`. Every command is a fixed string, so nothing from an entry ever reaches git
+ * (Trust model point 1). Each runs through `Processes` without the `GIT_DIR`-style variables a
+ * hook might export, so git finds the repository from the working directory alone, and with
+ * `LC_ALL=C`, so the "not a git repository" message `probeGit` looks for is never translated.
  */
 import { Duration, Effect, FileSystem, Option } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";

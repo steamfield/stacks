@@ -1,7 +1,20 @@
 /**
- * The only writer into a project (`openProject`): path checks that keep every write inside the
- * project root's real path, exclusive creates, atomic rewrites, and the rollback that undoes them
- * when the scope fails or is interrupted.
+ * Every file the CLI puts into a user's project goes through this module, whether the user ran
+ * `stacks new`, `stacks add` or `stacks create`.
+ *
+ * Callers open a writer with `openProject` and write through it: `scaffold/new.ts` for `new`,
+ * `add/write.ts` for `add`, plus `create.ts`, `skill.ts`, `verify/tamper.ts` and
+ * `commands/handoff.ts` for their smaller writes. The writer refuses any path that would land
+ * outside the project root once symlinks are resolved (the root's "real path"), and it creates
+ * files with the `wx` flag, so it never overwrites a file it didn't make. To change a file that
+ * was already there, callers use `rewrite`, which keeps the original bytes and mode.
+ *
+ * The rollback is why the module is shaped as one big closure. `openProject` registers a scope
+ * finalizer before its first write, then records each file and directory as it creates it. If the
+ * scope ends in a failure or an interrupt (Ctrl+C), the finalizer restores rewritten files and
+ * removes what was created, newest first, so a failed `new` leaves no half-written project. A
+ * restore that fails doesn't stop the rest; its path goes to `Invocation.rollbackIncomplete`,
+ * which the error envelope reports. Start at `openProject`.
  */
 import { rmdir } from "node:fs/promises";
 import { Effect, Exit, FileSystem, Option, Path, type PlatformError, type Scope } from "effect";

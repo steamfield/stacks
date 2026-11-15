@@ -1,4 +1,10 @@
-/** Fills the `stacks:fill:commands` markers in shipped Markdown from the composition's commands. */
+/**
+ * Fills the commands table in a new project's Markdown files during `stacks new`.
+ *
+ * A stack's docs can hold a `<!-- stacks:fill:commands -->` marker line. `scaffold/new.ts` calls
+ * `fillMarkers` after rendering, and each marker becomes one table row per command the entries
+ * declare. The rows come from entry metadata alone; no command runs.
+ */
 import type { RenderedFile } from "../compose/files";
 import type { Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";

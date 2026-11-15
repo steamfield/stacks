@@ -1,4 +1,10 @@
-/** `new`'s text summary, plus the warning and missing-tool lines `add` shares. */
+/**
+ * Turns the result of `stacks new` into the text summary a person or an agent reads.
+ *
+ * `commands/new.ts` calls `renderNew` for the `human` and `agent` audiences (`--json` prints the
+ * result object instead). `add/report.ts` reuses `warningLine` and `missingLine`, so both commands
+ * describe a warning or a missing tool the same way.
+ */
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { collapsePaths } from "../brief/paths";

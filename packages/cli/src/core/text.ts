@@ -1,3 +1,13 @@
+/**
+ * Keeps text from entries and other untrusted sources from taking over the terminal.
+ *
+ * Entry names, descriptions, search cards and API responses are written by someone else, and a
+ * control character in them (an escape sequence, a carriage return) would let that text move the
+ * cursor, recolor the screen or fake a line of output. `printable` escapes those characters before
+ * text output or a log message shows them; `hasControl` lets a caller reject such a value outright,
+ * as `template.ts::authorValue` does. Report renderers across `core/` and `commands/` use both.
+ */
+
 /** C0 and C1 control characters and DEL: what a terminal acts on instead of printing. */
 const isControl = (code: number) => code < 0x20 || (code >= 0x7f && code <= 0x9f);
 

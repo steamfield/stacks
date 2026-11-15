@@ -54,7 +54,7 @@ While the version is `0.x`, a breaking change bumps the minor. Write what change
 
 ## Options and defaults
 
-`resolveOptions` in `src/options.ts` is the pattern: one interface of optional fields, one frozen `defaultOptions`, and a runtime check of every field, because JavaScript callers get no type checking. An unknown key is an `invalid_option` error naming the key, so a typo never passes silently.
+For an API with options, use an interface of optional fields, frozen defaults, and a runtime check of every field, because JavaScript callers get no type checking. An unknown key is an `invalid_option` error naming the key, so a typo never passes silently.
 
 ## Runtime and side effects
 

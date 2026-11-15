@@ -1,7 +1,7 @@
 # `.claude/`: Claude Code config
 
 ```
-settings.json        shared config: hooks wiring, read-only allow rules, destructive-command deny rules
+settings.json        shared config: hooks wiring, merged allow rules, destructive-command deny rules
 settings.local.json  your machine-only overrides (gitignored, create as needed)
 hooks/               hooks, described below
 ```
@@ -52,7 +52,7 @@ echo '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' | bash .
 
 `settings.json` is shared and committed. Some keys (permission allow rules, plugin marketplaces) only take effect after each person trusts the folder in Claude Code; deny rules apply right away. Put anything personal (extra permissions, env, personal MCP servers) in `settings.local.json`.
 
-`permissions.allow` starts with read-only git only (`status`, `diff`, `log`, `show`, `branch --show-current`). Add the project's own non-destructive commands (lint, test, typecheck) as they settle; leave deploy, publish, and anything destructive to prompt.
+`permissions.allow` contains read-only git rules (`status`, `diff`, `log`, `show`, `branch --show-current`) plus rules merged from the stack and fragments. See `.claude/settings.json` for the actual permissions. Add the project's own non-destructive commands (lint, test, typecheck) as they settle; leave deploy, publish, and anything destructive to prompt.
 
 `permissions.deny` repeats the worst destructive shapes (`rm -rf /`, `rm -rf ~`, `rm -rf .`, force push, `git reset --hard`, `--no-verify` on commit and push) so they stay blocked with hooks turned off. They are exact rules on purpose: a wildcard such as `Bash(rm -rf /*)` would match every `rm -rf /some/abs/path`, and a deny rule can't be overridden by an allow rule. It also denies reading `.env`, `.env.local`, `.env.*.local`, `.env.production` and `.envrc`, at the root and in any subdirectory (`.env.example` stays readable), and editing `.stacks/manifest.json`: the manifest records the verify steps the project was generated with, and `stacks verify` fails a changed step, so the agent changes it only by asking you.
 

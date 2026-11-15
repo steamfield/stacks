@@ -50,12 +50,20 @@ type Simple = {
   heredocs: string[];
   scope: number;
   pipedFrom?: Simple;
+  conditionalFrom?: Simple;
   inputs?: Simple[];
   background?: boolean;
   functionName?: string;
 };
 
 const BLANK = new Set([" ", "\t", "\r", "\v", "\f"]);
+/** A trailing & detaches the whole conditional list and every pipeline in it. */
+function markBackground(simple: Simple): void {
+  simple.background = true;
+  if (simple.pipedFrom) markBackground(simple.pipedFrom);
+  if (simple.conditionalFrom) markBackground(simple.conditionalFrom);
+}
+
 const WORD_END = new Set([...BLANK, "\n", ";", "&", "|", "<", ">", "(", ")"]);
 
 class Unbalanced extends Error {}
@@ -250,7 +258,7 @@ class Lexer {
     return this.scopes[this.scopes.length - 1] as number;
   }
 
-  private fresh(pipedFrom?: Simple): Simple {
+  private fresh(pipedFrom?: Simple, conditionalFrom?: Simple): Simple {
     const functionName = this.functions.at(-1)?.name;
     return {
       words: [],
@@ -259,6 +267,7 @@ class Lexer {
       scope: this.current,
       ...(functionName ? { functionName } : {}),
       ...(pipedFrom ? { pipedFrom } : {}),
+      ...(conditionalFrom ? { conditionalFrom } : {}),
     };
   }
 
@@ -286,14 +295,17 @@ class Lexer {
     this.expands = false;
   }
 
-  private endCmd(pipe = false, background = false) {
+  private endCmd(pipe = false, background = false, conditional = false) {
     this.endWord();
     const done = this.cmd.words.length > 0 || this.cmd.redirects.length > 0 ? this.cmd : undefined;
     if (done) {
       done.background = background;
+      if (background) {
+        markBackground(done);
+      }
       this.lx.out.push(done);
     }
-    this.cmd = this.fresh(pipe ? done : undefined);
+    this.cmd = this.fresh(pipe ? done : undefined, conditional ? done : undefined);
   }
 
   /** Lex a nested substitution body at `from`, in a new scope; returns the index past its ). */
@@ -501,15 +513,16 @@ class Lexer {
   private pipe(c: string): boolean {
     if (c !== "|") return false;
     const or = this.src.charAt(this.i + 1) === "|";
-    this.endCmd(!or);
+    this.endCmd(!or, false, or);
     this.i += or || this.src.charAt(this.i + 1) === "&" ? 2 : 1;
     return true;
   }
 
   private separator(c: string): boolean {
     if (c !== ";" && !(c === "&" && this.src.charAt(this.i + 1) !== ">")) return false;
-    this.endCmd(false, c === "&");
-    this.i++;
+    const and = c === "&" && this.src.charAt(this.i + 1) === "&";
+    this.endCmd(false, c === "&" && !and, and);
+    this.i += and ? 2 : 1;
     return true;
   }
 
@@ -655,7 +668,12 @@ function wrapperArgs(words: Word[], k: number, push: (k: number, state: StartSta
   }
 }
 
-type Context = { remote: boolean; dir: string | null | undefined; viaXargs: boolean };
+type Context = {
+  remote: boolean;
+  dir: string | null | undefined;
+  viaXargs: boolean;
+  background?: boolean;
+};
 /** One line's expansion: how deep it is, how many commands are left before the rest is opaque, and the output. */
 type Walk = { depth: number; budget: { commands: number }; out: Command[] };
 
@@ -759,7 +777,7 @@ function expandSimple(simple: Simple, ctx: Context, walk: Walk, stdin: string[])
       remote: ctx.remote,
       dir: ctx.dir,
       inputPrograms: inputPrograms(simple),
-      background: simple.background ?? false,
+      background: ctx.background || simple.background || false,
       ...(simple.functionName ? { functionName: simple.functionName } : {}),
     };
     walk.out.push(cmd);
@@ -889,7 +907,12 @@ function follow(cmd: Command, walk: Walk): void {
   const name = basename(argv[0] ?? "");
   const follower = FOLLOWERS.find((candidate) => candidate.matches(name, argv));
   if (!follower) return;
-  const same: Context = { remote: cmd.remote, dir: cmd.dir, viaXargs: cmd.viaXargs };
+  const same: Context = {
+    remote: cmd.remote,
+    dir: cmd.dir,
+    viaXargs: cmd.viaXargs,
+    background: cmd.background,
+  };
   const deeper: Walk = { ...walk, depth: walk.depth + 1 };
   const sub = (from: number, extra: Partial<Command>) => {
     if (from >= argv.length) return;

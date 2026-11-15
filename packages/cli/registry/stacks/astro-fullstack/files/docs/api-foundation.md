@@ -2,7 +2,7 @@
 
 ## Lint and boundaries
 
-Generate configuration for the installed Biome release. Enforce cognitive complexity at most 15, at most four parameters, no nested ternaries, no non-null assertions, floating or misused promises, and exhaustive switches. Split complex functions into named steps; never suppress a rule to pass. Check undeclared dependencies in application source against each owning package. The shipped boundary test probes real files: stdin does not expose plugin diagnostics. Keep every probe enabled, with one diagnostic per violation and allowed cases beside them.
+Generate configuration for the installed Biome release. Enforce cognitive complexity at most 15, at most four parameters, no nested ternaries, no non-null assertions, floating or misused promises, and exhaustive switches. Split complex functions into named steps; never suppress a rule to pass. Check undeclared dependencies in application source against each owning package. The shipped boundary test probes real files: stdin does not expose plugin diagnostics. Keep one smoke probe per Grit diagnostic, each reporting exactly one violation.
 
 Only platform entries import runtime modules or use process globals. Application code takes time and randomness from Effect Clock and Random; only edges run Effects. Yield, return or compose every Effect instead of dropping it. Handlers return declared values or tagged errors, keeping response construction at the HTTP boundary.
 

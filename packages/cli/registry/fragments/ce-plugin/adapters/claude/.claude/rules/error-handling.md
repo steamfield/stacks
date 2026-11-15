@@ -8,10 +8,6 @@ paths:
 
 # Error handling
 
-Load the `ce:handling-errors` skill when writing try/catch blocks, designing how errors propagate, or reviewing a catch that looks wrong.
+Read `docs/guidance/engineering/errors.md` before changing failure or recovery paths. It covers typed errors, cause chains, reporting boundaries and explicit fallbacks.
 
-The project's own error pattern (error types, where errors become responses or exit codes) is in the Error handling section of `AGENTS.md`. Follow it rather than inventing a local variant.
-
-- Never swallow an error. Handle it, or add context and pass it on.
-- Keep the original error when wrapping, so the cause survives.
-- Log once, at the boundary that handles the error, not at every layer it passes through.
+The `ce:handling-errors` skill goes deeper when installed. Follow the Error handling section of `AGENTS.md` for the project's error types and where errors become responses or exit codes.

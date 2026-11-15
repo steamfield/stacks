@@ -1,0 +1,86 @@
+name: Release
+
+# A `v*` tag publishes @steamfield/stacks-format, @steamfield/stacks and @steamfield/stacks-mcp to npm
+# with provenance, through trusted publishing (OIDC): no npm token is stored or read. A manual run
+# from main publishes the format package alone, for a format version the hosted API needs before a
+# CLI release. Production deployments are not part of this workflow.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    # A manual run is only for main; a tag run is whatever the tag points at, and the version check
+    # below stops one that doesn't match its commit.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+      - name: Verify release version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: >-
+          node -e 'const v = require("./packages/cli/package.json").version;
+          if (process.env.TAG !== `v${v}`) {
+          console.error(`::error title=Tag does not match the CLI version::Tag ${process.env.TAG} points at a commit whose packages/cli/package.json version is ${v}. Run bun run release X.Y.Z, commit, and tag that commit. Delete the bad tag with: git push origin :refs/tags/${process.env.TAG}`);
+          process.exit(1); }'
+      - name: Require npm 11.5.1 or newer
+        run: >-
+          node -e 'const [a, b, c] = process.argv[1].split(".").map(Number);
+          if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) {
+          console.error(`::error title=npm is too old for trusted publishing::npm ${process.argv[1]} is older than 11.5.1. Use a Node version in .node-version that ships a newer npm.`);
+          process.exit(1); }' "$(npm --version)"
+      - run: bun run install:ci
+      - run: bun run check
+      - name: Restore release artifacts
+        id: artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        continue-on-error: true
+        with:
+          name: release-packages
+          path: dist/release
+      - name: Pack the format package
+        if: steps.artifacts.outcome != 'success'
+        working-directory: packages/format
+        run: bun run pack
+      - name: Pack the CLI with its telemetry endpoint
+        if: steps.artifacts.outcome != 'success' && github.event_name == 'push'
+        working-directory: packages/cli
+        env:
+          STACKS_PUBLISH_TELEMETRY: "1"
+        run: bun run pack
+      - name: Pack the MCP server
+        if: steps.artifacts.outcome != 'success' && github.event_name == 'push'
+        working-directory: packages/mcp
+        run: bun run pack
+      - name: Collect the tarballs
+        if: steps.artifacts.outcome != 'success'
+        env:
+          FORMAT_ONLY: ${{ github.event_name == 'workflow_dispatch' && '--format-only' || '' }}
+        run: bun scripts/publish.ts collect dist/release $FORMAT_ONLY
+      - if: steps.artifacts.outcome != 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-packages
+          path: dist/release/
+          if-no-files-found: error
+      - name: Publish format, then CLI, then MCP
+        # Authenticates through npm trusted publishing (OIDC); no token is stored.
+        run: |
+          bun scripts/publish.ts publish dist/release

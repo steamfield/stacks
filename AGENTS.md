@@ -2,7 +2,7 @@
 
 ## Overview
 
-A bun workspace; every package is in `packages/<name>/`. `packages/cli` is `stacks`, the CLI: Effect 4 commands/services, doctor/version, lazy configuration, safe output and logs. Bun bundles the Node ESM package; Node 24 runs Vitest. `packages/format` (`@steamfield/stacks-format`) owns the portable entry, manifest, run-record and canonical bundle contracts. There is no vendor tooling; the one release tool is the maintainer's `bun run release`. The CLI works offline from its bundled registry. Its network use is all optional and best-effort (`--offline` stops every request): `search` asks the hosted API, `list` and `show` read published stats, the signed remote index and dependency allowlist are fetched only once index keys are published (`INDEX_PUBLIC_KEYS` is empty today), and telemetry posts events in a release build. Two commands need the network: `update`, with one request to the npm registry, and `submit`, which reaches GitHub only through `gh` and `git`. `packages/mcp` (`@steamfield/stacks-mcp`) is the stdio MCP server: three tools (`stacks_list`, `stacks_new`, `stacks_verify`) and the guides as resources, each running its `@steamfield/stacks` dependency's Node entry with `--json` (never PATH, never `--accept-changes`, never a launch) and returning the result. The hosted API lives in a separate private repository, `stacks-api`. Code two packages share goes in its own package, never imported across another package's `src/`. How the monorepo works and how to add a package: README.md, "Monorepo".
+A bun workspace; every package is in `packages/<name>/`. `packages/cli` is `stacks`, the CLI: Effect 4 commands/services, doctor/version, lazy configuration, safe output and logs. Bun bundles the Node ESM package; Node 24 runs Vitest. `packages/format` (`@steamfield/stacks-format`) owns the portable entry, manifest, run-record and canonical bundle contracts. There is no vendor tooling; releases are tag-driven through `.github/workflows/release.yml`, prepared by the maintainer's `bun run release <x.y.z>` ("Releasing"). The CLI works offline from its bundled registry. Its network use is all optional and best-effort (`--offline` stops every request): `search` asks the hosted API, `list` and `show` read published stats, the signed remote index and dependency allowlist are fetched only once index keys are published (`INDEX_PUBLIC_KEYS` is empty today), and telemetry posts events in a release build. Two commands need the network: `update`, with one request to the npm registry, and `submit`, which reaches GitHub only through `gh` and `git`. `packages/mcp` (`@steamfield/stacks-mcp`) is the stdio MCP server: three tools (`stacks_list`, `stacks_new`, `stacks_verify`) and the guides as resources, each running its `@steamfield/stacks` dependency's Node entry with `--json` (never PATH, never `--accept-changes`, never a launch) and returning the result. The hosted API lives in a separate private repository, `stacks-api`. Code two packages share goes in its own package, never imported across another package's `src/`. How the monorepo works and how to add a package: README.md, "Monorepo".
 
 The root owns the harness: `.claude/`, lefthook, CI, the root `biome.json`, `tsconfig.base.json`, and the root test suite in `tests/`: the hook tests in `tests/hooks/` and the root scripts' in `tests/scripts/`. Each package owns its source, tests, `tsconfig.json` (extending `../../tsconfig.base.json`) and any Biome plugins in a nested `biome.json` (`"root": false, "extends": "//"`). See docs/harness.md.
 
@@ -16,8 +16,8 @@ The root owns the harness: `.claude/`, lefthook, CI, the root `biome.json`, `tsc
 | `product/` | The problem statement (what stacks is and who it's for; kept current), plus the hackathon-era pitch, prep notes and demo outline |
 | `plans/` | The maintainers' requirements, roadmap, feature requests and run notes (`plans/runs/`, which `ledger:import` reads); history, not instructions |
 | `docs/harness.md` | Who owns which part of the harness |
-| `tests/` | Root suite: `hooks/` (the `.claude/hooks` guards), `scripts/` (`release.ts`) |
-| `scripts/` | `prepare.ts` (installs git hooks), `commit-msg.sh`, `release.ts` (`bun run release`) |
+| `tests/` | Root suite: `hooks/` (the `.claude/hooks` guards), `scripts/` (`release.ts`, `publish.ts`) |
+| `scripts/` | `prepare.ts` (installs git hooks), `commit-msg.sh`, `release.ts` (`bun run release <x.y.z>`, the version bump), `publish.ts` (the release workflow's collect and publish steps) |
 | `.github/workflows/` | CI (see "CI") |
 | `.claude/` | The agent harness, shared by Claude Code and Codex (below) |
 | `.agents/skills` | A tracked symlink to `.claude/skills`, where Codex discovers repo skills; edit the files under `.claude/skills/` |
@@ -56,7 +56,7 @@ Root commands run from the repo root and fan out to every workspace package (`bu
 | `bun run check` | Lint, typecheck, test, e2e: the gate |
 | `bun run clean` | Each package's generated output |
 | `bun run prepare` | Install hooks outside CI |
-| `bun run release` / `release:dry-run` / `release:format` | A maintainer's step, never an agent's: publish `@steamfield/stacks-format`, then `@steamfield/stacks`, then `@steamfield/stacks-mcp` (which pins that CLI version), from `origin/main`, and tag `v<cli version>` (packages/format/README.md, "Publishing"). It packs and checks all three before publishing any, skips a version already on npm only when its `dist.integrity` matches the fresh tarball, and packs the CLI with `STACKS_PUBLISH_TELEMETRY=1`, the only build that embeds the official telemetry endpoint. The dry run packs all three and publishes nothing. `release:format` (`--format-only`) publishes the format package alone, with no tag, for a format version the hosted API needs before a CLI release; when handing a publish to the maintainer, give that one command |
+| `bun run release <x.y.z>` | Prepare a release, never publish it ("Releasing"): rewrites every place the CLI version lives, moves `@steamfield/stacks-mcp` up a patch, regenerates the six brief digests and `bun.lock`. Refuses a tree dirty beyond `packages/cli/CHANGELOG.md`, a branch other than `main`, an existing local or origin tag, a version not newer, or a missing `## [x.y.z]` changelog section. Never commits, tags or pushes |
 
 In `packages/cli/` (run there):
 
@@ -197,7 +197,18 @@ Install lefthook on PATH (e.g. brew install lefthook), then bun install. Pre-com
 
 ## CI
 
-.github/workflows/ci.yml runs a sequential `check` job on ubuntu-latest only (macOS runners cost too much) for main pushes, PRs and manual runs, then `ci-ok`, which passes only when it did; contents:read only. Tests whose meaningful branch is macOS-only carry `(macOS)` in their name; lefthook's pre-commit runs them on a Mac (`bun run test:macos` in `packages/cli`), and a test that can't pass on Linux is `test.runIf(process.platform === "darwin")`. Bun comes from packageManager, Node from .node-version. Frozen install, lint, typecheck, coverage, binary e2e; upload each package's logs/coverage on failure. Required check: ci-ok. Upgrade official action tags after checking upstream; SHA pins are deferred.
+.github/workflows/ci.yml runs a sequential `check` job on ubuntu-latest only (macOS runners cost too much) for main pushes, PRs and manual runs, then `ci-ok`, which passes only when it did; contents:read only. Tests whose meaningful branch is macOS-only carry `(macOS)` in their name; lefthook's pre-commit runs them on a Mac (`bun run test:macos` in `packages/cli`), and a test that can't pass on Linux is `test.runIf(process.platform === "darwin")`. Bun comes from packageManager, Node from .node-version. Frozen install, lint, typecheck, coverage, binary e2e; upload each package's logs/coverage on failure. Required check: ci-ok. Upgrade official action tags after checking upstream; SHA pins are deferred, except in `release.yml`, which has `id-token: write` and pins every action by SHA with its tag in a comment. Dependabot (`.github/dependabot.yml`, weekly, 7-day cooldown, one group) moves those pins.
+
+## Releasing
+
+CI publishes; agents never run `npm publish`, and the workflow deploys nothing (production is stacks-api's). A `v*` tag runs `.github/workflows/release.yml`: it checks the tag equals `v` plus `packages/cli`'s version, runs `bun run check`, packs and uploads the tarballs, then `scripts/publish.ts` publishes format, CLI, MCP with provenance through npm trusted publishing (OIDC; no token exists). It looks every version up first, skips one already on npm with the same integrity, and stops on different bytes. A job rerun restores the uploaded tarballs, so it publishes the bytes that were built. To cut `X.Y.Z` from `main`:
+
+1. Add `## [X.Y.Z] - YYYY-MM-DD` to `packages/cli/CHANGELOG.md` (the one allowed dirty file). Bump `packages/format`'s version in its own commit first when its contract changed.
+2. `bun run release X.Y.Z`, then the gate, then `git add -A && git commit -m "chore(release): X.Y.Z"`.
+3. `git push origin main`. After that commit is on `main`, `git tag vX.Y.Z && git push origin vX.Y.Z`; a tag before the bump commit fails the version check and leaves a stale tag.
+4. `gh run list --workflow Release`, `gh run watch <id> --exit-status`, then `npm view @steamfield/stacks-format version dist.integrity`, repeated for `@steamfield/stacks` and `@steamfield/stacks-mcp`.
+
+Recovery: fix the cause and `gh run rerun <id> --failed`. Never move or reuse a published version; bump and tag again. A bad tag is deleted by the maintainer (`git push origin :refs/tags/vX.Y.Z`); an agent hands over that command and never runs it. The Actions tab's manual run (from `main`) publishes the format package alone, for a format version the hosted API needs before a CLI release. Each package needs `steamfield/stacks` and `release.yml` as its Trusted Publisher on npmjs.com.
 
 ## Build workarounds
 
@@ -207,7 +218,7 @@ The shipped dev wrapper was adapted to forward directly delivered SIGINT/SIGTERM
 
 ## Deferred
 
-A scheduled canary that takes each bundled stack to a green verify, a CI release workflow, and SHA-pinned CI actions. Publishing remains the maintainer's step (`bun run release`).
+A scheduled canary that takes each bundled stack to a green verify, and SHA-pinned CI actions outside `release.yml`.
 
 ## Delegates
 
@@ -215,7 +226,9 @@ Claude Code orchestrates; Codex takes the coding tasks Claude delegates (the per
 
 ## Pending user actions
 
-Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; `bun run release` (format is skipped as already published); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
+Release pipeline, once: on npmjs.com, for each of `@steamfield/stacks-format`, `@steamfield/stacks` and `@steamfield/stacks-mcp`, Settings, Trusted Publisher, GitHub Actions, `steamfield`, `stacks`, workflow `release.yml`, environment blank; then set Publishing access to "Require two-factor authentication and disallow bypass 2fa tokens". Until the three are configured the first tagged run fails at publish and a rerun after configuring finishes it.
+
+Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published and 0.7.1, which adds its `repository` field for provenance, ships with the first tagged release): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; cut the release ("Releasing"); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
 
 ## Deeper context
 

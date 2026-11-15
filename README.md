@@ -82,4 +82,4 @@ To add a package:
 
 ## Releasing
 
-Maintainers publish all three packages with `bun run release` from an up-to-date `main`; `bun run release:dry-run` packs them and publishes nothing, and `bun run release:format` publishes the format package alone. [packages/format/README.md](packages/format/README.md#publishing) has the steps and the checks the script makes.
+Releases are tag-driven. A maintainer writes the changelog section, runs `bun run release X.Y.Z` (it rewrites every place the version lives and never commits, tags or pushes), commits that as `chore(release): X.Y.Z` on `main`, then tags the commit `vX.Y.Z` and pushes the tag. `.github/workflows/release.yml` runs the gate and publishes `@steamfield/stacks-format`, `@steamfield/stacks` and `@steamfield/stacks-mcp` to npm with provenance, through npm trusted publishing, so no npm token exists. [packages/format/README.md](packages/format/README.md#publishing) has the steps, the recovery rules and the one-time npm setup.

@@ -106,8 +106,8 @@ claude mcp add stacks -- node /absolute/path/to/stacks/packages/mcp/dist/server.
 
 Use an absolute Node path too if the client cannot find it. `bun run --cwd packages/mcp dev`
 builds and starts the Node bundle. `bun run --cwd packages/mcp pack` writes the publishable
-tarball under `dist/pack/`; the maintainer's `bun run release` publishes format, CLI, then MCP,
-after packing and checking all three.
+tarball under `dist/pack/`; the release workflow publishes format, CLI, then MCP when a `v*` tag
+is pushed, after the gate (see the repository README, "Releasing").
 
 ## Known limits
 

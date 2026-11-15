@@ -1,3 +1,9 @@
+/**
+ * Defines and registers read_file, including its input and output schemas and bounded UTF-8
+ * file read. Filesystem checks keep reads inside the configured root, while runTool formats
+ * results and failures.
+ */
+
 import { readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/server";

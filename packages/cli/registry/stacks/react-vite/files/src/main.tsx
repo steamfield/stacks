@@ -1,3 +1,8 @@
+/**
+ * Starts the browser app by validating build-time configuration and mounting its providers and
+ * router. It connects the API client, logger and query cache to the route tree.
+ */
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

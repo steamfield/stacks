@@ -1,3 +1,8 @@
+/**
+ * Adapts the app's fetch handler to Node's HTTP server. It returns the bound port and an
+ * asynchronous close operation for the process entry and socket tests.
+ */
+
 import type { AddressInfo } from "node:net";
 import { serve } from "@hono/node-server";
 import type { App } from "./app.ts";

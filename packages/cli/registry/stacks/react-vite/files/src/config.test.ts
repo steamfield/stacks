@@ -1,3 +1,8 @@
+/**
+ * Checks defaults and validation for the app's public Vite settings. These unit tests exercise
+ * configuration parsing without depending on a particular build environment.
+ */
+
 import { describe, expect, test } from "vitest";
 import { ConfigError, parseConfig } from "./config";
 

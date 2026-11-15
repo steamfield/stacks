@@ -1,3 +1,8 @@
+/**
+ * Composes the application configuration, output and logging layers for an invocation. Its
+ * promise runner returns successful status codes and maps interruption to exit status 130.
+ */
+
 import { Cause, Effect, Exit, Layer } from "effect";
 import { AppConfig } from "./config";
 import { Logging } from "./logging";

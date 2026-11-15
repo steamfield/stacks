@@ -1,3 +1,8 @@
+/**
+ * Checks API error retry decisions and the messages shown by the UI. These tables pin the
+ * policy shared by the query client and error display.
+ */
+
 import { expect, test } from "vitest";
 import { ApiError, isRetryable, userMessage } from "./errors";
 

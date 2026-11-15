@@ -1,3 +1,8 @@
+/**
+ * Renders API failures with a safe message, an available request id and an optional retry
+ * action. Feature pages share this component to keep request errors consistent.
+ */
+
 import { ApiError, userMessage } from "../api/errors";
 
 /** A failed request: the user-facing message, the request id when the API sent one, and a retry. */

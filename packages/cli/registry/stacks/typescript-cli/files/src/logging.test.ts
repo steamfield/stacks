@@ -1,3 +1,8 @@
+/**
+ * Checks the pure log-record formatter's scalar values, secret-key redaction and
+ * reserved-field handling. Invocation tests separately exercise delivery to stderr and files.
+ */
+
 import { expect, it } from "vitest";
 import { entry } from "./logging";
 

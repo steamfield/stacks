@@ -1,3 +1,8 @@
+/**
+ * Defines the API's error codes, HTTP statuses and safe response envelope. The app and route
+ * declarations share this policy for runtime responses and OpenAPI documentation.
+ */
+
 import { z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 

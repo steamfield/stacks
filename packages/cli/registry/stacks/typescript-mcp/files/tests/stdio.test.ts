@@ -1,5 +1,9 @@
-// The real entry point over stdio, run by Node from source: an SDK client on each protocol era,
-// and a raw session proving stdout carries nothing but JSON-RPC.
+/**
+ * Exercises the real Node entry through SDK clients on both protocol eras and a raw stdio
+ * session. It checks protocol-only stdout, stderr logging, session shutdown and invalid
+ * startup configuration.
+ */
+
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";

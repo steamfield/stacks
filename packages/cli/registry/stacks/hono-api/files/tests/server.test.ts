@@ -1,4 +1,8 @@
-// The Node server over a real socket on a free port: what app.request() can't show.
+/**
+ * Exercises the Node server over a real socket on an assigned free port. These tests cover
+ * health, note creation and closing the server beyond the in-process HTTP contract.
+ */
+
 import { afterEach, expect, it } from "vitest";
 import { type RunningServer, startServer } from "../src/server.ts";
 import { jsonBody, testApp } from "./helpers/app.ts";

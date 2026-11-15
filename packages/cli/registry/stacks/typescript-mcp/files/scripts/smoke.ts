@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
-// `smoke`: starts the built dist/index.js the way a host does, through MCP Inspector's CLI (a
-// client this project doesn't write), and checks tools/list. --strict makes Inspector fail on a
-// tool schema other clients can't use. Run `bun run build` first.
+/**
+ * Starts the built server through MCP Inspector's CLI and checks its advertised tools and
+ * schemas. This smoke check exercises the host-facing artifact after the build.
+ */
+
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";

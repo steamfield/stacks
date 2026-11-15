@@ -1,3 +1,8 @@
+/**
+ * Renders unmatched-route and render-failure pages for the app's router. Unexpected failures
+ * log only the error name through the shared services context.
+ */
+
 import { useEffect } from "react";
 import { isRouteErrorResponse, Link, useRouteError } from "react-router";
 import { useServices } from "./services";

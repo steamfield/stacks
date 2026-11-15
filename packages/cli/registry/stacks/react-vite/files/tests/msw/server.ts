@@ -1,3 +1,8 @@
+/**
+ * Defines the in-process MSW API used by Vitest's client and component tests. Default item
+ * handlers read shared fixtures, and individual tests can override responses.
+ */
+
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { items } from "../fixtures/items";

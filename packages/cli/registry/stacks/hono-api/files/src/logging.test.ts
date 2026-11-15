@@ -1,3 +1,8 @@
+/**
+ * Tests the pino logger and request middleware with captured records. It checks redaction and
+ * that request logs include useful metadata while omitting query strings, headers and bodies.
+ */
+
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import { describe, expect, it } from "vitest";

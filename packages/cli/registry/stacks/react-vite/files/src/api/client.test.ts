@@ -1,3 +1,8 @@
+/**
+ * Exercises the fetch client against MSW responses for success, HTTP, network and decoding
+ * failures. It also checks safe logging and cancellation passthrough.
+ */
+
 import { HttpResponse, http } from "msw";
 import { expect, test, vi } from "vitest";
 import { z } from "zod";

@@ -1,3 +1,4 @@
+/** Infers tags from a project's files for `stacks:when` conditionals when no stack is known. */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 
 const Package = Schema.Struct({

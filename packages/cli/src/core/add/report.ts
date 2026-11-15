@@ -1,3 +1,4 @@
+/** Renders the text summary of an `add` result. */
 import type { AddResult } from "../../schemas/add";
 import type { Audience } from "../../services/output";
 import { missingLine, warningLine } from "../scaffold/report";

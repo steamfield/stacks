@@ -1,7 +1,13 @@
+/** Merges an `add`'s contributions into the project manifest and decides which digest to record. */
 import type { DetectedAgent, Manifest } from "@steamfield/stacks-format";
 import { digestSteps } from "../manifest";
 
-/** Merge checked fragment contributions; the project's accepted step form stays authoritative. */
+/**
+ * Merge checked fragment contributions; the project's existing env values and commands win over
+ * incoming ones. The new steps' digest is recorded only when every addition is trusted or a person
+ * at a terminal ran the command (trust point 4); otherwise the manifest and state record keep
+ * the previous baseline's digest, so verify reports the steps as changed until a person accepts them.
+ */
 export function mergeAddManifest(input: {
   previous: Manifest | undefined;
   incoming: Manifest;

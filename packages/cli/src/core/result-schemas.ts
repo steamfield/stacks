@@ -1,3 +1,12 @@
+/**
+ * The catalog behind `stacks schema <name>`: every JSON shape the CLI prints, by name.
+ *
+ * An agent that reads `--json` output can ask the CLI for the exact shape it will get, as a JSON
+ * Schema document, instead of guessing from examples. This file maps each name to its Effect
+ * Schema (from `schemas/`, `errors.ts` or `@steamfield/stacks-format`) and converts one on
+ * request. `commands/schema.ts` lists and prints them. A new `--json` result or event needs an
+ * entry here; the MCP package mirrors these shapes, and its e2e test fails when the two drift.
+ */
 import { SearchResult } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { ErrorEnvelope } from "../errors";
@@ -48,6 +57,8 @@ export const RESULT_SCHEMAS = {
   },
 } as const;
 export type ResultName = keyof typeof RESULT_SCHEMAS;
+
+/** Every name `schema` accepts, in `RESULT_SCHEMAS`' order, typed as `ResultName`. */
 export const RESULT_NAMES = Object.keys(RESULT_SCHEMAS).filter(
   (name): name is ResultName => name in RESULT_SCHEMAS,
 );

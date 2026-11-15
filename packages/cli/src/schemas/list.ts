@@ -1,9 +1,22 @@
+/**
+ * The shape of what `stacks list --json` prints: every stack and fragment an agent can choose
+ * from, and the entries that failed to load.
+ *
+ * Entries come from the registry, the roots searched in priority order (project, user, the signed
+ * remote index, then the bundled registry). `core/list.ts` builds the result and `show`'s schema
+ * (`schemas/show.ts`) extends `ListRow`, so a field added to a row appears in both commands.
+ */
 import { Category, GitHubLogin, Kind, StatsDay, StatsWindow } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { LedgerLastRun } from "./ledger";
 import { NoticeFields } from "./notice";
 import { Origin } from "./origin";
 
+/**
+ * One entry in `list`: what it is, where it was found (`origin`, and the lower-priority copies it
+ * `shadows`), whether that origin is trusted, and its evidence (`lastRun` from the bundled ledger,
+ * `stats` from the hosted API). `show` reuses these fields as the top of its report.
+ */
 export const ListRow = Schema.Struct({
   id: Schema.String,
   kind: Kind,
@@ -38,6 +51,7 @@ export const ListRow = Schema.Struct({
 });
 export type ListRow = typeof ListRow.Type;
 
+/** `list --json`. `project` is present when a project manifest was found from the directory. */
 export const ListResult = Schema.Struct({
   ...NoticeFields,
   project: Schema.optionalKey(

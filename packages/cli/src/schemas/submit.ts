@@ -1,3 +1,9 @@
+/**
+ * The shape of what `stacks submit --json` prints. `submit` proposes personal entries from the
+ * user registry to the public registry by opening a draft pull request through `gh`
+ * (`core/submit/submit.ts`); the result names the branch, the pull request and the validation
+ * findings the entries got against the upstream registry.
+ */
 import { Kind } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";

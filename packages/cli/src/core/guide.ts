@@ -1,3 +1,21 @@
+/**
+ * The text that teaches a coding agent how to use stacks, and the authoring guide for people
+ * writing their own entries.
+ *
+ * The agent guide (`guideText`) is the loop an agent follows: search for a stack, review it with
+ * `show`, scaffold with `new`, then run `verify` until the project is green. It is reached three
+ * ways: `stacks` with no arguments, `stacks guide`, and a short version (`helpFooter`) at the end
+ * of the root `--help`. `--json` callers also get the loop as data (`guideCommands`). Every string
+ * is fixed text the agent reads; `cli` is `Host.invocation`, the command name to print (`stacks`,
+ * or the npx form).
+ *
+ * The authoring guide (`authorGuide`) prints the bundled `stacks-author` skill or one of its
+ * reference topics. The skill links to its own files, which an agent reading it through the CLI
+ * doesn't have, so `rewriteAuthorLinks` turns each link into the `guide author <topic>` command
+ * that prints it. `core/skill.ts` reuses that rewrite for `skill install --print`.
+ *
+ * `commands/guide.ts` and `main.ts` render these; nothing here reads a project or a registry.
+ */
 import { Effect, FileSystem, Path } from "effect";
 import { NotFound, PermissionDenied, Usage } from "../errors";
 import { BRIEF_PATH, MANIFEST_PATH } from "../project-layout";
@@ -26,58 +44,55 @@ function linkedTopic(target: string): AuthorTopic | "" | undefined {
   return topic !== undefined && isAuthorTopic(topic) ? topic : undefined;
 }
 
+/** The command that prints a topic, or the skill itself for `""`. */
+const authorCommand = (cli: string, topic: AuthorTopic | "") =>
+  topic === "" ? `${cli} guide author` : `${cli} guide author ${topic}`;
+
 /**
- * The authoring skill's links to its own files, rewritten to the command that prints each one, so
- * an agent reading through `guide author` can follow them without the files. A Markdown link
- * becomes its label and the command (only the command when the label is the file name), and a
- * bare `references/x.md` becomes the command.
+ * One Markdown link, rewritten when it points at the skill's own files: only the command when the
+ * label just names the file, otherwise the label followed by the command. Other links are kept.
  */
-export function rewriteAuthorLinks(text: string, cli: string): string {
-  const command = (topic: AuthorTopic | "") =>
-    topic === "" ? `${cli} guide author` : `${cli} guide author ${topic}`;
-  const linked = text.replace(
-    /\[([^\]\n]*)\]\(([^)\s]+)\)/g,
-    (link, label: string, target: string) => {
-      const topic = linkedTopic(target);
-      if (topic === undefined) return link;
-      const plain = label.replace(/`/g, "").trim();
-      return plain === topic || linkedTopic(plain) === topic
-        ? `\`${command(topic)}\``
-        : `${label} (\`${command(topic)}\`)`;
-    },
-  );
-  return linked.replace(
-    /(?<![\w/.-])(?:\.\/)?references\/([a-z-]+)\.md\b/g,
-    (mention, topic: string) => (isAuthorTopic(topic) ? command(topic) : mention),
-  );
+function rewriteLink(cli: string, link: string, label: string, target: string): string {
+  const topic = linkedTopic(target);
+  if (topic === undefined) return link;
+  const command = authorCommand(cli, topic);
+  const plainLabel = label.replace(/`/g, "").trim();
+  const labelNamesFile = plainLabel === topic || linkedTopic(plainLabel) === topic;
+  return labelNamesFile ? `\`${command}\`` : `${label} (\`${command}\`)`;
 }
 
 /**
- * `guide author [topic]`: the authoring skill's SKILL.md without its frontmatter, or one of its
- * references, read from the bundled skills root with links rewritten. An unknown topic is a
- * Usage error with the closest topics.
+ * The authoring skill's links to its own files, rewritten to the command that prints each one, so
+ * an agent reading through `guide author` can follow them without the files. Markdown links are
+ * rewritten first (`rewriteLink`), then any bare `references/x.md` left in the prose.
  */
-export const authorGuide = (topic: string | undefined) =>
+export function rewriteAuthorLinks(text: string, cli: string): string {
+  const linked = text.replace(
+    /\[([^\]\n]*)\]\(([^)\s]+)\)/g,
+    (link, label: string, target: string) => rewriteLink(cli, link, label, target),
+  );
+  return linked.replace(
+    /(?<![\w/.-])(?:\.\/)?references\/([a-z-]+)\.md\b/g,
+    (mention, topic: string) => (isAuthorTopic(topic) ? authorCommand(cli, topic) : mention),
+  );
+}
+
+/** The file `guide author` prints: the skill's `SKILL.md`, or `references/<topic>.md`. */
+const authorFile = (path: Path.Path, skillRoot: string, topic: AuthorTopic | undefined) => {
+  const dir = path.join(skillRoot, "stacks-author");
+  return topic === undefined
+    ? path.join(dir, "SKILL.md")
+    : path.join(dir, "references", `${topic}.md`);
+};
+
+/**
+ * Reads one of the skill's files. A missing file (or a file where a directory should be) is
+ * `NotFound`; any other failure to read means the CLI couldn't look, so it is `PermissionDenied`.
+ */
+const readAuthorFile = (file: string) =>
   Effect.gen(function* () {
-    if (topic !== undefined && !isAuthorTopic(topic))
-      return yield* new Usage({
-        details: {
-          flag: "topic",
-          command: "guide author",
-          value: topic,
-          expected: AUTHOR_TOPICS.join(" | "),
-          suggestions: closest(topic, AUTHOR_TOPICS),
-        },
-      });
-    const host = yield* Host;
     const fs = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const dir = path.join(host.skill, "stacks-author");
-    const file =
-      topic === undefined
-        ? path.join(dir, "SKILL.md")
-        : path.join(dir, "references", `${topic}.md`);
-    const raw = yield* fs
+    return yield* fs
       .readFileString(file)
       .pipe(
         Effect.mapError((error) =>
@@ -86,6 +101,32 @@ export const authorGuide = (topic: string | undefined) =>
             : new PermissionDenied({ details: { reason: "read", path: file } }),
         ),
       );
+  });
+
+/** The `Usage` failure for a topic `guide author` doesn't have, with the closest topics. */
+const unknownTopic = (topic: string) =>
+  new Usage({
+    details: {
+      flag: "topic",
+      command: "guide author",
+      value: topic,
+      expected: AUTHOR_TOPICS.join(" | "),
+      suggestions: closest(topic, AUTHOR_TOPICS),
+    },
+  });
+
+/**
+ * `guide author [topic]`: the authoring skill's SKILL.md without its frontmatter, or one of its
+ * references, read from the bundled skills root with links rewritten. An unknown topic is a
+ * Usage error with the closest topics.
+ */
+export const authorGuide = (topic: string | undefined) =>
+  Effect.gen(function* () {
+    if (topic !== undefined && !isAuthorTopic(topic)) return yield* unknownTopic(topic);
+    const host = yield* Host;
+    const path = yield* Path.Path;
+    const raw = yield* readAuthorFile(authorFile(path, host.skill, topic));
+    // SKILL.md opens with frontmatter for agent harnesses; a reader of the guide doesn't need it.
     const text = topic === undefined ? (splitFrontmatter(raw)?.body ?? raw) : raw;
     return {
       topic: topic ?? null,

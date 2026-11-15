@@ -91,7 +91,7 @@ Table tests sit beside the code and cover every path, asserting each error with 
 The shipped Makefile (`make help`) has install, vet, lint, lint-fix, fmt, fmt-check, tidy-check, test, fuzz, consumer, api-check, api-baseline, coverage, doc, vuln, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with a single-test command such as `go test -race -run 'TestParseErrors/1y' .`. `make doc` prints the docs as pkg.go.dev will show them. Releasing is a person's step: `docs/releasing.md`.
 
 <!-- stacks:when with=agent-ops -->
-The stack's Claude settings allow its non-destructive make targets (not `api-baseline`), go test, go vet and go doc. `.claude/hooks/guard-library.sh` denies `go test -fuzz` without a nonzero `-fuzztime`, `go get -tool` without `-modfile=tools.mod`, editing, moving or removing `api/baseline.export`, and recording a new baseline once git has ever tracked one. It reads tool calls with jq and blocks every call when jq is missing; its tests in `tests/hooks` run with `make test` and fail without jq. `.claude/skills/add-export` walks through adding an exported name. List the hook and skill in `.claude/README.md`. Add allow rules only for new commands.
+The stack's Claude settings allow its non-destructive make targets (not `api-baseline`), go test, go vet and go doc. Bound fuzzing with a nonzero `-fuzztime`, keep dev tools in `tools.mod`, and update the API baseline deliberately during a release. `.claude/hooks/guard-library.sh` blocks unbounded fuzzing; an unavailable guard allows the call with a note. `.claude/skills/add-export` walks through adding an exported name. List the hook and skill in `.claude/README.md`. Add allow rules only for new commands.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->
@@ -104,7 +104,7 @@ CI reads Go from go.mod and runs `make install`, `make fmt-check`, `make tidy-ch
 
 ## Gotchas
 
-- `go get -tool` writes to `go.mod` by default, and a library's requirements, tools included, join the build list of every module that imports it. Pass `-modfile=tools.mod` to every `go get -tool` and `go tool` call; the Claude hook denies the bare form.
+- `go get -tool` writes to `go.mod` by default, and a library's requirements, tools included, join the build list of every module that imports it. Pass `-modfile=tools.mod` to dev-tool installation and invocation commands.
 - `go test -fuzz` runs one target in one package per invocation and, without `-fuzztime`, until it finds a failure. `make fuzz` loops over the targets with a time limit.
 - apidiff (`golang.org/x/exp`) exits 0 even when it finds incompatible changes; `make api-check` fails on its output instead. It compares only non-internal packages, and the baseline is written with `-trimpath`, so it holds no local paths and doesn't change between machines.
 - A module path without a dot in its first element works locally but can't be fetched by anyone else; set the real path before the first tag.

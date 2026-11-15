@@ -2,7 +2,7 @@
 
 ## What runs where
 
-- Vitest project `unit` (Node): `shared/**/*.test.ts`, `server/**/*.test.ts` and `tests/**/*.test.ts` (the harness hook tests). Schemas, server utils, config and logging, imported by relative path. No Nuxt runtime, so nothing auto-imported is available: test the pure functions (`parseServerConfig`, `createLogger`) rather than the wrappers that read Nuxt state.
+- Vitest project `unit` (Node): `shared/**/*.test.ts`, `server/**/*.test.ts` and `tests/**/*.test.ts`. Schemas, server utils, config and logging, imported by relative path. No Nuxt runtime, so nothing auto-imported is available: test the pure functions (`parseServerConfig`, `createLogger`) rather than the wrappers that read Nuxt state.
 - Vitest project `nuxt` (the Nuxt test environment from `@nuxt/test-utils`, happy-dom): `app/**/*.test.ts`. Components and pages mounted with `mountSuspended`, which runs them inside a Nuxt app with auto-imports, so `useFetch`, `$fetch` and `createError` work.
 - Playwright (`e2e/`) against the built server (`bun run build`, then `node .output/server/index.mjs`). Server-rendered HTML, the real routes and validation, the form in a browser after hydration, the refresh after a write, health, API errors and the 404 page.
 

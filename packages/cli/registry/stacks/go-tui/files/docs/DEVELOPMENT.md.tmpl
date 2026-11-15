@@ -22,10 +22,10 @@ go test -race -run TestFrames/detail ./internal/ui/
 
 ## Trying the UI
 
-Run `./bin/{{project_slug}}` yourself, in a real terminal. Coding agents
-don't: their shell has no terminal, so the binary prints text, and wrapping it
-in `script` or `tmux` hangs the session. The Claude Code hook denies those
-wrappers. Agents prove UI behavior through `make test`.
+Run `./bin/{{project_slug}}` yourself, in a real terminal. Agents prove UI
+behavior through `make test` or headless flags. Their shell has no terminal;
+a foreground interactive launch in a fake terminal can hang the session.
+Use detached sessions when a terminal utility is needed.
 
 ## Golden frames
 

@@ -8,7 +8,7 @@ Only help and version are enabled as framework built-ins. Set logging through LO
 
 Results are one JSON value or readable text. JSON help is `{help}`, version is `{version}`, and errors are `{error:{tag,message,retryable}}` as the last stderr line. All preceding stderr logs are JSON too. No ANSI reaches stdout; this slice uses plain stderr text and therefore also respects NO_COLOR. A closed output pipe exits quietly.
 
-Only `src/bin.ts` supplies process writers and BunServices. Core code uses abstract Effect services, and the same invocation runs under NodeServices in tests. Keep Bun imports and globals in bin.ts or explicit platform adapters; the shipped Grit and write guards enforce this along with environment and schema boundaries.
+Only `src/bin.ts` supplies process writers and BunServices. Core code uses abstract Effect services, and the same invocation runs under NodeServices in tests. Keep Bun imports and globals in bin.ts or explicit platform adapters; keep the shipped Grit rules for these, environment and schema boundaries.
 
 `src/errors.ts` is the stable exit-code table: 0 success/help/version/closed pipe, 1 defect, 2 Usage, 3 InvalidConfig, 6 PermissionDenied, 130 Interrupted. Doctor intentionally reports invalid config in its result with exit 0. A later command that requires valid config lets the tagged failure reach main. Add a tag and its table row together, and exercise its public envelope through runCli.
 

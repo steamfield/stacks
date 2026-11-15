@@ -89,7 +89,7 @@ The shipped dev wrapper copies terminal output to `logs/dev.log`, rotates prior 
 
 ## Tool configuration and tests
 
-`docs/guidance/typescript-api/tooling.md` explains the shipped Biome, TypeScript and Vitest configuration; keep its requirements when adapting them. `tests/http-contract.test.ts` implements `docs/acceptance/typescript-api.md`, and verify runs it separately; extend its table for each new endpoint. Use real layers and HTTP boundaries per `docs/guidance/typescript-api/testing.md` and run hook tests for every target agent.
+`docs/guidance/typescript-api/tooling.md` explains the shipped Biome, TypeScript and Vitest configuration; keep its requirements when adapting them. `tests/http-contract.test.ts` implements `docs/acceptance/typescript-api.md`, and verify runs it separately; extend its table for each new endpoint. Use real layers and HTTP boundaries per `docs/guidance/typescript-api/testing.md` and run the shipped tooling tests.
 
 <!-- stacks:when with=ci-github -->
 CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and the build. Upload logs and coverage on failure. No external credentials are needed.

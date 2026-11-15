@@ -100,7 +100,7 @@ The shipped code keeps these; new code does too. `docs/guidance/typescript-libra
 - Options are an interface of optional `readonly` fields, checked at runtime with frozen defaults; an unknown key is an `invalid_option` error.
 - `src/` imports no `node:*` or `bun`, reads no `process` and never logs. The Grit plugin fails lint on a break.
 - A dependency the build imports goes in `dependencies` (or `peerDependencies`), and so does a `@types/*` package a public type refers to. Adding one is the person's decision.
-- Publishing, `npm version`, tags and dist-tags are the person's steps; the destructive-command hook denies them.
+- Ask the user before publishing, bumping versions, creating release tags or changing dist-tags.
 
 ## Testing
 

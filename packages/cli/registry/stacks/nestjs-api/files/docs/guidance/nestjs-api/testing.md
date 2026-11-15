@@ -1,6 +1,6 @@
 # Testing
 
-Vitest runs every test on Node, in two projects (`vitest.config.ts`): `unit` (`src/**/*.spec.ts` and the harness hook tests) and `e2e` (`tests/e2e/**/*.e2e-spec.ts`). Never `bun test` or Jest. Import `describe`, `it`, `expect` and `vi` from `vitest`; globals are off.
+Vitest runs every test on Node, in two projects (`vitest.config.ts`): `unit` (`src/**/*.spec.ts`) and `e2e` (`tests/e2e/**/*.e2e-spec.ts`). Never `bun test` or Jest. Import `describe`, `it`, `expect` and `vi` from `vitest`; globals are off.
 
 - **Unit specs** beside the code: config parsing, the error mapping, the logger and each service. Build a service through `Test.createTestingModule({ providers: [...] })` so its injection is exercised, and assert domain errors (`rejects.toBeInstanceOf(NotFoundError)`).
 - **Contract tests** in `tests/e2e/`: `testApp()` from `tests/helpers/app.ts` compiles the real `AppModule`, applies `configureApp` and captures log records; Supertest calls the HTTP server. Assert the status, the body, headers (`location`, `x-request-id`) and request records. `expectEnvelope(res, code)` checks an error against `errorTable`. Close the app in `afterEach`.

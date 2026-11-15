@@ -1,7 +1,7 @@
 # HTTP boundary acceptance
 
 Implement `apps/api/tests/http-contract.test.ts` in Vitest's api project. Verify
-runs it separately from hook tests. Run the same cases against the actual Node
+runs it as its own step. Run the same cases against the actual Node
 listener on an owned ephemeral port and the platform-free web fetch handler,
 with fresh real service layers and captured structured logs on each transport.
 
@@ -30,5 +30,5 @@ the contract's real client through the same-origin proxy.
 
 Close servers and runtimes in finalizers. Test third-party failures against owned
 stubs only, without credentials. Extend the matrix for endpoint-specific limits,
-Location/201 and body-less 204 when those endpoints exist. Aggregate hook coverage
+Location/201 and body-less 204 when those endpoints exist. Aggregate coverage
 does not substitute for this table or certify the complete application contract.

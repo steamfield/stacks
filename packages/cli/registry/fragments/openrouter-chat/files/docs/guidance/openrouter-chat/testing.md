@@ -14,9 +14,8 @@
 - The OpenRouter request shape against the stub server.
 - `retryable` on each error body a route test covers, not only the status.
 
-## Hooks, recorded fixtures, evals
+## Recorded fixtures and evals
 
-- `tests/hooks/` runs each hook in `.claude/hooks/` through its wired command, with a JSON payload on stdin (helpers in `tests/helpers/hooks.ts`). A new guard pattern gets a deny row and a near miss that must pass. Rows are named after the command; the TypeScript guards ignore quoted text, so `-t "<name>"` works.
 - `tests/openrouter-replay.test.ts` replays `tests/fixtures/openrouter/*.sse` (real OpenRouter bodies) through the real provider, whole and in 7-byte chunks. Don't hand-edit the fixtures; re-record with `bun run record:openrouter` (needs a key) after upgrading `ai` or `@openrouter/ai-sdk-provider`. The test reads expected values from the fixtures, so it needs no edits after a re-record.
 - `bun run eval` (`scripts/eval.ts`) calls the real API and costs money, so it's manual and never part of `bun run test` or CI. Its pure scoring (`evals/score.ts`) is tested in `tests/evals.test.ts`; a new case goes in `evals/cases.ts`. Reports follow `docs/eval-report.md` and land in the ignored `.eval/results/`; only `--dry-run`, which owns its stub, runs in verify.
 

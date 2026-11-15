@@ -18,7 +18,7 @@ Review the working tree against the last commit (`git diff HEAD`, plus untracked
 
 ## Check
 
-- **Boundaries**: nothing crosses a boundary the rules define (server-only code reaching the client, platform APIs outside their entry files, framework internals outside their adapter). If a guard or lint plugin had to be bypassed or changed to land the change, both were updated together and for a stated reason.
+- Boundaries: nothing crosses a boundary the rules define (server-only code reaching the client, platform APIs outside their entry files, framework internals outside their adapter). Keep boundary checks in lint and tests; hooks deny only destructive work or session hangs. Any changed lint rule needs a stated reason.
 - **Config and secrets**: new env vars go through the config module (empty counts as unset) and appear in `.env.example` and the README; nothing reads the environment elsewhere; nothing logs user content (messages, prompts, argument values), secrets, or whole third-party error objects.
 - **Errors**: each new expected failure is a tagged error with a user-safe message and a case in every exhaustive mapping (status or exit code, retryability); an existing mapping didn't change meaning; nothing swallows a defect or turns one into a tagged error to make it look handled; defects are logged once, at the boundary.
 - **Schemas**: input is decoded at the boundary it enters through; third-party responses and model output are decoded before use; nothing casts untrusted JSON to its expected shape.

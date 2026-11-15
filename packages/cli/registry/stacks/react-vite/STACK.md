@@ -88,7 +88,7 @@ The shipped code keeps these; new code does too. `docs/guidance/react-vite/app.m
 
 ## Testing
 
-Vitest has two projects: `app` runs `src/**/*.test.{ts,tsx}` on happy-dom with MSW, and `node` runs `tests/**/*.test.ts`, which includes the harness's hook tests. Component tests render real routes with `renderRoute(path)` and change one API answer per test with `server.use(...)`; unhandled requests fail. A new endpoint adds a fixture, a default handler and tests for success, empty, an HTTP error with its request id, and a wrong-shaped body.
+Vitest's `app` project runs `src/**/*.test.{ts,tsx}` on happy-dom with MSW, and `node` runs `tests/**/*.test.ts`. Component tests render real routes with `renderRoute(path)` and change one API answer per test with `server.use(...)`; unhandled requests fail. A new endpoint adds a fixture, a default handler and tests for success, empty, an HTTP error with its request id, and a wrong-shaped body.
 
 `bun run e2e` builds, serves `dist/` with `vite preview` on `PORT_E2E`, and runs Chromium with one worker against routed API responses: list to detail, a deep-link reload, the not-found page and a 500 with its request id. Details in `docs/guidance/react-vite/testing.md`.
 
@@ -109,7 +109,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 - A static host must rewrite unknown paths to `index.html`. `vite preview` does, so a deep-link reload passes locally and then 404s on a host left at its defaults. Configure the rewrite where you deploy.
 - Vite reads `.env`, `.env.local` and `.env.[mode]` at build time and bakes the values in; changing one needs a rebuild, and `import.meta.env` types come from `vite/client` in `tsconfig.json`.
 - A cross-origin API must send CORS headers and `Access-Control-Expose-Headers: x-request-id`, or the browser hides the request id. A refused CORS request reaches the app as a `network` error.
-- Never use `bun test` or `--bun` on Vite, Vitest or Playwright; they run on Node. The guard hook denies them.
+- Run Vite, Vitest and Playwright on Node without `--bun`; use `bun run test` for Vitest.
 - `react-router-dom` is folded into `react-router`; import everything, `RouterProvider` included, from `react-router`.
 - MSW in Node answers only requests made in Vitest. Playwright routes the API with `page.route`, so no `mockServiceWorker.js` is generated or shipped.
 - `msw` prints a warning and fails the test for a request no handler covers; add the handler instead of loosening `onUnhandledFrame`.

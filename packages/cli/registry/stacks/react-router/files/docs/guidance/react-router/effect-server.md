@@ -1,6 +1,6 @@
 # Server code (Effect)
 
-Everything under `app/.server/` is Effect: services, config, errors, and the runtime that loaders and actions run programs on. Nothing here is imported by client code (a hook denies it from components, hooks, client libs, and schemas).
+Everything under `app/.server/` is Effect: services, config, errors, and the runtime that loaders and actions run programs on. Keep these imports out of components, hooks, client libs and schemas; the production build checks the browser boundary.
 
 Read the Effect API reference (`docs/guidance/effect/api.md`) before writing Effect code or looking up an Effect API; it was written against the installed release.
 

@@ -1,18 +1,4 @@
-// PreToolUse (Bash): deny commands that are wrong for this stack, with the fix.
-//
-//   --bun (-b) on vitest or bun run       the server and tests run on Node here; --bun swaps in
-//                                         bun's runtime and hides differences until deploy
-//   bun test                              bun's own test runner; the tests are vitest
-//                                         (bun run test)
-//   bun [apps/api/]src/...                runs the server under Bun; bun run dev:api runs it
-//                                         on Node
-//   bun run dev                           the foreground dev servers block the tool call; agents
-//                                         use bun run dev:bg and dev:stop
-//   installing @effect/schema             folded into `effect`; the old package conflicts
-//                                         with it
-//
-// Commands are read the way bash runs them (see _shell.ts), so a quoted mention (a commit message,
-// bun run test -t "bun test") passes.
+// PreToolUse (Bash): keep foreground servers from hanging the session.
 import { basename } from "node:path";
 import { deny, readPayload, text } from "./_lib";
 import { type Command, commands } from "./_shell";
@@ -28,58 +14,30 @@ function target(args: string[], skipRun: boolean): string {
 
 const MANAGERS = new Set(["bun", "bunx", "npm", "pnpm", "yarn"]);
 
-/** One rule: the reason a package-manager command (`name` with `args`) is wrong, if it is. */
-type Rule = (name: string, args: string[]) => string | undefined;
-
-const forcedBun: Rule = (name, args) => {
-  if (name !== "bun" && name !== "bunx") return undefined;
-  if (!args.includes("--bun") && !args.includes("-b")) return undefined;
-  // Under --bun every script's `node` resolves to Bun, so any `bun run <script>` is wrong; only a
-  // file under scripts/ (Bun tooling already) may run that way.
-  const runsScript = args.includes("run") && !/^(\.\/)?scripts\//.test(target(args, true));
-  if (!runsScript && !args.some((a) => /(^|\/)vitest$/.test(a))) return undefined;
-  return "The server and vitest run on Node in this project. Drop --bun (use bun run test / bun run dev / bun run build).";
-};
-
-const bunTest: Rule = (name, args) =>
-  name === "bun" && target(args, false) === "test"
-    ? 'bun test is bun\'s own test runner; the tests here are vitest. Use bun run test (add a file path or -t "<name>" to scope it).'
-    : undefined;
-
-const serverUnderBun: Rule = (name, args) =>
-  name === "bun" && /^(\.\/)?(apps\/api\/)?src\/.*\.ts$/.test(target(args, true))
-    ? "That runs the server under Bun; it runs on Node here. Use bun run dev:bg (or bun run dev:api)."
-    : undefined;
-
-const foregroundDev: Rule = (name, args) =>
-  name !== "bunx" && target(args, true) === "dev"
-    ? "bun run dev runs the dev servers in the foreground and blocks this shell. Use bun run dev:bg (stop them with bun run dev:stop)."
-    : undefined;
-
-const effectSchema: Rule = (name, args) =>
-  name !== "bunx" &&
-  ["add", "install", "i"].includes(target(args, false)) &&
-  args.some((a) => a.includes("@effect/schema"))
-    ? '@effect/schema was folded into effect. Import Schema from "effect" instead of installing it.'
-    : undefined;
-
-const RULES: Rule[] = [forcedBun, bunTest, serverUnderBun, foregroundDev, effectSchema];
-
-function reasonFor(cmd: Command): string | undefined {
+function reasonFor(cmd: Command, background: boolean): string | undefined {
+  if (background) return undefined;
   const [first = "", ...args] = cmd.argv;
   const name = basename(first);
   if (!MANAGERS.has(name)) return undefined;
-  for (const rule of RULES) {
-    const reason = rule(name, args);
-    if (reason) return reason;
+  if (name !== "bunx" && target(args, true) === "dev") {
+    return "bun run dev runs the dev servers in the foreground and blocks this shell. Use bun run dev:bg (stop them with bun run dev:stop).";
   }
   return undefined;
 }
 
-const command = text(readPayload()?.tool_input?.command);
+const payload = readPayload();
+if (payload === undefined)
+  console.error("Note: unreadable stack guard payload; allowing this call.");
+const input = payload?.tool_input;
+const command = text(input?.command);
+const background =
+  typeof input === "object" &&
+  input !== null &&
+  "run_in_background" in input &&
+  input.run_in_background === true;
 const reason = command
   ? commands(command)
-      .map(reasonFor)
+      .map((cmd) => reasonFor(cmd, background))
       .find((r) => r !== undefined)
   : undefined;
 if (reason) deny(`BLOCKED: ${reason}`);

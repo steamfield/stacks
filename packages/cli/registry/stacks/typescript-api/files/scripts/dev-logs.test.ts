@@ -11,7 +11,7 @@ import {
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { outputRecord } from "../../scripts/dev-logs";
+import { outputRecord } from "./dev-logs";
 import { type Fixture, makeFixture, REPO } from "./helpers/dev";
 
 const at = new Date("2026-01-01T00:00:00.000Z");
@@ -322,7 +322,7 @@ describe("bun run dev", { timeout: 30_000 }, () => {
 
   /** Runs scripts/dev.ts in a fixture whose dev:api and dev:web are `scripts`. */
   async function startDev(
-    scripts: { "dev:api": string; "dev:web": string },
+    scripts: { "dev:server": string },
     previousLogs: Record<string, string> = {},
   ) {
     project = makeFixture();
@@ -345,7 +345,7 @@ describe("bun run dev", { timeout: 30_000 }, () => {
   async function stopDev(dev: ChildProcess) {
     const pidFile = join(project.dir, "logs/dev.pid");
     const groups = existsSync(pidFile)
-      ? readFileSync(pidFile, "utf8").trim().split(/\s+/).slice(3).map(Number)
+      ? readFileSync(pidFile, "utf8").trim().split(/\s+/).slice(2).map(Number)
       : [];
     dev.kill("SIGINT");
     await new Promise((resolve) => dev.on("close", resolve));
@@ -358,7 +358,7 @@ describe("bun run dev", { timeout: 30_000 }, () => {
   }
 
   /**
-   * The records dev.ts has finished writing. The file exists (empty) before the servers print,
+   * The records dev.ts has finished writing. The file exists (empty) before the server prints,
    * and a line can be mid-write, so only text up to the last newline is parsed: a partial or
    * empty read means "not yet", never a JSON error.
    */
@@ -373,15 +373,14 @@ describe("bun run dev", { timeout: 30_000 }, () => {
 
   it("records what the servers print in logs/dev.jsonl, minus the API's own records", async () => {
     const dev = await startDev({
-      "dev:api": print([
+      "dev:server": print([
         '2026-01-01T00:00:00.000Z info request {"msg":"request","level":"info"}',
         "SyntaxError: Unexpected token",
       ]),
-      "dev:web": print(['{"message":"http proxy error","label":"vite","level":"error"}']),
     });
     try {
       const file = join(project.dir, "logs/dev.jsonl");
-      // Starting bun, then the stand-in servers, can take seconds on a loaded machine.
+      // Starting bun, then the stand-in server, can take seconds on a loaded machine.
       await vi.waitFor(
         () => {
           const messages = completeRecords(file).filter((r) => !r.msg.startsWith("$ "));
@@ -392,7 +391,6 @@ describe("bun run dev", { timeout: 30_000 }, () => {
                 level: "error",
                 msg: "SyntaxError: Unexpected token",
               }),
-              expect.objectContaining({ source: "web", level: "error", msg: "http proxy error" }),
             ]),
           );
           expect(messages.some((r) => r.msg.includes("info request"))).toBe(false);
@@ -409,7 +407,7 @@ describe("bun run dev", { timeout: 30_000 }, () => {
     const flood =
       "bun -e 'const l = \"x\".repeat(1000); for (let i = 0; i < 11000; i++) console.error(l); setInterval(() => {}, 1000)'";
     const dev = await startDev(
-      { "dev:api": flood, "dev:web": print(["ready"]) },
+      { "dev:server": flood },
       {
         "dev.log": "previous terminal",
         "dev.jsonl": "previous output",

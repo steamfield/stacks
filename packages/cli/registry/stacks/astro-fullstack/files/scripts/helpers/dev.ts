@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const REPO = realpathSync(join(import.meta.dirname, "../../.."));
+export const REPO = realpathSync(join(import.meta.dirname, "../.."));
 
 export type Fixture = {
   dir: string;

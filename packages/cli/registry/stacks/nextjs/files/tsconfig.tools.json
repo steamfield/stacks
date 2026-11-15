@@ -7,9 +7,7 @@
   },
   "include": [
     "scripts/**/*.ts",
-    ".claude/hooks/**/*.ts",
-    "tests/hooks/**/*.ts",
-    "tests/helpers/hooks.ts"
+    ".claude/hooks/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

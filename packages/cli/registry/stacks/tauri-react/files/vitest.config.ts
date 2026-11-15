@@ -17,10 +17,6 @@ export default defineConfig({
           setupFiles: ["./tests/setup.ts"],
         },
       },
-      {
-        extends: true,
-        test: { name: "hooks", environment: "node", include: ["tests/hooks/**/*.test.ts"] },
-      },
     ],
     coverage: {
       provider: "v8",

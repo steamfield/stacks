@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-typescript-mcp-commands.ts\"",
+            "command": "if command -v bun >/dev/null 2>&1 && [ -f \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-typescript-mcp-commands.ts\" ]; then bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-typescript-mcp-commands.ts\" || echo \"Note: stack guard could not run; allowing this call.\" >&2; else echo \"Note: stack guard unavailable; allowing this call.\" >&2; fi",
             "timeout": 10
           }
         ]

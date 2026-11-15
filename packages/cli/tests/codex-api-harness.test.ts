@@ -1,8 +1,13 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, symlinkSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { adapterWorkspace, guardCommands, scaffoldAdapters } from "./helpers/native-adapters";
+import {
+  adapterWorkspace,
+  guardCommands,
+  runGuard,
+  scaffoldAdapters,
+} from "./helpers/native-adapters";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -44,35 +49,36 @@ test.each(cases)(
     expect(agents).toContain("reads the rules covering the files it changes");
     expect(agents).toContain("../.claude/skills");
 
-    // Run the project's own tests without installing or building the application.
-    symlinkSync(
-      join(import.meta.dirname, "../node_modules"),
-      join(result.project, "node_modules"),
-      "dir",
+    const guard = commands.find((command) => command.includes("guard-api-commands.ts"));
+    expect(guard).toBeDefined();
+    if (guard === undefined) throw new Error("Missing API guard");
+    const recorded = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
+      JSON.parse(
+        readFileSync(
+          join(import.meta.dirname, "fixtures/native-adapters/codex-pretooluse.json"),
+          "utf8",
+        ),
+      ),
     );
-    const run = spawnSync(
-      process.execPath,
-      [
-        join(import.meta.dirname, "../node_modules/vitest/vitest.mjs"),
-        "run",
-        "--config",
-        join(import.meta.dirname, "fixtures/native-adapters/vitest-hooks.config.ts"),
-        "tests/hooks/codex-wiring.test.ts",
-        "--maxWorkers",
-        "1",
-      ],
-      {
-        cwd: result.project,
-        env: { HOME: result.project, PATH: process.env.PATH ?? "" },
-        encoding: "utf8",
-        timeout: 20_000,
-      },
-    );
-    expect(run.error).toBeUndefined();
-    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+    const run = runGuard({
+      project: result.project,
+      command: guard,
+      agent: "codex",
+      payload: { ...recorded, cwd: result.project, tool_input: { command: "bun run dev" } },
+    });
+    expect(run.status).toBe(0);
     expect(run.stderr).toBe("");
-    expect(run.stdout).toContain("4 passed");
+    const deny = Schema.decodeUnknownSync(
+      Schema.Struct({
+        hookSpecificOutput: Schema.Struct({
+          hookEventName: Schema.Literal("PreToolUse"),
+          permissionDecision: Schema.Literal("deny"),
+          permissionDecisionReason: Schema.String,
+        }),
+      }),
+    )(JSON.parse(run.stdout));
+    expect(deny.hookSpecificOutput.permissionDecisionReason).toContain("bun run dev:bg");
   },
-  // Real scaffolding and a nested Vitest run of the shipped hooks, with no application install.
+  // Real scaffolding and the wired guard, with no application install.
   30_000,
 );

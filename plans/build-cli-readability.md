@@ -74,6 +74,20 @@ Glossary (use these words):
 - verify: running the manifest's steps, the project's definition of done. handoff: launching or pointing a coding agent at the new project.
 - audience: `json`, `agent` or `human`; how one result is rendered.
 
+### Folder READMEs (added after phase 1)
+
+Every folder under `packages/cli/src/` gets a `README.md` that tells someone with no prior context what that folder's domain covers, in the same Educator voice and under the same forbidden-pattern rules as the file headers. A lane writes the README of each folder it owns entirely (`core/verify/README.md` for lane 2a). The orchestrator writes `src/README.md` and `core/README.md` last, since they span every lane.
+
+A folder README covers, in this order, sized to the folder (about 30 to 80 lines):
+1. What the folder is for, in one or two sentences tied to what a user does with the CLI.
+2. How it fits: what calls into it and what it depends on, by folder or module path, and the boundary rules that apply to it (from AGENTS.md "Conventions", such as `core/` never importing `platform/` or `commands/`).
+3. The main flow through it, as short prose or a small numbered list naming the functions in the order they run.
+4. A table of its files: file, then one line on what it owns.
+5. Terms specific to the folder, defined (glossary words keep their glossary meaning).
+6. Where to start reading, and which tests cover it (`packages/cli/tests/<name>.test.ts`).
+
+Sentence-case headings, no emoji, no em dashes, no absolute or home paths (tracked files must hold on any clone). Cite symbols as `file.ts::symbol`, never line numbers. A README describes the code as it is after the lane's refactor and must not contradict AGENTS.md; where AGENTS.md says more, link to its section instead of copying it.
+
 ## Contracts (scaffold commit)
 
 No new types or stubs: the contracts are the existing exports, which are frozen. Layout stays as AGENTS.md "Architecture map" describes it. The scaffold commit is this plan.

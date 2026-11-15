@@ -1,3 +1,21 @@
+/**
+ * Checks the files an entry ships, one entry at a time, during `stacks validate`.
+ *
+ * An entry (a stack or a fragment) ships files to the project from `files/`, from
+ * `adapters/<agent>/` (only for that coding agent) and, for a fragment, from `stacks/<stack>/`
+ * (a stack overlay: files written only when the fragment is composed onto that stack). A stack
+ * may also hold `payloads/<variant>/`, the example code `new --payload` picks. This module checks
+ * that those directories sit where they belong, that each overlay names a stack the fragment's
+ * `applies_to` admits and doesn't repeat a `files/` path, that every path listed under `merge`
+ * (files deep-merged as JSON with other entries' copies) is shipped and parses as JSON, and that no
+ * shipped file holds a `stacks:when` marker, which only resolves in entry bodies. It also counts
+ * the words of shipped Markdown as a `shipped` size row with no limit, so guidance moved out of
+ * the body stays visible.
+ *
+ * `validate/index.ts` runs `fileChecks`. These checks run per entry, not per composition, so a
+ * fragment no composition includes is still checked. A file that can't be read becomes a finding
+ * through `unreadable` (also used by `submission.ts`), so one bad file doesn't hide the rest.
+ */
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { Finding, SizeRow } from "../../schemas/validate";
@@ -9,12 +27,6 @@ import { Registry } from "../registry/registry";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
 
-/**
- * Shipped files: every `merge` path is one of the entry's own files, each copy of a merge file
- * parses as JSON (checked per entry, so a fragment no budgeted composition includes is still
- * checked), and Markdown under `files/` and `adapters/` is counted as a `shipped` size row with
- * no limit, so prose moved out of the body stays visible.
- */
 export const fileChecks: Check = (view) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
@@ -47,77 +59,110 @@ export function unreadable(
 
 const checkEntryFiles = (view: View, entry: Entry) =>
   Effect.gen(function* () {
-    const registry = yield* Registry;
-    const findings: Finding[] = [];
-    const sizes: SizeRow[] = [];
-    const listed = yield* Effect.result(registry.files(entry));
-    if (Result.isFailure(listed)) {
-      findings.push(unreadable(view, entry, listed.failure));
-      return { findings, sizes };
-    }
+    const listed = yield* Effect.result((yield* Registry).files(entry));
+    if (Result.isFailure(listed))
+      return { findings: [unreadable(view, entry, listed.failure)], sizes: [] };
     const files = listed.success;
-    findings.push(...overlayFindings(view, entry, files));
-    findings.push(...(yield* misplacedOverlay(view, entry)));
-    const checkMerge = (target: string) =>
-      Effect.gen(function* () {
-        const copies = files.filter((file) => outputPath(file.path) === target);
-        if (!copies.length)
-          findings.push(
-            finding(entry, {
-              check: "merge-path-missing",
-              severity: "error",
-              file: entryFile(view, entry),
-              message: `merge lists ${target}, which this entry doesn't ship under files/, adapters/<agent>/ or stacks/<stack>/`,
-            }),
-          );
-        for (const copy of copies) findings.push(...(yield* checkMergeCopy(view, entry, copy)));
-      });
-    for (const target of entry.meta.merge) yield* checkMerge(target);
-    const checked = yield* checkShippedText(view, entry, files);
-    findings.push(...checked.findings);
-    const words = checked.words;
-    if (words) sizes.push({ kind: "shipped", entryKind: entry.kind, entry: entry.id, words });
+    const findings = [
+      ...overlayFindings(view, entry, files),
+      ...(yield* misplacedDirectories(view, entry)),
+      ...(yield* mergeFindings(view, entry, files)),
+    ];
+    const shipped = yield* checkShippedText(view, entry, files);
+    findings.push(...shipped.findings);
+    const sizes: SizeRow[] = shipped.words
+      ? [{ kind: "shipped", entryKind: entry.kind, entry: entry.id, words: shipped.words }]
+      : [];
     return { findings, sizes };
   });
 
-const misplacedOverlay = Effect.fn("validate.misplacedOverlay")(function* (
+/**
+ * `payloads/` in a fragment, `stacks/` in a stack, or a payload variant other than the known ones.
+ * An entry whose tree can't be listed gets no finding here; listing its files already failed.
+ */
+const misplacedDirectories = Effect.fn("validate.misplacedDirectories")(function* (
   view: View,
   entry: Entry,
 ) {
   const tree = yield* Effect.result((yield* Registry).tree(entry));
   if (Result.isFailure(tree)) return [];
-  const at = (check: string, message: string) =>
+  const { directories, files } = tree.success;
+  const misplaced = (check: string, message: string) =>
     finding(entry, { check, severity: "error", file: entryFile(view, entry), message });
   if (entry.kind !== "stack")
-    return tree.success.directories.includes("payloads")
-      ? [at("payload-stack-only", "payloads/ belong only to stacks; move these files into files/.")]
+    return directories.includes("payloads")
+      ? [
+          misplaced(
+            "payload-stack-only",
+            "payloads/ belong only to stacks; move these files into files/.",
+          ),
+        ]
       : [];
-  const variants = new Set(
-    tree.success.files.flatMap(({ source }) => /^payloads\/([^/]+)\//.exec(source)?.[1] ?? []),
-  );
-  const unknown = [...variants].filter(
-    (variant) => !(PAYLOADS as ReadonlyArray<string>).includes(variant),
-  );
-  return [
-    ...(tree.success.directories.includes("stacks")
-      ? [
-          at(
-            "overlay-fragment-only",
-            "stacks/ overlays belong only to fragments; move these files into files/.",
-          ),
-        ]
-      : []),
-    ...(unknown.length
-      ? [
-          at(
-            "payload-unknown",
-            `payloads/ holds only ${PAYLOADS.join(" and ")}; rename or remove ${unknown.map((name) => `payloads/${name}/`).join(", ")}.`,
-          ),
-        ]
-      : []),
-  ];
+  const findings: Finding[] = [];
+  if (directories.includes("stacks"))
+    findings.push(
+      misplaced(
+        "overlay-fragment-only",
+        "stacks/ overlays belong only to fragments; move these files into files/.",
+      ),
+    );
+  const unknown = unknownPayloads(files.map(({ source }) => source));
+  if (unknown.length)
+    findings.push(
+      misplaced(
+        "payload-unknown",
+        `payloads/ holds only ${PAYLOADS.join(" and ")}; rename or remove ${unknown.map((name) => `payloads/${name}/`).join(", ")}.`,
+      ),
+    );
+  return findings;
 });
 
+/** Variant names under `payloads/` that aren't in `PAYLOADS`, in first-seen order. */
+function unknownPayloads(sources: ReadonlyArray<string>): string[] {
+  const variants = new Set(
+    sources.flatMap((source) => /^payloads\/([^/]+)\//.exec(source)?.[1] ?? []),
+  );
+  return [...variants].filter((variant) => !(PAYLOADS as ReadonlyArray<string>).includes(variant));
+}
+
+/** Each `merge` path must be shipped, and each shipped copy of it must parse as JSON. */
+const mergeFindings = (view: View, entry: Entry, files: ReadonlyArray<EntryFile>) =>
+  Effect.gen(function* () {
+    const findings: Finding[] = [];
+    for (const target of entry.meta.merge) {
+      const copies = files.filter((file) => outputPath(file.path) === target);
+      if (!copies.length)
+        findings.push(
+          finding(entry, {
+            check: "merge-path-missing",
+            severity: "error",
+            file: entryFile(view, entry),
+            message: `merge lists ${target}, which this entry doesn't ship under files/, adapters/<agent>/ or stacks/<stack>/`,
+          }),
+        );
+      for (const copy of copies) findings.push(...(yield* checkMergeCopy(view, entry, copy)));
+    }
+    return findings;
+  });
+
+const checkMergeCopy = (view: View, entry: Entry, copy: EntryFile) =>
+  Effect.gen(function* () {
+    // A template on a merge path is the `merge_template` problem, which composition reports.
+    if (outputPath(copy.path) !== copy.path) return [];
+    const text = yield* Effect.result((yield* Registry).read(entry, copy.source));
+    if (Result.isFailure(text)) return [unreadable(view, entry, text.failure)];
+    if (Result.isSuccess(Result.try(() => JSON.parse(text.success) as unknown))) return [];
+    return [
+      finding(entry, {
+        check: "merge-json",
+        severity: "error",
+        file: view.file(entry, copy.source),
+        message: `${copy.source} is listed under merge but isn't valid JSON`,
+      }),
+    ];
+  });
+
+/** Reads every shipped file once: counts Markdown words and finds conditional markers. */
 const checkShippedText = Effect.fn("validate.shippedText")(function* (
   view: View,
   entry: Entry,
@@ -138,12 +183,17 @@ const checkShippedText = Effect.fn("validate.shippedText")(function* (
   return { words, findings };
 });
 
+/**
+ * A `stacks:when` or `stacks:end` marker in a shipped file, including one sharing its line with
+ * other text. Binary files (any NUL byte) are skipped.
+ */
 function shippedConditionals(view: View, entry: Entry, file: EntryFile, text: string): Finding[] {
   if (text.includes("\0")) return [];
-  const malformed = scanConditionals(text);
+  const scanned = scanConditionals(text);
+  const crowdedLine =
+    !("blocks" in scanned) && scanned.problem === "not_alone" ? scanned.line : undefined;
   return text.split("\n").flatMap((line, index) =>
-    isConditionalMarker(line) ||
-    (!("blocks" in malformed) && malformed.line === index + 1 && malformed.problem === "not_alone")
+    isConditionalMarker(line) || crowdedLine === index + 1
       ? [
           finding(entry, {
             check: "shipped-conditional",
@@ -158,6 +208,10 @@ function shippedConditionals(view: View, entry: Entry, file: EntryFile, text: st
   );
 }
 
+/**
+ * A fragment's stack overlays: each overlay stack must exist and be admitted by `applies_to`
+ * (reported once per stack), and no overlay may ship a path its `files/` already ships.
+ */
 function overlayFindings(view: View, entry: Entry, files: ReadonlyArray<EntryFile>): Finding[] {
   if (entry.meta.kind !== "fragment") return [];
   const findings: Finding[] = [];
@@ -207,26 +261,3 @@ function overlayStackFinding(
       : `overlay stack ${id} does not exist`,
   });
 }
-
-const checkMergeCopy = (view: View, entry: Entry, copy: EntryFile) =>
-  Effect.gen(function* () {
-    const registry = yield* Registry;
-    const findings: Finding[] = [];
-    // A template on a merge path is 1.1's merge_template; compose reports it.
-    if (outputPath(copy.path) !== copy.path) return findings;
-    const text = yield* Effect.result(registry.read(entry, copy.source));
-    if (Result.isFailure(text)) {
-      findings.push(unreadable(view, entry, text.failure));
-      return findings;
-    }
-    if (Result.isFailure(Result.try(() => JSON.parse(text.success) as unknown)))
-      findings.push(
-        finding(entry, {
-          check: "merge-json",
-          severity: "error",
-          file: view.file(entry, copy.source),
-          message: `${copy.source} is listed under merge but isn't valid JSON`,
-        }),
-      );
-    return findings;
-  });

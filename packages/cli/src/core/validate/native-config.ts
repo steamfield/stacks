@@ -1,25 +1,57 @@
+/**
+ * Reads the commands that coding agents' own config files would run, so `stacks validate` can
+ * check them without running anything (trust point 1).
+ *
+ * Entries (stacks and fragments) may ship agent config in each agent's native format: Codex hooks
+ * (`.codex/hooks.json`, or `hooks` in `.codex/config.toml`), Cursor hooks (`.cursor/hooks.json`)
+ * and OpenCode settings (`opencode.json` or `.jsonc`, whose formatters and `bash` permission rules
+ * name commands). This module parses each format and decodes only the part that names commands,
+ * returning each as shell words (a `sh -c` or `bash -c` wrapper unwrapped to its script) and
+ * whether it is a permission rule rather than something the agent runs.
+ *
+ * The schemas stay open: unknown keys and hook events the CLI doesn't know yet pass, so agents can
+ * add settings without breaking validation. What fails is a known key or event spelled in the
+ * wrong case (`Hooks`, `pretooluse`), because the agent would silently ignore it.
+ *
+ * `native-refs.ts` turns the commands into findings; `shipped-refs.ts` also uses
+ * `parseNativeConfig` to locate the source file a finding came from. A merged file is decoded
+ * whole, while one entry's copy may be a partial contribution (`decodedNativeSourceCommands`).
+ */
 import { Result, Schema } from "effect";
 import { parse as parseToml } from "smol-toml";
 import { shellWords } from "../shell";
 
+/** One command a config names: its shell words, and whether it is a permission rule. */
+export type NativeCommand = { words: readonly string[]; permission: boolean };
+
+/** Whether `key` is one of `known` spelled in a different case. */
+const isMiscased = (known: readonly string[], key: string) =>
+  known.some((expected) => expected !== key && expected.toLowerCase() === key.toLowerCase());
+
 const record = Schema.Record(Schema.String, Schema.Unknown);
+
 /** Reject misspellings of known keys without closing unrelated agent settings. */
 function referenceStruct<const Fields extends Schema.Struct.Fields>(fields: Fields) {
+  const keys = Object.keys(fields);
   return record
     .check(
-      Schema.makeFilter((value) => {
-        const keys = Object.keys(fields);
-        return (
-          Object.keys(value).every(
-            (key) =>
-              !keys.some(
-                (expected) => expected !== key && expected.toLowerCase() === key.toLowerCase(),
-              ),
-          ) || "wrong-case reference config key"
-        );
-      }),
+      Schema.makeFilter(
+        (value) =>
+          Object.keys(value).every((key) => !isMiscased(keys, key)) ||
+          "wrong-case reference config key",
+      ),
     )
     .pipe(Schema.decodeTo(Schema.Struct(fields)));
+}
+
+/** Reject a known event spelled in the wrong case; an event the CLI doesn't know yet passes. */
+function eventRecord<Value extends Schema.Constraint>(events: readonly string[], value: Value) {
+  return Schema.Record(Schema.String, value).check(
+    Schema.makeFilter(
+      (hooks) =>
+        Object.keys(hooks).every((event) => !isMiscased(events, event)) || "wrong-case hook event",
+    ),
+  );
 }
 
 const codexEvents = [
@@ -59,20 +91,6 @@ const cursorEvents = [
   "afterTabFileEdit",
   "workspaceOpen",
 ];
-
-/** Reject a known event spelled in the wrong case; an event the CLI doesn't know yet passes. */
-function eventRecord<Value extends Schema.Constraint>(events: readonly string[], value: Value) {
-  return Schema.Record(Schema.String, value).check(
-    Schema.makeFilter(
-      (hooks) =>
-        Object.keys(hooks).every(
-          (event) =>
-            events.includes(event) ||
-            !events.some((known) => known.toLowerCase() === event.toLowerCase()),
-        ) || "wrong-case hook event",
-    ),
-  );
-}
 
 const commandHook = referenceStruct({
   type: Schema.Literal("command"),
@@ -121,7 +139,7 @@ const openCodeConfig = referenceStruct({
       Schema.Record(Schema.String, permissionRule).check(
         Schema.makeFilter(
           (rules) =>
-            !Object.keys(rules).some((key) => key !== "bash" && key.toLowerCase() === "bash") ||
+            Object.keys(rules).every((key) => !isMiscased(["bash"], key)) ||
             "wrong-case bash permission key",
         ),
       ),
@@ -129,16 +147,26 @@ const openCodeConfig = referenceStruct({
   ),
 });
 
-export type NativeCommand = { words: readonly string[]; permission: boolean };
+/** Top-level keys that carry references; one in the wrong case fails the whole file. */
+const ROOT_KEYS = ["hooks", "formatter", "permission", "version"];
 
+const NATIVE_CONFIGS = [
+  ".codex/hooks.json",
+  ".codex/config.toml",
+  ".cursor/hooks.json",
+  "opencode.json",
+  "opencode.jsonc",
+];
+
+/** Whether a project path is an agent config this module reads. */
 export function isNativeConfig(path: string): boolean {
-  return [
-    ".codex/hooks.json",
-    ".codex/config.toml",
-    ".cursor/hooks.json",
-    "opencode.json",
-    "opencode.jsonc",
-  ].includes(path);
+  return NATIVE_CONFIGS.includes(path);
+}
+
+/** Parses a native config's text by its format; throws on a syntax error. */
+export function parseNativeConfig(path: string, text: string): unknown {
+  if (path === ".codex/config.toml") return parseToml(text);
+  return path.startsWith("opencode.") ? parseJsonc(text) : JSON.parse(text);
 }
 
 /** Strip only JSONC comments and trailing commas; JSON.parse still owns JSON syntax. */
@@ -154,64 +182,7 @@ function parseJsonc(text: string): unknown {
   );
 }
 
-export function parseNativeConfig(path: string, text: string): unknown {
-  if (path === ".codex/config.toml") return parseToml(text);
-  return path.startsWith("opencode.") ? parseJsonc(text) : JSON.parse(text);
-}
-
-/** Decode the reference-bearing subset, permitting unrelated agent settings to evolve. */
-function nativeCommands(path: string, value: unknown): NativeCommand[] {
-  const root = Schema.decodeUnknownSync(record)(value);
-  rejectWrongCase(root, ["hooks", "formatter", "permission", "version"]);
-  if (path.startsWith("opencode.")) return openCodeCommands(value);
-  // A policy-only Codex TOML file has no hooks to check.
-  if (path === ".codex/config.toml" && !Object.hasOwn(root, "hooks")) return [];
-  if (path === ".cursor/hooks.json") {
-    const config = Schema.decodeUnknownSync(cursorHooks)(value);
-    return cursorCommands(config.hooks);
-  }
-  const config = Schema.decodeUnknownSync(codexHooks)(value);
-  return Object.values(config.hooks).flatMap((groups) =>
-    groups.flatMap((group) => group.hooks.map((hook) => shellCommand(hook.command))),
-  );
-}
-
-function rejectWrongCase(root: Record<string, unknown>, keys: readonly string[]) {
-  for (const key of Object.keys(root))
-    if (keys.some((expected) => expected !== key && expected === key.toLowerCase()))
-      throw new Error("Wrong-case reference config key");
-}
-
-function cursorCommands(hooks: typeof cursorHookMap.Type): NativeCommand[] {
-  return Object.values(hooks).flatMap((group) => group.map((hook) => shellCommand(hook.command)));
-}
-
-function shellCommand(command: string): NativeCommand {
-  return formatterCommand(shellWords(command));
-}
-
-function openCodeCommands(value: unknown): NativeCommand[] {
-  const config = Schema.decodeUnknownSync(openCodeConfig)(value);
-  const commands: NativeCommand[] = [];
-  if (config.formatter)
-    for (const formatter of Object.values(config.formatter)) {
-      if (!formatter.command) continue;
-      const words = formatter.command;
-      commands.push(formatterCommand(words));
-    }
-  const bash = typeof config.permission === "object" ? config.permission.bash : undefined;
-  if (typeof bash === "object")
-    for (const rule of Object.keys(bash))
-      commands.push({ words: shellWords(rule), permission: true });
-  return commands;
-}
-
-function formatterCommand(words: readonly string[]): NativeCommand {
-  if ((words[0] === "sh" || words[0] === "bash") && words[1] === "-c")
-    return shellCommand(words[2] ?? "");
-  return { words, permission: false };
-}
-
+/** The commands in a parsed, whole config, or a failure when its structure doesn't decode. */
 export function decodedNativeCommands(path: string, value: unknown) {
   return Result.try(() => nativeCommands(path, value));
 }
@@ -222,4 +193,52 @@ export function decodedNativeSourceCommands(path: string, value: unknown) {
   return Result.try(() =>
     cursorCommands(Schema.decodeUnknownSync(cursorContribution)(value).hooks),
   );
+}
+
+/**
+ * Decode the reference-bearing subset, permitting unrelated agent settings to evolve. Throws on a
+ * structure that doesn't decode; only the `Result.try` wrappers above call it.
+ */
+function nativeCommands(path: string, value: unknown): NativeCommand[] {
+  const root = Schema.decodeUnknownSync(record)(value);
+  if (Object.keys(root).some((key) => isMiscased(ROOT_KEYS, key)))
+    throw new Error("Wrong-case reference config key");
+  if (path.startsWith("opencode.")) return openCodeCommands(value);
+  // A policy-only Codex TOML file has no hooks to check.
+  if (path === ".codex/config.toml" && !Object.hasOwn(root, "hooks")) return [];
+  if (path === ".cursor/hooks.json")
+    return cursorCommands(Schema.decodeUnknownSync(cursorHooks)(value).hooks);
+  const config = Schema.decodeUnknownSync(codexHooks)(value);
+  return Object.values(config.hooks).flatMap((groups) =>
+    groups.flatMap((group) => group.hooks.map((hook) => shellCommand(hook.command))),
+  );
+}
+
+function cursorCommands(hooks: typeof cursorHookMap.Type): NativeCommand[] {
+  return Object.values(hooks).flatMap((group) => group.map((hook) => shellCommand(hook.command)));
+}
+
+/** OpenCode's formatter commands (already argv arrays), then its `bash` permission rules. */
+function openCodeCommands(value: unknown): NativeCommand[] {
+  const config = Schema.decodeUnknownSync(openCodeConfig)(value);
+  const formatters = config.formatter ? Object.values(config.formatter) : [];
+  const commands = formatters.flatMap((formatter) =>
+    formatter.command ? [unwrapShell(formatter.command)] : [],
+  );
+  const bash = typeof config.permission === "object" ? config.permission.bash : undefined;
+  if (typeof bash === "object")
+    for (const rule of Object.keys(bash))
+      commands.push({ words: shellWords(rule), permission: true });
+  return commands;
+}
+
+function shellCommand(command: string): NativeCommand {
+  return unwrapShell(shellWords(command));
+}
+
+/** `sh -c '<script>'` and `bash -c '<script>'` stand for the script they run. */
+function unwrapShell(words: readonly string[]): NativeCommand {
+  if ((words[0] === "sh" || words[0] === "bash") && words[1] === "-c")
+    return shellCommand(words[2] ?? "");
+  return { words, permission: false };
 }

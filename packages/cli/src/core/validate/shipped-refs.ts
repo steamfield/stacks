@@ -1,6 +1,26 @@
+/**
+ * Checks, during `stacks validate`, that the config files a composition ships only point at things
+ * the same composition provides.
+ *
+ * A composition (one stack combined with fragments) writes config that names other parts of the
+ * project: `.claude/settings.json` permission rules and hooks, `.vscode/*.json` launch targets, and
+ * agent configs for Codex, Cursor and OpenCode. For each composed snapshot (one rendered set of
+ * project files) this module reads those files and reports a command no entry declares
+ * (`ref-command`), a hook script no entry ships (`ref-hook`), a file that doesn't parse
+ * (`ref-json`, `ref-toml`, `ref-config`) and a hardcoded `localhost:<port>` where the composition
+ * declares a port variable (`ref-port`, a warning). Commands are only tokenized, never run (trust
+ * point 1).
+ *
+ * `validate/index.ts` runs `shippedReferenceChecks` over the snapshots from `validate/composed.ts`.
+ * Agent configs go to `native-refs.ts`. A finding is reported against the entry whose source file
+ * holds the reference, found by `composed.ts::sourceOf`; for a file merged from several entries,
+ * each issue's `matches` picks the contributor whose parsed copy contains it. Start at
+ * `snapshotReferences`.
+ */
 import { Effect, Predicate, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { proseLines } from "../brief/headings";
+import type { Composition } from "../compose/types";
 import { shellWords } from "../shell";
 import { runnerTarget } from "./commands";
 import { sourceOf, uniqueFindings } from "./composed";
@@ -11,60 +31,43 @@ import type { Source } from "./sources";
 import type { Check, Composed, View } from "./types";
 import { finding } from "./view";
 
-function strings(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-function hookCommands(value: unknown): string[] {
-  if (Array.isArray(value)) return value.flatMap(hookCommands);
-  if (!Predicate.isObject(value)) return [];
-  return Object.entries(value).flatMap(([key, item]) =>
-    key === "command" && typeof item === "string" ? [item] : hookCommands(item),
-  );
-}
-function launchTarget(value: unknown): string | undefined {
-  const args = strings(value);
-  const target = args[0] === "run" ? args[1] : args[0];
-  return target && !/^[-/.$]/.test(target) && !/[/.$]/.test(target) ? target : undefined;
-}
-
 type Emit = (issue: ReferenceIssue) => void;
 type ReferenceFile = { snapshot: Composed; file: Composed["files"][number] };
 type ParsedSource = (source: Source) => unknown;
+type Declared = (target: string) => boolean;
 
 export const shippedReferenceChecks: Check = (view) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
-    const sourceJson = new Map<Source, unknown>();
-    const parsedSource = (source: Source): unknown => {
-      if (!sourceJson.has(source)) {
-        const path = source.path.replace(/\.tmpl$/, "");
-        const parsed = Result.try(() =>
-          isNativeConfig(path) ? parseNativeConfig(path, source.text) : JSON.parse(source.text),
-        );
-        sourceJson.set(source, Result.isSuccess(parsed) ? parsed.success : undefined);
-      }
-      return sourceJson.get(source);
-    };
+    const parsedSource = sourceParser();
     for (const snapshot of (yield* view.composed).snapshots)
       findings.push(...snapshotReferences(view, snapshot, parsedSource));
     return { findings: uniqueFindings(findings) };
   });
 
+/**
+ * Parses an entry's source copy of a config once per check (snapshots share sources); a copy
+ * that doesn't parse is `undefined`.
+ */
+function sourceParser(): ParsedSource {
+  const parsed = new Map<Source, unknown>();
+  return (source) => {
+    if (!parsed.has(source)) {
+      const path = source.path.replace(/\.tmpl$/, "");
+      const result = Result.try(() =>
+        isNativeConfig(path) ? parseNativeConfig(path, source.text) : JSON.parse(source.text),
+      );
+      parsed.set(source, Result.isSuccess(result) ? result.success : undefined);
+    }
+    return parsed.get(source);
+  };
+}
+
 function snapshotReferences(view: View, snapshot: Composed, parsedSource: ParsedSource): Finding[] {
   const findings: Finding[] = [];
   const paths = new Set(snapshot.files.map((file) => file.path));
-  const named = new Set(
-    [snapshot.composition.stack, ...snapshot.composition.fragments].flatMap((entry) =>
-      proseLines(entry.body).flatMap((line) =>
-        [...line.text.matchAll(/`([A-Za-z][\w:-]*)(?=[`\s])/g)].flatMap((match) =>
-          match[1] ? [match[1]] : [],
-        ),
-      ),
-    ),
-  );
-  const declared = (target: string) =>
+  const named = namedInProse(snapshot.composition);
+  const declared: Declared = (target) =>
     Object.hasOwn(snapshot.composition.commands, target) || named.has(target);
   for (const file of snapshot.files) {
     const emit: Emit = (issue) => {
@@ -76,6 +79,23 @@ function snapshotReferences(view: View, snapshot: Composed, parsedSource: Parsed
   return findings;
 }
 
+/**
+ * Words written as inline code in the entries' prose (`` `typecheck` ``), which count as declared
+ * commands for Claude and VS Code config.
+ */
+function namedInProse(composition: Composition): Set<string> {
+  return new Set(
+    [composition.stack, ...composition.fragments].flatMap((entry) =>
+      proseLines(entry.body).flatMap((line) =>
+        [...line.text.matchAll(/`([A-Za-z][\w:-]*)(?=[`\s])/g)].flatMap((match) =>
+          match[1] ? [match[1]] : [],
+        ),
+      ),
+    ),
+  );
+}
+
+/** The issue as a finding on the validated entry whose source holds it, or `undefined`. */
 function referenceFinding(
   view: View,
   { snapshot, file }: ReferenceFile,
@@ -97,20 +117,33 @@ function referenceFinding(
   });
 }
 
+type Provided = { paths: ReadonlySet<string>; declared: Declared };
+
 function fileReferences(
   { snapshot, file }: ReferenceFile,
-  { paths, declared }: { paths: ReadonlySet<string>; declared: (target: string) => boolean },
+  { paths, declared }: Provided,
   emit: Emit,
 ) {
   if (isNativeConfig(file.path)) {
-    for (const issue of nativeReferences(file.path, new TextDecoder().decode(file.bytes), {
+    // Agent configs count only the commands table as declared, not names in prose.
+    const issues = nativeReferences(file.path, new TextDecoder().decode(file.bytes), {
       paths,
       declared: (target) => Object.hasOwn(snapshot.composition.commands, target),
-    }))
-      emit(issue);
+    });
+    for (const issue of issues) emit(issue);
     return;
   }
   if (file.path !== ".claude/settings.json" && !/^\.vscode\/[^/]+\.json$/.test(file.path)) return;
+  jsonReferences({ snapshot, file }, { paths, declared }, emit);
+}
+
+/** Claude settings or a VS Code JSON file: its permissions, hooks, launch targets and ports. */
+function jsonReferences(
+  { snapshot, file }: ReferenceFile,
+  { paths, declared }: Provided,
+  emit: Emit,
+) {
+  const path = file.path;
   const text = new TextDecoder().decode(file.bytes);
   const decoded = Result.try(() => JSON.parse(text) as unknown);
   if (Result.isFailure(decoded)) {
@@ -123,20 +156,23 @@ function fileReferences(
     return;
   }
   const json = decoded.success;
-  if (file.path === ".claude/settings.json" && Predicate.isObject(json)) {
+  if (path === ".claude/settings.json" && Predicate.isObject(json)) {
     permissionReferences(json, declared, emit);
     hookReferences(json, paths, emit);
   }
-  if (file.path === ".vscode/launch.json" && Predicate.isObject(json))
+  if (path === ".vscode/launch.json" && Predicate.isObject(json))
     launchReferences(json, declared, emit);
   portReferences(snapshot.composition.env, text, emit);
 }
 
-function permissionReferences(
-  json: Record<string, unknown>,
-  declared: (target: string) => boolean,
-  emit: Emit,
-) {
+function strings(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+/** Claude `Bash(...)` permission rules that run an undeclared project command. */
+function permissionReferences(json: Record<string, unknown>, declared: Declared, emit: Emit) {
   const permissions = Predicate.isObject(json.permissions) ? json.permissions : {};
   for (const list of ["allow", "deny"])
     for (const rule of strings(permissions[list])) {
@@ -161,6 +197,16 @@ function hasPermission(json: unknown, list: string, rule: string): boolean {
   );
 }
 
+/** Every `command` string anywhere under Claude's `hooks`. */
+function hookCommands(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(hookCommands);
+  if (!Predicate.isObject(value)) return [];
+  return Object.entries(value).flatMap(([key, item]) =>
+    key === "command" && typeof item === "string" ? [item] : hookCommands(item),
+  );
+}
+
+/** Hook commands naming a `$CLAUDE_PROJECT_DIR/.claude/hooks/` script that isn't shipped. */
 function hookReferences(json: Record<string, unknown>, paths: ReadonlySet<string>, emit: Emit) {
   for (const command of hookCommands(json.hooks))
     for (const word of shellWords(command)) {
@@ -176,11 +222,18 @@ function hookReferences(json: Record<string, unknown>, paths: ReadonlySet<string
     }
 }
 
-function launchReferences(
-  json: Record<string, unknown>,
-  declared: (target: string) => boolean,
-  emit: Emit,
-) {
+/**
+ * The script name a launch configuration's `args` or `runtimeArgs` runs (`["run", "dev"]` gives
+ * `dev`); a flag, path or variable gives `undefined`.
+ */
+function launchTarget(value: unknown): string | undefined {
+  const args = strings(value);
+  const target = args[0] === "run" ? args[1] : args[0];
+  return target && !/^[-/.$]/.test(target) && !/[/.$]/.test(target) ? target : undefined;
+}
+
+/** VS Code launch configurations that run an undeclared project command. */
+function launchReferences(json: Record<string, unknown>, declared: Declared, emit: Emit) {
   for (const config of Array.isArray(json.configurations) ? json.configurations : []) {
     if (!Predicate.isObject(config)) continue;
     for (const field of ["args", "runtimeArgs"]) {
@@ -207,6 +260,7 @@ function hasLaunchTarget(json: unknown, field: string, target: string): boolean 
   );
 }
 
+/** Each distinct `localhost:<n>` or `127.0.0.1:<n>` literal, when the env declares a port. */
 function portReferences(env: Record<string, string>, text: string, emit: Emit) {
   const portVars = Object.keys(env).filter((name) => /(?:^|_)PORT(?:_|$)/.test(name));
   if (!portVars.length) return;

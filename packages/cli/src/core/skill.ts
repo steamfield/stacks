@@ -47,7 +47,7 @@ const sameBytes = (left: Uint8Array, right: Uint8Array) =>
   left.length === right.length && left.every((byte, i) => byte === right[i]);
 
 /** The toplevel `git rev-parse --show-toplevel` printed, if it ran cleanly and printed one. */
-function gitToplevel(found: Captured | undefined): string | undefined {
+function toplevelFrom(found: Captured | undefined): string | undefined {
   if (found === undefined || found.timedOut || found.truncated || found.exitCode !== 0) {
     return undefined;
   }
@@ -70,7 +70,7 @@ const projectRoot = Effect.gen(function* () {
       timeout: Duration.seconds(10),
     })
     .pipe(Effect.catchTag("SpawnFailed", () => Effect.succeed(undefined)));
-  return gitToplevel(found) ?? cwd;
+  return toplevelFrom(found) ?? cwd;
 });
 
 /** A missing bundled skill is NotFound for its directory; anything else is unreadable. */

@@ -62,6 +62,11 @@ case "$1" in
       exit 1
     fi
     file="$FAKE_DIR/registry/$(key "$2")"
+    pending="$FAKE_DIR/pending/$(key "$2")"
+    if [ ! -f "$file" ] && [ -f "$pending" ]; then
+      left=$(cat "$pending.lag")
+      if [ "$left" -le 0 ]; then mv "$pending" "$file"; else echo $((left - 1)) > "$pending.lag"; fi
+    fi
     if [ -f "$file" ]; then printf '"%s"\\n' "$(cat "$file")"; exit 0; fi
     echo '{"error":{"code":"E404"}}'
     echo "npm error code E404" >&2
@@ -74,8 +79,15 @@ case "$1" in
       echo "npm error A complete log of this run can be found in: /x/y.log" >&2
       exit 1
     fi
+    if [ "$FAKE_PUBLISH_CONFLICT" = "$spec" ]; then
+      echo "npm error code E409" >&2
+      echo "npm error Cannot publish over the previously published versions" >&2
+      exit 1
+    fi
     if [ -z "$FAKE_UNCONFIRMED" ]; then
-      cat "$FAKE_DIR/integrity/$(basename "$2")" > "$FAKE_DIR/registry/$(key "$spec")"
+      # FAKE_LAG is how many registry lookups answer 404 after the publish succeeds.
+      cat "$FAKE_DIR/integrity/$(basename "$2")" > "$FAKE_DIR/pending/$(key "$spec")"
+      echo "\${FAKE_LAG:-0}" > "$FAKE_DIR/pending/$(key "$spec").lag"
     fi
     exit 0 ;;
 esac
@@ -87,7 +99,15 @@ let work: string;
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "publish-test-"));
   work = join(dir, "work");
-  for (const sub of ["bin", "registry", "specs", "integrity", "work/scripts", "work/dist/release"])
+  for (const sub of [
+    "bin",
+    "registry",
+    "pending",
+    "specs",
+    "integrity",
+    "work/scripts",
+    "work/dist/release",
+  ])
     mkdirSync(join(dir, sub), { recursive: true });
   writeFileSync(join(dir, "bin/npm"), fakeNpm);
   chmodSync(join(dir, "bin/npm"), 0o755);
@@ -127,6 +147,10 @@ function environment(extra: Record<string, string> = {}) {
     PATH: `${join(dir, "bin")}:${bunDir}:/usr/bin:/bin`,
     FAKE_DIR: dir,
     GITHUB_ACTIONS: "true",
+    // No real waiting: poll up to five times with no delay.
+    RELEASE_CONFIRM_DELAY_MS: "0",
+    RELEASE_CONFIRM_INTERVAL_MS: "0",
+    RELEASE_CONFIRM_ATTEMPTS: "5",
     ...extra,
   };
 }
@@ -134,6 +158,13 @@ function environment(extra: Record<string, string> = {}) {
 /** Marks a version as already on the registry, with these bytes' integrity unless told otherwise. */
 function onRegistry(pkg: (typeof PACKAGES)[number], integrity = integrityOf(bytesOf(pkg))) {
   writeFileSync(join(dir, "registry", specOf(pkg).replace(/[/@]/g, "_")), integrity);
+}
+
+/** An earlier run published this version, but the registry serves it only after some lookups. */
+function onRegistryAfter(pkg: (typeof PACKAGES)[number], lookups: number) {
+  const key = specOf(pkg).replace(/[/@]/g, "_");
+  writeFileSync(join(dir, "pending", key), integrityOf(bytesOf(pkg)));
+  writeFileSync(join(dir, "pending", `${key}.lag`), String(lookups));
 }
 
 /** Runs the workflow's own publish step, as the job would. */
@@ -205,7 +236,7 @@ describe("publish step", () => {
     expect(result.stderr).toContain("npm view");
     expect(result.stderr).toContain("(E500)");
     expect(result.stderr).toContain("registry unavailable");
-    expect(result.stderr).toContain("Published or verified: nothing.");
+    expect(result.stderr).toContain("On npm: none.");
   });
 
   it("explains a failed publish and lists what went out and what did not", () => {
@@ -215,7 +246,8 @@ describe("publish step", () => {
     expect(result.stderr).toContain("(EOTP)");
     expect(result.stderr).toContain("This command requires a one-time password");
     expect(result.stderr).toContain("Hint: npm asked for a one-time password");
-    expect(result.stderr).toContain(`Published or verified: ${specOf(format)}.`);
+    expect(result.stderr).toContain(`On npm: ${specOf(format)}.`);
+    expect(result.stderr).toContain("Published but not yet visible: none.");
     expect(result.stderr).toContain(`Not published: ${specOf(cli)}, ${specOf(mcp)}.`);
     expect(result.stderr).toContain("rerun the failed job");
     expect(result.stderr).not.toContain("A complete log");
@@ -233,7 +265,7 @@ describe("publish step", () => {
   });
 
   it.each([
-    ["E404", "published once by hand"],
+    ["E404", '"Allow npm publish" is ticked'],
     ["E403", "Trusted Publisher is missing or does not match"],
     ["E422", "provenance"],
   ])("hints at %s", (code, hint) => {
@@ -244,11 +276,39 @@ describe("publish step", () => {
     expect(result.stderr).toContain(hint);
   });
 
-  it("fails when npm accepts a publish the registry then does not show", () => {
+  it("waits for the registry to serve each version before publishing the next", () => {
+    stageRelease();
+    const result = publish({ FAKE_LAG: "3" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout.match(/Confirmed /g)).toHaveLength(3);
+    // Each package is confirmed before the next publish starts.
+    const lines = result.stdout.split("\n");
+    const at = (text: string) => lines.indexOf(text);
+    expect(at(`Confirmed ${specOf(format)}`)).toBeGreaterThan(-1);
+    expect(at(`Confirmed ${specOf(format)}`)).toBeLessThan(at(`Publishing ${specOf(cli)}`));
+    expect(at(`Confirmed ${specOf(cli)}`)).toBeGreaterThan(-1);
+    expect(at(`Confirmed ${specOf(cli)}`)).toBeLessThan(at(`Publishing ${specOf(mcp)}`));
+  });
+
+  it("fails after the attempts when npm accepts a publish the registry never shows", () => {
     stageRelease();
     const result = publish({ FAKE_UNCONFIRMED: "1" });
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain(`Could not confirm ${specOf(format)} on the registry`);
+    expect(result.stderr).toContain(`Could not confirm ${specOf(format)} on the registry after`);
+    expect(result.stderr).toContain(`Published but not yet visible: ${specOf(format)}.`);
+    expect(result.stderr).toContain(`Not published: ${specOf(cli)}, ${specOf(mcp)}.`);
+    expect(result.published).toHaveLength(1);
+  });
+
+  it("treats a publish conflict as published and waits for the registry", () => {
+    stageRelease();
+    onRegistryAfter(format, 2);
+    const result = publish({ FAKE_PUBLISH_CONFLICT: specOf(format) });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(
+      `${specOf(format)} was already published; waiting for the registry.`,
+    );
+    expect(result.stdout).toContain(`Confirmed ${specOf(format)}`);
   });
 
   it("prints a plain message and no annotation outside GitHub Actions", () => {

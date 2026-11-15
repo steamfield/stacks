@@ -208,7 +208,7 @@ CI publishes; agents never run `npm publish`, and the workflow deploys nothing (
 3. `git push origin main`. After that commit is on `main`, `git tag vX.Y.Z && git push origin vX.Y.Z`; a tag before the bump commit fails the version check and leaves a stale tag.
 4. `gh run list --workflow Release`, `gh run watch <id> --exit-status`, then `npm view @steamfield/stacks-format version dist.integrity`, repeated for `@steamfield/stacks` and `@steamfield/stacks-mcp`.
 
-Recovery: fix the cause and `gh run rerun <id> --failed`. Never move or reuse a published version; bump and tag again. A bad tag is deleted by the maintainer (`git push origin :refs/tags/vX.Y.Z`); an agent hands over that command and never runs it. The Actions tab's manual run (from `main`) publishes the format package alone, for a format version the hosted API needs before a CLI release. Each package needs `steamfield/stacks` and `release.yml` as its Trusted Publisher on npmjs.com.
+Recovery: fix the cause and `gh run rerun <id> --failed`. Never move or reuse a published version; bump and tag again. A bad tag is deleted by the maintainer (`git push origin :refs/tags/vX.Y.Z`); an agent hands over that command and never runs it. The Actions tab's manual run (from `main`) publishes the format package alone, for a format version the hosted API needs before a CLI release. Each package needs `steamfield/stacks` and `release.yml` as its Trusted Publisher on npmjs.com, with "Allow `npm publish`" ticked (without it npm answers the OIDC publish with a misleading 404). The registry takes 3 to 5 minutes to show a new version, so `scripts/publish.ts` waits for each package before it publishes the next and treats an E409 as published: expect a run of 20 to 30 minutes.
 
 ## Build workarounds
 
@@ -226,7 +226,7 @@ Claude Code orchestrates; Codex takes the coding tasks Claude delegates (the per
 
 ## Pending user actions
 
-Release pipeline, once: on npmjs.com, for each of `@steamfield/stacks-format`, `@steamfield/stacks` and `@steamfield/stacks-mcp`, Settings, Trusted Publisher, GitHub Actions, `steamfield`, `stacks`, workflow `release.yml`, environment blank; then set Publishing access to "Require two-factor authentication and disallow bypass 2fa tokens". Until the three are configured the first tagged run fails at publish and a rerun after configuring finishes it.
+Release pipeline, once: on npmjs.com, for each of `@steamfield/stacks-format`, `@steamfield/stacks` and `@steamfield/stacks-mcp`, Settings, Trusted Publisher, GitHub Actions, `steamfield`, `stacks`, workflow `release.yml`, environment blank, "Allow `npm publish`" ticked; then set Publishing access to "Require two-factor authentication and disallow bypass 2fa tokens". Until the three are configured the first tagged run fails at publish and a rerun after configuring finishes it.
 
 Telemetry launch, in order (`@steamfield/stacks-format` 0.7.0 is already published; 0.8.0, which adds its `repository` field for provenance, ships with the first tagged release): deploy stacks-api with its capped-projects migration and v3 acceptance; run its smoke, POST and acceptance checks against a CLI packed with `STACKS_PUBLISH_TELEMETRY=1` from a throwaway HOME; choose the alert destination and uptime check; cut the release ("Releasing"); redeploy the index from the release tag; run stacks-api's `unseed` before the stats should read as real.
 

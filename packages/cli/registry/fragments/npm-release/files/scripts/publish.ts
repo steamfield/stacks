@@ -34,9 +34,11 @@ class PublishFailed extends Error {}
 /** An npm call that failed; `stdout` is kept because `npm view --json` reports registry errors there. */
 class NpmFailed extends PublishFailed {
   readonly stdout: string;
-  constructor(message: string, stdout: string) {
+  readonly code: string | undefined;
+  constructor(message: string, stdout: string, code: string | undefined) {
     super(message);
     this.stdout = stdout;
+    this.code = code;
   }
 }
 
@@ -66,7 +68,7 @@ function hint(code: string): string | undefined {
       "npm had no credentials. Trusted publishing needs `id-token: write` on the job and a Trusted Publisher on the package.",
     E401: `npm rejected the credentials. Check ${trusted}.`,
     E403: `npm refused this publish: ${trusted} is missing or does not match this repository and workflow, or the version already exists.`,
-    E404: "npm could not find the package or scope. A new package must be published once by hand before a Trusted Publisher can be configured.",
+    E404: `npm returned 404 for a package that may exist: on publish this usually means the OIDC login failed, so check ${trusted} matches this repository and workflow exactly (no environment), that "Allow npm publish" is ticked, and that the runner's npm is new enough. It can also mean the scope does not exist or a new package was never published by hand.`,
     E422: "npm rejected the provenance. Provenance needs a public repository, `id-token: write` and a `repository` field in package.json.",
   };
   return Object.hasOwn(hints, code) ? hints[code] : undefined;
@@ -100,6 +102,7 @@ function npm(args: readonly string[], cwd = root): string {
   throw new NpmFailed(
     [head, ...lines, ...(advice === undefined ? [] : [`Hint: ${advice}`])].join("\n"),
     result.stdout ?? "",
+    code,
   );
 }
 
@@ -186,6 +189,54 @@ function readRecord(directory: string): Packed {
   return decodePacked(JSON.parse(readFileSync(file, "utf8")));
 }
 
+/** Waiting times are milliseconds in env so tests can set them to zero. */
+function milliseconds(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/**
+ * npm reports a publish well before the registry serves it, usually within 3 to 5 minutes. Wait
+ * for the first check, then poll. A different integrity is a real conflict and fails at once.
+ */
+function confirmPublished(packed: Packed): void {
+  const delay = milliseconds("RELEASE_CONFIRM_DELAY_MS", 120_000);
+  const interval = milliseconds("RELEASE_CONFIRM_INTERVAL_MS", 15_000);
+  const attempts = milliseconds("RELEASE_CONFIRM_ATTEMPTS", 20);
+  const spec = `${packed.name}@${packed.version}`;
+  console.log(`Waiting for the registry to show ${spec}`);
+  sleep(delay);
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const found = publishedIntegrity(spec);
+    if (found === packed.integrity) {
+      console.log(`Confirmed ${spec}`);
+      return;
+    }
+    if (found !== null)
+      throw new PublishFailed(`${spec} is on npm with different contents than the build.`);
+    if (attempt < attempts) sleep(interval);
+  }
+  throw new PublishFailed(
+    `Could not confirm ${spec} on the registry after ${Math.round((delay + attempts * interval) / 1000)}s. npm reported the publish, so rerun the job: it skips a version already published.`,
+  );
+}
+
+/** Publishes the tarball; an E409 means an earlier run published it and the registry lags. */
+function publishTarball(directory: string, packed: Packed): void {
+  const spec = `${packed.name}@${packed.version}`;
+  console.log(`Publishing ${spec}`);
+  try {
+    process.stdout.write(
+      npm(["publish", resolve(directory, packed.filename), "--provenance", "--access", "public"]),
+    );
+  } catch (error) {
+    if (!(error instanceof NpmFailed && error.code === "E409")) throw error;
+    console.log(`${spec} was already published; waiting for the registry.`);
+  }
+}
+
 function publish(directory: string): void {
   const packed = readRecord(directory);
   const spec = `${packed.name}@${packed.version}`;
@@ -198,14 +249,8 @@ function publish(directory: string): void {
     throw new PublishFailed(
       `${spec} is already on npm with different contents. Never republish a version: bump it and tag again.`,
     );
-  console.log(`Publishing ${spec}`);
-  process.stdout.write(
-    npm(["publish", resolve(directory, packed.filename), "--provenance", "--access", "public"]),
-  );
-  if (publishedIntegrity(spec) !== packed.integrity)
-    throw new PublishFailed(
-      `Could not confirm ${spec} on the registry after publishing. The registry may be lagging: rerun the job, it skips a version already published.`,
-    );
+  publishTarball(directory, packed);
+  confirmPublished(packed);
 }
 
 /** One readable message on stderr plus a GitHub annotation, instead of a stack trace. */

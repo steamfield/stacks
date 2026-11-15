@@ -27,9 +27,11 @@ class PublishFailed extends Error {}
 /** An npm call that failed; `stdout` is kept because `npm view --json` reports registry errors there. */
 class NpmFailed extends PublishFailed {
   readonly stdout: string;
-  constructor(message: string, stdout: string) {
+  readonly code: string | undefined;
+  constructor(message: string, stdout: string, code: string | undefined) {
     super(message);
     this.stdout = stdout;
+    this.code = code;
   }
 }
 
@@ -40,7 +42,7 @@ const HINTS: Readonly<Record<string, string>> = {
     "npm had no credentials. Trusted publishing needs `id-token: write` on the job and a Trusted Publisher on the package.",
   E401: "npm rejected the credentials. Check the package's Trusted Publisher (steamfield/stacks, release.yml).",
   E403: "npm refused this publish: the package's Trusted Publisher is missing or does not match this repository and workflow, or the version already exists.",
-  E404: "npm could not find the package or scope. A new package must be published once by hand before a Trusted Publisher can be configured.",
+  E404: "npm returned 404 for a package that may exist: on publish this usually means the OIDC login failed, so check the package's Trusted Publisher matches steamfield/stacks and release.yml exactly (no environment), that \"Allow npm publish\" is ticked, and that the runner's npm is new enough. It can also mean the scope does not exist or a new package was never published by hand.",
   E422: "npm rejected the provenance. Provenance needs a public repository, `id-token: write` and a `repository` field in the package.json that was packed.",
 };
 
@@ -66,7 +68,7 @@ function npm(args: readonly string[]): string {
   if (result.status === 0) return result.stdout;
   const stderr = result.stderr ?? "";
   const code = /^npm error code (\w+)/m.exec(stderr)?.[1];
-  const hint = code === undefined ? undefined : HINTS[code];
+  const hint = code !== undefined && Object.hasOwn(HINTS, code) ? HINTS[code] : undefined;
   const lines = npmErrorLines(stderr).map((line) => `  ${line}`);
   // A tarball path is long and says nothing the file name doesn't; scoped specs start with "@".
   const shown = args.slice(0, 2).map((arg) => (arg.startsWith("@") ? arg : basename(arg)));
@@ -74,6 +76,7 @@ function npm(args: readonly string[]): string {
   throw new NpmFailed(
     [head, ...lines, ...(hint === undefined ? [] : [`Hint: ${hint}`])].join("\n"),
     result.stdout ?? "",
+    code,
   );
 }
 
@@ -188,38 +191,93 @@ function lookUp(packages: readonly Packed[]): ReadonlyMap<string, string | null>
   return found;
 }
 
-function publishOne(directory: string, entry: Packed): void {
-  const spec = `${entry.name}@${entry.version}`;
-  console.log(`Publishing ${spec}`);
-  process.stdout.write(
-    npm(["publish", resolve(directory, entry.filename), "--provenance", "--access", "public"]),
+const specOf = (entry: Packed) => `${entry.name}@${entry.version}`;
+
+/** Seconds of waiting are milliseconds in env so tests can set them to zero. */
+function milliseconds(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/**
+ * npm reports a publish well before the registry serves it, usually within 3 to 5 minutes. Wait
+ * for the first check, then poll. A different integrity is a real conflict and fails at once.
+ */
+function confirmPublished(entry: Packed): void {
+  const delay = milliseconds("RELEASE_CONFIRM_DELAY_MS", 120_000);
+  const interval = milliseconds("RELEASE_CONFIRM_INTERVAL_MS", 15_000);
+  const attempts = milliseconds("RELEASE_CONFIRM_ATTEMPTS", 20);
+  const spec = specOf(entry);
+  console.log(`Waiting for the registry to show ${spec}`);
+  sleep(delay);
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const found = publishedIntegrity(spec);
+    if (found === entry.integrity) {
+      console.log(`Confirmed ${spec}`);
+      return;
+    }
+    if (found !== null)
+      throw new PublishFailed(`${spec} is on npm with different contents than the build.`);
+    if (attempt < attempts) sleep(interval);
+  }
+  throw new PublishFailed(
+    `Could not confirm ${spec} on the registry after ${Math.round((delay + attempts * interval) / 1000)}s. npm reported the publish, so rerun the job: it skips versions already published.`,
   );
-  if (publishedIntegrity(spec) !== entry.integrity)
-    throw new PublishFailed(
-      `Could not confirm ${spec} on the registry after publishing. The registry may be lagging: rerun the job, it skips versions already published.`,
+}
+
+/** Publishes one version; an E409 means an earlier run published it and the registry lags. */
+function publishOne(directory: string, entry: Packed): void {
+  const spec = specOf(entry);
+  console.log(`Publishing ${spec}`);
+  try {
+    process.stdout.write(
+      npm(["publish", resolve(directory, entry.filename), "--provenance", "--access", "public"]),
     );
+  } catch (error) {
+    if (!(error instanceof NpmFailed && error.code === "E409")) throw error;
+    console.log(`${spec} was already published; waiting for the registry.`);
+  }
+}
+
+interface Progress {
+  readonly confirmed: string[];
+  readonly unconfirmed: string[];
+}
+
+/** Each package is visible before the next goes out: the CLI pins format, and MCP pins the CLI. */
+function publishInOrder(directory: string, packages: readonly Packed[], progress: Progress): void {
+  const found = lookUp(packages);
+  for (const entry of packages) {
+    const spec = specOf(entry);
+    if (found.get(spec) === null) {
+      publishOne(directory, entry);
+      progress.unconfirmed.push(spec);
+      confirmPublished(entry);
+      progress.unconfirmed.pop();
+    } else console.log(`Verified ${spec}; skipping publish.`);
+    progress.confirmed.push(spec);
+  }
 }
 
 function publish(directory: string): void {
   const packages = readManifest(directory);
-  const done: string[] = [];
-  const remaining = () =>
-    packages.slice(done.length).map((entry) => `${entry.name}@${entry.version}`);
+  const progress: Progress = { confirmed: [], unconfirmed: [] };
   try {
-    const found = lookUp(packages);
-    for (const entry of packages) {
-      const spec = `${entry.name}@${entry.version}`;
-      if (found.get(spec) === null) publishOne(directory, entry);
-      else console.log(`Verified ${spec}; skipping publish.`);
-      done.push(spec);
-    }
+    publishInOrder(directory, packages, progress);
   } catch (error) {
     if (!(error instanceof PublishFailed)) throw error;
+    const list = (items: readonly string[]) => (items.length === 0 ? "none" : items.join(", "));
+    const rest = packages
+      .map(specOf)
+      .filter((spec) => !progress.confirmed.includes(spec) && !progress.unconfirmed.includes(spec));
     throw new PublishFailed(
       [
         error.message,
-        `Published or verified: ${done.length === 0 ? "nothing" : done.join(", ")}.`,
-        `Not published: ${remaining().join(", ")}.`,
+        `On npm: ${list(progress.confirmed)}.`,
+        `Published but not yet visible: ${list(progress.unconfirmed)}.`,
+        `Not published: ${list(rest)}.`,
         "After fixing the cause, rerun the failed job: it skips what is already on npm.",
       ].join("\n"),
     );

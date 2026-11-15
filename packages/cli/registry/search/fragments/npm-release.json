@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "npm-release",
   "source": {
-    "digest": "sha256:1e83edbc607c7c1271729f22593765361f57496e5dea7b6249585689b4be4ae1",
+    "digest": "sha256:98b329fc2a6a2729c8510878d3d73343ff88ffc9d86afc71abaa331071d47938",
     "by": "drafted",
     "model": "claude/claude-sonnet-5-5",
     "promptVersion": 3,

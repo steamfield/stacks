@@ -46,7 +46,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@<sha> # v<tag>
         with:
@@ -75,7 +75,7 @@ jobs:
 
 ## Tool configuration
 
-`scripts/publish.ts` asks the registry first: not found means publish with `--provenance --access public`, the same integrity means skip, different bytes means fail and say never republish a version. It re-reads the registry after publishing. Any failure prints the npm command, npm's own error lines and a hint for the code (EOTP, ENEEDAUTH, E401, E403, E404, E422), then one `::error::` annotation, with no stack trace. Don't replace it with inline shell.
+`scripts/publish.ts` asks the registry first: not found means publish with `--provenance --access public`, the same integrity means skip, different bytes means fail and say never republish a version. The registry takes minutes to serve a new version, so it then waits and polls until the registry shows the same integrity (settings in `RELEASE_CONFIRM_*` env, so tests set them to zero), and treats an E409 on publish as already published. Any failure prints the npm command, npm's own error lines and a hint for the code (EOTP, ENEEDAUTH, E401, E403, E404, E422), then one `::error::` annotation, with no stack trace. Don't replace it with inline shell.
 
 <!-- stacks:when with=ci-github -->
 Use the CI fragment's pinning, timeouts and install steps in `release.yml`, and keep the release workflow separate from `ci.yml`.
@@ -96,5 +96,5 @@ Under Pending user actions, in order. These need the person's npm account, so ne
 
 1. `npm whoami` and, for a scoped name, `npm org ls <scope>`: the scope must belong to them.
 2. First release by hand: let CI run once (it fails at publish after uploading the tarball), `gh run download <id> -n release-package`, then `npm publish <file>.tgz --access public` with their one-time password. Publishing the CI-built tarball keeps the registry's integrity equal to what the script expects. That release has no provenance.
-3. On npmjs.com, the package's Settings, Trusted Publisher, GitHub Actions: owner, repository, workflow `release.yml`, environment blank.
+3. On npmjs.com, the package's Settings, Trusted Publisher, GitHub Actions: owner, repository, workflow `release.yml`, environment blank, "Allow npm publish" ticked (without it npm answers the OIDC publish with a misleading 404).
 4. Publishing access: "Require two-factor authentication and disallow bypass 2fa tokens".

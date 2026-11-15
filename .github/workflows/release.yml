@@ -19,7 +19,8 @@ jobs:
     # below stops one that doesn't match its commit.
     if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The gate takes about 10 minutes; publishing waits up to 7 for each of three packages to show.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

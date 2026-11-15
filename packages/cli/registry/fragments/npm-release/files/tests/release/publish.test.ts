@@ -62,6 +62,10 @@ case "$1" in
       echo "npm error registry unavailable" >&2
       exit 1
     fi
+    if [ ! -f "$FAKE_DIR/registry" ] && [ -f "$FAKE_DIR/pending" ]; then
+      left=$(cat "$FAKE_DIR/pending.lag")
+      if [ "$left" -le 0 ]; then mv "$FAKE_DIR/pending" "$FAKE_DIR/registry"; else echo $((left - 1)) > "$FAKE_DIR/pending.lag"; fi
+    fi
     if [ -f "$FAKE_DIR/registry" ]; then printf '"%s"\\n' "$(cat "$FAKE_DIR/registry")"; exit 0; fi
     echo '{"error":{"code":"E404"}}'
     echo "npm error code E404" >&2
@@ -73,7 +77,16 @@ case "$1" in
       echo "npm error A complete log of this run can be found in: /x/y.log" >&2
       exit 1
     fi
-    if [ -z "$FAKE_UNCONFIRMED" ]; then printf '%s' "$FAKE_INTEGRITY" > "$FAKE_DIR/registry"; fi
+    if [ -n "$FAKE_PUBLISH_CONFLICT" ]; then
+      echo "npm error code E409" >&2
+      echo "npm error Cannot publish over the previously published versions" >&2
+      exit 1
+    fi
+    # FAKE_LAG is how many registry lookups answer 404 after the publish succeeds.
+    if [ -z "$FAKE_UNCONFIRMED" ]; then
+      printf '%s' "$FAKE_INTEGRITY" > "$FAKE_DIR/pending"
+      echo "\${FAKE_LAG:-0}" > "$FAKE_DIR/pending.lag"
+    fi
     exit 0 ;;
 esac
 exit 98
@@ -111,6 +124,10 @@ function environment(extra: Record<string, string> = {}) {
     FAKE_BYTES: BYTES,
     FAKE_INTEGRITY: INTEGRITY,
     GITHUB_ACTIONS: "true",
+    // No real waiting: poll up to five times with no delay.
+    RELEASE_CONFIRM_DELAY_MS: "0",
+    RELEASE_CONFIRM_INTERVAL_MS: "0",
+    RELEASE_CONFIRM_ATTEMPTS: "5",
     ...extra,
   };
 }
@@ -208,6 +225,32 @@ describe("publish step", () => {
     expect(result.stderr).toContain("::error title=Release failed::");
   });
 
+  it("waits for the registry to serve the version before it succeeds", () => {
+    pack();
+    const result = publish({ FAKE_LAG: "3" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(`Waiting for the registry to show ${SPEC}`);
+    expect(result.stdout).toContain(`Confirmed ${SPEC}`);
+  });
+
+  it("treats a publish conflict as published and waits for the registry", () => {
+    pack();
+    writeFileSync(join(dir, "pending"), INTEGRITY);
+    writeFileSync(join(dir, "pending.lag"), "2");
+    const result = publish({ FAKE_PUBLISH_CONFLICT: "1" });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain(`${SPEC} was already published; waiting for the registry.`);
+    expect(result.stdout).toContain(`Confirmed ${SPEC}`);
+  });
+
+  it("fails after the attempts when npm accepts a publish the registry never shows", () => {
+    pack();
+    const result = publish({ FAKE_UNCONFIRMED: "1" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Could not confirm ${SPEC} on the registry after`);
+    expect(result.stderr).toContain("rerun the job");
+  });
+
   it("fails on a registry error that is not a 404 without publishing", () => {
     pack();
     const result = publish({ FAKE_VIEW_FAIL: "E500" });
@@ -232,7 +275,7 @@ describe("publish step", () => {
   });
 
   it.each([
-    ["E404", "published once by hand"],
+    ["E404", '"Allow npm publish" is ticked'],
     ["E403", "Trusted Publisher"],
     ["E422", "provenance"],
   ])("hints at %s", (code, text) => {
@@ -241,13 +284,6 @@ describe("publish step", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`(${code})`);
     expect(result.stderr).toContain(text);
-  });
-
-  it("fails when npm accepts a publish the registry then does not show", () => {
-    pack();
-    const result = publish({ FAKE_UNCONFIRMED: "1" });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(`Could not confirm ${SPEC} on the registry`);
   });
 
   it("rerunning after a failed publish publishes the same tarball", () => {

@@ -1,6 +1,16 @@
-// The one place the CLI spawns, signals and probes processes through Node's process APIs (Bun
-// implements the same `node:child_process` and `process.kill`). `services/processes.ts` builds
-// the Processes service on top of these and touches no process API itself.
+/**
+ * The one place the CLI spawns, signals and probes processes through Node's process APIs (Bun
+ * implements the same `node:child_process` and `process.kill`).
+ *
+ * `services/processes.ts` builds the `Processes` service on these and is the only module outside
+ * `platform/` allowed to import this file; `platform/signals.ts` uses the kill helpers for the
+ * signal policy. A process group is a process plus everything it starts; signaling the negative
+ * of the leader's pid reaches all of them, which is how a step's grandchildren get stopped too.
+ *
+ * These functions report failure as values (`false`, or an errno in the error channel) instead of
+ * throwing, because their callers run inside signal handlers and finalizers where a throw would
+ * cut cleanup short.
+ */
 import { spawn } from "node:child_process";
 import { constants } from "node:os";
 import { Deferred, Effect, Exit } from "effect";
@@ -64,20 +74,14 @@ export function spawnChild(request: SpawnRequest): Effect.Effect<Child, { errno:
         return;
       }
       let spawned = false;
+      // Only an error before "spawn" is a spawn failure; the callback has resumed by then.
       child.on("error", (error: NodeJS.ErrnoException) => {
         if (!spawned) resume(Effect.fail({ errno: error.code ?? "UNKNOWN" }));
       });
       child.stdout?.on("data", (chunk: Uint8Array) => request.onData?.("stdout", chunk));
       child.stderr?.on("data", (chunk: Uint8Array) => request.onData?.("stderr", chunk));
       child.on("exit", (code, signal) => {
-        Deferred.doneUnsafe(
-          exit,
-          Exit.succeed({
-            code: code ?? 128 + signalNumber(signal),
-            ...(signal ? { signal } : {}),
-            durationMs: Date.now() - started,
-          }),
-        );
+        Deferred.doneUnsafe(exit, Exit.succeed(childExit(code, signal, Date.now() - started)));
       });
       child.on("close", () => Deferred.doneUnsafe(close, Exit.void));
       child.on("spawn", () => {
@@ -93,6 +97,19 @@ export function spawnChild(request: SpawnRequest): Effect.Effect<Child, { errno:
       });
     });
   });
+}
+
+/** Node's exit report as a `ChildExit`; a signal death becomes 128 + its number, as in a shell. */
+function childExit(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+  durationMs: number,
+): ChildExit {
+  return {
+    code: code ?? 128 + signalNumber(signal),
+    ...(signal ? { signal } : {}),
+    durationMs,
+  };
 }
 
 function signalNumber(signal: NodeJS.Signals | null): number {

@@ -1,3 +1,8 @@
+/**
+ * TCP connections for `stacks verify`'s port checks: a serve step's port must be free before its
+ * server starts and closed again after it stops (`core/verify/probe.ts`). This file holds only
+ * the interface; `platform/net.ts` supplies the Node implementation.
+ */
 import { Context, type Effect, Layer } from "effect";
 import type { Socket } from "effect/socket";
 

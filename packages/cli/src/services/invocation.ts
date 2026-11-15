@@ -1,8 +1,17 @@
+/**
+ * A per-run notepad a command writes and `main.ts` reads after it finishes.
+ *
+ * Some outcomes don't fit the command's return value: `new` launching a coding agent that exits
+ * non-zero (the CLI then exits with the agent's status, with no error envelope), fields to add to
+ * the `command` log record, and the paths a failed write's rollback couldn't restore
+ * (`scaffold/write.ts::openProject`, `project-state.ts::replaceProjectState`), which `main` puts
+ * in the envelope's `error.rollback`. `main` builds a fresh one with `Invocation.make` every run.
+ */
 import { Context, Effect, Layer } from "effect";
 
 /** What a command reported about this invocation, for `main` to apply once it succeeded. */
 type InvocationState = {
-  /** The exit status in place of 0: a launched agent's (1.4). Unset means 0. */
+  /** The exit status in place of 0: the status of the agent `new` launched. Unset means 0. */
   status: number | undefined;
   /** Scalar fields added to the `command` log record, such as `handoff` and `agent`. */
   fields: Record<string, string>;

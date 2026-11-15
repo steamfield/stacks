@@ -18,7 +18,7 @@ decisions:
 merge: [.claude/settings.json]
 fragments:
   required: [claude-harness]
-  default: [claude-harness-docs, git-hooks, ci-github, ce-plugin]
+  default: [claude-harness-docs, git-hooks, ci-github, ce-plugin, code-docs]
   optional: [rr]
 verify:
   - { name: install, phase: setup, layer: install, run: bun install }

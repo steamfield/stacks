@@ -1,3 +1,21 @@
+/**
+ * Every program `stacks submit` runs: the `gh` and `git` calls that clone the upstream
+ * repository, fork it, commit, push and open or update the draft pull request.
+ *
+ * Each program is found with `Processes.which` and run through `Processes.exec` with a fixed argv.
+ * Only CLI-built values (the repository, branch, paths, a title and a body file) fill the
+ * arguments, and nothing from an entry is executed (Trust model, point 1). The CLI holds no
+ * credentials: `gh` authenticates its own requests and git's pushes, and git never runs a hook or
+ * a credential helper the user configured, because the clone is the CLI's own checkout.
+ *
+ * `submit.ts::submit` calls these in order: `preflight`, `cloneUpstream`, `gitLocal` for staging,
+ * then (unless it's a dry run) `fork`, `commit`, `push`, `openPullRequest` and either
+ * `editPullRequest` or `createPullRequest`. How each failure maps is deliberate: a refusal the
+ * user must fix (no `gh`, not logged in, no git identity, a repository that doesn't exist, a branch
+ * holding someone else's work) is `BadInput`; GitHub refusing this login is `PermissionDenied`;
+ * anything else from the network is `UpstreamUnavailable`, which can be retried; a local git
+ * command failing in the CLI's own clone is a defect.
+ */
 import { GitHubLogin } from "@steamfield/stacks-format";
 import { Duration, Effect, Option, Schema } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
@@ -5,13 +23,9 @@ import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { type Captured, Processes } from "../../services/processes";
 import { shellArg } from "../shell";
 
-/**
- * Every program `submit` runs is `gh` or `git`, found with `Processes.which` and run through
- * `Processes.exec` with fixed argv; only CLI-built values (the repository, branch, paths, a title
- * and a body file) fill the arguments, and nothing from an entry is executed (Trust model, point
- * 1). The CLI holds no credentials: `gh` authenticates its own requests and git's pushes.
- */
+/** The resolved `gh` and `git` programs and the GitHub login `gh` is using. */
 export type Tools = { gh: string; git: string; login: string };
+/** The stage a failure is reported under in `UpstreamUnavailable`'s details. */
 type Step = "auth" | "clone" | "fork" | "push" | "pr";
 
 const QUICK = Duration.seconds(60);
@@ -20,6 +34,19 @@ const LOCAL = Duration.seconds(30);
 /** A fresh fork can take a few seconds to accept pushes. */
 const FORK_WAIT = Duration.seconds(3);
 const PUSH_ATTEMPTS = 5;
+
+const DENIED =
+  /permission to .* denied|\b403\b|forbidden|not accessible by|must have admin rights/i;
+const MISSING = /not found|does not exist|could not resolve to a repository/i;
+/** gh's failure when the compare API knows no such base, or no history links it to main. */
+const NOT_COMPARABLE = /HTTP 404|HTTP 422|No commit found/;
+/** git's message when a lease no longer matches the remote branch. */
+const LEASE_REJECTED = /stale info|\[rejected\]/;
+/** The subject `submit` gives its commits (`body.ts::title`). */
+const SUBMIT_SUBJECT = /^feat\(registry\): (?:add|update) /;
+
+/** No hook the user configured runs in the CLI's own temporary checkout. */
+const NO_HOOKS = ["-c", "core.hooksPath=/dev/null"] as const;
 
 /**
  * Never prompt: a missing credential fails fast instead of waiting on a closed stdin. git finds
@@ -33,6 +60,7 @@ const toolEnv = (config: typeof AppConfig.Service) =>
     LC_ALL: "C",
   });
 
+/** Runs one program; only a failure to start it at all is `UpstreamUnavailable` here. */
 const exec = Effect.fn("submit.exec")(function* (
   argv: readonly [string, ...string[]],
   options: { cwd: string; timeout: Duration.Duration; step: Step },
@@ -49,9 +77,6 @@ const exec = Effect.fn("submit.exec")(function* (
 });
 
 const ok = (run: Captured) => run.exitCode === 0 && !run.timedOut;
-const DENIED =
-  /permission to .* denied|\b403\b|forbidden|not accessible by|must have admin rights/i;
-const MISSING = /not found|does not exist|could not resolve to a repository/i;
 
 /** A failed GitHub request: a refusal for this login is the human's to fix, anything else retries. */
 function failed(run: Captured, step: Step) {
@@ -60,15 +85,20 @@ function failed(run: Captured, step: Step) {
   return new UpstreamUnavailable({ details: { service: "github", step } });
 }
 
+const branchTaken = (branch: string) => new BadInput({ details: { flag: "branch_taken", branch } });
+
+/** A program on PATH, or the `BadInput` naming it as missing. */
+const findTool = Effect.fn("submit.findTool")(function* (tool: "gh" | "git") {
+  const found = Option.getOrUndefined(yield* (yield* Processes).which(tool));
+  if (found === undefined)
+    return yield* new BadInput({ details: { flag: "tool", tool, reason: "missing" } });
+  return found;
+});
+
 /** `gh` and `git` on PATH, `gh` logged in, and the login it uses. */
 export const preflight = Effect.fn("submit.preflight")(function* (cwd: string) {
-  const processes = yield* Processes;
-  const gh = Option.getOrUndefined(yield* processes.which("gh"));
-  if (gh === undefined)
-    return yield* new BadInput({ details: { flag: "tool", tool: "gh", reason: "missing" } });
-  const git = Option.getOrUndefined(yield* processes.which("git"));
-  if (git === undefined)
-    return yield* new BadInput({ details: { flag: "tool", tool: "git", reason: "missing" } });
+  const gh = yield* findTool("gh");
+  const git = yield* findTool("git");
   const status = yield* exec([gh, "auth", "status"], { cwd, timeout: QUICK, step: "auth" });
   if (status.timedOut) return yield* failed(status, "auth");
   if (!ok(status))
@@ -88,9 +118,6 @@ export const preflight = Effect.fn("submit.preflight")(function* (cwd: string) {
   );
   return { gh, git, login } satisfies Tools;
 });
-
-/** No hook the user configured runs in the CLI's own temporary checkout. */
-const NO_HOOKS = ["-c", "core.hooksPath=/dev/null"] as const;
 
 /** git's credentials come from `gh` alone, never a helper the user configured. */
 const credentials = (tools: Tools) => [
@@ -173,6 +200,15 @@ export const commit = Effect.fn("submit.commit")(function* (
   return yield* localOk(committed);
 });
 
+/**
+ * The fork's `owner/name` from `gh repo fork`'s output, which names it on stdout or stderr. A fork
+ * renamed to avoid a clash keeps its new name; without a match the fork has the upstream's name.
+ */
+const forkName = (login: string, repo: string, output: string) => {
+  const named = new RegExp(`\\b${login}/([A-Za-z0-9._-]+)`, "i").exec(output);
+  return `${login}/${named?.[1]?.replace(/\.git$/, "") ?? repo.slice(repo.indexOf("/") + 1)}`;
+};
+
 /** Forks `repo` for the login (an existing fork is reused) and returns the fork's `owner/name`. */
 export const fork = Effect.fn("submit.fork")(function* (tools: Tools, repo: string, cwd: string) {
   const forked = yield* exec([tools.gh, "repo", "fork", repo, "--clone=false"], {
@@ -181,18 +217,30 @@ export const fork = Effect.fn("submit.fork")(function* (tools: Tools, repo: stri
     step: "fork",
   });
   if (!ok(forked)) return yield* failed(forked, "fork");
-  // gh names the fork on stdout or stderr; a fork renamed to avoid a clash keeps its new name.
-  const named = new RegExp(`\\b${tools.login}/([A-Za-z0-9._-]+)`, "i").exec(
-    `${forked.stdout}\n${forked.stderr}`,
-  );
-  return `${tools.login}/${named?.[1]?.replace(/\.git$/, "") ?? repo.slice(repo.indexOf("/") + 1)}`;
+  return forkName(tools.login, repo, `${forked.stdout}\n${forked.stderr}`);
 });
-
-/** The subject `submit` gives its commits (`body.ts::title`). */
-const SUBMIT_SUBJECT = /^feat\(registry\): (?:add|update) /;
 
 /** `Name <email>` from `git var GIT_AUTHOR_IDENT`, without its timestamp. */
 const ident = (text: string) => text.trim().replace(/ \d+ [+-]\d{4}$/, "");
+
+/**
+ * Whether `parent` is on the upstream `main`, from GitHub's compare API: `main` is `ahead` of it
+ * or `identical`. The shallow clone can't say, and deepening it would fetch all of main's history.
+ */
+const onMain = Effect.fn("submit.onMain")(function* (
+  tools: Tools,
+  options: { cwd: string; repo: string; parent: string },
+) {
+  const compared = yield* exec(
+    [tools.gh, "api", `repos/${options.repo}/compare/${options.parent}...main`, "--jq", ".status"],
+    { cwd: options.cwd, timeout: QUICK, step: "push" },
+  );
+  // GitHub can't compare a base it doesn't know or that shares no history with main: not ours.
+  if (!(ok(compared) || compared.timedOut) && NOT_COMPARABLE.test(compared.stderr)) return false;
+  if (!ok(compared)) return yield* failed(compared, "push");
+  const status = compared.stdout.trim();
+  return status === "ahead" || status === "identical";
+});
 
 /**
  * Refuses the fork's branch (`branch_taken`) unless its tip `tip` is one commit `submit` made:
@@ -232,33 +280,6 @@ const ownBranch = Effect.fn("submit.ownBranch")(function* (
   if (!(yield* onMain(tools, { cwd, repo: options.repo, parent }))) return yield* taken;
 });
 
-const branchTaken = (branch: string) => new BadInput({ details: { flag: "branch_taken", branch } });
-
-/**
- * Whether `parent` is on the upstream `main`, from GitHub's compare API: `main` is `ahead` of it
- * or `identical`. The shallow clone can't say, and deepening it would fetch all of main's history.
- */
-const onMain = Effect.fn("submit.onMain")(function* (
-  tools: Tools,
-  options: { cwd: string; repo: string; parent: string },
-) {
-  const compared = yield* exec(
-    [tools.gh, "api", `repos/${options.repo}/compare/${options.parent}...main`, "--jq", ".status"],
-    { cwd: options.cwd, timeout: QUICK, step: "push" },
-  );
-  // GitHub can't compare a base it doesn't know or that shares no history with main: not ours.
-  if (!(ok(compared) || compared.timedOut) && NOT_COMPARABLE.test(compared.stderr)) return false;
-  if (!ok(compared)) return yield* failed(compared, "push");
-  const status = compared.stdout.trim();
-  return status === "ahead" || status === "identical";
-});
-
-/** gh's failure when the compare API knows no such base, or no history links it to main. */
-const NOT_COMPARABLE = /HTTP 404|HTTP 422|No commit found/;
-
-/** git's message when a lease no longer matches the remote branch. */
-const LEASE_REJECTED = /stale info|\[rejected\]/;
-
 /** Runs a fork request again while a fresh fork still answers "not found". */
 const untilForkReady = <E, R>(request: Effect.Effect<Captured, E, R>) =>
   Effect.gen(function* () {
@@ -287,6 +308,7 @@ export const push = Effect.fn("submit.push")(function* (
     exec(remoteGit(tools, ["ls-remote", url, ref]), { ...network, timeout: QUICK }),
   );
   if (!ok(remote)) return yield* failed(remote, "push");
+  // An empty tip leases on "absent", so the push fails if the branch appears meanwhile.
   const tip = remote.stdout.split(/\s/)[0] ?? "";
   if (tip !== "") yield* ownBranch(tools, { ...options, url, ref, tip });
   const pushed = yield* untilForkReady(
@@ -327,6 +349,7 @@ export const openPullRequest = Effect.fn("submit.openPullRequest")(function* (
   return ok(viewed) && url.startsWith("https://") ? url : undefined;
 });
 
+/** Opens the draft pull request and returns its URL, the last `https://` line `gh` prints. */
 export const createPullRequest = Effect.fn("submit.createPullRequest")(function* (
   tools: Tools,
   options: { repo: string; branch: string; title: string; bodyFile: string; cwd: string },

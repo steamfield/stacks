@@ -1,4 +1,21 @@
-import { Effect, FileSystem, Path } from "effect";
+/**
+ * Runs `stacks submit`, which proposes a user's own stacks and fragments to the public registry
+ * by opening a draft pull request on GitHub.
+ *
+ * An author keeps personal entries (a stack or a fragment) in the user registry. `submit` copies
+ * them into a temporary clone of the upstream repository, checks them there with the same
+ * submission checks `stacks validate --submission` runs, and then forks, commits, pushes and
+ * opens the pull request. A dry run stops after the checks and the staged file list: it still
+ * logs in and clones, but forks, pushes and opens nothing.
+ *
+ * `commands/submit.ts` parses the flags and calls `submit`. The steps run in a fixed order:
+ * `entries.ts::resolveEntries` finds the entries, `github.ts::preflight` checks `gh` and `git`,
+ * `github.ts::cloneUpstream` clones, `assemble.ts::assemble` writes the entries and
+ * `authors.json` into the clone, `checkEntries` validates them, `stage` stages the files,
+ * `body.ts` renders the pull request text and `publish` does the GitHub writes. The clone lives
+ * in a scoped temporary directory, removed however the command ends. Start at `submit`.
+ */
+import { Effect, FileSystem, Path, type PlatformError } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, type SubmissionBlocker } from "../../errors";
 import type { SubmitResult } from "../../schemas/submit";
@@ -46,15 +63,34 @@ export type SubmitOptions = {
   repo: string;
 };
 
+/** A GitHub `owner/name`: GitHub's login rules for the owner, its repository characters after. */
 const REPO = /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}\/[A-Za-z0-9._-]{1,100}$/;
+
+/** Refuses the submission before any lookup when the CLI is offline or `repo` isn't `owner/name`. */
+const checkArguments = Effect.fn("submit.checkArguments")(function* (repo: string) {
+  if (yield* (yield* AppConfig).offline)
+    return yield* new BadInput({ details: { flag: "offline", command: "submit" } });
+  if (!REPO.test(repo)) return yield* new BadInput({ details: { flag: "repo", value: repo } });
+});
 
 const blocks = (finding: Finding) =>
   finding.severity === "error" ||
   (finding.severity === "warning" && !MAINTAINER_WARNINGS.includes(finding.check));
 
+/** The `details.blockers` row for one blocking finding of `entry`. */
+const toBlocker = (entry: PlannedEntry, finding: Finding): typeof SubmissionBlocker.Type => ({
+  kind: entry.kind,
+  id: entry.id,
+  check: finding.check,
+  severity: finding.severity === "error" ? "error" : "warning",
+  ...(finding.file === undefined ? {} : { file: finding.file }),
+  ...(finding.line === undefined ? {} : { line: finding.line }),
+});
+
 /**
  * Validates each submitted entry in the clone's registry, as that registry's own bundled entries
- * (references resolve only inside it), with the submission checks. Fails on the readiness bar.
+ * (references resolve only inside it), with the submission checks. Any blocking finding fails the
+ * whole submission, listing every blocker; otherwise the entries' own findings are returned.
  */
 const checkEntries = Effect.fn("submit.checkEntries")(function* (
   registry: string,
@@ -72,24 +108,22 @@ const checkEntries = Effect.fn("submit.checkEntries")(function* (
       (finding) => finding.kind === entry.kind && finding.entry === entry.id,
     );
     findings.push(...own);
-    for (const finding of own.filter(blocks))
-      blockers.push({
-        kind: entry.kind,
-        id: entry.id,
-        check: finding.check,
-        severity: finding.severity === "error" ? "error" : "warning",
-        ...(finding.file === undefined ? {} : { file: finding.file }),
-        ...(finding.line === undefined ? {} : { line: finding.line }),
-      });
+    blockers.push(...own.filter(blocks).map((finding) => toBlocker(entry, finding)));
   }
   if (blockers.length) return yield* new BadInput({ details: { flag: "submission", blockers } });
   return findings;
 });
 
+const kindRank = (entry: PlannedEntry) => (entry.kind === "stack" ? 0 : 1);
+
 /** Stacks first, then by id: the branch, title and result don't depend on argument order. */
-const inOrder = (entries: ReadonlyArray<PlannedEntry>) => {
-  const rank = (entry: PlannedEntry) => (entry.kind === "stack" ? 0 : 1);
-  return [...entries].sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1));
+const inOrder = (entries: ReadonlyArray<PlannedEntry>) =>
+  [...entries].sort((a, b) => kindRank(a) - kindRank(b) || (a.id < b.id ? -1 : 1));
+
+/** The fork's branch, named for the first entry in `inOrder` order. */
+const branchName = (entries: ReadonlyArray<PlannedEntry>) => {
+  const first = entries[0];
+  return first === undefined ? "entry" : `entry/${first.kind}-${first.id}`;
 };
 
 /** Each entry's description, read from the assembled clone, for the pull request body. */
@@ -175,37 +209,56 @@ const publish = Effect.fn("submit.publish")(function* (
 });
 
 /**
+ * The directory a failed temporary-directory creation was refused in: the parent of the path the
+ * platform error names, so a denial reports the unwritable `TMPDIR` itself.
+ */
+const tempParent = (path: Path.Path) => (error: PlatformError.PlatformError) =>
+  "pathOrDescriptor" in error.reason && typeof error.reason.pathOrDescriptor === "string"
+    ? path.dirname(error.reason.pathOrDescriptor)
+    : undefined;
+
+/** The scoped temporary directory holding the clone and the body file. */
+const makeWorkspace = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  return yield* writePermission(
+    fs.makeTempDirectoryScoped({ prefix: "stacks-submit-" }),
+    tempParent(path),
+  );
+});
+
+/** Writes the pull request body where `gh --body-file` reads it, and returns that path. */
+const writeBody = Effect.fn("submit.writeBody")(function* (temp: string, body: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const bodyFile = path.join(temp, "body.md");
+  yield* writePermission(fs.writeFileString(bodyFile, body), bodyFile);
+  return bodyFile;
+});
+
+/**
  * `submit`: checks the entries against a partial clone of the upstream repository and, unless
  * `dryRun`, opens one draft pull request adding them from the login's fork. The clone lives in a
  * temporary directory removed when the command ends, however it ends.
  */
 export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptions) {
-  if (yield* (yield* AppConfig).offline)
-    return yield* new BadInput({ details: { flag: "offline", command: "submit" } });
-  if (!REPO.test(options.repo))
-    return yield* new BadInput({ details: { flag: "repo", value: options.repo } });
+  yield* checkArguments(options.repo);
   const sources = yield* resolveEntries(options.entries);
   return yield* Effect.scoped(
     Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const temp = yield* writePermission(
-        fs.makeTempDirectoryScoped({ prefix: "stacks-submit-" }),
-        (error) =>
-          "pathOrDescriptor" in error.reason && typeof error.reason.pathOrDescriptor === "string"
-            ? path.dirname(error.reason.pathOrDescriptor)
-            : undefined,
-      );
+      const temp = yield* makeWorkspace;
       const tools = yield* preflight(temp);
       const clone = path.join(temp, "upstream");
       yield* cloneUpstream(tools, { repo: options.repo, cwd: temp, dest: clone });
       const registry = path.join(clone, REGISTRY_PATH);
       const entries = inOrder(yield* assemble({ registry, entries: sources, login: tools.login }));
       const findings = yield* checkEntries(registry, entries);
-      const first = entries[0];
-      const branch = first === undefined ? "entry" : `entry/${first.kind}-${first.id}`;
-      const paths = yield* submittedPaths(clone, entries);
-      const files = yield* stage(tools, clone, { branch, paths });
+      const branch = branchName(entries);
+      const files = yield* stage(tools, clone, {
+        branch,
+        paths: yield* submittedPaths(clone, entries),
+      });
       const body = pullRequestBody({
         entries: yield* describe(registry, entries),
         findings,
@@ -224,14 +277,12 @@ export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptio
       };
       if (options.dryRun)
         return { ...result, prUrl: null, reused: false, body } satisfies SubmitResult;
-      const bodyFile = path.join(temp, "body.md");
-      yield* writePermission(fs.writeFileString(bodyFile, body), bodyFile);
       const opened = yield* publish(tools, {
         repo: options.repo,
         clone,
         branch,
         title: title(entries),
-        bodyFile,
+        bodyFile: yield* writeBody(temp, body),
       });
       return { ...result, ...opened } satisfies SubmitResult;
     }),

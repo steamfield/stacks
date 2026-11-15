@@ -34,6 +34,46 @@ What to do:
 
 A good test survives a behavior-preserving refactor, so a test that goes red is a finding. If the harness diff is non-empty, or the test pins observable behavior (exit code, streams, decoded `--json`, files on disk, an exported function's result), the refactor changed behavior: fix the code. If the harness is clean and the test fails only because it pinned an internal (a private helper's shape, an intermediate structure, unobservable call order), the lane keeps the refactor, leaves the test untouched and reports file, test name and the internal it pinned. The orchestrator rewrites such tests at landing to assert the same behavior through `runCli` or the public function, revert-verifies each, and commits them separately as `test(cli): ...`. Weakening or deleting an assertion is never the fix. Lanes also report tests that pass only because an internal is exported.
 
+### File headers (every file, added after phase 1 started)
+
+Every source file opens with a `/** ... */` header that lets someone with no prior context see what the file does and how it fits into the CLI. Write it in the ce:writer skill's Educator persona (patient, defines terms, explains why), within ce:writer's forbidden patterns. The skill lives at `~/.claude/plugins/cache/claude-essentials/ce/<newest>/skills/writer/`; read `SKILL.md`, `references/educator.md` and `references/forbidden-patterns.md` before writing headers.
+
+A header answers, in plain prose and in this order:
+1. What the file does, in one sentence a newcomer understands, tied to something a user does ("When someone runs `stacks add`, this file decides which fragment files can be written straight into their project.").
+2. Where it sits: who calls it and what it hands off to, by module path (`commands/add.ts` calls `planAdd`; the plan goes to `add/write.ts`).
+3. The terms a reader needs, defined in a clause the first time (use the glossary below, so every header uses the same words).
+4. Why it is shaped the way it is, when that isn't obvious: a trust-model point by number, an ordering that matters, a reason something is refused.
+5. Optionally, where to start reading ("Start at `planAdd`.").
+
+Size it to the file: two or three lines for a small, obvious file; up to about fifteen for a central one. Don't list every export, restate names, describe history or narrate the change. No em dashes, no triads, no "serves as", no hype words. Wrap at 100 columns like the code.
+
+Example (`core/add/plan.ts`):
+
+```ts
+/**
+ * Works out what `stacks add` will do to a project before anything is written.
+ *
+ * `add` applies fragments (reusable pieces such as CI or git hooks) to a project that already
+ * exists, so the files a fragment ships may collide with files the user has. For each rendered
+ * file this module decides one of three outcomes: write it (nothing is there), skip it (an
+ * identical copy is there) or park it under `.stacks/incoming/` for the user's agent to merge by
+ * hand. A live file is never overwritten.
+ *
+ * `core/add.ts` calls `planAdd` after rendering the fragments; `add/write.ts` carries out the plan.
+ * Every read goes through `readLive`, which refuses a path whose symlinks lead outside the project.
+ */
+```
+
+Glossary (use these words):
+- stack: a recipe for a whole new project (`registry/stacks/<id>/STACK.md` plus files). `stacks new` scaffolds one.
+- fragment: a reusable addition (CI, hooks, a database) that composes onto a stack; `stacks add` applies fragments to an existing project. An app is a fragment with category `app`.
+- entry: a stack or a fragment. registry: where entries are found; roots in priority order are project, user, the signed remote index and the bundled registry shipped in the package. origin: which root an entry came from.
+- trusted / untrusted: whether an entry's origin is trusted (`.claude/rules/architecture.md`, "Trust model", points 1 to 5).
+- composition: the result of combining a stack with fragments: files, verify steps, env and notes.
+- brief: `.stacks/BRIEF.md`, the task text the CLI writes for the coding agent. manifest: `.stacks/manifest.json`, the committed record of what was composed and the verify steps. state record: the per-project file outside the project (`Paths.state`) holding digests and first-green times.
+- verify: running the manifest's steps, the project's definition of done. handoff: launching or pointing a coding agent at the new project.
+- audience: `json`, `agent` or `human`; how one result is rendered.
+
 ## Contracts (scaffold commit)
 
 No new types or stubs: the contracts are the existing exports, which are frozen. Layout stays as AGENTS.md "Architecture map" describes it. The scaffold commit is this plan.

@@ -52,6 +52,7 @@
       "@react-router/serve",
       "@resvg/resvg-js",
       "@scalar/hono-api-reference",
+      "@steamfield/decks",
       "@sveltejs/adapter-node",
       "@sveltejs/kit",
       "@sveltejs/vite-plugin-svelte",

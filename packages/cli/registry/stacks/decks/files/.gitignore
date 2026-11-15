@@ -1,0 +1,21 @@
+# Build output
+dist/
+*.pdf
+slide-*.png
+
+# Dependencies
+node_modules/
+*.tsbuildinfo
+
+# Agent worktrees
+.claude/worktrees/
+
+# Logs
+*.log
+
+# Editors and OS
+.idea/
+.vscode/*
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,14 @@
+---
+title: Every slide in this deck stays under the word budget.
+---
+
+<div className="od-slide">
+  <h1 className="od-h2">Every slide in this deck stays under the word budget.</h1>
+  <WordBars />
+</div>
+
+<Notes>
+The numbers, including the budget in the caption, come from `data/03-words.ts`, and `data-sources.md` records where they came from. A figure on a slide always reads from a data module, never from a number typed into the MDX.
+
+`WordBars` lives in `components/`, so the slide uses it without an import. It is drawn by hand to keep this example small; a real chart uses the kit's `OpenChart`.
+</Notes>

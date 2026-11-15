@@ -9802,6 +9802,147 @@
       "minutesToFirstTest": null,
       "agentMinutes": null,
       "interventions": 0
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-15",
+      "stack": "decks",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.169.0",
+      "mode": "headless",
+      "repoCommit": "a37eb783b9cc5004f0572eec4b9a1309ef7c1b84",
+      "cli": "0.10.0",
+      "fingerprint": "sha256:742849bbbf40354d3025bbbff4aefed7103fb1d4526f52c5afb7488629c6344d",
+      "compositionFingerprint": "sha256:75f9e2eab3d2a42b46096eb0a338550c14fbb6d4c048a425d7ea1ab703b8ffbc",
+      "briefWords": 3027,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-15T20:02:18.420Z",
+        "cli": "0.10.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 10300,
+        "secondsSinceCreated": 150,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 32
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 529
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 111
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 523
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 4109
+          },
+          {
+            "name": "example-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 3733
+          },
+          {
+            "name": "agent-setup",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 12
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 643
+          },
+          {
+            "name": "web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 564
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 2.1805333333333334,
+      "minutesToFirstTest": 0.3566666666666667,
+      "agentMinutes": 2.300133333333333,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-15-decks.md",
+      "hooksFired": null
     }
   ]
 }

@@ -2193,6 +2193,38 @@
       "query": "product site with a hero section, install command and a docs section",
       "first": { "kind": "stack", "id": "astro-product-site" },
       "relevant": [{ "kind": "stack", "id": "astro-product-site", "grade": 2 }]
+    },
+    {
+      "id": "stack-decks-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "slides for my conference talk that I can keep in git",
+      "first": { "kind": "stack", "id": "decks" },
+      "relevant": [{ "kind": "stack", "id": "decks", "grade": 2 }]
+    },
+    {
+      "id": "stack-decks-2",
+      "pool": "platform",
+      "split": "tune",
+      "query": "MDX presentation I can present from the browser",
+      "first": { "kind": "stack", "id": "decks" },
+      "relevant": [{ "kind": "stack", "id": "decks", "grade": 2 }]
+    },
+    {
+      "id": "stack-decks-3",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "build a talk in React with click-by-click reveals and speaker notes",
+      "first": { "kind": "stack", "id": "decks" },
+      "relevant": [{ "kind": "stack", "id": "decks", "grade": 2 }]
+    },
+    {
+      "id": "stack-decks-4",
+      "pool": "product",
+      "split": "holdout",
+      "query": "a pitch deck my AI assistant can edit",
+      "first": { "kind": "stack", "id": "decks" },
+      "relevant": [{ "kind": "stack", "id": "decks", "grade": 2 }]
     }
   ]
 }

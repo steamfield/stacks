@@ -1,0 +1,15 @@
+{
+  "name": "{{project_slug}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "decks": "decks",
+    "dev": "decks dev {{project_slug}}",
+    "build": "decks build {{project_slug}}",
+    "lint": "decks lint",
+    "typecheck": "tsc -p .",
+    "test": "decks check",
+    "check": "decks check && tsc -p . && decks build {{project_slug}}",
+    "clean": "rm -rf dist"
+  }
+}

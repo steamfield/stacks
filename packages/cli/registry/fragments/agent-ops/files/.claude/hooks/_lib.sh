@@ -218,6 +218,7 @@ foreground_commands() { shell_commands 1 "$1"; }
 executable_commands() { shell_commands 0 "$1"; }
 
 # Mode 2 also emits structural input, pipeline, redirect and function records.
+# Mode 3 keeps foreground argument boundaries with tab-separated argv.
 shell_commands() {
   local foreground=$1
   shift
@@ -243,7 +244,7 @@ shell_commands() {
           }
           limit = w[i]
           if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
-          if (foreground == 1 && limit + 0 > 0) return
+          if ((foreground == 1 || foreground == 3) && limit + 0 > 0) return
           wrapped = 1; continue
         }
         if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
@@ -488,7 +489,7 @@ shell_commands() {
               feeds[key] = here_text
             }
           }
-          if (c != "&" || foreground != 1) program = group(pipeline out, depth, consumer)
+          if (c != "&" || (foreground != 1 && foreground != 3)) program = group(pipeline out, depth, consumer)
           pipeline = ""; out = ""
         } else out = out c
       }
@@ -515,6 +516,32 @@ hook_foreground_commands() {
       return 1
     }
   foreground_commands "$command" || {
+    echo "agent-ops: splitter unavailable; skipping foreground inspection and allowing call." >&2
+    return 1
+  }
+}
+
+# hook_foreground_argv <payload-json>: foreground commands with tab-separated argv.
+# Stack guards need argument boundaries to distinguish script names and option values
+# containing spaces. Existing foreground_commands output stays space-separated.
+hook_foreground_argv() {
+  local command
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "agent-ops: jq missing; skipping foreground inspection and allowing call." >&2
+    return 1
+  fi
+  command=$(printf '%s' "$1" | jq -rs '
+    if length != 1 or (.[0] | type) != "object" then error("invalid payload")
+    else .[0] |
+      if .tool_input.run_in_background == true then empty
+      elif .tool_input.command == null then empty
+      elif (.tool_input.command | type) == "string" then .tool_input.command
+      else error("invalid command") end
+    end' 2>/dev/null) || {
+      echo "agent-ops: unreadable payload; skipping foreground inspection and allowing call." >&2
+      return 1
+    }
+  shell_commands 3 "$command" || {
     echo "agent-ops: splitter unavailable; skipping foreground inspection and allowing call." >&2
     return 1
   }

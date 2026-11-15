@@ -28,7 +28,7 @@ test.each(cases)(
     expect(existsSync(join(result.project, "tests/hooks"))).toBe(false);
     const commands = guardCommands(result.project, "codex", "Bash");
     expect(commands).toHaveLength(2);
-    for (const file of ["block-destructive.sh", "guard-api-commands.ts"]) {
+    for (const file of ["block-destructive.sh", "guard-api-commands.sh"]) {
       expect(commands.filter((command) => command.includes(`/.claude/hooks/${file}`))).toHaveLength(
         1,
       );
@@ -41,8 +41,9 @@ test.each(cases)(
         expect(existsSync(join(result.project, path ?? "")), command).toBe(true);
       }
     }
-    for (const file of ["_lib.ts", "_shell.ts", "_lib.sh", "_destructive-patterns.sh"])
+    for (const file of ["_lib.ts", "_lib.sh", "_destructive-patterns.sh"])
       expect(existsSync(join(result.project, ".claude/hooks", file)), file).toBe(true);
+    expect(existsSync(join(result.project, ".claude/hooks/_shell.ts"))).toBe(false);
 
     const agents = readFileSync(join(result.project, "AGENTS.md"), "utf8");
     expect(agents).toContain("## Agent harness");
@@ -51,7 +52,7 @@ test.each(cases)(
     expect(agents).toContain("reads the rules covering the files it changes");
     expect(agents).toContain("../.claude/skills");
 
-    const guard = commands.find((command) => command.includes("guard-api-commands.ts"));
+    const guard = commands.find((command) => command.includes("guard-api-commands.sh"));
     expect(guard).toBeDefined();
     if (guard === undefined) throw new Error("Missing API guard");
     const recorded = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
@@ -90,7 +91,7 @@ test.each(["astro-fullstack", "typescript-api"])(
   async (stack) => {
     const result = await scaffoldAdapters({ home: space.temp(), stack, agents: ["codex"] });
     const command = guardCommands(result.project, "codex", "Bash").find((item) =>
-      item.includes("guard-api-commands.ts"),
+      item.includes("guard-api-commands.sh"),
     );
     if (command === undefined) throw new Error("Missing API guard");
     const malformed = spawnSync("/bin/sh", ["-c", command], {
@@ -103,10 +104,10 @@ test.each(["astro-fullstack", "typescript-api"])(
     expect(malformed.stdout).toBe("");
     expect(malformed.stderr.trim().split("\n")).toHaveLength(1);
     expect(malformed.stderr).toContain("allowing");
-    const script = join(result.project, ".claude/hooks/guard-api-commands.ts");
+    const script = join(result.project, ".claude/hooks/guard-api-commands.sh");
     for (const failure of ["missing", "failing"]) {
       if (failure === "missing") rmSync(script);
-      else writeFileSync(script, "throw new Error('probe');\n");
+      else writeFileSync(script, "#!/usr/bin/env bash\nexit 7\n");
       const run = runGuard({
         project: result.project,
         command,

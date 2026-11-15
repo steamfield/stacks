@@ -64,17 +64,6 @@ A publishable TypeScript package with no payload yet (`--payload none`). `src/in
 
 Link `docs/guidance/typescript-library/index.md` from AGENTS.md.
 
-<!-- stacks:when payload=example -->
-## Replacing the example
-
-`slugify` is a placeholder payload. `stacks new typescript-library <dir> --payload none` starts with an empty public API instead. When the person asks for a real library, delete `src/slugify.ts`, `src/options.ts`, `src/internal/words.ts` and their tests, and the slugify rows and single-file test command in README.md and the slugify rows in `tests/consumer/`. Keep the patterns and rewrite their contents for the new API: `src/errors.ts` (new codes and messages), `src/index.ts`, `tests/public-api.test.ts` (export list and type tests), `tests/boundaries.test.ts`, the `tests/consumer/` project, `src/README.md` and `src/internal/README.md`. Keep an options module only if the new API takes options.
-<!-- stacks:end -->
-<!-- stacks:when payload=none -->
-## Adding the API
-
-Build the first export the person asks for in `src/<feature>.ts` with tests beside it, export it by name from `src/index.ts`, and in the same change add it to `tests/public-api.test.ts` (the export list, `expectTypeOf` and a `@ts-expect-error` case), README.md's API section and both `tests/consumer/` files. Give `src/errors.ts` the codes and messages the API needs and export it once a public function can throw.
-<!-- stacks:end -->
-
 ## Layout
 
 - `src/<feature>.ts` for each public module, with `src/<feature>.test.ts` beside it; `src/internal/` for helpers `src/index.ts` never re-exports.
@@ -83,11 +72,21 @@ Build the first export the person asks for in `src/<feature>.ts` with tests besi
 
 ## Setup
 
-1. Choose the current Node LTS and record it in `.node-version`; record the Bun version in `packageManager`.
-2. Add the declared dev dependencies with the brief's `bun add -d` command, replacing `@types/node` with `@types/node@<chosen-major>`. The package has no runtime dependencies.
-3. Replace or keep the payload. Fill `description` in `package.json` and rename the package if needed, updating `tests/consumer/` imports. Keep its placeholder `0.x` version while the API settles.
-4. Run `stacks verify`. If an installed release rejects shipped code or config, update it from that release's docs or declarations without weakening checks, rules or assertions.
-5. Fill the README's remaining `stacks:fill` markers and AGENTS.md (a single-file test example, the public API rule, the guidance link). Use `bun run gate` while iterating; finish with `stacks verify --all` until green.
+1. Choose the current Node LTS for `.node-version` and Bun for `packageManager`, then run `bun add -d @types/node@<chosen-major>` if Start here installed newer Node types.
+2. If an installed release rejects shipped code or config, update it from that release's docs or declarations without weakening checks, rules or assertions.
+3. Fill `description` in `package.json` and rename the package if needed, updating `tests/consumer/` imports; keep its placeholder `0.x` version while the API settles.
+4. Fill AGENTS.md with the public API rule and guidance link.
+
+<!-- stacks:when payload=example -->
+## Replacing the example
+
+Once Start here's code checks are green with the chosen toolchain, replace `slugify` if the person asked for a real library. Delete `src/slugify.ts`, `src/options.ts`, `src/internal/words.ts` and their tests, the slugify rows and single-file test command in README.md, and the slugify rows in `tests/consumer/`. Keep the patterns and rewrite their contents for the new API: `src/errors.ts` (new codes and messages), `src/index.ts`, `tests/public-api.test.ts` (export list and type tests), `tests/boundaries.test.ts`, the `tests/consumer/` project, `src/README.md` and `src/internal/README.md`. Keep an options module only if the new API takes options.
+<!-- stacks:end -->
+<!-- stacks:when payload=none -->
+## Adding the API
+
+Once Start here's code checks are green with the chosen toolchain, build the first export in `src/<feature>.ts` with tests beside it, export it by name from `src/index.ts`, and add it to `tests/public-api.test.ts` (the export list, `expectTypeOf` and a `@ts-expect-error` case), README.md's API section and both `tests/consumer/` files. Give `src/errors.ts` the codes and messages the API needs and export it once a public function can throw.
+<!-- stacks:end -->
 
 ## Conventions
 
@@ -97,7 +96,7 @@ The shipped code keeps these; new code does too. `docs/guidance/typescript-libra
 - Every export has an explicit type; `isolatedDeclarations` fails tsc without one, and tsdown's declaration build depends on it. Write `export function parse(input: string): Result<Ast>` and `export const limits: Limits = {...}`, never an inferred return or value type. Exported generic factories are `function`s with a declared return type (the guidance's "Inference-heavy APIs" covers TS9013).
 - `erasableSyntaxOnly` rejects constructor parameter properties (`constructor(readonly pos: number)`), enums and namespaces. Declare the field and assign it in the constructor, as `LibraryError` does, and use a union of string literals instead of an enum.
 - Throw only `LibraryError` with a code, or a subclass carrying a typed payload; `field` names the argument or option, never its value. A new code adds a row to the README's error table.
-- Options are an interface of optional `readonly` fields, checked at runtime with frozen defaults; an unknown key is an `invalid_option` error.
+- When the API first takes options, add `invalid_option` to `src/errors.ts`; follow the guidance's options pattern.
 - `src/` imports no `node:*` or `bun`, reads no `process` and never logs. The Grit plugin fails lint on a break.
 - A dependency the build imports goes in `dependencies` (or `peerDependencies`), and so does a `@types/*` package a public type refers to. Adding one is the person's decision.
 - Ask the user before publishing, bumping versions, creating release tags or changing dist-tags.
@@ -112,7 +111,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/errors.test.ts`. `bun pm pack --dry-run` lists what would ship.
+Mirror `package.json`'s commands in AGENTS.md, including `bun run test src/errors.test.ts`, `bun run gate` after each change and `stacks verify --all` for done. Before publishing or handing over, `bun run check` runs coverage and the package checks `gate` skips. `bun pm pack --dry-run` lists what would ship.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer.

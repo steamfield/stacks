@@ -1,3 +1,8 @@
+/**
+ * Defines and validates slugify options, filling omitted fields from frozen defaults.
+ * The public slug functions use this module to give JavaScript callers the same input checks.
+ */
+
 import { LibraryError } from "./errors.ts";
 
 /** What a caller may pass. Every field is optional; `resolveOptions` fills the defaults. */

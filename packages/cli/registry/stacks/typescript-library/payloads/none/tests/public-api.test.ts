@@ -1,7 +1,9 @@
-// Pins the public API: the names src/index.ts exports at runtime. A change here is a release
-// decision (a new export is minor, a removed or renamed one is major), so update README.md's API
-// section in the same change. Add type tests (expectTypeOf, and a @ts-expect-error case for what
-// callers must not pass) with the first export; `bun run typecheck` checks them.
+/**
+ * Pins the empty public entry so new exports require an explicit API and release decision.
+ * With the first export, add signature and negative type cases alongside README.md API updates;
+ * bun run typecheck checks those types.
+ */
+
 import { expect, test } from "vitest";
 import * as api from "../src/index.ts";
 

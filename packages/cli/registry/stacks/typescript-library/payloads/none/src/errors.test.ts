@@ -1,3 +1,8 @@
+/**
+ * Checks the base error contract before the library gains its first public API.
+ * These unit tests pin error context and recognition across installed copies.
+ */
+
 import { expect, test } from "vitest";
 import { isLibraryError, LibraryError } from "./errors.ts";
 

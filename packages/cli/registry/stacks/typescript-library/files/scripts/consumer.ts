@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
-// `bun run test:consumer`: proves the package the way npm would ship it. Packs it (prepack builds
-// dist/ first), installs the tarball into a temporary copy of tests/consumer/, then typechecks the
-// fixture against the installed declarations and runs it with Node. Tests that import src/ can't
-// catch a wrong "exports" map, a missing file or declarations that don't match the build.
+/**
+ * Proves the published package by packing it, installing it into a temporary consumer, and
+ * typechecking and running the fixtures on Node. This catches packaging and declaration
+ * failures that tests importing src/ cannot see.
+ */
+
 import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -1,4 +1,9 @@
 /**
+ * Defines the library's intentional failures and recognizes them across installed copies.
+ * Public functions use these codes and fixed messages so callers can handle failures consistently.
+ */
+
+/**
  * Why a call failed. Each code is public API: callers branch on it, so renaming or removing one
  * is a breaking change, and adding one is a minor release.
  */

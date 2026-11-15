@@ -1,6 +1,11 @@
 /**
- * The fixed text `create` writes for a new skeleton entry, and the question it asks before
- * copying an untrusted one.
+ * The fixed text `stacks create` writes for a new skeleton entry (the stack or fragment Markdown
+ * file and a stack's starter files), and the question it asks before copying an untrusted entry.
+ *
+ * `core/create.ts` uses these after it has checked the id, so the id is safe to place in the
+ * frontmatter. The skeleton leaves `stacks:fill` markers for the author to replace; the submission
+ * checks in `validate/submission.ts` flag any left before an entry is submitted. The text lives
+ * apart from `create.ts` so the long templates don't bury the logic.
  */
 import type { Category, Kind } from "@steamfield/stacks-format";
 

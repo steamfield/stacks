@@ -1,7 +1,20 @@
 /**
- * The handoff flow `new` and `add` share: the project flags, deciding where the project goes once
- * composition knows its trust, printing the result, and asking a person or launching an agent.
- * The decision rules themselves live in `core/handoff.ts::decideHandoff`.
+ * After `stacks new` or `stacks add` writes a project, this module prints the result and hands the
+ * project to a coding agent: it launches one, asks a person which to launch, or prints the prompt
+ * to give one.
+ *
+ * The handoff runs in two halves. Before anything is written, `prepareHandoff` checks the
+ * `--launch`, `--no-launch` and `--json` flags, looks up which agent harnesses are installed and
+ * returns a function that decides once composition knows which entries are untrusted. The manifest
+ * records that decision, so it has to exist before the writer runs. After the write,
+ * `completeHandoff` prints the summary, runs the picker for a `choose` decision, and starts the
+ * agent through `Processes.interactive` (a terminal CLI, whose exit status becomes the command's)
+ * or `Processes.exec` (the Codex app on macOS). When the outcome differs from what the manifest
+ * recorded (a person picked, or a launch failed) it rewrites the manifest's handoff record.
+ *
+ * The rules for which outcome wins live in `core/handoff.ts::decideHandoff`, which enforces Trust
+ * model points 3 and 4: an untrusted entry never launches an agent, and nothing launches or asks
+ * without a person at a terminal. `projectFlags` holds the flags both commands share.
  */
 import { AgentId, Harness } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Schema, Terminal } from "effect";

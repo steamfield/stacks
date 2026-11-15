@@ -1,4 +1,12 @@
-/** Infers the project name `add` uses for templates when the manifest doesn't record one. */
+/**
+ * Guesses a project's name for `stacks add` when its manifest doesn't record one, so fragment
+ * templates that use `{{name}}` render sensibly.
+ *
+ * `add/prepare.ts` calls `inferName` only for a project without a recorded name (one `stacks new`
+ * didn't create, or an older manifest). The name comes from `package.json`, `pyproject.toml`,
+ * `go.mod` or `Cargo.toml`, in that order, and otherwise from the directory name. These files are
+ * parsed as data and never run (Trust model point 1).
+ */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { parse } from "smol-toml";
 import { slug } from "../slug";

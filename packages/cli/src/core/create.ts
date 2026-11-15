@@ -1,6 +1,18 @@
 /**
- * `create`: writes a new personal entry into the user registry, either the fixed skeleton or an
- * exact copy of an existing entry, never executing anything from an entry (trust point 1).
+ * When someone runs `stacks create stack|fragment <id>`, this module writes a new entry for them
+ * to edit into their user registry.
+ *
+ * An entry is a stack (a recipe for a whole project) or a fragment (a reusable addition). The user
+ * registry is the personal folder of entries the CLI reads after a project's own and before the
+ * bundled ones; entries there are trusted. `commands/create.ts` calls `createEntry`, which either
+ * writes a fixed skeleton (`create-text.ts`) or copies an existing entry exactly with `--from`.
+ * Every file is read before the first write, and the write goes through
+ * `scaffold/write.ts::openProject` in exclusive mode, so an existing target is refused and a
+ * failure leaves nothing behind.
+ *
+ * Copying turns an entry into a trusted one, so an untrusted source (a project entry, say) needs a
+ * person at a terminal to read its full report and say yes (Trust model points 3 and 4); under an
+ * agent or without a terminal the copy is refused. Nothing in an entry runs (point 1).
  */
 import type { Category, Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Schema, Terminal } from "effect";

@@ -1,4 +1,16 @@
-/** Applies a planned `add` to the project through the transactional writer. */
+/**
+ * Writes a planned `stacks add` into the project as one all-or-nothing transaction.
+ *
+ * `core/add.ts` calls `applyAdd` with the plan from `add/plan.ts`, the merged manifest and the
+ * rendered brief. Every write goes through `scaffold/write.ts::openProject`, which never
+ * overwrites a file it didn't create unless asked to `rewrite` one, and rolls back everything on a
+ * failure or Ctrl+C. The order matters: entry files and parked copies first, then the rest of
+ * `.stacks/` and the brief, then the state record (the per-project file outside the project
+ * holding verify digests), and the manifest last, the same order `stacks new` uses.
+ * `.stacks/.gitignore` and `NOTES.md` are created only when missing; after that they belong to the
+ * project. A path the writer refuses because something is already there fails as
+ * `PermissionDenied` naming that path.
+ */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 import { PermissionDenied } from "../../errors";

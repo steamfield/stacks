@@ -1,7 +1,20 @@
 /**
- * What `new` and `add` do with a written project: the pure handoff decision, the agent launchers
- * it can pick from, the manifest's `handoff` record and the printed text for every outcome that
- * isn't a launch.
+ * Decides who works on a project once `stacks new` or `stacks add` has written it, and writes the
+ * text that tells them how to start.
+ *
+ * The handoff is the step that launches a coding agent on the project or points one at it. There
+ * are four outcomes: `inside-agent` (the CLI is already running under an agent, so it tells that
+ * agent to read the brief), `launch` (start an agent CLI, or the Codex app, with the prompt),
+ * `choose` (several agents are installed, so ask a person) and `print` (show the prompt for the
+ * user to paste). `decideHandoff` is pure: it takes facts as values and the first matching rule
+ * wins, so rule order is behavior.
+ *
+ * `commands/handoff.ts` gathers those facts, calls `decideHandoff`, and carries out the result;
+ * `core/add.ts` and `scaffold/new.ts` store `handoffRecord` in the manifest. The rules enforce
+ * Trust model point 3 (an untrusted entry never reaches `launch` or `choose`) and point 4
+ * (nothing launches or asks without a person at a terminal). The CLI starts only the fixed
+ * launchers in `LAUNCH_ARGS`, never a program named by an entry (point 1). Start at
+ * `decideHandoff`.
  */
 import type { AgentId, DetectedAgent, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../project-layout";

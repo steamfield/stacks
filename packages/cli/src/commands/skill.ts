@@ -1,3 +1,11 @@
+/**
+ * The `skill install` command: copies one of the agent skills bundled with the CLI (`stacks` or
+ * `stacks-author`) into a Claude Code skills directory, or prints its `SKILL.md` with `--print`.
+ *
+ * A skill is a folder of instructions a coding agent loads on its own. `core/skill.ts::installSkill`
+ * does the comparing and writing; this file checks the skill name and renders one line about what
+ * happened. `skill` itself has no handler, so `stacks skill` alone shows its help.
+ */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { shownPath } from "../core/shown-path";
@@ -7,7 +15,7 @@ import { printable } from "../core/text";
 import { Usage } from "../errors";
 import { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";
-import { Output } from "../services/output";
+import { type Audience, Output } from "../services/output";
 
 const isSkillName = Schema.is(SkillName);
 
@@ -27,12 +35,26 @@ const selectedName = (name: Option.Option<string>) =>
     });
   });
 
+/** The install target as text shows it: relative to the cwd for an agent, absolute otherwise. */
+const shownTarget = (result: SkillResult, audience: Audience) =>
+  Effect.gen(function* () {
+    if (result.path && audience === "agent")
+      return yield* shownPath((yield* Host).cwd, result.path);
+    return result.path ?? "";
+  });
+
 /** One line naming the installed SKILL.md, with the file count when the skill has several. */
 const installedLine = (result: SkillResult, shown: string) => {
   const verb = result.action === "written" ? "Installed" : "Unchanged";
   const count = result.files.length > 1 ? ` (${result.files.length} files)` : "";
   return `${verb}: ${printable(shown)}${count}`;
 };
+
+/** `--print` shows the skill text; an install shows where it went. */
+const renderSkill = (result: SkillResult, shown: string) =>
+  result.action === "printed"
+    ? (result.text ?? "").replace(/\n$/, "")
+    : installedLine(result, shown);
 
 const install = Command.make(
   "install",
@@ -61,17 +83,9 @@ const install = Command.make(
   ({ name, ...flags }) =>
     Effect.gen(function* () {
       const result = yield* installSkill({ name: yield* selectedName(name), ...flags });
-      const host = yield* Host;
       const output = yield* Output;
-      let shown = result.path ?? "";
-      if (result.path && output.audience === "agent")
-        shown = yield* shownPath(host.cwd, result.path);
-      yield* output.result(
-        Schema.encodeSync(SkillResult)(result),
-        result.action === "printed"
-          ? (result.text ?? "").replace(/\n$/, "")
-          : installedLine(result, shown),
-      );
+      const shown = yield* shownTarget(result, output.audience);
+      yield* output.result(Schema.encodeSync(SkillResult)(result), renderSkill(result, shown));
     }),
 ).pipe(
   Command.withDescription(

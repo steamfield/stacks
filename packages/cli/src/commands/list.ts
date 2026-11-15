@@ -1,3 +1,19 @@
+/**
+ * The `list` command: shows the stacks, fragments and apps a user can build from, with where each
+ * came from (its origin) and whether it is trusted.
+ *
+ * Inside a project (a directory holding `.stacks/manifest.json`), the default view changes to the
+ * fragments that project can still add. Otherwise it is the whole catalog, optionally narrowed to
+ * one group. The `--json` result is the same in both cases, with a `project` field added inside a
+ * project.
+ *
+ * The steps, in order: refresh the signed dependency allowlist (best effort), read the project's
+ * manifest if there is one, load every registry root with the project root pointed at `--dir`,
+ * read the bundled run ledger and the published stats, then render. `core/list.ts` builds the rows
+ * and the addable set; `core/list-report.ts` writes the text. A manifest that can't be read or
+ * decoded is a warning, not a failure: the full catalog is still useful.
+ */
+import type { AuthorsFile, Manifest } from "@steamfield/stacks-format";
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
@@ -5,7 +21,7 @@ import { readLedger } from "../core/ledger";
 import { type Group, groups, listResult, projectChoices, toRow, withStats } from "../core/list";
 import { renderAddable, renderList } from "../core/list-report";
 import { MANIFEST_PATH, readManifest } from "../core/manifest";
-import { type Entry, isRejected } from "../core/registry/entry";
+import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
 import { Registry, remoteRoots } from "../core/registry/registry";
 import { shellArg } from "../core/shell";
 import { shownPath } from "../core/shown-path";
@@ -15,12 +31,94 @@ import { printable } from "../core/text";
 import { textWidth } from "../core/wrap";
 import { Usage } from "../errors";
 import { METADATA_DIR } from "../project-layout";
+import type { LedgerRecord } from "../schemas/ledger";
 import { ListResult } from "../schemas/list";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 
 const isGroup = (value: string): value is Group =>
   (groups as ReadonlyArray<string>).includes(value);
+
+/** The group argument checked against the known groups; `undefined` means all of them. */
+const selectedGroup = (group: Option.Option<string>) =>
+  Effect.gen(function* () {
+    const typed = Option.getOrUndefined(group);
+    if (typed !== undefined && !isGroup(typed))
+      return yield* new Usage({ details: { command: typed, suggestions: closest(typed, groups) } });
+    return typed;
+  });
+
+/**
+ * The project's manifest, or `undefined` outside a project. An unreadable or invalid manifest
+ * prints a warning and lists the full registry instead of failing.
+ */
+const readProjectManifest = (manifestFile: string) =>
+  Effect.gen(function* () {
+    const output = yield* Output;
+    const fallBack = (warning: string) => output.note(warning).pipe(Effect.as(undefined));
+    return yield* readManifest(manifestFile).pipe(
+      Effect.catchTag("NotFound", () => Effect.succeed(undefined)),
+      Effect.catchTags({
+        InvalidConfig: () =>
+          fallBack(
+            `Warning: invalid manifest or schema version at ${printable(manifestFile)}; using the full registry.`,
+          ),
+        PermissionDenied: () =>
+          fallBack(
+            `Warning: unreadable manifest at ${printable(manifestFile)}; using the full registry.`,
+          ),
+      }),
+    );
+  });
+
+/** The usual registry roots, with the project root moved to `--dir`'s `.stacks/`. */
+const rootsFor = (projectRoot: string) =>
+  Effect.gen(function* () {
+    const path = yield* Path.Path;
+    return (yield* remoteRoots).map((entry) =>
+      entry.origin === "project" ? { ...entry, path: path.join(projectRoot, METADATA_DIR) } : entry,
+    );
+  });
+
+/** The bundled run ledger, read from the bundled root; absent when there is no bundled root. */
+const bundledLedger = (roots: Effect.Success<typeof remoteRoots>) => {
+  const bundled = roots.find((root) => root.origin === "bundled");
+  return bundled ? readLedger(bundled.path) : Effect.succeed(undefined);
+};
+
+/** Every entry, rejected ones included, and the bundled `authors.json`, from these roots. */
+const loadRegistry = (roots: Effect.Success<typeof remoteRoots>) =>
+  Registry.pipe(
+    Effect.flatMap((registry) => Effect.all({ items: registry.all, authors: registry.authors })),
+    Effect.provide(Registry.layer(roots)),
+  );
+
+/** One row per usable entry, whatever the group, for the addable view and the catalog's counts. */
+const allRows = (
+  items: ReadonlyArray<Entry | RejectedEntry>,
+  records: ReadonlyArray<LedgerRecord>,
+  authors: AuthorsFile,
+) =>
+  items
+    .filter((item): item is Entry => !isRejected(item))
+    .map((entry) => toRow(entry, records, authors));
+
+/** Rejected rows with their directories as text shows them: relative for an agent. */
+const shownRejected = (rejected: ListResult["rejected"], agent: boolean) =>
+  Effect.gen(function* () {
+    if (!agent) return rejected;
+    const { cwd } = yield* Host;
+    return yield* Effect.forEach(rejected, (entry) =>
+      Effect.map(shownPath(cwd, entry.dir), (dir) => ({ ...entry, dir })),
+    );
+  });
+
+/** ` --dir <path>` for the hints the addable view prints, or nothing without `--dir`. */
+const dirFlagText = (dir: Option.Option<string>) =>
+  Option.match(dir, {
+    onNone: () => "",
+    onSome: (selected) => ` --dir ${printable(shellArg(selected))}`,
+  });
 
 export const listCommand = Command.make(
   "list",
@@ -42,72 +140,36 @@ export const listCommand = Command.make(
       yield* (yield* Allowlist).refresh;
       const host = yield* Host;
       const path = yield* Path.Path;
+      const output = yield* Output;
       const projectRoot = path.resolve(
         host.cwd,
         Option.getOrElse(dir, () => "."),
       );
-      const output = yield* Output;
-      const manifestFile = path.join(projectRoot, MANIFEST_PATH);
-      const manifest = yield* readManifest(manifestFile).pipe(
-        Effect.catchTag("NotFound", () => Effect.succeed(undefined)),
-        Effect.catchTags({
-          InvalidConfig: () =>
-            output
-              .note(
-                `Warning: invalid manifest or schema version at ${printable(manifestFile)}; using the full registry.`,
-              )
-              .pipe(Effect.as(undefined)),
-          PermissionDenied: () =>
-            output
-              .note(
-                `Warning: unreadable manifest at ${printable(manifestFile)}; using the full registry.`,
-              )
-              .pipe(Effect.as(undefined)),
-        }),
+      const manifest: Manifest | undefined = yield* readProjectManifest(
+        path.join(projectRoot, MANIFEST_PATH),
       );
-      const roots = (yield* remoteRoots).map((entry) =>
-        entry.origin === "project"
-          ? { ...entry, path: path.join(projectRoot, METADATA_DIR) }
-          : entry,
-      );
-      const bundled = roots.find((root) => root.origin === "bundled");
-      const ledger = bundled ? yield* readLedger(bundled.path) : undefined;
+      const roots = yield* rootsFor(projectRoot);
+      const ledger = yield* bundledLedger(roots);
       const records = ledger?.records ?? [];
-      const { items, authors } = yield* Registry.pipe(
-        Effect.flatMap((registry) =>
-          Effect.all({ items: registry.all, authors: registry.authors }),
-        ),
-        Effect.provide(Registry.layer(roots)),
-      );
+      const { items, authors } = yield* loadRegistry(roots);
       const summary = Option.getOrUndefined(yield* (yield* Stats).summary);
+
       const plain = listResult(items, typed, records, authors);
       const result = { ...plain, entries: withStats(plain.entries, summary) };
-      const all = withStats(
-        items
-          .filter((item): item is Entry => !isRejected(item))
-          .map((entry) => toRow(entry, records, authors)),
-        summary,
-      );
+      const all = withStats(allRows(items, records, authors), summary);
       const { project, addable } = projectChoices(all, manifest);
       const agent = output.audience === "agent";
       // A human's descriptions wrap to the terminal; an agent's stay on one line each.
       const width = textWidth(!agent, host.columns);
-      const rejected = agent
-        ? yield* Effect.forEach(result.rejected, (entry) =>
-            Effect.map(shownPath(host.cwd, entry.dir), (dir) => ({ ...entry, dir })),
-          )
-        : result.rejected;
-      const selectedDir = Option.getOrUndefined(dir);
-      const dirFlag = selectedDir === undefined ? "" : ` --dir ${printable(shellArg(selectedDir))}`;
-      yield* output.result(
-        Schema.encodeSync(ListResult)({ ...result, ...(project ? { project } : {}) }),
+      const rejected = yield* shownRejected(result.rejected, agent);
+      const text =
         manifest && typed === undefined
           ? renderAddable({
               addable,
               rejected,
               width,
               invocation: host.invocation,
-              dirFlag,
+              dirFlag: dirFlagText(dir),
               measure: host.stringWidth,
               style: output.style,
             })
@@ -118,7 +180,10 @@ export const listCommand = Command.make(
               ledgerPresent: ledger?.present ?? false,
               measure: host.stringWidth,
               style: output.style,
-            }),
+            });
+      yield* output.result(
+        Schema.encodeSync(ListResult)({ ...result, ...(project ? { project } : {}) }),
+        text,
       );
     }),
 ).pipe(
@@ -138,11 +203,3 @@ export const listCommand = Command.make(
     },
   ]),
 );
-
-const selectedGroup = (group: Option.Option<string>) =>
-  Effect.gen(function* () {
-    const typed = Option.getOrUndefined(group);
-    if (typed !== undefined && !isGroup(typed))
-      return yield* new Usage({ details: { command: typed, suggestions: closest(typed, groups) } });
-    return typed;
-  });

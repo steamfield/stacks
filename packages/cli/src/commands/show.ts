@@ -1,3 +1,12 @@
+/**
+ * The `show` command: prints everything about one stack or fragment (its guidance, the files it
+ * ships, its verify commands and its last recorded run) so a user or agent can review it before
+ * building from it. It only reads; nothing is run.
+ *
+ * `core/show.ts::showReport` builds the report and `core/show-report.ts::renderShow` writes the
+ * text. Before that, the signed dependency allowlist is refreshed (a best-effort network read), and
+ * afterwards telemetry records which entry was viewed.
+ */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
@@ -26,18 +35,16 @@ export const showCommand = Command.make(
       const host = yield* Host;
       const report = yield* showReport(id, Option.getOrUndefined(kind));
       yield* (yield* Telemetry).recordShow(report);
+      // Only agent text shortens the path; JSON keeps it absolute.
       const path =
         output.audience === "agent" ? yield* shownPath(host.cwd, report.path) : report.path;
+      const terminal =
+        output.audience === "human"
+          ? { width: textWidth(true, host.columns), measure: host.stringWidth }
+          : undefined;
       yield* output.result(
         Schema.encodeSync(ShowReport)(report),
-        renderShow(
-          { ...report, path },
-          host.invocation,
-          output.audience === "human"
-            ? { width: textWidth(true, host.columns), measure: host.stringWidth }
-            : undefined,
-          output.style,
-        ),
+        renderShow({ ...report, path }, host.invocation, terminal, output.style),
       );
     }),
 ).pipe(

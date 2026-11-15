@@ -1,3 +1,11 @@
+/**
+ * The `schema` command: prints the JSON Schema of any `--json` result, the error envelope or
+ * verify's live events, so an agent can validate what it parses without reading the source.
+ *
+ * The schemas and their names come from `core/result-schemas.ts::RESULT_SCHEMAS`. With no name the
+ * command lists them; an unknown name fails as `Usage` with did-you-mean suggestions. The printed
+ * document is JSON in every audience.
+ */
 import { Effect, Option } from "effect";
 import { Argument, Command } from "effect/cli";
 import { jsonSchema, RESULT_NAMES, RESULT_SCHEMAS, type ResultName } from "../core/result-schemas";
@@ -8,6 +16,7 @@ import { Output } from "../services/output";
 const isResultName = (value: string): value is ResultName =>
   (RESULT_NAMES as ReadonlyArray<string>).includes(value);
 
+/** The name argument checked against the known names; `undefined` means list them. */
 const selectedName = (name: Option.Option<string>) =>
   Effect.gen(function* () {
     const typed = Option.getOrUndefined(name);

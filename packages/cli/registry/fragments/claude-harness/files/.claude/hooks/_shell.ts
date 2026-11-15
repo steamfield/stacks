@@ -911,7 +911,7 @@ function follow(cmd: Command, walk: Walk): void {
     remote: cmd.remote,
     dir: cmd.dir,
     viaXargs: cmd.viaXargs,
-    background: cmd.background,
+    ...(cmd.background ? { background: true } : {}),
   };
   const deeper: Walk = { ...walk, depth: walk.depth + 1 };
   const sub = (from: number, extra: Partial<Command>) => {

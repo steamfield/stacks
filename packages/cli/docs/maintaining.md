@@ -209,6 +209,6 @@ The marketplace lists the plugin with a `git-subdir` source: this repository, th
    claude --plugin-dir ./plugin
    ```
 
-2. `bun run release` refuses to tag unless the marketplace pins the tag it is about to create. Once the tag is pushed, `claude plugin marketplace add steamfield/stacks` and `claude plugin install stacks@stacks` in a scratch session should install the released plugin.
+2. `bun run release X.Y.Z` sets the marketplace `ref` and the plugin's `version` itself, and the gate fails when either disagrees with `package.json`, so the tag workflow never publishes a mismatched plugin. Once the tag is pushed, `claude plugin marketplace add steamfield/stacks` and `claude plugin install stacks@stacks` in a scratch session should install the released plugin.
 
-Between pushing the release commit and pushing its tag, the marketplace names a tag that doesn't exist yet, and an install in that window fails. Run the release right after the commit lands.
+Between pushing the release commit and pushing its tag, the marketplace names a tag that doesn't exist yet, and an install in that window fails. Push the tag right after the commit lands.

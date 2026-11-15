@@ -18,6 +18,7 @@ try {
     version: metadata.version,
     type: metadata.type,
     license: metadata.license,
+    repository: metadata.repository,
     exports: { ".": { types: "./dist/index.d.ts", default: "./dist/index.js" } },
     files: metadata.files,
     dependencies: { effect: workspaces.catalog.effect },

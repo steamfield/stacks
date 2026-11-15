@@ -4,6 +4,18 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-15
+
+### Added
+
+- `npm-release`, an optional fragment for `typescript-library`: it publishes the package to npm when a `v*` tag is pushed, through npm trusted publishing with provenance and no stored token. It ships a rerunnable publish helper that waits for the registry, a version-bump script, a changelog template and tests that run the workflow's own publish step against a fake `npm`.
+
+### Fixed
+
+- Running a command from a directory that has been removed fails with `NotFound` (exit 2) and a next step, instead of a raw Node stack trace.
+- Help text matches what the commands do: `create --from` names `index` and says why `user` is refused, the `create`, `skill` and `telemetry` groups say what they are for, and `--offline` reads true on every command.
+- `agent-ops` states correctly why `CLAUDE.md` imports `AGENTS.md`.
+
 ## [0.9.0] - 2026-11-14
 
 ### Added

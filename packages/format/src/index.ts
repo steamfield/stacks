@@ -23,6 +23,12 @@ export {
 } from "./entry.js";
 export { INDEX_PUBLIC_KEYS } from "./index-keys.js";
 export { Digest, IndexEntry, LastRun, RegistryIndex, SignedIndex } from "./index-schema.js";
+export {
+  outputPath,
+  type Shipped,
+  type ShippedCondition,
+  shippedPath,
+} from "./layout.js";
 export { EntryRef, Manifest, ManifestStep, ProjectId } from "./manifest.js";
 export { NamedComposition, OfficialNames } from "./names.js";
 export { FailureKind, Outcome, RunRecord, RunStep, TamperCheck } from "./run-record.js";

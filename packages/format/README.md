@@ -10,72 +10,35 @@ published build from npm.
 
 ## Publishing
 
-Maintainers with publish rights on the `@steamfield` npm organization publish by hand. Run
-every command from the repository root unless it says otherwise.
+CI publishes. A pushed `v<cli version>` tag runs `.github/workflows/release.yml`, which publishes
+this package, then `@steamfield/stacks`, then `@steamfield/stacks-mcp` (it pins the CLI's exact
+version) with provenance, through npm trusted publishing. AGENTS.md, "Releasing", has the whole
+flow; this section covers what is specific to this package.
 
-`bun run release` does steps 3 to 6 for this package, then `@steamfield/stacks`, then
-`@steamfield/stacks-mcp`, once the version commit is on `main`. It refuses a dirty tree, a HEAD
-other than `origin/main`, or an existing tag. It packs all three packages in a temporary detached
-worktree of `origin/main`, publishes them in that order (the MCP server pins the CLI's exact
-version), waits up to 10 minutes for the registry to serve each version, then tags
-`v<cli version>` and pushes the tag. To publish format alone first so the hosted API can use it,
-run `bun run release:format`: the same checks, pack and publish for this package only, with no
-tag (the CLI tag checks are skipped too). A later `release` skips that exact version when the
-published tarball integrity matches its fresh pack; a mismatch or lookup failure stops the
-release. `bun run release:dry-run` packs all three and shows which it would skip or publish,
-including the CLI's embedded telemetry endpoint, without logging in, publishing or tagging
-(`bun run release:format -- --dry-run` does the same for format alone). The steps below are what
-it runs.
-
-1. Log in once per machine, and check the account:
-
-   ```bash
-   npm login
-   npm whoami
-   ```
-
-2. Choose the version. Bump `version` in `packages/format/package.json` on its own commit:
+1. Choose the version. Bump `version` in `packages/format/package.json` on its own commit:
    patch for a fix, minor for an addition (a new export, a new optional field), major for a
-   change that rejects data the previous version accepted or removes an export. The first
-   release publishes the version already in the file.
+   change that rejects data the previous version accepted or removes an export. A release whose
+   format version is already on npm with the same bytes skips it.
 
-   With every CLI version bump, bump the patch version in `packages/mcp/package.json` too:
-   the MCP package pins the CLI's exact version, so its published version must change with it.
+   `bun run release X.Y.Z` bumps the patch version in `packages/mcp/package.json` with the CLI
+   version, because the MCP package pins the CLI's exact version.
 
-3. Run the gate on that commit (`rr check`, or `bun run check` without rr) and push it to `main`.
-   Pack and publish from a checkout of exactly that commit
-   (`git worktree add --detach <dir> origin/main`, then `bun install --frozen-lockfile` there),
-   not from whatever the main checkout has: a checkout behind `main` packs the old name or
-   version.
+2. To publish format alone first, so the hosted API can use it, start the Release workflow from
+   `main` in the Actions tab (or `gh workflow run release.yml --ref main`). A manual run packs and
+   publishes this package only and tags nothing; a later tag run skips this exact version.
 
-4. Pack, then look at what will ship:
+3. Check the registry and a clean install:
 
    ```bash
-   cd packages/format
-   bun run pack
-   tar -tzf dist/pack/steamfield-stacks-format-<version>.tgz
-   tar -xOzf dist/pack/steamfield-stacks-format-<version>.tgz package/package.json
-   ```
-
-   The listing holds `dist/*.js`, `dist/*.d.ts`, `schemas/`, `LICENSE` and `package.json`, and
-   the manifest's `exports` points at `dist/`. `bun run pack` builds first and stages only the
-   published interface, which is why you publish the tarball: the directory's own
-   `package.json` points `exports` at `src/` for the workspace.
-
-5. Publish the tarball (`--access public` is required on a scoped package's first publish and
-   harmless after it):
-
-   ```bash
-   npm publish dist/pack/steamfield-stacks-format-<version>.tgz --access public
-   ```
-
-6. Check the registry and a clean install:
-
-   ```bash
-   npm view @steamfield/stacks-format version
+   npm view @steamfield/stacks-format version dist.integrity
    cd "$(mktemp -d)" && npm init -y >/dev/null && npm install @steamfield/stacks-format
    node --input-type=module -e "import('@steamfield/stacks-format').then((m) => console.log(Object.keys(m).length, 'exports'))"
    ```
+
+`bun run pack` in this directory builds and stages only the published interface (`dist/*.js`,
+`dist/*.d.ts`, `schemas/`, `LICENSE` and a `package.json` whose `exports` points at `dist/`), which
+is why CI publishes the tarball and not the directory. Provenance needs the `repository` field
+that pack copies from `package.json`.
 
 A published version can't be replaced. If one is wrong, publish a fixed patch version and
 deprecate the bad one with `npm deprecate @steamfield/stacks-format@<version> "<reason>"`.

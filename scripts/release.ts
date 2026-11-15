@@ -1,210 +1,215 @@
-// Publishes @steamfield/stacks-format, @steamfield/stacks, then @steamfield/stacks-mcp at their
-// package.json files, from a clean detached worktree of origin/main, then tags v<cli version>.
-// A person runs it (`bun run release`, or `bun run release -- --dry-run` to pack and check
-// without publishing or tagging); packages/format/README.md, "Publishing", has the steps it wraps.
-// `--format-only` (`bun run release:format`) publishes only the format package, with no tag: the
-// published CLI pins its format version exactly, so a new format version reaches no installed CLI.
+#!/usr/bin/env bun
+// `bun run release <x.y.z>` prepares a release: it rewrites every place the CLI's version lives so a
+// bump can't miss one, moves the MCP server (which pins the CLI's exact version) up one patch,
+// regenerates the brief digests the version changes, and updates bun.lock. It never commits, tags
+// or pushes. A pushed `v<x.y.z>` tag runs .github/workflows/release.yml, which publishes; an agent
+// never publishes. packages/format/README.md, "Publishing", has the whole flow.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const PACKAGES = ["format", "cli", "mcp"] as const;
-const FLAGS = ["--dry-run", "--format-only"];
-const dryRun = process.argv.includes("--dry-run");
-const formatOnly = process.argv.includes("--format-only");
 const root = join(import.meta.dirname, "..");
+process.chdir(root);
+
+const CHANGELOG = "packages/cli/CHANGELOG.md";
+const DIGESTS = "packages/cli/tests/fixtures/bundled-brief-digests.ts";
+const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 class ReleaseFailed extends Error {}
 
-/** Stops the release; thrown rather than exiting so the worktree's `finally` still runs. */
 function fail(message: string): never {
   throw new ReleaseFailed(message);
 }
 
-/** Runs a command with the terminal attached and stops the release when it fails. */
-function run(command: string, args: ReadonlyArray<string>, cwd = root, env = process.env) {
-  console.error(`$ ${[command, ...args].join(" ")}`);
-  const result = spawnSync(command, args, { cwd, env, stdio: "inherit" });
+/** A command's stdout exactly as printed; `--porcelain` lines start with a significant space. */
+function capture(command: string, args: readonly string[]): string {
+  const result = spawnSync(command, [...args], { encoding: "utf8" });
   if (result.status !== 0)
-    fail(`${command} ${args[0] ?? ""} exited ${result.status ?? "on a signal"}`);
+    fail(`${command} ${args.join(" ")} failed:\n${(result.stderr ?? "").trim()}`);
+  return result.stdout ?? "";
 }
 
-/** Runs a command quietly and returns its exit status and trimmed stdout. */
-function read(command: string, args: ReadonlyArray<string>) {
-  const result = spawnSync(command, args, { cwd: root, encoding: "utf8" });
-  return {
-    status: result.status,
-    stdout: (result.stdout ?? "").trim(),
-    stderr: (result.stderr ?? "").trim(),
-  };
+function run(command: string, args: readonly string[]): string {
+  return capture(command, args).trim();
 }
 
-function manifest(dir: (typeof PACKAGES)[number]) {
-  const parsed = JSON.parse(
-    readFileSync(join(root, "packages", dir, "package.json"), "utf8"),
-  ) as unknown;
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    !("name" in parsed) ||
-    !("version" in parsed) ||
-    typeof parsed.name !== "string" ||
-    typeof parsed.version !== "string"
-  )
-    fail(`packages/${dir}/package.json has no name or version`);
-  const tarball = `dist/pack/${parsed.name.replace(/^@/, "").replace("/", "-")}-${parsed.version}.tgz`;
-  return { dir, name: parsed.name, version: parsed.version, tarball };
+function parse(version: string): [number, number, number] {
+  const match = SEMVER.exec(version);
+  if (!match) return fail(`"${version}" is not a major.minor.patch version`);
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
-const packages = formatOnly ? [manifest("format")] : PACKAGES.map(manifest);
-/** The CLI release's tag; a format-only release creates none. */
-const tag = formatOnly ? undefined : `v${manifest("cli").version}`;
-
-/**
- * The tag the Claude Code marketplace pins the plugin to. Users read marketplace.json from the
- * default branch and install the plugin from this tag, so the release commit sets it to the tag
- * this run creates; the CLI's native-agent-plugin test keeps it equal to package.json.
- */
-function marketplaceRef() {
-  const parsed = JSON.parse(
-    readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"),
-  ) as unknown;
-  const plugins =
-    typeof parsed === "object" && parsed !== null && "plugins" in parsed ? parsed.plugins : [];
-  const entry: unknown = Array.isArray(plugins) ? plugins[0] : undefined;
-  const source =
-    typeof entry === "object" && entry !== null && "source" in entry ? entry.source : undefined;
-  return typeof source === "object" && source !== null && "ref" in source ? source.ref : undefined;
+function isNewer(next: string, previous: string): boolean {
+  const a = parse(next);
+  const b = parse(previous);
+  const at = a.findIndex((part, index) => part !== b[index]);
+  return at !== -1 && (a[at] ?? 0) > (b[at] ?? 0);
 }
 
-function preflight() {
-  if (!dryRun && read("npm", ["whoami"]).status !== 0) fail("not logged in to npm; run npm login");
-  if (read("git", ["status", "--porcelain"]).stdout !== "") fail("the working tree has changes");
-  run("git", ["fetch", "--quiet", "origin", "main"]);
-  if (
-    read("git", ["rev-parse", "HEAD"]).stdout !== read("git", ["rev-parse", "origin/main"]).stdout
-  )
-    fail("HEAD is not origin/main; push the release commit first");
-  if (tag === undefined) return;
-  if (read("git", ["rev-parse", "--quiet", "--verify", `refs/tags/${tag}`]).status === 0)
-    fail(`tag ${tag} already exists`);
-  if (marketplaceRef() !== tag)
-    fail(`.claude-plugin/marketplace.json must pin the plugin to ${tag} in the release commit`);
+function currentVersion(manifest: string): string {
+  const version = /"version": "(\d+\.\d+\.\d+)"/.exec(readFileSync(manifest, "utf8"))?.[1];
+  return version ?? fail(`no version found in ${manifest}`);
 }
 
-function checkMcpPin(pkg: (typeof packages)[number]) {
-  const spec = `${pkg.name}@${pkg.version}`;
-  const published = read("npm", ["view", spec, "dependencies", "--json", "--prefer-online"]);
-  if (published.status !== 0)
-    fail(`could not read dependencies for ${spec}: ${published.stderr || "npm view failed"}`);
-  let dependencies: unknown;
-  try {
-    dependencies = JSON.parse(published.stdout);
-  } catch (error) {
-    fail(`could not decode dependencies for ${spec}: ${String(error)}`);
-  }
-  const pin =
-    typeof dependencies === "object" &&
-    dependencies !== null &&
-    "@steamfield/stacks" in dependencies
-      ? dependencies["@steamfield/stacks"]
-      : undefined;
-  const cliVersion = packages[1]?.version;
-  if (pin !== cliVersion)
-    fail(
-      `bump packages/mcp's version: it pins @steamfield/stacks ${cliVersion}, the published ${pkg.version} pins ${String(pin)}`,
-    );
+/** Replaces every match of `pattern` in `file`; fails when none matches, so a moved line is noticed. */
+function rewrite(file: string, pattern: RegExp, replacement: string): void {
+  const text = pending.get(file) ?? readFileSync(file, "utf8");
+  if (!pattern.test(text)) fail(`${file} no longer matches ${pattern}: update scripts/release.ts`);
+  pending.set(file, text.replace(pattern, replacement));
 }
 
-function alreadyPublished(pkg: (typeof packages)[number], cwd: string) {
-  const spec = `${pkg.name}@${pkg.version}`;
-  const version = read("npm", ["view", spec, "version", "--prefer-online"]);
-  if (version.status !== 0) {
-    if (version.stderr.includes("E404")) return false;
-    fail(`could not look up ${spec} on npm: ${version.stderr || "npm view failed"}`);
-  }
-  if (version.stdout !== pkg.version) fail(`npm returned an unexpected version for ${spec}`);
-  if (pkg.dir === "mcp") checkMcpPin(pkg);
-  const published = read("npm", ["view", spec, "dist.integrity", "--prefer-online"]);
-  if (published.status !== 0 || !published.stdout.startsWith("sha512-"))
-    fail(`could not read dist.integrity for ${spec}: ${published.stderr || "invalid response"}`);
-  const bytes = readFileSync(join(cwd, pkg.tarball));
-  const local = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
-  if (published.stdout !== local)
-    fail(`${spec} is already on npm, but its tarball integrity differs`);
-  return true;
+/** Edits wait here until every pattern has matched, so a moved line fails before any file changes. */
+const pending = new Map<string, string>();
+
+function flush(): void {
+  for (const [file, text] of pending) writeFileSync(file, text);
+  pending.clear();
 }
 
-function publish(checkout: string) {
-  run("bun", ["install", "--frozen-lockfile"], checkout);
-  const prepared = packages.map((pkg) => {
-    const cwd = join(checkout, "packages", pkg.dir);
-    run(
-      "bun",
-      ["run", "pack"],
-      cwd,
-      pkg.dir === "cli" ? { ...process.env, STACKS_PUBLISH_TELEMETRY: "1" } : process.env,
-    );
-    run("tar", ["-tzf", pkg.tarball], cwd);
-    if (pkg.dir === "cli") console.error("release: telemetry endpoint embedded in CLI pack");
-    return { pkg, cwd, skip: alreadyPublished(pkg, cwd) };
+/** The changelog may be edited first, so it's the one path a release allows to be dirty. */
+function checkTree(): void {
+  const dirty = capture("git", ["status", "--porcelain"])
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => line.slice(3))
+    .filter((path) => path !== CHANGELOG);
+  if (dirty.length > 0)
+    fail(`the working tree has uncommitted changes besides ${CHANGELOG}: ${dirty.join(", ")}`);
+}
+
+/** A tag left on origin from an earlier attempt blocks the real release, so look there too. */
+function checkTag(version: string): void {
+  const tag = `v${version}`;
+  if (run("git", ["tag", "--list", tag]) !== "") fail(`tag ${tag} already exists locally`);
+  const remote = spawnSync("git", ["ls-remote", "--tags", "origin", `refs/tags/${tag}`], {
+    encoding: "utf8",
   });
-  for (const { pkg, cwd, skip } of prepared) {
-    if (skip) {
-      console.error(
-        `release: ${dryRun ? "would skip" : "skipping"} ${pkg.name}@${pkg.version} (matching integrity)`,
-      );
-      continue;
-    }
-    if (dryRun) console.error(`release: would publish ${pkg.name}@${pkg.version}`);
-    else run("npm", ["publish", pkg.tarball, "--access", "public"], cwd);
+  if (remote.status !== 0) {
+    console.error(`release: could not check origin for ${tag}; make sure it has no such tag`);
+    return;
   }
+  if (remote.stdout.trim() !== "")
+    fail(
+      `tag ${tag} already exists on origin. Ask a maintainer to delete it (git push origin :refs/tags/${tag}) or pick another version`,
+    );
 }
 
-/** npm accepts a publish before the registry serves it ("may take a few minutes"), so poll. */
-function awaitPublished(spec: string) {
-  for (let attempt = 1; attempt <= 40; attempt++) {
-    if (read("npm", ["view", spec, "version", "--prefer-online"]).stdout !== "") return;
-    console.error(`release: waiting for the registry to serve ${spec}`);
-    spawnSync("sleep", ["15"]);
-  }
-  fail(
-    `the registry still doesn't serve ${spec} after 10 minutes; ${tag === undefined ? "check npm view before relying on it" : "tag once npm view finds it"}`,
+function checkPreconditions(version: string, previous: string): void {
+  checkTree();
+  if (run("git", ["branch", "--show-current"]) !== "main") fail("release from main");
+  checkTag(version);
+  if (previous === version) fail(`packages/cli is already at ${version}`);
+  if (!isNewer(version, previous)) fail(`${version} is not newer than ${previous}`);
+  if (!readFileSync(CHANGELOG, "utf8").includes(`## [${version}]`))
+    fail(`${CHANGELOG} has no "## [${version}] - YYYY-MM-DD" section: write it first`);
+}
+
+function nextPatch(version: string): string {
+  const [major, minor, patch] = parse(version);
+  return `${major}.${minor}.${patch + 1}`;
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** The stack and preset of every digest the fixture pins, read from the fixture itself. */
+function digestKeys(): string[] {
+  return [...readFileSync(DIGESTS, "utf8").matchAll(/"([\w-]+:(?:default|sandbox))": "sha256:/g)]
+    .map((match) => match[1])
+    .filter((key) => key !== undefined);
+}
+
+/** A brief's digest as the fixture defines it: sha256 of the `brief` string from `validate --brief`. */
+function briefDigest(key: string): string {
+  const [stack, preset] = key.split(":");
+  const out = run("bun", [
+    "run",
+    "dev",
+    "validate",
+    "--brief",
+    stack ?? "",
+    ...(preset === "sandbox" ? ["--sandbox"] : []),
+    "--json",
+  ]);
+  const body: unknown = JSON.parse(out);
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("brief" in body) ||
+    typeof body.brief !== "string"
+  )
+    return fail(`validate --brief ${key} printed no brief`);
+  return `sha256:${createHash("sha256").update(body.brief, "utf8").digest("hex")}`;
+}
+
+function rewriteDigests(version: string): void {
+  const today = new Date().toISOString().slice(0, 10);
+  rewrite(
+    DIGESTS,
+    /^ \* After proving an intentional brief change/m,
+    ` * The ${version} version in the brief changed all six again on ${today}.\n * After proving an intentional brief change`,
+  );
+  for (const key of digestKeys())
+    rewrite(DIGESTS, new RegExp(`("${key}": )"sha256:[0-9a-f]{64}"`), `$1"${briefDigest(key)}"`);
+}
+
+function rewriteVersions(version: string, previous: string): void {
+  const old = escapeRegExp(previous);
+  rewrite("packages/cli/package.json", /"version": "\d+\.\d+\.\d+"/, `"version": "${version}"`);
+  rewrite(
+    "packages/cli/plugin/.claude-plugin/plugin.json",
+    /"version": "\d+\.\d+\.\d+"/,
+    `"version": "${version}"`,
+  );
+  rewrite(
+    ".claude-plugin/marketplace.json",
+    new RegExp(`"ref": "v${old}"`),
+    `"ref": "v${version}"`,
+  );
+  rewrite(
+    "packages/cli/tests/runtime.test.ts",
+    new RegExp(`toBe\\("${old}"\\)`, "g"),
+    `toBe("${version}")`,
+  );
+  rewrite(
+    "packages/cli/e2e/artifact.test.ts",
+    new RegExp(`version: "${old}"`),
+    `version: "${version}"`,
+  );
+  rewrite(
+    "packages/cli/tests/fixtures/index/harness.ts",
+    new RegExp(`cli: "${old}"`),
+    `cli: "${version}"`,
   );
 }
 
-/** A mistyped flag (`--format_only`) must not fall through to a full release with a tag. */
-function checkArguments() {
-  const unknown = process.argv.slice(2).filter((arg) => !FLAGS.includes(arg));
-  if (unknown.length > 0)
-    fail(`unknown argument ${unknown.join(" ")}; the flags are ${FLAGS.join(" and ")}`);
-}
-
-function release() {
-  checkArguments();
-  preflight();
-  const checkout = join(mkdtempSync(join(tmpdir(), "stacks-release-")), "checkout");
-  run("git", ["worktree", "add", "--detach", checkout, "origin/main"]);
-  try {
-    publish(checkout);
-  } finally {
-    run("git", ["worktree", "remove", "--force", checkout]);
-  }
-  if (dryRun) {
-    const names = packages.map((pkg) => `${pkg.name}@${pkg.version}`).join(", ");
-    console.error(`release: dry run packed ${names}; nothing published`);
-    return;
-  }
-  for (const pkg of packages) awaitPublished(`${pkg.name}@${pkg.version}`);
-  if (tag === undefined) return;
-  run("git", ["tag", "--annotate", tag, "--message", `Release ${tag}`, "origin/main"]);
-  run("git", ["push", "origin", tag]);
+function prepare(version: string): string {
+  const previous = currentVersion("packages/cli/package.json");
+  checkPreconditions(version, previous);
+  const mcpPrevious = currentVersion("packages/mcp/package.json");
+  const mcpNext = nextPatch(mcpPrevious);
+  rewriteVersions(version, previous);
+  rewrite("packages/mcp/package.json", /"version": "\d+\.\d+\.\d+"/, `"version": "${mcpNext}"`);
+  flush();
+  run("bun", ["install"]);
+  rewriteDigests(version);
+  flush();
+  return `Prepared ${previous} -> ${version} (@steamfield/stacks-mcp ${mcpPrevious} -> ${mcpNext}, since it pins the CLI). Next:
+  bun run check                  (rr check in a clone opted in to rr)
+  git add -A && git commit -m "chore(release): ${version}"
+  git push origin main           (wait for ci-ok)
+  git tag v${version}            (only after the bump commit above: the tag must point at it)
+  git push origin v${version}    (the Release workflow publishes; watch it with gh run watch <id> --exit-status)
+Bump packages/format's version in its own commit first when its contract changed.`;
 }
 
 try {
-  release();
+  const version = process.argv[2];
+  if (process.argv.length !== 3 || version === undefined || !SEMVER.test(version))
+    fail("usage: bun run release <major.minor.patch> (no leading v, no prerelease suffix)");
+  console.log(prepare(version));
 } catch (error) {
   if (!(error instanceof ReleaseFailed)) throw error;
   console.error(`release: ${error.message}`);

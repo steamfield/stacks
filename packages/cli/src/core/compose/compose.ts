@@ -1,4 +1,4 @@
-import { APP_TAG, withStepDefaults } from "@steamfield/stacks-format";
+import { APP_TAG, shippedPath, withStepDefaults } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import {
   BadInput,
@@ -14,7 +14,6 @@ import {
   isFragment,
   markdownFile,
   type Payload,
-  shippedPath,
 } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { resolveConditionals } from "./conditionals";

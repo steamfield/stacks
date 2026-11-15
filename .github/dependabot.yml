@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # release.yml pins every action by commit SHA; this is what moves the pins.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

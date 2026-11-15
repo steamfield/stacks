@@ -1,4 +1,4 @@
-import { AgentId } from "@steamfield/stacks-format";
+import { AgentId, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { ComposeConflict, EntryInvalid } from "../../errors";
 import type { Finding } from "../../schemas/validate";
@@ -6,14 +6,7 @@ import { targetAgents } from "../compose/agents";
 import { compose } from "../compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../compose/files";
 import type { ComposeOptions, Composition } from "../compose/types";
-import {
-  type Entry,
-  isFragment,
-  isStack,
-  shippedOnlyFor,
-  shippedPath,
-  shipsFor,
-} from "../registry/entry";
+import { type Entry, isFragment, isStack, shippedOnlyFor, shipsFor } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { compositionPlans, describe, replacementDefaults } from "./compositions";
 import type { Source } from "./sources";

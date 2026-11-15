@@ -917,6 +917,23 @@
       ]
     },
     {
+      "id": "fragment-npm-tag-release",
+      "pool": "fragment",
+      "split": "tune",
+      "query": "release an npm package from GitHub Actions without a stored token",
+      "first": {
+        "kind": "fragment",
+        "id": "npm-release"
+      },
+      "relevant": [
+        {
+          "kind": "fragment",
+          "id": "npm-release",
+          "grade": 2
+        }
+      ]
+    },
+    {
       "id": "fragment-provider",
       "pool": "fragment",
       "split": "holdout",

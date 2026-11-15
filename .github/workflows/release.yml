@@ -1,0 +1,130 @@
+name: Release
+
+# A `v*` tag publishes @steamfield/stacks-format, @steamfield/stacks and @steamfield/stacks-mcp to npm
+# with provenance, through trusted publishing (OIDC): no npm token is stored or read. A manual run
+# from main publishes the format package alone, for a format version the hosted API needs before a
+# CLI release. Production deployments are not part of this workflow.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# verify and build run in parallel; publish needs both. Rerunning a failed publish job reruns only
+# that job and reuses the tarballs the build job uploaded, so the same bytes go to npm.
+jobs:
+  verify:
+    # A manual run is only for main; a tag run is whatever the tag points at, and the checks below
+    # stop one that doesn't match its commit or isn't on main.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history, so the tagged commit can be checked against main.
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Verify release version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: >-
+          node -e 'const v = require("./packages/cli/package.json").version;
+          if (process.env.TAG !== `v${v}`) {
+          console.error(`::error title=Tag does not match the CLI version::Tag ${process.env.TAG} points at a commit whose packages/cli/package.json version is ${v}. Run bun run release X.Y.Z, commit, and tag that commit. Delete the bad tag with: git push origin :refs/tags/${process.env.TAG}`);
+          process.exit(1); }'
+      - name: Verify the tag is on main
+        if: github.event_name == 'push'
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error title=Tag is not on main::Tag ${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main. Release from main: delete the tag with git push origin :refs/tags/${GITHUB_REF_NAME}, merge the change to main, and tag that commit."
+            exit 1
+          fi
+      - run: bun run install:ci
+      - run: bun run check
+
+  build:
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - run: bun run install:ci
+      - name: Pack the format package
+        working-directory: packages/format
+        run: bun run pack
+      - name: Pack the CLI with its telemetry endpoint
+        if: github.event_name == 'push'
+        working-directory: packages/cli
+        env:
+          STACKS_PUBLISH_TELEMETRY: "1"
+        run: bun run pack
+      - name: Pack the MCP server
+        if: github.event_name == 'push'
+        working-directory: packages/mcp
+        run: bun run pack
+      - name: Collect the tarballs
+        env:
+          FORMAT_ONLY: ${{ github.event_name == 'workflow_dispatch' && '--format-only' || '' }}
+        run: bun scripts/publish.ts collect dist/release $FORMAT_ONLY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-packages
+          path: dist/release/
+          if-no-files-found: error
+
+  publish:
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    # Publishing waits up to 7 minutes for each of three packages to show on the registry.
+    timeout-minutes: 30
+    # One publish at a time across tags; a second release queues instead of racing the first.
+    concurrency:
+      group: npm-publish
+      cancel-in-progress: false
+    # Only this job can mint the OIDC token npm trusted publishing exchanges for a publish credential.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+      - name: Require npm 11.5.1 or newer
+        run: >-
+          node -e 'const [a, b, c] = process.argv[1].split(".").map(Number);
+          if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) {
+          console.error(`::error title=npm is too old for trusted publishing::npm ${process.argv[1]} is older than 11.5.1. Use a Node version in .node-version that ships a newer npm.`);
+          process.exit(1); }' "$(npm --version)"
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: release-packages
+          path: dist/release
+      - name: Publish format, then CLI, then MCP
+        # Authenticates through npm trusted publishing (OIDC); no token is stored.
+        run: |
+          bun scripts/publish.ts publish dist/release

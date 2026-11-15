@@ -119,7 +119,7 @@ test("the marketplace lists the plugin by its manifest name, pinned to the tag o
   const [plugin] = marketplace.plugins;
   expect(plugin.name).toBe(manifest.name);
   expect(marketplace.name).toBe(manifest.name);
-  // scripts/release.ts refuses to tag a release whose marketplace pins another ref.
+  // scripts/release.ts sets this ref; the release gate fails when it pins another tag.
   expect(plugin.source.ref).toBe(`v${pkg.version}`);
   expect(existsSync(join(cli, "plugin/.claude-plugin/plugin.json"))).toBe(true);
 });

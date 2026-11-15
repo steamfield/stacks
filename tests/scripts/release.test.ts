@@ -2,295 +2,236 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import cliPackage from "../../packages/cli/package.json";
-import formatPackage from "../../packages/format/package.json";
-import mcpPackage from "../../packages/mcp/package.json";
 
 const script = join(import.meta.dirname, "../../scripts/release.ts");
-const bun = spawnSync("which", ["bun"], { encoding: "utf8" }).stdout.trim();
-const formatBytes = "format tarball\n";
-const integrity = `sha512-${createHash("sha512").update(formatBytes).digest("base64")}`;
-const formatSpec = `${formatPackage.name}@${formatPackage.version}`;
-const cliSpec = `${cliPackage.name}@${cliPackage.version}`;
-const mcpSpec = `${mcpPackage.name}@${mcpPackage.version}`;
-const mcpBytes = "mcp tarball\n";
-const mcpIntegrity = `sha512-${createHash("sha512").update(mcpBytes).digest("base64")}`;
-const fake = `#!/bin/sh
-echo "$(basename "$0") $*" >> "$FAKE_LOG"
-case "$(basename "$0")" in
-  git)
-    case "$1 $2" in
-      "status --porcelain") exit 0 ;;
-      "fetch --quiet") exit 0 ;;
-      "rev-parse HEAD"|"rev-parse origin/main") echo same; exit 0 ;;
-      "rev-parse --quiet") exit 1 ;;
-      "worktree add") mkdir -p "$4/packages/format" "$4/packages/cli" "$4/packages/mcp"; exit 0 ;;
-      "worktree remove") exit 0 ;;
-      "tag --annotate"|"push origin") exit 0 ;;
-    esac ;;
-  bun)
-    if [ "$1 $2" = "run pack" ]; then
-      echo "pack telemetry: $STACKS_PUBLISH_TELEMETRY" >> "$FAKE_LOG"
-      mkdir -p dist/pack
-      case "$PWD" in
-        */format) printf 'format tarball\\n' > dist/pack/steamfield-stacks-format-${formatPackage.version}.tgz ;;
-        */cli) printf 'cli tarball\\n' > dist/pack/steamfield-stacks-${cliPackage.version}.tgz ;;
-        */mcp) printf 'mcp tarball\\n' > dist/pack/steamfield-stacks-mcp-${mcpPackage.version}.tgz ;;
-      esac
-    fi
-    exit 0 ;;
-  tar) exit 0 ;;
-  npm)
-    if [ "$1" = "whoami" ]; then echo maintainer; exit 0; fi
-    if [ "$1" = "publish" ]; then
-      if [ "$FAKE_ALLOW_PUBLISH" = 1 ]; then touch "$FAKE_LOG.published"; exit 0; fi
-      exit 99
-    fi
-    if [ "$1 $3" = "view version" ]; then
-      if [ "$FAKE_VERSION_LOOKUP_FAIL" = 1 ]; then echo 'registry unavailable' >&2; exit 1; fi
-      case "$2" in
-        ${formatSpec}) if [ "$FAKE_FORMAT_PUBLISHED" = 1 ] || [ -f "$FAKE_LOG.published" ]; then echo ${formatPackage.version}; exit 0; fi ;;
-        ${cliSpec}) if [ "$FAKE_CLI_PUBLISHED" = 1 ] || [ -f "$FAKE_LOG.published" ]; then echo ${cliPackage.version}; exit 0; fi ;;
-        ${mcpSpec}) if [ "$FAKE_MCP_PUBLISHED" = 1 ] || [ -f "$FAKE_LOG.published" ]; then echo ${mcpPackage.version}; exit 0; fi ;;
-      esac
-      echo 'npm error code E404' >&2; exit 1
-    fi
-    if [ "$1 $3" = "view dist.integrity" ]; then
-      if [ "$FAKE_LOOKUP_FAIL" = 1 ]; then echo 'lookup failed' >&2; exit 1; fi
-      if [ "$2" = "${mcpSpec}" ]; then echo "$FAKE_MCP_INTEGRITY"; exit 0; fi
-      echo "$FAKE_INTEGRITY"; exit 0
-    fi
-    if [ "$1 $3" = "view dependencies" ]; then
-      printf '{"@steamfield/stacks":"%s"}' "$FAKE_MCP_PIN"; exit 0
-    fi ;;
-esac
+const bunDir = spawnSync("which", ["bun"], { encoding: "utf8" })
+  .stdout.trim()
+  .replace(/\/bun$/, "");
+
+const KEYS = ["astro-blog:default", "astro-blog:sandbox", "go-cli:default"] as const;
+const stale = `sha256:${"0".repeat(64)}`;
+const briefFor = (stack: string, preset: string) => `brief of ${stack} ${preset}`;
+const digestOf = (stack: string, preset: string) =>
+  `sha256:${createHash("sha256").update(briefFor(stack, preset), "utf8").digest("hex")}`;
+
+const files: Record<string, string> = {
+  "packages/cli/package.json": '{\n  "name": "@steamfield/stacks",\n  "version": "0.9.0"\n}\n',
+  "packages/mcp/package.json": '{\n  "name": "@steamfield/stacks-mcp",\n  "version": "0.1.2"\n}\n',
+  "packages/cli/plugin/.claude-plugin/plugin.json": '{\n  "version": "0.9.0"\n}\n',
+  ".claude-plugin/marketplace.json": '{\n  "plugins": [{ "source": { "ref": "v0.9.0" } }]\n}\n',
+  "README.md": "A readme that names no version.\n",
+  "packages/cli/tests/runtime.test.ts":
+    'expect(a).toBe("0.9.0");\nexpect(b.version).toBe("0.9.0");\n',
+  "packages/cli/e2e/artifact.test.ts": 'const x = {\n    version: "0.9.0",\n};\n',
+  "packages/cli/tests/fixtures/index/harness.ts": 'export const v = {\n    cli: "0.9.0",\n};\n',
+  "packages/cli/tests/fixtures/bundled-brief-digests.ts": `/**
+ * history
+ * After proving an intentional brief change, regenerate each key.
+ */
+export const briefDigests = {
+${KEYS.map((key) => `  "${key}": "${stale}",`).join("\n")}
+};
+`,
+  "packages/cli/CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## [0.9.0] - 2026-11-14\n",
+};
+
+// `bun install` succeeds; `bun run dev validate --brief <stack> [--sandbox] --json` prints a brief.
+const fakeBun = `#!/bin/sh
+echo "bun $*" >> "$FAKE_LOG"
+if [ "$1" = install ]; then exit 0; fi
+if [ "$1 $2 $3 $4" = "run dev validate --brief" ]; then
+  preset=default; [ "$6" = "--sandbox" ] && preset=sandbox
+  printf '{"brief":"brief of %s %s"}' "$5" "$preset"; exit 0
+fi
 exit 98
 `;
 
 let dir: string;
+let repo: string;
+let origin: string;
+
+const git = (cwd: string, ...args: string[]) =>
+  spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "t",
+      GIT_AUTHOR_EMAIL: "t@example.com",
+      GIT_COMMITTER_NAME: "t",
+      GIT_COMMITTER_EMAIL: "t@example.com",
+    },
+  });
+
+function write(relative: string, content: string) {
+  mkdirSync(dirname(join(repo, relative)), { recursive: true });
+  writeFileSync(join(repo, relative), content);
+}
+
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "release-test-"));
-  const executable = join(dir, "fake");
-  writeFileSync(executable, fake);
-  chmodSync(executable, 0o755);
-  for (const name of ["git", "bun", "npm", "tar"]) symlinkSync(executable, join(dir, name));
+  dir = mkdtempSync(join(tmpdir(), "bump-test-"));
+  repo = join(dir, "repo");
+  origin = join(dir, "origin.git");
+  mkdirSync(repo);
+  git(dir, "init", "--bare", "-b", "main", origin);
+  git(repo, "init", "-b", "main");
+  git(repo, "remote", "add", "origin", origin);
+  mkdirSync(join(repo, "scripts"));
+  copyFileSync(script, join(repo, "scripts/release.ts"));
+  for (const [path, content] of Object.entries(files)) write(path, content);
+  git(repo, "add", "-A");
+  git(repo, "commit", "-m", "init");
+  mkdirSync(join(dir, "bin"));
+  writeFileSync(join(dir, "bin/bun"), fakeBun);
+  chmodSync(join(dir, "bin/bun"), 0o755);
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function run(
-  options: {
-    publishedIntegrity?: string;
-    lookupFails?: boolean;
-    versionLookupFails?: boolean;
-    formatPublished?: boolean;
-    cliPublished?: boolean;
-    mcpPublished?: boolean;
-    mcpIntegrity?: string;
-    mcpPin?: string;
-    allowPublish?: boolean;
-    dryRun?: boolean;
-    formatOnly?: boolean;
-    extraArgs?: string[];
-  } = {},
-) {
-  const log = join(dir, "commands.log");
-  const flags = [
-    ...(options.dryRun === false ? [] : ["--dry-run"]),
-    ...(options.formatOnly ? ["--format-only"] : []),
-    ...(options.extraArgs ?? []),
-  ];
-  const result = spawnSync(bun, [script, ...flags], {
+function release(...args: string[]) {
+  const log = join(dir, "bun.log");
+  // The real bun runs the script by absolute path; the fake on PATH answers the script's own calls.
+  const result = spawnSync(join(bunDir, "bun"), ["scripts/release.ts", ...args], {
+    cwd: repo,
     encoding: "utf8",
-    env: {
-      HOME: dir,
-      PATH: `${dir}:${process.env.PATH ?? ""}`,
-      FAKE_LOG: log,
-      FAKE_INTEGRITY: options.publishedIntegrity ?? integrity,
-      FAKE_LOOKUP_FAIL: options.lookupFails ? "1" : "0",
-      FAKE_VERSION_LOOKUP_FAIL: options.versionLookupFails ? "1" : "0",
-      FAKE_FORMAT_PUBLISHED: options.formatPublished === false ? "0" : "1",
-      FAKE_CLI_PUBLISHED: options.cliPublished ? "1" : "0",
-      FAKE_MCP_PUBLISHED: options.mcpPublished ? "1" : "0",
-      FAKE_MCP_INTEGRITY: options.mcpIntegrity ?? mcpIntegrity,
-      FAKE_MCP_PIN: options.mcpPin ?? cliPackage.version,
-      FAKE_ALLOW_PUBLISH: options.allowPublish ? "1" : "0",
-    },
+    env: { HOME: dir, PATH: `${join(dir, "bin")}:/usr/bin:/bin`, FAKE_LOG: log },
   });
-  return { ...result, commands: existsSync(log) ? readFileSync(log, "utf8") : "" };
+  return { ...result, log: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
 
-describe("release", () => {
-  it("publishes MCP third and tags the CLI version after checking all packages", () => {
-    const result = run({ dryRun: false, formatPublished: false, allowPublish: true });
+const read = (relative: string) => readFileSync(join(repo, relative), "utf8");
+const status = () => git(repo, "status", "--porcelain").stdout;
+
+describe("bun run release", () => {
+  it("rewrites every place the version lives, bumps the MCP patch and refreshes the digests", () => {
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+    );
+    const result = release("0.9.1");
     expect(result.status, result.stderr).toBe(0);
-    expect(result.commands.split("\n").filter((line) => line.startsWith("npm publish"))).toEqual([
-      `npm publish dist/pack/steamfield-stacks-format-${formatPackage.version}.tgz --access public`,
-      `npm publish dist/pack/steamfield-stacks-${cliPackage.version}.tgz --access public`,
-      `npm publish dist/pack/steamfield-stacks-mcp-${mcpPackage.version}.tgz --access public`,
-    ]);
-    expect(result.commands).toContain(
-      `git tag --annotate v${cliPackage.version} --message Release v${cliPackage.version} origin/main`,
+    expect(read("packages/cli/package.json")).toContain('"version": "0.9.1"');
+    expect(read("packages/cli/plugin/.claude-plugin/plugin.json")).toContain('"version": "0.9.1"');
+    expect(read(".claude-plugin/marketplace.json")).toContain('"ref": "v0.9.1"');
+    expect(read("packages/cli/tests/runtime.test.ts")).toBe(
+      'expect(a).toBe("0.9.1");\nexpect(b.version).toBe("0.9.1");\n',
     );
-    expect(result.commands).toContain(`git push origin v${cliPackage.version}`);
-    const firstPublish = result.commands.indexOf("npm publish");
-    expect(result.commands.indexOf(`npm view ${mcpSpec} version`)).toBeLessThan(firstPublish);
+    expect(read("packages/cli/e2e/artifact.test.ts")).toContain('version: "0.9.1"');
+    expect(read("packages/cli/tests/fixtures/index/harness.ts")).toContain('cli: "0.9.1"');
+    expect(read("packages/mcp/package.json")).toContain('"version": "0.1.3"');
+    const digests = read("packages/cli/tests/fixtures/bundled-brief-digests.ts");
+    for (const key of KEYS) {
+      const [stack = "", preset = ""] = key.split(":");
+      expect(digests).toContain(`"${key}": "${digestOf(stack, preset)}"`);
+    }
+    expect(digests).toMatch(
+      / \* The 0\.9\.1 version in the brief changed all six again on \d{4}-\d\d-\d\d\./,
+    );
+    expect(result.log).toContain("bun install");
   });
 
-  it("packs and checks all three packages before attempting the first publish", () => {
-    const result = run({ dryRun: false, formatPublished: false });
-    expect(result.status).toBe(1);
-    const firstPublish = result.commands.indexOf("npm publish");
-    const formatPack = result.commands.indexOf(
-      `tar -tzf dist/pack/steamfield-stacks-format-${formatPackage.version}.tgz`,
+  it("prints the next steps with the tag after the bump commit, and never commits, tags or pushes", () => {
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
     );
-    const cliPack = result.commands.indexOf(
-      `tar -tzf dist/pack/steamfield-stacks-${cliPackage.version}.tgz`,
-    );
-    const mcpPack = result.commands.indexOf(
-      `tar -tzf dist/pack/steamfield-stacks-mcp-${mcpPackage.version}.tgz`,
-    );
-    expect(formatPack).toBeGreaterThan(-1);
-    expect(cliPack).toBeGreaterThan(formatPack);
-    expect(mcpPack).toBeGreaterThan(cliPack);
-    expect(firstPublish).toBeGreaterThan(mcpPack);
-    expect(result.commands).toContain(
-      `npm publish dist/pack/steamfield-stacks-format-${formatPackage.version}.tgz --access public`,
-    );
-    expect(result.stderr).not.toContain("waiting for the registry");
+    const result = release("0.9.1");
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('git commit -m "chore(release): 0.9.1"');
+    expect(result.stdout).toContain("only after the bump commit");
+    expect(git(repo, "log", "--oneline").stdout.trim().split("\n")).toHaveLength(1);
+    expect(git(repo, "tag", "--list").stdout).toBe("");
+    expect(git(origin, "tag", "--list").stdout).toBe("");
   });
 
-  it("checks a conflicting MCP version before publishing either dependency", () => {
-    const result = run({
-      dryRun: false,
-      formatPublished: false,
-      mcpPublished: true,
-      mcpIntegrity: "sha512-different",
+  it("allows an edited changelog as the only dirt, so the release is one commit", () => {
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+    );
+    expect(status()).toContain("packages/cli/CHANGELOG.md");
+    const result = release("0.9.1");
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  describe("refuses, and writes nothing", () => {
+    function refuses(result: ReturnType<typeof release>, message: string) {
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(message);
+      expect(result.log).toBe("");
+    }
+
+    it("when another file is dirty", () => {
+      write(
+        "packages/cli/CHANGELOG.md",
+        `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+      );
+      write("README.md", "edited\n");
+      const before = status();
+      refuses(release("0.9.1"), "uncommitted changes besides packages/cli/CHANGELOG.md: README.md");
+      expect(status()).toBe(before);
     });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      `${mcpSpec} is already on npm, but its tarball integrity differs`,
-    );
-    expect(result.commands).not.toContain("npm publish");
-  });
 
-  it("checks a conflicting CLI version before publishing a new format version", () => {
-    const result = run({
-      dryRun: false,
-      formatPublished: false,
-      cliPublished: true,
-      publishedIntegrity: "sha512-different",
+    it("on a branch other than main", () => {
+      git(repo, "checkout", "-b", "feature");
+      refuses(release("0.9.1"), "release from main");
     });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      `${cliSpec} is already on npm, but its tarball integrity differs`,
-    );
-    expect(result.commands).not.toContain("npm publish");
-  });
-});
 
-describe("release dry run", () => {
-  it("requires an MCP version bump when the published version pins another CLI", () => {
-    const result = run({ mcpPublished: true, mcpPin: "0.5.0" });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(
-      `bump packages/mcp's version: it pins @steamfield/stacks ${cliPackage.version}, the published ${mcpPackage.version} pins 0.5.0`,
-    );
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("skips a published MCP package only when its own integrity matches", () => {
-    const result = run({ mcpPublished: true });
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stderr).toContain(`would skip ${mcpSpec}`);
-    expect(result.commands).toContain(`npm view ${mcpSpec} dist.integrity`);
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("skips a published package with matching integrity and shows the embedded endpoint", () => {
-    const result = run();
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stderr).toContain(`would skip ${formatSpec}`);
-    expect(result.stderr).toContain(`would publish ${cliSpec}`);
-    expect(result.stderr).toContain(`would publish ${mcpSpec}`);
-    expect(result.stderr).toContain(
-      `dry run packed ${[formatSpec, cliSpec, mcpSpec].join(", ")}; nothing published`,
-    );
-    expect(result.stderr).toContain("telemetry endpoint embedded");
-    expect(result.commands).toContain(`npm view ${formatSpec} dist.integrity`);
-    expect(result.commands).toContain("pack telemetry: 1");
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("fails when a published package has different integrity", () => {
-    const result = run({ publishedIntegrity: "sha512-different" });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(formatSpec);
-    expect(result.stderr).toContain("integrity differs");
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("fails when a published package's integrity lookup fails", () => {
-    const result = run({ lookupFails: true });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(formatSpec);
-    expect(result.stderr).toContain("could not read dist.integrity");
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("fails when npm cannot determine whether the version exists", () => {
-    const result = run({ versionLookupFails: true });
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain(`could not look up ${formatSpec}`);
-    expect(result.commands).not.toContain("npm publish");
-  });
-});
-
-describe("format-only release", () => {
-  it("packs and would publish only the format package, with no CLI tag or pack", () => {
-    const result = run({ formatOnly: true, formatPublished: false });
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stderr).toContain(`would publish ${formatSpec}`);
-    expect(result.stderr).toContain(`dry run packed ${formatSpec}; nothing published`);
-    expect(result.stderr).not.toContain(cliPackage.name.concat("@"));
-    expect(result.commands).not.toContain("refs/tags");
-    expect(result.commands).not.toContain("pack telemetry: 1");
-    expect(result.commands).not.toContain(`npm view ${cliSpec}`);
-    expect(result.commands).not.toContain("npm publish");
-  });
-
-  it("publishes the format package, waits for the registry and creates no tag", () => {
-    const result = run({
-      formatOnly: true,
-      formatPublished: false,
-      dryRun: false,
-      allowPublish: true,
+    it("when the tag exists locally", () => {
+      git(repo, "tag", "v0.9.1");
+      refuses(release("0.9.1"), "tag v0.9.1 already exists locally");
     });
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.commands).toContain("npm publish dist/pack/steamfield-stacks-format-");
-    expect(result.commands).not.toContain("git tag");
-    expect(result.commands).not.toContain("git push");
+
+    it("when a stale tag is on origin, naming the delete command for a maintainer", () => {
+      git(repo, "tag", "v0.9.1");
+      git(repo, "push", "origin", "v0.9.1");
+      git(repo, "tag", "-d", "v0.9.1");
+      const result = release("0.9.1");
+      refuses(result, "tag v0.9.1 already exists on origin");
+      expect(result.stderr).toContain("git push origin :refs/tags/v0.9.1");
+    });
+
+    it("when the changelog has no section for the version", () => {
+      refuses(release("0.9.1"), 'has no "## [0.9.1] - YYYY-MM-DD" section');
+      expect(status()).toBe("");
+    });
+
+    it("for the current or an older version", () => {
+      write(
+        "packages/cli/CHANGELOG.md",
+        `${files["packages/cli/CHANGELOG.md"]}\n## [0.8.0] - 2026-01-01\n`,
+      );
+      refuses(release("0.9.0"), "packages/cli is already at 0.9.0");
+      refuses(release("0.8.0"), "0.8.0 is not newer than 0.9.0");
+    });
+
+    it.each(["v0.9.1", "0.9", "0.9.1-rc.1", ""])("for the argument %j", (argument) => {
+      refuses(release(...(argument === "" ? [] : [argument])), "usage: bun run release");
+    });
   });
 
-  it("refuses an unknown argument before doing anything", () => {
-    const result = run({ dryRun: false, extraArgs: ["--format_only"] });
+  it("fails before changing any file when one no longer matches what the script rewrites", () => {
+    write("packages/cli/e2e/artifact.test.ts", "no version here\n");
+    git(repo, "commit", "-am", "drop the version");
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+    );
+    const result = release("0.9.1");
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("unknown argument --format_only");
-    expect(result.commands).toBe("");
-  });
-
-  it("skips a format version already published with the same tarball", () => {
-    const result = run({ formatOnly: true });
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stderr).toContain(`would skip ${formatSpec}`);
+    expect(result.stderr).toContain("packages/cli/e2e/artifact.test.ts no longer matches");
+    expect(result.stderr).toContain("update scripts/release.ts");
+    expect(read("packages/cli/package.json")).toContain('"version": "0.9.0"');
+    expect(status().trim()).toBe("M packages/cli/CHANGELOG.md");
   });
 });

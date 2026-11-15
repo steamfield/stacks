@@ -1,6 +1,7 @@
+import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
 import type { Finding } from "../../schemas/validate";
-import { type Entry, shippedPath } from "../registry/entry";
+import type { Entry } from "../registry/entry";
 import { shellWords } from "../shell";
 import { sourceOf, uniqueFindings } from "./composed";
 import type { Check, Composed, View } from "./types";

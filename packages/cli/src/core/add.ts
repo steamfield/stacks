@@ -1,4 +1,19 @@
-/** The `add` program: applies fragments to an existing project without changing its live files. */
+/**
+ * When someone runs `stacks add <fragment...>`, this module runs the whole addition, start to
+ * finish, without changing any file the project already has.
+ *
+ * A fragment is a reusable addition (CI, git hooks, a database) that a stack can include; `add`
+ * applies fragments to a project that already exists. `commands/add.ts` parses the flags and calls
+ * `add`, which runs four steps from `core/add/`: read the project (`project.ts`), compose and plan
+ * the delta (`prepare.ts`), merge the manifest (`.stacks/manifest.json`, the committed record of
+ * what was composed and how to verify it) in `manifest.ts`, and write everything (`write.ts`).
+ * Between those it renders the brief (`.stacks/BRIEF.md`, the task text for the coding agent) and
+ * stamps the manifest with the handoff record, so the files say where the project went next.
+ *
+ * The handoff is decided here, before writing, because only composition knows which entries are
+ * untrusted (Trust model point 3), and the manifest that records it is written in the same
+ * transaction. The result returns to `commands/add.ts`, which prints it and hands off.
+ */
 import { Clock, Effect } from "effect";
 import { AppConfig } from "../config";
 import { BRIEF_PATH } from "../project-layout";

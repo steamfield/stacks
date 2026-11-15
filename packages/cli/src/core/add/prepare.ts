@@ -1,6 +1,16 @@
 /**
- * Prepares an `add` before anything is written: composes the requested fragments onto the
- * project, renders their files, plans where each one goes and builds the incoming manifest.
+ * Does all of `stacks add`'s thinking before a single file is written.
+ *
+ * `core/add.ts` calls `prepareAdd` with the project `add/project.ts` read. It composes only the
+ * requested fragments (the delta) onto what the project already has (`compose/compose.ts` in add
+ * mode), renders their files with the project's name and settings, asks `add/plan.ts` where each
+ * file goes, and builds the manifest entries for the new verify steps. A composition is the result
+ * of combining a stack with fragments: files, verify steps, env and notes.
+ *
+ * Doing all of this up front means a bad request (a step name that clashes with an existing one, a
+ * fragment that needs its own git repository) fails before the writer opens, so nothing needs
+ * rolling back. A project with no known stack gets tags guessed from its files (`add/tags.ts`),
+ * which only steer `stacks:when` blocks in templates.
  */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";

@@ -1,4 +1,14 @@
-/** Reads the project an `add` extends: its manifest, tamper state, recorded stack and settings. */
+/**
+ * Reads the project `stacks add` is about to extend: its manifest, whether that manifest was
+ * changed behind the CLI's back, the stack it was made from and the user's settings.
+ *
+ * `core/add.ts` calls `readAddProject` first. A project without `.stacks/manifest.json` is fine;
+ * `add` creates one. When a manifest exists, `verify/tamper.ts::checkTamper` compares its verify
+ * steps with the state record (the per-project file outside the project holding digests), and
+ * changed steps stop the add as `VerifyChanged` (Trust model point 5): adding to a definition of
+ * done nobody accepted would hide the change. `--sandbox` and `--agents` must match what the
+ * manifest recorded, since `add` extends the project as it was created.
+ */
 import type { AgentId, Manifest } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
 import { AppConfig } from "../../config";

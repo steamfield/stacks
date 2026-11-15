@@ -1,6 +1,18 @@
 /**
- * Plans an `add` without writing: which rendered files go straight into the project, which are
- * already there, and which are parked under `.stacks/incoming/` because a live file differs.
+ * Works out what `stacks add` will do to a project before anything is written.
+ *
+ * `add` applies fragments (reusable pieces such as CI or git hooks) to a project that already
+ * exists, so the files a fragment ships may collide with files the user has. For each rendered
+ * file this module decides one of three outcomes: write it (nothing is there), skip it (an
+ * identical copy is there) or park it under `.stacks/incoming/` for the user's agent to merge by
+ * hand. A live file is never overwritten. When a file is already parked from an earlier `add`, the
+ * new one is merged into it if both are JSON, or else kept beside it as a numbered copy
+ * (`settings.json.2`).
+ *
+ * `add/prepare.ts` calls `planAdd` after rendering the fragments; `add/write.ts` carries out the
+ * plan. Every read goes through `readLive`, which refuses a path whose symlinks lead outside the
+ * project. `checkAddRoot` also runs first in `add/project.ts`, so a `.stacks/` that is a link is
+ * refused before the manifest is read. Start at `planAdd`.
  */
 import { Effect, FileSystem, Option, Path, type PlatformError } from "effect";
 import { ComposeConflict, PermissionDenied } from "../../errors";

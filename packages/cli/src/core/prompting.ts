@@ -1,6 +1,18 @@
 /**
- * The numbered missing-argument pickers for `new`, `add` and `create`, the gate that allows them
- * only for a person at a terminal, and the `Running:` line that shows the equivalent command.
+ * Asks a person for the arguments they left off `stacks new`, `stacks add` or `stacks create`,
+ * through numbered menus at the terminal.
+ *
+ * Running `stacks new` with no stack at a terminal shows a numbered list of stacks, then optional
+ * fragments, a preset and a directory. `commands/new.ts`, `commands/add.ts` and
+ * `commands/create.ts` call `pickNew`, `pickAdd` and `pickCreate`; each returns plain values the
+ * command then uses as if they had been typed as flags. Afterwards `runningCommand` prints the
+ * equivalent command line (`Running: stacks new ...`) so it can be rerun without the menus.
+ *
+ * Menus appear only for the `human` audience (a person at their own terminal) with a terminal on
+ * both stdin and stdout; `canPrompt` is that gate. An agent, `--json`, CI or a pipe gets the
+ * command's normal noninteractive behavior instead, because nobody is there to answer (Trust model
+ * point 4). Nothing is written while a menu is open, so Ctrl+C there leaves no trace.
+ * `displayPicker` is shared with the handoff picker in `commands/handoff.ts`.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, Path, Terminal } from "effect";

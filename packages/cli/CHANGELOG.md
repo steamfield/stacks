@@ -4,6 +4,12 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-15
+
+### Added
+
+- `decks`, a stack for slide-deck projects built with Decks (`@steamfield/decks`): MDX slides with React components, served live and built to a static site. Setup scaffolds the project's deck with `decks new` and installs the Decks agent skills (building a deck, writing slide prose, design, motion, charts and data) and the Claude Code plugin with `decks init`; verify checks both. It ships a four-slide example deck to present and copy from (`--payload none` leaves it out), with a README section on running it.
+
 ## [0.10.0] - 2026-11-15
 
 ### Added

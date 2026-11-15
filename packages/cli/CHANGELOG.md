@@ -4,6 +4,24 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-15
+
+### Added
+
+- Every scaffold ships `docs/guidance/engineering/`: testing, architecture, error handling and readable code (file-level doc comments, a README where a folder is a real part of the architecture), condensed from the claude-essentials skills so every agent has them from its first session. AGENTS.md carries the binding rules, and Claude Code and Cursor get rules that point at the docs when they touch source files.
+- `code-docs`, a fragment whose `file-headers` hygiene step fails on a source file without a file-level doc comment, and which asks for a README in each folder that is a meaningful part of the architecture. It is a default of `typescript-library`, `typescript-mcp`, `typescript-cli`, `hono-api`, `react-vite`, `astro-fullstack` and `tauri-react`, and optional for `typescript-api`; every fragment's shipped source carries a header.
+- `ce-plugin` is a default of `typescript-library`, and its rules point at the project's engineering docs first.
+
+### Changed
+
+- Agent hooks deny only destructive or irreversible work (deleting the filesystem root, home or project, discarding work or history, force pushes, dropped tables, publishing, cloud deletes, a download piped into a shell, secret and `.env` writes) and commands that would hang the session. Conventions such as the test runner, `--bun`, generated files, package choices and import boundaries are guidance and lint, no longer hook denials. Every agent uses one bash rule list, and a guard that can't run allows the call with a note instead of refusing it.
+- Scaffolds no longer ship hook tests: `.claude/hooks/smoke.sh` is the project's hook check, and `bun run test` runs the application's own tests. A fresh `typescript-library` runs 55 tests instead of 240.
+- `typescript-library`'s setup chooses Node before installing matching types, and its guidance no longer names the example's files after the example is replaced.
+
+### Removed
+
+- `claude-harness`'s TypeScript command and generated-file guards, its shipped `_shell.ts`, and the `harness-hooks` verify step.
+
 ## [0.11.0] - 2026-11-15
 
 ### Added

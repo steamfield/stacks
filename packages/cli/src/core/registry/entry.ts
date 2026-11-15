@@ -1,3 +1,18 @@
+/**
+ * What an entry is once the registry has read it, and how its markdown file is decoded.
+ *
+ * An entry is a stack (a recipe for a whole new project, `stacks/<id>/STACK.md`) or a fragment (a
+ * reusable addition such as CI or a database, `fragments/<id>/FRAGMENT.md`), plus the files it
+ * ships. The markdown file opens with YAML frontmatter (the metadata between two `---` lines) and
+ * continues with the guidance body that goes into the brief. `decodeEntry` turns that text into
+ * metadata and body, or into a one-line problem that `list` and `validate` show the user, so
+ * those messages are user-visible text.
+ *
+ * `registry.ts` and `remote.ts` build `Entry` values with `decodeEntry`; composition, `show`,
+ * `validate` and the rest read them. `shipsFor` and `shippedOnlyFor` decide which shipped files
+ * reach a project, on top of `shippedPath` from `@steamfield/stacks-format`, which maps a file's
+ * place in the entry (`files/`, an agent adapter, a stack overlay, a payload) to its project path.
+ */
 import {
   FragmentMeta,
   type IndexEntry,
@@ -120,51 +135,72 @@ type Decoded =
   | { _tag: "Invalid"; error: string };
 
 const formatter = SchemaIssue.makeFormatterStandardSchemaV1();
-/** The first schema issue as one line, with its path in YAML spelling: `applies_to[0]: Expected string`. */
-function issueLine(error: Schema.SchemaError): string {
-  const [first] = formatter(error.issue).issues;
-  if (!first) return "frontmatter: invalid";
-  const path = (first.path ?? [])
+
+/** A schema issue path in YAML spelling: `fragments.default[0]`. */
+function yamlPath(segments: ReadonlyArray<PropertyKey | { key: PropertyKey }>): string {
+  return segments
     .map((segment) => (typeof segment === "object" ? segment.key : segment))
     .reduce<string>((acc, key) => {
       if (typeof key === "number") return `${acc}[${key}]`;
       return acc ? `${acc}.${String(key)}` : String(key);
     }, "");
+}
+
+/** The first schema issue as one line, with its path in YAML spelling: `applies_to[0]: Expected string`. */
+function issueLine(error: Schema.SchemaError): string {
+  const [first] = formatter(error.issue).issues;
+  if (!first) return "frontmatter: invalid";
+  const path = yamlPath(first.path ?? []);
   const message = first.message.split("\n")[0] ?? "";
   if (message === "Expected no excess property") {
+    // A camelCase key is the usual way to get this, so say what the spelling should be.
     const last = String(first.path?.at(-1) ?? "");
     return `${path}: unknown key${/[A-Z]/.test(last) ? " (frontmatter keys are snake_case)" : ""}`;
   }
   return `${path || "frontmatter"}: ${message}`;
 }
 
+/**
+ * The checks made before the schema decode: a newer `schema_version` (skipped, not invalid), then
+ * a `kind` that doesn't match the file name. Checking `kind` before the schema means a
+ * FRAGMENT.md's frontmatter in a STACK.md names the real mistake.
+ */
 function checkHeader(kind: Kind, value: unknown): Exclude<Decoded, { _tag: "Meta" }> | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
   if (
-    typeof value === "object" &&
-    value !== null &&
     "schema_version" in value &&
     typeof value.schema_version === "number" &&
     value.schema_version > 1
   )
-    return { _tag: "Newer", version: value.schema_version } as const;
-  // Checked first so a FRAGMENT.md's frontmatter in a STACK.md names the real mistake.
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "kind" in value &&
-    typeof value.kind === "string" &&
-    value.kind !== kind
-  )
+    return { _tag: "Newer", version: value.schema_version };
+  if ("kind" in value && typeof value.kind === "string" && value.kind !== kind)
     return {
       _tag: "Invalid",
       error: `kind: ${JSON.stringify(value.kind)} does not match ${markdownFile(kind)}`,
-    } as const;
+    };
   return undefined;
 }
 
 function yamlMessage(failure: unknown): string | undefined {
   return String(failure instanceof Error ? failure.message : failure).split("\n")[0];
 }
+
+/** The frontmatter as plain data, or the first YAML error or warning. */
+function parseYaml(frontmatter: string): Result.Result<unknown, unknown> {
+  // Silent: the library would otherwise print warnings (an unknown `!tag`) to stderr itself.
+  const doc = parseDocument(frontmatter, { logLevel: "silent" });
+  const problem = doc.errors[0] ?? doc.warnings[0];
+  if (problem) return Result.fail(problem);
+  return Result.try(() => doc.toJS({ maxAliasCount: 100 }) as unknown);
+}
+
+const decodeMeta = (
+  kind: Kind,
+  value: unknown,
+): Effect.Effect<StackMeta | FragmentMeta, Schema.SchemaError> =>
+  kind === "stack"
+    ? Schema.decodeUnknownEffect(StackMeta, { onExcessProperty: "error" })(value)
+    : Schema.decodeUnknownEffect(FragmentMeta, { onExcessProperty: "error" })(value);
 
 /** Splits, parses and decodes one entry's markdown file. Never fails: problems are values. */
 export function decodeEntry(kind: Kind, text: string): Effect.Effect<Decoded> {
@@ -175,25 +211,15 @@ export function decodeEntry(kind: Kind, text: string): Effect.Effect<Decoded> {
         _tag: "Invalid",
         error: "frontmatter: the file must start with a --- line and close it with another",
       } as const;
-    // Silent: the library would otherwise print warnings (an unknown `!tag`) to stderr itself.
-    const doc = parseDocument(parts.frontmatter, { logLevel: "silent" });
-    const problem = doc.errors[0] ?? doc.warnings[0];
-    const yaml = problem
-      ? Result.fail(problem)
-      : Result.try(() => doc.toJS({ maxAliasCount: 100 }) as unknown);
+    const yaml = parseYaml(parts.frontmatter);
     if (Result.isFailure(yaml))
       return {
         _tag: "Invalid",
         error: `frontmatter: not valid YAML (${yamlMessage(yaml.failure)})`,
       } as const;
-    const value = yaml.success;
-    const header = checkHeader(kind, value);
+    const header = checkHeader(kind, yaml.success);
     if (header) return header;
-    const decode: Effect.Effect<StackMeta | FragmentMeta, Schema.SchemaError> =
-      kind === "stack"
-        ? Schema.decodeUnknownEffect(StackMeta, { onExcessProperty: "error" })(value)
-        : Schema.decodeUnknownEffect(FragmentMeta, { onExcessProperty: "error" })(value);
-    const decoded = yield* Effect.result(decode);
+    const decoded = yield* Effect.result(decodeMeta(kind, yaml.success));
     return Result.isFailure(decoded)
       ? ({ _tag: "Invalid", error: issueLine(decoded.failure) } as const)
       : ({ _tag: "Meta", meta: decoded.success, body: parts.body } as const);

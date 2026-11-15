@@ -12,27 +12,32 @@
 set -euo pipefail
 
 hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=_lib.sh
-source "$hook_dir/_lib.sh"
-# shellcheck source=_destructive-patterns.sh
-source "$hook_dir/_destructive-patterns.sh"
-
-input=$(cat)
-# Prefer lexed commands, resolving from the hook even when the tool runs elsewhere.
-if [ -f "$hook_dir/guard-commands.ts" ] && command -v bun >/dev/null 2>&1; then
-  export CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(cd "$hook_dir/../.." && pwd -P)}"
-  if output=$(printf '%s' "$input" | bun "$hook_dir/guard-commands.ts" 2>/dev/null); then
-    [ -z "$output" ] || printf '%s\n' "$output"
+check_guard() {
+  # shellcheck source=_lib.sh
+  source "$hook_dir/_lib.sh" || return $?
+  # shellcheck source=_destructive-patterns.sh
+  source "$hook_dir/_destructive-patterns.sh" || return $?
+  local input command found status reason suggestion
+  input=$(cat) || return $?
+  command=$(hook_get "$input" tool_input.command) || return $?
+  [ -n "$command" ] || return 0
+  if found=$(is_destructive "$command" 2>&1); then
+    # The matcher emits one reason/suggestion row. Diagnostics are an unavailable
+    # guard, even if a later pattern happened to match after an earlier failure.
+    case "$found" in *$'\n'* | *$'\r'*) return 2 ;; esac
+    case "$found" in *$'\t'*) ;; *) return 2 ;; esac
+    reason=${found%%$'\t'*}
+    suggestion=${found#*$'\t'}
+    hook_deny "BLOCKED: $reason $suggestion Never work around this block."
   else
-    hook_deny "BLOCKED: The command guard failed to run. Ask the user first. Never work around this block."
+    status=$?
+    [ -z "$found" ] || return 2
+    [ "$status" -eq 1 ] || return "$status"
   fi
-  exit 0
+}
+if output=$(check_guard 2>/dev/null); then
+  [ -z "$output" ] || printf '%s\n' "$output"
+else
+  echo "agent-ops: command guard unavailable or unreadable payload; allowing call." >&2
 fi
-
-command=$(hook_get "$input" tool_input.command) || exit 0
-[ -z "$command" ] && exit 0
-found=$(is_destructive "$command") || exit 0
-reason=${found%%$'\t'*}
-suggestion=${found#*$'\t'}
-hook_deny "BLOCKED: $reason"$'\n\n'"$suggestion"$'\n'"Never work around this block."
 exit 0

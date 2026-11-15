@@ -22,6 +22,8 @@ allows() { test -z "$(out "$2" "$3")" || fail "$3 should allow $1"; }
 f='git push --'force
 denies "a force push" "{\"tool_input\":{\"command\":\"$f origin main\"}}" $h/block-destructive.sh
 allows "a commit message naming a force push" "{\"tool_input\":{\"command\":\"git commit -m 'docs: never $f'\"}}" $h/block-destructive.sh
+denies "home removal" '{"tool_input":{"command":"rm -rf ~"}}' $h/block-destructive.sh
+allows "build output removal" '{"tool_input":{"command":"rm -rf ./dist"}}' $h/block-destructive.sh
 denies "a .env write" '{"tool_input":{"file_path":".env","content":"A=1"}}' $h/detect-secrets.sh
 k=AKIA
 k="${k}QQQQABCDEFGHIJKL"
@@ -43,13 +45,24 @@ parses() {
   fi
 }
 for c in .claude/settings.json .codex/hooks.json .cursor/hooks.json opencode.json; do
-  if [ -f "$c" ]; then parses "$c" || fail "$c isn't valid JSON"; fi
+  if [ -f "$c" ]; then
+    parses "$c" || fail "$c isn't valid JSON"
+    # Every script referenced by a config must exist, including stack-owned hooks.
+    for script in $(grep -oE '\.(claude|codex|cursor)/hooks/[[:alnum:]_./-]+\.(sh|ts)' "$c" || true); do
+      test -f "$script" || fail "$c references missing $script"
+    done
+  fi
 done
 # wires <config> <guard>
 wires() {
   if [ -f "$1" ]; then grep -q "$2" "$1" || fail "$1 doesn't wire $2"; fi
 }
 wires .claude/settings.json hooks/block-destructive.sh
+wires .codex/hooks.json hooks/block-destructive.sh
 wires .codex/hooks.json hooks/check-patch.sh
 wires .cursor/hooks.json hooks/guard.sh
+if [ -f opencode.json ]; then
+  test -f .opencode/plugins/agent-ops.js || fail "OpenCode's agent-ops plugin is missing"
+  test -f .opencode/hooks/check-patch.sh || fail "OpenCode's patch guard is missing"
+fi
 echo "hooks-smoke: guards and hook configs OK"

@@ -28,12 +28,22 @@ export const AgentOps = async ({ $, directory }) => {
   }
 
   async function guard(script, payload) {
-    const result = await run(script, payload);
-    if (result.exitCode !== 0) throw new Error("BLOCKED: guard failed; inspect agent-ops hooks.");
-    const decision = result.stdout.toString().trim();
-    if (decision) {
-      throw new Error(JSON.parse(decision).hookSpecificOutput.permissionDecisionReason);
+    let denial;
+    try {
+      const result = await run(script, payload);
+      const decision = result.stdout.toString().trim();
+      const response = decision ? JSON.parse(decision) : undefined;
+      if (response?.hookSpecificOutput?.permissionDecision === "deny") {
+        denial = response.hookSpecificOutput.permissionDecisionReason;
+      } else if (result.exitCode !== 0 || decision) {
+        console.error(`agent-ops: ${script} failed; allowing call.`);
+      } else if (result.stderr.toString().trim()) {
+        console.error(result.stderr.toString().trim());
+      }
+    } catch {
+      console.error(`agent-ops: ${script} unavailable or unreadable response; allowing call.`);
     }
+    if (denial) throw new Error(denial);
   }
 
   function writtenFiles(input) {

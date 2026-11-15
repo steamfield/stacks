@@ -281,28 +281,25 @@ beforeAll(async () => {
 
 describe("the guards block every listed pattern and allow its near miss [1.6d#1]", () => {
   // Concurrent: each case is its own bash process reading only its payload.
-  test.concurrent.each(destructive)(
-    "block-destructive.sh: $pattern [1.6d#1]",
-    async ({ blocked, allowed: ok }) => {
-      for (const command of blocked) {
-        const reason = denyReason(
-          await runHookAsync(astro, "block-destructive.sh", bashPayload(astro, command), withJq),
-        );
-        expect({ command, blocked: reason.startsWith("BLOCKED: ") }).toEqual({
-          command,
-          blocked: true,
-        });
-        expect(reason).toContain("Never work around this block.");
-      }
-      for (const command of ok)
-        expect({
-          command,
-          ...allowed(
-            await runHookAsync(astro, "block-destructive.sh", bashPayload(astro, command), withJq),
-          ),
-        }).toEqual({ command, ...ALLOW });
-    },
-  );
+  test.concurrent.each(
+    destructive.flatMap(({ pattern, blocked }) => blocked.map((command) => ({ pattern, command }))),
+  )("block-destructive.sh denies $command ($pattern) [1.6d#1]", async ({ command }) => {
+    const reason = denyReason(
+      await runHookAsync(astro, "block-destructive.sh", bashPayload(astro, command), withJq),
+    );
+    expect(reason.startsWith("BLOCKED: ")).toBe(true);
+    expect(reason).toContain("Never work around this block.");
+  });
+
+  test.concurrent.each(
+    destructive.flatMap(({ pattern, allowed: ok }) => ok.map((command) => ({ pattern, command }))),
+  )("block-destructive.sh allows $command ($pattern) [1.6d#1]", async ({ command }) => {
+    expect(
+      allowed(
+        await runHookAsync(astro, "block-destructive.sh", bashPayload(astro, command), withJq),
+      ),
+    ).toEqual(ALLOW);
+  });
 
   test.concurrent.each(secrets)(
     "detect-secrets.sh: $finding, named without the matched text [1.6d#1]",

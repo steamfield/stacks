@@ -1,3 +1,4 @@
+/** Fills the `stacks:fill:commands` markers in shipped Markdown from the composition's commands. */
 import type { RenderedFile } from "../compose/files";
 import type { Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
@@ -16,7 +17,17 @@ function runner(stack: Entry | null): string | undefined {
   return undefined;
 }
 
+/** Text for one Markdown table cell: whitespace collapsed to single spaces, pipes escaped. */
 const cell = (text: string) => text.replace(/\s+/g, " ").trim().replaceAll("|", "\\|");
+
+/** `file` with each marker line replaced by `rows`; the same object when it has no marker. */
+function fillFile(file: RenderedFile, rows: ReadonlyArray<string>): RenderedFile {
+  if (!/\.md$/i.test(file.path)) return file;
+  const lines = new TextDecoder().decode(file.bytes).split("\n");
+  if (!lines.some((line) => COMMANDS_MARKER.test(line))) return file;
+  const filled = lines.flatMap((line) => (COMMANDS_MARKER.test(line) ? rows : [line]));
+  return { ...file, bytes: new TextEncoder().encode(filled.join("\n")) };
+}
 
 /**
  * Replace each commands marker in shipped Markdown with one table row per declared command. This
@@ -30,14 +41,5 @@ export function fillMarkers(
   const commands = Object.entries(composition.commands);
   if (!run || !commands.length) return [...files];
   const rows = commands.map(([name, purpose]) => `| \`${run} ${name}\` | ${cell(purpose)} |`);
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  return files.map((file) => {
-    if (!/\.md$/i.test(file.path)) return file;
-    const text = decoder.decode(file.bytes);
-    const lines = text.split("\n");
-    if (!lines.some((line) => COMMANDS_MARKER.test(line))) return file;
-    const filled = lines.flatMap((line) => (COMMANDS_MARKER.test(line) ? rows : [line]));
-    return { ...file, bytes: encoder.encode(filled.join("\n")) };
-  });
+  return files.map((file) => fillFile(file, rows));
 }

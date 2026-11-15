@@ -51,7 +51,7 @@ knowing it cannot install until `@steamfield/decks` is on npm. The maintainer ru
    - Bump versions and anything that pins them, commit, push.
    - `bun run release:dry-run` and read it. It packs and checks all three packages and publishes
      nothing.
-5. **The maintainer** runs `bun run release` (publishes format, CLI, MCP in that order from
+5. The maintainer runs `bun run release` (publishes format, CLI, MCP in that order from
    `origin/main` and tags `v<cli version>`). If only the format package must be out first,
    `bun run release:format` does that alone.
 6. After the publish, from the `stacks-api` checkout: `bun run prod:deploy -- --ref v<new version>`

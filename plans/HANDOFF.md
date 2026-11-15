@@ -27,7 +27,7 @@ row here costs the next session more than a missing one.
 | --- | --- | --- | --- |
 | 1 | Finish `decks`, merge it, prepare the release | An agent, in this repo | The whole sequence is [decks-release-2026-11-15.md](decks-release-2026-11-15.md); it stops before the publish. Start a session in this checkout so its hooks apply |
 | 2 | Publish `@steamfield/decks` | Maintainers | Outside this repo (`~/Projects/decks`). Until then `decks` cannot install and cannot be benched |
-| 3 | `bun run release` (or `release:dry-run` first) | **Maintainers only** (`AGENTS.md`) | Publishes format, then the CLI, then MCP, from `origin/main`, and tags `v<cli version>` |
+| 3 | `bun run release` (or `release:dry-run` first) | Maintainers only (`AGENTS.md`) | Publishes format, then the CLI, then MCP, from `origin/main`, and tags `v<cli version>` |
 | 4 | Redeploy the index from the new tag | A maintainer or an agent in `stacks-api` | `bun run prod:deploy -- --ref v<new version> --dry-run`, then without `--dry-run`; then retry the Worker's latest build. Deploy the API before pushing site changes that read new data (see Findings) |
 | 5 | Bench `decks`, commit the ledger record | Maintainers (tokens) | `bun run bench decks --keep`, after step 2 |
 | 6 | Confirm `AGENTS.md` "Pending user actions" | Maintainers | It still lists a telemetry launch sequence that ends in `bun run release`. The CLI has since been released several times (0.9.0), so most of it is probably done; remove what is, and say what is not |
@@ -63,38 +63,55 @@ The two `feature-request-*` files are untracked in the maintainer's main checkou
 
 ## Findings from the 2026-11-14/15 session
 
-Work in `stacks-api` (the site and deploys), with a note on each so the next session does not
-rediscover it.
+These come from work in `stacks-api` (the site and its deploys). Each is here so the next session
+doesn't have to find it again.
 
-- **Deploy order.** A push to `stacks-api` `main` rebuilds the site on Cloudflare. The first build of
-  the redesign failed (`Workers Builds: stacks-web`, conclusion `failure`, no output through the
-  API) because it ran before the API and index it reads had been redeployed. The same build, run
-  locally with `WORKERS_CI=1` and the production index key, passed once production was deployed; an
-  empty commit then re-ran it successfully. The build log was not read in the dashboard, so the
-  cause is inferred. Deploy the API first (`prod:deploy`), then push, or retry the build after.
-- **`prod:deploy` cannot rebuild an old index.** Its `--previous` check needs the production key that
-  stacks 0.9.0 added; at `ed53c72` it fails with "signature verification failed". The first deploy
-  after that point has to move the index to `v0.9.0` or later.
-- **The index change is not user-visible in the CLI yet.** See "CLI reads the hosted index" above.
-- **Pre-push in `stacks-api` runs the whole browser suite** (about five minutes); `bun run check`
-  is the same gate and passed on the commit that was pushed: 225 test files, 1,993 tests, 207
-  browser tests passed and 1 skipped.
-- **Dev servers collide.** `bun run dev:bg` stopped with "Port 4321 is already in use" when another
-  checkout's servers were running. Pass `PORT_API=<free> PORT_WEB=<free>` (the machine has
-  `free-port`).
-- **Agent guards.** Claude Code sessions in these repositories are denied `bun run dev` (a
-  foreground server), `git reset --hard`, history rewrites and recursive deletes outside the project.
-  Ask rather than rephrase; use `git checkout <ref> -- <path>` for a single file.
-- **The site redesign** (`stacks-api`, merged to `main` 2026-11-15): one shared sortable `DataTable`
-  (TanStack Table v9) for every table outside the landing page, `/browse` and docs; `/trending/`
-  leads with what is trending, ranks dependencies by reporting projects and drops the single-package
-  chart and the not-trending chips; `/deps/` is a table of ecosystems, an ecosystem page is a table
-  and a dependency page leads with the stacks that include it; the stack page draws a package's
-  majors as a stacked bar. The maintainer rated the pages about 5 of 10 and wants more: known gaps are
-  tables that scroll sideways on a 390px screen instead of stacking (trending, dependencies), the
-  search page's tables not sorting (they sit in an island slot), and the stack and fragment page
-  layouts, which are otherwise as the maintainer's rebuild left them. `stacks-api/docs/web.md`
-  ("Tables", "Trending", "Dependencies") describes what exists.
+### Deploy the API before pushing site changes
+
+A push to `stacks-api` `main` rebuilds the site on Cloudflare, and that build reads the index and
+stats from the live API. The first build of the redesign failed (`Workers Builds: stacks-web`,
+conclusion `failure`, no log through the GitHub API) because the API and index it reads hadn't been
+redeployed yet. Run locally with `WORKERS_CI=1` and the production index key, the same build passed
+once production was deployed, and an empty commit then re-ran the Worker build successfully. I
+didn't read the dashboard log, so the cause is inferred. Run `prod:deploy` first, or retry the build
+after it.
+
+### `prod:deploy` can't rebuild the old index
+
+Its `--previous` check needs the production key that stacks 0.9.0 added. At `ed53c72`, the commit
+the live index was built from, it fails with "signature verification failed". The first deploy after
+that has to move the index to `v0.9.0` or later, which is what happened on 2026-11-15.
+
+### A deploy doesn't change what the CLI writes
+
+Released CLIs don't read the hosted index yet (see "CLI reads the hosted index" above), so
+`prod:deploy` changes the site and the API, and entry content reaches CLI users only through npm.
+
+### Smaller things
+
+- `stacks-api`'s pre-push hook runs the whole browser suite, about five minutes. `bun run check` is
+  the same gate: 225 test files, 1,993 tests and 207 browser tests passed (1 skipped) on the commit
+  that was pushed.
+- `bun run dev:bg` stops with "Port 4321 is already in use" when another checkout's servers are
+  running. Pass `PORT_API=<free> PORT_WEB=<free>`; the machine has `free-port`.
+- Claude Code sessions here are denied `bun run dev` (it runs a foreground server), `git reset
+  --hard`, history rewrites and recursive deletes outside the project. Ask instead of rephrasing.
+  `git checkout <ref> -- <path>` restores a single file.
+
+### The site redesign
+
+Merged to `stacks-api` `main` on 2026-11-15. Every table outside the landing page, `/browse` and the
+docs is one sortable `DataTable` (TanStack Table v9). `/trending/` opens with a sentence naming what
+is trending, ranks dependencies by reporting projects, and no longer has the single-package chart or
+the not-trending chips. `/deps/` is a table of ecosystems, an ecosystem page is a table, and a
+dependency page leads with the stacks that include it. The stack page draws a package's major
+versions as a stacked bar.
+
+The maintainer rates the pages about 5 out of 10 and wants more. Known gaps: the trending and
+dependency tables scroll sideways on a 390px screen instead of stacking, the search page's tables
+don't sort (they sit in an island slot), and the stack and fragment layouts are still as the
+maintainer's own rebuild left them. `stacks-api/docs/web.md` ("Tables", "Trending", "Dependencies")
+describes what exists.
 
 ## Branches and worktrees nobody owns
 

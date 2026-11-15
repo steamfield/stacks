@@ -1,3 +1,12 @@
+/**
+ * Every failure the CLI reports, and what each one tells its reader.
+ *
+ * The file has four parts, in order: the tagged error classes with their closed `details`
+ * schemas; `errorTable`, the one source of each tag's exit code, retryability and whether the
+ * command's result stays on stdout; `failureGuide`, the detail lines and `Next:` action text modes
+ * print; and the JSON error envelope with `encodeDetails`. Messages are fixed per tag so agents can
+ * match on them; everything specific to one failure goes in `details`.
+ */
 import { FailureKind, Kind } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
 import { shellArg } from "./core/shell";
@@ -7,11 +16,18 @@ import { verifyNext } from "./core/verify/next";
 import { BRIEF_PATH, MANIFEST_PATH } from "./project-layout";
 import { Origin } from "./schemas/origin";
 import { VerifyChange, VerifyResult } from "./schemas/verify";
+
+// ---------------------------------------------------------------------------------------------
+// Error classes and their details
+// ---------------------------------------------------------------------------------------------
+
 /**
- * An unknown subcommand: what was typed and up to three close known names (`core/suggest.ts`).
- * Or two flags that can't be used together, as typed (`new --launch` with `--no-launch`, 1.4).
- * Or a parser-rejected value, with its expected input and optional close known values.
- * Or an unknown flag, its command and close flags or labeled positional arguments.
+ * Why a command line was rejected, one shape per case:
+ * - a parser-rejected value: the flag or argument, the value, what was expected, and optionally
+ *   the command path and close known values;
+ * - an unknown flag: the flag, its command, and close flags or labeled positional arguments;
+ * - an unknown subcommand: what was typed and up to three close names (`core/suggest.ts`);
+ * - two flags that can't be used together, as typed (`new --launch` with `--no-launch`).
  */
 export const UsageDetails = Schema.Union([
   Schema.Struct({
@@ -34,34 +50,8 @@ export class Usage extends Schema.TaggedError<Usage>()("Usage", {
 }) {
   override readonly message = "Invalid command.";
 }
-/**
- * `id`: the argument the input was wrong about. `flag` says which input it is: `scope`, a
- * `--scope` value that isn't an npm scope; `with_without`, a fragment id given to both `--with`
- * and `--without`; `dir`, a project directory whose name has a control character; `brief`, a
- * flag (`--with`, `--without`, `--sandbox`, in `id`) that `validate` takes only with `--brief`;
- * `only`, a `verify --only` name that is no check or serve step, with those steps' names in
- * `known` (1.3a); `name` or `author`, a naming flag with an unsupported control character;
- * `name` also rejects double quotes and backslashes.
- * `fragment` is an add request for a stack or an applied fragment (listed in `alreadyApplied`);
- * `agents` and `sandbox` are add flags that disagree with the manifest.
- * `create_shadows` names an existing id, with its winning and shadowed origins in `origins`.
- * Search's `request` carries only its trimmed `length`; `limit` carries the rejected `value`.
- * `offline` is `update` (or the `command` named) under `--offline` or `STACKS_OFFLINE=1`, refused
- * before any request.
- * `submit`'s own cases: `repo`, a `--repo` that isn't `owner/name` or that GitHub doesn't have;
- * `tool`, `gh` or `git` missing from PATH, or `gh` not logged in; `submission`, the entries that
- * didn't meet the readiness bar, as the blocking findings' locations (never their text);
- * `collision`, an id the submission can't take: with `removed: true`, an id the upstream registry
- * removed, refused for everyone since ids are never reused (`owner` when `authors.json` still
- * names one); with `removed: false`, an id the registry has that `authors.json` doesn't give to
- * this login (`owner` when it names another). `unchanged`, entries identical upstream;
- * `git_identity`, a commit git refused because no author name or email is configured.
- * `submit_entry` (with `id`) is an id both a stack and a fragment use in the user registry, or a
- * directory that holds no single entry; `submit_id` is an id, given or a directory's name, that
- * isn't kebab-case.
- * `branch_taken`: the fork's pull request `branch` has commits `submit` didn't make (found before
- * the push, or by the push's lease), so it isn't replaced.
- */
+
+/** One validation finding that blocks a `submit`: where it is, never its text. */
 export const SubmissionBlocker = Schema.Struct({
   kind: Kind,
   id: Schema.String,
@@ -70,6 +60,40 @@ export const SubmissionBlocker = Schema.Struct({
   file: Schema.optionalKey(Schema.String),
   line: Schema.optionalKey(Schema.Number),
 });
+
+/**
+ * Input the parser accepted but the command can't use. `flag` says which input it was about.
+ *
+ * Shapes with their own fields:
+ * - `request`: a search request, by its trimmed `length` only; `limit`: the rejected `value`.
+ * - `offline`: `update` (or the `command` named) under `--offline` or `STACKS_OFFLINE=1`, refused
+ *   before any request.
+ * - `submit`'s cases: `repo`, a `--repo` that isn't `owner/name` or that GitHub doesn't have;
+ *   `tool`, `gh` or `git` missing from PATH, or `gh` not logged in; `submission`, the entries that
+ *   didn't meet the readiness bar; `collision`, an id the submission can't take (with
+ *   `removed: true`, one the upstream registry removed, refused for everyone since ids are never
+ *   reused; with `removed: false`, one the registry has that `authors.json` doesn't give to this
+ *   login; `owner` when `authors.json` names one); `unchanged`, entries identical upstream;
+ *   `git_identity`, a commit git refused because no author name or email is configured;
+ *   `branch_taken`, a fork `branch` holding commits `submit` didn't make (found before the push
+ *   or by the push's lease), so it isn't replaced.
+ *
+ * Every other `flag` comes with `id`, the argument the input was wrong about:
+ * - `scope`: a `--scope` value that isn't an npm scope.
+ * - `with_without`: a fragment id given to both `--with` and `--without`.
+ * - `dir`: a project directory whose name has a control character.
+ * - `brief`: a flag (`--with`, `--without` or `--sandbox`, in `id`) that `validate` takes only
+ *   with `--brief`.
+ * - `only`: a `verify --only` name that is no check or serve step; `known` lists those steps.
+ * - `name`, `author`: a naming flag with a control character; `name` also rejects double quotes
+ *   and backslashes.
+ * - `fragment`: an add request for a stack or for fragments already applied (`alreadyApplied`).
+ * - `agents`, `sandbox`: add flags that disagree with the manifest.
+ * - `create_shadows`: an existing id, with its winning and shadowed origins in `origins`.
+ * - `submit_entry`: an id both a stack and a fragment use in the user registry, or a directory
+ *   that holds no single entry; `submit_id`: an id, given or a directory's name, that isn't
+ *   kebab-case.
+ */
 export const BadInputDetails = Schema.Union([
   Schema.Struct({ flag: Schema.Literal("request"), length: Schema.Int }),
   Schema.Struct({ flag: Schema.Literal("limit"), value: Schema.String }),
@@ -128,16 +152,18 @@ export class BadInput extends Schema.TaggedError<BadInput>()("BadInput", {
 }) {
   override readonly message = "Invalid input.";
 }
+
 /**
- * Up to three known ids close to the one given, from `core/suggest.ts::closest`; `looked` is the
- * path a lookup expected to find (validate's path argument, 1.5); `root` is the registry root an
- * id was looked up in when it isn't the usual set (`validate <root> --brief`).
- */
-/**
- * `id` and `kind`: the stack or fragment id that wasn't found, so a caller can tell a wrong stack
- * from a wrong `--with`/`--without` id. `kind: "project"` (1.3a, with no `id`): `verify` found no
- * `.stacks/manifest.json` walking up from `looked`. `kind: "cwd"`: the working directory was removed
- * after the shell entered it, so no command ran.
+ * Something looked up wasn't there.
+ * - `suggestions`: up to three known ids close to the one given (`core/suggest.ts::closest`).
+ * - `id` and `kind`: the stack or fragment id that wasn't found, so a caller can tell a wrong stack
+ *   from a wrong `--with`/`--without` id.
+ * - `kind: "project"` (no `id`): `verify` found no `.stacks/manifest.json` walking up from
+ *   `looked`. `kind: "cwd"`: the working directory was removed after the shell entered it, so no
+ *   command ran.
+ * - `looked`: the path a lookup expected to find (validate's path argument).
+ * - `root`: the registry root an id was looked up in when it isn't the usual set
+ *   (`validate <root> --brief`).
  */
 export const NotFoundDetails = Schema.Struct({
   suggestions: Schema.Array(Schema.String),
@@ -158,11 +184,13 @@ export class NotFound extends Schema.TaggedError<NotFound>()("NotFound", {
 }) {
   override readonly message = "Not found.";
 }
+
 export class NotConfigured extends Schema.TaggedError<NotConfigured>()("NotConfigured", {}) {
   override readonly message = "Configuration is required.";
 }
+
 /**
- * `path`: the file that didn't decode, such as `.stacks/manifest.json` (1.2b).
+ * `path`: the file that didn't decode, such as `.stacks/manifest.json`.
  * `schemaVersion`: the version a newer stacks wrote, when that is why it didn't decode.
  */
 export const InvalidConfigDetails = Schema.Struct({
@@ -174,12 +202,14 @@ export class InvalidConfig extends Schema.TaggedError<InvalidConfig>()("InvalidC
 }) {
   override readonly message = "Configuration is invalid.";
 }
-/** `step`: for GitHub, which of submit's requests failed. */
+
+/** The service that failed; for GitHub, `step` says which of submit's requests it was. */
 export const UpstreamUnavailableDetails = Schema.Struct({
   service: Schema.Literals(["npm-registry", "github"]),
   status: Schema.optionalKey(Schema.Number),
   step: Schema.optionalKey(Schema.Literals(["auth", "clone", "fork", "push", "pr"])),
 });
+/** The npm command `update` ran, and how it ended. */
 export const UpdateFailedDetails = Schema.Struct({
   command: Schema.String,
   exitCode: Schema.optionalKey(Schema.Number),
@@ -196,6 +226,7 @@ export class UpstreamUnavailable extends Schema.TaggedError<UpstreamUnavailable>
 ) {
   override readonly message = "Upstream service is unavailable.";
 }
+
 /** The failed steps, in run order: names, kinds and exit codes only, never their output. */
 export const VerifyFailedDetails = Schema.Struct({
   failed: Schema.Array(
@@ -213,6 +244,7 @@ export class VerifyFailed extends Schema.TaggedError<VerifyFailed>()("VerifyFail
 }) {
   override readonly message = "Verify failed.";
 }
+
 /** What changed and against which copy: the same value as the verify result's `changed`. */
 export const VerifyChangedDetails = VerifyChange;
 export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyChanged", {
@@ -220,16 +252,17 @@ export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyCh
 }) {
   override readonly message = "Verify steps changed since they were recorded.";
 }
+
 /**
  * `reason` is a closed set; `path` is the file or directory involved.
- * `escape`: a write would land outside the project (its real path isn't under the project's).
- * `blocked`: a live file or directory blocks a planned add path; `path` is the blocker.
- * `unwritable`: the project directory or a file in it couldn't be created or written.
- * `agent`: an action reserved for a person was requested under a detected agent.
- * `no-tty`: a confirmation was requested without a terminal on stdin (Trust model, point 4).
- * `state-unwritable`: the state record (`path`) couldn't be written, so nothing was confirmed.
- * `launch`: the agent CLI `new` hands off to (`path`) was found but couldn't be executed (1.4).
- * `github`: GitHub refused `submit`'s fork or push for the login `gh` uses.
+ * - `escape`: a write would land outside the project (its real path isn't under the project's).
+ * - `blocked`: a live file or directory blocks a planned add path; `path` is the blocker.
+ * - `unwritable`: the project directory or a file in it couldn't be created or written.
+ * - `agent`: an action reserved for a person was requested under a detected agent.
+ * - `no-tty`: a confirmation was requested without a terminal on stdin (trust model, point 4).
+ * - `state-unwritable`: the state record (`path`) couldn't be written, so nothing was confirmed.
+ * - `launch`: the agent CLI `new` hands off to (`path`) was found but couldn't be executed.
+ * - `github`: GitHub refused `submit`'s fork or push for the login `gh` uses.
  */
 export const PermissionDeniedDetails = Schema.Struct({
   reason: Schema.Literals([
@@ -251,14 +284,8 @@ export class PermissionDenied extends Schema.TaggedError<PermissionDenied>()("Pe
 }) {
   override readonly message = "Permission denied.";
 }
-/**
- * An entry that can't be used: its frontmatter didn't decode, it contains a symlink, its `id`
- * differs from its directory name, a file is missing, a conditional block is malformed, a merged
- * file isn't JSON, a template sits on a merge path, or a template names an unknown variable
- * (`template`). `path` is the file or link involved,
- * relative to the entry; `line` is a 1-based line in that file; `problem` says what is wrong with a
- * `conditional` marker.
- */
+
+/** What is wrong with a `stacks:when` conditional marker in an entry file. */
 export const ConditionalProblem = Schema.Literals([
   "unclosed",
   "nested",
@@ -271,6 +298,14 @@ export const ConditionalProblem = Schema.Literals([
   "not_alone",
 ]);
 export type ConditionalProblem = typeof ConditionalProblem.Type;
+
+/**
+ * An entry that can't be used: its frontmatter didn't decode, it contains a symlink, its `id`
+ * differs from its directory name, a file is missing, a conditional block is malformed, a merged
+ * file isn't JSON, a template sits on a merge path, or a template names an unknown variable
+ * (`template`). `path` is the file or link involved, relative to the entry; `line` is a 1-based
+ * line in that file; `problem` says what is wrong with a `conditional` marker.
+ */
 export const EntryInvalidDetails = Schema.Struct({
   id: Schema.String,
   origin: Origin,
@@ -293,16 +328,20 @@ export class EntryInvalid extends Schema.TaggedError<EntryInvalid>()("EntryInval
 }) {
   override readonly message = "Entry is invalid.";
 }
+
 /**
- * The selected entries can't be composed. `stack` is present when the stack is one of the parties
- * (it always reads first); `ids` names the fragments involved, in the order the reason reads (the
- * requirer before what it requires; a cycle in order). A stack and a fragment may share an id, so
- * the stack never appears in `ids`. `path`, `step` and `key` name the file, verify step or env key
- * two entries disagree on. For `needs_own_repo`, `path` is the enclosing repository's root and
- * `fix` lists the `--without` flags that would leave every such fragment out (empty when no
- * `--without` can). `file_owner` is also two planned paths that differ only in letter case, or a
- * file at a path another planned file needs as a directory. `reserved_path` is an entry file under
- * `.git` or `.stacks` (any segment, any case), which the CLI owns.
+ * The selected entries can't be composed.
+ * - `stack` is present when the stack is one of the parties (it always reads first). A stack and a
+ *   fragment may share an id, so the stack never appears in `ids`.
+ * - `ids` names the fragments involved, in the order the reason reads (the requirer before what it
+ *   requires; a cycle in order).
+ * - `path`, `step` and `key` name the file, verify step or env key two entries disagree on.
+ * - `needs_own_repo`: `path` is the enclosing repository's root and `fix` lists the `--without`
+ *   flags that would leave every such fragment out (empty when no `--without` can).
+ * - `file_owner` also covers two planned paths that differ only in letter case, and a file at a
+ *   path another planned file needs as a directory.
+ * - `reserved_path`: an entry file under `.git` or `.stacks` (any segment, any case), which the
+ *   CLI owns.
  */
 export const ComposeConflictDetails = Schema.Struct({
   reason: Schema.Literals([
@@ -331,11 +370,12 @@ export class ComposeConflict extends Schema.TaggedError<ComposeConflict>()("Comp
 }) {
   override readonly message = "These entries can't be composed.";
 }
+
 /**
  * `new` refuses a directory holding anything besides `.git` and OS litter. `path` is the target;
  * `entries` names up to ten of what is in it, sorted, litter excluded. `scaffold` is set when the
  * target already holds `.stacks/manifest.json`: `green` once its state record has
- * `firstGreenAt`, else `unfinished`.
+ * `firstGreenAt`, else `unfinished`. `skill install` reuses this tag for its own target.
  */
 export const TargetNotEmptyDetails = Schema.Struct({
   path: Schema.String,
@@ -349,6 +389,7 @@ export class TargetNotEmpty extends Schema.TaggedError<TargetNotEmpty>()("Target
 }) {
   override readonly message = "The target directory is not empty.";
 }
+
 /** `validate` found at least one error finding; the report stays on stdout. Counts, not text. */
 export const ValidationFailedDetails = Schema.Struct({
   errors: Schema.Number,
@@ -359,6 +400,7 @@ export class ValidationFailed extends Schema.TaggedError<ValidationFailed>()("Va
 }) {
   override readonly message = "Validation failed.";
 }
+
 export class Interrupted extends Schema.TaggedError<Interrupted>()("Interrupted", {}) {
   override readonly message = "Command interrupted.";
 }
@@ -368,6 +410,7 @@ export class Defect extends Schema.TaggedError<Defect>()("Defect", {}) {
 export class BrokenPipe extends Schema.TaggedError<BrokenPipe>()("BrokenPipe", {}) {
   override readonly message = "Output pipe closed.";
 }
+
 /**
  * No process could start: the cwd is missing or not a directory (`cwd`), `/bin/sh` is missing
  * (`shell`), a binary run without a shell is missing or not executable (`command`), or the system
@@ -381,6 +424,11 @@ export class SpawnFailed extends Schema.TaggedError<SpawnFailed>()("SpawnFailed"
 }) {
   override readonly message = "A process could not be started.";
 }
+
+// ---------------------------------------------------------------------------------------------
+// The tag registry: exit codes, retryability, kept results
+// ---------------------------------------------------------------------------------------------
+
 /** Every error class main reports; a unit test keeps it equal to `errorTable`'s keys. */
 export const errorClasses = [
   Usage,
@@ -402,6 +450,7 @@ export const errorClasses = [
   BrokenPipe,
 ] as const;
 export type AppError = InstanceType<(typeof errorClasses)[number]>;
+
 /** Every tag, for the envelope's schema. A unit test keeps it equal to `errorTable`'s keys. */
 export const ErrorTag = Schema.Literals([
   "Usage",
@@ -422,8 +471,14 @@ export const ErrorTag = Schema.Literals([
   "Defect",
   "BrokenPipe",
 ]);
+
 type ErrorSpec = { exit: number; retryable: boolean; keepsResult: boolean };
-/** Exit code, retryability and whether a failure keeps the command's result on stdout. */
+
+/**
+ * Exit code, retryability and whether a failure keeps the command's result on stdout. Exit codes
+ * are the branch an agent takes: 2 fix the input, 3 fix the config, 4 retry later, 5 read the
+ * verify report, 6 ask a person, 130 the run was stopped, 1 a bug.
+ */
 export const errorTable = {
   Usage: { exit: 2, retryable: false, keepsResult: false },
   BadInput: { exit: 2, retryable: false, keepsResult: false },
@@ -443,6 +498,7 @@ export const errorTable = {
   Defect: { exit: 1, retryable: false, keepsResult: false },
   BrokenPipe: { exit: 0, retryable: false, keepsResult: false },
 } as const satisfies Record<AppError["_tag"], ErrorSpec> & Record<typeof ErrorTag.Type, ErrorSpec>;
+
 export function exitCode(error: AppError): number {
   return errorTable[error._tag].exit;
 }
@@ -452,9 +508,15 @@ export function retryable(error: AppError): boolean {
 export function keepsResult(error: AppError): boolean {
   return errorTable[error._tag].keepsResult;
 }
+/** `value` as an `AppError` when it is an instance of one of `errorClasses`, else undefined. */
 export function knownError(value: unknown): AppError | undefined {
   return errorClasses.some((Class) => value instanceof Class) ? (value as AppError) : undefined;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Failure guides: the lines and `Next:` action printed under the message
+// ---------------------------------------------------------------------------------------------
+
 /**
  * What a failure tells its reader beyond the fixed message: `lines`, one per detail field worth
  * showing, and `next`, the one action to take, without a `Next:` prefix. Text modes print the lines
@@ -462,8 +524,13 @@ export function knownError(value: unknown): AppError | undefined {
  * with its own `Next:` line, so text modes don't print `next` for it (`Output.error`).
  */
 export type FailureGuide = { lines: string[]; next?: string };
+
 const guide = (lines: string[], next?: string): FailureGuide =>
   next === undefined ? { lines } : { lines, next };
+
+/** The `Did you mean:` line for close known names, or no line when there are none. */
+const didYouMean = (suggestions: ReadonlyArray<string> | undefined): string[] =>
+  suggestions?.length ? [`Did you mean: ${suggestions.map(printable).join(", ")}?`] : [];
 
 /** The guide for `error`. `invocation` is `Host.invocation`, for commands quoted in it. */
 export function failureGuide(error: AppError, invocation: string): FailureGuide {
@@ -507,13 +574,7 @@ export function failureGuide(error: AppError, invocation: string): FailureGuide 
         "wait a moment, then run the same command again.",
       );
     case "UpdateFailed":
-      return guide(
-        [
-          ...(error.details?.exitCode === undefined ? [] : [`npm exit: ${error.details.exitCode}`]),
-          ...(error.details?.timedOut ? ["npm timed out."] : []),
-        ],
-        `run ${error.details?.command ?? "the npm install"} yourself to see npm's output.`,
-      );
+      return updateFailedGuide(error);
     case "Interrupted":
       return guide([], "run the same command again when you're ready.");
     case "Defect":
@@ -525,6 +586,32 @@ export function failureGuide(error: AppError, invocation: string): FailureGuide 
       return guide([]);
   }
 }
+
+/** The human lines naming what changed; `--accept-changes` prints the same lines. */
+export function changeLines(change: typeof VerifyChange.Type): string[] {
+  const names = (label: string, list: ReadonlyArray<string>) =>
+    list.length ? [`${label}: ${list.map(printable).join(", ")}`] : [];
+  const items = [
+    ...names("Edited", change.edited),
+    ...names("Added", change.added),
+    ...names("Removed", change.removed),
+    ...(change.settings ? ["Settings: the manifest's env or preset changed"] : []),
+  ];
+  return [
+    changeBaseline(change),
+    ...(items.length
+      ? items
+      : ["Which steps changed is not itemized: there are no per-step digests to compare with."]),
+  ];
+}
+
+function changeBaseline(change: typeof VerifyChange.Type): string {
+  if (change.reason === "project-id")
+    return "Against: the state record for this project directory, which is kept under another projectId";
+  if (change.against === "manifest") return "Against: the manifest's own verifyDigest";
+  return "Against: the state record kept outside the project";
+}
+
 function upstreamLines(details: typeof UpstreamUnavailableDetails.Type): string[] {
   return [
     `Service: ${details.service === "github" ? "GitHub" : "npm registry"}`,
@@ -532,6 +619,34 @@ function upstreamLines(details: typeof UpstreamUnavailableDetails.Type): string[
     ...(details.status === undefined ? [] : [`Status: ${details.status}`]),
   ];
 }
+
+function updateFailedGuide(error: UpdateFailed): FailureGuide {
+  const details = error.details;
+  return guide(
+    [
+      ...(details?.exitCode === undefined ? [] : [`npm exit: ${details.exitCode}`]),
+      ...(details?.timedOut ? ["npm timed out."] : []),
+    ],
+    `run ${details?.command ?? "the npm install"} yourself to see npm's output.`,
+  );
+}
+
+/** No detail lines: the verify report on stdout already lists each failed step. */
+function verifyFailedGuide(error: VerifyFailed, invocation: string): FailureGuide {
+  const failed = error.details?.failed ?? [];
+  return guide(
+    [],
+    verifyNext(
+      "failed",
+      invocation,
+      failed.map((step) => step.failureKind),
+      error.details?.stages,
+    ),
+  );
+}
+
+// Usage
+
 function usageGuide(error: Usage, invocation: string): FailureGuide {
   const details = error.details;
   if (details && "flags" in details)
@@ -544,9 +659,7 @@ function usageGuide(error: Usage, invocation: string): FailureGuide {
   return guide(
     [
       ...(details?.command === undefined ? [] : [`Command: ${printable(details.command)}`]),
-      ...(details?.suggestions.length
-        ? [`Did you mean: ${details.suggestions.map(printable).join(", ")}?`]
-        : []),
+      ...didYouMean(details?.suggestions),
     ],
     `run ${invocation} --help to list the commands, or ${invocation} <command> --help for one.`,
   );
@@ -567,9 +680,7 @@ function invalidValueGuide(
       `${positional ? "Argument" : "Flag"}: ${printable(details.flag)}`,
       `Value: ${printable(details.value)}`,
       `Expected: ${printable(details.expected)}`,
-      ...(details.suggestions?.length
-        ? [`Did you mean: ${details.suggestions.map(printable).join(", ")}?`]
-        : []),
+      ...didYouMean(details.suggestions),
     ],
     `pass a value from Expected; ${printable(command)} --help lists every ${positional ? "argument" : "flag"}.`,
   );
@@ -584,13 +695,13 @@ function unknownFlagGuide(
     [
       `Flag: ${printable(details.flag)}`,
       `Command: ${printable(details.command)}`,
-      ...(details.suggestions.length
-        ? [`Did you mean: ${details.suggestions.map(printable).join(", ")}?`]
-        : []),
+      ...didYouMean(details.suggestions),
     ],
     `run ${printable(command)} --help to list the flags and arguments.`,
   );
 }
+
+// PermissionDenied
 
 function permissionGuide(error: PermissionDenied): FailureGuide {
   const details = error.details;
@@ -606,6 +717,62 @@ function permissionGuide(error: PermissionDenied): FailureGuide {
   );
 }
 
+function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"]): FailureGuide {
+  switch (reason) {
+    case "read":
+      return guide([], "check the path's read permissions, then run this command again.");
+    case "escape":
+      return guide(
+        ["The path resolves outside the project directory, through a symlink or `..`."],
+        "remove that symlink from the project directory, or pick another directory.",
+      );
+    case "blocked":
+      return guide(
+        [
+          "A file or directory in the project is in the way of a planned path. Nothing was changed.",
+        ],
+        "move or rename the blocking item, then run add again.",
+      );
+    case "unwritable":
+      return guide(
+        ["The project directory or a file in it can't be written. Nothing was left behind."],
+        "pick a directory you can write to, or fix this one's permissions.",
+      );
+    case "agent":
+      return guide(
+        ["This needs a person's confirmation, and an agent was detected. Nothing was changed."],
+        "ask the user to run this command from their own terminal.",
+      );
+    case "no-tty":
+      return guide(
+        ["This needs a person's confirmation, and stdin is not a terminal. Nothing was changed."],
+        "run this command from a terminal.",
+      );
+    case "state-unwritable":
+      return guide(
+        [
+          "The state record outside the project can't be written, so nothing was confirmed or changed.",
+        ],
+        "make that directory writable (or set STACKS_STATE_DIR to one that is), then run this command again.",
+      );
+    case "launch":
+      return guide(
+        ["The agent CLI was found on PATH but can't be run by you. The project was written."],
+        "fix the binary's permissions, or start your agent in the project yourself.",
+      );
+    case "github":
+      return guide(
+        ["GitHub refused to fork the repository or push the branch for the account gh uses."],
+        "run gh auth status to see that account, log in with one that can fork the repository (gh auth login), then run submit again.",
+      );
+    // A write to stdout or stderr failed, so nothing can be shown anyway.
+    case "write":
+      return guide([]);
+  }
+}
+
+// TargetNotEmpty
+
 function targetGuide(error: TargetNotEmpty, invocation: string): FailureGuide {
   const details = error.details;
   if (!details) return guide([], "pick a directory that doesn't exist yet or is empty.");
@@ -619,6 +786,37 @@ function targetGuide(error: TargetNotEmpty, invocation: string): FailureGuide {
     next.next,
   );
 }
+
+/** The `new` and `skill install` cases of a non-empty target, told apart by the target path. */
+function targetNext(details: typeof TargetNotEmptyDetails.Type, invocation: string): FailureGuide {
+  // `skill install`'s target is `.claude/skills/<name>`; the default skill needs no name.
+  const skill = /[/\\]\.claude[/\\]skills[/\\](stacks(?:-author)?)$/.exec(details.path)?.[1];
+  const install = `${invocation} skill install${skill === "stacks-author" ? " stacks-author" : ""}`;
+  if (details.blocker === "non-file")
+    return guide(
+      [],
+      `move the item named ${details.entries[0] ?? "SKILL.md"} out of the target directory, or run ${install} --print to copy the skill elsewhere.`,
+    );
+  // `skill install`'s differing files; its details are only path and entries.
+  if (skill !== undefined && details.entries.length > 0)
+    return guide(
+      [],
+      `rerun ${install} with --force to replace ${details.entries.length > 1 ? "them" : "it"}, or --print to copy it elsewhere.`,
+    );
+  if (details.scaffold === "unfinished")
+    return guide(
+      ["Scaffold: unfinished. An earlier `new` wrote this."],
+      `continue with ${BRIEF_PATH}, or remove the directory to start again.`,
+    );
+  if (details.scaffold === "green")
+    return guide(
+      ["Scaffold: green. This is a finished project."],
+      `pick another directory for a new project, or extend this one with ${invocation} add.`,
+    );
+  return guide([], "pick a directory that doesn't exist yet or is empty.");
+}
+
+// NotFound
 
 function notFoundGuide(error: NotFound, invocation: string): FailureGuide {
   // `looked` means a path was missing (validate); `root`, an id missing from a registry root
@@ -648,13 +846,29 @@ function notFoundGuide(error: NotFound, invocation: string): FailureGuide {
       ...(details.id !== undefined
         ? [`${entryKindLabel(details.kind)}: ${printable(details.id)}`]
         : []),
-      ...(details.suggestions.length
-        ? [`Did you mean: ${details.suggestions.map(printable).join(", ")}?`]
-        : []),
+      ...didYouMean(details.suggestions),
     ],
     notFoundNext(details, invocation),
   );
 }
+
+function entryKindLabel(kind: (typeof NotFoundDetails.Type)["kind"]): string {
+  if (kind === "fragment") return "Fragment";
+  if (kind === "stack") return "Stack";
+  return "Id";
+}
+
+function notFoundNext(details: typeof NotFoundDetails.Type, invocation: string): string {
+  if (details.directory)
+    return `pass ${printable(details.directory)} to submit that directory, or run ${invocation} list to see every stack and fragment id.`;
+  if (details.looked)
+    return "pass a registry root (a directory holding stacks/ or fragments/) or an entry directory inside one.";
+  if (details.root)
+    return `${invocation} validate ${shellArg(printable(details.root))} lists the ids under that root.`;
+  return `run ${invocation} list to see every stack and fragment id.`;
+}
+
+// EntryInvalid, ComposeConflict, InvalidConfig
 
 function entryGuide(error: EntryInvalid, invocation: string): FailureGuide {
   const details = error.details;
@@ -694,6 +908,30 @@ function composeGuide(error: ComposeConflict, invocation: string): FailureGuide 
   );
 }
 
+function composeNext(
+  details: typeof ComposeConflictDetails.Type,
+  invocation: string,
+): FailureGuide {
+  if (details.reason === "needs_own_repo")
+    return guide(
+      [],
+      details.fix?.length
+        ? `run again with --own-repo to give the project its own git repository inside that one, or with ${details.fix.map(printable).join(" ")} to leave those fragments out, or pick a directory outside that repository.`
+        : "run again with --own-repo to give the project its own git repository inside that one, or pick a directory outside that repository.",
+    );
+  if (details.reason === "reserved_path")
+    return guide(
+      [
+        "The CLI owns .git/ and .stacks/ in a project; no entry may write under them, in any letter case.",
+      ],
+      "remove or rename that file in the entry.",
+    );
+  return guide(
+    [],
+    `change --with or --without so these entries fit, or pick another stack; ${invocation} show <id> lists what each entry requires and conflicts with.`,
+  );
+}
+
 function configGuide(error: InvalidConfig, invocation: string): FailureGuide {
   const details = error.details;
   if (!details) return guide([], `run ${invocation} doctor to see which file is invalid.`);
@@ -713,37 +951,9 @@ function configGuide(error: InvalidConfig, invocation: string): FailureGuide {
   );
 }
 
-/** No detail lines: the verify report on stdout already lists each failed step. */
-function verifyFailedGuide(error: VerifyFailed, invocation: string): FailureGuide {
-  const failed = error.details?.failed ?? [];
-  return guide(
-    [],
-    verifyNext(
-      "failed",
-      invocation,
-      failed.map((step) => step.failureKind),
-      error.details?.stages,
-    ),
-  );
-}
+// BadInput
 
-/** The human lines naming what changed; `--accept-changes` prints the same lines. */
-export function changeLines(change: typeof VerifyChange.Type): string[] {
-  const names = (label: string, list: ReadonlyArray<string>) =>
-    list.length ? [`${label}: ${list.map(printable).join(", ")}`] : [];
-  const items = [
-    ...names("Edited", change.edited),
-    ...names("Added", change.added),
-    ...names("Removed", change.removed),
-    ...(change.settings ? ["Settings: the manifest's env or preset changed"] : []),
-  ];
-  return [
-    changeBaseline(change),
-    ...(items.length
-      ? items
-      : ["Which steps changed is not itemized: there are no per-step digests to compare with."]),
-  ];
-}
+/** BadInput's three own-field shapes first, then submit's, then the `id`-carrying flags. */
 function badInputGuide(details: typeof BadInputDetails.Type, invocation: string): FailureGuide {
   if (details.flag === "request")
     return guide(
@@ -755,17 +965,30 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
       [`Flag: --limit ${printable(details.value)}`],
       `run ${invocation} search with --limit from 1 to 20.`,
     );
-  if (details.flag === "offline")
-    return details.command === "submit"
-      ? guide(
-          ["submit needs GitHub, and offline mode makes no network requests."],
-          `run ${invocation} submit without --offline and with STACKS_OFFLINE unset.`,
-        )
-      : guide(
-          ["update needs the npm registry, and offline mode makes no network requests."],
-          `run ${invocation} update without --offline and with STACKS_OFFLINE unset.`,
-        );
+  if (details.flag === "offline") return offlineGuide(details.command, invocation);
   if (isSubmitDetails(details)) return submitGuide(details, invocation);
+  return idInputGuide(details, invocation);
+}
+
+function offlineGuide(command: "submit" | undefined, invocation: string): FailureGuide {
+  return command === "submit"
+    ? guide(
+        ["submit needs GitHub, and offline mode makes no network requests."],
+        `run ${invocation} submit without --offline and with STACKS_OFFLINE unset.`,
+      )
+    : guide(
+        ["update needs the npm registry, and offline mode makes no network requests."],
+        `run ${invocation} update without --offline and with STACKS_OFFLINE unset.`,
+      );
+}
+
+/** The BadInput shapes that carry an `id`, apart from submit's `collision`. */
+type IdInputDetails = Exclude<
+  typeof BadInputDetails.Type,
+  SubmitDetails | { flag: "request" | "limit" | "offline" }
+>;
+
+function idInputGuide(details: IdInputDetails, invocation: string): FailureGuide {
   const id = printable(details.id);
   switch (details.flag) {
     case "create_id":
@@ -872,6 +1095,9 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
       );
   }
 }
+
+// BadInput from submit
+
 const SUBMIT_FLAGS = [
   "repo",
   "tool",
@@ -885,8 +1111,16 @@ type SubmitDetails = Extract<typeof BadInputDetails.Type, { flag: (typeof SUBMIT
 function isSubmitDetails(details: typeof BadInputDetails.Type): details is SubmitDetails {
   return (SUBMIT_FLAGS as ReadonlyArray<string>).includes(details.flag);
 }
+
 /** Blocking findings shown in text modes; the envelope's details keep every one. */
 const SHOWN_BLOCKERS = 10;
+
+/** `Blocked: <kind> <id>: <check> (<severity>)`, then ` at <file>[:<line>]` when known. */
+function blockerLine(blocker: typeof SubmissionBlocker.Type): string {
+  const line = blocker.line === undefined ? "" : `:${blocker.line}`;
+  const where = blocker.file === undefined ? "" : ` at ${printable(blocker.file)}${line}`;
+  return `Blocked: ${blocker.kind} ${printable(blocker.id)}: ${blocker.check} (${blocker.severity})${where}`;
+}
 
 function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
   switch (details.flag) {
@@ -908,12 +1142,7 @@ function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
     case "submission":
       return guide(
         [
-          ...details.blockers
-            .slice(0, SHOWN_BLOCKERS)
-            .map(
-              (blocker) =>
-                `Blocked: ${blocker.kind} ${printable(blocker.id)}: ${blocker.check} (${blocker.severity})${blocker.file === undefined ? "" : ` at ${printable(blocker.file)}${blocker.line === undefined ? "" : `:${blocker.line}`}`}`,
-            ),
+          ...details.blockers.slice(0, SHOWN_BLOCKERS).map(blockerLine),
           ...(details.blockers.length > SHOWN_BLOCKERS
             ? [`And ${details.blockers.length - SHOWN_BLOCKERS} more.`]
             : []),
@@ -953,6 +1182,11 @@ function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
       );
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// The JSON error envelope
+// ---------------------------------------------------------------------------------------------
+
 /**
  * The one stderr line a `--json` failure ends with (`Output.error`). `next` is the failure's one
  * next action (`failureGuide`), the same text the text modes print after `Next:`; `details` is the
@@ -988,10 +1222,13 @@ export const ErrorEnvelope = Schema.Struct({
   description: "The last stderr line of a failed --json command",
 });
 export type ErrorEnvelope = typeof ErrorEnvelope.Type;
+
+/** Encodes `value` with `schema`, rejecting keys the schema doesn't name. */
 const encodeClosed = <S extends Schema.Top>(schema: S, value: S["Type"] | undefined) =>
   value === undefined
     ? Effect.succeed(undefined)
     : Schema.encodeUnknownEffect(schema)(value, { onExcessProperty: "error" });
+
 /**
  * A failure's details, encoded with the tag's details schema. Construction already drops keys
  * the schema doesn't name; this catches a details object mutated afterwards.
@@ -1030,132 +1267,4 @@ export function encodeDetails(error: AppError): Effect.Effect<unknown, Schema.Sc
     case "BrokenPipe":
       return Effect.succeed(undefined);
   }
-}
-
-function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"]): FailureGuide {
-  switch (reason) {
-    case "read":
-      return guide([], "check the path's read permissions, then run this command again.");
-    case "escape":
-      return guide(
-        ["The path resolves outside the project directory, through a symlink or `..`."],
-        "remove that symlink from the project directory, or pick another directory.",
-      );
-    case "blocked":
-      return guide(
-        [
-          "A file or directory in the project is in the way of a planned path. Nothing was changed.",
-        ],
-        "move or rename the blocking item, then run add again.",
-      );
-    case "unwritable":
-      return guide(
-        ["The project directory or a file in it can't be written. Nothing was left behind."],
-        "pick a directory you can write to, or fix this one's permissions.",
-      );
-    case "agent":
-      return guide(
-        ["This needs a person's confirmation, and an agent was detected. Nothing was changed."],
-        "ask the user to run this command from their own terminal.",
-      );
-    case "no-tty":
-      return guide(
-        ["This needs a person's confirmation, and stdin is not a terminal. Nothing was changed."],
-        "run this command from a terminal.",
-      );
-    case "state-unwritable":
-      return guide(
-        [
-          "The state record outside the project can't be written, so nothing was confirmed or changed.",
-        ],
-        "make that directory writable (or set STACKS_STATE_DIR to one that is), then run this command again.",
-      );
-    case "launch":
-      return guide(
-        ["The agent CLI was found on PATH but can't be run by you. The project was written."],
-        "fix the binary's permissions, or start your agent in the project yourself.",
-      );
-    case "github":
-      return guide(
-        ["GitHub refused to fork the repository or push the branch for the account gh uses."],
-        "run gh auth status to see that account, log in with one that can fork the repository (gh auth login), then run submit again.",
-      );
-    // A write to stdout or stderr failed, so nothing can be shown anyway.
-    case "write":
-      return guide([]);
-  }
-}
-
-function targetNext(details: typeof TargetNotEmptyDetails.Type, invocation: string): FailureGuide {
-  // `skill install`'s target is `.claude/skills/<name>`; the default skill needs no name.
-  const skill = /[/\\]\.claude[/\\]skills[/\\](stacks(?:-author)?)$/.exec(details.path)?.[1];
-  const install = `${invocation} skill install${skill === "stacks-author" ? " stacks-author" : ""}`;
-  if (details.blocker === "non-file")
-    return guide(
-      [],
-      `move the item named ${details.entries[0] ?? "SKILL.md"} out of the target directory, or run ${install} --print to copy the skill elsewhere.`,
-    );
-  // `skill install`'s differing files; its details are only path and entries.
-  if (skill !== undefined && details.entries.length > 0)
-    return guide(
-      [],
-      `rerun ${install} with --force to replace ${details.entries.length > 1 ? "them" : "it"}, or --print to copy it elsewhere.`,
-    );
-  if (details.scaffold === "unfinished")
-    return guide(
-      ["Scaffold: unfinished. An earlier `new` wrote this."],
-      `continue with ${BRIEF_PATH}, or remove the directory to start again.`,
-    );
-  if (details.scaffold === "green")
-    return guide(
-      ["Scaffold: green. This is a finished project."],
-      `pick another directory for a new project, or extend this one with ${invocation} add.`,
-    );
-  return guide([], "pick a directory that doesn't exist yet or is empty.");
-}
-
-function entryKindLabel(kind: (typeof NotFoundDetails.Type)["kind"]): string {
-  if (kind === "fragment") return "Fragment";
-  if (kind === "stack") return "Stack";
-  return "Id";
-}
-function notFoundNext(details: typeof NotFoundDetails.Type, invocation: string): string {
-  if (details.directory)
-    return `pass ${printable(details.directory)} to submit that directory, or run ${invocation} list to see every stack and fragment id.`;
-  if (details.looked)
-    return "pass a registry root (a directory holding stacks/ or fragments/) or an entry directory inside one.";
-  if (details.root)
-    return `${invocation} validate ${shellArg(printable(details.root))} lists the ids under that root.`;
-  return `run ${invocation} list to see every stack and fragment id.`;
-}
-
-function composeNext(
-  details: typeof ComposeConflictDetails.Type,
-  invocation: string,
-): FailureGuide {
-  if (details.reason === "needs_own_repo")
-    return guide(
-      [],
-      details.fix?.length
-        ? `run again with --own-repo to give the project its own git repository inside that one, or with ${details.fix.map(printable).join(" ")} to leave those fragments out, or pick a directory outside that repository.`
-        : "run again with --own-repo to give the project its own git repository inside that one, or pick a directory outside that repository.",
-    );
-  if (details.reason === "reserved_path")
-    return guide(
-      [
-        "The CLI owns .git/ and .stacks/ in a project; no entry may write under them, in any letter case.",
-      ],
-      "remove or rename that file in the entry.",
-    );
-  return guide(
-    [],
-    `change --with or --without so these entries fit, or pick another stack; ${invocation} show <id> lists what each entry requires and conflicts with.`,
-  );
-}
-
-function changeBaseline(change: typeof VerifyChange.Type): string {
-  if (change.reason === "project-id")
-    return "Against: the state record for this project directory, which is kept under another projectId";
-  if (change.against === "manifest") return "Against: the manifest's own verifyDigest";
-  return "Against: the state record kept outside the project";
 }

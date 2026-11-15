@@ -110,3 +110,10 @@ Sizing check: lanes run 598 to 1,366 lines; the skill's four-file cap is stretch
 
 ## Log
 
+DA (sonnet, on the plan) findings:
+1. Applied: a lane's "brittle test" claim is judged by the orchestrator before that lane merges; a red test blocks the merge until classified. A test that pins an exported function's result, a file, an envelope or `details` is observable behavior, never brittle.
+2. Applied after phase 1: the harness gains JSONL log capture (`STACKS_LOG_FILE` per command, normalized) and a re-captured baseline from `main`; not changed mid-phase because phase 1 lanes diff against the current `base/`. Exit codes were already recorded. Rollback, signal and telemetry paths stay covered by their tests only, so lanes touching them (1c, 2a, 5b, 5c) get a closer inline read.
+3. Applied: phase 1 was already dispatched, so the shared brief is revised from phase 1's results before phase 2 dispatches.
+4. Dropped: cross-lane imports are covered by frozen exports and the post-merge gate.
+5. Dropped: new sibling files are imported only by their owner, whose tests the grep finds.
+

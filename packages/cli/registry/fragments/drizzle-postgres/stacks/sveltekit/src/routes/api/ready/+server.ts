@@ -1,5 +1,5 @@
 /**
- * Exposes database readiness as an HTTP response. The endpoint reports whether Postgres is available.
+ * GET readiness: 200 when Postgres answers, 503 otherwise, never with the error text.
  */
 
 import { json } from '@sveltejs/kit';

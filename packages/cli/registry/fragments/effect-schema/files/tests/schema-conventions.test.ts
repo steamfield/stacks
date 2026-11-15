@@ -1,10 +1,9 @@
 /**
- * Exercises the project’s Effect Schema conventions. These examples check boundary schemas, transformations and generated values.
+ * The project's Schema conventions as running checks: a branded id, a transformation that
+ * round-trips, a property over generated values, readable failures, a closed JSON Schema
+ * document and the Standard Schema adapter. Copy these patterns for new boundary schemas.
  */
 
-// The project's Schema conventions as running checks: a branded id, a transformation that
-// round-trips, a property over generated values, readable failures, a closed JSON Schema
-// document and the Standard Schema adapter. Copy these patterns for new boundary schemas.
 import { Arbitrary, Effect, Exit, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 

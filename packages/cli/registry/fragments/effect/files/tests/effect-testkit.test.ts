@@ -1,9 +1,8 @@
 /**
- * Checks the Effect test kit used by the project’s Vitest tests and demonstrates its testing primitives.
+ * Proves @effect/vitest is installed and wired into Vitest, and that the test-kit names the
+ * project's Effect tests rely on still exist in the installed release. Copy these patterns.
  */
 
-// Proves @effect/vitest is installed and wired into Vitest, and that the test-kit names the
-// project's Effect tests rely on still exist in the installed release. Copy these patterns.
 import { assert, describe, it } from "@effect/vitest";
 import {
   Cause,

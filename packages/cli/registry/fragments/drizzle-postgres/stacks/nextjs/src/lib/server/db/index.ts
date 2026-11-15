@@ -1,5 +1,6 @@
 /**
- * Creates the Postgres pool and Drizzle database used by the server. It also provides the database readiness check.
+ * Creates the Postgres pool and Drizzle database used by the server. It also provides the database
+ * readiness check.
  */
 
 import "server-only";

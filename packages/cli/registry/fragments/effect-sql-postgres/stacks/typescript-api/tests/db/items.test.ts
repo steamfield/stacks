@@ -1,8 +1,7 @@
 /**
- * Exercises SQL-backed items and readiness services and their HTTP routes against Postgres.
+ * The Items and Readiness SQL layers, and the routes over them, on this file's own database.
  */
 
-// The Items and Readiness SQL layers, and the routes over them, on this file's own database.
 import { Effect, Exit, Layer, Redacted, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { expect, it } from "vitest";

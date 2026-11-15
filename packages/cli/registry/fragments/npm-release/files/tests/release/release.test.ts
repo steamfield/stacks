@@ -1,5 +1,6 @@
 /**
- * Exercises release preparation in isolated project fixtures, including version updates and refusal cases.
+ * Exercises release preparation in isolated project fixtures, including version updates and refusal
+ * cases.
  */
 
 import { spawnSync } from "node:child_process";

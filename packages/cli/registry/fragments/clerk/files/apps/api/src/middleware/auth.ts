@@ -1,5 +1,6 @@
 /**
- * Verifies Clerk sessions in the API middleware chain and defines the public paths that bypass authentication.
+ * Verifies Clerk sessions in the API middleware chain and defines the public paths that bypass
+ * authentication.
  */
 
 import { clerkMiddleware, getAuth } from '@clerk/hono';

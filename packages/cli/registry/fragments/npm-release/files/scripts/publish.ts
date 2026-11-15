@@ -1,14 +1,13 @@
 #!/usr/bin/env bun
 /**
- * Packs and publishes the package for the release workflow. Registry integrity checks make publishing safe to rerun.
+ * The release workflow's two npm steps, kept out of inline shell so tests can run them:
+ *   bun scripts/publish.ts pack <dir>      pack the package into <dir> and record its integrity
+ *   bun scripts/publish.ts publish <dir>   publish that tarball; safe to rerun
+ * `publish` asks the registry first. A version that isn't there is published with provenance, one
+ * with the same integrity is skipped, one with different bytes stops the release. It authenticates
+ * through npm trusted publishing (OIDC) and never reads or sets a token.
  */
 
-// The release workflow's two npm steps, kept out of inline shell so tests can run them:
-//   bun scripts/publish.ts pack <dir>      pack the package into <dir> and record its integrity
-//   bun scripts/publish.ts publish <dir>   publish that tarball; safe to rerun
-// `publish` asks the registry first. A version that isn't there is published with provenance, one
-// with the same integrity is skipped, one with different bytes stops the release. It authenticates
-// through npm trusted publishing (OIDC) and never reads or sets a token.
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,

@@ -1,19 +1,18 @@
 #!/usr/bin/env bun
 /**
- * Starts or stops the local OpenRouter stub for end-to-end CLI development without a provider key.
+ * `bun run stub` / `bun run stub:stop`: a stub OpenRouter on a local port (plus stub GitHub
+ * releases when bun-release is selected), so {{project_slug}} can be driven end to end with no key
+ * and no spend.
+ *
+ *   start  Reuse the stub already running from this checkout, or start scripts/stub-server.ts
+ *          detached. Prints `export` lines on stdout, so `eval "$(bun run --silent stub)"`
+ *          points this shell at it; the rest goes to stderr.
+ *   stop   Stop it.
+ *
+ * Port: {{env_prefix}}_STUB_PORT (default 5190) for OpenRouter; with bun-release, the server takes
+ * the next one for releases and records it in logs/stub.pid.
  */
 
-// `bun run stub` / `bun run stub:stop`: a stub OpenRouter on a local port (plus stub GitHub
-// releases when bun-release is selected), so {{project_slug}} can be driven end to end with no key
-// and no spend.
-//
-//   start  Reuse the stub already running from this checkout, or start scripts/stub-server.ts
-//          detached. Prints `export` lines on stdout, so `eval "$(bun run --silent stub)"`
-//          points this shell at it; the rest goes to stderr.
-//   stop   Stop it.
-//
-// Port: {{env_prefix}}_STUB_PORT (default 5190) for OpenRouter; with bun-release, the server takes
-// the next one for releases and records it in logs/stub.pid.
 import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";

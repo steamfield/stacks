@@ -1,5 +1,6 @@
 /**
- * Applies D1 migrations to a test-owned local persistence directory. HTTP tests use it to prepare their database.
+ * Applies D1 migrations to a test-owned local persistence directory. HTTP tests use it to prepare
+ * their database.
  */
 
 import { execFile } from "node:child_process";

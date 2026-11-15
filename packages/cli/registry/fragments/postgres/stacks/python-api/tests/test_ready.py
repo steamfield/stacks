@@ -1,3 +1,5 @@
+"""Readiness returns an unavailable response without a database while liveness stays healthy."""
+
 import pytest
 from httpx import AsyncClient
 

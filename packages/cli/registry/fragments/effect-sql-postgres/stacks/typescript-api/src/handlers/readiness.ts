@@ -1,5 +1,6 @@
 /**
- * Connects the readiness endpoint to the readiness service. The API builder installs this handler in the server.
+ * Connects the readiness endpoint to the readiness service. The API builder installs this handler
+ * in the server.
  */
 
 import { Effect } from "effect";

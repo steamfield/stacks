@@ -1,5 +1,6 @@
 /**
- * Connects the items HTTP endpoints to the items service. The API builder installs these handlers in the server.
+ * Connects the items HTTP endpoints to the items service. The API builder installs these handlers
+ * in the server.
  */
 
 import { Effect } from "effect";

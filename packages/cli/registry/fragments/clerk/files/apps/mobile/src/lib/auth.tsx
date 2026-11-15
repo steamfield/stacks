@@ -1,5 +1,6 @@
 /**
- * Connects Clerk session tokens to the mobile app and its query cache. It also supports anonymous operation when auth is disabled.
+ * Connects Clerk session tokens to the mobile app and its query cache. It also supports anonymous
+ * operation when auth is disabled.
  */
 
 import { ClerkProvider, useAuth } from '@clerk/expo';

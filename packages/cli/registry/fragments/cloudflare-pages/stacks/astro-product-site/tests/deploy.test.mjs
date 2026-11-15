@@ -1,10 +1,9 @@
 /**
- * Checks the built site using the local Cloudflare Pages runtime. This deployment test runs without a Cloudflare account.
+ * Serves the built dist/ through `wrangler pages dev`, Cloudflare's local Pages
+ * runtime, reading wrangler.jsonc the way a deploy does. Needs no account.
+ * Run after `astro build` (make deploy-check).
  */
 
-// Serves the built dist/ through `wrangler pages dev`, Cloudflare's local Pages
-// runtime, reading wrangler.jsonc the way a deploy does. Needs no account.
-// Run after `astro build` (make deploy-check).
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

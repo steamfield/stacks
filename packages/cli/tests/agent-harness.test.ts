@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Manifest } from "@steamfield/stacks-format";
 import { Exit, Schema } from "effect";
@@ -112,6 +112,8 @@ test("explicit --with on Go keeps the harness and warns, without a Go validation
   const { decoded, project } = await scaffold("go-cli");
   expect(decoded.fragments).toContain("claude-harness");
   expect(decoded.warnings).toEqual([{ code: "with_not_applicable", id: "claude-harness" }]);
-  expect(decoded.written).toContain(".claude/hooks/guard-commands.ts");
-  expect(readFileSync(join(project, ".claude/hooks/guard-commands.ts"), "utf8")).not.toBe("");
+  expect(decoded.written).toContain(".claude/hooks/typecheck-on-write.ts");
+  for (const removed of ["guard-commands.ts", "guard-generated.ts", "_destructive.ts", "_git.ts"])
+    expect(existsSync(join(project, ".claude/hooks", removed))).toBe(false);
+  expect(existsSync(join(project, "tests/hooks"))).toBe(false);
 }, 30_000);

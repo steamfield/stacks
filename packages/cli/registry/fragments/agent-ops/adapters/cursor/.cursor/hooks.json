@@ -5,7 +5,7 @@
       {
         "command": "bash .cursor/hooks/guard.sh",
         "matcher": "^(Shell|Write|Delete)$",
-        "failClosed": true
+        "failClosed": false
       }
     ],
     "beforeReadFile": [

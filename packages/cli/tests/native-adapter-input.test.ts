@@ -9,7 +9,7 @@ import {
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
 
-test("a missing guard refuses a large payload without a stdin transport failure", async () => {
+test("a missing guard allows a large payload without a stdin transport failure", async () => {
   const scaffold = await scaffoldAdapters({ home: space.temp(), agents: ["codex"] });
   const commands = guardCommands(scaffold.project, "codex", "Bash");
   expect(commands).toHaveLength(1);
@@ -23,8 +23,8 @@ test("a missing guard refuses a large payload without a stdin transport failure"
       tool_input: { command: "echo ".repeat(200_000) },
     },
   });
-  expect(result.status).toBe(2);
+  expect(result.status).toBe(0);
   expect(result.stdout).toBe("");
-  expect(result.stderr).toContain("BLOCKED:");
+  expect(result.stderr.trim().split("\n")).toHaveLength(1);
   expect(result.stderr).toContain("block-destructive.sh not found");
 });

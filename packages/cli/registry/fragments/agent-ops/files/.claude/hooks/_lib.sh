@@ -208,3 +208,133 @@ check_patch() {
   done <<<"$patch"
   check_patch_file
 }
+
+# Executable foreground segments for stack anti-hang rules. Quotes are decoded only
+# after splitting; background pipelines and positive timeouts are skipped together.
+foreground_commands() { shell_commands 1 "$1"; }
+
+# Publication checks also inspect detached and time-limited commands, with tab-separated argv.
+executable_commands() { shell_commands 0 "$1"; }
+
+shell_commands() {
+  local foreground=$1
+  shift
+  printf '%s\n' "$1" | LC_ALL=C awk -v foreground="$foreground" '
+    function emit(raw, depth, n, w, i, base, wrapped, started, out, limit) {
+      if (depth > 8) return
+      n = words(raw, w); wrapped = 0; started = 0; out = ""
+      for (i = 1; i <= n; i++) {
+        if (w[i] == "") continue
+        if (!started) {
+          if (w[i] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) continue
+          base = w[i]; sub(/.*\//, "", base)
+          if (base == "timeout") {
+            limit = w[++i]
+            if (limit !~ /^[0-9]+(\.[0-9]+)?[smhd]?$/) return
+            if (foreground && limit + 0 > 0) return
+            wrapped = 1; continue
+          }
+          if (base ~ /^(sh|bash|zsh|dash|ksh)$/ && w[i + 1] ~ /^-[a-z]*c[a-z]*$/) {
+            scan(w[i + 2], depth + 1); return
+          }
+          if (base == "uv" && w[i + 1] == "run") { i++; wrapped = 1; continue }
+          if (base ~ /^(env|command|builtin|exec|nice|nohup|sudo|doas|time|xargs|busybox|stdbuf|uvx)$/) {
+            wrapped = 1; continue
+          }
+          if (wrapped && w[i] ~ /^(--with|--project|--directory|--env-file|-C|-u)$/) { i++; continue }
+          if (wrapped && (w[i] ~ /^-/ || w[i] ~ /^[0-9][0-9.]*$/)) continue
+          started = 1
+        }
+        out = out (out == "" ? "" : (foreground ? " " : "\t")) w[i]
+      }
+      gsub(/\n/, " ", out)
+      if (out != "") print out
+    }
+    function words(raw, w, i, c, q, n, value, started) {
+      n = 0; value = ""; q = ""; started = 0
+      for (i = 1; i <= length(raw); i++) {
+        c = substr(raw, i, 1)
+        if (c == "$" && substr(raw, i + 1, 1) == "\047" && q == "") continue
+        if (c == "\\" && q != "\047") { value = value substr(raw, ++i, 1); started = 1; continue }
+        if (q != "") { if (c == q) q = ""; else value = value c }
+        else if (c == "\047" || c == "\"") { q = c; started = 1 }
+        else if (c ~ /[ \t\n]/) {
+          if (started) w[++n] = value
+          value = ""; started = 0
+        } else { value = value c; started = 1 }
+      }
+      if (started) w[++n] = value
+      return n
+    }
+    function group(text, depth, at, part) {
+      while ((at = index(text, "\034")) > 0) {
+        part = substr(text, 1, at - 1); text = substr(text, at + 1)
+        emit(part, depth)
+      }
+      emit(text, depth)
+    }
+    function scan(text, depth, i, c, q, out, following, pipeline, here, at, raw, names, delimiter, line, stop) {
+      q = ""; out = ""; pipeline = ""; here = ""
+      for (i = 1; i <= length(text); i++) {
+        c = substr(text, i, 1); following = substr(text, i + 1, 1)
+        if (c == "\\" && q != "\047" && i < length(text)) {
+          out = out c following; i++; continue
+        }
+        if (q != "") { if (c == q) q = ""; out = out c; continue }
+        if (c == "\047" || c == "\"") { q = c; out = out c; continue }
+        if (c == "#" && (out == "" || out ~ /[ \t]$/)) {
+          while (i <= length(text) && substr(text, i, 1) != "\n") i++
+          c = "\n"; following = ""
+        }
+        if (c == "<" && following == "<" && substr(text, i + 2, 1) != "<") {
+          i += 2
+          if (substr(text, i, 1) == "-") i++
+          while (substr(text, i, 1) ~ /[ \t]/) i++
+          raw = ""
+          while (i <= length(text) && substr(text, i, 1) !~ /[ \t\n;&|]/) raw = raw substr(text, i++, 1)
+          if (words(raw, names) != 1) return
+          here = here names[1] "\034"; i--; out = out " "; continue
+        }
+        if (c == "&" && (following == ">" || substr(text, i - 1, 1) ~ /[<>]/)) {
+          out = out c; continue
+        }
+        if ((c == "&" || c == "|") && following == c) {
+          pipeline = pipeline out "\034"; out = ""; i++; continue
+        }
+        if (c == "|" && following != "|") {
+          pipeline = pipeline out "\034"; out = ""
+          if (following == "&") i++
+        } else if (c == ";" || c == "&" || c == "|" || c == "\n") {
+          if (c != "&" || !foreground) group(pipeline out, depth)
+          pipeline = ""; out = ""
+          if (c == "\n") {
+            while ((at = index(here, "\034")) > 0) {
+              delimiter = substr(here, 1, at - 1); here = substr(here, at + 1)
+              stop = 0
+              while (i < length(text)) {
+                i++; line = ""
+                while (i <= length(text) && substr(text, i, 1) != "\n") line = line substr(text, i++, 1)
+                sub(/^\t+/, "", line)
+                if (line == delimiter) { stop = 1; break }
+              }
+              if (!stop) return
+            }
+          }
+        } else out = out c
+      }
+      if (q == "") group(pipeline out, depth)
+    }
+    { text = text (NR == 1 ? "" : "\n") $0 }
+    END { scan(text, 0) }'
+}
+
+# hook_foreground_commands <payload-json>: validate the native Bash input, then split it.
+hook_foreground_commands() {
+  local command
+  command=$(printf '%s' "$1" | jq -r '
+    if .tool_input.run_in_background == true then empty
+    elif .tool_input.command == null then empty
+    elif (.tool_input.command | type) == "string" then .tool_input.command
+    else error("invalid command") end') || return 1
+  foreground_commands "$command"
+}

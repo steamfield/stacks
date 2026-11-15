@@ -48,7 +48,7 @@ const background =
   input.run_in_background === true;
 const reason = command
   ? commands(command)
-      .map((cmd) => reasonFor(cmd, background))
+      .map((cmd) => reasonFor(cmd, background || cmd.background === true))
       .find((r) => r !== undefined)
   : undefined;
 if (reason) deny(`BLOCKED: ${reason}`);

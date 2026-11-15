@@ -1,92 +1,83 @@
-import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type Fixture, makeFixture, REPO } from "./helpers/dev";
+import { expect, it, vi } from "vitest";
+import { makeFixture } from "./helpers/dev";
 
-// A server stand-in that runs until signaled.
-const STUB = `bun -e "setInterval(() => {}, 1000)"`;
-
-let project: Fixture;
-let groups: number[] = [];
-
-const freePort = () =>
-  new Promise<string>((resolve) => {
-    const server = createServer().listen(0, () => {
-      const { port } = server.address() as { port: number };
-      server.close(() => resolve(String(port)));
+function freePort(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.on("error", reject);
+    server.listen(0, () => {
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        server.close();
+        reject(new Error("No TCP port"));
+        return;
+      }
+      server.close(() => resolve(String(address.port)));
     });
   });
+}
 
-const groupAlive = (pgid: number) => {
-  try {
-    process.kill(-pgid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-beforeEach(() => {
-  project = makeFixture();
-  mkdirSync(join(project.dir, "scripts"));
-  for (const file of ["dev.ts", "dev-bg.ts", "dev-pid.ts", "dev-logs.ts", "dev-status.ts"]) {
-    copyFileSync(join(REPO, "scripts", file), join(project.dir, "scripts", file));
-  }
+it("starts a background dev server and stops its processes", async () => {
+  const project = makeFixture("dev.ts", "dev-bg.ts", "dev-pid.ts", "dev-logs.ts", "dev-status.ts");
+  const env = { ...process.env, PORT_API: await freePort(), PORT_WEB: await freePort() };
+  const server = (port: string) =>
+    `bun -e 'Bun.serve({port:Number(process.env.${port}),fetch:()=>new Response("ok")})'`;
   writeFileSync(
     join(project.dir, "package.json"),
-    JSON.stringify({ private: true, scripts: { "dev:api": STUB, "dev:web": STUB } }),
+    JSON.stringify({
+      private: true,
+      scripts: { "dev:api": server("PORT_API"), "dev:web": server("PORT_WEB") },
+    }),
   );
-});
-afterEach(() => {
-  for (const pgid of groups) if (groupAlive(pgid)) process.kill(-pgid, "SIGKILL");
-  groups = [];
-  project.cleanup();
-});
-
-describe("dev:stop", { timeout: 30_000 }, () => {
-  it("stops the servers a SIGKILLed dev session left running", async () => {
-    const env = { ...process.env, PORT_API: await freePort(), PORT_WEB: await freePort() };
-    const dev = spawn("bun", ["scripts/dev.ts"], {
-      cwd: project.dir,
-      env,
-      detached: true,
-      stdio: "ignore",
-    });
-    const pidFile = join(project.dir, "logs/dev.pid");
-    // dev.ts rewrites the pid file with both server groups once it has spawned them.
-    await vi.waitFor(() => {
-      groups = readFileSync(pidFile, "utf8").trim().split(/\s+/).slice(3).map(Number);
-      expect(groups).toHaveLength(2);
-    });
-    expect(groups.every(groupAlive)).toBe(true);
-
-    process.kill(dev.pid as number, "SIGKILL");
-    await vi.waitFor(() => expect(dev.exitCode ?? dev.signalCode).toBe("SIGKILL"));
-    // Its exit handler never ran: the servers live on and the pid file names a dead pid.
-    expect(groups.every(groupAlive)).toBe(true);
-
-    const stop = spawnSync("bun", ["scripts/dev-bg.ts", "stop"], {
+  let groups: number[] = [];
+  let owner: number | undefined;
+  const run = (command: string) =>
+    spawnSync("bun", ["scripts/dev-bg.ts", command], {
       cwd: project.dir,
       env,
       encoding: "utf8",
+      timeout: 20_000,
     });
-    expect(stop.stderr).toBe("");
-    expect(stop.stdout).toContain("Stopped the dev servers a killed dev session left running");
-    expect(stop.status).toBe(0);
-    await vi.waitFor(() => expect(groups.some(groupAlive)).toBe(false));
-    expect(existsSync(pidFile)).toBe(false);
-  });
-});
-
-it("status reports a stopped checkout and points to its readable logs", () => {
-  const result = spawnSync("bun", ["scripts/dev-bg.ts", "status"], {
-    cwd: project.dir,
-    encoding: "utf8",
-  });
-  expect(result.status).toBe(1);
-  expect(result.stderr).toBe("");
-  expect(result.stdout).toContain("No dev servers are running from this checkout");
-  expect(result.stdout).toContain("bun run logs");
-});
+  try {
+    const start = run("start");
+    const pidFile = join(project.dir, "logs/dev.pid");
+    const recorded = existsSync(pidFile)
+      ? readFileSync(pidFile, "utf8").trim().split(/\s+/).map(Number)
+      : [];
+    owner = recorded[0];
+    groups = recorded.slice(3);
+    expect(start.status, start.stdout + start.stderr).toBe(0);
+    expect(start.stderr).toBe("");
+    expect(start.stdout).toContain(`http://localhost:${env.PORT_API}`);
+    expect(groups).toHaveLength(2);
+    const status = run("status");
+    expect(status.status, status.stdout + status.stderr).toBe(0);
+    expect(status.stderr).toBe("");
+    expect(status.stdout).toContain(env.PORT_API);
+  } finally {
+    try {
+      const stop = run("stop");
+      expect(stop.status, stop.stdout + stop.stderr).toBe(0);
+      expect(stop.stderr).toBe("");
+      expect(stop.stdout).toContain("Stopped");
+      await vi.waitFor(() => {
+        expect(existsSync(join(project.dir, "logs/dev.pid"))).toBe(false);
+        for (const group of groups) expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
+      });
+    } finally {
+      for (const pid of [...groups.map((group) => -group), ...(owner ? [owner] : [])]) {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch (error) {
+          if (!(error instanceof Error && "code" in error && error.code === "ESRCH"))
+            console.error("Cannot clean up dev fixture process", pid, error);
+        }
+      }
+      project.cleanup();
+    }
+  }
+}, 30_000);

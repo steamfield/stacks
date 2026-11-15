@@ -123,18 +123,15 @@
         "bun publish",
         "pnpm publish",
         "yarn publish",
-        "npm --workspace pkg publish"
-      ],
-      "allowed": [
-        "npm publish --dry-run",
-        "bun publish --dry-run",
+        "npm --workspace pkg publish",
         "cargo publish",
         "uv publish",
-        "gem publish",
         "poetry publish",
         "twine upload dist/*",
-        "goreleaser release"
-      ]
+        "gem push pkg.gem",
+        "wasm-pack publish"
+      ],
+      "allowed": ["npm publish --dry-run", "bun publish --dry-run", "gem publish"]
     },
     {
       "pattern": "package unpublication",
@@ -187,14 +184,19 @@
         "aws s3 rb s3://bucket --force",
         "terraform destroy",
         "terraform -chdir=infra destroy",
-        "tofu destroy"
+        "tofu destroy",
+        "terraform apply -destroy",
+        "tofu apply -destroy",
+        "terraform -chdir=infra apply -destroy -auto-approve",
+        "pulumi destroy"
       ],
       "allowed": [
         "kubectl get pods",
         "aws s3 ls",
         "terraform plan",
-        "pulumi destroy",
-        "terraform apply -destroy"
+        "terraform apply",
+        "tofu apply",
+        "echo \"pulumi destroy\""
       ]
     },
     {
@@ -230,6 +232,90 @@
         "printf file | xargs rm -f",
         "find . -exec rm file \\;"
       ]
+    },
+    {
+      "pattern": "Maven publication",
+      "blocked": [
+        "mvn deploy",
+        "mvn deploy:deploy",
+        "mvn deploy:deploy-file",
+        "mvn central-publishing:publish",
+        "mvn gpg:sign-and-deploy-file",
+        "./mvnw deploy",
+        "./mvnw deploy:deploy",
+        "./mvnw deploy:deploy-file",
+        "./mvnw central-publishing:publish",
+        "./mvnw gpg:sign-and-deploy-file",
+        "./mvnw deploy &",
+        "timeout 5 ./mvnw deploy",
+        "command ./mvnw deploy"
+      ],
+      "allowed": ["./mvnw install", "./mvnw gpg:sign", "echo './mvnw deploy'"]
+    },
+    {
+      "pattern": "GoReleaser publication",
+      "blocked": ["goreleaser release", "goreleaser release --clean"],
+      "allowed": [
+        "goreleaser release --snapshot",
+        "goreleaser release --snapshot --clean",
+        "echo \"goreleaser release\""
+      ]
+    },
+    {
+      "pattern": "decoded publication commands",
+      "blocked": [
+        "./m\\vnw deploy",
+        "mvn 'deploy'",
+        "sh -c './mvnw deploy'",
+        "busybox sh -c 'wasm-pack publish'",
+        "\"wasm-pack\" publish",
+        "$'wasm-pack' publish",
+        "wasm-pack publish --tag \"beta\"",
+        "echo \"starting\"; wasm-pack publish",
+        "command /usr/local/bin/wasm-pack publish",
+        "wasm-pack publish &",
+        "timeout 5 wasm-pack publish",
+        "command ./mvnw deploy",
+        "env FOO=1 ./mvnw deploy",
+        "exec ./mvnw deploy",
+        "nice -n 5 ./mvnw deploy",
+        "sudo ./mvnw deploy",
+        "busybox ./mvnw deploy",
+        "bash -c './mvnw deploy'",
+        "\"./mvnw\" deploy",
+        "$'./mvnw' deploy",
+        ".\\/mvnw deploy",
+        "./mvnw deploy &",
+        "timeout 5 ./mvnw deploy",
+        "command wasm-pack publish",
+        "env FOO=1 wasm-pack publish",
+        "exec wasm-pack publish",
+        "nice -n 5 wasm-pack publish",
+        "sudo wasm-pack publish",
+        "busybox wasm-pack publish",
+        "bash -c 'wasm-pack publish'",
+        "w\\asm-pack publish"
+      ],
+      "allowed": ["echo 'sh -c \"./mvnw deploy\"'"]
+    },
+    {
+      "pattern": "publication options",
+      "blocked": [
+        "cargo +stable publish",
+        "uv --directory pkg publish",
+        "cargo publish --dry-run; cargo publish"
+      ],
+      "allowed": ["./mvnw -pl deploy test", "./mvnw -f deploy validate", "cargo publish --dry-run"]
+    },
+    {
+      "pattern": "effective snapshot flag",
+      "blocked": ["goreleaser release --snapshot --snapshot=false"],
+      "allowed": ["goreleaser release --snapshot=true"]
+    },
+    {
+      "pattern": "decoded infrastructure destruction",
+      "blocked": ["terraform 'apply' -destroy", "sh -c 'pulumi destroy'"],
+      "allowed": ["echo \"terraform apply -destroy\""]
     }
   ]
 }

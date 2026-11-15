@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
-import { describe, expect, test } from "vitest";
+import { afterAll, describe, expect, test } from "vitest";
 import { tempDir } from "./helpers/cli";
 
 const registry = join(import.meta.dirname, "..", "registry", "stacks");
@@ -67,15 +67,6 @@ const guards = [
     reason: "make test",
   },
   {
-    stack: "java-library",
-    hook: "guard-maven.sh",
-    deny: "./mvnw deploy",
-    allow: "./mvnw install",
-    convention: "mvn test",
-    file: "api/baseline.jar",
-    reason: "ask the user first",
-  },
-  {
     stack: "python-data",
     hook: "guard-python-data.sh",
     deny: "uv run marimo edit notebooks/report.py",
@@ -101,15 +92,6 @@ const guards = [
     convention: "make snapshots",
     file: "src/snapshots/frame.snap",
     reason: "make test",
-  },
-  {
-    stack: "rust-wasm",
-    hook: "guard-rust-wasm.sh",
-    deny: "wasm-pack publish",
-    allow: "wasm-pack pack",
-    convention: "wasm-pack login",
-    file: "pkg/index.js",
-    reason: "ask the user first",
   },
   {
     stack: "spring-boot-api",
@@ -140,6 +122,15 @@ const guards = [
   },
 ];
 
+const project = tempDir();
+afterAll(() => project.cleanup());
+const hooks = join(project.path, ".claude/hooks");
+mkdirSync(hooks, { recursive: true });
+copyFileSync(
+  join(registry, "../fragments/agent-ops/files/.claude/hooks/_lib.sh"),
+  join(hooks, "_lib.sh"),
+);
+
 function runHook(stack: string, hook: string, input: string, path = process.env.PATH) {
   const result = spawnSync(
     "/bin/bash",
@@ -147,7 +138,7 @@ function runHook(stack: string, hook: string, input: string, path = process.env.
     {
       input,
       encoding: "utf8",
-      env: { PATH: path, CLAUDE_PROJECT_DIR: "/project" },
+      env: { PATH: path, CLAUDE_PROJECT_DIR: project.path },
     },
   );
   expect(result.error).toBeUndefined();
@@ -236,38 +227,31 @@ describe.each(guards)("$stack/$hook", ({ stack, hook, deny, allow, convention, f
   });
 });
 
-test.each(guards.filter(({ stack }) => stack !== "java-library" && stack !== "rust-wasm"))(
-  "$stack allows detached and time-limited commands",
-  ({ stack, hook, deny }) => {
-    for (const command of [
-      `${deny} &`,
-      `${deny} &  `,
-      `timeout 5 ${deny}`,
-      `timeout 0.5 ${deny}`,
-    ]) {
-      expect(runHook(stack, hook, bashPayload(command))).toEqual({ stdout: "", stderr: "" });
-    }
-  },
-);
+test.each(guards)("$stack allows detached and time-limited commands", ({ stack, hook, deny }) => {
+  for (const command of [
+    `${deny} &`,
+    `${deny} &  `,
+    `${deny} && echo ready &`,
+    `${deny} || echo ready &`,
+    `${deny} | cat &`,
+    `sh -c '${deny}' &`,
+    `sh -c '${deny} &'`,
+    `timeout 5 ${deny}`,
+    `timeout 0.5 ${deny}`,
+  ]) {
+    expect(runHook(stack, hook, bashPayload(command))).toEqual({ stdout: "", stderr: "" });
+  }
+});
 
-test.each(guards.filter(({ stack }) => stack !== "java-library" && stack !== "rust-wasm"))(
-  "$stack still denies an unbounded timeout",
-  ({ stack, hook, deny }) => {
-    for (const limit of ["0", "0s", "0.0"]) {
-      const result = runHook(stack, hook, bashPayload(`timeout ${limit} ${deny}`));
-      expect(result.stderr).toBe("");
-      expect(decision(JSON.parse(result.stdout)).hookSpecificOutput.permissionDecision).toBe(
-        "deny",
-      );
-    }
-  },
-);
+test.each(guards)("$stack still denies an unbounded timeout", ({ stack, hook, deny }) => {
+  for (const limit of ["0", "0s", "0.0"]) {
+    const result = runHook(stack, hook, bashPayload(`timeout ${limit} ${deny}`));
+    expect(result.stderr).toBe("");
+    expect(decision(JSON.parse(result.stdout)).hookSpecificOutput.permissionDecision).toBe("deny");
+  }
+});
 
 test.each([
-  { stack: "java-library", hook: "guard-maven.sh", command: "echo './mvnw deploy'" },
-  { stack: "java-library", hook: "guard-maven.sh", command: "./mvnw gpg:sign" },
-  { stack: "rust-wasm", hook: "guard-rust-wasm.sh", command: "git commit -m 'wasm-pack publish'" },
-  { stack: "rust-wasm", hook: "guard-rust-wasm.sh", command: "bun test" },
   { stack: "go-mcp", hook: "guard-mcp.sh", command: "cat request.json | ./bin/server" },
   { stack: "go-library", hook: "guard-library.sh", command: "make api-baseline" },
   { stack: "go-tui", hook: "guard-tui.sh", command: "tmux list-sessions" },
@@ -309,7 +293,7 @@ test.each([
   expect(runHook(stack, hook, bashPayload(command))).toEqual({ stdout: "", stderr: "" });
 });
 
-test.each(guards.filter(({ stack }) => stack !== "java-library" && stack !== "rust-wasm"))(
+test.each(guards)(
   "$stack checks deadlines and backgrounding on the corresponding command",
   ({ stack, hook, deny }) => {
     for (const command of [`${deny}; true &`, `timeout 5 true; ${deny}`]) {
@@ -339,20 +323,6 @@ test.each([
     command: "go run . --help; script -q /dev/null ./bin/app",
   },
   { stack: "rust-tui", hook: "guard-tui.sh", command: "script -q /dev/null cargo +nightly run" },
-  {
-    stack: "java-library",
-    hook: "guard-maven.sh",
-    command: './mvnw deploy -DaltDeploymentRepository="releases::https://repo.invalid"',
-  },
-  { stack: "java-library", hook: "guard-maven.sh", command: "command ./mvnw deploy" },
-  { stack: "java-library", hook: "guard-maven.sh", command: "./m\\vnw deploy" },
-  { stack: "rust-wasm", hook: "guard-rust-wasm.sh", command: 'wasm-pack publish --tag "beta"' },
-  { stack: "rust-wasm", hook: "guard-rust-wasm.sh", command: 'echo "starting"; wasm-pack publish' },
-  {
-    stack: "rust-wasm",
-    hook: "guard-rust-wasm.sh",
-    command: "command /usr/local/bin/wasm-pack publish",
-  },
   { stack: "quarkus-api", hook: "guard-maven.sh", command: "sh -c './mvnw quarkus:dev'" },
   { stack: "spring-boot-api", hook: "guard-maven.sh", command: "sh -c './mvnw spring-boot:run'" },
   {
@@ -389,22 +359,46 @@ test.each(guards)("$stack recognizes wrapped executable commands", ({ stack, hoo
   }
 });
 
-test.each(guards.filter(({ stack }) => stack === "java-library" || stack === "rust-wasm"))(
-  "$stack publishing remains irreversible when detached or time-limited",
-  ({ stack, hook, deny }) => {
-    for (const command of [`${deny} &`, `timeout 5 ${deny}`]) {
-      const result = runHook(stack, hook, bashPayload(command));
-      expect(result.stderr).toBe("");
-      expect(decision(JSON.parse(result.stdout)).hookSpecificOutput.permissionDecision).toBe(
-        "deny",
-      );
-    }
-  },
-);
-
 test.each(guards)("$stack permits multiline quoted examples", ({ stack, hook, deny }) => {
   expect(runHook(stack, hook, bashPayload(`git commit -m 'example:\n${deny}\nend'`))).toEqual({
     stdout: "",
     stderr: "",
   });
+});
+
+test.each(["streamlit run app.py 2>&1", "streamlit run app.py &> /dev/null"])(
+  "redirection keeps %s foreground",
+  (command) => {
+    const result = runHook("streamlit", "guard-streamlit.sh", bashPayload(command));
+    expect(result.stderr).toBe("");
+    expect(decision(JSON.parse(result.stdout)).hookSpecificOutput.permissionDecision).toBe("deny");
+  },
+);
+
+test("heredoc text is allowed but a command after its delimiter is checked", () => {
+  const text = "cat <<'EOF'\nstreamlit run app.py\nEOF";
+  expect(runHook("streamlit", "guard-streamlit.sh", bashPayload(text))).toEqual({
+    stdout: "",
+    stderr: "",
+  });
+  const result = runHook(
+    "streamlit",
+    "guard-streamlit.sh",
+    bashPayload(`${text}\nstreamlit run app.py`),
+  );
+  expect(result.stderr).toBe("");
+  expect(decision(JSON.parse(result.stdout)).hookSpecificOutput.permissionDecision).toBe("deny");
+});
+
+test("a stack guard allows a call with one note when the shared helper is missing", () => {
+  const helper = join(hooks, "_lib.sh");
+  rmSync(helper);
+  try {
+    const result = runHook("go-tui", "guard-tui.sh", bashPayload("script -q /dev/null ./bin/app"));
+    expect(result.stdout).toBe("");
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toContain("allowing");
+  } finally {
+    copyFileSync(join(registry, "../fragments/agent-ops/files/.claude/hooks/_lib.sh"), helper);
+  }
 });

@@ -149,11 +149,56 @@ is_destructive() (
     c "gh[[:space:]]+release[[:space:]]+create${end}"; then
     hit "Publishing or changing a release is irreversible."; return 0
   fi
+  # Decode executable argv without treating quoted mentions as commands.
+  local decoded program sub i arg snapshot dry goal destroy
+  local -a argv
+  decoded=$(executable_commands "$command") || return 2
+  while IFS= read -r seg; do
+    IFS=$'\t' read -r -a argv <<<"$seg" || continue
+    [ "${#argv[@]}" -gt 0 ] || continue
+    program=${argv[0]##*/}
+    [ "$program" != mvnw ] || program=mvn
+    sub=""; goal=0; snapshot=0; dry=0; destroy=0; i=1
+    while [ "$i" -lt "${#argv[@]}" ]; do
+      arg=${argv[$i]}
+      i=$((i + 1))
+      case "$program:$arg" in
+        mvn:-f|mvn:--file|mvn:-pl|mvn:--projects|mvn:-s|mvn:--settings|mvn:-gs|mvn:--global-settings|\
+        mvn:-t|mvn:--toolchains|mvn:-gt|mvn:--global-toolchains|mvn:-rf|mvn:--resume-from|\
+        mvn:-P|mvn:--activate-profiles|mvn:-T|mvn:--threads|mvn:-b|mvn:--builder|mvn:-l|mvn:--log-file)
+          i=$((i + 1)); continue ;;
+        mvn:deploy|mvn:deploy:deploy|mvn:deploy:deploy-file|mvn:central-publishing:publish|mvn:gpg:sign-and-deploy-file)
+          goal=1 ;;
+        cargo:--dry-run) dry=1 ;;
+        goreleaser:--snapshot|goreleaser:--snapshot=true) snapshot=1 ;;
+        goreleaser:--snapshot=false) snapshot=0 ;;
+        terraform:-destroy|terraform:-destroy=true|tofu:-destroy|tofu:-destroy=true) destroy=1 ;;
+        terraform:-destroy=false|tofu:-destroy=false) destroy=0 ;;
+      esac
+      if [ -z "$sub" ]; then
+        case "$arg" in
+          --directory|--project|--config-file|--cache-dir|--python|--config|--color|--log-level|-C|-c|-f|-Z)
+            i=$((i + 1)); continue ;;
+          -*|+*) continue ;;
+        esac
+        sub=$arg
+      fi
+    done
+    case "$program:$sub" in
+      mvn:*) [ "$goal" -eq 1 ] || continue ;;
+      cargo:publish) [ "$dry" -eq 0 ] || continue ;;
+      wasm-pack:publish|uv:publish|poetry:publish|twine:upload|gem:push) ;;
+      goreleaser:release) [ "$snapshot" -eq 0 ] || continue ;;
+      terraform:apply|tofu:apply) [ "$destroy" -eq 1 ] || continue ;;
+      terraform:destroy|tofu:destroy|pulumi:destroy) ;;
+      *) continue ;;
+    esac
+    hit "Publishing or destroying infrastructure is irreversible."; return 0
+  done <<<"$decoded"
   local kube_options='([[:space:]]+(-n|--(namespace|context|kubeconfig|cluster|user))(=[^[:space:]]+|[[:space:]]+[^[:space:]]+))*[[:space:]]+'
   if c "gh[[:space:]]+(repo|release)[[:space:]]+delete${end}" ||
     c "kubectl${kube_options}delete${end}" ||
-    c "aws[[:space:]]+s3[[:space:]]+(rm[[:space:]]+(.*[[:space:]])?--recursive|rb[[:space:]]+(.*[[:space:]])?--force)${end}" ||
-    c "(terraform|tofu)([[:space:]]+-chdir=[^[:space:]]+)?[[:space:]]+destroy${end}"; then
+    c "aws[[:space:]]+s3[[:space:]]+(rm[[:space:]]+(.*[[:space:]])?--recursive|rb[[:space:]]+(.*[[:space:]])?--force)${end}"; then
     hit "This command deletes releases, infrastructure, or cloud data."; return 0
   fi
   local pipeline_start="(^|[;&|])${start#^}"

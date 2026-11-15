@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import {
   closeSync,
   cpSync,
+  existsSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -16,7 +17,7 @@ import { Effect, Schema } from "effect";
 import { expect } from "vitest";
 import { decodeEntry, type Entry } from "../../src/core/registry/entry";
 import { ValidateReport } from "../../src/schemas/validate";
-import { quiet, runCli } from "./cli";
+import { quiet, runCli, stopChildren, trackChild } from "./cli";
 import { minimal, writeEntry } from "./registry";
 
 export const cliRoot = join(import.meta.dirname, "../..");
@@ -25,6 +26,27 @@ export function copyVocabulary(root: string) {
   cpSync(join(bundled, "search/vocabulary.json"), join(root, "search/vocabulary.json"));
 }
 export type Ref = Pick<Entry, "kind" | "id">;
+/** Search and decoration read metadata, cards and root contracts, without composing payloads. */
+export function copySearchRegistry(root: string, refs?: ReadonlyArray<Ref>) {
+  for (const dir of ["stacks", "fragments", "search/stacks", "search/fragments"])
+    mkdirSync(join(root, dir), { recursive: true });
+  for (const file of readdirSync(bundled, { withFileTypes: true }))
+    if (file.isFile()) cpSync(join(bundled, file.name), join(root, file.name));
+  copyVocabulary(root);
+  const selected =
+    refs ??
+    (["stack", "fragment"] as const).flatMap((kind) =>
+      readdirSync(join(bundled, `${kind}s`)).map((id) => ({ kind, id })),
+    );
+  for (const ref of selected) {
+    const dir = join(`${ref.kind}s`, ref.id);
+    const markdown = ref.kind === "stack" ? "STACK.md" : "FRAGMENT.md";
+    mkdirSync(join(root, dir), { recursive: true });
+    cpSync(join(bundled, dir, markdown), join(root, dir, markdown));
+    if (existsSync(cardPath(bundled, ref))) cpSync(cardPath(bundled, ref), cardPath(root, ref));
+  }
+  return root;
+}
 export const cardPath = (root: string, ref: Ref) =>
   join(root, "search", ref.kind === "stack" ? "stacks" : "fragments", `${ref.id}.json`);
 export function put(path: string, value: string) {
@@ -78,6 +100,24 @@ export function card(ref: Ref, digest = `sha256:${"0".repeat(64)}`) {
     notFor: ["phone applications"],
   };
 }
+export function draftCard(ref: Ref) {
+  return {
+    ...card(ref),
+    description: "Guidance and starter files for building the requested project.",
+    seoDescription: "Build a project from the selected recipe.",
+    projectExamples: [
+      {
+        title: "Illustrative project",
+        description: "An illustrative project built from the selected recipe.",
+      },
+    ],
+    plain: {
+      whatItIs: "A starter for a project using the selected recipe.",
+      goodAt: ["Building a small project"],
+      notGoodAt: ["Shipping a finished product without further work"],
+    },
+  };
+}
 export async function stamp(root: string, ref: Ref) {
   const value = card(ref, await sourceDigest(root, ref));
   put(cardPath(root, ref), JSON.stringify(value, null, 2));
@@ -120,7 +160,7 @@ export const searchFindings = (report: ValidateReport) =>
   );
 
 /** A checkout copy keeps the maintainer script's real writes away from the working registry. */
-export function decorateWorkspace(temporary: string) {
+export function decorateWorkspace(temporary: string, refs?: ReadonlyArray<Ref>) {
   const root = realpathSync(temporary);
   const cli = join(root, "packages/cli");
   for (const part of ["src", "scripts", "package.json"])
@@ -135,7 +175,8 @@ export function decorateWorkspace(temporary: string) {
   mkdirSync(join(cli, "node_modules/@steamfield"), { recursive: true });
   symlinkSync(join(root, "packages/format"), join(cli, "node_modules/@steamfield/stacks-format"));
   const registry = join(cli, "registry");
-  cpSync(bundled, registry, { recursive: true });
+  if (refs === undefined) cpSync(bundled, registry, { recursive: true });
+  else copySearchRegistry(registry, refs);
   for (const id of ["second", "third"]) seed(registry, { kind: "stack", id });
   return { root, cli, registry };
 }
@@ -147,6 +188,11 @@ function linkDependencies(source: string, target: string) {
   }
 }
 export type DecorateWorkspace = ReturnType<typeof decorateWorkspace>;
+const providers = new Set<() => Promise<void>>();
+export async function closeDecorateFixtures() {
+  await stopChildren();
+  await Promise.all([...providers].map((close) => close()));
+}
 export function decorate(
   f: DecorateWorkspace,
   args: string[],
@@ -166,6 +212,7 @@ export function decorate(
     const stdin = openSync("/dev/null", "r");
     const child = spawn(command, commandArgs, {
       cwd: f.cli,
+      detached: true,
       timeout: 20_000,
       env: {
         PATH: process.env.PATH,
@@ -174,10 +221,13 @@ export function decorate(
         XDG_STATE_HOME: join(f.root, "home/state"),
         NO_COLOR: "1",
         LOG_LEVEL: "debug",
+        // Each workspace has a fresh HOME; caching here only adds writes to tear down.
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0",
         ...options.env,
       },
       stdio: [stdin, "pipe", "pipe"],
     });
+    trackChild(child, true);
     closeSync(stdin);
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
@@ -231,13 +281,22 @@ export async function openRouter(
   });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("No fake OpenRouter port");
+  let closing: Promise<void> | undefined;
+  const close = () => {
+    closing ??= new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        providers.delete(close);
+        if (error) reject(error);
+        else resolve();
+      });
+      server.closeAllConnections();
+    });
+    return closing;
+  };
+  providers.add(close);
   return {
     requests,
     url: `http://127.0.0.1:${address.port}/api/v1`,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-        server.closeAllConnections();
-      }),
+    close,
   };
 }

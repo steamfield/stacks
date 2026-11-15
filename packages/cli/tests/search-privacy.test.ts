@@ -8,7 +8,7 @@ import { runCli } from "./helpers/cli";
 import { emptyRegistry } from "./helpers/registry";
 import { remoteCli, remoteServer, success } from "./helpers/remote-index";
 import { fixtureRecord, hit, options, searched } from "./helpers/search-command";
-import { put, readJson } from "./helpers/search-metadata";
+import { copySearchRegistry, put, readJson } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
@@ -45,7 +45,8 @@ test("online, unreachable and offline search send no HTTP request and give ident
 
 test("search reads published cached stats and omits absent or unpublished summaries [4.5c#6]", async () => {
   const home = space.dir();
-  const opts = options(home);
+  const registry = copySearchRegistry(space.dir(), [{ kind: "stack", id: "go-cli" }]);
+  const opts = options(home, registry);
   const cached = join(home, "cache/stacks/stats/summary.json");
   const request = "go cli";
   const env = { ...opts?.env, XDG_CACHE_HOME: join(home, "cache") };

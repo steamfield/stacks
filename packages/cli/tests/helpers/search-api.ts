@@ -13,7 +13,7 @@ import { Command } from "effect/cli";
 import { expect } from "vitest";
 import { cli } from "../../src/cli";
 import { VERSION } from "../../src/version";
-import { quiet, runCli } from "./cli";
+import { quiet, runCli, trackChild } from "./cli";
 import { bundled } from "./search-metadata";
 
 export function officialHit(id: string, overrides: Partial<SearchHit> = {}): SearchHit {
@@ -183,7 +183,7 @@ export function childSearch(args: string[], options: ReturnType<typeof apiOption
   const home = options.home;
   if (!home) throw new Error("The search child needs an isolated home");
   return new Promise<Awaited<ReturnType<typeof runCli>>>((resolve, reject) => {
-    execFile(
+    const child = execFile(
       "bun",
       [
         "--no-env-file",
@@ -210,5 +210,6 @@ export function childSearch(args: string[], options: ReturnType<typeof apiOption
         else reject(error);
       },
     );
+    trackChild(child);
   });
 }

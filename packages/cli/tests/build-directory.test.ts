@@ -220,7 +220,7 @@ test("the bundled registry's current entries build a signed directory [4.2c#5]",
   // The fixture has no release tags, so a removal row's last published content can't resolve.
   writeFileSync(join(f.registry, "removed.json"), '{ "schemaVersion": 1, "entries": {} }\n');
   commitAt(f, "2026-11-06T12:00:00Z", "fixture: bundled registry");
-  // Building every bundled entry took 57 s under CI coverage; allow headroom for a loaded gate.
+  // Spawns a full-registry index build: ~50 s loaded, 57 s on CI; allow ~3x CI's cost.
   succeeded(
     await f.invoke(["--out", f.out, "--previous", "none", "--key", privateKey], {
       timeout: 150_000,

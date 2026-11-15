@@ -2,12 +2,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { StatsSummary } from "@steamfield/stacks-format";
 import { Schema } from "effect";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
 import { ErrorEnvelope } from "../src/errors";
 import { runCli, terminal } from "./helpers/cli";
 import { emptyRegistry } from "./helpers/registry";
 import {
-  apiOptions,
+  apiOptions as bundledOptions,
   decoded,
   officialHit,
   response,
@@ -15,10 +15,21 @@ import {
   searchServer,
 } from "./helpers/search-api";
 import { fixtureRecord } from "./helpers/search-command";
-import { put } from "./helpers/search-metadata";
+import { copySearchRegistry, put } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
+const shared = workspace();
+let searchRegistry: string;
+// Search needs all candidates and their evidence, but none of their project payloads.
+beforeAll(() => {
+  searchRegistry = copySearchRegistry(shared.dir());
+});
+afterAll(() => shared.release());
+function apiOptions(home: string, url: string) {
+  const options = bundledOptions(home, url);
+  return { ...options, host: { ...options.host, registry: searchRegistry } };
+}
 let server: SearchServer;
 beforeEach(async () => {
   server = await searchServer();
@@ -103,9 +114,7 @@ test.each([false, true])(
   async (human) => {
     const opts = {
       ...apiOptions(space.dir(), server.url),
-      ...(human
-        ? { host: { ...terminal, registry: join(import.meta.dirname, "../registry") } }
-        : {}),
+      ...(human ? { host: { ...terminal, registry: searchRegistry } } : {}),
     };
     const args = ["search", "migrate to Cloudflare Pages", "--local", "--kind", "fragment"];
     const json = decoded(await runCli([...args, "--json"], opts));
@@ -478,6 +487,10 @@ test.each([
   "API off ($reason) explains local ranking in both text audiences",
   async ({ env, reason, message }) => {
     const opts = apiOptions(space.dir(), server.url);
+    opts.host = {
+      ...opts.host,
+      registry: copySearchRegistry(space.dir(), [{ kind: "stack", id: "go-cli" }]),
+    };
     opts.env = { ...opts.env, ...env };
     expect(decoded(await runCli(["search", "go cli", "--json"], opts))).toMatchObject({
       ranking: "local",

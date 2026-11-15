@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { it } from "@effect/vitest";
 import { Clock, Effect, Fiber, Schema } from "effect";
 import { TestClock } from "effect/testing";
-import { afterEach, beforeEach, expect, test } from "vitest";
-import { ndjson, runCli } from "./helpers/cli";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
+import { ndjson, runCli, stopChildren } from "./helpers/cli";
 import { emptyRegistry } from "./helpers/registry";
 import {
   apiOptions,
@@ -18,17 +18,26 @@ import {
   validResponse,
 } from "./helpers/search-api";
 import { fixtureRecord, hit } from "./helpers/search-command";
-import { bundled, put } from "./helpers/search-metadata";
+import { bundled, copySearchRegistry, put } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
+const shared = workspace();
+let searchRegistry: string;
+// Every invocation keeps a fresh runtime; only the immutable catalog files are shared.
+beforeAll(() => {
+  searchRegistry = copySearchRegistry(shared.dir());
+});
+afterAll(() => shared.release());
 let server: SearchServer;
 let opts: ReturnType<typeof apiOptions>;
 beforeEach(async () => {
   server = await searchServer();
   opts = apiOptions(space.dir(), server.url);
+  opts.host = { ...opts.host, registry: searchRegistry };
 });
 afterEach(async () => {
+  await stopChildren();
   await server?.close();
   space.release();
 });
@@ -227,12 +236,13 @@ for (const mode of ["hold", "partial"] as const) {
   );
 }
 
+// Spawns a fresh source CLI; loaded runs of this scenario reached 2.9 s.
 test("a fresh process observes search backoff and the index state stays intact [4.5e#9]", async () => {
   const home = opts.home ?? "";
   const indexState = join(home, "cache/stacks/index/state.json");
   const original = '{"sentinel":"existing index state"}\n';
   put(indexState, original);
-  const isolated = decoded(await childSearch([...args, "--offline"], opts));
+  const isolated = decoded(await runCli([...args, "--offline"], opts));
   expect(isolated.ranking).toBe("local");
   expect(server.requests).toEqual([]);
   server.mode("500");
@@ -270,7 +280,7 @@ test("a fresh process observes search backoff and the index state stays intact [
   } finally {
     await alternate.close();
   }
-}, 30_000);
+}, 10_000);
 
 for (const mode of ["500", "invalid", "disconnect"] as const) {
   it.effect(

@@ -110,8 +110,8 @@ describe.each(cases)(
       const deny = Schema.decodeUnknownSync(Deny)(JSON.parse(result.stdout));
       expect(deny.hookSpecificOutput.permissionDecisionReason).toContain(alternative);
     });
-    test("still denies a foreground server before an && continuation", () => {
-      const result = run(payload(`${command} && echo ready`));
+    test.each(["&&", "||"])("still denies a foreground server before %s", (operator) => {
+      const result = run(payload(`${command} ${operator} echo ready`));
       expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: "" });
       const deny = Schema.decodeUnknownSync(Deny)(JSON.parse(result.stdout));
       expect(deny.hookSpecificOutput.permissionDecisionReason).toContain(alternative);
@@ -127,6 +127,13 @@ describe.each(cases)(
     test.each([
       ["near miss", payload(near)],
       ["background", payload(command, true)],
+      ["shell background", payload(`${command} &`)],
+      ["background pipeline", payload(`${command} | cat &`)],
+      ["background shell", payload(`sh -c '${command}' &`)],
+      ["nested background", payload(`sh -c '${command} &'`)],
+      ["last background command", payload(`echo ready; ${command} &`)],
+      ["background AND list", payload(`${command} && echo done &`)],
+      ["background OR list", payload(`${command} || echo done &`)],
       ["quoted mention", payload(`git commit -m '${command}'`)],
       [
         "conventions",

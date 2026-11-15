@@ -48,21 +48,24 @@ function expectAllowed(result: ReturnType<typeof runGuard>, agent: string) {
   } else expect(result.stdout).toBe("");
 }
 
-test.each(["Bash", "apply_patch"])("Codex refuses %s when its guard is missing", async (tool) => {
-  const result = await scaffoldAdapters({ home: space.temp(), agents: ["codex"] });
-  const commands = guardCommands(result.project, "codex", tool);
-  expect(commands).toHaveLength(1);
-  const outside = space.temp();
-  const run = runGuard({
-    project: outside,
-    agent: "codex",
-    command: commands[0] ?? "",
-    payload: payload("codex", outside, { command: "git status" }),
-  });
-  expect(run.status).toBe(2);
-  expect(run.stdout).toBe("");
-  expect(run.stderr).toContain("BLOCKED:");
-});
+test.each(["Bash", "apply_patch"])(
+  "Codex allows %s with a note when its guard is missing",
+  async (tool) => {
+    const result = await scaffoldAdapters({ home: space.temp(), agents: ["codex"] });
+    const commands = guardCommands(result.project, "codex", tool);
+    expect(commands).toHaveLength(1);
+    const outside = space.temp();
+    const run = runGuard({
+      project: outside,
+      agent: "codex",
+      command: commands[0] ?? "",
+      payload: payload("codex", outside, { command: "git status" }),
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toContain("allowing");
+  },
+);
 
 test.each(["claude", "codex", "cursor"] as const)(
   "%s dispatches its configured guard on the native payload, blocking destructive commands and allowing a near miss [3.4b#3]",

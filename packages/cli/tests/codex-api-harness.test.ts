@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
@@ -24,6 +25,7 @@ test.each(cases)(
       stack,
       agents: selection === "codex" ? ["codex"] : ["claude", "codex"],
     });
+    expect(existsSync(join(result.project, "tests/hooks"))).toBe(false);
     const commands = guardCommands(result.project, "codex", "Bash");
     expect(commands).toHaveLength(2);
     for (const file of ["block-destructive.sh", "guard-api-commands.ts"]) {
@@ -80,5 +82,42 @@ test.each(cases)(
     expect(deny.hookSpecificOutput.permissionDecisionReason).toContain("bun run dev:bg");
   },
   // Real scaffolding and the wired guard, with no application install.
+  30_000,
+);
+
+test.each(["astro-fullstack", "typescript-api"])(
+  "%s Codex wrapper fails open",
+  async (stack) => {
+    const result = await scaffoldAdapters({ home: space.temp(), stack, agents: ["codex"] });
+    const command = guardCommands(result.project, "codex", "Bash").find((item) =>
+      item.includes("guard-api-commands.ts"),
+    );
+    if (command === undefined) throw new Error("Missing API guard");
+    const malformed = spawnSync("/bin/sh", ["-c", command], {
+      cwd: result.project,
+      input: "{broken",
+      encoding: "utf8",
+      env: { PATH: process.env.PATH },
+    });
+    expect(malformed.status).toBe(0);
+    expect(malformed.stdout).toBe("");
+    expect(malformed.stderr.trim().split("\n")).toHaveLength(1);
+    expect(malformed.stderr).toContain("allowing");
+    const script = join(result.project, ".claude/hooks/guard-api-commands.ts");
+    for (const failure of ["missing", "failing"]) {
+      if (failure === "missing") rmSync(script);
+      else writeFileSync(script, "throw new Error('probe');\n");
+      const run = runGuard({
+        project: result.project,
+        command,
+        agent: "codex",
+        payload: { tool_name: "Bash", tool_input: { command: "bun run dev" } },
+      });
+      expect(run.status).toBe(0);
+      expect(run.stdout).toBe("");
+      expect(run.stderr.trim().split("\n")).toHaveLength(1);
+      expect(run.stderr).toContain("allowing");
+    }
+  },
   30_000,
 );

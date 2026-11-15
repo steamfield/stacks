@@ -15,19 +15,5 @@
       "Bash(make api-check)",
       "Bash(make ci)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-maven.sh\" ]; then bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-maven.sh\" || printf '%s\\n' 'guard-maven.sh: hook unavailable; allowing this call.' >&2; else printf '%s\\n' 'guard-maven.sh: hook unavailable; allowing this call.' >&2; fi",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
   }
 }

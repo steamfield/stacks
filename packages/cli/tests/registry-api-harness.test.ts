@@ -35,8 +35,7 @@ test.each(cases)(
         "--config",
         join(import.meta.dirname, "fixtures/native-adapters/vitest-tooling.config.ts"),
         "scripts/dev-logs.test.ts",
-        "-t",
-        "outputRecord",
+        "--no-color",
         "--maxWorkers",
         "1",
       ],
@@ -50,7 +49,7 @@ test.each(cases)(
     expect(run.error).toBeUndefined();
     expect(run.status, run.stdout + run.stderr).toBe(0);
     expect(run.stderr).toBe("");
-    expect(run.stdout).toContain("12 passed");
+    expect(run.stdout).toMatch(/Tests\s+1 passed/);
   },
   30_000,
 );

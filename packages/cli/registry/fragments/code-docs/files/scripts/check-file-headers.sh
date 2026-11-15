@@ -3,8 +3,10 @@
 # remain an architectural judgment, so this script only reports missing file headers.
 set -eu
 
+# The project's own source roots, plus each workspace member's (apps/web/src, packages/core/tests).
 roots=()
-for root in src scripts tests; do
+for root in src scripts tests apps/*/src apps/*/scripts apps/*/tests \
+  packages/*/src packages/*/scripts packages/*/tests; do
   if [ -d "$root" ]; then roots+=("$root"); fi
 done
 if [ "${#roots[@]}" -eq 0 ]; then exit 0; fi
@@ -14,7 +16,8 @@ trap 'rm -f "$files"' EXIT
 find "${roots[@]}" \
   \( -type d \( -name node_modules -o -name dist -o -name build -o -name coverage \
     -o -name target -o -name .venv -o -name vendor -o -name __pycache__ \
-    -o -name fixtures -o -name __snapshots__ -o -path tests/consumer \) -prune \) -o \
+    -o -name fixtures -o -name __snapshots__ -o -name generated -o -name __generated__ \
+    -o -path tests/consumer \) -prune \) -o \
   \( -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.mts' -o -name '*.cts' \
     -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.cjs' \
     -o -name '*.py' -o -name '*.go' -o -name '*.rs' \) \

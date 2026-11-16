@@ -141,12 +141,20 @@ const RUN_LABELS: ReadonlyArray<[keyof ProjectRuns, string]> = [
   ["skippedLines", "Skipped lines"],
 ];
 
+/** A field's text value: minutes rounded to one decimal (`--json` keeps them exact). */
+function shownValue(key: keyof ProjectRuns, value: ProjectRuns[keyof ProjectRuns]) {
+  if (typeof value === "number" && key.startsWith("minutes")) {
+    return String(Math.round(value * 10) / 10);
+  }
+  return printable(String(value));
+}
+
 /** One `Label: value` line per present field; null prints as `unknown`. */
 export function renderRuns(result: ProjectRuns): string {
   return RUN_LABELS.filter(([key]) => result[key] !== undefined)
     .map(
       ([key, label]) =>
-        `${label}: ${result[key] === null ? "unknown" : printable(String(result[key]))}`,
+        `${label}: ${result[key] === null ? "unknown" : shownValue(key, result[key])}`,
     )
     .join("\n");
 }

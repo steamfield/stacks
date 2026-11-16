@@ -265,6 +265,18 @@ test("human and agent text include the project's run numbers [2.0c#3]", async ()
   }
 });
 
+test("text rounds minutes to one decimal while JSON keeps the exact value", async () => {
+  const p = await project();
+  writeFileSync(p.runs, `${JSON.stringify(runRecord({ secondsSinceCreated: 13 }))}\n`);
+  const text = await runs(p, []);
+  expect(text.status).toBe(0);
+  expect(text.stderr).toBe("");
+  expect(text.stdout).toContain("Minutes to last green: 0.2\n");
+  expect(text.stdout).toContain("Minutes to green: 10\n");
+  const json = await runs(p);
+  expect(decode(json.stdout).minutesToLastGreen).toBe(13 / 60);
+});
+
 test.each([
   {
     name: "two full green runs use the later completion",

@@ -1,10 +1,10 @@
 # Build: accurate display copy on stack and fragment pages
 
-Started: 2026-11-15. Timebox: none. Landing branch: build/display-copy.
+Status: done 2026-11-16 (tag `display-copy-final`). Started: 2026-11-15. Timebox: none. Landing branch: build/display-copy.
 Gate: `rr check` (about 30 s). Filtered tests: `bun run test:unit tests/<file>.test.ts` in `packages/cli`. Typecheck: `bun run typecheck`.
 Card check (cheap, run locally): `bun run dev validate` from the repo root.
 Worktree setup: `ln -s <main checkout>/node_modules node_modules` at the worktree root and in `packages/cli`, `packages/format` and `packages/mcp`; lanes never touch `bun.lock`.
-Scaffold commits: phase 1 <sha>; phase 2 <sha>.
+Scaffold commits: phase 1 f3d73c0d; phase 2 0ba630a4 (guard, after the fragment lanes). Worktrees were installed with `bun install --frozen-lockfile` per `.claude/delegate.md`.
 
 ## Spec
 
@@ -111,3 +111,7 @@ stacks-api session (the maintainer starts it there, per CLAUDE.md): in `apps/web
 ## Log
 
 - 2026-11-15: plan approved. The maintainer asked for every lane to go to Codex (newest sol, through the `codex-delegate` runner and `.claude/delegate.md`) rather than Claude builder agents; the Model column now means a Codex delegate for every lane. The prompt v4 change and its test updates were done inline in the scaffold.
+- Phase 1 (tag `display-copy-phase-1`): Codex lanes a, b and c rewrote 72 examples and 12 `plain` items on 43 stack cards; each lane ran one fresh Codex review. Lane c's reviewer caught rust-wasm's `plain` claiming Rust-to-JavaScript sharing the entry doesn't offer. Gate 7/7. The existing `phase-1` tag belongs to an earlier build, so this build's tags are prefixed.
+- Phase 2 (tag `display-copy-phase-2`): Codex lanes d and e rewrote the fragment cards (24 of 26; `claude-harness` and `claude-harness-docs` were already clean). The guard landed after them; with it on, the bundled registry has 0 warnings and none of the 43 rewritten stack cards trips it. Gate 7/7.
+- Final review (code-reviewer, opus): 12 findings, all applied. Docs and prompt text that still said "illustrative" (authoring.md, maintaining.md, validation.md, prompt line on promised features); module header; hedge variants (`remains`, `needs`, `replacing`) and curly apostrophes, with revert-verified tests; the test helper now requires the card itself to have no errors; test fixtures. A Codex fix-up lane rewrote astro-fullstack's second example and tauri-react's unsupported "process measurements" claim, and reset all 67 rewritten cards' `source` to prompt v4 drafts by `codex/gpt-6.1-sol` and restamped them with `decorate --restamp`, as `search-card.md` "Provenance" requires (the plan's hand-set `reviewedAt` was wrong). Gate 7/7, 3,859 CLI tests.
+- Limits dropped from examples and not moved to `caveats` (left for the maintainer): memory-only stores and no access control (go-api, rust-api, spring-boot-api, sveltekit), no sign-in (django, django-api, go-htmx, go-grpc, spring-boot-web, cloudflare-react-router), Cloudflare Pages project and credential set-up (astro-blog, astro-product-site), and provider credentials, rate limits or write safeguards (typescript-api, typescript-mcp, tauri-react).

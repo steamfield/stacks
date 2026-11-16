@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Club event signup site",
-      "description": "Illustrative: server-rendered event pages and a signup form posting to a Nuxt server route, starting from the notes slice. Add storage and email before using it for real signups."
+      "description": "A club website where members browse server-rendered event pages and submit signup forms, with clear messages beside fields that need correction."
     },
     {
       "title": "Internal request tracker",
-      "description": "Illustrative: a Vue app whose pages read and write through its own API routes. Replace the in-memory store with a database and add sign-in before sharing it."
+      "description": "A Vue web app where colleagues browse requests and submit new ones through forms, with pages and data routes in the same project."
     }
   ],
   "plain": {

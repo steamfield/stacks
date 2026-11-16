@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "A Java library for other JVM code, built with Maven as a module with tested Javadoc examples, an API check and Maven Central-ready jars.",
   "description": "Write a reusable Java library whose public API is one exported package in a JPMS module. Every public member has Javadoc whose examples run as tests, failures are records callers can switch over, and NullAway checks nullness at compile time. A separate consumer project builds against the installed jar on the module path, japicmp fails the build on a change that breaks callers, and the build makes the sources and Javadoc jars Maven Central requires. The shipped slug parser is the example to replace with your own API; publishing to Maven Central stays a person's step.",
@@ -15,19 +15,19 @@
   "projectExamples": [
     {
       "title": "Parser for a company file format",
-      "description": "Replace the slug type with a parser that returns typed values and a record per kind of failure, with generated-input tests for every rule. The format's rules are custom work."
+      "description": "A Java library that parses a company's file format into typed values and reports malformed input through distinct error records that calling services can handle."
     },
     {
       "title": "Shared domain types for several JVM services",
-      "description": "Publish value types and validation that several Java services depend on, with the API check guarding each release. Publishing needs the team's own Maven Central account."
+      "description": "A Java library of shared value types and validation rules used by several services, with documented examples and compatibility checks against the previous API."
     }
   ],
   "plain": {
-    "whatItIs": "A starter for reusable Java code that other Java programs add as a dependency, ready to publish on Maven Central, the main Java package registry.",
+    "whatItIs": "A starter for reusable Java code that other Java programs add as a dependency, packaged as a jar with documentation and sources.",
     "goodAt": [
       "Sharing tested code between Java projects",
-      "Documentation whose examples are checked on every build",
-      "Catching changes that would break the code calling it"
+      "Documentation with examples that run as tests",
+      "Checking public API compatibility against a saved release"
     ],
     "notGoodAt": [
       "A program people run themselves; choose the Java command-line or API stack.",

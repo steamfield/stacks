@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Config value parsers",
-      "description": "Grow the sample into a small package of parsers for sizes, rates and durations that several internal services share, each with round-trip properties."
+      "description": "A Python package of parsers for sizes, rates and durations, shared by internal services that need typed values and clear parsing errors."
     },
     {
       "title": "API client package",
-      "description": "Wrap a company's HTTP API in a typed client other teams install from PyPI, after agreeing on the one runtime dependency it needs for requests."
+      "description": "A typed Python client for a company's HTTP API, distributed through PyPI so other teams can call the service from their own programs."
     }
   ],
   "plain": {

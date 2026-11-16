@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Backend for a growing product team",
-      "description": "An illustrative API that several developers extend one feature module at a time, each with its controller, service and tests. Add a database and sign-in before it holds real users' data."
+      "description": "A JSON API that lets a product's web and mobile apps create and retrieve records, with request validation, Swagger documentation and logs linked by request ID."
     }
   ],
   "plain": {

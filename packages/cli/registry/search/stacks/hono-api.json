@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Backend for a small web or mobile app",
-      "description": "An illustrative JSON API a front end calls for its records, documented by its own OpenAPI file. Add a database and sign-in before it holds real users' data."
+      "description": "A JSON API that a web or mobile app calls to create and retrieve its records, with an OpenAPI document describing the requests and responses."
     }
   ],
   "plain": {
-    "whatItIs": "A starter server written in TypeScript that answers requests from apps with JSON data, built on Hono, a small and fast web toolkit, and run by Node.",
+    "whatItIs": "A starter server written in TypeScript that answers requests from apps with JSON data, built on Hono, a small web toolkit, and run by Node.",
     "goodAt": [
       "Backends that web or phone apps call for data",
       "Checking every request and describing the API for other developers",

@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Internal request tracker",
-      "description": "Server-rendered lists and forms that post to Server Actions, starting from the in-memory items slice. Swap the service for a real database and add sign-in before sharing it."
+      "description": "A request tracker where colleagues browse server-rendered lists and submit requests through forms that show validation messages beside the relevant fields."
     },
     {
       "title": "Self-hosted product site",
-      "description": "Server-rendered marketing and account pages served by next start on your own box, with a health route for the load balancer. Add a database and sign-in when the product needs them."
+      "description": "A product website with server-rendered pages served by Node on the team's own server, with a health endpoint for monitoring."
     }
   ],
   "plain": {

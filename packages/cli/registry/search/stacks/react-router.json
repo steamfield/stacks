@@ -15,18 +15,18 @@
   "projectExamples": [
     {
       "title": "Request review console",
-      "description": "Build server-loaded request pages and form actions around your own service. Add persistence, identity and access rules to suit the records being reviewed."
+      "description": "A review console where staff open server-rendered request pages and submit decisions through forms, with shared services handling the page data and submissions."
     },
     {
       "title": "Browser model comparison notebook",
-      "description": "Select openrouter-chat for streaming chat, model choice and Markdown export. Live requests need a key; private access and durable history require further work.",
+      "description": "A browser notebook where users choose OpenRouter models, read streaming chat replies and export conversations as Markdown.",
       "withFragments": [
         "openrouter-chat"
       ]
     }
   ],
   "plain": {
-    "whatItIs": "A starter web app, built with React, a toolkit for web screens, whose pages and forms run on a server.",
+    "whatItIs": "A starter web app built with React, a toolkit for web screens, with server-rendered pages and forms handled by shared server code.",
     "goodAt": [
       "Pages that load their data on the server before showing",
       "Handling form submissions and data requests in the same app",

@@ -42,6 +42,7 @@ per `write*` step, in this order:
    reading anything they wrote (Trust model point 3 in `.claude/rules/architecture.md`).
 2. Start here: a numbered action list. Step 1 is the install command when `installCommands` can
    spell it (single-package Bun and uv stacks); otherwise it points at the dependency list.
+   Step 4 runs `verify --all` and points to After green.
 3. Facts, versions and ground rules.
 4. Decisions, then dependencies and tools.
 5. The stack's guidance and each fragment's, with headings nested under their section by
@@ -49,7 +50,10 @@ per `write*` step, in this order:
 6. The definition of done: the verify step table, the commands and environment tables and the
    rules. With an app (a fragment with category `app`) this covers the base, and a separate
    application section follows.
-7. Manual QA, what to do after green, and the sandbox note under `--sandbox`.
+7. Manual QA, then After green: check the docs, review the diff and rerun `verify --all`,
+   commit, and summarize. When Claude is targeted and `claude-harness-docs` is composed,
+   the review uses the `reviewer` agent; otherwise it asks for self-review against the project's
+   guidance. The sandbox note follows under `--sandbox`.
 
 The add brief carries only the new fragments' guidance but the whole merged manifest's definition
 of done, plus the files parked under `.stacks/incoming/` for the agent to merge.

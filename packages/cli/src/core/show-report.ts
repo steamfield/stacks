@@ -16,6 +16,7 @@ import type { RolledDependency, StackStatsDetail } from "@steamfield/stacks-form
 import type { ShowReport } from "../schemas/show";
 import { plainStyle, type Style } from "../services/output";
 import { goAllowlistKey } from "./deps";
+import { DEFAULT_PAYLOAD } from "./registry/entry";
 import { statsFields, statsLine } from "./stats-text";
 import { printable } from "./text";
 import { BUDGET } from "./validate/budget";
@@ -47,6 +48,7 @@ export function renderShow(
     ...plainLines(report.plain).flatMap(wrapped),
     ...metadataLines(report, layout !== undefined),
     ...selectionLines(report),
+    ...payloadLines(report.payloads),
     ...verifyLines(report.verify),
     ...fileLines(report.files),
     ...sizeLines(report),
@@ -211,14 +213,24 @@ function verifyLines(steps: ShowReport["verify"]): string[] {
   ];
 }
 
-/** Each shipped file as `project path <- source`, with the agent or stack it is limited to. */
+/** Available payload variants and the flag that leaves out the example, when supported. */
+function payloadLines(payloads: ShowReport["payloads"]): string[] {
+  if (!payloads?.length) return [];
+  const variants = payloads.map((id) => (id === DEFAULT_PAYLOAD ? `${id} (default)` : id));
+  const hint = payloads.includes("none")
+    ? " Pass --payload none to start without the example."
+    : "";
+  return [`Payloads: ${variants.join(", ")}.${hint}`];
+}
+
+/** Each shipped file as `project path <- source`, with its agent, stack or payload condition. */
 function fileLines(files: ShowReport["files"]): string[] {
   if (!files.length) return ["Files:", "  none"];
   return [
     "Files:",
     ...files.map(
       (file) =>
-        `  ${file.path}${file.agent ? ` (${file.agent})` : ""}${file.stack ? ` (stack ${file.stack})` : ""} <- ${file.source}`,
+        `  ${file.path}${file.agent ? ` (${file.agent})` : ""}${file.stack ? ` (stack ${file.stack})` : ""}${file.payload ? ` (payload ${file.payload})` : ""} <- ${file.source}`,
     ),
   ];
 }

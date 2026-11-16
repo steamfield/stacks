@@ -99,6 +99,9 @@ const reviewEntry = Effect.fn("show.review")(function* (request: {
   const stats = yield* officialDetail(entry);
   const fragments = yield* dependencyFragments(entry, registry);
   const files = yield* shippedFiles(entry, registry);
+  const payloads = [
+    ...new Set(files.flatMap((file) => (file.payload ? [file.payload] : []))),
+  ].sort();
   const composition = yield* defaultComposition(entry, agents);
   const dependencyRollup = entryDependencyRollup(entry, fragments, composition);
   const copy = yield* entryCopy(entry, registry, dependencyRollup);
@@ -119,6 +122,7 @@ const reviewEntry = Effect.fn("show.review")(function* (request: {
     verify: meta.verify,
     ...selection,
     files,
+    ...(payloads.length ? { payloads } : {}),
     body: entry.body,
     bodyWords: countWords(entry.body),
     bodyCap: bodyLimit(entry),
@@ -187,7 +191,7 @@ const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
   return resolved;
 });
 
-/** Each shipped file with its project path, and the agent or host stack it is limited to. */
+/** Each shipped file with its project path and its agent, host stack or payload condition. */
 const shippedFiles = (entry: Entry, registry: Registry["Service"]) =>
   Effect.map(registry.files(entry), (files) => files.map(shownFile));
 
@@ -198,6 +202,7 @@ function shownFile(file: { source: string; path: string }) {
     path: outputPath(file.path),
     ...(condition?.kind === "agent" ? { agent: condition.id } : {}),
     ...(condition?.kind === "stack" ? { stack: condition.id } : {}),
+    ...(condition?.kind === "payload" ? { payload: condition.id } : {}),
   };
 }
 

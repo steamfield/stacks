@@ -88,7 +88,7 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
     writeGuidance(out, T.sections.fragment(oneLine(fragment.meta.name), fragment.id), fragment);
   writeDefinitionOfDone(out, brief);
   writeApplication(out, brief);
-  writeAfterGreen(out, context, stack);
+  writeAfterGreen(out, brief);
   if (composition.preset === "sandbox") {
     out.gap();
     out.fixed(...T.sandbox);
@@ -298,8 +298,12 @@ function writeApplicationEnvironment(out: BriefWriter, brief: NewBrief, app: Ent
   if (unsaid.length) out.fixed("", ...unsaid);
 }
 
-/** Manual QA, then what to do once verify is green (docs, commit, summary). */
-function writeAfterGreen(out: BriefWriter, context: BriefContext, stack: Entry): void {
+/** Manual QA, then what to do once verify is green (docs, review, commit, summary). */
+function writeAfterGreen(out: BriefWriter, brief: NewBrief): void {
+  const { composition, context, stack, cli } = brief;
+  const reviewer =
+    composition.agents.includes("claude") &&
+    composition.fragments.some((fragment) => fragment.id === "claude-harness-docs");
   out.gap();
   out.fixed(...T.done.qa);
   out.gap();
@@ -307,6 +311,7 @@ function writeAfterGreen(out: BriefWriter, context: BriefContext, stack: Entry):
     T.done.after,
     "",
     T.done.docs,
+    reviewer ? T.done.reviewAgent(cli) : T.done.reviewSelf(cli),
     T.done.commit(context.git, oneLine(context.project), stack.id),
     T.done.summary,
   );

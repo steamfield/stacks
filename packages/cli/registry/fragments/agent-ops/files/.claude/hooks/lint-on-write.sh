@@ -25,11 +25,11 @@
 # exit 0 with no output. A broken linter must not turn into fake diagnostics.
 set -euo pipefail
 
+input=$(cat 2>/dev/null) || { while IFS= read -r _; do :; done; echo "agent-ops: cannot read lint payload; allowing call." >&2; exit 0; }
 hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=_lib.sh
-source "$hook_dir/_lib.sh"
+{ [ -r "$hook_dir/_lib.sh" ] && source "$hook_dir/_lib.sh"; } 2>/dev/null || { echo "agent-ops: lint hook unavailable; allowing call." >&2; exit 0; }
 
-input=$(cat)
 file_path=$(hook_get "$input" tool_input.file_path | head -n 1) || exit 0
 cwd=$(hook_get "$input" cwd | head -n 1) || cwd=""
 [ -n "$file_path" ] && [ -f "$file_path" ] || exit 0

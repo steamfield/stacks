@@ -10,17 +10,18 @@
 # read from every field name it may use. A Write that names no path or carries
 # no text this script recognizes is allowed with a note on stderr.
 set -euo pipefail
-hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-lib="$hook_dir/../../.claude/hooks"
 allow() { printf '{"permission":"allow"}\n'; }
 skip() {
+  cat >/dev/null 2>&1 || while IFS= read -r _; do :; done
   echo "agent-ops: Cursor guard unavailable or unreadable payload/path; allowing call." >&2
   allow
   exit 0
 }
+hook_dir=$({ cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P; } 2>/dev/null) || skip
+lib="$hook_dir/../../.claude/hooks"
 [ -r "$lib/_lib.sh" ] || skip
 source "$hook_dir/../../.claude/hooks/_lib.sh" 2>/dev/null || skip
-input=$(cat) || skip
+input=$(cat 2>/dev/null) || skip
 deny() {
   printf '{"permission":"deny","user_message":%s,"agent_message":%s}\n' \
     "$(json_quote "$1")" "$(json_quote "$1")"

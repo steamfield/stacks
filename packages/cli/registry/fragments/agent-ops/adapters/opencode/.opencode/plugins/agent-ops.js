@@ -63,6 +63,11 @@ export const AgentOps = async ({ $, directory }) => {
     };
     sessions.set(input.sessionID, payload);
     const result = await run("lint-on-write.sh", payload);
+    if (result.exitCode !== 0) {
+      console.error("agent-ops: lint-on-write.sh failed; allowing call.");
+      return;
+    }
+    if (result.stderr.toString().trim()) console.error(result.stderr.toString().trim());
     const response = result.stdout.toString().trim();
     if (response) {
       const context = JSON.parse(response).hookSpecificOutput.additionalContext;
@@ -93,7 +98,12 @@ export const AgentOps = async ({ $, directory }) => {
       const payload = sessions.get(id);
       if (!payload) return;
       sessions.delete(id);
-      await run("format-changed.sh", payload);
+      const result = await run("format-changed.sh", payload);
+      if (result.exitCode !== 0) {
+        console.error("agent-ops: format-changed.sh failed; allowing call.");
+      } else if (result.stderr.toString().trim()) {
+        console.error(result.stderr.toString().trim());
+      }
     },
   };
 };

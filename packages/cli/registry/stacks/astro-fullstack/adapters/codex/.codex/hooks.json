@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "payload=$(cat); if root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && [ -r \"$root/.claude/hooks/guard-api-commands.sh\" ] && command -v bash >/dev/null 2>&1; then if err=$(mktemp); then trap 'rm -f \"$err\"' EXIT; if decision=$(printf '%s' \"$payload\" | bash \"$root/.claude/hooks/guard-api-commands.sh\" 2>\"$err\"); then cat \"$err\" >&2; [ -z \"$decision\" ] || printf '%s\\n' \"$decision\"; else echo 'guard-api-commands.sh: hook failed; allowing call.' >&2; fi; else echo 'guard-api-commands.sh: cannot capture diagnostics; allowing call.' >&2; fi; else echo 'guard-api-commands.sh: hook unavailable; allowing call.' >&2; fi; exit 0",
+            "command": "payload=$(cat 2>/dev/null) || { while IFS= read -r _; do :; done; echo 'hook: cannot read payload; allowing call.' >&2; exit 0; }; if root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && [ -r \"$root/.claude/hooks/guard-api-commands.sh\" ] && command -v bash >/dev/null 2>&1; then if err=$(mktemp); then trap 'rm -f \"$err\"' EXIT; if decision=$(printf '%s' \"$payload\" 2>/dev/null | bash \"$root/.claude/hooks/guard-api-commands.sh\" 2>\"$err\"); then cat \"$err\" >&2; [ -z \"$decision\" ] || printf '%s\\n' \"$decision\"; else echo 'guard-api-commands.sh: hook failed; allowing call.' >&2; fi; else echo 'guard-api-commands.sh: cannot capture diagnostics; allowing call.' >&2; fi; else echo 'guard-api-commands.sh: hook unavailable; allowing call.' >&2; fi; exit 0",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && [ -f \"$root/.claude/hooks/dev-server-status.ts\" ] && command -v bun >/dev/null 2>&1; then bun \"$root/.claude/hooks/dev-server-status.ts\" 2>/dev/null || true; fi",
+            "command": "if root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" && [ -f \"$root/.claude/hooks/dev-server-status.ts\" ] && command -v bun >/dev/null 2>&1; then bun \"$root/.claude/hooks/dev-server-status.ts\" 2>/dev/null || printf '%s\\n' 'dev-server-status.ts: hook unavailable; allowing this call.' >&2; else printf '%s\\n' 'dev-server-status.ts: hook unavailable; allowing this call.' >&2; fi; cat >/dev/null 2>&1 || while IFS= read -r _; do :; done",
             "timeout": 10
           }
         ]

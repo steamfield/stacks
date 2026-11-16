@@ -11,8 +11,8 @@
 # second layer that holds even when hooks are turned off.
 set -euo pipefail
 
-hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 check_guard() {
+  hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || return $?
   # shellcheck source=_lib.sh
   source "$hook_dir/_lib.sh" || return $?
   # shellcheck source=_destructive-patterns.sh
@@ -38,6 +38,7 @@ check_guard() {
 if output=$(check_guard 2>/dev/null); then
   [ -z "$output" ] || printf '%s\n' "$output"
 else
+  cat >/dev/null 2>&1 || while IFS= read -r _; do :; done
   echo "agent-ops: command guard unavailable or unreadable payload; allowing call." >&2
 fi
 exit 0

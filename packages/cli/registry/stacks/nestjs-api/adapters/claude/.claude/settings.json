@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v bash >/dev/null 2>&1 && [ -f \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-nestjs-api-commands.sh\" ]; then bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-nestjs-api-commands.sh\" || echo \"Note: stack guard could not run; allowing this call.\" >&2; else echo \"Note: stack guard unavailable; allowing this call.\" >&2; fi",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -f \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-nestjs-api-commands.sh\" ] && command -v cat >/dev/null 2>&1 && err=$(mktemp 2>/dev/null); then trap 'rm -f \"$err\" 2>/dev/null' EXIT; if bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-nestjs-api-commands.sh\" 2>\"$err\"; then cat \"$err\" >&2; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; echo \"Note: stack guard could not run; allowing this call.\" >&2; fi; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; echo \"Note: stack guard unavailable; allowing this call.\" >&2; fi; exit 0",
             "timeout": 10
           }
         ]

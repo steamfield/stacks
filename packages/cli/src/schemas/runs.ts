@@ -20,6 +20,7 @@ export const ProjectRuns = Schema.Struct({
   verifyRuns: Schema.Number,
   lastOutcome: Schema.NullOr(Schema.String),
   minutesToGreen: Schema.NullOr(Schema.Number),
+  minutesToLastGreen: Schema.NullOr(Schema.Number),
   /** Run-completion proxy for the first successful test-layer command; no runner counts observed. */
   minutesToFirstTest: Schema.NullOr(Schema.Number),
   interventions: Schema.NullOr(Schema.Number),

@@ -226,12 +226,12 @@ Your own stacks and fragments go in the user root. `stacks create stack my-api` 
 
 `new` and `add` write `.stacks/BRIEF.md`, the agent's entire task. It's assembled from fixed CLI text and the composed entries:
 
-1. "Start here": a short ordered list. Install the declared packages (the exact command for single-package Bun stacks, no versions), run `stacks verify` for the code checks, finish the work and the `stacks:fill` markers, and finish with `stacks verify --all`, which adds the hygiene checks. Everything after it is reference.
+1. "Start here": a short ordered list. Install the declared packages (the exact command for single-package Bun stacks, no versions), run `stacks verify` for the code checks, finish the work and the `stacks:fill` markers, and run `stacks verify --all`, which adds the hygiene checks. Step 4 then points to After green. Everything below Start here is reference.
 2. "Facts": stack, fragments, preset, target agents, and the files stacks wrote. Then "Versions" and "Ground rules": the same for every project. Use current versions, prefer official generators, never weaken verify.
 3. "Decisions": every entry's decisions, each with its default. With `--yes` or `--sandbox`, the agent takes the defaults without asking.
 4. "Dependencies and tools": packages by role, and any tools missing from PATH.
 5. One section per entry: the stack's guidance, then each fragment's.
-6. "Definition of done": the verify steps, and what to do after green (manual QA, checking the docs, writing notes).
+6. "Definition of done": the verify steps and manual QA. After green asks the agent to check the docs, review its diff and rerun `stacks verify --all`, then commit and summarize. With Claude targeted and `claude-harness-docs` composed, it uses the `reviewer` agent; otherwise it reviews its own diff against `AGENTS.md` and the project's guidance.
 
 Briefs are long, often 4,000 words or more, and that's deliberate. The agent reads the whole thing once, and everything it needs is in one place. `validate` holds them to a budget (6,000 words, 9,000 with an app) so they stay readable.
 

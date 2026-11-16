@@ -431,20 +431,60 @@ test("a stack body renders under its section without its title, its headings nes
   expect(stack).toContain("```sh\n# install first\n");
 });
 
-test("after green: docs, then a commit message by git state, then the summary [1.1#23]", async () => {
+test("after green: docs, review, a commit message by git state, then the summary [1.1#23]", async () => {
   const composition = await composed({});
   const brief = (git: BriefContext["git"]) => renderBrief(composition, context({ git })).text;
   const fresh = brief({ kind: "fresh" });
   expect(fresh).toContain("### After green");
   expect(fresh).toContain("1. Check that `AGENTS.md` and `README.md`");
   expect(fresh).toContain(
-    "2. Commit everything with the message `chore: scaffold demo from the web-stack stack`.",
+    "3. Commit everything with the message `chore: scaffold demo from the web-stack stack`.",
   );
-  expect(fresh).toContain("3. End with a short summary");
-  expect(brief({ kind: "parent", toplevel: "/work/mono" })).toContain("2. Don't commit");
+  expect(fresh).toContain("4. End with a short summary");
+  expect(brief({ kind: "parent", toplevel: "/work/mono" })).toContain("3. Don't commit");
   expect(brief({ kind: "parent", toplevel: "/work/mono" })).toContain("`/work/mono`");
-  expect(brief({ kind: "none" })).toContain("2. Skip commits (git isn't installed)");
+  expect(brief({ kind: "none" })).toContain("3. Skip commits (git isn't installed)");
 });
+
+test.each([
+  { name: "Claude with its reviewer", agents: ["claude"], without: [], reviewer: true },
+  {
+    name: "Claude without its reviewer fragment",
+    agents: ["claude"],
+    without: ["claude-harness-docs"],
+    reviewer: false,
+  },
+  { name: "Codex only", agents: ["codex"], without: [], reviewer: false },
+] satisfies ReadonlyArray<{
+  name: string;
+  agents: NonNullable<Parameters<typeof composeExit>[0]["agents"]>;
+  without: string[];
+  reviewer: boolean;
+}>)(
+  "$name reviews after updating docs and before committing",
+  async ({ agents, without, reviewer }) => {
+    const composition = await composed(
+      { stack: "typescript-library", agents, without },
+      { roots: bundledAt(join(import.meta.dirname, "../registry")) },
+    );
+    const invocation = "npx -y stacks@1.2.3";
+    const brief = renderBrief(composition, context({ invocation })).text;
+    expect(section(brief, "## Start here")).toContain(
+      `4. Done: \`${invocation} verify --all\`, which adds the hygiene checks, exits 0 with outcome \`green\`. Then follow After green.`,
+    );
+    const after = brief.slice(brief.indexOf("### After green"));
+    const review = reviewer
+      ? `2. Run the \`reviewer\` agent on your diff, fix what it finds, and rerun \`${invocation} verify --all\`.`
+      : `2. Review your own diff against AGENTS.md and the project's guidance, fix what you find, and rerun \`${invocation} verify --all\`.`;
+    expect(after.split("\n").filter((line) => /^\d\. /.test(line))).toEqual([
+      "1. Check that `AGENTS.md` and `README.md` describe the project you built, with real commands.",
+      review,
+      "3. Commit everything with the message `chore: scaffold demo from the typescript-library stack`.",
+      "4. End with a short summary: what you built, the decisions you took (with their defaults), anything you couldn't do, and a pointer to `.stacks/NOTES.md` for what this brief got wrong.",
+    ]);
+    expect(after).not.toContain(reviewer ? "Review your own diff" : "Run the `reviewer` agent");
+  },
+);
 
 test("the command-name line appears only for another invocation; written paths collapse [1.1#24]", async () => {
   const composition = await composed({});

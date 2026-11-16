@@ -59,12 +59,14 @@ export const ShowReport = Schema.Struct({
   needsOwnRepo: Schema.optionalKey(Schema.Boolean),
   fits: Schema.optionalKey(Schema.Array(Schema.String)),
   verify: Schema.Array(VerifyStep),
+  payloads: Schema.optionalKey(Schema.Array(Schema.String)),
   files: Schema.Array(
     Schema.Struct({
       source: Schema.String,
       path: Schema.String,
       agent: Schema.optionalKey(Schema.String),
       stack: Schema.optionalKey(Schema.String),
+      payload: Schema.optionalKey(Schema.String),
     }),
   ),
   body: Schema.String,

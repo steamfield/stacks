@@ -316,7 +316,7 @@ test("show JSON exposes plain and card copy, and keeps cards without plain [4.5f
   await sidecar(root, {
     projectExamples: [
       { title: "Task board", description: "A board for a small team." },
-      { title: "Issue tracker", description: "A different illustrative project." },
+      { title: "Issue tracker", description: "A tracker for a team's open issues." },
     ],
   });
   allowlist(root, { npm: ["hono"] });

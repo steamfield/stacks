@@ -52,7 +52,7 @@ test("editorial descriptions and project ideas do not change lexical ranking", a
       description: "Quartz workbench. ".repeat(10),
       seoDescription: "Build a quartz workbench.",
       projectExamples: [
-        { title: "Quartz workbench", description: "An illustrative quartz workbench." },
+        { title: "Quartz workbench", description: "A quartz workbench for a small lab." },
       ],
     },
   };
@@ -63,7 +63,7 @@ const stack = { kind: "stack", id: "sample" } as const;
 const fragment = { kind: "fragment", id: "tools" } as const;
 const example = {
   title: "Archive inspector",
-  description: "An illustrative utility for inspecting local archives.",
+  description: "A utility for inspecting local archives.",
 };
 const editorial = {
   description:

@@ -143,9 +143,11 @@ teaching cards derived from entry bodies. Bump the version when changing the tex
 or examples. The script uses two reviewed registry cards when available, falling
 back to the teaching cards before reviewed cards have landed. Inputs are decoded frontmatter, dependency roles, body, vocabulary
 and the two examples, plus compact recipe references for example hosts and
-fragment selections. Prompt version 2 asks for a fuller `description`,
-`seoDescription` and illustrative `projectExamples`, while retaining the
-150-word search budget. The editorial fields have separate caps and are excluded
+fragment selections. Prompt version 2 added a fuller `description`,
+`seoDescription` and `projectExamples`, while retaining the 150-word search
+budget. Version 4 asks for each project example to describe a finished project
+as its users would see it, with no build steps, disclaimers or "illustrative"
+label (`example-hedged` flags those). The editorial fields have separate caps and are excluded
 from ranking and embeddings. A new response must contain all three editorial
 fields, with nonblank text and at least one project example. Existing stored
 cards keep those fields optional. A malformed, incomplete or schema-invalid new

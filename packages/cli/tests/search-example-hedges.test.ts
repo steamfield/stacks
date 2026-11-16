@@ -4,7 +4,7 @@ import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { ValidateReport } from "../src/schemas/validate";
 import { quiet, runCli } from "./helpers/cli";
-import { cardPath, put, seed, stamp } from "./helpers/search-metadata";
+import { cardPath, copyVocabulary, put, seed, stamp } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
@@ -20,18 +20,19 @@ async function hedgeFindings(examples: ReadonlyArray<{ title: string; descriptio
   const home = realpathSync(space.dir());
   const root = join(home, "bundled");
   seed(root, ref);
-  const card = await stamp(root, ref);
-  put(cardPath(root, ref), JSON.stringify({ ...card, projectExamples: examples }));
+  copyVocabulary(root);
+  const stamped = await stamp(root, ref);
+  put(cardPath(root, ref), JSON.stringify({ ...stamped, projectExamples: examples }));
   const result = await runCli(["validate", "--json"], {
     home,
     env: quiet,
     host: { registry: root },
   });
   const report = Schema.decodeUnknownSync(ValidateReport)(JSON.parse(result.stdout));
-  expect(result.status, result.stderr).toBe(
-    report.findings.some(({ severity }) => severity === "error") ? 2 : 0,
-  );
-  return report.findings
+  // The minimal fixture stack has unrelated errors (verify layers); the card itself must be valid.
+  const card = report.findings.filter(({ file }) => file === "search/stacks/sample.json");
+  expect(card.filter(({ severity }) => severity === "error")).toEqual([]);
+  return card
     .filter(({ check }) => check === "example-hedged")
     .map(({ severity, message }) => ({ severity, message }));
 }
@@ -47,13 +48,16 @@ test.each([
   ["yourself", "A landing page. Create the project yourself."],
   ["still the project's", "A JSON API. Access control is still the project's work."],
   ["remain separate", "A directory. Authentication and moderation remain separate decisions."],
+  ["remains separate", "A directory. Moderation remains separate product work."],
   ["you write the", "A landing page, where you write the copy."],
   ["must be filled", "A contributor guide. The guide must be filled from the project."],
   ["before using it", "A signup site. Add storage before using it for real signups."],
   ["before sharing", "A tracker. Add sign-in before sharing it."],
   ["before launch", "A data browser. Add CORS on the API before launch."],
   ["need additional", "A notebook. Photos need additional implementation."],
+  ["needs additional", "A notebook. Location access needs additional permissions."],
   ["replace the", "A pricing service; replace the notes resource with price rules."],
+  ["replacing the", "A pricing service, built by replacing the notes resource."],
 ])("an example that says %j is example-hedged", async (phrase, description) => {
   expect(await hedgeFindings([{ ...clean, description }])).toEqual([warning(1, phrase)]);
 });
@@ -62,6 +66,14 @@ test("matching ignores case and names the phrase as written", async () => {
   expect(
     await hedgeFindings([{ ...clean, description: "AN ILLUSTRATIVE command for logs." }]),
   ).toEqual([warning(1, "ILLUSTRATIVE")]);
+});
+
+test("a curly apostrophe matches like a straight one", async () => {
+  expect(
+    await hedgeFindings([
+      { ...clean, description: "A JSON API. Access control is still the project’s work." },
+    ]),
+  ).toEqual([warning(1, "still the project's")]);
 });
 
 test("a phrase inside a longer word is not a hedge", async () => {

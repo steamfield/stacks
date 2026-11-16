@@ -158,10 +158,12 @@ its host `stack`; on a stack card, that host is the card itself. Optional
 the host's defaults. Validation checks the same selection rules as composition,
 including compatibility, dependencies and conflicts.
 
-Explain what the recipe establishes and what a product still needs. A project
-idea is illustrative, not an included feature. Name optional additions for
-persistence or AI, and call out custom work such as authorization or native
-permissions. Do not invent compliance, readiness, pricing or timing claims.
+In `description`, explain what the recipe establishes and what a product still
+needs, naming optional additions for persistence or AI and custom work such as
+authorization or native permissions. A project example describes the finished
+project as its users would see it; it names the additions it needs in
+`withFragments` and leaves set-up steps and remaining work to `description` and
+`caveats`. Do not invent compliance, readiness, pricing or timing claims.
 Apps are still fragments with `category: app`; tools, requirements and
 compatibility stay in entry frontmatter.
 

@@ -23,7 +23,8 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test:hooks
-      - run: bun run coverage
+      # The CLI's Vitest suite runs sharded in cli-tests below; the other packages' coverage here.
+      - run: bun run --filter '!@steamfield/stacks' coverage
       - run: bun run e2e
       - uses: actions/upload-artifact@v6
         if: failure()
@@ -32,10 +33,36 @@ jobs:
           path: |
             packages/*/coverage/
             packages/*/logs/
-  # The one required check: green only when check passed.
+  # The CLI's Vitest suite is the slowest step and spawns many processes; four shards on separate
+  # runners keep each one's load and wall time down.
+  cli-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun run install:ci
+      - run: bun run --cwd packages/cli coverage --shard=${{ matrix.shard }}/4
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: diagnostics-cli-${{ matrix.shard }}
+          path: |
+            packages/cli/coverage/
+            packages/cli/logs/
+  # The one required check: green only when check and every CLI shard passed.
   ci-ok:
-    needs: check
+    needs: [check, cli-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.check.result }}" = success
+      - run: test "${{ needs.check.result }}" = success && test "${{ needs.cli-tests.result }}" = success

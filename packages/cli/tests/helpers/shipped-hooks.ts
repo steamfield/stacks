@@ -116,48 +116,61 @@ export function hookCommand(root: string, script: string) {
   return command;
 }
 
-/** Each bundled stack with its optional fragments, so a composition takes in every settings merger. */
-export async function bundledStacks() {
-  const entries = await Effect.runPromise(
-    Effect.flatMap(Registry, (reader) => reader.all).pipe(
+const settingsOf = (stack: string, fragments: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const reader = yield* Registry;
+    const composition = yield* compose({
+      stack,
+      agents: ["claude"],
+      with: [...fragments],
+      without: [],
+      always: [],
+      preset: "default",
+      mode: "new",
+    });
+    const files = yield* composeFiles(
+      {
+        ...composition,
+        files: composition.files.filter((file) => file.path === ".claude/settings.json"),
+      },
+      NEUTRAL_VARS,
+      reader,
+    );
+    const file = files.find((file) => file.path === ".claude/settings.json");
+    if (!file) throw new Error(`No settings for ${stack}`);
+    return Schema.decodeUnknownSync(Settings)(JSON.parse(Buffer.from(file.bytes).toString()));
+  });
+
+function withBundledRegistry<A, E>(
+  effect: Effect.Effect<A, E, Registry | NodeServices.NodeServices>,
+) {
+  return Effect.runPromise(
+    effect.pipe(
       Effect.provide(Registry.layer([{ origin: "bundled", path: registry }])),
       Effect.provide(NodeServices.layer),
     ),
   );
-  return entries.filter(isStack).map((entry) => ({
-    id: entry.id,
-    optional: entry.meta.fragments.optional,
-  }));
 }
 
-export async function composedSettings(stack: string, fragments: ReadonlyArray<string> = []) {
-  return await Effect.runPromise(
+export async function composedSettings(stack: string) {
+  return await withBundledRegistry(settingsOf(stack, []));
+}
+
+/**
+ * Every bundled stack's composed settings with all its optional fragments, so each settings
+ * merger is taken in. One registry load serves every composition.
+ */
+export async function bundledStackSettings() {
+  return await withBundledRegistry(
     Effect.gen(function* () {
-      const reader = yield* Registry;
-      const composition = yield* compose({
-        stack,
-        agents: ["claude"],
-        with: [...fragments],
-        without: [],
-        always: [],
-        preset: "default",
-        mode: "new",
-      });
-      const files = yield* composeFiles(
-        {
-          ...composition,
-          files: composition.files.filter((file) => file.path === ".claude/settings.json"),
-        },
-        NEUTRAL_VARS,
-        reader,
+      const stacks = (yield* (yield* Registry).all).filter(isStack);
+      return yield* Effect.forEach(stacks, (entry) =>
+        Effect.map(settingsOf(entry.id, entry.meta.fragments.optional), (settings) => ({
+          id: entry.id,
+          settings,
+        })),
       );
-      const file = files.find((file) => file.path === ".claude/settings.json");
-      if (!file) throw new Error(`No settings for ${stack}`);
-      return Schema.decodeUnknownSync(Settings)(JSON.parse(Buffer.from(file.bytes).toString()));
-    }).pipe(
-      Effect.provide(Registry.layer([{ origin: "bundled", path: registry }])),
-      Effect.provide(NodeServices.layer),
-    ),
+    }),
   );
 }
 

@@ -17,8 +17,7 @@ import {
   agentOps,
   allowed,
   bashPayload,
-  bundledStacks,
-  composedSettings,
+  bundledStackSettings,
   denied,
   editPayload,
   eventPayload,
@@ -280,14 +279,18 @@ test("composed settings wire each agent-ops hook once and protect env reads with
       file,
     ).toBe(false);
 });
-test("every bundled stack with all its optional fragments wires each hook once and keeps agent-ops' deny rules", async () => {
-  const base = Schema.decodeUnknownSync(Settings)(
+// Composed once at collection, in-process (no scaffold), so each stack's row only reads the result.
+const stackSettings = await bundledStackSettings();
+const agentOpsDeny =
+  Schema.decodeUnknownSync(Settings)(
     JSON.parse(readFileSync(join(agentOps, "adapters/claude/.claude/settings.json"), "utf8")),
-  );
-  const stacks = await bundledStacks();
-  expect(stacks.length).toBeGreaterThan(0);
-  for (const { id, optional } of stacks) {
-    const config = await composedSettings(id, optional);
+  ).permissions?.deny ?? [];
+test("the bundled registry has stacks to compose", () => {
+  expect(stackSettings.length).toBeGreaterThan(0);
+});
+test.each(stackSettings)(
+  "$id with all its optional fragments wires each hook once and keeps agent-ops' deny rules",
+  ({ settings: config }) => {
     const commands = Object.values(config.hooks).flatMap((groups) =>
       groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
     );
@@ -295,12 +298,12 @@ test("every bundled stack with all its optional fragments wires each hook once a
     const scripts = commands.map((command) =>
       /\.claude\/hooks\/([^"/]+)"/.exec(command)?.[1]?.replace(/\.[^.]+$/, ""),
     );
-    expect(scripts, id).toEqual([...new Set(scripts)]);
+    expect(scripts).toEqual([...new Set(scripts)]);
     const deny = config.permissions?.deny ?? [];
-    expect(deny, id).toEqual([...new Set(deny)]);
-    expect(deny, id).toEqual(expect.arrayContaining([...(base.permissions?.deny ?? [])]));
-  }
-});
+    expect(deny).toEqual([...new Set(deny)]);
+    expect(deny).toEqual(expect.arrayContaining([...agentOpsDeny]));
+  },
+);
 test("smoke checks that every wired Claude hook exists", async () => {
   const root = space.copy(project);
   const command = "bash .claude/hooks/smoke.sh";

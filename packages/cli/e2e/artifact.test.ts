@@ -78,7 +78,7 @@ test("the tarball contains exactly the allowlisted files, preserving every asset
   expect(packed).not.toMatch(/(?:catalog|workspace):/);
   expect(JSON.parse(packed)).toMatchObject({
     name: "@steamfield/stacks",
-    version: "0.13.0",
+    version: "0.14.0",
     bin: metadata.bin,
     files: metadata.files,
     engines: { node: ">=22" },

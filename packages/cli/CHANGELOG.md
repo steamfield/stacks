@@ -4,6 +4,23 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-16
+
+### Added
+
+- The `new` brief's After green asks the agent to review its diff before committing: with Claude Code it runs the `reviewer` agent from `claude-harness-docs`, otherwise it reviews against `AGENTS.md` and the project's guidance, then reruns `stacks verify --all`. Start here's last step points to After green.
+- `show` lists an entry's payload variants (`Payloads: example (default), none.`) with a hint for `--payload none`, and labels each payload file. JSON adds `payloads` and a `payload` field on those file rows.
+- `runs` reports "Minutes to last green" (`minutesToLastGreen`): scaffold to the last full green verify, which includes review-and-fix work after the first green. "Minutes to green" is unchanged.
+- `typescript-library` guidance covers untrusted input: own properties only, caller-chosen keys written only into null-prototype objects or a `Map`, explicit handling of sparse arrays and non-plain objects, bounded depth and size, and caller-supplied defaults cloned per call, with a hostile-input test table.
+
+### Changed
+
+- `validate` holds only each stack's default composition to the composed brief budget. Compositions that add optional fragments or apps are still composed and checked for conflicts, warnings and verify layers, but get no size row or budget finding; a `--brief` preview with `--with` or `--without` prints its size without one.
+- `typescript-library`'s Claude rules state their constraints inline (public API, types, errors, runtime boundaries, untrusted input, testing and done) instead of only pointing at the guidance docs, and its `add-export` skill adds hostile-input tests and a review step.
+- The shared `reviewer` agent reads the guidance docs the matching rules link to, skips checks the project has nothing for (a library has no env config or status codes), checks caller data and shared defaults, and says what to review before the first commit.
+- Scaffolds' Claude docs say the lint and typecheck hooks speak only when they find a problem, and that silence can also mean the linter couldn't run.
+- The authoring guide says a path-scoped rule states its constraints inline and never `@`-imports a doc, because Claude Code loads an imported file at session start whatever the rule's `paths` say.
+
 ## [0.13.0] - 2026-11-16
 
 ### Added

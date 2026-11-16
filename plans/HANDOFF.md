@@ -112,18 +112,13 @@ describes what exists.
 
 ## Branches and worktrees nobody owns
 
-Checked on 2026-11-15: branches already in `main` were deleted with their worktrees. What's left
-holds work `main` doesn't have, and each is the owner's to merge or delete.
-
-- This repo:
-  - `delegate/biome-next` (worktree `.claude/worktrees/biome-next`): one commit from 2026-10-31
-    moving `nextjs` from Prettier and ESLint to Biome. Never merged; `nextjs` on `main` still uses
-    Prettier and ESLint, and the branch is about 320 commits behind.
-  - `feat/phase-2.3-code-analysis-records` and `pr-1` (the same seven commits): the static-analysis
-    record producer. PR #1 was closed as WIP on 2026-11-01, and phase 2.3 isn't on the roadmap.
-  - On origin only: `feat/wizard-discovery` and `feat/phase-4.3-typescript-mcp-stack`, from
-    2026-10-27 under the old `@quickstacks` name. The MCP server landed through PR #8 instead.
-  - Dependabot PR #12 (the actions group) is open.
+- This repo: pruned on 2026-11-15. Branches already in `main` were deleted with their worktrees,
+  and so was every branch older than 2026-11-01 (unmerged, at these commits if one is wanted back):
+  `delegate/biome-next` `97d2cff6` (`nextjs` on Biome), `feat/phase-2.3-code-analysis-records`
+  `8a76d8c0` and `pr-1` `1e7c35fe` (the static-analysis records of closed PR #1), and on origin
+  `feat/wizard-discovery` `67fc6fbd` and `feat/phase-4.3-typescript-mcp-stack` `3c87629e`
+  (superseded by PR #8). Left: `origin/feat/ts-library-refinements` (already in `main`) and
+  Dependabot PR #12 (the actions group), which is open.
 - `stacks-api`: `delegate/a13` (the old handoff called it stale and superseded by 4.1e's tools),
   `claude/workers-build-trigger`, `delegate/t-4.2f`, `feat/search-population`,
   `delegate/rank-tables` (merged), `refactor/sfui-dry` (a worktree under `.sfui-worktrees`).

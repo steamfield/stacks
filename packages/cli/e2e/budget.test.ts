@@ -67,11 +67,13 @@ const validate = ["validate"];
 const validateOutput = "(bundled registry)";
 
 // Validating the bundled registry grows with its entries and with the files they ship, which
-// it reads to render and check every composition. Measured on the slowest gate host (an
-// m1 Linux machine, idle): 37 entries took 6.01 s with 504 shipped files and 7.45 s with
-// 904, so ~3.6 ms per file and ~0.11 s per entry. The budget is that cost with 1.5x headroom;
-// a laptop runs it in under half (3.43 s at 904 files).
-const validateBudget = 0.17 * bundledEntries + 0.0055 * bundledFiles;
+// it reads to render and check every composition (a file every project gets, like agent-ops',
+// is rendered once per composition). The first calibration (an idle m1 Linux host: 37 entries,
+// 7.45 s at 904 files) put CI's ubuntu runner near its limit, since that runner takes about
+// twice a laptop's CPU time. Recalibrated on the CI runner: 69 entries and 2,173 files took
+// 26.5 s there (13.5 s on a laptop). The budget is that cost with 1.5x headroom, split between
+// entries and files in the first calibration's proportions.
+const validateBudget = 0.285 * bundledEntries + 0.0092 * bundledFiles;
 // lowestCpu samples three runs. A run within budget can take longer in wall time than in CPU
 // time on a shared 2-core runner, so the test allows three budgets with 1.5x wall-clock slack:
 // a fixed 60 s timeout fell below three in-budget runs once the registry grew past it.

@@ -4,6 +4,10 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+### Fixed
+
+- The OpenCode plugin from `agent-ops` no longer hangs a tool call on Linux when a guard crashes, is missing or exits without reading its input. It ran each hook through Bun's shell with the payload as a `<` redirect, which never returned in about one run in ten when the hook didn't read stdin; it now spawns the hook directly.
+
 ## [0.14.1] - 2026-11-16
 
 ### Fixed

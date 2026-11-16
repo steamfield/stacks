@@ -1,22 +1,37 @@
 // https://opencode.ai/docs/plugins/ (OpenCode 1 local plugin callbacks).
 
+import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const AgentOps = async ({ $, directory }) => {
+export const AgentOps = async ({ directory }) => {
   const hooks = fileURLToPath(new URL("../../.claude/hooks/", import.meta.url));
   const sessions = new Map();
 
-  async function run(script, payload) {
+  // Not Bun's `$` with a `< ${Buffer}` redirect: on Linux it can wait forever when the hook
+  // exits without reading its input (a crashed or missing guard), which hangs the tool call.
+  function run(script, payload) {
     const command =
       script === "check-patch.sh"
         ? fileURLToPath(new URL("../hooks/check-patch.sh", import.meta.url))
         : hooks + script;
-    return await $`bash ${command} < ${Buffer.from(JSON.stringify(payload))}`
-      .env({ ...process.env, CLAUDE_PROJECT_DIR: directory })
-      .cwd(directory)
-      .quiet()
-      .nothrow();
+    return new Promise((done, fail) => {
+      const child = spawn("bash", [command], {
+        cwd: directory,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: directory },
+      });
+      const stdout = [];
+      const stderr = [];
+      child.stdout.on("data", (chunk) => stdout.push(chunk));
+      child.stderr.on("data", (chunk) => stderr.push(chunk));
+      child.on("error", fail);
+      child.on("close", (exitCode) =>
+        done({ exitCode, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) }),
+      );
+      // A hook that exits before reading its input closes the pipe; that's its exit to report.
+      child.stdin.on("error", () => {});
+      child.stdin.end(JSON.stringify(payload));
+    });
   }
 
   function writeInput(args) {

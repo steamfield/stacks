@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:06daeb1cc0e0b2fc3756f49bc37ef3235d9a9767a6875d7f9213afa232441beb",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-14"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A Java command-line program on picocli, built with Maven into one runnable jar with config files, exit codes and JSON output.",
   "description": "Write a Java command-line program with picocli subcommands and Maven. Settings layer from defaults, a TOML file, environment variables and flags, and every failure maps to a fixed exit code with a suggested fix. Results print as text or one JSON document, logs go to stderr, and the build shades every dependency into one jar that runs with java -jar. The build formats code, catches nullness bugs at compile time, enforces a coverage floor and tests the packaged jar. One config command proves the wiring; the recipe adds no product commands, release pipeline or native binary.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Team deployment helper",
-      "description": "Illustrative: subcommands that read a shared TOML settings file and print JSON for scripts. Calls to real deployment systems are work the project still has to add."
+      "description": "A terminal tool that shows a service's deployment settings from a team TOML file, with JSON output for release scripts."
     },
     {
       "title": "Data file checker for a JVM team",
-      "description": "Illustrative: a command that checks files and exits with a distinct code per problem, run in CI with the jar. The checking rules are custom work."
+      "description": "A command that checks data files for a JVM team, reports invalid rows and returns exit codes that CI scripts can act on."
     }
   ],
   "plain": {
@@ -27,7 +27,7 @@
     "goodAt": [
       "Internal tools for teams that already work in Java",
       "Commands that other scripts call and read JSON from",
-      "Shipping one file that runs anywhere Java is installed"
+      "Shipping one runnable jar with its dependencies bundled"
     ],
     "notGoodAt": [
       "Instant start-up: each run starts a Java runtime first.",

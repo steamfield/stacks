@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:bb679468638483339dcfa8a9289816ddb1d4d6648b4c64fc3880d29032d29983",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A server-rendered Python website on Django with its ORM, admin, forms and migrations, served by gunicorn and tested against a real database.",
   "description": "Start a Django site that renders HTML on the server. Settings come from environment variables with validated defaults, and production refuses to start without a secret key. One notes app proves the shape: a model and its migration, an admin page, and a form that re-renders with inline errors or redirects after a save. A custom user model exists from the first migration. Every request is logged with an id, and a health view answers the serve probe. Checks cover ruff, djLint, strict mypy, pytest-django, missing migrations and Django's deployment checklist. Data lives in SQLite; Postgres, sign-in pages and background jobs are left to the project.",
@@ -15,14 +15,14 @@
   "projectExamples": [
     {
       "title": "Internal records app with an admin",
-      "description": "Illustrative: replace notes with the team's own records, edit them through Django's admin and a few forms, and keep the migration and test shape. Sign-in pages for non-staff users are work the project still adds."
+      "description": "An internal app where a team browses records and submits forms with field errors, while staff manage the same records through Django's admin area."
     }
   ],
   "plain": {
     "whatItIs": "A starter Python website built with Django, where the server makes each page and a built-in admin area lets staff edit the stored records.",
     "goodAt": [
       "Sites where people fill in forms and see saved records",
-      "Internal tools that need an admin area quickly",
+      "Internal tools with a built-in admin area for managing records",
       "Projects that want database changes tracked step by step"
     ],
     "notGoodAt": [

@@ -149,7 +149,7 @@ budgets and are excluded from search ranking and embeddings:
 |---|---|
 | `description` | Directory detail and agent comparison prose, at most 120 words |
 | `seoDescription` | Plain page-meta copy, at most 160 Unicode characters; this is an editorial limit, not a search-engine guarantee |
-| `projectExamples` | 1 to 3 illustrative project ideas, each with a `title` (8 words maximum) and `description` (35 words) |
+| `projectExamples` | 1 to 3 project ideas, each with a `title` (8 words maximum) and `description` (35 words) that describes the finished project as its users would see it, not the steps to build it |
 | `plain` | Optional plain-language `whatItIs` (30 words maximum), plus 1 to 3 short `goodAt` and `notGoodAt` items (15 words each); `show` uses the first project example |
 
 All editorial strings must be nonblank. An example on a fragment card also names
@@ -158,10 +158,12 @@ its host `stack`; on a stack card, that host is the card itself. Optional
 the host's defaults. Validation checks the same selection rules as composition,
 including compatibility, dependencies and conflicts.
 
-Explain what the recipe establishes and what a product still needs. A project
-idea is illustrative, not an included feature. Name optional additions for
-persistence or AI, and call out custom work such as authorization or native
-permissions. Do not invent compliance, readiness, pricing or timing claims.
+In `description`, explain what the recipe establishes and what a product still
+needs, naming optional additions for persistence or AI and custom work such as
+authorization or native permissions. A project example describes the finished
+project as its users would see it; it names the additions it needs in
+`withFragments` and leaves set-up steps and remaining work to `description` and
+`caveats`. Do not invent compliance, readiness, pricing or timing claims.
 Apps are still fragments with `category: app`; tools, requirements and
 compatibility stay in entry frontmatter.
 

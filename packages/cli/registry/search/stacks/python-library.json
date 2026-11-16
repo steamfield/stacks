@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:6e674b2a18ed472b7f418ad595114d305e10b797c5abcb32432166aeedf8eae2",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A typed Python library other code imports, packaged for PyPI with uv, tested on the oldest and newest supported Python.",
   "description": "Write a Python library with a small typed public API, an exception hierarchy callers can catch in one place, and a py.typed marker so users get type hints. uv and make run ruff, strict mypy and pytest with Hypothesis properties on the newest and oldest supported Python, build the wheel and sdist, check them with twine and install the wheel in a clean environment. Replace the sample duration parser with your own API; uploading to PyPI stays a step you run yourself.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Config value parsers",
-      "description": "Grow the sample into a small package of parsers for sizes, rates and durations that several internal services share, each with round-trip properties."
+      "description": "A Python package of parsers for sizes, rates and durations, shared by internal services that need typed values and clear parsing errors."
     },
     {
       "title": "API client package",
-      "description": "Wrap a company's HTTP API in a typed client other teams install from PyPI, after agreeing on the one runtime dependency it needs for requests."
+      "description": "A typed Python client for a company's HTTP API, distributed through PyPI so other teams can call the service from their own programs."
     }
   ],
   "plain": {

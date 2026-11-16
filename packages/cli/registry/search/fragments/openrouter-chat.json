@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:bda6d1b84e4b2bf4cbe6e46617b10b934fa81a8ea594670770e1a270aaa36208",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-01"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add browser chat with streaming replies, model selection, server history, tool calls, usage costs and Markdown export.",
   "description": "Add the reference browser chat application to react-router. It includes streamed replies, model selection, a deterministic time tool, contact extraction and Markdown export, with usage metadata and local browser tests. History lives on the server in memory by default; SQLite is an implementation choice for restart persistence. There is no authentication: possessing a chat URL grants access. Configure an OpenRouter key for live requests.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Model exploration notebook",
-      "description": "Use the reference chat to compare model replies and export conversations. Add private accounts and durable storage before treating it as a personal hosted notebook.",
+      "description": "A browser notebook where visitors choose AI models, watch replies arrive and export conversations as Markdown with model and usage details.",
       "stack": "react-router"
     },
     {
       "title": "Contact extraction workbench",
-      "description": "Start with the included contact extraction form and extend its validation and review interface. New extraction schemas or integrations are application work.",
+      "description": "A browser workbench where users paste text and receive contact details extracted by an AI model and checked against a defined data shape.",
       "stack": "react-router"
     }
   ],

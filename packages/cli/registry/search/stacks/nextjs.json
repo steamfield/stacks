@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:b518ee5c8f9176ecfa6968689acc7b3b2c210b08ef438fc102531f2fa890a757",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A Next.js App Router app on Node with server components, validated Server Actions and browser tests against the production build.",
   "description": "Start a Next.js App Router project that builds for production and runs under next start on Node. Pages render on the server from a server-only service, forms post to Server Actions that validate with zod and show field errors, and a route handler serves JSON. Vitest covers schemas, services and client components; Playwright drives the production build in Chromium. There is no database, sign-in or hosting setup; add those for a real product.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Internal request tracker",
-      "description": "Server-rendered lists and forms that post to Server Actions, starting from the in-memory items slice. Swap the service for a real database and add sign-in before sharing it."
+      "description": "A request tracker where colleagues browse server-rendered lists and submit requests through forms that show validation messages beside the relevant fields."
     },
     {
       "title": "Self-hosted product site",
-      "description": "Server-rendered marketing and account pages served by next start on your own box, with a health route for the load balancer. Add a database and sign-in when the product needs them."
+      "description": "A product website with server-rendered pages served by Node on the team's own server, with a health endpoint for monitoring."
     }
   ],
   "plain": {

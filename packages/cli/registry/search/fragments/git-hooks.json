@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:7020d85afc4209f2c271f602d8b56865fe634868f83d2e1a078d3a3c78676152",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-14"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Format and lint staged changes, enforce Conventional Commits and run project tests before pushing through local Git hooks.",
   "description": "Check contributions locally with lefthook. Pre-commit formats and lints staged files, commit-msg checks Conventional Commits, and pre-push runs the project's tests. Installation is wired into project setup and skipped in CI. The instructions reuse each stack's commands and require proving both rejected and valid commit subjects. Hosted checks still belong in CI.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Consistent Go contributions",
-      "description": "Run formatting and the Go project's checks before commits and pushes. Validate commit subjects for a useful release history.",
+      "description": "A Go utility whose contributors get staged code formatted and linted, commit subjects checked and tests run before pushing.",
       "stack": "go-cli"
     },
     {
       "title": "Frontend and backend commit checks",
-      "description": "Format staged files by language area and run the Python and React project's declared checks before pushing.",
+      "description": "A Python and React app whose contributors get staged files formatted and linted in each language area, with project tests run before pushing.",
       "stack": "python-react"
     }
   ],

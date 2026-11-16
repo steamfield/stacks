@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:de396b8f7aaa9d02545c925bb1abb98a66cbd0ad46fafcb7eb8034e873b36f56",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A TypeScript MCP server that gives AI assistants such as Claude your own tools, run as a local stdio process.",
   "description": "Start a Model Context Protocol server in TypeScript on the official SDK. The starter has one tool that reads text files under a configured folder, with input and output schemas, a description written for the model, and errors the model can act on. The server runs over stdio, so Claude Code, Claude Desktop, Cursor and other hosts start it as a local process, and its logs go to stderr so they never corrupt the protocol. Tests drive it through a real MCP client in memory and over stdio, and MCP Inspector lists the built server's tools. Replace the sample tool with your own; remote hosting over HTTP is a later decision.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Team knowledge for a coding assistant",
-      "description": "An illustrative server whose tools look up internal docs or runbooks so an assistant can quote them. Access to those sources and any credentials are yours to add."
+      "description": "A local server that lets a coding assistant read team documentation and runbooks from a folder, so answers can quote the source text."
     },
     {
       "title": "Assistant tools for an internal service",
-      "description": "An illustrative server that wraps a few calls to a company service as tools an assistant can run. Authentication, rate limits and write safeguards are your work."
+      "description": "A local server that gives an assistant named tools for looking up records in a company service, with structured results and error messages the assistant can act on."
     }
   ],
   "plain": {

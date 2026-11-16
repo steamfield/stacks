@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:db3c133fe2013a814dbd709bb60be747e8defb1522b2f98337776ab1051fed17",
     "by": "drafted",
-    "model": "gpt-6",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Check source-file doc comments and guide agents to write folder READMEs explaining the architecture and where to start reading.",
   "description": "Add a hygiene check for file-level documentation in TypeScript, JavaScript, Python, Go and Rust source. Agents write short headers explaining each file's role and folder READMEs describing architectural responsibilities and reading order. The check names missing headers while leaving README placement and documentation quality to judgment.",
@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "A library newcomers can navigate",
-      "description": "An illustrative TypeScript library with file headers explaining module roles and short folder guides pointing readers to its public API, internal helpers and tests.",
+      "description": "A TypeScript library with file headers explaining module roles and short folder guides pointing readers to its public API, internal helpers and tests.",
       "stack": "typescript-library"
     }
   ],

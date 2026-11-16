@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:d3d14cdc4297f4f7fc48cbd50a36416a80fc5a8a57380dbc72ff104cc09f7b3f",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A plain TypeScript JSON API on Hono, served by Node, with zod-checked routes that publish an OpenAPI document.",
   "description": "Start a JSON API in plain TypeScript with Hono running on Node. Each route is declared once with zod schemas, which both validate requests and generate the OpenAPI document. The starter covers validated settings, one error envelope with request ids, pino JSON logs that leave out bodies and secrets, a body size limit, clean shutdown, and an in-memory notes resource that shows list, get and create. Vitest calls the app in process and over a real port. Storage, accounts and deployment are left for you to add.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Backend for a small web or mobile app",
-      "description": "An illustrative JSON API a front end calls for its records, documented by its own OpenAPI file. Add a database and sign-in before it holds real users' data."
+      "description": "A JSON API that a web or mobile app calls to create and retrieve its records, with an OpenAPI document describing the requests and responses."
     }
   ],
   "plain": {
-    "whatItIs": "A starter server written in TypeScript that answers requests from apps with JSON data, built on Hono, a small and fast web toolkit, and run by Node.",
+    "whatItIs": "A starter server written in TypeScript that answers requests from apps with JSON data, built on Hono, a small web toolkit, and run by Node.",
     "goodAt": [
       "Backends that web or phone apps call for data",
       "Checking every request and describing the API for other developers",

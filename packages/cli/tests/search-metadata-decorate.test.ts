@@ -64,7 +64,7 @@ async function drafted(f: DecorateWorkspace, ref: Ref = mobile) {
     by: "drafted",
     model,
     reviewedAt: null,
-    promptVersion: 3,
+    promptVersion: 4,
   });
   expect(value.source.promptVersion).toBeGreaterThan(0);
   expect(value).toEqual({ ...draftCard(ref), source: value.source });

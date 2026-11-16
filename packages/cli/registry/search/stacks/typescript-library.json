@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:b2092583e8073b36c99b2805026884599577dcd3cf8ab9942a1abb6fc99b7207",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A TypeScript package for npm, built to ESM with type declarations and checked as the tarball users will install.",
   "description": "Start a TypeScript package meant for npm. The starter has one small public function with an options object, a documented error type with stable codes, and a single entry point whose exports are pinned by a test. tsdown builds ESM and bundled type declarations, publint and Are the Types Wrong check the package settings, and a consumer check installs the packed tarball into a clean project, then typechecks and runs it. The package stays private until you decide to publish, which you do yourself.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Shared utilities for several apps",
-      "description": "An illustrative package of helpers your team's apps install from npm or a private registry instead of copying code between repositories. Publishing and registry access stay your step."
+      "description": "A package of helpers that your team's apps install from npm or a private registry, so they share the same tested code."
     },
     {
       "title": "Typed client for a web service",
-      "description": "An illustrative SDK that wraps a service's HTTP calls in typed functions with one error type. Network calls, retries and authentication are yours to add."
+      "description": "A client library that wraps a web service's HTTP calls in typed functions with one error type, so applications can handle failures consistently."
     }
   ],
   "plain": {

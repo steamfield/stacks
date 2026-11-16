@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:6fe8ce45eea6505e2c65c0c0d30f2ff4d6c5b4a77559f8f7ff631ef6fe895fef",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A server-rendered React app with page loaders, form actions and shared backend services with typed errors and structured logs.",
   "description": "Build server-rendered React pages with loaders, form actions and JSON resource routes in one application. Server programs share an Effect runtime, typed error handling and request logs, with a boundary that keeps server code out of components. A health route and browser smoke test establish the base. Data storage and accounts are not included; the optional openrouter-chat app adds the reference browser chat experience.",
@@ -15,18 +15,18 @@
   "projectExamples": [
     {
       "title": "Request review console",
-      "description": "Build server-loaded request pages and form actions around your own service. Add persistence, identity and access rules to suit the records being reviewed."
+      "description": "A review console where staff open server-rendered request pages and submit decisions through forms, with shared services handling the page data and submissions."
     },
     {
       "title": "Browser model comparison notebook",
-      "description": "Select openrouter-chat for streaming chat, model choice and Markdown export. Live requests need a key; private access and durable history require further work.",
+      "description": "A browser notebook where users choose OpenRouter models, read streaming chat replies and export conversations as Markdown.",
       "withFragments": [
         "openrouter-chat"
       ]
     }
   ],
   "plain": {
-    "whatItIs": "A starter web app, built with React, a toolkit for web screens, whose pages and forms run on a server.",
+    "whatItIs": "A starter web app built with React, a toolkit for web screens, with server-rendered pages and forms handled by shared server code.",
     "goodAt": [
       "Pages that load their data on the server before showing",
       "Handling form submissions and data requests in the same app",

@@ -6,8 +6,8 @@
     "digest": "sha256:0b29c1ff1f1422c9e8ddbb427401a150e1169491fef1f43cf014adca39d2e6f4",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
-    "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Validate incoming data and encode outgoing data from shared schemas that also define TypeScript types.",
   "description": "Use one Effect Schema definition for runtime decoding, encoded output and the corresponding TypeScript type. Apply it where data crosses a trust boundary, such as requests, configuration or third-party responses. The guidance covers branded identifiers, tagged errors and JSON Schema for tools, with round-trip tests. Keep framework-required validators and adopt this at owned boundaries incrementally.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Validated import endpoint",
-      "description": "Define the incoming record schema and reject malformed imports before they reach a service. Implement the import behavior and any storage separately.",
+      "description": "An import API that checks incoming records against a shared data shape and returns readable errors for malformed input.",
       "stack": "typescript-api"
     },
     {
       "title": "Typed CLI settings file",
-      "description": "Decode optional configuration through a closed schema and derive its TypeScript type. Keep command errors aligned with the base output contract.",
+      "description": "A command-line tool that checks its settings file for unknown fields and invalid values, with readable errors and types derived from the same data shape.",
       "stack": "typescript-cli"
     }
   ],

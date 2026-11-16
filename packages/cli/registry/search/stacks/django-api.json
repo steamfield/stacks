@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:f9337b981184c5d881723fa99a5f51923a68a38a66ca0c1ee2442431492396c6",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A JSON API on Django and DRF with Django's ORM, migrations and admin, one error envelope and a committed OpenAPI schema.",
   "description": "Start a Python JSON API on Django and Django REST Framework with no server-rendered pages. Settings come from environment variables with validated defaults. One notes resource proves the shape: a model and its migration, an admin page, a serializer that refuses unknown fields, and list, create and read endpoints under /v1 with cursor pages. Every failure, from validation errors to unknown paths, answers in one error envelope. Each request is logged with an id, drf-spectacular writes the OpenAPI schema and a check fails when it drifts, and pytest-django drives the API client against a real database. Data lives in SQLite; authentication and Postgres are left to the project.",
@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Backend for a mobile app with staff admin",
-      "description": "Illustrative: replace notes with the app's own records, let the phone app read and write them over JSON, and let staff edit them in Django's admin. Sign-in for app users is still to add."
+      "description": "A backend whose JSON API lets a phone app read and save records, with Django's admin area for staff to review and edit the same data."
     }
   ],
   "plain": {

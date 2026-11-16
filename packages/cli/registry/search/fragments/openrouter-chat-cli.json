@@ -6,8 +6,8 @@
     "digest": "sha256:58d0a10adff750332a194e1e68acbc6b4d7e1bb34cb1791d5c9056b6c1e11663",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add terminal chat and scriptable model commands with saved conversations, tool calls, structured extraction and Markdown export.",
   "description": "Add an OpenRouter terminal application to typescript-cli. Scriptable commands and an OpenTUI interface share chat, tools, contact extraction and Markdown export; MCP exposes the tools over stdio. Conversations are saved as local JSON files, with partial replies retained on interruption. Local stubs, capture and replay support testing without paid calls. Live use needs a key; installer and update workflows require the separate bun-release fragment.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Shell text-processing assistant",
-      "description": "Pipe text through ask or contact extraction and consume structured results in scripts. New transformations and tool integrations need application code.",
+      "description": "A shell assistant that answers questions from piped text and extracts contact details, returning structured results for other scripts.",
       "stack": "typescript-cli"
     },
     {
       "title": "Resumable terminal notebook",
-      "description": "Use the terminal interface to resume saved conversations and export Markdown. Add bun-release separately for downloadable binaries and self-update.",
+      "description": "A terminal notebook where conversations are saved on disk, resumed later and exported as Markdown with model and usage details.",
       "stack": "typescript-cli"
     }
   ],

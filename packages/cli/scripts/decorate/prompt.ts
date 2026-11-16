@@ -1,7 +1,7 @@
 import type { SearchMetadata, SearchVocabulary } from "@steamfield/stacks-format";
 import { type Entry, isFragment, isStack } from "../../src/core/registry/entry";
 
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 
 /** Recipe identity and selection constraints, without another descriptive catalog. */
 export function recipeReferences(entries: ReadonlyArray<Entry>) {
@@ -38,7 +38,7 @@ export const EXAMPLE_CARDS: ReadonlyArray<SearchMetadata> = [
       {
         title: "Configuration inspection utility",
         description:
-          "An illustrative command that shows resolved configuration and reports invalid settings as structured errors for shell automation.",
+          "A command that shows each resolved setting and where it came from, and reports invalid settings as structured errors that shell scripts can act on.",
       },
     ],
     plain: {
@@ -73,7 +73,7 @@ export const EXAMPLE_CARDS: ReadonlyArray<SearchMetadata> = [
       {
         title: "Local contribution checks",
         description:
-          "An illustrative Go utility whose contributors check staged code and commit subjects locally, then run the project's tests before push.",
+          "A Go utility whose contributors get staged code formatted and commit subjects checked on every commit, with the project's tests run before each push.",
         stack: "go-cli",
       },
     ],
@@ -116,9 +116,9 @@ export function buildPrompt(options: {
     "summary is a short search preview. description is directory detail and agent comparison prose, at most 120 words. seoDescription is plain directory meta-description copy, at most 160 Unicode code points, without keyword stuffing.",
     "projectExamples contains 1 to 3 closed objects with title (at most 8 words), description (at most 35 words), optional stack (kebab id), optional withFragments (unique kebab ids, at most 3). These texts do not count against the legacy 150 words or the description/SEO caps; each editorial cap is independent.",
     "plain contains whatItIs (at most 30 words), goodAt and notGoodAt (1 to 3 nonblank items of at most 15 words each). Use version-neutral language. The first projectExamples item is its example. Put plain directly after projectExamples.",
-    "Explicitly label examples as illustrative possible projects, never shipped product features. For a stack card, omit stack or use its own id. Every fragment example requires a real compatible host stack in stack. withFragments names explicit additions beyond the entry/default composition, never claims of inclusion. Name every addition in withFragments; the card's own fragment is selected implicitly.",
+    "Each project example describes a finished project someone could build with this entry, as its users would see it: what it is, who it's for and what it does, in one or two sentences. Never write instructions (implement, configure, create, replace the sample), set-up chores, disclaimers about remaining work, or the word illustrative; put real operating limits in caveats instead. Name only capabilities the entry or its default fragments provide, or product code a reader would obviously write. For a stack card, omit stack or use its own id. Every fragment example requires a real compatible host stack in stack. withFragments names explicit additions beyond the entry/default composition, never claims of inclusion. Name every addition in withFragments; the card's own fragment is selected implicitly.",
     "Use the recipe references to choose real host stacks and fragments. Match appliesTo against host id or tags (empty fits anywhere); honor required/default fragments, requires, conflicts and at most one app. Use default preset with no settings/always fragments. Do not invent references.",
-    "Do not make unsupported compliance, readiness, timing or domain claims. Ground every statement in the recipe; possible project ideas do not promise implemented features.",
+    "Do not make unsupported compliance, readiness, timing or domain claims. Ground every statement in the recipe.",
     "Include source with digest (sha256 plus 64 hex digits), by drafted, model, promptVersion and reviewedAt null. The script supplies the actual provenance.",
     "Two example cards (their digests are placeholders):",
     JSON.stringify(options.examples),

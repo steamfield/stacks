@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:c11c3c6e8b4c7147f4ce02abfd6baca59e1fc077050df202ec4f28c4fb830896",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Configure OpenRouter access, discover available models, handle provider failures safely and test requests against a local server.",
   "description": "Add the provider boundary for an OpenRouter-backed feature: optional secret configuration, model discovery, routing controls and safe upstream errors. A scriptable local HTTP server lets tests inspect real requests and exercise failures without paid credentials. The application still owns its client integration, streaming, tools and interface. Live provider calls require a key and credit limits; startup and automated tests must work without one.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Structured text helper API",
-      "description": "Use the provider configuration and stub server while implementing a custom extraction endpoint. Add schemas, prompts and output validation in the application.",
+      "description": "A text helper API that extracts contact details from pasted text, checks the model's output and reports provider failures without exposing credentials.",
       "stack": "typescript-api"
     },
     {
       "title": "Model-aware command",
-      "description": "Add a command that uses the discovered model list and safe provider errors. Implement its client and output behavior, or select the full chat app separately.",
+      "description": "A command-line tool that lists available AI models and sends text to the selected model, with readable provider errors and output scripts can consume.",
       "stack": "typescript-cli"
     }
   ],

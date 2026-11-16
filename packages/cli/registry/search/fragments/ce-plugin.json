@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:1ee45d4e444d7e6324a34bd3b3f588e2539a76271f43fc5fc2a9cfd73c381e68",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Enable shared engineering skills and review agents in Claude Code, with rules that load relevant guidance for testing, debugging, errors and writing.",
   "description": "Enable the Claude Essentials plugin and route relevant project files to its engineering and writing skills. Short path-scoped rules cover testing, errors, debugging and documentation, while AGENTS.md remains the source for project facts. The plugin takes effect in a trusted Claude Code session. It supplies guidance and review agents; it does not enforce checks or change other coding assistants.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Documented API contribution workflow",
-      "description": "Use the plugin's testing and error-handling guidance while extending an Effect API. Project-specific conventions still belong in the repository's own instructions.",
+      "description": "An Effect API repository where Claude loads testing and error-handling guidance when changing endpoints, alongside the project's own conventions.",
       "stack": "typescript-api"
     },
     {
       "title": "Blog editing guidance",
-      "description": "Load writing guidance when Claude edits blog documentation and testing guidance when it changes components. Authors still review the resulting copy and code.",
+      "description": "An Astro blog with shared writing guidance for Claude's documentation edits and testing guidance for its component tests.",
       "stack": "astro-blog"
     }
   ],

@@ -25,7 +25,7 @@ import type { Entry } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { searchSourceDigest } from "../search/digest";
 import { decodeSidecar, decodeVocabulary, readSearchFile, sidecarPath } from "../search/sidecar";
-import { exampleProblems } from "./search-examples";
+import { exampleProblems, hedgedExamples } from "./search-examples";
 import type { Check, View } from "./types";
 import { finding } from "./view";
 
@@ -301,6 +301,7 @@ function cardWarnings(card: SearchMetadata): Array<[string, string]> {
     if (versionedPlain(text))
       warnings.push(["plain-versioned", "Plain copy names a version; keep it version-neutral."]);
   }
+  for (const message of hedgedExamples(card)) warnings.push(["example-hedged", message]);
   return warnings;
 }
 

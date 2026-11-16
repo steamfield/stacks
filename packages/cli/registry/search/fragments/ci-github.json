@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:a3f452cb959c30da3c0ace31771ee3ed71826c3466a40015ee2bee1cfffcf074",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-14"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Run the project's existing checks on GitHub pushes and pull requests, with a single required result and selective jobs for monorepos.",
   "description": "Run the project's existing checks on GitHub pushes and pull requests. The workflow reads tool versions from project files and gives branch protection one aggregate result; monorepos can filter work by affected area. Default-preset guidance includes SHA-pinned actions and limited permissions. The fragment defines CI configuration, while deployment and release publishing belong to separate fragments.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "API pull request checks",
-      "description": "Run the API's lint, typecheck, tests and build before changes merge. Configure branch protection to require the aggregate result.",
+      "description": "A JSON API repository whose pull requests show lint, typecheck, test and build results together in one GitHub check.",
       "stack": "typescript-api"
     },
     {
       "title": "Split frontend and backend checks",
-      "description": "Run checks for changed Python and React areas while including shared-contract changes in the frontend filter. Reuse the Makefile targets.",
+      "description": "A Python and React web app whose frontend and backend checks follow changed paths, with API contract changes also triggering frontend checks.",
       "stack": "python-react"
     }
   ],

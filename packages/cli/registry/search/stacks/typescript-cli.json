@@ -6,8 +6,8 @@
     "digest": "sha256:0eb841941c89c898319030a10f1de8332d0a4829945aaf5902228d815885aba2",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A compiled command-line tool with subcommands, JSON results, lazy configuration and structured logs.",
   "description": "Create a TypeScript command-line utility compiled with Bun. Effect owns commands, services, configuration and errors; results stay on stdout while diagnostics use stderr. Help, version and doctor work independently of optional application configuration. Tests exercise the command tree and compiled binary. Add your own commands after the base passes, then select bun-release for distribution or openrouter-chat-cli for the terminal chat application.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Project diagnostics utility",
-      "description": "Add checks for project files and environment settings, reporting actionable findings to people and JSON to automation. The base already establishes doctor and output behavior."
+      "description": "A command that checks project files and environment settings, reports findings with suggested fixes, and prints JSON for automation."
     },
     {
       "title": "Terminal model notebook",
-      "description": "Select openrouter-chat-cli for saved chat, scriptable model commands and a terminal interface. Add bun-release separately if you also want installation and update workflows.",
+      "description": "A terminal notebook for conversations with models through OpenRouter, with saved chats, Markdown export and commands that scripts can call.",
       "withFragments": [
         "openrouter-chat-cli"
       ]

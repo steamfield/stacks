@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:40b7af5e161a816d86e904ec3914991d9637e90a228fd583ccaf9f4a0588edc6",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-14"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A Rust command-line tool built as one binary, with clap commands, TOML settings, coded errors and human or JSON output.",
   "description": "Write a Rust utility with clap subcommands and typed settings layered from defaults, TOML files, environment variables and flags. Each failure has a code, a fix suggestion and an exit status, printed as text or as JSON. Strict clippy lints, rustfmt and cargo-deny checks are set up, and tests run the built binary. The shipped config show command is the example to copy; your tool's own commands and any release packaging are still yours to add.",
@@ -15,15 +15,15 @@
   "projectExamples": [
     {
       "title": "Log file summarizer",
-      "description": "Add a command that reads log files and prints counts per level, as a table for people or JSON for scripts. Reuse the settings layers for default paths."
+      "description": "A command that reads log files and prints counts per level, as a table for people or JSON for scripts, with default paths drawn from settings."
     },
     {
       "title": "Repository policy checker",
-      "description": "Add commands that check a repository against rules kept in a TOML file and exit nonzero on a violation, so CI can run the tool."
+      "description": "A command that checks a repository against rules kept in a TOML file and exits nonzero on a violation, so CI can report failed checks."
     }
   ],
   "plain": {
-    "whatItIs": "A starter for a terminal program written in the Rust language, compiled into one file that runs without anything else installed.",
+    "whatItIs": "A starter for a terminal program written in the Rust language, compiled into one executable.",
     "goodAt": [
       "Commands that read settings from files, environment variables and flags",
       "Output for people to read, or in a structured form scripts can parse",

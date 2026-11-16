@@ -6,8 +6,8 @@
     "digest": "sha256:40cf489b43d7ee3dbcf79701be91a8af990c1e1bc01bd7c90776547b0f70a39c",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add isolated service tests, controllable time and guidance checked against the installed Effect APIs.",
   "description": "Add Effect-focused testing practices and guidance checked against installed APIs. Tests use real service layers with fresh state, controlled clocks and explicit assertions for failures and defects. An API reference the agent writes records the installed release's service, schema and runtime conventions. The stack still owns application architecture, services, configuration and logging; this fragment supports developing and testing them.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Timed API service tests",
-      "description": "Test custom retry or timeout behavior directly with provided layers and TestClock. Keep HTTP boundary checks in the stack's real request harness.",
+      "description": "An API with retrying service calls and tests that advance a controlled clock to check retries and timeouts without waiting.",
       "stack": "typescript-api"
     },
     {
       "title": "Isolated command service tests",
-      "description": "Add tests proving separate CLI invocations do not share service state. Use real layers and stub only external boundaries.",
+      "description": "A command-line utility whose test suite runs repeated invocations with fresh services and settings, catching state that leaks from one command into the next.",
       "stack": "typescript-cli"
     }
   ],

@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:283aba53e5c4bf0283e96f1f3e2990f42b6429c8bd74f278fbe25a0f7ba33a22",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add mobile sign-in and verified user sessions to an API, with protected routes and account-free local tests.",
   "description": "Connect Expo sign-in to session verification in the Hono API. Protected routes require a verified user id, with a small public-path allowlist and explicit local bypass. Tests use a local signing key to exercise real verification without a Clerk account. Configure the Clerk application, keys and redirect URLs before live sign-in; application-specific permissions and record ownership still need implementation.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Private reading log",
-      "description": "Use verified user ids to scope custom book records to their owner. Clerk supplies sessions; you implement ownership checks and the reading screens.",
+      "description": "A private reading log where signed-in readers record books and notes from their phone, with the API identifying each reader through a verified Clerk session.",
       "stack": "mobile-expo"
     },
     {
       "title": "Member settings screen",
-      "description": "Build a mobile settings page around the authenticated API identity route. Add profile fields and update rules as application code.",
+      "description": "A phone app where members sign in, view their account identity and update their own profile details through authenticated API requests.",
       "stack": "mobile-expo"
     }
   ],

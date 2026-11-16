@@ -1,15 +1,17 @@
 /**
- * Checks that the project examples on a search card describe selections the CLI would accept.
+ * Checks the project examples on a search card.
  *
  * A search card may list `projectExamples`: short stories of a project someone could build, each
  * naming a host stack and the fragments added to it. The website and `stacks show` print them, so
  * an example naming a missing stack or a fragment that doesn't fit would send a reader to a dead
  * end. `search.ts` calls `exampleProblems` for each card that otherwise checks out; every problem
- * comes back as text that `search.ts` joins into one `search-invalid` finding.
+ * comes back as text that `search.ts` joins into one `search-invalid` finding. Only the selection
+ * is checked (`core/compose/selection.ts::selectFragments`, which resolves the fragments and their
+ * dependencies). Rendering every example's files would cost far more and the composition checks
+ * already cover rendering.
  *
- * Only the selection is checked (`core/compose/selection.ts::selectFragments`, which resolves the
- * fragments and their dependencies). Rendering every example's files would cost far more and
- * the composition checks already cover rendering.
+ * `hedgedExamples` checks the copy instead: an example written as build steps or a disclaimer
+ * becomes an `example-hedged` warning through `search.ts::cardWarnings`.
  */
 import type { SearchMetadata } from "@steamfield/stacks-format";
 import { Effect } from "effect";
@@ -69,6 +71,41 @@ const inspectExample = Effect.fn("validate.searchExample")(function* (options: {
     (warning) => `stack ${stack}, fragment ${warning.id}: ${warning.code}.`,
   );
 });
+
+/**
+ * Phrases that turn a project example into build instructions or a disclaimer. An example
+ * describes the finished project; set-up steps and remaining work belong in `caveats`. The list
+ * holds the patterns drafted cards actually used, not a general style check. Each is a regex
+ * source; curly apostrophes are straightened before matching.
+ */
+const HEDGES = [
+  "illustrative",
+  "separately",
+  "yourself",
+  "still the project's",
+  "remains? separate",
+  "you write the",
+  "must be filled",
+  "before using it",
+  "before sharing",
+  "before launch",
+  "needs? additional",
+  "replac(?:e|ing) the",
+];
+const HEDGE_PATTERN = new RegExp(`\\b(${HEDGES.join("|")})\\b`, "i");
+
+/** One `example-hedged` warning message per example whose title or description uses a hedge. */
+export function hedgedExamples(card: SearchMetadata): string[] {
+  return (card.projectExamples ?? []).flatMap((example, index) => {
+    const text = `${example.title}\n${example.description}`.replaceAll("’", "'");
+    const phrase = HEDGE_PATTERN.exec(text)?.[1];
+    return phrase === undefined
+      ? []
+      : [
+          `Project example ${index + 1} reads as instructions or a disclaimer ("${phrase}"); describe the finished project and put limits in caveats.`,
+        ];
+  });
+}
 
 /** Every problem across the card's examples, each prefixed with the example's 1-based position. */
 export const exampleProblems = Effect.fn("validate.searchExamples")(function* (

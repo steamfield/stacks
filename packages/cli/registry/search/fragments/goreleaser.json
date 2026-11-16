@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Publish Go binaries for multiple operating systems from version tags, with archives, checksums, changelogs and optional Homebrew distribution.",
   "description": "Turn version tags into Go release archives with matching binary version metadata, checksums and a commit-based changelog. A local snapshot build exercises release packaging without publishing. The default targets include Linux, macOS and Windows on Intel and ARM; optional Homebrew publishing needs its own tap and credentials. This fragment extends a Go binary project rather than providing installer or self-update behavior.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Downloadable operator utility",
-      "description": "Distribute a custom Go command-line tool as release archives for the configured targets. Implement its operator commands in the base stack.",
+      "description": "A Go operator utility available as Windows, macOS and Linux downloads, with checksums and release notes alongside each tagged release.",
       "stack": "go-cli"
     },
     {
       "title": "Homebrew-installed developer tool",
-      "description": "Enable the optional Homebrew publisher for a Go utility. Supply the tap repository and token, then test the chosen publishing configuration.",
+      "description": "A Go developer tool installed through Homebrew from its maintainer's tap, with release archives and checksums published on GitHub.",
       "stack": "go-cli"
     }
   ],

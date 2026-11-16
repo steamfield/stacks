@@ -15,17 +15,17 @@
   "projectExamples": [
     {
       "title": "Published parsing library",
-      "description": "Release a small TypeScript parsing library to npm from version tags. Implement the parser in the base library stack; the owner publishes the first version by hand.",
+      "description": "A TypeScript parsing library that users install from npm, with tagged releases publishing the same tested package and type declarations.",
       "stack": "typescript-library"
     },
     {
       "title": "Scoped utility package",
-      "description": "Publish a scoped utility package under an npm organization the owner controls. Configure the Trusted Publisher on npm after the first release.",
+      "description": "A utility library distributed under an organization's npm scope, with TypeScript declarations and releases published from GitHub version tags.",
       "stack": "typescript-library"
     }
   ],
   "plain": {
-    "whatItIs": "Publishes a TypeScript package to npm, the JavaScript package registry, whenever a version label is pushed to GitHub, with no password or token saved anywhere.",
+    "whatItIs": "Publishes a TypeScript package to npm, the JavaScript package registry, from GitHub version tags without storing a publishing token.",
     "goodAt": [
       "Publishing from GitHub without storing an npm token",
       "Updating the version in every file at once before a release",
@@ -33,7 +33,7 @@
     ],
     "notGoodAt": [
       "Packages with several platform builds; extend the publish script for those.",
-      "Python or Go libraries; use their own release add-ons."
+      "Publishing libraries written in Python or Go"
     ]
   },
   "capabilities": [

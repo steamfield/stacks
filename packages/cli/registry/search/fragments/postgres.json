@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Add local PostgreSQL services, explicit schema migrations and a private database for each test file cloned from a migrated template.",
   "description": "Add local Postgres development and test services, SQLAlchemy/Alembic integration for the FastAPI stacks (python-react and python-api), and explicit migration commands. The test harness clones a migrated template so each test file has a private database. Readiness checks distinguish API health from database availability. Product tables, queries and access rules are your work. Production hosting is separate, and migrations run as a release step rather than at application startup.",
@@ -15,17 +15,17 @@
   "projectExamples": [
     {
       "title": "Persistent inventory workbench",
-      "description": "Store custom equipment records through SQLAlchemy models and Alembic migrations. Build the API resources, screens and permissions on that foundation.",
+      "description": "An inventory workbench where staff enter equipment records in a React interface and retrieve them from a Python API backed by Postgres.",
       "stack": "python-react"
     },
     {
       "title": "Import review database",
-      "description": "Persist imported rows and review decisions in custom tables behind a FastAPI service. Use private test databases to exercise migrations and queries without touching development data.",
+      "description": "An import review API that saves incoming rows and reviewers' decisions in Postgres, so reviewers can retrieve earlier results and continue their work.",
       "stack": "python-api"
     }
   ],
   "plain": {
-    "whatItIs": "Adds a PostgreSQL database server to the Python and React app, with local test databases and recorded changes to its tables.",
+    "whatItIs": "Adds PostgreSQL storage to Python web apps and APIs, with local test databases and saved steps for table changes.",
     "goodAt": [
       "Running the database on your own computer for development and tests",
       "Making table changes through reviewed, saved steps",

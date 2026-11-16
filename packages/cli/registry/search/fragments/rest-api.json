@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-01"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Give coding agents consistent HTTP resource conventions for paths, methods, status codes, response shapes, pagination and versioning.",
   "description": "Give coding agents framework-neutral rules for HTTP resource design. Paths use resource nouns, methods carry the action, response shapes stay consistent and collections use cursor pagination. The project's own error table and framework decide exact statuses and behavior. Document those choices alongside an existing resource to copy. This fragment supplies conventions and agent guidance, not generated endpoints or a running server.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Consistent inventory API",
-      "description": "Apply the resource conventions while implementing custom item endpoints in an Effect API. The stack owns contracts, handlers and the error envelope.",
+      "description": "An inventory API where clients create and list items through consistently named resources, with cursor pagination and predictable response shapes.",
       "stack": "typescript-api"
     },
     {
-      "title": "Python API resource guide",
-      "description": "Keep new FastAPI resources consistent with the shipped notes resource as the API grows. Record the router's actual status and pagination behavior in project instructions.",
+      "title": "Consistent Python API",
+      "description": "A Python API with consistent resource naming, cursor pagination and one error format, plus documented conventions for contributors.",
       "stack": "python-api"
     }
   ],

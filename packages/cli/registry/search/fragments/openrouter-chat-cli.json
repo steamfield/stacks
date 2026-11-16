@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Shell text-processing assistant",
-      "description": "Pipe text through ask or contact extraction and consume structured results in scripts. New transformations and tool integrations need application code.",
+      "description": "A shell assistant that answers questions from piped text and extracts contact details, returning structured results for other scripts.",
       "stack": "typescript-cli"
     },
     {
       "title": "Resumable terminal notebook",
-      "description": "Use the terminal interface to resume saved conversations and export Markdown. Add bun-release separately for downloadable binaries and self-update.",
+      "description": "A terminal notebook where conversations are saved on disk, resumed later and exported as Markdown with model and usage details.",
       "stack": "typescript-cli"
     }
   ],

@@ -43,6 +43,18 @@ agent's feedback, we couldn't tell whether it had seen the old stack (index cach
 deploy) or the new one. `stacks doctor` shows when the index was last cached, but nothing ties a
 generated project to the content it was generated from.
 
+What happened on 2026-11-15: a machine with CLI 0.9.0 installed ran `stacks search "slide
+presentation"`. Search ranks through the hosted API, which knows the current registry, so it
+returned `decks` as a strong match with `Next: stacks show decks, then stacks new decks <dir>`.
+`decks` first shipped in 0.11.0, and with the remote index off the CLI resolves only its bundled
+registry, so `stacks show decks` answered `Not found.` The API could reach the entry, the CLI could
+reach the API, and the user still had to upgrade the CLI to get one new stack. Once the index is on,
+an entry the bundled registry lacks should resolve from the index for `show`, `new` and `add`
+(stacks and fragments alike), with `minCli` deciding whether this CLI can use it. Until then,
+`mergeHits` in `packages/cli/src/core/search/merge.ts` keeps API-only hits and `next()` in
+`packages/cli/src/core/search/report.ts` points at `show` and `new` for them, a hint the CLI can't
+satisfy; search should mark those hits as needing a newer CLI (or the index) instead.
+
 A second, smaller problem: production builds the index from a working checkout. At the time of
 writing, `STACKS_CLI_DIR` in the production settings points at a developer's checkout that sits
 on a feature branch. The 0.8.0 deploys had to override it with a scratch `STACKS_PRODUCTION_DIR`.
@@ -138,6 +150,8 @@ Behavior tests, with the HTTP client faked at the boundary and real filesystem c
 - `new` with the server timing out falls back to the cache, prints the fallback line with the cache
   age, and still exits 0. With no cache, it falls back to bundled and says so.
 - `list` within 24 hours of a fetch makes no request.
+- An entry in the index but not in the bundled registry (the 2026-11-15 `decks` case) resolves for
+  `show`, `new` and `add`, and a `search` hit for it gets a `Next:` hint the CLI can follow.
 - An index whose `minCli` is above the running version is rejected. The CLI falls back and the
   message names `stacks update`.
 - A bad signature is rejected and falls back, and the message says the signature failed.

@@ -149,7 +149,7 @@ budgets and are excluded from search ranking and embeddings:
 |---|---|
 | `description` | Directory detail and agent comparison prose, at most 120 words |
 | `seoDescription` | Plain page-meta copy, at most 160 Unicode characters; this is an editorial limit, not a search-engine guarantee |
-| `projectExamples` | 1 to 3 illustrative project ideas, each with a `title` (8 words maximum) and `description` (35 words) |
+| `projectExamples` | 1 to 3 project ideas, each with a `title` (8 words maximum) and `description` (35 words) that describes the finished project as its users would see it, not the steps to build it |
 | `plain` | Optional plain-language `whatItIs` (30 words maximum), plus 1 to 3 short `goodAt` and `notGoodAt` items (15 words each); `show` uses the first project example |
 
 All editorial strings must be nonblank. An example on a fragment card also names

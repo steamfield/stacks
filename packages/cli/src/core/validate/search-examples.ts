@@ -70,6 +70,39 @@ const inspectExample = Effect.fn("validate.searchExample")(function* (options: {
   );
 });
 
+/**
+ * Phrases that turn a project example into build instructions or a disclaimer. An example
+ * describes the finished project; set-up steps and remaining work belong in `caveats`. The list
+ * holds the patterns drafted cards actually used, not a general style check.
+ */
+const HEDGES = [
+  "illustrative",
+  "separately",
+  "yourself",
+  "still the project's",
+  "remain separate",
+  "you write the",
+  "must be filled",
+  "before using it",
+  "before sharing",
+  "before launch",
+  "need additional",
+  "replace the",
+];
+const HEDGE_PATTERN = new RegExp(`\\b(${HEDGES.join("|")})\\b`, "i");
+
+/** One `example-hedged` warning message per example whose title or description uses a hedge. */
+export function hedgedExamples(card: SearchMetadata): string[] {
+  return (card.projectExamples ?? []).flatMap((example, index) => {
+    const phrase = HEDGE_PATTERN.exec(`${example.title}\n${example.description}`)?.[1];
+    return phrase === undefined
+      ? []
+      : [
+          `Project example ${index + 1} reads as instructions or a disclaimer ("${phrase}"); describe the finished project and put limits in caveats.`,
+        ];
+  });
+}
+
 /** Every problem across the card's examples, each prefixed with the example's 1-based position. */
 export const exampleProblems = Effect.fn("validate.searchExamples")(function* (
   card: SearchMetadata,

@@ -4,7 +4,7 @@
  * Every entry (a stack or a fragment) carries a markdown body that ends up in the brief, the task
  * text `stacks new` writes to `.stacks/BRIEF.md`. This file holds the limits for one entry's body
  * and for a whole composed brief, and the one render context those briefs are counted in.
- * `validate`'s checks (`compositions.ts`, `compose-each.ts`, `add-compositions.ts`), the
+ * `validate`'s checks (`compositions.ts`, `add-compositions.ts`), the
  * `validate --brief` preview (`preview.ts`) and `stacks show` all read their numbers from here, so
  * a limit changes in one place.
  *

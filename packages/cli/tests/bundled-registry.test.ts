@@ -33,13 +33,11 @@ test("the bundled registry validates with zero errors and zero warnings [1.5#14]
 const composed = (entry: string) =>
   report.sizes.filter((row) => row.kind === "composed" && row.entry === entry);
 
-test("validate budgets astro-blog with claude-harness in both presets [3.4a#1]", () => {
-  expect(
-    composed("astro-blog")
-      .filter((row) => row.with === "claude-harness")
-      .map((row) => row.preset)
-      .sort(),
-  ).toEqual(["default", "sandbox"]);
+test("validate budgets only astro-blog's default composition in both presets [3.4a#1]", () => {
+  expect(composed("astro-blog").map((row) => [row.preset, row.with])).toEqual([
+    ["default", undefined],
+    ["sandbox", undefined],
+  ]);
 });
 
 test("validate budgets go-cli without pairing it with claude-harness [3.4a#4]", () => {

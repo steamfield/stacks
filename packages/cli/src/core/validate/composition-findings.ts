@@ -16,7 +16,6 @@
 import { APP_TAG } from "@steamfield/stacks-format";
 import type { Finding, SizeRow } from "../../schemas/validate";
 import type { ComposeWarning, Composition } from "../compose/types";
-import { shellArg } from "../shell";
 import { canonicalBrief, composedLimit } from "./budget";
 import type { PlanShape, Preset, Stack, View } from "./types";
 import { entryFile, finding } from "./view";
@@ -62,7 +61,7 @@ export function emptyResults(): StackResults {
   };
 }
 
-/** How a composition is named in findings and size rows: `go-cli (sandbox) + postgres`. */
+/** How a composition is named in findings: `go-cli (sandbox) + postgres`. */
 const subject = (stack: string, preset: string, added?: string) =>
   `${stack} (${preset})${added === undefined ? "" : ` + ${added}`}`;
 
@@ -92,12 +91,14 @@ export function recordWarnings(
   }
 }
 
-/** Add the composition's size row, and a `budget-composed` finding when its brief is too long. */
+/** Budget only defaults; explicit previews keep their counts in `previewResult`. */
 export function recordBudget(
   state: StackResults,
   { view, stack, composition }: { view: View; stack: Stack; composition: Composition },
   { preset, plan }: Occurrence,
 ) {
+  const options = view.composition?.options ?? plan;
+  if (options.with.length || options.without.length) return;
   const brief = canonicalBrief(composition);
   const limit = composedLimit(composition);
   state.sizes.push({
@@ -105,40 +106,20 @@ export function recordBudget(
     entryKind: "stack",
     entry: stack.id,
     preset,
-    ...(plan.added === undefined ? {} : { with: plan.added }),
     words: brief.briefWords,
     fixedWords: brief.fixedWords,
     limit,
   });
   if (brief.briefWords <= limit) return;
-  const name = subject(stack.id, preset, plan.added);
+  const name = subject(stack.id, preset);
   state.findings.push(
     finding(stack, {
       check: "budget-composed",
       severity: "error",
       file: entryFile(view, stack),
-      message: `${name}: ${brief.briefWords.toLocaleString("en-US")} words, limit ${limit.toLocaleString("en-US")}${previewHint(view, stack, { preset, plan })}`,
+      message: `${name}: ${brief.briefWords.toLocaleString("en-US")} words, limit ${limit.toLocaleString("en-US")}`,
     }),
   );
-}
-
-/**
- * For a pair of extras, the `validate --brief` command that renders the over-budget brief, since
- * a pair's composition is the hardest one to rebuild by hand.
- */
-function previewHint(view: View, stack: Stack, { preset, plan }: Occurrence) {
-  if (plan.with.length !== 2) return "";
-  const args = [
-    "stacks",
-    "validate",
-    ...(view.bundled ? [] : [view.root]),
-    "--brief",
-    stack.id,
-    ...(preset === "sandbox" ? ["--sandbox"] : []),
-    ...plan.with.flatMap((id) => ["--with", id]),
-    ...plan.without.flatMap((id) => ["--without", id]),
-  ];
-  return `; preview: ${args.map(shellArg).join(" ")}`;
 }
 
 /** Note the layers the base composition doesn't verify; added compositions aren't held to it. */

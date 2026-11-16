@@ -1,7 +1,8 @@
 # Feature request: make the hosted index the source of truth for entry content
 
-Status: PROPOSED 2026-11-14. Not scheduled. Priority: high (2026-11-15), next after the
-`feat/agent-dx` release, paired with
+Status: PROPOSED 2026-11-14. RFC written 2026-11-15:
+[remote-first-index-rfc-2026-11-15.md](remote-first-index-rfc-2026-11-15.md), which is what to
+execute; this file is the request it answers. Priority: high, paired with
 [moving the registry into its own repository](feature-request-registry-repo-2026-11-15.md).
 Raised after a timeboxed `stacks new typescript-library`
 dry run where nobody could tell which copy of the stack the agent had received.

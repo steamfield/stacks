@@ -1,8 +1,8 @@
 # Feature request: move stack and fragment definitions into their own repository
 
-Status: DECIDED 2026-11-15, not scheduled. Priority: high. Land it together with
-[the remote-first index](feature-request-remote-first-registry-2026-11-14.md), after the
-`feat/agent-dx` release; the RFC below is the next step and can be written now.
+Status: DECIDED 2026-11-15. RFC written: [registry-repo-rfc-2026-11-15.md](registry-repo-rfc-2026-11-15.md),
+which is what to execute; this file is the request it answers. Priority: high. Lands after
+[the remote-first index RFC](remote-first-index-rfc-2026-11-15.md).
 
 ## Decision
 

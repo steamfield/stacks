@@ -14,18 +14,18 @@ row here costs the next session more than a missing one.
 
 | Piece | State | Where to check |
 | --- | --- | --- |
-| CLI on npm | `@steamfield/stacks` 0.12.0, `@steamfield/stacks-format` 0.8.0, `@steamfield/stacks-mcp` 0.1.5, published 2026-11-15 by the tag-driven Release workflow from `v0.12.0` (`3a0d1f29`) | `npm view <package> version` |
-| This repo's `main` | Past `v0.12.0` only CI sharding, the release workflow's npm wait, test-suite changes and plans; nothing in a shipped package is unreleased | `git log v0.12.0..origin/main` |
+| CLI on npm | `@steamfield/stacks` 0.13.0, published 2026-11-15 by the tag-driven Release workflow from `v0.13.0` (`4bb7749c`) | `npm view <package> version` |
+| This repo's `main` | At `v0.13.0` plus plans | `git log v0.13.0..origin/main` |
 | `decks` stack | Shipped in 0.11.0 with its bench pass in the ledger; `@steamfield/decks` 1.0.0-rc.0 is on npm | `stacks show decks` |
-| Hosted API and index | `stacks-api` `main` at `a0f3d0c`; production deployed 2026-11-15 with an index built from `v0.12.0` | `curl https://stacks.steamfield.io/v1/index.json`, `bun run prod:health` in `stacks-api` |
+| Hosted API and index | `stacks-api` `main` at `a0f3d0c`; production serves an index built from `v0.13.0` (`commit` `4bb7749c`, `minCli` `0.13.0`, checked 2026-11-15) | `curl https://stacks.steamfield.io/v1/index.json`, `bun run prod:health` in `stacks-api` |
 | Public site | Cloudflare Worker `stacks-web`, rebuilt on every push to `stacks-api` `main` and after the `v0.12.0` deploy through its Workers Builds trigger; live with the table and trending redesign (below) | `stacks-api/docs/operations.md`, "The site on Cloudflare" |
-| CLI reads the hosted index | No. Released CLIs ship `officialUrl: undefined` and an empty `INDEX_PUBLIC_KEYS`, so entry content reaches CLI users only through npm releases | `feature-request-remote-first-registry-2026-11-14.md` |
+| CLI reads the hosted index | No. Released CLIs ship `officialUrl: undefined` and an empty `INDEX_PUBLIC_KEYS`, so entry content reaches CLI users only through npm releases | `remote-first-index-rfc-2026-11-15.md` |
 
 ## Next steps
 
 | # | Step | Owner | Notes |
 | --- | --- | --- | --- |
-| 1 | Remote-first index and the registry repository split, designed and landed together | An agent, in this repo | [feature-request-remote-first-registry-2026-11-14.md](feature-request-remote-first-registry-2026-11-14.md) and [feature-request-registry-repo-2026-11-15.md](feature-request-registry-repo-2026-11-15.md) (decided 2026-11-15). The registry RFC can be written now; its interim step (registry-only CI for PRs touching only `packages/cli/registry/**`) can land any time |
+| 1 | Remote-first index, then the registry repository split | An agent, in this repo (plus marked maintainer steps) | Execute from the RFCs, in this order: [remote-first-index-rfc-2026-11-15.md](remote-first-index-rfc-2026-11-15.md) (units R1 to R8, ships as CLI 0.14.0 together with the registry RFC's G2a, G2b and G2d), then [registry-repo-rfc-2026-11-15.md](registry-repo-rfc-2026-11-15.md) (G1, G3, then the G2c/G2e/G2f cut-over, ships as CLI 0.15.0). Both were reviewed by one devils-advocate pass on 2026-11-15 with every finding applied. Each unit is sized as one delegate contract and the "Sequencing" sections say what runs in parallel. Maintainer-only steps: generating the two index key pairs (R1), creating the GitHub repository and its branch protection (G1), and the submodule cut-over go-ahead (G2e). The request's interim registry-only CI was dropped (registry RFC, D-G10) |
 | 2 | Recipe pages on the website (`/stacks/:id/recipe/`, `/fragments/:id/recipe/`): rendered guidance and a file browser | An agent, in `stacks-api` | Unblocked: `@steamfield/stacks-format` 0.8.0, which exports `shippedPath` and `outputPath` for it, is published |
 | 3 | Confirm `AGENTS.md` "Pending user actions" | Maintainers | It still lists a telemetry launch sequence that ends in a release. The CLI has since been released several times (0.12.0), so most of it is probably done; remove what is, and say what is not |
 | 4 | Decide the open drafts below | Maintainers | None is scheduled |
@@ -37,8 +37,8 @@ Each release follows `AGENTS.md` "Releasing" (changelog, `bun run release <x.y.z
 | Plan | Status | What is needed |
 | --- | --- | --- |
 | [zero-edit-proof-gaps-2026-11-14.md](zero-edit-proof-gaps-2026-11-14.md) | DRAFT | Choose option 1, 2 or 3; three of four canaries cannot pass `bun run prove`, so shared-fragment changes still need agent runs for them |
-| [feature-request-remote-first-registry-2026-11-14.md](feature-request-remote-first-registry-2026-11-14.md) | PROPOSED; queued as step 1 | Starts by shipping the production index key in `packages/format/src/index-keys.ts` and setting `officialUrl` in `bin.ts` |
-| [feature-request-registry-repo-2026-11-15.md](feature-request-registry-repo-2026-11-15.md) | DECIDED; queued as step 1 | Moves stack and fragment definitions into their own repository, landed with the remote-first index |
+| [remote-first-index-rfc-2026-11-15.md](remote-first-index-rfc-2026-11-15.md) | REVIEWED, ready to execute; step 1 | Implements [the remote-first request](feature-request-remote-first-registry-2026-11-14.md) |
+| [registry-repo-rfc-2026-11-15.md](registry-repo-rfc-2026-11-15.md) | REVIEWED, ready to execute after the remote-first RFC; step 1 | Implements [the registry repository request](feature-request-registry-repo-2026-11-15.md) |
 | [feature-request-react-component-library-2026-11-02.md](feature-request-react-component-library-2026-11-02.md) | PROPOSED | A stack or fragment for tree-shakeable React libraries; raised from `@steamfield/ui` |
 | [fragment-admission-rfc-2026-11-01.md](fragment-admission-rfc-2026-11-01.md) | REVIEWED, not scheduled | Fragment compatibility is N by M; the RFC proposes how fragments are admitted |
 | [edge-hosting-rfc-2026-11-01.md](edge-hosting-rfc-2026-11-01.md) | REVIEWED; D41 decided | The site is on Workers; the API stays on the container (cost). Search on the edge waits for the scale trigger in "Search" |

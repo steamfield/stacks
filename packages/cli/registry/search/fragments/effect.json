@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Timed API service tests",
-      "description": "Test custom retry or timeout behavior directly with provided layers and TestClock. Keep HTTP boundary checks in the stack's real request harness.",
+      "description": "An API with retrying service calls and tests that advance a controlled clock to check retries and timeouts without waiting.",
       "stack": "typescript-api"
     },
     {
       "title": "Isolated command service tests",
-      "description": "Add tests proving separate CLI invocations do not share service state. Use real layers and stub only external boundaries.",
+      "description": "A command-line utility whose test suite runs repeated invocations with fresh services and settings, catching state that leaks from one command into the next.",
       "stack": "typescript-cli"
     }
   ],

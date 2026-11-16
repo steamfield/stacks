@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Add PostgreSQL to an Effect API or React Router app: Compose databases, explicit migrations, a pooled client and per-file test databases.",
   "description": "Add local Postgres development and test services to the Effect stacks, with migrations applied by an explicit command and a pooled SQL client owned by the app's layer. A repository decodes every row with Schema and maps constraint errors to tagged errors. The test harness clones a migrated template so each test file gets a private database. Readiness checks the database while liveness stays independent. Product tables, queries and access rules are your work, and production hosting is separate.",
@@ -15,20 +15,20 @@
   "projectExamples": [
     {
       "title": "Inventory API on Postgres",
-      "description": "Store equipment records behind an Effect service with a Postgres repository. Add the resources, validation rules and permissions the product needs.",
+      "description": "An equipment inventory API that saves records in Postgres, checks incoming data and returns consistent errors when a name is already in use.",
       "stack": "typescript-api"
     },
     {
       "title": "Booking app with saved reservations",
-      "description": "Persist reservations from React Router actions through an Effect repository. Booking rules, availability logic and accounts are custom work.",
+      "description": "A booking app where visitors submit reservations through a web form and see them saved in Postgres for later viewing.",
       "stack": "react-router"
     }
   ],
   "plain": {
-    "whatItIs": "Adds a PostgreSQL database server to the Effect server, a TypeScript toolkit for building server programs, with saved table changes.",
+    "whatItIs": "Adds PostgreSQL databases to apps built with Effect, a TypeScript toolkit, with local test databases and saved steps for table changes.",
     "goodAt": [
       "Running a local database for development and for tests",
-      "Checking each row read from the database and logging one that doesn't match",
+      "Checking database rows against the data shapes the application expects",
       "Making table changes through saved steps that run only when you ask"
     ],
     "notGoodAt": [

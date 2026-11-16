@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Remote Rust checks",
-      "description": "Run the desktop project's Rust and frontend checks on hosts with the required toolchains. Native bundle checks need the chosen operating system and dependencies.",
+      "description": "A desktop app whose Rust and React checks run on remote build machines, returning structured failures and paths to full logs.",
       "stack": "tauri-react"
     },
     {
-      "title": "Split remote test areas",
-      "description": "Define remote tasks around the Python and React project's existing checks. Configure hosts separately and keep the same checks runnable locally.",
+      "title": "Remote full-stack checks",
+      "description": "A Python and React app whose backend and frontend checks run as separate remote tasks, with failing tests and full logs reported to contributors.",
       "stack": "python-react"
     }
   ],

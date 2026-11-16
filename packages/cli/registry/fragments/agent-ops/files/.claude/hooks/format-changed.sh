@@ -21,17 +21,17 @@
 #                     of the session's files under that wrapper; files with no
 #                     executable mvnw and pom.xml above them are left alone
 #
-# Silent by design: no output, always exit 0. A Stop hook that prints errors can
-# trap the session in a feedback loop.
+# Formatting failures stay silent and exit 0, so Stop cannot trap the session in
+# a feedback loop. Missing payload tools or helpers emit one availability note.
 set -euo pipefail
 # Any failure the code below doesn't handle still ends the hook with 0.
 trap 'exit 0' ERR
 
+input=$(cat 2>/dev/null) || { while IFS= read -r _; do :; done; echo "agent-ops: cannot read format payload; allowing call." >&2; exit 0; }
 hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=_lib.sh
-source "$hook_dir/_lib.sh"
+{ [ -r "$hook_dir/_lib.sh" ] && source "$hook_dir/_lib.sh"; } 2>/dev/null || { echo "agent-ops: format hook unavailable; allowing call." >&2; exit 0; }
 
-input=$(cat)
 list=$(session_file_list "$input") || exit 0
 [ -s "$list" ] || exit 0
 cwd=$(hook_get "$input" cwd | head -n 1) || cwd=""

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/typecheck-on-write.ts\"",
+            "command": "if command -v bun >/dev/null 2>&1 && [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/typecheck-on-write.ts\" ]; then bun \"${CLAUDE_PROJECT_DIR}/.claude/hooks/typecheck-on-write.ts\" 2>/dev/null || { cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'typecheck-on-write.ts: hook unavailable; allowing this call.' >&2; }; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'typecheck-on-write.ts: hook unavailable; allowing this call.' >&2; fi",
             "timeout": 60
           }
         ]

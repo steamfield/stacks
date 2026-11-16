@@ -131,6 +131,7 @@ exit 0
 if output=$(check_secrets 2>&1); then
   [ -z "$output" ] || printf '%s\n' "$output"
 else
+  cat >/dev/null 2>&1 || while IFS= read -r _; do :; done
   echo "agent-ops: secret guard unavailable or unreadable payload; allowing call." >&2
 fi
 exit 0

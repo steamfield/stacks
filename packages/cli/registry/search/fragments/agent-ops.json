@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "CLI contributor guide",
-      "description": "Document the real build and test commands of a Go utility so coding assistants can make changes consistently. The guide must be filled from the finished project.",
+      "description": "A Go utility whose contributor guide gives coding assistants the build and test commands, architecture map and known workarounds in one place.",
       "stack": "go-cli"
     },
     {
       "title": "Web repository agent onboarding",
-      "description": "Give assistants a shared map of the Python backend and React frontend. Claude Code additionally gets the fragment's local guard and formatting hooks.",
+      "description": "A Python and React web repository where coding assistants share a guide to both halves, with local guards against destructive commands and secret writes.",
       "stack": "python-react"
     }
   ],

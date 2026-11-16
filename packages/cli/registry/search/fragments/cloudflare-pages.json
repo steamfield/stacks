@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-02"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Publish a static site to Cloudflare Pages with production deploys, pull request previews, caching headers and redirects.",
   "description": "Publish a static build to Cloudflare Pages using project-local Wrangler. The recipe covers production and pull-request preview deployments, plus caching headers and redirects. Direct upload from GitHub Actions is the default; git integration is another documented choice. Creating the Pages project, setting credentials and attaching a domain remain explicit user actions. It does not provide a backend server.",
@@ -15,21 +15,21 @@
   "projectExamples": [
     {
       "title": "Public engineering journal",
-      "description": "Host an Astro blog's built articles and feeds on Pages. Configure the project, domain and scoped deployment token separately.",
+      "description": "An engineering journal whose articles and RSS feeds are hosted on Pages, with cached assets and redirects for moved posts.",
       "stack": "astro-blog"
     },
     {
       "title": "Previewed editorial updates",
-      "description": "Review article and layout changes at pull-request preview URLs before publishing them. Fork previews need a workflow that safely skips unavailable secrets.",
+      "description": "An Astro publication where editors review article and layout changes at pull-request preview URLs, with approved changes published from the default branch.",
       "stack": "astro-blog"
     }
   ],
   "plain": {
-    "whatItIs": "Publishes a website of ready-built pages to Cloudflare Pages, with a live site from the default branch and previews for each pull request.",
+    "whatItIs": "Publishes a website of ready-built pages to Cloudflare Pages, with a live site from the default branch and previews for pull requests from the same repository.",
     "goodAt": [
       "Putting a built website online on Cloudflare",
       "Setting page caching rules and redirects for the site",
-      "Showing a preview site for each pull request before it is merged"
+      "Showing preview sites for pull requests from the same repository"
     ],
     "notGoodAt": [
       "Running a backend that computes responses; this only publishes finished pages."

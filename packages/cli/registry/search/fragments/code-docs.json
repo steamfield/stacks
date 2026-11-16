@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "A library newcomers can navigate",
-      "description": "An illustrative TypeScript library with file headers explaining module roles and short folder guides pointing readers to its public API, internal helpers and tests.",
+      "description": "A TypeScript library with file headers explaining module roles and short folder guides pointing readers to its public API, internal helpers and tests.",
       "stack": "typescript-library"
     }
   ],

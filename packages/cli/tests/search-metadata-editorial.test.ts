@@ -481,7 +481,7 @@ async function expectCompleteDraft(f: DecorateWorkspace, complete: unknown) {
       digest: await sourceDigest(f.registry, stack),
       by: "drafted",
       model: "codex/gpt-6.1-sol",
-      promptVersion: 3,
+      promptVersion: 4,
       reviewedAt: null,
     },
   });
@@ -618,8 +618,8 @@ test.each(["malformed JSON", "unknown property"])(
   },
 );
 
-test("prompt v3 supplies recipe references and honest editorial instructions through the draft boundary [4.5b#22]", async () => {
-  expect(PROMPT_VERSION).toBe(3);
+test("prompt v4 supplies recipe references and honest editorial instructions through the draft boundary [4.5b#22]", async () => {
+  expect(PROMPT_VERSION).toBe(4);
   for (const value of EXAMPLE_CARDS) {
     expect(await decode(value)).toMatchObject({
       description: expect.any(String),
@@ -704,7 +704,9 @@ test("prompt v3 supplies recipe references and honest editorial instructions thr
       "guidance and starter files",
       "finished product",
       "projectExamples",
-      "illustrative",
+      "finished project someone could build",
+      "Never write instructions",
+      "put real operating limits in caveats",
       "withFragments",
       "fragment",
       "host stack",
@@ -725,7 +727,7 @@ test("prompt v3 supplies recipe references and honest editorial instructions thr
         digest: expect.stringMatching(/^sha256:/),
         by: "drafted",
         model: "codex/gpt-6.1-sol",
-        promptVersion: 3,
+        promptVersion: 4,
         reviewedAt: null,
       },
     });

@@ -6,8 +6,8 @@
     "digest": "sha256:7e7e7e21fb3d9b2a79a56b0f9fd1e251c3c5b355bb111c135babea290cb679ad",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Publish Go binaries for multiple operating systems from version tags, with archives, checksums, changelogs and optional Homebrew distribution.",
   "description": "Turn version tags into Go release archives with matching binary version metadata, checksums and a commit-based changelog. A local snapshot build exercises release packaging without publishing. The default targets include Linux, macOS and Windows on Intel and ARM; optional Homebrew publishing needs its own tap and credentials. This fragment extends a Go binary project rather than providing installer or self-update behavior.",

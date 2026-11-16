@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:ab57622f09ddf370511bd423840f4af6437144223bb048731db339aba478a03d",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Package deployable services as production container images and publish them to GitHub Container Registry after CI passes.",
   "description": "Package each deployable part as a multi-stage, non-root image with a healthcheck, then publish versioned images to GitHub Container Registry after CI. The instructions adapt to the selected stack, including an API and static site in one image for astro-fullstack. Local verification builds the images and checks that they start healthy. Choosing a host, configuring runtime secrets and rolling out containers remain separate deployment work.",

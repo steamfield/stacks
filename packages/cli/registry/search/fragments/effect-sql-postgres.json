@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:3479eb1e5ca9f67c9945b54c86cabc88d4eb32c622684f116eba4f268a3be608",
     "by": "drafted",
-    "model": "codex/gpt-6",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add PostgreSQL to an Effect API or React Router app: Compose databases, explicit migrations, a pooled client and per-file test databases.",
   "description": "Add local Postgres development and test services to the Effect stacks, with migrations applied by an explicit command and a pooled SQL client owned by the app's layer. A repository decodes every row with Schema and maps constraint errors to tagged errors. The test harness clones a migrated template so each test file gets a private database. Readiness checks the database while liveness stays independent. Product tables, queries and access rules are your work, and production hosting is separate.",

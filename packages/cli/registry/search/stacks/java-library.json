@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:6656a980ae9d2099a781f7c0fb4fc03ed6f7f800070e7413a9da523cec06305e",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A Java library for other JVM code, built with Maven as a module with tested Javadoc examples, an API check and Maven Central-ready jars.",
   "description": "Write a reusable Java library whose public API is one exported package in a JPMS module. Every public member has Javadoc whose examples run as tests, failures are records callers can switch over, and NullAway checks nullness at compile time. A separate consumer project builds against the installed jar on the module path, japicmp fails the build on a change that breaks callers, and the build makes the sources and Javadoc jars Maven Central requires. The shipped slug parser is the example to replace with your own API; publishing to Maven Central stays a person's step.",

@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:be9d127dfa93ea2542e720281c14b99534d1c7d359908a372d14aca4f8e0ae69",
     "by": "drafted",
-    "model": "codex/gpt-6",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add a typed SQL database binding with checked-in migrations and isolated local tests before provisioning production.",
   "description": "Add Drizzle access to a typed Cloudflare D1 binding, checked-in SQL migrations and isolated database tests. Development and verify use local D1 without a cloud account, and a readiness route proves a real query through the framework. Production provisioning and reviewed remote migrations are separate steps. This is a storage foundation; it does not add a product data model or authentication.",

@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:2b9dc9950bd6bad2513a8efbc628af5f73323897ecff217d75fc216afad078e6",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A Rust library compiled to WebAssembly and shipped as an npm package with generated TypeScript types, for JavaScript in Node or the browser.",
   "description": "Write the fast or tricky part of a JavaScript project in Rust and ship it as an npm package. wasm-bindgen exports functions and a class with TypeScript declarations, options arrive as typed objects, and every failure reaches JavaScript as an Error with a stable code instead of a crash. The logic is tested natively, the exports run as WebAssembly in Node with wasm-bindgen-test, and a TypeScript consumer installs the packed tarball, typechecks it against the generated .d.ts and runs it. The shipped slug functions are the example to replace with your own; publishing stays a person's step.",

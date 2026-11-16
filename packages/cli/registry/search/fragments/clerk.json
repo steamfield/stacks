@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:283aba53e5c4bf0283e96f1f3e2990f42b6429c8bd74f278fbe25a0f7ba33a22",
     "by": "drafted",
-    "model": "claude/claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add mobile sign-in and verified user sessions to an API, with protected routes and account-free local tests.",
   "description": "Connect Expo sign-in to session verification in the Hono API. Protected routes require a verified user id, with a small public-path allowlist and explicit local bypass. Tests use a local signing key to exercise real verification without a Clerk account. Configure the Clerk application, keys and redirect URLs before live sign-in; application-specific permissions and record ownership still need implementation.",

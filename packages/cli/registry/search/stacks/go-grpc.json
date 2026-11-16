@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Internal pricing service",
-      "description": "Illustrative: replace the notes service with quote and price lookups that other backend services call over gRPC. A database and service-to-service authentication are work the project still has to add."
+      "description": "A pricing service that other backend services call over gRPC for quotes and price lookups, with requests and replies defined in a shared contract."
     }
   ],
   "plain": {

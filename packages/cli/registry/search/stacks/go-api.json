@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "A Go HTTP API on the standard library with JSON resources, consistent errors, request logs and graceful shutdown.",
   "description": "Write a Go HTTP service on net/http's own router, with no web framework. One in-memory resource proves the shape: list, read and create routes, JSON validation, a single error envelope for misses and wrong methods, request IDs, slog access logs, a body size limit and server timeouts. The binary stops cleanly on SIGINT or SIGTERM, and integration tests check that against the built server. The recipe picks no database, authentication or hosting; the in-memory store sits behind an interface a database can replace.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Internal inventory service",
-      "description": "Illustrative: replace the notes resource with items and stock levels for other internal services to call. Persistence and access control are work the project still has to add."
+      "description": "A JSON service that internal tools call to look up inventory items and update stock levels, with consistent error responses and request logs."
     },
     {
       "title": "Webhook receiver in a container",
-      "description": "Illustrative: accept JSON callbacks from a third-party service, validate them and log each request. Signature checks are custom work; docker-deploy builds and publishes the image.",
+      "description": "A containerized service that receives JSON callbacks from another system, validates each payload and logs each request, with images published to GitHub Container Registry.",
       "withFragments": [
         "docker-deploy"
       ]

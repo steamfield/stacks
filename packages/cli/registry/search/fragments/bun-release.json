@@ -6,8 +6,8 @@
     "digest": "sha256:c4c93d0be253d7d42400832175269d9f0658c1587e893347c760090f60165e57",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Distribute compiled Bun binaries for macOS and glibc Linux with checksum-verified installation, atomic self-update and a release workflow.",
   "description": "Add distribution to a Bun-compiled command-line tool: target builds, checksum files, a shell installer and an atomic update command. The release workflow checks and smoke-tests artifacts before publishing a tagged GitHub release. The default targets cover macOS and glibc Linux on Intel and ARM. Repository setup and publishing credentials remain maintainer actions; Windows builds are deferred and musl builds are optional.",

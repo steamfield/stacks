@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:fd2b1aabd80f414c7170c5b0be462350122ef3b6d2a3eb003639d24bc6975c68",
     "by": "drafted",
-    "model": "codex/gpt-6",
-    "promptVersion": 3,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "Add PostgreSQL to a Next.js or SvelteKit app through Drizzle, with SQL migrations and isolated database tests.",
   "description": "Add PostgreSQL to Next.js or SvelteKit through Drizzle ORM and the pg driver: Docker Compose services for development and tests, checked-in SQL migrations with a drift check, a server-only database module, one repository behind the starter items service and a readiness route. Each test file gets its own database cloned from a migrated template, and the end-to-end run gets its own too. Your product tables, queries and access rules are still to write; hosting a production database is separate.",

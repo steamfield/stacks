@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:714d2657405c7f78ab790e052bcae6ed4ed179839c75098d14c2a74b9232140d",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A desktop app with a React interface and Rust logic connected through generated TypeScript bindings.",
   "description": "Give Rust application logic a React desktop interface through generated TypeScript bindings. A thin Tauri shell exposes typed commands and live channels, while a transport facade lets the same interface run against browser fixtures. Tests cover Rust logic, bindings and the mocked interface. The starting app shows application information and a live tick; filesystem workflows, persistence and other desktop behavior are features you implement.",
@@ -19,7 +19,7 @@
     },
     {
       "title": "Desktop process monitor",
-      "description": "A desktop window with live process measurements and charts, fed by Rust and displayed in React."
+      "description": "A desktop app for developers that shows the progress and results of local processing jobs, with Rust doing the work and a React window displaying updates."
     }
   ],
   "plain": {

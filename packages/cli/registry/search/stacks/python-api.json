@@ -5,9 +5,9 @@
   "source": {
     "digest": "sha256:a3bf582dbf261d1c9e29c2110f66f25b35ef254eb7da37311af94c146320b1af",
     "by": "drafted",
-    "model": "claude-opus-5-5",
-    "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
   },
   "summary": "A FastAPI JSON service in Python with typed routes, one error format, request-id logs and a committed OpenAPI spec.",
   "description": "Start a Python HTTP API on FastAPI and Uvicorn with no frontend. An app factory, settings and lifespan keep startup testable; routes return one error envelope, and middleware tags every log line with a request id. Tests run the real app in process, and a drift check keeps the committed OpenAPI spec in step with the code. The example resource lives in memory: add postgres for a database, and build authentication yourself.",

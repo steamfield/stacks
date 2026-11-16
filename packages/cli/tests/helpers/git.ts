@@ -26,7 +26,14 @@ export function gitShim(home: string, body: string): string {
 export const NOT_A_REPO =
   '  rev-parse) echo "fatal: not a git repository (or any of the parent directories): .git" >&2; exit 128 ;;';
 
+/**
+ * Turns off git's automatic housekeeping. Without this a fixture `git commit` can start a detached
+ * `git maintenance run --auto` that is still writing `.git/objects/maintenance.lock` when the test
+ * snapshots or deletes the directory, and the test fails only when that background run is slow.
+ */
+const NO_BACKGROUND_MAINTENANCE = ["-c", "maintenance.auto=false", "-c", "gc.auto=0"];
+
 /** `git ...args` on the real PATH, with `gitEnv()` unless `options.env` is given. */
 export function spawnGit(args: readonly string[], options: SpawnSyncOptions = {}) {
-  return spawnSync("git", args, { env: gitEnv(), ...options });
+  return spawnSync("git", [...NO_BACKGROUND_MAINTENANCE, ...args], { env: gitEnv(), ...options });
 }

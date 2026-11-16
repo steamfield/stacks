@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Team inventory tracker",
-      "description": "Server-rendered lists and forms backed by form actions, starting from the in-memory items slice. Swap the service for a real database and add sign-in before sharing it."
+      "description": "A team inventory tracker with server-rendered item lists and forms that show validation errors beside each field and work without JavaScript."
     },
     {
       "title": "Self-hosted event signup site",
-      "description": "Signup forms that work without JavaScript, served by node on your own box. Add storage and email when the product needs them."
+      "description": "An event signup site served by Node, where visitors submit registration forms and see field-level errors even with JavaScript turned off."
     }
   ],
   "plain": {

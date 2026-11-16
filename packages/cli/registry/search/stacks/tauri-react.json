@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Local file inspection tool",
-      "description": "Implement Rust file parsing behind typed commands and display the results in React. Add explicit filesystem permissions and handling for large or invalid files."
+      "description": "A desktop app that opens local files and shows their parsed contents and validation errors in a React window, with parsing handled by Rust."
     },
     {
       "title": "Desktop process monitor",
-      "description": "Replace the demonstration tick channel with application measurements and charts. Platform integrations, permissions and data retention remain product work."
+      "description": "A desktop window with live process measurements and charts, fed by Rust and displayed in React."
     }
   ],
   "plain": {

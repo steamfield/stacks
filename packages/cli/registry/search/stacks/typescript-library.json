@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Shared utilities for several apps",
-      "description": "An illustrative package of helpers your team's apps install from npm or a private registry instead of copying code between repositories. Publishing and registry access stay your step."
+      "description": "A package of helpers that your team's apps install from npm or a private registry, so they share the same tested code."
     },
     {
       "title": "Typed client for a web service",
-      "description": "An illustrative SDK that wraps a service's HTTP calls in typed functions with one error type. Network calls, retries and authentication are yours to add."
+      "description": "A client library that wraps a web service's HTTP calls in typed functions with one error type, so applications can handle failures consistently."
     }
   ],
   "plain": {

@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Parser for a config format",
-      "description": "Replace the slug type with a parser for a small file format, returning typed values and a matchable error, with round-trip properties for every rule."
+      "description": "A Rust library that parses a small configuration format into typed values, with errors callers can match and tests that check parsing and formatting preserve the same values."
     },
     {
       "title": "Client types for a web service",
-      "description": "Publish the request and response types of a service as a crate other Rust projects depend on, with serde behind a feature."
+      "description": "A crate containing a web service's request and response types for other Rust projects, with optional serde support for converting them to and from JSON."
     }
   ],
   "plain": {

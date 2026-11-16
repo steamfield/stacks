@@ -15,18 +15,18 @@
   "projectExamples": [
     {
       "title": "Parser shared by browser and server",
-      "description": "Replace the slug functions with a parser for a file format, so a web page and a Node service validate input with the same compiled code."
+      "description": "A file-format parser that lets a web page and a Node service validate input with the same Rust code, exposed as typed JavaScript functions."
     },
     {
       "title": "Image or data transform for a web app",
-      "description": "Move a slow transform out of JavaScript into Rust, with the inputs and results typed for the TypeScript code that calls it."
+      "description": "An image or data processor written in Rust that a web app calls through typed functions, with clear errors for invalid inputs."
     }
   ],
   "plain": {
     "whatItIs": "A starter for code written in Rust, a fast compiled language, that JavaScript programs install from npm and call like any other package.",
     "goodAt": [
-      "Running heavy work quickly inside a web page or Node",
-      "Sharing one implementation between Rust and JavaScript projects",
+      "Calling Rust functions from a web page or Node",
+      "Sharing one implementation between browser and Node projects",
       "Typed functions and clear errors for TypeScript callers"
     ],
     "notGoodAt": [

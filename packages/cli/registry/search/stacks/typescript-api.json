@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Configuration validation service",
-      "description": "Add an endpoint that validates submitted configuration and returns structured findings. Authentication, rate limits and storage need explicit design if the service is exposed."
+      "description": "A service that checks submitted configuration and returns structured findings, with consistent error replies for invalid requests."
     },
     {
       "title": "Internal integration gateway",
-      "description": "Wrap selected upstream APIs in typed resources with consistent errors and logs. Implement the provider clients, credentials and access rules for those integrations."
+      "description": "An internal gateway that exposes selected upstream APIs as typed resources, with consistent errors and request logs for the applications that call it."
     }
   ],
   "plain": {

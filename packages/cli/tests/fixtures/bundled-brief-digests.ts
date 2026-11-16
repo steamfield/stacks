@@ -35,18 +35,17 @@
  * pointed agents at the shipped engineering guidance; they await a bench run.
  * The 0.12.0 version in the brief changed all six again on 2026-11-15.
  * The 0.13.0 version in the brief changed all six again on 2026-11-16.
- * All six changed on 2026-11-16 for After green's review step, Start here's pointer, and
- * shorter fixed wording that keeps every composition within budget.
+ * All six changed on 2026-11-16 for After green's review step, and Start here's pointer to it.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:00d131d2262b89304daaaca59d92e9b75e0b519d7dedced98d5e0470fd031b9c",
-  "astro-blog:sandbox": "sha256:2bc0735f0ae755b7ce13745193d00abc1f9c2d4c5675f2f2989b954ff7dd1296",
-  "go-cli:default": "sha256:dd10bb3bea3b7b6623e37b518fe03fd7b21d46f84d11c9bf3eb051c100b94624",
-  "go-cli:sandbox": "sha256:d3fc37cf3f1ba78b75dc89e80a7ee5b2eadadcc760d03a217fa890938f298e01",
-  "python-react:default": "sha256:e1108610cca1e7eecc47b83c50614ff3f11161205dfda547891e8a8508e5a4ba",
-  "python-react:sandbox": "sha256:7bd70deb694858a715719faeff4aeae354b603d52f22c72e30962069ecb45259",
+  "astro-blog:default": "sha256:b46f4b8c4388b9e2948fa4cc378d70a07b8c5a30883018609263b0ab0899e60d",
+  "astro-blog:sandbox": "sha256:b47e3c22bd6b0ddd8a957dd050280c43932580123c5ba87c1a356e4231dd93a3",
+  "go-cli:default": "sha256:5a701f70040c665b5a455c90ec0a35eac4db1db661cc68368fe9f9c03dcd0bb0",
+  "go-cli:sandbox": "sha256:e43b93449b4e9a7077e24b56014bb4e72606b6ce906c1387c9302564fa11cee7",
+  "python-react:default": "sha256:d404511773c1fe781ea1ad55c21ea039d1c3a6d17447937e991726e5e914fb64",
+  "python-react:sandbox": "sha256:647ae648f62b912c13d6d13c9b67fd7cd6ccaa0956d7d7ca996719df6e510984",
 };

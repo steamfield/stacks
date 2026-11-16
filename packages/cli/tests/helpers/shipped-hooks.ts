@@ -174,6 +174,14 @@ export async function bundledStackSettings() {
   );
 }
 
+/**
+ * A hook spawn takes well under a second alone, but with these files' concurrent spawns on a
+ * loaded 2-core CI runner one took over 4.5 s. A hung hook still fails at this deadline, and the
+ * hook files declare a test timeout above it (`HOOK_TEST_TIMEOUT`) for tests that spawn a few.
+ */
+const HOOK_DEADLINE = 15_000;
+export const HOOK_TEST_TIMEOUT = 45_000;
+
 export type Run = { status: number | null; stdout: string; stderr: string };
 export async function run(
   root: string,
@@ -190,7 +198,7 @@ export async function run(
   return await new Promise((resolve, reject) => {
     const child = spawn(options.program ?? "/bin/sh", options.args ?? ["-c", command], {
       cwd: root,
-      signal: AbortSignal.timeout(4500),
+      signal: AbortSignal.timeout(HOOK_DEADLINE),
       env: {
         HOME: root,
         PATH: options.path ?? process.env.PATH,

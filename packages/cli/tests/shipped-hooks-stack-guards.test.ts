@@ -1,7 +1,7 @@
 /** Stack guards keep servers and interactive tools out of foreground agent calls. */
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { join, relative } from "node:path";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import {
   agentOps,
   allowed,
@@ -9,6 +9,7 @@ import {
   composedSettings,
   denied,
   fixture,
+  HOOK_TEST_TIMEOUT,
   noted,
   registry,
   run,
@@ -16,6 +17,7 @@ import {
   writePayload,
 } from "./helpers/shipped-hooks";
 
+vi.setConfig({ testTimeout: HOOK_TEST_TIMEOUT, hookTimeout: HOOK_TEST_TIMEOUT });
 const rows = [
   {
     stack: "go-library",

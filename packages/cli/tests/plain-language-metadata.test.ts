@@ -441,27 +441,40 @@ test("unsigned and signed builds publish dependency cards and check detects tamp
 
 // The bundled registry's zero-warning half of 4.5f#17 is asserted against the suite's one
 // whole-registry report, in tests/bundled-registry.test.ts.
-test("every bundled entry has plain copy and every used dependency has a card [4.5f#17]", async () => {
-  const root = join(import.meta.dirname, "../registry");
-  const home = space.dir();
-  const listing = await runCli(["list", "--json"], { home, env: quiet, host: { registry: root } });
-  expect(listing.status, listing.stderr).toBe(0);
-  expect(listing.stderr).toBe("");
-  const { ListResult } = await import("../src/schemas/list");
-  const entries = Schema.decodeUnknownSync(ListResult)(JSON.parse(listing.stdout)).entries;
-  expect(entries.length).toBeGreaterThan(0);
-  const allow = Schema.decodeUnknownSync(DependencyAllowlist)(
-    readJson(join(root, "allowlist.json")),
-  );
-  const { DependencyCardFile } = await import("@steamfield/stacks-format");
-  expect(allow).toHaveProperty("names");
-  for (const entry of entries) {
-    const card = Schema.decodeUnknownSync(SearchMetadata)(readJson(cardPath(root, entry)));
-    expect(card.plain, `${entry.kind}/${entry.id}`).toBeDefined();
+// Listed once at collection so each entry gets its own row and timeout: as one test, the loop of
+// shows took 12 s alone and ran past 60 s on a loaded CI shard.
+const bundledRoot = join(import.meta.dirname, "../registry");
+const bundledListing = await runCli(["list", "--json"], {
+  home: space.dir(),
+  env: quiet,
+  host: { registry: bundledRoot },
+});
+const bundledEntries =
+  bundledListing.status === 0
+    ? Schema.decodeUnknownSync((await import("../src/schemas/list")).ListResult)(
+        JSON.parse(bundledListing.stdout),
+      ).entries
+    : [];
+
+test("list --json reads the bundled registry's entries [4.5f#17]", () => {
+  expect(bundledListing.status, bundledListing.stderr).toBe(0);
+  expect(bundledListing.stderr).toBe("");
+  expect(bundledEntries.length).toBeGreaterThan(0);
+});
+
+test.each(bundledEntries)(
+  "$kind/$id has plain copy and a card for every dependency it uses [4.5f#17]",
+  async (entry) => {
+    const card = Schema.decodeUnknownSync(SearchMetadata)(readJson(cardPath(bundledRoot, entry)));
+    expect(card.plain).toBeDefined();
+    const allow = Schema.decodeUnknownSync(DependencyAllowlist)(
+      readJson(join(bundledRoot, "allowlist.json")),
+    );
+    const { DependencyCardFile } = await import("@steamfield/stacks-format");
     const shownRun = await runCli(["show", entry.id, "--kind", entry.kind, "--json"], {
-      home,
+      home: space.dir(),
       env: quiet,
-      host: { registry: root },
+      host: { registry: bundledRoot },
     });
     expect(shownRun.status, shownRun.stderr).toBe(0);
     expect(shownRun.stderr).toBe("");
@@ -475,14 +488,15 @@ test("every bundled entry has plain copy and every used dependency has a card [4
         const ecosystem = matched[0];
         if (ecosystem === undefined) throw new Error(`Missing allowlist ecosystem for ${name}`);
         const file = Schema.decodeUnknownSync(DependencyCardFile)(
-          readJson(join(root, "deps", `${ecosystem}.json`)),
+          readJson(join(bundledRoot, "deps", `${ecosystem}.json`)),
         );
         const key = ecosystem === "go" ? goAllowlistKey(name) : name;
         expect(file.cards[key], `${ecosystem}/${key}`).toBeDefined();
       }
-  }
-  // One show per entry; concurrent gates can exceed Vitest's 5 s.
-}, 60_000);
+  },
+  // A row loads the registry for its `show`: up to 0.9 s alone, several seconds on a loaded shard.
+  15_000,
+);
 
 test("show go-cli includes the canonical go-yaml card and preserves its full import path", async () => {
   const root = join(import.meta.dirname, "../registry");

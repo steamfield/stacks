@@ -1,13 +1,14 @@
 /** Destructive hooks allow everyday agent work and deny each irreversible operation. */
 import { rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import {
   allowed,
   bashPayload,
   denied,
   failingTool,
   fixture,
+  HOOK_TEST_TIMEOUT,
   hookCommand,
   noted,
   run,
@@ -15,6 +16,7 @@ import {
   writePayload,
 } from "./helpers/shipped-hooks";
 
+vi.setConfig({ testTimeout: HOOK_TEST_TIMEOUT, hookTimeout: HOOK_TEST_TIMEOUT });
 const space = fixture();
 let project: string, command: string, noJq: string;
 beforeAll(async () => {

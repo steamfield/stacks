@@ -93,8 +93,8 @@ jobs:
   publish:
     needs: [verify, build]
     runs-on: ubuntu-latest
-    # Publishing waits up to 7 minutes for each of three packages to show on the registry.
-    timeout-minutes: 30
+    # Publishing waits up to 20 minutes each for format and the CLI to show on the registry, and up to 7 for MCP.
+    timeout-minutes: 60
     # One publish at a time across tags; a second release queues instead of racing the first.
     concurrency:
       group: npm-publish

@@ -262,15 +262,16 @@ function warn(title: string, message: string): void {
 }
 
 /**
- * npm reports a publish well before the registry serves it, usually within 3 to 5 minutes. Wait
- * for the first check, then poll. A different integrity is a real conflict and fails at once. With
- * `required` false, a version npm accepted but the registry has not shown yet warns instead of
- * failing the run.
+ * npm reports a publish well before the registry serves it: MCP has shown within 3 to 5 minutes,
+ * the CLI after 8 to 13. Wait for the first check, then poll. A different integrity is a real
+ * conflict and fails at once. A required package (one the next pins) polls for about 20 minutes;
+ * with `required` false the wait is about 7 minutes and a version npm accepted but the registry has
+ * not shown yet warns instead of failing the run.
  */
 function confirmPublished(entry: Packed, required: boolean): void {
   const delay = milliseconds("RELEASE_CONFIRM_DELAY_MS", 120_000);
   const interval = milliseconds("RELEASE_CONFIRM_INTERVAL_MS", 15_000);
-  const attempts = milliseconds("RELEASE_CONFIRM_ATTEMPTS", 20);
+  const attempts = milliseconds("RELEASE_CONFIRM_ATTEMPTS", required ? 72 : 20);
   const spec = specOf(entry);
   console.log(`Waiting for the registry to show ${spec}`);
   sleep(delay);

@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Package deployable services as production container images and publish them to GitHub Container Registry after CI passes.",
   "description": "Package each deployable part as a multi-stage, non-root image with a healthcheck, then publish versioned images to GitHub Container Registry after CI. The instructions adapt to the selected stack, including an API and static site in one image for astro-fullstack. Local verification builds the images and checks that they start healthy. Choosing a host, configuring runtime secrets and rolling out containers remain separate deployment work.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Containerized Python web app",
-      "description": "Package the FastAPI service and React SPA as production images. Choose a runtime host and rollout process separately.",
+      "description": "A Python and React web app packaged as separate API and web images, with nginx serving the frontend and forwarding API requests.",
       "stack": "python-react"
     },
     {
       "title": "Single-image site and API",
-      "description": "Bundle the Astro site and Node API into one image with static serving configured. Provision the host and supply runtime configuration outside the image.",
+      "description": "An Astro site with interactive React islands calling a Node API, all served from one container image on the same origin.",
       "stack": "astro-fullstack"
     }
   ],

@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "codex/gpt-6",
     "promptVersion": 3,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Add PostgreSQL to a Next.js or SvelteKit app through Drizzle, with SQL migrations and isolated database tests.",
   "description": "Add PostgreSQL to Next.js or SvelteKit through Drizzle ORM and the pg driver: Docker Compose services for development and tests, checked-in SQL migrations with a drift check, a server-only database module, one repository behind the starter items service and a readiness route. Each test file gets its own database cloned from a migrated template, and the end-to-end run gets its own too. Your product tables, queries and access rules are still to write; hosting a production database is separate.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Team request tracker",
-      "description": "Store requests and their status in Postgres through Drizzle repositories behind Server Actions. Add sign-in and per-team access rules before sharing it.",
+      "description": "A request tracker where a team submits requests and updates their status through Next.js forms, with records saved in Postgres through Drizzle repositories.",
       "stack": "nextjs"
     },
     {
       "title": "Inventory catalog with history",
-      "description": "Keep catalog items and change records in your own tables, with migrations reviewed in pull requests and each test file on a private database.",
+      "description": "An inventory catalog where staff look up items and review their change history, with records stored in Postgres and edits submitted through SvelteKit forms.",
       "stack": "sveltekit"
     }
   ],

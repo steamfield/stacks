@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 2,
-    "reviewedAt": "2026-10-31"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "Distribute compiled Bun binaries for macOS and glibc Linux with checksum-verified installation, atomic self-update and a release workflow.",
   "description": "Add distribution to a Bun-compiled command-line tool: target builds, checksum files, a shell installer and an atomic update command. The release workflow checks and smoke-tests artifacts before publishing a tagged GitHub release. The default targets cover macOS and glibc Linux on Intel and ARM. Repository setup and publishing credentials remain maintainer actions; Windows builds are deferred and musl builds are optional.",
@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Installable diagnostics tool",
-      "description": "Distribute a TypeScript diagnostics utility as downloadable executables with checksum verification. Implement the diagnostics commands in the base CLI.",
+      "description": "A diagnostics command that reports configuration problems as text or JSON, distributed as downloadable executables with checksum verification and an update command.",
       "stack": "typescript-cli"
     },
     {
       "title": "Updatable terminal chat app",
-      "description": "Combine this release fragment with openrouter-chat-cli to distribute the terminal application. Native TUI packages need target-specific build and smoke checks.",
+      "description": "A terminal chat app with saved conversations and Markdown export, distributed as installable executables that users can update in place.",
       "stack": "typescript-cli",
       "withFragments": [
         "openrouter-chat-cli"

@@ -15,12 +15,12 @@
   "projectExamples": [
     {
       "title": "Documented API contribution workflow",
-      "description": "Use the plugin's testing and error-handling guidance while extending an Effect API. Project-specific conventions still belong in the repository's own instructions.",
+      "description": "An Effect API repository where Claude loads testing and error-handling guidance when changing endpoints, alongside the project's own conventions.",
       "stack": "typescript-api"
     },
     {
       "title": "Blog editing guidance",
-      "description": "Load writing guidance when Claude edits blog documentation and testing guidance when it changes components. Authors still review the resulting copy and code.",
+      "description": "An Astro blog with shared writing guidance for Claude's documentation edits and testing guidance for its component tests.",
       "stack": "astro-blog"
     }
   ],

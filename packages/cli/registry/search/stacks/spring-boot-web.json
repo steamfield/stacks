@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Internal admin console",
-      "description": "Illustrative: replace notes with the records a back-office team edits through forms and lists. Sign-in, roles and a database are work the project still has to add."
+      "description": "A browser console where a back-office team adds and opens records through forms and lists, with field validation and updates that appear without reloading the whole page."
     }
   ],
   "plain": {

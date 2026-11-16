@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Log viewer",
-      "description": "Replace the task list with lines from a log file, filter them as you type and open one entry in the detail screen."
+      "description": "A terminal log viewer with filtering as the user types and a detail screen for reading individual entries."
     },
     {
       "title": "Queue dashboard for a local service",
-      "description": "Show jobs from a JSON export in the list, with their state and errors in the detail screen, and print the same data as JSON for scripts."
+      "description": "A terminal dashboard that lists jobs from a local service's JSON export, shows their state and errors in a detail screen, and prints the same data as JSON for scripts."
     }
   ],
   "plain": {

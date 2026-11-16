@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Dashboard over an existing API",
-      "description": "An illustrative internal dashboard that lists and opens records from a team's existing JSON API, deployed as static files. Sign-in and permissions come from that API."
+      "description": "An internal dashboard that lists and opens records from a team's existing JSON API, deployed as static files."
     },
     {
       "title": "Public data browser",
-      "description": "An illustrative site that browses a public JSON API with shareable deep links. Add the host's rewrite to index.html and CORS on the API before launch."
+      "description": "A site for browsing a public JSON API, with shareable links that open individual records directly."
     }
   ],
   "plain": {

@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Project diagnostics utility",
-      "description": "Add checks for project files and environment settings, reporting actionable findings to people and JSON to automation. The base already establishes doctor and output behavior."
+      "description": "A command that checks project files and environment settings, reports findings with suggested fixes, and prints JSON for automation."
     },
     {
       "title": "Terminal model notebook",
-      "description": "Select openrouter-chat-cli for saved chat, scriptable model commands and a terminal interface. Add bun-release separately if you also want installation and update workflows.",
+      "description": "A terminal notebook for conversations with models through OpenRouter, with saved chats, Markdown export and commands that scripts can call.",
       "withFragments": [
         "openrouter-chat-cli"
       ]

@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Team knowledge for a coding assistant",
-      "description": "An illustrative server whose tools look up internal docs or runbooks so an assistant can quote them. Access to those sources and any credentials are yours to add."
+      "description": "A local server that lets a coding assistant read team documentation and runbooks from a folder, so answers can quote the source text."
     },
     {
       "title": "Assistant tools for an internal service",
-      "description": "An illustrative server that wraps a few calls to a company service as tools an assistant can run. Authentication, rate limits and write safeguards are your work."
+      "description": "A local server that gives an assistant named tools for looking up records in a company service, with structured results and error messages the assistant can act on."
     }
   ],
   "plain": {

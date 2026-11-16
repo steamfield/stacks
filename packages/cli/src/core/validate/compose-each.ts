@@ -1,6 +1,6 @@
 /**
  * Composes each validated fragment with every stack it could land on, so a fragment author learns
- * about a conflict or an over-budget brief before a user does.
+ * about a conflict before a user does.
  *
  * A fragment (a reusable addition such as CI or a database) declares which stacks it fits
  * (`appliesTo`), and a stack (a recipe for a whole project) may list it as required, default or
@@ -10,8 +10,8 @@
  *
  * Where a stack is itself being validated and lists the fragment, `compositions.ts` already checks
  * those compositions, so this file skips them. A conflict `composed.ts` already reported for the
- * same stack is skipped too (`RenderState.failures`). Findings are `budget-composed` or the compose
- * check's own name when the composition is one the stack is budgeted in, and `compose-each`
+ * same stack is skipped too (`RenderState.failures`). Findings use the compose
+ * check's own name when the composition is one of the stack's plans, and `compose-each`
  * otherwise. `index.ts` runs this check over a registry; `preview.ts` leaves it out.
  */
 import { AgentId, type FragmentMeta, type StackMeta } from "@steamfield/stacks-format";
@@ -22,7 +22,6 @@ import { compose } from "../compose/compose";
 import { fitsStack } from "../compose/selection";
 import type { ComposeOptions } from "../compose/types";
 import { type Entry, isStack, shippedOnlyFor } from "../registry/entry";
-import { canonicalBrief, composedLimit } from "./budget";
 import { uniqueFindings } from "./composed";
 import { compositionSingles, describe, replacementDefaults } from "./compositions";
 import type { Check, View } from "./types";
@@ -30,16 +29,16 @@ import { entryFile, finding } from "./view";
 
 type Stack = Entry & { meta: StackMeta };
 type Fragment = Entry & { meta: FragmentMeta };
-/** How one fragment composes onto one stack; `budgeted` when the stack's own plans include it. */
+/** How one fragment composes onto one stack; `covered` when the stack's own plans include it. */
 type FragmentPlan = {
-  budgeted: boolean;
+  covered: boolean;
   with: ReadonlyArray<string>;
   without: ReadonlyArray<string>;
 };
 type FragmentCase = {
   fragment: Fragment;
   stack: Stack;
-  budgeted: boolean;
+  covered: boolean;
   options: ComposeOptions;
 };
 
@@ -69,7 +68,7 @@ function agentsWithOwnFiles(view: View): AgentId[] {
 /**
  * How to compose the fragment onto the stack, or undefined when the pair is out of scope: the
  * stack neither lists, hosts an overlay of nor fits the fragment, or `compositionChecks` already
- * covers the pair because the stack is validated too and budgets the fragment.
+ * covers the pair because the stack is validated too and its plans include the fragment.
  */
 function fragmentPlan(view: View, stack: Stack, fragment: Fragment): FragmentPlan | undefined {
   const listed = Object.values(stack.meta.fragments).some((ids) => ids.includes(fragment.id));
@@ -81,10 +80,10 @@ function fragmentPlan(view: View, stack: Stack, fragment: Fragment): FragmentPla
   const plan = compositionSingles(view, stack).find((plan) =>
     inBase ? plan.added === undefined : plan.added === fragment.id,
   );
-  const budgeted = listed || plan !== undefined;
-  if (budgeted && view.entries.some((entry) => entry.dir === stack.dir)) return undefined;
+  const covered = listed || plan !== undefined;
+  if (covered && view.entries.some((entry) => entry.dir === stack.dir)) return undefined;
   const without = plan?.without ?? replacementDefaults(view, stack, fragment.id);
-  return { budgeted, with: plan?.with ?? [fragment.id], without };
+  return { covered, with: plan?.with ?? [fragment.id], without };
 }
 
 function hostsOverlay(view: View, stack: Stack, fragment: Fragment): boolean {
@@ -118,7 +117,7 @@ const composeFragmentPair = (
           ...(yield* checkFragmentComposition(view, {
             fragment,
             stack,
-            budgeted: plan.budgeted,
+            covered: plan.covered,
             options: {
               stack: stack.id,
               with: plan.with,
@@ -133,31 +132,24 @@ const composeFragmentPair = (
     return findings;
   });
 
-const checkFragmentComposition = (view: View, check: FragmentCase) =>
-  Effect.gen(function* () {
-    const result = yield* Effect.result(compose(check.options));
-    if (Result.isSuccess(result)) {
-      const limit = composedLimit(result.success);
-      if (canonicalBrief(result.success).briefWords <= limit) return [];
-      return [
-        fragmentFinding(view, check, {
-          check: check.budgeted ? "budget-composed" : "compose-each",
-          message: `composed brief exceeds ${limit.toLocaleString("en-US")} words`,
-        }),
-      ];
-    }
-    const error = result.failure;
-    // The entry and reference checks own invalid inputs.
-    if (error._tag !== "ComposeConflict") return [];
-    if (yield* reportedWhileRendering(view, check.stack, error)) return [];
-    const described = describe(error);
-    return [
-      fragmentFinding(view, check, {
-        check: check.budgeted ? described.check : "compose-each",
-        message: described.message,
-      }),
-    ];
-  });
+const checkFragmentComposition = Effect.fn("validate.fragmentComposition")(function* (
+  view: View,
+  check: FragmentCase,
+) {
+  const result = yield* Effect.result(compose(check.options));
+  if (Result.isSuccess(result)) return [];
+  const error = result.failure;
+  // The entry and reference checks own invalid inputs.
+  if (error._tag !== "ComposeConflict") return [];
+  if (yield* reportedWhileRendering(view, check.stack, error)) return [];
+  const described = describe(error);
+  return [
+    fragmentFinding(view, check, {
+      check: check.covered ? described.check : "compose-each",
+      message: described.message,
+    }),
+  ];
+});
 
 /** Whether `composed.ts` already reported this conflict for the stack. */
 const reportedWhileRendering = (view: View, stack: Stack, error: ComposeConflict) =>

@@ -88,6 +88,7 @@ test("runs uses trusted state timing, counts decoded lines, and counts Asked lis
     verifyRuns: 2,
     lastOutcome: "failed",
     minutesToGreen: 10,
+    minutesToLastGreen: 1,
     minutesToFirstTest: 4.5,
     interventions: 2,
     stateRecord: true,
@@ -242,6 +243,7 @@ test("human and agent text include the project's run numbers [2.0c#3]", async ()
       { label: /^\s*\|?\s*verify\s+runs\b/i, value: /^1$/ },
       { label: /^\s*\|?\s*last\s+outcome\b/i, value: "green" },
       { label: /^\s*\|?\s*minutes\s+to\s+green\b/i, value: /^10(?:\.0+)?(?:\s+min(?:utes)?)?$/i },
+      { label: /^\s*\|?\s*minutes\s+to\s+last\s+green\b/i, value: /^1(?:\.0+)?$/ },
       {
         label: /^\s*\|?\s*minutes to first successful test command \(run completion\)/i,
         value: /^4\.5(?:\s+min(?:utes)?)?$/i,
@@ -261,4 +263,50 @@ test("human and agent text include the project's run numbers [2.0c#3]", async ()
       else expect(shown).toMatch(value);
     }
   }
+});
+
+test.each([
+  {
+    name: "two full green runs use the later completion",
+    history: [
+      runRecord({ secondsSinceCreated: 600 }),
+      runRecord({ at: "2026-10-27T09:11:00.000Z", secondsSinceCreated: 765 }),
+      runRecord({ outcome: "failed", secondsSinceCreated: 900 }),
+    ],
+    expected: 12.75,
+  },
+  {
+    name: "one full green has the same first and last green minutes",
+    history: [runRecord({ secondsSinceCreated: 600 })],
+    expected: 10,
+  },
+  {
+    name: "no green run has unknown last green minutes",
+    history: [runRecord({ outcome: "failed", secondsSinceCreated: 600 })],
+    expected: null,
+  },
+  {
+    name: "a later manifest-only green does not replace the last full green",
+    history: [
+      runRecord({ secondsSinceCreated: 600 }),
+      runRecord({ tamperCheck: "manifest-only", secondsSinceCreated: 900 }),
+    ],
+    expected: 10,
+  },
+  {
+    name: "a manifest-only green alone has unknown last green minutes",
+    history: [runRecord({ tamperCheck: "manifest-only", secondsSinceCreated: 600 })],
+    expected: null,
+  },
+])("$name", async ({ history, expected }) => {
+  const p = await project();
+  writeFileSync(p.runs, `${history.map((run) => JSON.stringify(run)).join("\n")}\n`);
+  const result = await runs(p);
+  expect(result.status).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(decode(result.stdout)).toMatchObject({
+    verifyRuns: history.length,
+    minutesToGreen: 10,
+    minutesToLastGreen: expected,
+  });
 });

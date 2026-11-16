@@ -56,20 +56,23 @@ export function countAsked(markdown: string): number {
 
 const decodeRunLine = Schema.decodeUnknownResult(Schema.fromJsonString(RunRecord));
 
-/** What the history lines say: how many decoded, the last one's outcome, how many didn't. */
+/** Decoded runs, the last outcome and full green, and the count of lines that didn't decode. */
 function summarizeHistory(history: string) {
   let verifyRuns = 0;
   let lastOutcome: string | null = null;
   let skippedLines = 0;
+  let lastGreen: RunRecord | undefined;
   for (const line of history.split(/\r?\n/)) {
     if (!line.trim()) continue;
     const decoded = decodeRunLine(line);
     if (Result.isSuccess(decoded)) {
       verifyRuns++;
       lastOutcome = decoded.success.outcome;
+      if (decoded.success.outcome === "green" && decoded.success.tamperCheck === "full")
+        lastGreen = decoded.success;
     } else skippedLines++;
   }
-  return { verifyRuns, lastOutcome, skippedLines };
+  return { verifyRuns, lastOutcome, skippedLines, lastGreen };
 }
 
 /** The history file's text; a missing file is empty, any other failure is `PermissionDenied`. */
@@ -113,6 +116,7 @@ export const projectRuns = (cwd: string) =>
       verifyRuns: history.verifyRuns,
       lastOutcome: history.lastOutcome,
       minutesToGreen: minutesBetween(state?.createdAt, state?.firstGreenAt),
+      minutesToLastGreen: history.lastGreen ? history.lastGreen.secondsSinceCreated / 60 : null,
       minutesToFirstTest: minutesBetween(state?.createdAt, state?.firstTestPassAt),
       interventions: Option.isSome(notes) ? countAsked(notes.value) : null,
       stateRecord: state !== undefined,
@@ -130,6 +134,7 @@ const RUN_LABELS: ReadonlyArray<[keyof ProjectRuns, string]> = [
   ["verifyRuns", "Verify runs"],
   ["lastOutcome", "Last outcome"],
   ["minutesToGreen", "Minutes to green"],
+  ["minutesToLastGreen", "Minutes to last green"],
   ["minutesToFirstTest", "Minutes to first successful test command (run completion)"],
   ["interventions", "Interventions"],
   ["stateRecord", "State record"],

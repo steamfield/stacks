@@ -7,7 +7,7 @@
  * `stacks new`, so this file builds the ones a user is likely to get and checks each:
  * `compositionPlans` lists them (the defaults, each extra fragment alone, each compatible pair,
  * in both the `default` and `sandbox` presets), `compositionChecks` composes each through
- * `compose/compose.ts::compose` and records failures, compose warnings, over-budget briefs and
+ * `compose/compose.ts::compose` and records failures, compose warnings, over-budget default briefs and
  * missing verify layers in `composition-findings.ts`. `bodyChecks` holds each entry's own body to
  * its limit from `budget.ts`.
  *
@@ -128,7 +128,7 @@ function fittingApps(view: Omit<View, "composed">, stack: Stack): string[] {
 }
 
 /**
- * The compositions each validated stack is budgeted in: its required and default fragments (with
+ * The compositions each validated stack is checked in: its required and default fragments (with
  * any default app), each extra on its own, then each compatible unordered pair, all in both
  * presets. Apps come from the validated root (or the stack's own `optional`), so the
  * compositions don't depend on what else this machine holds. An added fragment replaces the
@@ -258,8 +258,8 @@ function invalidEntryReported(view: View, error: EntryInvalid): boolean {
 }
 
 /**
- * Each validated stack composed in each budgeted composition: a failure is a `compose` (or
- * `step-names`) error, a brief over its limit is `budget-composed`, and the default composition
+ * Each validated stack composed in each plan: a failure is a `compose` (or
+ * `step-names`) error, a default brief over its limit is `budget-composed`, and the default composition
  * must verify every layer (`install`, `lint`, `typecheck`, `test`). Briefs are rendered with the
  * canonical context; untrusted entries get no special section.
  */

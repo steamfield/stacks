@@ -36,7 +36,7 @@ Write `.rr.yaml` by hand from the installed rr skill's `reference/config.md` and
 Verify runs `.claude/hooks/smoke.sh`, which rr's defaults don't sync. Set `sync.exclude` to the defaults minus `.claude/`, plus `.claude/settings.local.json` and `.claude/worktrees/`.
 <!-- stacks:end -->
 
-If hosts are configured, run `rr doctor` and a real task end to end; `rr provision` can install missing host tools. Otherwise list host setup (`rr host add`, then `rr doctor`) under Pending user actions in AGENTS.md. Do not invent hosts.
+If hosts are configured, run `rr doctor` and a real task end to end; `rr provision` can install missing host tools. Otherwise list host setup (`rr host add`, then `rr doctor`) under Pending user actions in AGENTS.md. No verify step needs a host: `rr-config` fails on an invalid `.rr.yaml` or a config warning (usually a misspelled key), and `rr-routes` smoke-tests the filled routes.
 
 **Local queue**: set `local_fallback: on-unreachable` and no `hosts:`. Runs lock only through a local host, so list `rr host add --local --name <name>` under Pending user actions. Then `rr <task>` and `rr run --local "<cmd>"` take its machine-wide lock; `rr unlock --all` clears a stuck one.
 
@@ -45,7 +45,3 @@ The Claude adapter enables the rr plugin, allows read-only rr commands, and wire
 ## AGENTS.md
 
 After Testing, document the `.rr.yaml` tasks in a table with local equivalents, scoped use (`rr test -- <path or filter>`), full-suite use, and the final stderr result's `details.failures`, `details.no_tests` (zero tests is not a pass) and `details.log_file`. Include `rr doctor` and `rr unlock <host>` (`rr unlock --all` for the local queue) for diagnosis. Add rr to Commands as an optional way to run the same tests.
-
-## Verify
-
-`rr-config` runs `rr tasks` locally and fails on an invalid `.rr.yaml` or a config warning (an unknown key is usually a typo); no verify step needs a reachable host. `rr-routes` (Claude) runs `rr-route-tests-smoke.sh` on the filled routes.

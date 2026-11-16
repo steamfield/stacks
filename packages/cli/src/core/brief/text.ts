@@ -40,7 +40,7 @@ export const start = {
   build: (decisions: boolean, app: boolean) =>
     `3. Do what the Stack and Fragment sections ask${decisions ? ", taking the Decisions" : ""}${app ? ", then the application" : ""}, and replace every \`stacks:fill\` marker.`,
   done: (cli: string) =>
-    `4. Done: ${verify(cli, " --all")}, which adds the hygiene checks, exits 0 with outcome ${code("green")}.`,
+    `4. Done: ${verify(cli, " --all")}, which adds the hygiene checks, exits 0 with outcome ${code("green")}. Then follow After green.`,
   reference: "Everything below is reference.",
   facts: "## Facts",
 };
@@ -231,14 +231,18 @@ export const done = {
   ],
   after: "### After green",
   docs: "1. Check that `AGENTS.md` and `README.md` describe the project you built, with real commands.",
+  reviewAgent: (cli: string) =>
+    `2. Review your diff (in Claude Code, run the ${code("reviewer")} agent on it), fix what it finds, and rerun ${verify(cli, " --all")}.`,
+  reviewSelf: (cli: string) =>
+    `2. Review your own diff against AGENTS.md and the project's guidance, fix what you find, and rerun ${verify(cli, " --all")}.`,
   commit: (git: GitState, project: string, stack: string) => {
     if (git.kind === "fresh")
-      return `2. Commit everything with the message ${code(`chore: scaffold ${project} from the ${stack} stack`)}.`;
+      return `3. Commit everything with the message ${code(`chore: scaffold ${project} from the ${stack} stack`)}.`;
     if (git.kind === "parent")
-      return "2. Don't commit: this is someone else's repository. List the files to commit in your summary and ask the user.";
-    return "2. Skip commits (git isn't installed) and say so in your summary.";
+      return "3. Don't commit: this is someone else's repository. List the files to commit in your summary and ask the user.";
+    return "3. Skip commits (git isn't installed) and say so in your summary.";
   },
-  summary: `3. End with a short summary: what you built, the decisions you took (with their defaults), anything you couldn't do, and a pointer to \`${NOTES_PATH}\` for what this brief got wrong.`,
+  summary: `4. End with a short summary: what you built, the decisions you took (with their defaults), anything you couldn't do, and a pointer to \`${NOTES_PATH}\` for what this brief got wrong.`,
 };
 
 export const application = {

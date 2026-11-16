@@ -22,7 +22,7 @@ function shellWord(text: string): string {
 }
 
 /**
- * The label of a size row: `go-cli body`, `go-cli (sandbox) + postgres`, `effect shipped`. An id
+ * The label of a size row: `go-cli body`, `go-cli (sandbox)`, `effect shipped`. An id
  * both a stack and a fragment use gets its kind (`twin (fragment) body`).
  */
 function sizeLabel(row: SizeRow, shared: ReadonlySet<string>): string {
@@ -30,8 +30,7 @@ function sizeLabel(row: SizeRow, shared: ReadonlySet<string>): string {
     const kind = shared.has(row.entry) ? ` (${row.entryKind})` : "";
     return `${printable(row.entry)}${kind} ${row.kind}`;
   }
-  const added = row.with === undefined ? "" : ` + ${printable(row.with)}`;
-  return `${printable(row.entry)} (${row.preset})${added}`;
+  return `${printable(row.entry)} (${row.preset})`;
 }
 
 /** One finding as an indented row, with the check ids padded to line up. */

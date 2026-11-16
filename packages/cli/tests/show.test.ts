@@ -20,6 +20,73 @@ import { workspace } from "./helpers/verify";
 
 const space = workspace();
 afterEach(() => space.release());
+
+test("show labels both bundled library payloads and explains how to omit the example", async () => {
+  const home = space.dir();
+  const registry = join(import.meta.dirname, "../registry");
+  const report = await showReport(
+    await runCli(["show", "typescript-library", "--json"], {
+      home,
+      env: quiet,
+      host: { registry },
+    }),
+  );
+  expect(report).toHaveProperty("payloads", ["example", "none"]);
+  const payloadFiles = report.files.filter((file) => file.source.startsWith("payloads/"));
+  expect(payloadFiles.length).toBeGreaterThan(0);
+  for (const file of payloadFiles) {
+    const variant = file.source.split("/")[1];
+    expect(file).toHaveProperty("payload", variant);
+    expect(file.path).toBe(
+      file.source
+        .split("/")
+        .slice(2)
+        .join("/")
+        .replace(/\.tmpl$/, ""),
+    );
+    expect(file).not.toHaveProperty("agent");
+    expect(file).not.toHaveProperty("stack");
+  }
+  for (const file of report.files.filter((file) => !file.source.startsWith("payloads/")))
+    expect(file).not.toHaveProperty("payload");
+  for (const audience of [terminal, { stdoutIsTTY: false }]) {
+    const result = await runCli(["show", "typescript-library"], {
+      home,
+      env: quiet,
+      host: { registry, ...audience },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain(
+      "Payloads: example (default), none. Pass --payload none to start without the example.",
+    );
+    expect(result.stdout).toContain(
+      "README.md (payload example) <- payloads/example/README.md.tmpl",
+    );
+    expect(result.stdout).toContain("README.md (payload none) <- payloads/none/README.md.tmpl");
+  }
+});
+
+test("a stack without payloads omits the payloads key, row labels and payload hint", async () => {
+  const { home, registry, entry, show } = fixture();
+  shipped(entry, "files/README.md");
+  const report = await showReport(await show(["sample"]));
+  expect(report).not.toHaveProperty("payloads");
+  expect(report.files).toEqual([{ source: "files/README.md", path: "README.md" }]);
+  for (const audience of [terminal, { stdoutIsTTY: false }]) {
+    const result = await runCli(["show", "sample"], {
+      home,
+      env: quiet,
+      host: { registry, ...audience },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("Payloads:");
+    expect(result.stdout).not.toContain("--payload");
+    expect(result.stdout).not.toContain("(payload ");
+  }
+});
+
 function fixture() {
   const home = space.dir();
   const registry = space.dir();

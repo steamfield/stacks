@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "rr",
   "source": {
-    "digest": "sha256:b28caf6a3decf3ba19ce364407a65e5bfd553aa83cb7e276883e07d995fa491f",
+    "digest": "sha256:f871a6686ade7760af3a488d4b7b3db7d67e9282aa19bcf9d3b164fa95f96d30",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

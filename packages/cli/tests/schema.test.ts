@@ -84,6 +84,28 @@ describe("schema", () => {
     expect(text.stdout).toContain('\n  "');
   });
 
+  test("the show schema exposes optional payload variants and file labels", async () => {
+    const document = await schemaJson("show");
+    const payloadFields = objects(document).filter((node) => {
+      const properties = node.properties;
+      return isObject(properties) && Object.hasOwn(properties, "payloads");
+    });
+    expect(payloadFields).toHaveLength(1);
+    expect(payloadFields[0]).toMatchObject({ properties: { payloads: { type: "array" } } });
+    expect(payloadFields[0]?.required).not.toContain("payloads");
+    const fileFields = objects(document).filter((node) => {
+      const properties = node.properties;
+      return (
+        isObject(properties) &&
+        Object.hasOwn(properties, "source") &&
+        Object.hasOwn(properties, "path")
+      );
+    });
+    expect(fileFields).toHaveLength(1);
+    expect(fileFields[0]).toMatchObject({ properties: { payload: { type: "string" } } });
+    expect(fileFields[0]?.required).not.toContain("payload");
+  });
+
   test("the doctor schema describes doctor --json's real result", async () => {
     const doctor = await runCli(["doctor", "--json"]);
     expect(doctor.status).toBe(0);

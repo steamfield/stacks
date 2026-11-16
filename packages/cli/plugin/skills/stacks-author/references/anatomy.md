@@ -163,6 +163,8 @@ Store dotfiles under their real names (`files/.gitignore`). A file ending in `.t
 
 `adapters/<agent>/` holds files for one coding agent: `claude`, `codex`, `opencode` or `cursor`. Only targeted agents get them; every target gets `AGENTS.md`. Settings permissions and hook commands must name composed commands, and hook paths must exist in the composed files. List shared JSON files such as `.claude/settings.json` in `merge`.
 
+Guidance every agent needs lives in `files/` (a doc under `docs/`), because only Claude loads `.claude/`. A path-scoped Claude rule (`.claude/rules/<id>/<name>.md` with `paths:` frontmatter) states its must-not-break constraints inline, in a few lines, and links to that doc for the reasons and examples: a rule that only says "read the doc" loads nothing an agent acts on. Never `@`-import the doc into a path-scoped rule; Claude Code loads an imported file at session start whatever the rule's `paths` say.
+
 ## Checking your work
 
 ```sh

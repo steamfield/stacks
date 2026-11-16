@@ -93,7 +93,7 @@ const checks = (findings: ReadonlyArray<Finding>) =>
 const only = (findings: ReadonlyArray<Finding>, check: string) =>
   findings.filter((finding) => finding.check === check);
 
-test("a clean registry validates with no findings, exit 0, and a size row per composition [1.5#1] [1.5#11]", async () => {
+test("a clean registry validates with no findings, exit 0, and default size rows only [1.5#1] [1.5#11]", async () => {
   const root = temp();
   stack(root, "clean", "fragments:\n  default: [helper]\n  optional: [extra]");
   fragment(root, "helper");
@@ -132,9 +132,7 @@ test("a clean registry validates with no findings, exit 0, and a size row per co
     got.sizes.filter((row) => row.kind === "composed").map((row) => [row.preset, row.with]),
   ).toEqual([
     ["default", undefined],
-    ["default", "extra"],
     ["sandbox", undefined],
-    ["sandbox", "extra"],
   ]);
 });
 
@@ -376,6 +374,13 @@ test("budget-composed: a brief of exactly 6,000 words passes and 6,001 fails, in
   expect(exact.over.filter((message) => message.includes("(default)"))).toEqual([]);
   const over = await composedSizes(temp(), toDefault + 1);
   expect(over.over).toContain("big (default): 6,001 words, limit 6,000");
+  const bothOver = await composedSizes(temp(), toDefault + 200);
+  expect(bothOver.default).toBeGreaterThan(BUDGET.composed);
+  expect(bothOver.sandbox).toBeGreaterThan(BUDGET.composed);
+  expect(bothOver.over).toEqual([
+    `big (default): ${bothOver.default.toLocaleString("en-US")} words, limit 6,000`,
+    `big (sandbox): ${bothOver.sandbox.toLocaleString("en-US")} words, limit 6,000`,
+  ]);
 
   const toSandbox = BUDGET.composed - probe.sandbox;
   const sandboxExact = await composedSizes(temp(), toSandbox);
@@ -387,24 +392,68 @@ test("budget-composed: a brief of exactly 6,000 words passes and 6,001 fails, in
   expect(sandboxOver.over).toEqual(["big (sandbox): 6,001 words, limit 6,000"]);
 }, 30_000);
 
-test("a composition with an app is budgeted at 9,000, and default apps leave when another app is added [1.5#2]", async () => {
+test.each(["fragment", "app"])(
+  "an optional %s over its composed limit has no budget finding or size row",
+  async (kind) => {
+    const probe = await composedSizes(temp(), 0);
+    const root = temp();
+    const pad = BUDGET.composed - Math.max(probe.default, probe.sandbox) - 1;
+    for (const id of ["f1", "f2", "f3", "f4"]) fragment(root, id, "", words(990, id));
+    stack(root, "big", "fragments:\n  default: [f1, f2, f3, f4]\n  optional: [extra]", {
+      body: `${SETUP}\n${words(pad, "b")}\n`,
+    });
+    if (kind === "app") app(root, "extra", "big", words(2990, "app"));
+    else fragment(root, "extra", "", words(900, "extra"));
+
+    const { status, stderr, report: got } = await report([root]);
+    expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
+    expect(got.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
+    expect(
+      got.sizes.filter((row) => row.kind === "composed").map((row) => [row.preset, row.with]),
+    ).toEqual([
+      ["default", undefined],
+      ["sandbox", undefined],
+    ]);
+    const result = await run([root, "--brief", "big", "--with", "extra", "--json"]);
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: "" });
+    const preview = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(result.stdout));
+    expect(preview.limit).toBe(kind === "app" ? BUDGET.composedWithApp : BUDGET.composed);
+    expect(preview.briefWords).toBeGreaterThan(preview.limit);
+    expect(preview.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
+  },
+);
+
+test("a default composition with an app is budgeted at 9,000 and optional apps have no size row [1.5#2]", async () => {
   const root = temp();
   stack(root, "host", "fragments:\n  default: [first-app]");
   app(root, "first-app", "host", words(2500));
   app(root, "second-app", "cli", words(2500));
-  const { status, report: got } = await report([root]);
-  expect(status).toBe(0);
+  const { status, stderr, report: got } = await report([root]);
+  expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
   const composed = got.sizes.filter((row) => row.kind === "composed");
   expect(composed.map((row) => [row.preset, row.with, row.limit])).toEqual([
     ["default", undefined, 9000],
-    ["default", "second-app", 9000],
     // The sandbox preset drops the default app, so its base brief is held to 6,000.
     ["sandbox", undefined, 6000],
-    ["sandbox", "second-app", 9000],
   ]);
+  const result = await run([
+    root,
+    "--brief",
+    "host",
+    "--with",
+    "second-app",
+    "--without",
+    "first-app",
+    "--json",
+  ]);
+  expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: "" });
+  const preview = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(result.stdout));
+  expect(preview.fragments).toEqual(["second-app"]);
+  expect(preview.app).toBe("second-app");
+  expect(preview.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
 });
 
-test("two optional fragments that fit alone report one composed budget error per preset together", async () => {
+test("two optional fragments that fit alone are not budgeted together", async () => {
   const root = temp();
   stack(root, "pair", "fragments:\n  default: [d1, d2, d3, d4]\n  optional: [alpha, beta]");
   for (const id of ["d1", "d2", "d3", "d4"]) fragment(root, id, "", words(900, id));
@@ -412,51 +461,57 @@ test("two optional fragments that fit alone report one composed budget error per
   fragment(root, "beta", "", words(850, "b"));
 
   const { status, stderr, report: got } = await report([root]);
-  expect(status).toBe(2);
-  expect(JSON.parse(stderr).error).toMatchObject({
-    tag: "ValidationFailed",
-    details: { errors: 2, warnings: 0 },
-  });
+  expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
+  expect(got.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
   const rows = got.sizes.filter((row) => row.kind === "composed");
   expect(rows.map((row) => [row.preset, row.with])).toEqual([
     ["default", undefined],
-    ["default", "alpha"],
-    ["default", "beta"],
-    ["default", "alpha + beta"],
     ["sandbox", undefined],
-    ["sandbox", "alpha"],
-    ["sandbox", "beta"],
-    ["sandbox", "alpha + beta"],
   ]);
-  expect(
-    rows
-      .filter((row) => row.with === "alpha" || row.with === "beta")
-      .every((row) => row.words <= BUDGET.composed),
-  ).toBe(true);
-  expect(only(got.findings, "budget-composed").map((finding) => finding.message)).toEqual([
-    `pair (default) + alpha + beta: ${rows[3]?.words.toLocaleString("en-US")} words, limit 6,000; preview: stacks validate ${root} --brief pair --with alpha --with beta`,
-    `pair (sandbox) + alpha + beta: ${rows[7]?.words.toLocaleString("en-US")} words, limit 6,000; preview: stacks validate ${root} --brief pair --sandbox --with alpha --with beta`,
-  ]);
+  for (const added of [["alpha"], ["beta"], ["alpha", "beta"]]) {
+    const result = await run([
+      root,
+      "--brief",
+      "pair",
+      ...added.flatMap((id) => ["--with", id]),
+      "--json",
+    ]);
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: "" });
+    const preview = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(result.stdout));
+    expect(preview.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
+    if (added.length === 1) expect(preview.briefWords).toBeLessThanOrEqual(preview.limit);
+    else expect(preview.briefWords).toBeGreaterThan(preview.limit);
+  }
 });
 
 test("two apps or two mutually conflicting optional fragments are not paired", async () => {
   const root = temp();
   stack(root, "host", "fragments:\n  optional: [left, right]");
-  fragment(root, "left", "conflicts: [right]");
-  fragment(root, "right", "conflicts: [left]");
-  app(root, "first-app", "host");
-  app(root, "second-app", "host");
+  const left = fragment(root, "left", "conflicts: [right]");
+  const right = fragment(root, "right", "conflicts: [left]");
+  const first = app(root, "first-app", "host");
+  const second = app(root, "second-app", "host");
+  for (const { entry, path, text } of [
+    { entry: left, path: "left.txt", text: "left" },
+    { entry: first, path: "left.txt", text: "first" },
+    { entry: right, path: "right.txt", text: "right" },
+    { entry: second, path: "right.txt", text: "second" },
+  ]) {
+    mkdirSync(join(entry, "files"));
+    writeFileSync(join(entry, "files", path), text);
+  }
 
-  const { status, report: got } = await report([root]);
-  expect(status).toBe(0);
-  expect(only(got.findings, "compose")).toEqual([]);
-  const withIds = got.sizes
-    .filter((row) => row.kind === "composed" && row.preset === "default")
-    .map((row) => row.with);
-  expect(withIds).toContain("first-app + left");
-  expect(withIds).toContain("right + second-app");
-  expect(withIds).not.toContain("first-app + second-app");
-  expect(withIds).not.toContain("left + right");
+  const { status, stderr, report: got } = await report([root]);
+  expect(status).toBe(2);
+  expect(JSON.parse(stderr).error.tag).toBe("ValidationFailed");
+  expect(only(got.findings, "compose").map((finding) => finding.message)).toEqual([
+    expect.stringContaining("host (default, sandbox) + first-app + left"),
+    expect.stringContaining("host (default, sandbox) + right + second-app"),
+  ]);
+  expect(got.sizes.filter((row) => row.kind === "composed").map((row) => row.with)).toEqual([
+    undefined,
+    undefined,
+  ]);
 });
 
 test("a file collision introduced only by an optional pair is reported", async () => {
@@ -493,9 +548,9 @@ test("a pair drops each optional fragment's conflicting default", async () => {
   const { status, report: got } = await report([root]);
   expect(status).toBe(0);
   expect(only(got.findings, "compose")).toEqual([]);
-  expect(
-    got.sizes.filter((row) => row.kind === "composed" && row.with === "alpha + beta"),
-  ).toHaveLength(2);
+  expect(got.sizes.filter((row) => row.kind === "composed" && row.with === "alpha + beta")).toEqual(
+    [],
+  );
   for (const preset of ["default", "sandbox"]) {
     const preview = await run([
       root,
@@ -515,15 +570,13 @@ test("a pair drops each optional fragment's conflicting default", async () => {
     expect(preview.status).toBe(0);
     const brief = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(preview.stdout));
     expect(brief.fragments).toEqual(["alpha", "beta"]);
-    expect(
-      got.sizes.find(
-        (row) => row.kind === "composed" && row.preset === preset && row.with === "alpha + beta",
-      )?.words,
-    ).toBe(brief.briefWords);
+    expect(preview.stderr).toBe("");
+    expect(brief.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
+    expect(brief.briefWords).toBe(countWords(brief.brief));
   }
 });
 
-test("an over-budget pair that replaces defaults gives a runnable preview command", async () => {
+test("an over-budget pair that replaces defaults has no budget finding or size row", async () => {
   const root = temp();
   stack(
     root,
@@ -539,16 +592,28 @@ test("an over-budget pair that replaces defaults gives a runnable preview comman
   fragment(root, "alpha", "conflicts: [old-a]", words(850, "a"));
   fragment(root, "beta", "conflicts: [old-b]", words(850, "b"));
 
-  const { status, report: got } = await report([root]);
-  expect(status).toBe(2);
-  expect(only(got.findings, "budget-composed").map((finding) => finding.message)).toEqual([
-    expect.stringContaining(
-      `preview: stacks validate ${root} --brief replace-pair --with alpha --with beta --without old-a --without old-b`,
-    ),
-    expect.stringContaining(
-      `preview: stacks validate ${root} --brief replace-pair --sandbox --with alpha --with beta --without old-a --without old-b`,
-    ),
+  const { status, stderr, report: got } = await report([root]);
+  expect({ status, stderr }).toEqual({ status: 0, stderr: "" });
+  expect(got.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
+  expect(got.sizes.filter((row) => row.kind === "composed" && row.with !== undefined)).toEqual([]);
+  const result = await run([
+    root,
+    "--brief",
+    "replace-pair",
+    "--with",
+    "alpha",
+    "--with",
+    "beta",
+    "--without",
+    "old-a",
+    "--without",
+    "old-b",
+    "--json",
   ]);
+  expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: "" });
+  const preview = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(result.stdout));
+  expect(preview.briefWords).toBeGreaterThan(preview.limit);
+  expect(preview.findings.filter((finding) => finding.severity !== "note")).toEqual([]);
 });
 
 test("sizes are rendered with the canonical context: tools, git, invocation and user settings change nothing [1.5#3]", async () => {
@@ -735,9 +800,7 @@ test("an optional fragment that conflicts with a default replaces it, in either 
   ]);
   expect(got.sizes.filter((row) => row.kind === "composed").map((row) => row.with)).toEqual([
     undefined,
-    "b",
     undefined,
-    "b",
   ]);
 });
 
@@ -845,20 +908,25 @@ test("an unknown or rejected id a stack names is reported once, by its own check
 test("apps are enumerated from the validated root, not from every origin", async () => {
   const home = temp();
   const bundled = join(home, "bundled");
-  app(bundled, "elsewhere-app", "cli");
+  const elsewhere = app(bundled, "elsewhere-app", "cli");
+  mkdirSync(join(elsewhere, "files"));
+  writeFileSync(join(elsewhere, "files", "config.txt"), "elsewhere");
   reviewSearchFixture(bundled);
   const user = join(home, "authoring");
-  stack(user, "mine");
-  app(user, "local-app", "mine");
-  const { status, report: got } = await report([user], { home, registry: bundled });
-  expect(status).toBe(0);
-  expect(
-    got.sizes.filter((row) => row.kind === "composed").map((row) => [row.preset, row.with]),
-  ).toEqual([
-    ["default", undefined],
-    ["default", "local-app"],
-    ["sandbox", undefined],
-    ["sandbox", "local-app"],
+  const host = stack(user, "mine");
+  const local = app(user, "local-app", "mine");
+  for (const { entry, text } of [
+    { entry: host, text: "host" },
+    { entry: local, text: "local" },
+  ]) {
+    mkdirSync(join(entry, "files"));
+    writeFileSync(join(entry, "files", "config.txt"), text);
+  }
+  const { status, stderr, report: got } = await report([user], { home, registry: bundled });
+  expect(status).toBe(2);
+  expect(JSON.parse(stderr).error.tag).toBe("ValidationFailed");
+  expect(only(got.findings, "compose").map((finding) => finding.message)).toEqual([
+    expect.stringContaining("mine (default, sandbox) + local-app"),
   ]);
 });
 
@@ -1432,17 +1500,12 @@ test.skipIf(git.status !== 0)(
   },
 );
 
-test("the realistic fixture registry validates without errors, its app brief inside 9,000 words", async () => {
+test("the realistic fixture registry validates without errors and budgets only its default briefs", async () => {
   const { status, report: got } = await report([], { registry: realRegistry });
   expect(status).toBe(0);
   expect(got.findings.filter((finding) => finding.severity === "error")).toEqual([]);
-  const withApp = got.sizes.filter((row) => row.kind === "composed" && row.with !== undefined);
-  expect(withApp.length).toBe(2);
-  for (const row of withApp) {
-    expect(row.limit).toBe(BUDGET.composedWithApp);
-    expect(row.words).toBeGreaterThan(BUDGET.composed - 500);
-    expect(row.words).toBeLessThanOrEqual(BUDGET.composedWithApp);
-  }
+  expect(got.sizes.filter((row) => row.kind === "composed" && row.with !== undefined)).toEqual([]);
+  expect(got.sizes.filter((row) => row.kind === "composed")).toHaveLength(got.entries.stacks * 2);
 });
 
 test("validate with no path checks a bundled registry whose path ends in a slash", async () => {
@@ -1477,11 +1540,11 @@ test("--brief prints the composed brief and its counts, and --json decodes as a 
     warnings: [],
   });
   expect(preview.briefWords).toBe(countWords(preview.brief));
-  // The same composition's size row in the report carries the same counts.
+  // Explicit previews retain counts even though registry validation has no optional size row.
   const { report: got } = await report([], { registry: realRegistry });
   expect(
     got.sizes.find((row) => row.preset === "default" && row.with === "openrouter-chat-cli"),
-  ).toMatchObject({ words: preview.briefWords, fixedWords: preview.fixedWords });
+  ).toBeUndefined();
 });
 
 test("--brief failures are compose's own: an unknown stack suggests the close one [1.5#13]", async () => {

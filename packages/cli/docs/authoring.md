@@ -210,11 +210,12 @@ with verify. Repair shipped hook/editor command references and stale run fingerp
 Review warnings as well as errors.
 
 Keep stack bodies below 2,000 words, fragments below 1,000 and apps below 3,000;
-the composed brief limit is 6,000 (9,000 with an app). Move optional shared material into
+the default composed brief limit is 6,000 (9,000 with an app). Move optional shared material into
 a fragment, reference material into a shipped doc linked from the body, and cut what
-the agent would do anyway. Validation budgets the default composition, every optional
-fragment or fitting app alone, and every compatible pair of those extras in both presets.
-Preview reports the resulting budget for a selected composition.
+the agent would do anyway. Validation budgets only the default composition in both presets;
+optional fragments, fitting apps and compatible pairs still get the other composition checks.
+Preview always reports the selected composition's size, but enforces the composed budget only
+without `--with` or `--without`. Body and add-mode brief budgets still apply.
 
 ## Prove it with a local bench run
 

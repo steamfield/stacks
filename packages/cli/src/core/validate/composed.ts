@@ -5,7 +5,7 @@
  * Entries (stacks and fragments) ship files, and some ship only for one coding agent (a Claude
  * adapter, a Codex config) or only on top of one host stack (an overlay). A defect in such a file
  * appears only when that agent or stack is part of the composition, so `composedFiles` composes
- * each budgeted plan from `compositions.ts::compositionPlans` plus every overlay, in both presets,
+ * each plan from `compositions.ts::compositionPlans` plus every overlay, in both presets,
  * then renders it through `compose/files.ts::composeFiles` with `NEUTRAL_VARS` (fixed template
  * values) separately for each adapter the composition's entries ship for. A `validate --brief`
  * preview renders only its one composition.
@@ -58,7 +58,7 @@ export const composedFiles = (view: SourceView): View["composed"] =>
     return { ...state, findings: uniqueFindings(state.findings) };
   });
 
-/** A preview renders its one selection; registry validation renders every budgeted one. */
+/** A preview renders its one selection; registry validation renders every plan. */
 function compositionRuns(view: SourceView): CompositionRun[] {
   if (view.composition) {
     const { stack, preset, options } = view.composition;

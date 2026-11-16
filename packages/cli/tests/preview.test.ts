@@ -143,6 +143,37 @@ test("over-cap previews keep the full JSON result and end stderr with Validation
   });
 });
 
+test("explicit --with or --without previews retain over-limit sizes without a composed budget error", async () => {
+  const { registry, preview } = fixture();
+  const defaults = ["one", "two", "three", "four", "five", "six", "seven"];
+  stack(
+    registry,
+    "sample",
+    `fragments:\n  default: [${defaults.join(", ")}]\n  optional: [extra]`,
+    `## Setup\n\n${"word ".repeat(1000)}\n`,
+  );
+  for (const id of defaults) fragment(registry, id, "", "word ".repeat(850));
+  fragment(registry, "extra");
+  const baseline = await preview();
+  expect(baseline.status).toBe(2);
+  const defaultBrief = Schema.decodeUnknownSync(BriefPreview)(JSON.parse(baseline.stdout));
+  expect(findingsKey(defaultBrief)).toEqual([
+    { check: "budget-composed", severity: "error", kind: "stack", entry: "sample" },
+  ]);
+  expect(JSON.parse(baseline.stderr)).toMatchObject({
+    error: { tag: "ValidationFailed", details: { errors: 1, warnings: 0 } },
+  });
+  for (const args of [
+    ["--with", "extra"],
+    ["--without", "one"],
+  ]) {
+    const report = previewResult(await preview(args));
+    expect(report.briefWords).toBe(countWords(report.brief));
+    expect(report.briefWords).toBeGreaterThan(report.limit);
+    expect(report.findings).toEqual([]);
+  }
+});
+
 test.each(["show", "preview"])(
   "%s never executes git, tools, agents or entry commands [3.1a#9]",
   async (command) => {

@@ -14,13 +14,13 @@ stacks validate --brief web --with docs --sandbox # the brief a composition rend
 
 `validate` checks frontmatter and identity, references (`fragments`, `requires`, `conflicts`, `applies_to`), conditional prose markers, `merge` files, verify step layers, whether git ignores any of an entry's files, and composes each stack in both presets: alone (with its required and default fragments), with each optional fragment and each fitting app added on its own, then with each compatible pair of those extras. It skips pairs of two apps and pairs whose fragments conflict with each other. Each addition drops any default fragment it replaces. References resolve through every root, the one being validated first; one that resolves only in another root is a note naming that root. The bundled registry must be self-contained.
 
-Composed size rows use `with` as a display label: one fragment id for a single addition, or two sorted ids joined by ` + ` for a pair. An over-budget pair finding includes the command to preview that brief, including any defaults to leave out.
+Composed size rows measure only each stack's default composition, in both presets. Compositions with optional fragments or apps added get no size row or composed-budget finding; their other checks still run.
 
 Every stack's base composition must verify each layer: `install`, `lint`, `typecheck` and `test`, plus a `serve` step with a probe when the stack is tagged `web` or `api`.
 
 ### Rot checks
 
-Rot checks also try explicitly applicable fragments beside each stack's defaults when the composition pass hasn't already budgeted that combination (`compose-each`). Declared conflicts replace default fragments in either direction, following the `--without` drop hint; required fragments stay. Listed combinations keep the existing composition finding without a duplicate. Unlisted combinations are also checked against the composed brief budget. Dead `stack=` branches warn, or note when reachable only through `--with`. Verify commands must be declared in that composition's commands table. Fragment commands need verify coverage; a fragment describing an existing stack command doesn't add a new deliverable.
+Rot checks also try explicitly applicable fragments beside each stack's defaults when the composition pass hasn't already checked that combination (`compose-each`). Declared conflicts replace default fragments in either direction, following the `--without` drop hint; required fragments stay. Listed combinations keep the existing composition finding without a duplicate. These rot checks report conflicts without budgeting the brief. Dead `stack=` branches warn, or note when reachable only through `--with`. Verify commands must be declared in that composition's commands table. Fragment commands need verify coverage; a fragment describing an existing stack command doesn't add a new deliverable.
 
 Author bodies with ATX headings (`## Heading`). Exact versions and dated release phrases warn outside fenced examples, in bodies, decisions and shipped Markdown. Version-sensitive config files (package manifests, tool configs, workflows, Dockerfiles) warn when they contain a version: a pinned `x.y.z`, a semver range, `packageManager`, `engines`, a `go` or `toolchain` directive, or an Actions ref. Remove the version and let the agent pick current ones. A bare Actions expression such as `${{ github }}` in a `.tmpl` warns; dotted expressions stay literal, and known template variables are intentional substitutions.
 
@@ -37,6 +37,8 @@ When a registry has `runs.json`, ledger notes report stacks without a sandbox pa
 ## Word budgets
 
 Budgets count every conditional branch in a body and, for a composed brief, the CLI's own text too (reported separately as fixed text). Every composed brief is rendered on one fixed context (no missing tools, a fresh repository, the `npx` invocation) so the counts are the same on every machine.
+
+The composed brief budget applies only to a stack's default composition (its required and default fragments), in each preset. Optional additions are requested by the caller and aren't held to this budget. Body budgets and add-mode brief budgets still apply.
 
 | Subject | Limit (words) |
 | --- | --- |
@@ -57,3 +59,5 @@ A search card stamped with a different source digest than the entry's current te
 ## Previewing a brief
 
 `--brief <stack>` prints only the canonical composed brief to stdout. Word count, fixed-text count and limit go to stderr in human mode; agent stderr stays empty on success. `--json` returns `BriefPreview`, including its fingerprint and findings for the selected entries. Error findings exit 2 with `ValidationFailed` and keep the brief on stdout. Preview uses only the first configured agent (default `claude`), ignores `always`, and starts no processes. `--with` and `--without` take ids (repeatable or comma-separated); they and `--sandbox` work only with `--brief`.
+
+A preview always reports the rendered brief's size. It reports a `budget-composed` error only for the default composition: passing either `--with` or `--without` exempts the preview from that budget.

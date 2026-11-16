@@ -279,7 +279,7 @@ test("compose-each replaces defaults whose conflicts name the added fragment", a
   ]);
 });
 
-test("compose-each checks unbudgeted applicable compositions against the brief limit", async () => {
+test("compose-each does not budget applicable compositions", async () => {
   const root = space.temp();
   stack(
     root,
@@ -294,6 +294,5 @@ test("compose-each checks unbudgeted applicable compositions against the brief l
       stacks: ["sample"],
       fragments: ["extra", "four", "one", "three", "two"],
     }),
-    ["compose-each", "error", { entry: "extra", text: ["sample", "extra", "6,000"] }],
   ]);
 });

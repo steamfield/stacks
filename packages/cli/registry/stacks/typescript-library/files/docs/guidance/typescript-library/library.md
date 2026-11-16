@@ -56,15 +56,15 @@ While the version is `0.x`, a breaking change bumps the minor. Write what change
 
 Use an interface of optional `readonly` fields, frozen defaults and a resolve function that fills omitted fields and checks every value at runtime for JavaScript callers. It rejects unknown keys with a typed `LibraryError` naming the key in `field`. When the API first takes options, the options module adds the `invalid_option` code and message to `src/errors.ts` for these failures.
 
-The library's own defaults are frozen and shared. A default the caller supplies is different: a `default({})` or `default([])` on a schema, or an initial value passed to a builder, is cloned for each call that uses it, so one call's mutation never shows up in the next.
+The library's own defaults are frozen and shared; `Object.freeze` is shallow, so freeze any nested object or array too. A default the caller supplies is different: a `default({})` or `default([])` on a schema, or an initial value passed to a builder, is mutable and is cloned for each call that uses it, so one call's mutation never shows up in the next. `structuredClone` is a host global, not part of the language, so copy with a small helper in `src/internal/` that handles the plain objects and arrays the API accepts.
 
 ## Untrusted input
 
 Treat every value a caller passes in as hostile when an export walks it: an object, an array, a parsed JSON document. A parser, validator, merger or serializer is the usual case.
 
 - Read own properties only. Use `Object.hasOwn(value, key)` and `Object.keys`, never `key in value` or a bare `value[key]` lookup on a key the caller chose, which finds `toString` and anything on a polluted prototype.
-- Write caller-chosen keys only into an object made with `Object.create(null)` or into a `Map`. `__proto__`, `constructor` and `prototype` are ordinary data keys: `JSON.parse('{"__proto__": 1}')` produces an own property named `__proto__`, and assigning it to a plain `{}` changes that object's prototype instead of storing the key.
-- Decide what holes in sparse arrays mean (`[1, , 3]`: an error, `undefined`, or skipped) and what non-plain objects mean (class instances, `Date`, `Map`, objects with a null prototype), write it in the README and test it. `Array.prototype.forEach` and `map` skip holes; a `for` loop doesn't.
+- Write caller-chosen keys only into an object made with `Object.create(null)` or into a `Map`. `__proto__`, `constructor` and `prototype` are ordinary data keys: `JSON.parse('{"__proto__": {"polluted": true}}')` produces an own property named `__proto__`, and assigning that value to `__proto__` on a plain `{}` replaces the object's prototype instead of storing the key.
+- Decide what holes in sparse arrays mean (an error, `undefined`, or skipped) and what non-plain objects mean (class instances, `Date`, `Map`), write it in the README and test it. Objects with a null prototype count as plain, since the library builds its own that way. `Array.prototype.forEach` and `map` skip holes; a `for` loop doesn't.
 - Bound recursion depth and input size, and fail with a `LibraryError` past the bound rather than overflowing the stack.
 - Error payloads name the path (`["items", 3, "name"]`), never the value, as with `field`.
 

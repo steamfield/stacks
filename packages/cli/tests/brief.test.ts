@@ -455,6 +455,7 @@ test.each([
     reviewer: false,
   },
   { name: "Codex only", agents: ["codex"], without: [], reviewer: false },
+  { name: "Claude and Codex", agents: ["claude", "codex"], without: [], reviewer: true },
 ] satisfies ReadonlyArray<{
   name: string;
   agents: NonNullable<Parameters<typeof composeExit>[0]["agents"]>;
@@ -474,7 +475,7 @@ test.each([
     );
     const after = brief.slice(brief.indexOf("### After green"));
     const review = reviewer
-      ? `2. Run the \`reviewer\` agent on your diff, fix what it finds, and rerun \`${invocation} verify --all\`.`
+      ? `2. Review your diff (in Claude Code, run the \`reviewer\` agent on it), fix what it finds, and rerun \`${invocation} verify --all\`.`
       : `2. Review your own diff against AGENTS.md and the project's guidance, fix what you find, and rerun \`${invocation} verify --all\`.`;
     expect(after.split("\n").filter((line) => /^\d\. /.test(line))).toEqual([
       "1. Check that `AGENTS.md` and `README.md` describe the project you built, with real commands.",
@@ -482,7 +483,7 @@ test.each([
       "3. Commit everything with the message `chore: scaffold demo from the typescript-library stack`.",
       "4. End with a short summary: what you built, the decisions you took (with their defaults), anything you couldn't do, and a pointer to `.stacks/NOTES.md` for what this brief got wrong.",
     ]);
-    expect(after).not.toContain(reviewer ? "Review your own diff" : "Run the `reviewer` agent");
+    expect(after).not.toContain(reviewer ? "Review your own diff" : "`reviewer` agent");
   },
 );
 

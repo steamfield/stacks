@@ -27,7 +27,7 @@ How they behave:
 - A block means ask the user. Never rephrase a command, split it up or write a file another way to work around a deny.
 - Guards deny destructive or irreversible work, secrets and session hangs. Keep runner choices, generated-file ownership and import boundaries in guidance and lint.
 - Guards prevent accidents, not deliberate bypasses. They fail open if inspection is unavailable. The command guard reports this with a note; the secret guard can skip inspection silently.
-- Lint and type feedback arrives as context after a write, only when there is a problem: silence after a write means clean. Missing tools and advisory timeouts never block work. The TypeScript harness adds typecheck-on-write; list it in the hook table when installed.
+- Lint and type feedback arrives as context after a write, only when there is a problem. Silence means clean, or that the linter couldn't run (not installed yet, timed out, or the file is outside its includes); run the project's lint command when it matters. Missing tools and advisory timeouts never block work. The TypeScript harness adds typecheck-on-write; list it in the hook table when installed.
 - Linters and formatters run from the project's install or PATH. Hooks never download packages to run a check.
 - External calls have timeouts so a stuck linter or Docker daemon cannot stall the session.
 - Shell scripts run as `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/<name>.sh"`, so they need no executable bit. They target Bash 3.2 under `set -euo pipefail`.

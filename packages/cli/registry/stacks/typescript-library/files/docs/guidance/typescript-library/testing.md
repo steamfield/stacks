@@ -8,19 +8,26 @@ Run Vitest with `bun run test`. It runs `src/**/*.test.ts` and `tests/**/*.test.
 - An export that walks caller values (library.md, "Untrusted input") gets a hostile-input table beside its other tables. Each row is an input and what must hold afterwards:
 
   ```ts
+  // A literal hole (`[1, , 3]`) fails Biome's noSparseArray, and its fix removes the hole.
+  const sparse: number[] = [1];
+  sparse[2] = 3;
+
   test.each([
     ["__proto__ key from JSON", JSON.parse('{"__proto__": {"polluted": true}}')],
     ["constructor key", { constructor: { prototype: { polluted: true } } }],
+    ["prototype key", { prototype: { polluted: true } }],
     ["inherited property", Object.create({ inherited: 1 })],
-    ["sparse array", [1, , 3]],
+    ["sparse array", sparse],
     ["class instance", new Date(0)],
   ])("%s is handled as data", (_name, input) => {
-    expect(() => parse(input)).not.toThrow(TypeError);
+    const result = parse(input);
+    expect(result).not.toHaveProperty("polluted");
+    expect(result).not.toHaveProperty("inherited");
     expect(Object.prototype).not.toHaveProperty("polluted");
   });
   ```
 
-  Replace the assertions with the exact output or `{ code, field }` the API defines for each row. Add a row nested past the depth bound, and a test that two calls using the same caller-supplied default don't share it.
+  Replace the assertions with the exact output or `{ code, field }` the API defines for each row; `not.toHaveProperty` also checks the result's prototype chain. Add rows nested past the depth bound and over the size bound, and a test that two calls using the same caller-supplied default don't share it.
 - Keep the sorted runtime export list and public error checks in `tests/public-api.test.ts`. A new export adds its name there, which forces the release decision.
 - Pin public signatures and inferred types with Vitest's `expectTypeOf`, as in `tests/public-api.test.ts`. These assertions do nothing at runtime; `bun run typecheck` checks them because `tsconfig.json` includes `src/` and `tests/`. Keep `@ts-expect-error` cases for calls the API must reject.
 - Keep Grit boundary probes in `tests/boundaries.test.ts`: each rule fires on a fixture file and stays quiet where the thing is allowed. A new rule adds a row to both tables.

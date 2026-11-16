@@ -36,7 +36,7 @@ Write `.rr.yaml` by hand from the installed rr skill's `reference/config.md` and
 Verify runs `.claude/hooks/smoke.sh`, which rr's defaults don't sync. Set `sync.exclude` to the defaults minus `.claude/`, plus `.claude/settings.local.json` and `.claude/worktrees/`.
 <!-- stacks:end -->
 
-If hosts are configured, run `rr doctor` and a real task end to end; `rr provision` can install missing host tools. Otherwise list host setup (`rr host add`, then `rr doctor`) under Pending user actions in AGENTS.md. Verify's `rr-config` step needs no host: it fails on an invalid `.rr.yaml` or a config warning, usually a misspelled key.
+If hosts are configured, run `rr doctor` and a real task end to end; `rr provision` can install missing host tools. Otherwise list host setup (`rr host add`, then `rr doctor`) under Pending user actions in AGENTS.md. No verify step needs a host: `rr-config` fails on an invalid `.rr.yaml` or a config warning (usually a misspelled key), and `rr-routes` smoke-tests the filled routes.
 
 **Local queue**: set `local_fallback: on-unreachable` and no `hosts:`. Runs lock only through a local host, so list `rr host add --local --name <name>` under Pending user actions. Then `rr <task>` and `rr run --local "<cmd>"` take its machine-wide lock; `rr unlock --all` clears a stuck one.
 

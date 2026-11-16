@@ -14,7 +14,7 @@ You review a change someone else made. You report findings and stop; you don't f
 
 ## Scope
 
-Review the working tree against the last commit (`git diff HEAD`, plus untracked files from `git status`), or the range you were given. Read `AGENTS.md`, every rule in `.claude/rules/` whose `paths` match a changed file, and the guidance docs those rules link to: each constraint and trap they state is part of this checklist, and a rule that only points at a doc means the doc's constraints apply. Check the change against each one.
+Review the working tree against the last commit (`git diff HEAD`, plus untracked files from `git status`), or the range you were given. In a repository with no commits yet, every file is untracked: review the source, tests and docs the project's own code lives in, and skim tool configs only for weakened checks. Read `AGENTS.md`, every rule in `.claude/rules/` whose `paths` match a changed file, and the guidance docs those rules link to: each constraint and trap they state is part of this checklist, and a rule that only points at a doc means the doc's constraints apply. Check the change against each one.
 
 ## Check
 
@@ -27,7 +27,7 @@ Skip an item when the project has nothing it applies to (a library has no env co
 - **Lifecycle**: every promise is awaited, returned, or deliberately detached with its rejection handled; forked work logs its failure; resources are released on every exit path, including cancellation.
 - **Tests**: new behavior has tests on the right runner; no test touches the network or mocks the project's own code; limit and validation tests prove rejection; time-based tests drive a virtual clock instead of sleeping; nothing was skipped or weakened.
 - **Docs**: a change that adds, deletes, or renames a command, route, file, env var, or error also updates what names it: the README, the `AGENTS.md` architecture map and commands, `DESIGN.md` when it exists, and `.claude/rules/`.
-- **Correctness**: off-by-one in limits, a missing `await` or `yield*`, unhandled cancellation, races on shared state, a temp file left behind. Values from callers or the network are read as own data: no inherited properties, no caller-chosen key written into a plain object (`__proto__`), and no shared default object or array mutated or handed to two callers.
+- **Correctness**: off-by-one in limits, a missing `await` or `yield*`, unhandled cancellation, races on shared state, a temp file left behind. Values from callers or the network are read as own data: no inherited properties, no caller-chosen key written into a plain object (`__proto__`), and no shared mutable default object or array mutated or handed to two callers (frozen defaults are fine).
 
 Run the project's `test` and build commands if they haven't been run, and include the result.
 

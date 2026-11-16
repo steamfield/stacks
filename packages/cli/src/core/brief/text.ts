@@ -232,7 +232,7 @@ export const done = {
   after: "### After green",
   docs: "1. Check that `AGENTS.md` and `README.md` describe the project you built, with real commands.",
   reviewAgent: (cli: string) =>
-    `2. Run the ${code("reviewer")} agent on your diff, fix what it finds, and rerun ${verify(cli, " --all")}.`,
+    `2. Review your diff (in Claude Code, run the ${code("reviewer")} agent on it), fix what it finds, and rerun ${verify(cli, " --all")}.`,
   reviewSelf: (cli: string) =>
     `2. Review your own diff against AGENTS.md and the project's guidance, fix what you find, and rerun ${verify(cli, " --all")}.`,
   commit: (git: GitState, project: string, stack: string) => {

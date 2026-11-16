@@ -70,7 +70,11 @@ export function fixture() {
     },
     copy(project: string) {
       const root = join(space.path, `copy-${serial++}`);
-      cpSync(project, root, { recursive: true });
+      // Concurrent hook runs on `project` create and remove files under its TMPDIR while this
+      // walks it, so each copy starts with its own empty `tmp/` instead.
+      const scratch = join(project, "tmp");
+      cpSync(project, root, { recursive: true, filter: (source) => source !== scratch });
+      mkdirSync(join(root, "tmp"));
       return root;
     },
   };

@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 3,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "A static landing page and Markdown documentation for a product or open-source project, built with Astro.",
   "description": "One config file drives the landing page: hero, install commands, a demo block, features, users and sponsors, with empty sections left out. The docs section turns Markdown files into pages with a sidebar, an on-page table of contents, previous and next links, a Markdown copy of each page and llms.txt for agents. Social preview images are generated at build time, and the checks cover links, anchors and accessibility in light and dark themes. Hosting is separate: add cloudflare-pages for its deploy workflow. Search is not included.",
@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Command-line tool homepage",
-      "description": "A landing page with install commands for npm, bun and Homebrew, a terminal demo and a features list, plus a getting-started guide and a configuration reference. You write the copy and the docs pages."
+      "description": "A landing page with install commands for npm, bun and Homebrew, a terminal demo and a features list, plus a getting-started guide and a configuration reference."
     },
     {
       "title": "Library docs on Cloudflare Pages",
-      "description": "Publish the project's site and docs from the default branch, with preview deploys for pull requests, by adding cloudflare-pages. Create the Pages project and its credentials yourself.",
+      "description": "A library's homepage and documentation on Cloudflare Pages, with updates from the default branch and preview deployments for pull requests.",
       "withFragments": [
         "cloudflare-pages"
       ]

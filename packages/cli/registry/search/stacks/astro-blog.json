@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Engineering field notes",
-      "description": "Write technical articles with embedded React demonstrations. The recipe handles post visibility and feeds; you write the content and demonstrations."
+      "description": "A technical blog with articles that pair engineering field notes with interactive React demonstrations, plus a feed readers can subscribe to."
     },
     {
       "title": "Project journal on Cloudflare Pages",
-      "description": "Publish a file-based development journal with production and preview deployments by adding cloudflare-pages. Create the Pages project and configure deployment credentials separately.",
+      "description": "A file-based development journal hosted on Cloudflare Pages, with production updates from the default branch and preview deployments for pull requests.",
       "withFragments": [
         "cloudflare-pages"
       ]

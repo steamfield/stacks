@@ -7,7 +7,7 @@
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-15"
   },
   "summary": "A server-rendered web app with JSON endpoints, typed runtime bindings and local tests on Cloudflare Workers.",
   "description": "Build an application whose React pages and JSON resource routes run in Cloudflare Workers. Development and integration tests use the local Workers runtime, and generated types describe runtime bindings. The initial slice is a page, health route and harmless scheduled-handler slot. Storage is absent until you add it; cloudflare-d1 supplies the compatible SQL binding and migration workflow. Cloud deployment still needs your account and credentials.",
@@ -15,14 +15,14 @@
   "projectExamples": [
     {
       "title": "Directory with saved listings",
-      "description": "Add cloudflare-d1 for SQL storage, then implement listing records, editing screens and queries. Authentication and moderation remain separate product decisions.",
+      "description": "A directory where people browse and edit listings stored in Cloudflare D1.",
       "withFragments": [
         "cloudflare-d1"
       ]
     },
     {
       "title": "Public lookup application",
-      "description": "Build server-rendered result pages and JSON lookup routes around a data source you choose. Add scheduled refresh logic only after deciding its data source and schedule."
+      "description": "A public lookup app with server-rendered result pages and JSON routes that return records from a shared data source."
     }
   ],
   "plain": {

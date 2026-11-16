@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Backend for a mobile app with staff admin",
-      "description": "Illustrative: replace notes with the app's own records, let the phone app read and write them over JSON, and let staff edit them in Django's admin. Sign-in for app users is still to add."
+      "description": "A backend whose JSON API lets a phone app read and save records, with Django's admin area for staff to review and edit the same data."
     }
   ],
   "plain": {

@@ -15,14 +15,14 @@
   "projectExamples": [
     {
       "title": "Internal records app with an admin",
-      "description": "Illustrative: replace notes with the team's own records, edit them through Django's admin and a few forms, and keep the migration and test shape. Sign-in pages for non-staff users are work the project still adds."
+      "description": "An internal app where a team browses records and submits forms with field errors, while staff manage the same records through Django's admin area."
     }
   ],
   "plain": {
     "whatItIs": "A starter Python website built with Django, where the server makes each page and a built-in admin area lets staff edit the stored records.",
     "goodAt": [
       "Sites where people fill in forms and see saved records",
-      "Internal tools that need an admin area quickly",
+      "Internal tools with a built-in admin area for managing records",
       "Projects that want database changes tracked step by step"
     ],
     "notGoodAt": [

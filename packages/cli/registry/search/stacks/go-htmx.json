@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Internal admin dashboard",
-      "description": "Illustrative: replace the notes page with tables and edit forms for an internal team, keeping server-side validation and partial updates. A database and sign-in are work the project still has to add."
+      "description": "An internal dashboard with tables and edit forms that check input on the server and update parts of the page without a full reload."
     }
   ],
   "plain": {

@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Client package for an internal service",
-      "description": "Illustrative: replace the duration parser with typed request and response helpers that the team's Go services import, with errors callers can test with errors.Is."
+      "description": "A Go package with typed request and response helpers for an internal service, with errors callers can test with errors.Is."
     },
     {
       "title": "Parser for a small file format",
-      "description": "Illustrative: a reader and writer for a config or log format, with round-trip fuzz properties and examples that double as documentation."
+      "description": "A reader and writer for a config or log format, with round-trip fuzz properties and examples that double as documentation."
     }
   ],
   "plain": {

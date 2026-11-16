@@ -15,7 +15,7 @@
   "projectExamples": [
     {
       "title": "Log browser for a local service",
-      "description": "Load log lines from a file in a command, show them in a filterable list, and open one entry with its fields on a detail screen."
+      "description": "A terminal app for browsing a local service's log file, with a filterable list of entries and a detail screen showing each entry's fields."
     }
   ],
   "plain": {

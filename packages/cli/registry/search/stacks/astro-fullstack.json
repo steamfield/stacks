@@ -15,11 +15,11 @@
   "projectExamples": [
     {
       "title": "Service status directory",
-      "description": "Build static service pages with islands that fetch current status from your API. Add the service checks and status history as product work."
+      "description": "A directory of services with static information pages and interactive status indicators that fetch current data from an API."
     },
     {
       "title": "Public data explorer",
-      "description": "Publish explanatory pages beside interactive filters backed by custom API resources. The shared contract keeps the filters and responses aligned."
+      "description": "Explanatory pages sit beside interactive filters backed by custom API resources. A shared contract keeps the filters and responses aligned."
     }
   ],
   "plain": {

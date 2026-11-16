@@ -15,14 +15,14 @@
   "projectExamples": [
     {
       "title": "Internal docs lookup for a coding assistant",
-      "description": "Illustrative: replace the conversion tool with search and fetch tools over the team's docs, so Claude Code can look things up. Access control and indexing are still the project's work."
+      "description": "A tool server that lets a coding assistant search the team's documentation and fetch matching pages, with input checks and tool errors the assistant can act on."
     }
   ],
   "plain": {
     "whatItIs": "A starter Go program that AI coding assistants such as Claude Code run in the background to call tools you write, like a plugin.",
     "goodAt": [
       "Giving an AI assistant actions or lookups written in Go",
-      "Shipping those tools as one file with nothing else to install",
+      "Shipping those tools as one executable",
       "Testing each tool the way an assistant would call it"
     ],
     "notGoodAt": [

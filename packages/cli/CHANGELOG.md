@@ -4,7 +4,15 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
-## [0.12.0] - 2026-11-15
+## [0.13.0] - 2026-11-16
+
+### Added
+
+- `validate` warns with `example-hedged` when a search card's project example reads as build steps or a disclaimer ("illustrative", "separately", "replace the" and similar) instead of describing the finished project. The bundled registry must stay free of it.
+
+### Changed
+
+- Every bundled search card's project examples now describe a project someone would build, as its users would see it, rather than telling the reader what to implement or what is left to do. `plain` copy was checked against each entry's files and corrected where it was wrong. Search ranking is unchanged.
 
 ### Added
 

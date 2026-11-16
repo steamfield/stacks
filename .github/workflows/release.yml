@@ -120,7 +120,7 @@ jobs:
           if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) {
           console.error(`::error title=npm is too old for trusted publishing::npm ${process.argv[1]} is older than 11.5.1. Use a Node version in .node-version that ships a newer npm.`);
           process.exit(1); }' "$(npm --version)"
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-packages
           path: dist/release

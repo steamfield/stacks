@@ -4,6 +4,12 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-16
+
+### Fixed
+
+- `runs` text output rounds its timings to one decimal, so "Minutes to last green" no longer prints a long fraction. `--json` keeps the exact minutes.
+
 ## [0.14.0] - 2026-11-16
 
 ### Added

@@ -37,16 +37,17 @@
  * The 0.13.0 version in the brief changed all six again on 2026-11-16.
  * All six changed on 2026-11-16 for After green's review step, and Start here's pointer to it.
  * The 0.14.0 version in the brief changed all six again on 2026-11-16.
+ * The 0.14.1 version in the brief changed all six again on 2026-11-16.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:ec9a2dfe3f7da91c5e7649315fb4ff68d4ced87e01ad42fc2266db0efd676195",
-  "astro-blog:sandbox": "sha256:9b22bbc8600b2b8b95c8c5262a32e1e5387db0ed43af241ef4c99732ef5c0d31",
-  "go-cli:default": "sha256:25bbceefb36d5a14f6950b5496c7db1c712a7afcc54629108e661be57a5f9b3f",
-  "go-cli:sandbox": "sha256:75d846e4de7f5adaad381727cdb1aae6d2eb514e15a0d277db0f1a5920f174cb",
-  "python-react:default": "sha256:a2b4400039ac0ac30c505b30ef8d35db610a9144973c52e4586983f0b0c86720",
-  "python-react:sandbox": "sha256:b589b2e669331004fab129f62d1c0890aa75b155ae5975410e34a8fcb604ebb1",
+  "astro-blog:default": "sha256:f1a9a13e08142db0970feb505344982119199bd0d047747918237d545a373cd9",
+  "astro-blog:sandbox": "sha256:fd41a843b1203e995fe6ba10fa8a996d8c2d56627688f2c800463a25a38b1e14",
+  "go-cli:default": "sha256:22cd22095f8f6bed17e090418d6db10f06f97d810a3ab88df2eacfb308cd7f37",
+  "go-cli:sandbox": "sha256:512ca98d1ce43a7debada6a38962cc23af0f7f170455c88e7204f9dc6c1a7742",
+  "python-react:default": "sha256:4a23d66c8633e9353578285e1ca79be679d898e55d2b9c53aad2db0716a6044d",
+  "python-react:sandbox": "sha256:97b7e2ebb0a4a5710cf7fc7f2cb2d9a9a7614521a48ffe9c43000376279228ad",
 };

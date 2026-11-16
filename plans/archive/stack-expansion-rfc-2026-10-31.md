@@ -14,7 +14,7 @@ typecheck and test config the checks use, a drafted search card, and a fresh sca
 green `stacks verify` (and `verify --all`) by following only the brief.
 
 It supersedes the "Deferred" Java line and part of the Batch 2 to 4 ordering in
-[registry-expansion.md](registry-expansion.md). That plan's authoring contract, service lifecycle
+[registry-expansion.md](../registry-expansion.md). That plan's authoring contract, service lifecycle
 rule and verification levels still apply and are not repeated here.
 
 ## Research

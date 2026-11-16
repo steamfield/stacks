@@ -3,17 +3,17 @@
 Status: WITHDRAWN 2026-10-26. D26 is superseded by the amended D18: an app is a fragment
 with `category: app`, so there is no `app` kind, no `applications/<id>/APP.md`, no
 `AppMeta` and no entry `schema_version: 3`. Loading and listing apps moved to
-[1.0](../archive/phases/phase-1.0-entry-format-and-registry-2026-10-30.md), composing them (one per composition,
-ordered last) to [1.1](../archive/phases/phase-1.1-composition-and-brief-2026-10-30.md), and app checks to
-[1.5](../archive/phases/phase-1.5-validate-and-brief-budget-2026-10-30.md). Kept for the record; the number is not
+[1.0](phase-1.0-entry-format-and-registry-2026-10-30.md), composing them (one per composition,
+ordered last) to [1.1](phase-1.1-composition-and-brief-2026-10-30.md), and app checks to
+[1.5](phase-1.5-validate-and-brief-budget-2026-10-30.md). Kept for the record; the number is not
 reused
 
 | Field | Value |
 |---|---|
-| Goal | A third entry kind, `app` (D26), describes a small application built on a stack. The registry loads `applications/<id>/APP.md` from every origin, `list` and `list --json` show apps, `compose` composes an app onto its base stack, and `validate` checks app entries. Writing an app project (`new <app>`, the two-phase brief and staged verify) is [3.5b](../archive/phases/phase-3.5b-two-phase-brief-2026-10-30.md) |
+| Goal | A third entry kind, `app` (D26), describes a small application built on a stack. The registry loads `applications/<id>/APP.md` from every origin, `list` and `list --json` show apps, `compose` composes an app onto its base stack, and `validate` checks app entries. Writing an app project (`new <app>`, the two-phase brief and staged verify) is [3.5b](phase-3.5b-two-phase-brief-2026-10-30.md) |
 | Traces to | The developer who starts projects often: "I want it set up the way I'd set it up myself"; assumption 1 (brief size): splitting a brief into two bounded phases is the other tool against brief growth besides the budget |
-| Depends on | [1.0](../archive/phases/phase-1.0-entry-format-and-registry-2026-10-30.md) (entry format and registry), [1.1](../archive/phases/phase-1.1-composition-and-brief-2026-10-30.md) (composition), [1.5](../archive/phases/phase-1.5-validate-and-brief-budget-2026-10-30.md) (`validate`); [3.1a](../archive/phases/phase-3.1a-show-and-preview-2026-10-30.md) soft (`show --kind app` is added here only if `show` exists; otherwise 3.1a adds it when it lands) |
-| Blocks | [3.5b](../archive/phases/phase-3.5b-two-phase-brief-2026-10-30.md). 4.0a's `EntryBundle` kind includes `"app"` because this lands first |
+| Depends on | [1.0](phase-1.0-entry-format-and-registry-2026-10-30.md) (entry format and registry), [1.1](phase-1.1-composition-and-brief-2026-10-30.md) (composition), [1.5](phase-1.5-validate-and-brief-budget-2026-10-30.md) (`validate`); [3.1a](phase-3.1a-show-and-preview-2026-10-30.md) soft (`show --kind app` is added here only if `show` exists; otherwise 3.1a adds it when it lands) |
+| Blocks | [3.5b](phase-3.5b-two-phase-brief-2026-10-30.md). 4.0a's `EntryBundle` kind includes `"app"` because this lands first |
 | Decisions needed | D26 (app entries and the two-phase brief), an amendment to D18. D19 unchanged: project-origin apps are untrusted like any project entry |
 | Settles | The `app` kind's frontmatter and entry schema version; where apps live; how app ids relate to stack and fragment ids; how an app composes; what `validate` checks on an app entry |
 
@@ -44,7 +44,7 @@ A stack describes what a project is made of; an app describes something built on
 
 | Field | Rule |
 |---|---|
-| `schemaVersion` | `3`. Version 2 is the `{{package_scope}}` variable ([3.3a](../archive/phases/phase-3.3a-release-and-deploy-fragments-2026-10-30.md), D28); an app entry is version 3 whether or not it uses that variable. A CLI that knows only lower versions skips the entry with one warning ([Schema versions](../roadmap.md#schema-versions)), so an older CLI never half-understands an app |
+| `schemaVersion` | `3`. Version 2 is the `{{package_scope}}` variable ([3.3a](phase-3.3a-release-and-deploy-fragments-2026-10-30.md), D28); an app entry is version 3 whether or not it uses that variable. A CLI that knows only lower versions skips the entry with one warning ([Schema versions](../../roadmap.md#schema-versions)), so an older CLI never half-understands an app |
 | `kind` | `"app"`; must match `APP.md` |
 | `stack` | The base stack id. Must resolve to a stack |
 | `with` | Fragment ids the app needs beyond the stack's defaults |
@@ -54,7 +54,7 @@ A stack describes what a project is made of; an app describes something built on
 
 ### Ids across kinds
 
-Ids are unique within a kind. A fragment may share an id with a stack or an app, as 1.0 and 3.1a already allow for stacks and fragments. An app may not share an id with a stack, because `new <id>` takes stacks and apps: within one origin such an app is a `rejected` row in `list --json` with `EntryInvalid` reason `id_mismatch`, and `validate` reports `app-id` as an error. Across origins, an app never shadows a stack id: the stack wins and `list` warns. Commands that take any kind (`show`) use `--kind` when two kinds share an id ([roadmap, Contracts: Entry and its listing](../roadmap.md#types-and-schemas)).
+Ids are unique within a kind. A fragment may share an id with a stack or an app, as 1.0 and 3.1a already allow for stacks and fragments. An app may not share an id with a stack, because `new <id>` takes stacks and apps: within one origin such an app is a `rejected` row in `list --json` with `EntryInvalid` reason `id_mismatch`, and `validate` reports `app-id` as an error. Across origins, an app never shadows a stack id: the stack wins and `list` warns. Commands that take any kind (`show`) use `--kind` when two kinds share an id ([roadmap, Contracts: Entry and its listing](../../roadmap.md#types-and-schemas)).
 
 ### Composition
 
@@ -73,7 +73,7 @@ Ids are unique within a kind. A fragment may share an id with a stack or an app,
 
 ### Trust
 
-Nothing changes in the trust model. Project-origin apps are untrusted like any project entry ([Trust model](../roadmap.md#trust-model) point 2), and `trusted` is set the same way.
+Nothing changes in the trust model. Project-origin apps are untrusted like any project entry ([Trust model](../../roadmap.md#trust-model) point 2), and `trusted` is set the same way.
 
 ## Files and areas touched
 

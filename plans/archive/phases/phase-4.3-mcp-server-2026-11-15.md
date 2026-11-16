@@ -370,7 +370,7 @@ Part 2, against the built server:
 | `packages/cli/README.md` | One row in the bundled stacks table |
 | `packages/mcp/package.json`, `tsconfig.json`, `biome.json`, `scripts/` | Filled in by the stack, then adjusted to the monorepo's script names |
 | `packages/mcp/src/`, `tests/`, `e2e/` | New |
-| `plans/phases/phase-4.3-mcp-server.md` | This file |
+| `plans/archive/phases/phase-4.3-mcp-server-2026-11-15.md` | This file |
 | `plans/archive/dogfooding-log-2026-10-27.md` | New: the pitfalls found using the tool on itself, archived because it predates the port |
 | `plans/runs/<date>-mcp-client.md` | New: the registered-client run |
 | `AGENTS.md`, `README.md` | The new package and stack, once it exists |

@@ -1,12 +1,12 @@
 /**
  * Checks fragment additions against canonical hosts and a repository without a stack. It
- * exercises the production `mergeAddManifest` and `renderBrief` with canonical inputs.
+ * exercises the production `mergeAddManifest` and `renderAddBrief` with canonical inputs.
  */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { Finding } from "../../../schemas/validate";
 import { mergeAddManifest } from "../../add/manifest";
-import { renderBrief } from "../../brief/render";
+import { renderAddBrief } from "../../brief/render-add";
 import { targetAgents } from "../../compose/agents";
 import { compose, mergeCommands, mergeEnv } from "../../compose/compose";
 import { fitsStack } from "../../compose/selection";
@@ -129,20 +129,14 @@ function addBriefWords(
   composition: Composition<Entry | null>,
   { applied, stack, manifest }: { applied: string[]; stack: Entry | null; manifest: Manifest },
 ): number {
-  const brief = renderBrief(
-    { ...composition, untrusted: [] },
-    {
-      ...canonicalContext(composition),
-      add: {
-        applied,
-        stack: stack?.id ?? null,
-        mergeNeeded: [],
-        missingRequired: [],
-        digestRecorded: true,
-        manifest,
-      },
-    },
-  );
+  const brief = renderAddBrief({ ...composition, untrusted: [] }, canonicalContext(composition), {
+    applied,
+    stack: stack?.id ?? null,
+    mergeNeeded: [],
+    missingRequired: [],
+    digestRecorded: true,
+    manifest,
+  });
   return brief.briefWords;
 }
 

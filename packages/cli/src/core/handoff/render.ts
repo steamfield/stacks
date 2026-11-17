@@ -46,7 +46,7 @@ function quote(text: string): string {
   return `"${text}"`;
 }
 
-type RenderContext = {
+export type HandoffRenderContext = {
   shown: string;
   invocation: string;
   audience: Audience;
@@ -60,14 +60,14 @@ type RenderContext = {
  */
 export function renderHandoff(
   decision: Exclude<HandoffDecision, { kind: "launch" | "choose" }>,
-  context: RenderContext,
+  context: HandoffRenderContext,
 ): string {
   if (decision.kind === "inside-agent") return insideAgentText(decision.untrusted, context);
   return printedText(decision, context);
 }
 
 /** The instruction to the calling agent: start on the brief, or stop when an entry is untrusted. */
-function insideAgentText(untrusted: ReadonlyArray<string>, context: RenderContext): string {
+function insideAgentText(untrusted: ReadonlyArray<string>, context: HandoffRenderContext): string {
   if (untrusted.length > 0)
     return `STOP: this project uses entries this machine hasn't trusted: ${untrustedIds(untrusted)}. Don't start. Show the user the list and ${BRIEF_PATH}'s first section, and continue only if they confirm.`;
   const where = context.shown === "." ? "the current directory" : printable(context.shown);
@@ -77,7 +77,7 @@ function insideAgentText(untrusted: ReadonlyArray<string>, context: RenderContex
 /** Why nothing launched (when that needs saying), then the prompt and, for a human, an example. */
 function printedText(
   decision: Extract<HandoffDecision, { kind: "print" }>,
-  context: RenderContext,
+  context: HandoffRenderContext,
 ): string {
   const prompt = agentPrompt(context.invocation);
   const dir = printable(shellArg(context.shown));
@@ -129,7 +129,7 @@ function printReasonLines(
  */
 function exampleLine(
   decision: Extract<HandoffDecision, { kind: "print" }>,
-  context: RenderContext,
+  context: HandoffRenderContext,
   prompt: string,
 ): string {
   const requested = requestedLauncher(decision, context.agent);

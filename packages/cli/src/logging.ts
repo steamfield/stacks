@@ -161,7 +161,6 @@ export class Logging extends Context.Service<
       };
     }),
   );
-  static memory = () => Logging.layer;
 }
 
 /** A record as one stderr line: the whole JSON record, or time, level, message and outcome. */

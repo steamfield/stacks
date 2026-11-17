@@ -2,7 +2,7 @@
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { shownPath } from "../core/text/shown-path";
-import { previewBrief } from "../core/validate/compositions/preview";
+import { type PreviewOptions, previewBrief } from "../core/validate/compositions/preview";
 import { validate } from "../core/validate/index";
 import {
   renderPreview,
@@ -45,7 +45,7 @@ function firstStack(report: ValidateReport) {
   return report.sizes.find((row) => row.kind === "composed")?.entry;
 }
 
-const printPreview = (target: Target, options: Parameters<typeof previewBrief>[1]) =>
+const printPreview = (target: Target, options: PreviewOptions) =>
   Effect.gen(function* () {
     const output = yield* Output;
     const preview = yield* previewBrief(target, options);

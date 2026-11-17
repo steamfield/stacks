@@ -51,20 +51,20 @@ function fileImportFindings(
 ): Finding[] {
   const js = JS_EXT.test(file.path);
   if (!js && !file.path.endsWith(".sh")) return [];
-  const source = sourceOf(view, snapshot, file);
-  if (!source || !view.entries.some((entry) => entry.dir === source.entry.dir)) return [];
-  const allowed = allowedOwners(view, source.entry, source.source.source);
-  const field = source.entry.kind === "stack" ? "fragments.required" : "requires";
+  const contributor = sourceOf(view, snapshot, file);
+  if (!contributor || !view.entries.some((entry) => entry.dir === contributor.entry.dir)) return [];
+  const allowed = allowedOwners(view, contributor.entry, contributor.file.source);
+  const field = contributor.entry.kind === "stack" ? "fragments.required" : "requires";
   const findings: Finding[] = [];
   for (const ref of cachedImports(file, js, files.scanned)) {
     const target = resolveImport(file.path, ref.spec, files, js);
     const owner = target === undefined ? undefined : files.byPath.get(target)?.owner;
     if (owner?.split("+").some((key) => allowed.has(key))) continue;
     findings.push(
-      finding(source.entry, {
+      finding(contributor.entry, {
         check: "import-closure",
         severity: "error",
-        file: view.file(source.entry, source.source.source),
+        file: view.file(contributor.entry, contributor.file.source),
         line: ref.line,
         message: `${file.path} imports ${ref.spec}${target ? ` (${target}, owned by ${owner})` : ", which resolves to no composed file"}; add the owner to ${field} or move the shared file`,
       }),

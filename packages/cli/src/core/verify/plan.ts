@@ -17,7 +17,7 @@ const NOT_SELECTED = "not selected by --only";
 
 export type PlannedStep = ResolvedStep & { skipByDefault: boolean };
 
-export type SelectOptions = {
+export type VerifyOptions = {
   only: ReadonlyArray<string>;
   skipTags: ReadonlyArray<string>;
   all: boolean;
@@ -66,7 +66,7 @@ const runOrder = (steps: ReadonlyArray<PlannedStep>) =>
   );
 
 /** Why the selection flags leave this step out, or undefined when it runs. First match wins. */
-function selectionSkip(step: PlannedStep, options: SelectOptions): string | undefined {
+function selectionSkip(step: PlannedStep, options: VerifyOptions): string | undefined {
   if (step.skipByDefault && !options.all && !options.only.includes(step.name))
     return step.tags.includes(HYGIENE_TAG) ? HYGIENE_SKIPPED : PRESET_SKIPPED;
   if (options.only.length > 0 && isSelectable(step) && !options.only.includes(step.name))
@@ -81,7 +81,7 @@ function selectionSkip(step: PlannedStep, options: SelectOptions): string | unde
  */
 export function planVerify(
   manifestSteps: ReadonlyArray<ManifestStep>,
-  options: SelectOptions,
+  options: VerifyOptions,
 ): Effect.Effect<VerifyPlan, BadInput> {
   const steps = runOrder(manifestSteps.map(resolveStep));
   const known = steps

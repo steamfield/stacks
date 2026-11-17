@@ -51,11 +51,11 @@ export const defaultRoots = Effect.gen(function* () {
   const host = yield* Host;
   const path = yield* Path.Path;
   const paths = yield* (yield* AppConfig).paths;
-  const bundled = yield* bundledRoot;
+  const registryRoot = yield* bundledRoot;
   return [
     { origin: "project", path: path.join(host.cwd, METADATA_DIR) },
     { origin: "user", path: paths.user },
-    { origin: "bundled", path: bundled.path, overridden: bundled.overridden },
+    { origin: "bundled", path: registryRoot.path, overridden: registryRoot.overridden },
   ] satisfies RegistryRoots;
 });
 

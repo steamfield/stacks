@@ -88,16 +88,17 @@ function referenceFinding(
   parsedSource: ParsedSource,
 ): Finding | undefined {
   const { matches } = issue;
-  const source = sourceOf(view, snapshot, file, {
+  const contributor = sourceOf(view, snapshot, file, {
     needle: issue.needle,
     matches: matches ? (source) => matches(parsedSource(source)) : undefined,
   });
-  if (!source || !view.entries.some((entry) => entry.dir === source.entry.dir)) return undefined;
-  return finding(source.entry, {
+  if (!contributor || !view.entries.some((entry) => entry.dir === contributor.entry.dir))
+    return undefined;
+  return finding(contributor.entry, {
     check: issue.check,
     severity: issue.severity,
-    file: view.file(source.entry, source.source.source),
-    ...(source.line === undefined ? {} : { line: source.line }),
+    file: view.file(contributor.entry, contributor.file.source),
+    ...(contributor.line === undefined ? {} : { line: contributor.line }),
     message: `${file.path}: ${issue.message}`,
   });
 }

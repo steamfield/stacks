@@ -2,7 +2,7 @@
  * Runs the command tree and settles the invocation's output, logs and exit status. Settlement
  * runs even when the command is interrupted.
  */
-import { Cause, Clock, Console, Effect, Exit, Logger, Random, References } from "effect";
+import { Cause, Clock, Console, Effect, Exit, Logger, Random, References, Result } from "effect";
 import { CliError, CliOutput, Command, type HelpDoc } from "effect/cli";
 import { beforeSeparator, hasFlag } from "./argv";
 import { cli } from "./cli";
@@ -83,7 +83,7 @@ export function main({
       const { error, unwritten } = written;
       if (quietBrokenPipe(written)) return exitStatus(written);
       yield* (yield* Telemetry).flushAfterOutput;
-      const defect = written.defect ?? observed.defect;
+      const defect = written.defect ?? observed.defectTrace;
       const status = exitStatus({ ...written, agentStatus: reported.state.status });
       const finished = yield* Clock.currentTimeMillis;
       logging.command(settings.level, {
@@ -135,15 +135,21 @@ function captureConsole(framework: string[]): Console.Console {
 }
 
 /**
- * How the command ended: `error` when it failed (with `defect`, its trace, when it crashed), or
- * `help` when the parser only showed help.
+ * `defectTrace` carries safe stack frames for an unexpected failure.
  */
-type ObservedExit = { error?: AppError; defect?: string; help: boolean };
+type ObservedExit = { error?: AppError; defectTrace?: string; help: boolean };
+
+function failedWith<E>(cause: Cause.Cause<E>): Cause.Fail<E> | undefined {
+  return Result.getOrUndefined(Cause.findFail(cause));
+}
 
 /** The `AppError` a failed command reports: interrupted, a known tag, a parser `Usage` or a defect. */
-function failureError(cause: Cause.Cause<unknown>, help?: HelpDoc.HelpDoc): AppError {
+function failureError(
+  cause: Cause.Cause<unknown>,
+  failure: Cause.Fail<unknown> | undefined,
+  help?: HelpDoc.HelpDoc,
+): AppError {
   if (Cause.hasInterruptsOnly(cause)) return new Interrupted();
-  const failure = cause.reasons.find(Cause.isFailReason);
   if (!failure) return new Defect();
   const known = knownError(failure.error);
   if (known) return known;
@@ -153,7 +159,7 @@ function failureError(cause: Cause.Cause<unknown>, help?: HelpDoc.HelpDoc): AppE
 
 function observeExit(exit: Exit.Exit<void, unknown>, help?: HelpDoc.HelpDoc): ObservedExit {
   if (Exit.isSuccess(exit)) return { help: false };
-  const failure = exit.cause.reasons.find(Cause.isFailReason);
+  const failure = failedWith(exit.cause);
   // A help request with no parser error behind it (`--help`) is a success.
   if (
     failure &&
@@ -162,9 +168,9 @@ function observeExit(exit: Exit.Exit<void, unknown>, help?: HelpDoc.HelpDoc): Ob
     failure.error.errors.length === 0
   )
     return { help: true };
-  const error = failureError(exit.cause, help);
+  const error = failureError(exit.cause, failure, help);
   if (error instanceof Defect && !knownError(failure?.error))
-    return { error, help: false, defect: defectTrace(Cause.squash(exit.cause)) };
+    return { error, help: false, defectTrace: defectTrace(Cause.squash(exit.cause)) };
   return { error, help: false };
 }
 
@@ -196,7 +202,7 @@ const flushKeptResult: Effect.Effect<
   const output = yield* Output;
   const flushed = yield* Effect.exit(output.flush);
   if (Exit.isSuccess(flushed)) return {};
-  const failure = flushed.cause.reasons.find(Cause.isFailReason);
+  const failure = failedWith(flushed.cause);
   if (!failure) return {};
   if (failure.error instanceof BrokenPipe) return { closed: true };
   return { unwritten: knownError(failure.error)?._tag ?? "Defect" };
@@ -245,7 +251,7 @@ const flushSuccess = (invocation: string): Effect.Effect<WriteOutcome, never, Ou
     const output = yield* Output;
     const flushed = yield* Effect.exit(output.flush);
     if (Exit.isSuccess(flushed)) return {};
-    const failure = flushed.cause.reasons.find(Cause.isFailReason);
+    const failure = failedWith(flushed.cause);
     if (failure?.error instanceof BrokenPipe) return { closed: true };
     const error = failure ? (knownError(failure.error) ?? new Defect()) : new Defect();
     const defect = error instanceof Defect ? defectTrace(Cause.squash(flushed.cause)) : undefined;

@@ -85,7 +85,7 @@ const checkEntries = Effect.fn("submit.checkEntries")(function* (
   const blockers: Array<typeof SubmissionBlocker.Type> = [];
   for (const entry of entries) {
     const report = yield* validate(
-      { root: registry, bundled: true, only: { kind: entry.kind, id: entry.id } },
+      { root: registry, asBundled: true, only: { kind: entry.kind, id: entry.id } },
       { submission: true },
     );
     // Registry-wide findings are the upstream registry's own, not the submission's.

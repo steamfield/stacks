@@ -8,7 +8,7 @@ import { Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { type Build, SOURCE_BUILD } from "./build";
 import { AgentMarkers, CLI_ENV } from "./env-names";
 import { InvalidConfig } from "./errors";
-import { Settings } from "./schemas";
+import { Settings } from "./schemas/config";
 import { SLUG } from "./version";
 export type Environment = Record<string, string | undefined>;
 export type Paths = {
@@ -137,7 +137,7 @@ function configLayer(environment: Environment | undefined, build: Build) {
         };
       });
       // A missing file is no settings; any read, parse or decode failure is InvalidConfig.
-      const settings = Effect.gen(function* () {
+      const readSettingsFile = Effect.gen(function* () {
         const locations = yield* paths;
         const exists = yield* fs.exists(locations.config);
         if (!exists) return {};
@@ -148,10 +148,10 @@ function configLayer(environment: Environment | undefined, build: Build) {
         });
         return yield* Schema.decodeUnknownEffect(Settings, { onExcessProperty: "error" })(unknown);
       }).pipe(Effect.mapError(() => new InvalidConfig()));
-      const get = yield* Effect.cached(
+      const settings = yield* Effect.cached(
         Effect.gen(function* () {
           const locations = yield* paths;
-          const file = yield* settings;
+          const file = yield* readSettingsFile;
           const override = env(CLI_ENV.dataDir);
           return { ...file, dataDir: override || file.dataDir || locations.data };
         }).pipe(Effect.mapError(() => new InvalidConfig())),
@@ -170,8 +170,8 @@ function configLayer(environment: Environment | undefined, build: Build) {
       let offlineFlag = false;
       let telemetryFlag = false;
       return {
-        get,
         settings,
+        readSettingsFile,
         paths,
         releaseBuild: build.releaseBuild,
         telemetry: {
@@ -209,8 +209,8 @@ function configLayer(environment: Environment | undefined, build: Build) {
   );
 }
 /**
- * The invocation's configuration. `get` is the file's settings with environment defaults
- * applied, read once and cached; `settings` rereads the file each time.
+ * `settings` applies invocation defaults and caches the result. `readSettingsFile` decodes the
+ * current file without defaults so telemetry can recheck consent and `saveSetting` can write it.
  */
 export class AppConfig extends Context.Service<
   AppConfig,
@@ -228,9 +228,8 @@ export class AppConfig extends Context.Service<
     apiUrl: Effect.Effect<string | undefined>;
     offline: Effect.Effect<boolean>;
     setOffline: (value: boolean) => Effect.Effect<void>;
-    get: Effect.Effect<Settings, InvalidConfig>;
-    /** Current file settings, without environment defaults; consent is rechecked before sending. */
     settings: Effect.Effect<Settings, InvalidConfig>;
+    readSettingsFile: Effect.Effect<Settings, InvalidConfig>;
     paths: Effect.Effect<Paths>;
     logging: Effect.Effect<LogSettings>;
     color: Effect.Effect<{ noColor: boolean; forceColor: boolean }>;

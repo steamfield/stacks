@@ -25,7 +25,7 @@ import { canonicalBrief, composedLimit } from "./budget";
 import { composeEachChecks } from "./compose-each";
 import { composedFiles } from "./composed";
 
-type PreviewOptions = {
+export type PreviewOptions = {
   stack: string;
   with: ReadonlyArray<string>;
   without: ReadonlyArray<string>;
@@ -39,7 +39,7 @@ type PreviewOptions = {
 export const previewBrief = (target: Target, options: PreviewOptions) =>
   Effect.gen(function* () {
     const roots = yield* validationRoots(target);
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
     const composeOptions: ComposeOptions = {
       ...options,
       agents: targetAgents(undefined, settings).slice(0, 1),
@@ -74,7 +74,7 @@ function namesOnlyAFragment(all: ReadonlyArray<RegistryEntry>, id: string): bool
 const composePreview = (target: Target, options: ComposeOptions) =>
   compose(options).pipe(
     Effect.mapError((error) =>
-      error._tag === "NotFound" && error.details && !target.bundled
+      error._tag === "NotFound" && error.details && !target.asBundled
         ? new NotFound({ details: { ...error.details, root: target.root } })
         : error,
     ),
@@ -105,7 +105,7 @@ const previewView = (
     const entries = all.filter((entry): entry is Entry => !isRejected(entry) && wanted(entry));
     const sourceView: Omit<View, "composed"> = {
       root: target.root,
-      bundled: target.bundled,
+      asBundled: target.asBundled,
       entries,
       rejected: [],
       all,

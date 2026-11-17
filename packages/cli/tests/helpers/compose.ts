@@ -30,7 +30,7 @@ export function composeExit(
     writeFileSync(join(xdg, "stacks", "config.json"), JSON.stringify(setup.config));
   }
   const program = Effect.gen(function* () {
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
     return yield* compose({
       stack: "web-stack",
       with: [],

@@ -17,7 +17,7 @@ import { Registry } from "../registry/registry";
 
 type Preset = ComposeOptions["preset"];
 
-/** Entry metadata keyed `<kind>/<id>`, as `Registry.bundled` returns it. */
+/** Entry metadata keyed `<kind>/<id>`, as `Registry.bundledLookup` returns it. */
 type Metadata = ReadonlyMap<string, Entry["meta"]>;
 
 /** The input a recorded run composed; `agent` may be one agent or a label covering several. */
@@ -25,7 +25,7 @@ type RecordedComposition = {
   stack: string;
   with: ReadonlyArray<string>;
   preset: Preset;
-  agent: Parameters<typeof ledgerAdapterSets>[0];
+  agent: LedgerRecord["agent"] | undefined;
 };
 
 /** Composes `stack` as a plain `stacks new` would, with `with` added and nothing removed. */
@@ -189,8 +189,8 @@ export const reportLastRun = Effect.fn("show.lastRun")(function* (options: {
   if (entry.indexEntry?.lastRun && indexRun)
     return { ...indexRun, sameContent: yield* indexSameContent(entry) };
   if (entry.origin !== "bundled") return null;
-  const bundled = yield* registry.bundled;
-  return yield* bundledLastRun(entry, records, bundled.metadata).pipe(
-    Effect.provideService(Registry, { ...registry, ...bundled }),
+  const bundledLookup = yield* registry.bundledLookup;
+  return yield* bundledLastRun(entry, records, bundledLookup.metadata).pipe(
+    Effect.provideService(Registry, { ...registry, ...bundledLookup }),
   );
 });

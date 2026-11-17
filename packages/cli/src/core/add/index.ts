@@ -1,21 +1,81 @@
 /**
  * Applies fragments while preserving live scaffold files.
  */
+import type { Manifest } from "@steamfield/stacks-format";
 import { Clock, Effect } from "effect";
 import { AppConfig } from "../../config";
 import { BRIEF_PATH } from "../../project-layout";
 import type { AddResult } from "../../schemas/add";
 import { Host } from "../../services/host";
-import { renderBrief } from "../brief/render";
-import { decideHandoff, settleHandoff } from "../handoff/decide";
+import { renderAddBrief } from "../brief/render-add";
+import type { Composition, MissingTool } from "../compose/types";
+import { decideHandoff, type HandoffDecision, settleHandoff } from "../handoff/decide";
+import type { Entry } from "../registry/entry";
 import { mergeAddManifest } from "./manifest";
 import { mergeNeeded } from "./plan";
 import { prepareAdd } from "./prepare";
-import { readAddProject } from "./project";
+import { type AddProject, readAddProject } from "./project";
 import type { AddOptions } from "./types";
 import { applyAdd } from "./write";
 
 export { type AddPlan, checkAddRoot, planAdd } from "./plan";
+
+export type Added = {
+  result: Omit<AddResult, "handoff">;
+  decision: HandoffDecision;
+  manifest: Manifest;
+  composition: Composition<Entry | null>;
+};
+
+type AddResultInput = Pick<
+  Added["result"],
+  | "added"
+  | "written"
+  | "skipped"
+  | "mergeNeeded"
+  | "missingRequired"
+  | "commandsKept"
+  | "warnings"
+  | "name"
+  | "stateRecord"
+  | "digestRecorded"
+  | "briefWords"
+> & {
+  root: string;
+  project: AddProject;
+  manifest: Manifest;
+  composition: Added["composition"];
+  missing: ReadonlyArray<MissingTool>;
+};
+
+function addResult(input: AddResultInput): Added["result"] {
+  const { composition, project } = input;
+  return {
+    project: input.root,
+    stack: input.manifest.stack?.id ?? null,
+    added: input.added,
+    alreadyApplied: project.existing,
+    written: input.written,
+    skipped: input.skipped,
+    mergeNeeded: input.mergeNeeded,
+    missingRequired: input.missingRequired,
+    commandsKept: input.commandsKept,
+    warnings: input.warnings,
+    missingTools: input.missing.map((item) => ({
+      ...item,
+      owners: [...item.owners],
+    })),
+    name: input.name,
+    createdManifest: !project.previous,
+    tamperCheck: project.tamper?.tamperCheck ?? null,
+    stateRecord: input.stateRecord,
+    digestRecorded: input.digestRecorded,
+    brief: BRIEF_PATH,
+    briefWords: input.briefWords,
+    ...(composition.inferredTags !== undefined ? { inferredTags: composition.inferredTags } : {}),
+    untrusted: [...composition.untrusted],
+  };
+}
 
 export const add = (options: AddOptions) =>
   Effect.gen(function* () {
@@ -44,14 +104,17 @@ export const add = (options: AddOptions) =>
     );
     const written = plan.write.map((file) => file.path).sort();
     const incoming = mergeNeeded(plan.incoming);
-    const brief = renderBrief(composition, {
-      project: name.value,
-      invocation: host.invocation,
-      git: { kind: "parent", toplevel: options.root },
-      written,
-      missing,
-      yes: options.yes || composition.preset === "sandbox",
-      add: {
+    const brief = renderAddBrief(
+      composition,
+      {
+        project: name.value,
+        invocation: host.invocation,
+        git: { kind: "parent", toplevel: options.root },
+        written,
+        missing,
+        yes: options.yes || composition.preset === "sandbox",
+      },
+      {
         applied: project.existing,
         createAgentsMd: prepared.createAgentsMd,
         stack: project.previous?.stack?.id ?? null,
@@ -60,7 +123,7 @@ export const add = (options: AddOptions) =>
         digestRecorded: merged.digestRecorded,
         manifest,
       },
-    });
+    );
     const stateRecord = yield* applyAdd({
       root: options.root,
       plan,
@@ -69,31 +132,23 @@ export const add = (options: AddOptions) =>
       stateManifest: merged.stateManifest,
       brief,
     });
-    const result: Omit<AddResult, "handoff"> = {
-      project: options.root,
-      stack: manifest.stack?.id ?? null,
+    const result = addResult({
+      root: options.root,
+      project,
+      manifest,
+      composition,
       added,
-      alreadyApplied: project.existing,
       written,
-      skipped: [...plan.skipped],
+      skipped: plan.skipped,
       mergeNeeded: incoming,
       missingRequired,
       commandsKept: merged.commandsKept,
       warnings,
-      missingTools: missing.map((item) => ({
-        ...item,
-        owners: [...item.owners],
-        drop: [...item.drop],
-      })),
+      missing,
       name,
-      createdManifest: !project.previous,
-      tamperCheck: project.tamper?.tamperCheck ?? null,
       stateRecord,
       digestRecorded: merged.digestRecorded,
-      brief: BRIEF_PATH,
       briefWords: brief.briefWords,
-      ...(composition.inferredTags !== undefined ? { inferredTags: composition.inferredTags } : {}),
-      untrusted: [...composition.untrusted],
-    };
-    return { result, decision, manifest, composition };
+    });
+    return { result, decision, manifest, composition } satisfies Added;
   });

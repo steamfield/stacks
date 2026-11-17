@@ -7,15 +7,26 @@ import { Effect, Path } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, VerifyChanged } from "../../errors";
 import type { AddResult } from "../../schemas/add";
+import type { Settings } from "../../schemas/config";
 import { MANIFEST_PATH, readManifest } from "../project/manifest";
+import type { Entry } from "../registry/entry";
 import { Registry } from "../registry/registry";
-import { checkTamper } from "../verify/tamper";
+import { checkTamper, type Tamper } from "../verify/tamper";
 import { checkAddRoot } from "./plan";
 import type { AddOptions } from "./types";
 
+export type AddProject = {
+  previous: Manifest | undefined;
+  tamper: Tamper | undefined;
+  settings: Settings;
+  stack: Entry | undefined;
+  warnings: AddResult["warnings"];
+  existing: AddResult["alreadyApplied"];
+};
+
 export const readAddProject = (options: AddOptions) =>
   Effect.gen(function* () {
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
     const path = yield* Path.Path;
     yield* checkAddRoot(options.root);
     const previous = yield* readManifest(path.join(options.root, MANIFEST_PATH)).pipe(
@@ -30,7 +41,7 @@ export const readAddProject = (options: AddOptions) =>
     const stack = yield* projectStack(registry, previous?.stack?.id);
     const warnings: Array<AddResult["warnings"][number]> =
       previous?.stack && !stack ? [{ code: "stack_unknown", id: previous.stack.id }] : [];
-    return {
+    const project: AddProject = {
       previous,
       tamper,
       settings,
@@ -38,8 +49,8 @@ export const readAddProject = (options: AddOptions) =>
       warnings,
       existing: previous?.fragments.map((entry) => entry.id) ?? [],
     };
+    return project;
   });
-export type AddProject = Effect.Success<ReturnType<typeof readAddProject>>;
 
 /** Refuse conflicting `--sandbox` or `--agents` flags because add extends the recorded configuration. */
 const checkFlagsMatch = (options: AddOptions, previous: Manifest) =>

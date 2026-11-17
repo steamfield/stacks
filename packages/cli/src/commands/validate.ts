@@ -1,19 +1,9 @@
-/**
- * The `validate` command: checks a registry, or one stack or fragment in it, before anyone builds
- * from it, and with `--brief` prints the brief (the task text for the coding agent) a composition
- * would produce.
- *
- * The checks live in `core/validate/`: `target.ts::resolveTarget` works out what the path points at,
- * `index.ts::validate` runs every check, and `preview.ts::previewBrief` composes one stack for
- * `--brief`. This file checks the flags against each other, picks between the two modes and
- * renders the report. Any error finding fails the command as `ValidationFailed`, which keeps the
- * report on stdout so the caller can read what to fix.
- */
+/** Handles registry validation and brief previews. `keepsResult` classifies `ValidationFailed`. */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { shownPath } from "../core/shown-path";
+import { shownPath } from "../core/text/shown-path";
+import { type PreviewOptions, previewBrief } from "../core/validate/compositions/preview";
 import { validate } from "../core/validate/index";
-import { previewBrief } from "../core/validate/preview";
 import {
   renderPreview,
   renderPreviewBrief,
@@ -25,16 +15,13 @@ import { BadInput, Usage, ValidationFailed } from "../errors";
 import { BriefPreview, type Finding, ValidateReport } from "../schemas/validate";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
+import { splitValues } from "./project-flags";
 
 type CompositionFlags = {
   with: ReadonlyArray<string>;
   without: ReadonlyArray<string>;
   sandbox: boolean;
 };
-
-/** Repeated flags, each value also split on commas: `--with a --with b,c`. */
-const ids = (values: ReadonlyArray<string>) =>
-  values.flatMap((value) => value.split(",")).filter((value) => value !== "");
 
 /** The first composition flag given, for the error when one is used without `--brief`. */
 function compositionFlag(flags: CompositionFlags) {
@@ -58,7 +45,7 @@ function firstStack(report: ValidateReport) {
   return report.sizes.find((row) => row.kind === "composed")?.entry;
 }
 
-const printPreview = (target: Target, options: Parameters<typeof previewBrief>[1]) =>
+const printPreview = (target: Target, options: PreviewOptions) =>
   Effect.gen(function* () {
     const output = yield* Output;
     const preview = yield* previewBrief(target, options);
@@ -164,8 +151,8 @@ export const validateCommand = Command.make(
         return yield* printReport(target, { path, submission: flags.submission });
       yield* printPreview(target, {
         stack,
-        with: ids(flags.with),
-        without: ids(flags.without),
+        with: splitValues(flags.with),
+        without: splitValues(flags.without),
         preset: flags.sandbox ? "sandbox" : "default",
       });
     }),

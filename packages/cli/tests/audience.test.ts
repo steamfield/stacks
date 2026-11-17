@@ -289,6 +289,13 @@ describe("verify for an agent", () => {
 });
 
 describe("the guide by audience", () => {
+  test('CI="" selects the agent guide on a terminal', async () => {
+    const result = await runCli(["guide"], { host: terminal, env: { CI: "" } });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toMatch(/^stacks starts projects for coding agents\./);
+  });
+
   test("an agent gets the guide alone; a human first gets who it is for", async () => {
     for (const args of [[], ["guide"]]) {
       const agent = await runCli(args);

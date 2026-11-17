@@ -10,27 +10,20 @@ import {
 } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import {
-  INDEX_PUBLIC_KEYS,
   TelemetryAccepted,
   TelemetryBatch,
   TelemetryEvent,
   TelemetryEventV2,
   TelemetryEventV3,
 } from "@steamfield/stacks-format";
-import { type Clock, Effect, type FileSystem, Layer, type Path, Schema } from "effect";
-import type { HttpClient } from "effect/http";
+import { Effect, Schema } from "effect";
 import { expect } from "vitest";
-import { AppConfig, type Environment } from "../../src/config";
-import { Allowlist } from "../../src/core/allowlist";
 import { ErrorEnvelope } from "../../src/errors";
-import { NetLayer } from "../../src/platform/net";
-import { Host } from "../../src/services/host";
+import { Telemetry } from "../../src/telemetry";
 import { runCli, tempDir } from "./cli";
 import { environment } from "./remote-index";
 
-export const telemetryModule = join(import.meta.dirname, "../../src/telemetry/index.ts");
 export const registry = join(import.meta.dirname, "../fixtures/telemetry/registry");
 export const decodeEvent = Schema.decodeUnknownSync(
   Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3]),
@@ -83,48 +76,12 @@ export const statusValue = (stdout: string) =>
   Schema.decodeUnknownSync(Status, { onExcessProperty: "error" })(JSON.parse(stdout));
 export const flushValue = (stdout: string) =>
   Schema.decodeUnknownSync(Flush, { onExcessProperty: "error" })(JSON.parse(stdout));
-export type TelemetryOptions = Omit<NonNullable<Parameters<typeof runCli>[1]>, "program"> & {
-  releaseBuild?: boolean;
-  /** runCli applies this clock to the whole invocation, including layer construction. */
-  clock?: Clock.Clock;
-};
-type TelemetryDependencies =
-  | AppConfig
-  | Host
-  | FileSystem.FileSystem
-  | Path.Path
-  | HttpClient.HttpClient;
-/** A complete real layer for core tests that consume RunRecord without invoking the parser. */
-export async function telemetryLayer(options: { home: string; cwd: string; env: Environment }) {
-  const { Telemetry } = await import(telemetryModule);
-  const layer: Layer.Layer<unknown, never, TelemetryDependencies> = Telemetry.layer({}).pipe(
-    Layer.provideMerge(Allowlist.layer({ keys: INDEX_PUBLIC_KEYS })),
-  );
-  const config = Layer.effect(
-    AppConfig,
-    Effect.map(AppConfig, (live) => ({ ...live, releaseBuild: true })),
-  ).pipe(
-    Layer.provide(AppConfig.memory({ ...environment(options.home), ...options.env })),
-    Layer.provide(NodeServices.layer),
-  );
-  return layer.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        config,
-        Host.memory({ cwd: options.cwd, platform: "darwin", registry }),
-        NetLayer,
-        NodeServices.layer,
-      ),
-    ),
-  );
-}
-/** Existing runCli must gain releaseBuild; this wrapper leaves that existing file untouched. */
-export async function telemetryCli(
+export type TelemetryOptions = NonNullable<Parameters<typeof runCli>[1]>;
+/** Run the CLI with isolated state and the telemetry registry fixture. */
+export function telemetryCli(
   args: readonly string[],
   options: TelemetryOptions & { home: string },
 ) {
-  // A computed import keeps tsc green until the planned module lands, but each test still runs.
-  await import(telemetryModule);
   const invocation = {
     ...options,
     releaseBuild: options.releaseBuild ?? true,
@@ -140,29 +97,24 @@ export function workspace() {
 export async function notified(home: string, url: string) {
   const result = await telemetryCli(["show", "go-cli", "--json"], {
     home,
-    env: { STACKS_TELEMETRY_URL: url },
+    build: { officialTelemetryUrl: url },
   });
   ok(result);
   expect(JSON.parse(result.stdout)).toHaveProperty("notice");
   expect(spooled(home)).toEqual([]);
 }
 export async function queue(home: string, url: string, count = 1) {
+  const program = Effect.gen(function* () {
+    yield* (yield* Telemetry).recordShow({
+      kind: "stack",
+      id: "go-cli",
+      origin: "bundled",
+      trusted: true,
+    });
+  });
   for (let i = 0; i < count; i++) {
-    const { Telemetry } = await import(telemetryModule);
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        yield* (yield* Telemetry).recordShow({
-          kind: "stack",
-          id: "go-cli",
-          origin: "bundled",
-          trusted: true,
-        });
-      }).pipe(
-        Effect.provide(
-          await telemetryLayer({ home, cwd: home, env: { STACKS_TELEMETRY_URL: url } }),
-        ),
-      ),
-    );
+    const result = await telemetryCli([], { home, env: { STACKS_TELEMETRY_URL: url }, program });
+    expect(result).toEqual({ status: 0, stdout: "", stderr: "" });
   }
   expect(spooled(home)).toHaveLength(count);
 }

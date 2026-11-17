@@ -1,17 +1,6 @@
 /**
- * What an entry is once the registry has read it, and how its markdown file is decoded.
- *
- * An entry is a stack (a recipe for a whole new project, `stacks/<id>/STACK.md`) or a fragment (a
- * reusable addition such as CI or a database, `fragments/<id>/FRAGMENT.md`), plus the files it
- * ships. The markdown file opens with YAML frontmatter (the metadata between two `---` lines) and
- * continues with the guidance body that goes into the brief. `decodeEntry` turns that text into
- * metadata and body, or into a one-line problem that `list` and `validate` show the user, so
- * those messages are user-visible text.
- *
- * `registry.ts` and `remote.ts` build `Entry` values with `decodeEntry`; composition, `show`,
- * `validate` and the rest read them. `shipsFor` and `shippedOnlyFor` decide which shipped files
- * reach a project, on top of `shippedPath` from `@steamfield/stacks-format`, which maps a file's
- * place in the entry (`files/`, an agent adapter, a stack overlay, a payload) to its project path.
+ * Owns decoded entries and their file selection through `shippedPath`. Decode problems are
+ * user-visible text.
  */
 import {
   FragmentMeta,
@@ -27,6 +16,8 @@ import type { Origin } from "../../schemas/origin";
 export type { Origin } from "../../schemas/origin";
 
 export type Entry = {
+  /** A loaded entry carries only its data. */
+  _tag?: undefined;
   id: string;
   kind: Kind;
   origin: Origin;
@@ -50,14 +41,40 @@ export type CatalogEntry = Pick<Entry, "id" | "kind" | "origin"> & {
 export const entryRef = (entry: Entry) => ({ kind: entry.kind, id: entry.id });
 
 export type RejectedEntry = {
-  /** The directory name. */
+  _tag: "Rejected";
   id: string;
   kind: Kind;
   origin: Origin;
   dir: string;
-  /** One line naming the field or rule. */
   error: string;
+  reason: "decode" | "symlink" | "id_mismatch" | "missing" | "unreadable";
+  path?: string;
 };
+export type RegistryEntry = Entry | RejectedEntry;
+export type Stack = Entry & { meta: StackMeta };
+export type Fragment = Entry & { meta: FragmentMeta };
+
+export const entryKey = (kind: Kind, id: string) => `${kind}/${id}`;
+
+export function compareEntries(
+  a: Pick<Entry, "id" | "kind">,
+  b: Pick<Entry, "id" | "kind">,
+): number {
+  if (a.kind !== b.kind) return a.kind === "stack" ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+export function catalogRow(entry: RegistryEntry): CatalogEntry {
+  const rejected = isRejected(entry);
+  return {
+    id: entry.id,
+    kind: entry.kind,
+    origin: entry.origin,
+    tags: rejected ? [] : entry.meta.tags,
+    rejected,
+  };
+}
 /**
  * A file an entry ships. `source` is the entry-relative path on disk; `path` is where it goes in
  * the project: `source` without its files, agent adapter or stack overlay prefix. Names are literal.
@@ -72,17 +89,12 @@ export const PAYLOADS = ["example", "none"] as const;
 export type Payload = (typeof PAYLOADS)[number];
 export const DEFAULT_PAYLOAD: Payload = "example";
 
-/** Whether a source is one agent's adapter file or one stack's overlay file. */
 export function shippedOnlyFor(source: string, kind: "agent" | "stack", id: string): boolean {
   const condition = shippedPath(source)?.condition;
   return condition?.kind === kind && condition.id === id;
 }
 
-/**
- * Whether a source ships to a project for these agents, host stack and payload: shared files
- * always, an adapter for a targeted agent, an overlay for its own stack, a payload variant when it
- * is the selected one. Composition and validate share it.
- */
+/** Apply the target agents, host stack and payload to the mapping from `shippedPath`. */
 export function shipsFor(
   source: string,
   agents: ReadonlyArray<string>,
@@ -96,16 +108,14 @@ export function shipsFor(
   return condition.id === stack;
 }
 
-export function isRejected(value: Entry | RejectedEntry): value is RejectedEntry {
-  return "error" in value;
+export function isRejected(value: RegistryEntry): value is RejectedEntry {
+  return value._tag === "Rejected";
 }
-/** A loaded (not rejected) stack. */
-export function isStack(value: Entry | RejectedEntry): value is Entry & { meta: StackMeta } {
-  return "meta" in value && value.meta.kind === "stack";
+export function isStack(value: RegistryEntry): value is Stack {
+  return !isRejected(value) && value.meta.kind === "stack";
 }
-/** A loaded fragment. */
-export function isFragment(value: Entry): value is Entry & { meta: FragmentMeta } {
-  return value.meta.kind === "fragment";
+export function isFragment(value: RegistryEntry): value is Fragment {
+  return !isRejected(value) && value.meta.kind === "fragment";
 }
 export const markdownFile = (kind: Kind) => (kind === "stack" ? "STACK.md" : "FRAGMENT.md");
 
@@ -130,13 +140,12 @@ export function splitFrontmatter(text: string): { frontmatter: string; body: str
 
 type Decoded =
   | { _tag: "Meta"; meta: StackMeta | FragmentMeta; body: string }
-  /** `schema_version` above 1: the caller skips this copy and uses the next origin's. */
+  /** `schema_version` above 1. See `loadedCandidate` for the skip decision. */
   | { _tag: "Newer"; version: number }
   | { _tag: "Invalid"; error: string };
 
 const formatter = SchemaIssue.makeFormatterStandardSchemaV1();
 
-/** A schema issue path in YAML spelling: `fragments.default[0]`. */
 function yamlPath(segments: ReadonlyArray<PropertyKey | { key: PropertyKey }>): string {
   return segments
     .map((segment) => (typeof segment === "object" ? segment.key : segment))
@@ -161,9 +170,8 @@ function issueLine(error: Schema.SchemaError): string {
 }
 
 /**
- * The checks made before the schema decode: a newer `schema_version` (skipped, not invalid), then
- * a `kind` that doesn't match the file name. Checking `kind` before the schema means a
- * FRAGMENT.md's frontmatter in a STACK.md names the real mistake.
+ * Check `kind` before decoding so fragment metadata in `STACK.md` reports the real mistake.
+ * Classify newer schemas for `loadedCandidate`.
  */
 function checkHeader(kind: Kind, value: unknown): Exclude<Decoded, { _tag: "Meta" }> | undefined {
   if (typeof value !== "object" || value === null) return undefined;

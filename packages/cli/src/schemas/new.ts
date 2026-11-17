@@ -1,13 +1,4 @@
-/**
- * The shape of what `stacks new --json` prints: the project that was written (or, with
- * `--dry-run`, planned), the brief the agent should follow and how the handoff went.
- *
- * `new` scaffolds a stack (a recipe for a whole project) composed with fragments (reusable
- * additions such as CI). It writes the files, the brief (`.stacks/BRIEF.md`, the agent's task
- * text) and the manifest, then hands off: it launches a coding agent, or prints the prompt to give
- * one (`handoff`). `core/scaffold/new.ts` builds the result. `add`'s schema (`schemas/add.ts`)
- * borrows several fields from this one, and `NewPreset` is also the type of the `preset` setting.
- */
+/** Defines the `new --json` result and the preset choices shared with settings. */
 import { AgentId, Harness, Kind } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { BRIEF_PATH } from "../project-layout";

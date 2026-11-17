@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 import { Manifest, type ManifestStep, RunRecord } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import type { Environment } from "../../src/config";
-import { digestSteps, encodeManifest, MANIFEST_PATH } from "../../src/core/manifest";
-import { ProjectState, projectStateFor } from "../../src/core/project-state";
+import { digestSteps, encodeManifest, MANIFEST_PATH } from "../../src/core/project/manifest";
+import { ProjectState, projectStateFor } from "../../src/core/project/state";
 import { VerifyEvent, VerifyResult } from "../../src/schemas/verify";
 import type { HostInfo } from "../../src/services/host";
-import type { Writer } from "../../src/services/output";
+import type { Writer } from "../../src/services/output-write";
 import { quiet, runCli, tempDir } from "./cli";
 
 /** A step as a test writes it: `name` and `run`, everything else defaulted like `new` would. */

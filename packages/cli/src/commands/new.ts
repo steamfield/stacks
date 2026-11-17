@@ -1,35 +1,37 @@
-/**
- * Defines `stacks new <stack> [dir]`: its flags and help text, and the steps from parsed flags to
- * a written project handed to a coding agent.
- *
- * A stack is a recipe for a whole new project. This handler resolves the arguments (asking a
- * person at a terminal for any that are missing, through `core/prompting.ts::pickNew`, then
- * printing the equivalent command), refreshes the dependency allowlist, decides the handoff
- * preferences (`commands/handoff.ts::prepareHandoff`) and calls `core/scaffold/new.ts::scaffold`
- * to build the project. `completeHandoff` then prints the result and launches or points an agent
- * at it, the same flow `add` uses.
- *
- * Bad flag combinations and bad template values fail before the picker asks anything, so a person
- * never answers questions for a command that can't run. A dry run (`--dry-run`) records no
- * telemetry. Start at `newCommand`.
- */
+/** Handles `stacks new` and checks template inputs before the picker can ask questions. */
 import { Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import type { Composition } from "../core/compose/types";
-import { type HandoffDecision, handoffRecord } from "../core/handoff";
-import { pickNew, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
+import { type SettledHandoff, settleHandoff } from "../core/handoff/decide";
+import { handoffResult, renderHandoff } from "../core/handoff/render";
+import {
+  annotateHandoff,
+  handoffContext,
+  launchHandoff,
+  prepareHandoff,
+  printLaunch,
+  resolveChoice,
+} from "../core/handoff/run";
+import { templateOverrides } from "../core/project/template-values";
+import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
-import { Registry, remoteRoots } from "../core/registry/registry";
-import { type NewOptions, scaffold } from "../core/scaffold/new";
+import { Registry } from "../core/registry/registry";
+import { remoteRoots } from "../core/registry/roots";
+import { type NewOptions, type Scaffolded, scaffold } from "../core/scaffold/new";
 import { renderNew } from "../core/scaffold/report";
-import { templateOverrides } from "../core/scaffold/values";
 import { Usage } from "../errors";
 import { BRIEF_PATH } from "../project-layout";
 import { NewPreset, NewResult } from "../schemas/new";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
-import { completeHandoff, prepareHandoff, projectFlags, splitValues } from "./handoff";
+import type { TelemetrySource } from "../telemetry/events";
+import {
+  type ExactProjectOptions,
+  projectFlags,
+  replayProjectFlags,
+  splitValues,
+} from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
 
@@ -43,22 +45,26 @@ const newFlags = {
   stack: Argument.String("stack").pipe(
     Argument.withDescription("The stack to start from (see `list stacks`)."),
     Argument.optional,
+    Argument.map(Option.getOrUndefined),
   ),
   dir: Argument.String("dir").pipe(
     Argument.withDescription(
       "The project directory: missing, empty, or holding only .git and OS files such as .DS_Store. Defaults to the slug of --name, else ./<stack>; `.` is the current directory.",
     ),
     Argument.optional,
+    Argument.map(Option.getOrUndefined),
   ),
   name: Flag.String("name").pipe(
     Flag.withDescription("Project name for templates. Default: the directory's base name."),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   author: Flag.String("author").pipe(
     Flag.withDescription(
       "Author for templates. Default: the author setting, then git user.name, else empty. An empty value suppresses the fallback.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   dryRun: Flag.Boolean("dry-run").pipe(
     Flag.withDescription(
@@ -71,12 +77,14 @@ const newFlags = {
       "Composition preset. Default: the preset setting, else default. Sandbox implies --yes. Lean leaves out every default fragment (git hooks, CI, the long-lived harness docs) for timed work; add them later with stacks add.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   payload: Flag.Literals("payload", PAYLOADS).pipe(
     Flag.withDescription(
       "The stack's payload: example (default) ships its example code; none starts with an empty public API, for stacks that offer it.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   ownRepo: Flag.Boolean("own-repo").pipe(
     Flag.withDescription(
@@ -92,6 +100,7 @@ const newFlags = {
       "npm scope for the package_scope template variable, with or without @. Default: the package_scope setting, else none.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   launch,
   noLaunch,
@@ -99,74 +108,53 @@ const newFlags = {
 
 type NewFlags = Command.Command.Config.Infer<typeof newFlags>;
 
-/** The scaffold options the parsed flags give, apart from the stack and the handoff. */
-function flagOptions(flags: NewFlags) {
-  return {
-    dir: Option.getOrUndefined(flags.dir),
-    name: Option.getOrUndefined(flags.name),
-    author: Option.getOrUndefined(flags.author),
-    dryRun: flags.dryRun,
-    with: flags.with,
-    without: flags.without,
-    sandbox: flags.sandbox,
-    preset: Option.getOrUndefined(flags.preset),
-    payload: Option.getOrUndefined(flags.payload),
-    ownRepo: flags.ownRepo,
-    yes: flags.yes,
-    agents: flags.agents.length ? flags.agents : undefined,
-    scope: Option.getOrUndefined(flags.scope),
-  };
-}
+const newReplayNames = {
+  source: null,
+  stack: null,
+  dir: null,
+  name: "name",
+  author: "author",
+  dryRun: "dry-run",
+  preset: "preset",
+  payload: "payload",
+  ownRepo: "own-repo",
+  with: "with",
+  without: "without",
+  sandbox: "sandbox",
+  yes: "yes",
+  agents: "agents",
+  scope: "scope",
+  launch: "launch",
+  noLaunch: "no-launch",
+} satisfies Record<keyof NewFlags, string | null>;
 
 /**
  * The scaffold options from the flags, with the stack and directory a person picks when no stack
  * was named. After a pick, prints the equivalent command so it can be rerun without the picker.
  */
 const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: NewFlags) {
-  const stack = Option.getOrUndefined(flags.stack);
+  const { source: _source, stack, launch: _launch, noLaunch: _noLaunch, ...parsed } = flags;
   if (stack === undefined && !(yield* promptingAllowed)) return yield* new Usage();
-  const options = flagOptions(flags);
-  if (flags.sandbox && options.preset !== undefined && options.preset !== "sandbox")
+  const options = parsed satisfies ExactProjectOptions<
+    typeof parsed,
+    Omit<NewOptions, "stack" | "handoff">
+  >;
+  if (options.sandbox && options.preset !== undefined && options.preset !== "sandbox")
     return yield* new Usage({ details: { flags: ["--sandbox", `--preset ${options.preset}`] } });
   if (stack !== undefined) return { ...options, stack };
   // Checks --name, --author and --scope before the picker, so a bad value fails before any question.
   yield* templateOverrides(options);
   const picked = yield* pickNew(options);
   const resolved = { ...options, ...picked };
-  yield* runningCommand(newReplay(resolved, flags));
+  yield* runningCommand([
+    "new",
+    picked.stack,
+    ...replayProjectFlags(newReplayNames, { ...flags, ...picked }),
+    "--",
+    picked.dir,
+  ]);
   return resolved;
 });
-
-/** The `new` command line that reproduces a picked run. */
-function newReplay(
-  options: Omit<NewOptions, "handoff">,
-  flags: Pick<NewFlags, "launch" | "noLaunch">,
-) {
-  return [
-    "new",
-    options.stack,
-    ...replayFlags({
-      name: options.name,
-      author: options.author,
-      "dry-run": options.dryRun,
-      preset: options.preset,
-      payload: options.payload,
-      "own-repo": options.ownRepo,
-      with: options.with,
-      without: options.without,
-      sandbox: options.sandbox,
-      yes: options.yes,
-      agents: options.agents,
-      scope: options.scope,
-      launch: Option.getOrUndefined(flags.launch),
-      "no-launch": flags.noLaunch,
-    }),
-    "--",
-    ...(options.dir === undefined ? [] : [options.dir]),
-  ];
-}
-
-type Scaffolded = Effect.Success<ReturnType<typeof scaffold>>;
 
 /** The fragment ids telemetry reports as left out: `--without`, plus the stack's defaults under lean. */
 function leftOutFragments(composition: Composition, without: ReadonlyArray<string>) {
@@ -179,36 +167,34 @@ function leftOutFragments(composition: Composition, without: ReadonlyArray<strin
  * Records the `new` telemetry event with the settled handoff, then flushes the spool. A preview
  * records nothing, and without consent the left-out fragments aren't looked up.
  */
-const recordNew =
-  (input: {
-    telemetry: Telemetry["Service"];
-    registry: Registry["Service"];
-    scaffolded: Scaffolded;
-    without: ReadonlyArray<string>;
-    source: Effect.Success<ReturnType<typeof sourceValue>>;
-  }) =>
-  (settled: HandoffDecision) =>
-    Effect.gen(function* () {
-      const { telemetry, registry } = input;
-      const { result, manifest, composition } = input.scaffolded;
-      if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
-      const without = yield* Effect.forEach(leftOutFragments(composition, input.without), (id) =>
-        registry
-          .get("fragment", id)
-          .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
-      );
-      yield* telemetry.recordScaffold(
-        {
-          type: "new",
-          manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
-          without,
-          source: input.source,
-          steps: officialSteps(composition),
-        },
-        registry,
-      );
-      yield* telemetry.flush;
-    });
+const recordNew = Effect.fn("new.recordTelemetry")(function* (input: {
+  telemetry: Telemetry["Service"];
+  registry: Registry["Service"];
+  scaffolded: Scaffolded;
+  decision: SettledHandoff;
+  without: ReadonlyArray<string>;
+  source: TelemetrySource;
+}) {
+  const { telemetry, registry } = input;
+  const { result, manifest, composition } = input.scaffolded;
+  if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
+  const without = yield* Effect.forEach(leftOutFragments(composition, input.without), (id) =>
+    registry
+      .get("fragment", id)
+      .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
+  );
+  yield* telemetry.recordScaffold(
+    {
+      type: "new",
+      manifest: settleHandoff(manifest, input.decision, manifest.createdAt),
+      without,
+      source: input.source,
+      steps: officialSteps(composition),
+    },
+    registry,
+  );
+  yield* telemetry.flush;
+});
 
 export const newCommand = Command.make("new", newFlags, (flags) =>
   Effect.gen(function* () {
@@ -217,30 +203,34 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
     const source = yield* sourceValue(flags.source);
     const options = yield* resolveArguments(flags);
     yield* (yield* Allowlist).refresh;
-    const handoff = yield* prepareHandoff(flags, json);
-    const scaffolded = yield* scaffold({ ...options, handoff });
-    const { result, decision } = scaffolded;
+    const preferences = yield* prepareHandoff(flags, json);
+    const scaffolded = yield* scaffold({ ...options, handoff: preferences });
+    const { result } = scaffolded;
     const telemetry = yield* Telemetry;
     const registry = yield* Registry;
-    yield* completeHandoff({
-      project: result.project,
-      agent: result.agents[0],
-      untrusted: result.untrusted,
+    const context = yield* handoffContext(result.project, result.agents[0], result.untrusted);
+    const summary = renderNew({ ...result, untrusted: context.untrusted }, context);
+    const { decision, prefix } = yield* resolveChoice(scaffolded.decision, result.project, summary);
+    yield* recordNew({
+      telemetry,
+      registry,
+      scaffolded,
       decision,
-      preview: result.dryRun,
-      beforeHandoff: recordNew({
-        telemetry,
-        registry,
-        scaffolded,
-        without: options.without,
-        source,
-      }),
-      render: (context) =>
-        renderNew({ ...result, untrusted: context.untrusted }, { ...context, style: output.style }),
-      encode: (handoff) => Schema.encodeSync(NewResult)({ ...result, handoff }),
+      without: options.without,
+      source,
     });
+    yield* annotateHandoff(decision);
+    if (decision.kind !== "launch") {
+      const handoff = handoffResult(decision, context.invocation);
+      return yield* output.result(
+        Schema.encodeSync(NewResult)({ ...result, handoff }),
+        result.dryRun ? summary : `${prefix}${renderHandoff(decision, context)}`,
+      );
+    }
+    yield* printLaunch(decision, context.shown, prefix);
+    yield* launchHandoff(decision, result.project, context);
   }).pipe(
-    recordCommandError("new", Option.getOrUndefined(flags.stack)),
+    recordCommandError("new", flags.stack),
     Effect.provide(Layer.unwrap(Effect.map(remoteRoots, Registry.layer))),
   ),
 ).pipe(

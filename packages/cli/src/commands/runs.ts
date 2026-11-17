@@ -1,11 +1,4 @@
-/**
- * The `runs` command: summarizes how the current project's `stacks verify` runs have gone, from its
- * run history, its state record (the per-project file outside the project holding first-green
- * times) and the `## Asked` list in `.stacks/NOTES.md`.
- *
- * `core/runs.ts::projectRuns` finds the nearest project and reads all three; `renderRuns` writes the
- * text. This file connects them to the working directory and the output.
- */
+/** Renders the project's verify history and intervention counts. */
 import { Effect, Schema } from "effect";
 import { Command } from "effect/cli";
 import { projectRuns, renderRuns } from "../core/runs";

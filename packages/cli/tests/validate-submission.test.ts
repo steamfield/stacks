@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { skeleton } from "../src/core/create-text";
+import { skeleton } from "../src/core/create/text";
 import { ValidateReport } from "../src/schemas/validate";
 import { runCli, tempDir } from "./helpers/cli";
 import { emptyRegistry, minimal, writeEntry } from "./helpers/registry";

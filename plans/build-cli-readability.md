@@ -1,5 +1,7 @@
 # Build: CLI readability refactor
 
+Superseded for comments: `.claude/rules/cli/comments.md` replaces this plan's header, glossary and folder-README standards (`plans/cli-structure-rfc-2026-11-17.md`, R1). Kept as history.
+
 Started: 2026-11-15 12:42 CST. Timebox: none. Landing branch: `refactor/cli-readability` (worktree `.claude/worktrees/cli-readability`), merged locally to `main` at the end, not pushed.
 Gate: `rr check` from the landing worktree (about 30 s), then the behavior harness (below). Filtered tests: `bun run test:unit tests/<file>.test.ts` in `packages/cli`. Typecheck: `bun run typecheck` in `packages/cli`. Lint: `bun run lint` at the repo root.
 Worktree setup: `bun install --frozen-lockfile` at the worktree root (must not change `bun.lock`).

@@ -1,11 +1,4 @@
-/**
- * The shape of what `stacks list --json` prints: every stack and fragment an agent can choose
- * from, and the entries that failed to load.
- *
- * Entries come from the registry, the roots searched in priority order (project, user, the signed
- * remote index, then the bundled registry). `core/list.ts` builds the result and `show`'s schema
- * (`schemas/show.ts`) extends `ListRow`, so a field added to a row appears in both commands.
- */
+/** Defines the `list --json` catalog and the row contract shared by `ShowReport`. */
 import { Category, GitHubLogin, Kind, StatsDay, StatsWindow } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { LedgerLastRun } from "./ledger";

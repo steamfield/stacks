@@ -1,61 +1,44 @@
 /**
- * Everything the CLI prints goes through this service: a command's result, its warnings, live
- * progress, verify's live events and the error a failed run ends with.
- *
- * The first thing it settles is the audience, meaning who reads this invocation's output: `json`
- * with `--json`, `human` at a person's own terminal, `agent` everywhere else (an agent's shell, a
- * pipe, CI). Commands render text by `Output.audience`; nothing else may differ between them.
- *
- * Results are buffered, not written as they come. `main.ts` calls `flush` once the command
- * succeeds and `clear` when it fails, so a failed run leaves stdout empty and stderr ends with
- * the error (`error`), a JSON envelope in JSON mode. `flushNow` writes early, before `new` hands
- * the terminal to a coding agent. Writes to stdout and stderr fail as `BrokenPipe` when the
- * reader closed the pipe (EPIPE) and as `PermissionDenied` otherwise; `progress`, `event` and the
- * live line instead swallow write failures and stop writing after the first one.
- *
- * Only a human gets styling. Color is decided once per stream: on when that stream is a
- * terminal or `FORCE_COLOR=1` is set, off whenever `NO_COLOR` is set. The live line (`live`, a
- * spinner redrawn on stderr) needs stderr to be a terminal and is off under `NO_COLOR` too.
- *
- * `bin.ts` builds the real layer from `Host` and `AppConfig`; tests use `fixed` or `memory`.
+ * Owns audience selection and application writes to stdout and stderr. Buffering lets
+ * `writeFailure` or `flushSuccess` settle the result when the command ends.
  */
 import { stripVTControlCharacters, styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
-import { Clock, Context, Effect, Layer, Option, type Scope, Semaphore } from "effect";
+import { Context, Effect, Layer, type Scope } from "effect";
 import { AppConfig } from "../config";
-import { printable } from "../core/text";
+import { failureGuide } from "../core/failure-guide";
+import { printable } from "../core/text/text";
 import {
   type AppError,
-  BrokenPipe,
-  encodeDetails,
-  failureGuide,
+  type BrokenPipe,
   keepsResult,
-  PermissionDenied,
-  retryable,
+  type PermissionDenied,
+  type PreparedFailure,
 } from "../errors";
-import { Host, type HostInfo } from "./host";
+import { Host } from "./host";
+import { type LiveLayout, makeLive } from "./output-live";
+import { type Writer, write } from "./output-write";
 
-/**
- * Who reads this invocation's output. `json`: `--json` was given. `human`: stdout is a terminal
- * and no agent is detected. `agent`: everything else (an agent's shell, a pipe, CI). The three
- * never behave differently; only the rendering changes.
- */
 export type Audience = "json" | "agent" | "human";
 /** Remove terminal styling and cursor sequences before storing or displaying step output. */
 export const stripAnsi = stripVTControlCharacters;
 
 /** `json` wins; `human` needs a terminal on stdout, no detected agent and no CI. */
-export function resolveAudience(
-  json: boolean,
-  stdoutIsTTY: boolean,
-  agent: DetectedAgent,
-  ci = false,
-): Audience {
-  if (json) return "json";
+export function resolveAudience({
+  jsonFlag,
+  stdoutIsTTY,
+  agent,
+  ci,
+}: {
+  jsonFlag: boolean;
+  stdoutIsTTY: boolean;
+  agent: DetectedAgent;
+  ci: boolean;
+}): Audience {
+  if (jsonFlag) return "json";
   return !ci && stdoutIsTTY && agent === "none" ? "human" : "agent";
 }
 
-export type Writer = (text: string) => Promise<void>;
 type StyleKind = "error" | "warn" | "ok" | "skip" | "dim" | "next";
 export type Style = (kind: StyleKind, text: string) => string;
 export const plainStyle: Style = (_kind, text) => text;
@@ -70,29 +53,17 @@ const formats = {
 const makeStyle = (enabled: boolean): Style =>
   enabled ? (kind, text) => styleText(formats[kind], text, { validateStream: false }) : plainStyle;
 
-/** Writes `text`, failing `BrokenPipe` on EPIPE and `PermissionDenied` on any other error. */
-function write(writer: Writer, text: string) {
-  return Effect.tryPromise({
-    try: () => writer(text),
-    catch: (error) =>
-      typeof error === "object" && error !== null && "code" in error && error.code === "EPIPE"
-        ? new BrokenPipe()
-        : new PermissionDenied({ details: { reason: "write" } }),
-  });
-}
-
 export class Output extends Context.Service<
   Output,
   {
     /** Resolved once when the layer is built; commands pick their text rendering by it. */
     audience: Audience;
     /**
-     * The one-time telemetry notice (`telemetry/notice.ts`): written to stderr at once in text
-     * modes, or attached as `notice` to the JSON result when it is flushed.
+     * Writes to stderr in text modes or registers a notice for subsequent JSON object results.
      */
-    notice: (text: string) => Effect.Effect<void>;
-    /** Whether the notice reached its reader: written to stderr, or flushed with a JSON result. */
-    noticeDelivered: Effect.Effect<boolean>;
+    showNotice: (text: string) => Effect.Effect<void>;
+    /** Set after a successful stderr notice write or a flush of JSON containing the notice. */
+    didDeliverNotice: Effect.Effect<boolean>;
     style: Style;
     /** Clears on scope close; the caller renders completion through normal output. */
     live: (label: string) => Effect.Effect<void, never, Scope.Scope>;
@@ -108,13 +79,8 @@ export class Output extends Context.Service<
      * error envelope, written after it, stays the last stderr line.
      */
     event: (value: unknown, agentText?: string) => Effect.Effect<void>;
-    /**
-     * Encodes details and writes the envelope; details with excess properties are a defect.
-     * `invocation` (`Host.invocation`) is quoted in the failure's guide (`errors.ts::failureGuide`):
-     * the envelope's `next`, and the text modes' detail and `Next:` lines.
-     */
     error: (
-      error: AppError,
+      failure: PreparedFailure,
       invocation: string,
       rollback?: ReadonlyArray<string>,
     ) => Effect.Effect<void, BrokenPipe | PermissionDenied>;
@@ -124,11 +90,15 @@ export class Output extends Context.Service<
     clear: Effect.Effect<void>;
   }
 >()("stacks/Output") {
-  /**
-   * This invocation's Output: the audience comes from `--json` (`json`), `Host.stdoutIsTTY` and
-   * `AppConfig.agent`, resolved once here.
-   */
-  static layer = (json: boolean, stdout: Writer, stderr: Writer) =>
+  static layer = ({
+    jsonFlag,
+    stdout,
+    stderr,
+  }: {
+    jsonFlag: boolean;
+    stdout: Writer;
+    stderr: Writer;
+  }) =>
     Layer.effect(
       Output,
       Effect.gen(function* () {
@@ -136,7 +106,12 @@ export class Output extends Context.Service<
         const config = yield* AppConfig;
         const agent = yield* config.agent;
         const color = yield* config.color;
-        const audience = resolveAudience(json, host.stdoutIsTTY, agent, config.ci);
+        const audience = resolveAudience({
+          jsonFlag,
+          stdoutIsTTY: host.stdoutIsTTY,
+          agent,
+          ci: config.ci,
+        });
         const styled = audience === "human" && !color.noColor;
         return make(audience, stdout, stderr, {
           stdout: styled && (host.stdoutIsTTY || color.forceColor),
@@ -170,25 +145,10 @@ export class Output extends Context.Service<
 
 type ErrorView = {
   error: AppError;
-  details: unknown;
   guide: ReturnType<typeof failureGuide>;
   style: Style;
   rollback: ReadonlyArray<string>;
 };
-
-/** The JSON error envelope (`errors.ts::ErrorEnvelope`) as one line. */
-function renderEnvelope({ error, details, guide, rollback }: ErrorView): string {
-  return `${JSON.stringify({
-    error: {
-      tag: error._tag,
-      message: error.message,
-      retryable: retryable(error),
-      ...(guide.next === undefined ? {} : { next: guide.next }),
-      ...(details === undefined ? {} : { details }),
-      ...(rollback.length === 0 ? {} : { rollback: { incomplete: rollback } }),
-    },
-  })}\n`;
-}
 
 /**
  * The message, then the guide's lines, the unrestored paths and the `Next:` line, each indented.
@@ -208,6 +168,27 @@ function renderErrorText({ error, guide, style, rollback }: ErrorView): string {
 type Display = { stdout: boolean; stderr: boolean; live: boolean; layout?: LiveLayout };
 const PLAIN_DISPLAY: Display = { stdout: false, stderr: false, live: false };
 
+type BufferedResult = { text: string | undefined; noticeAttached: boolean };
+
+function hasSerializedNotice(text: string | undefined, notice: string): boolean {
+  const value: unknown = text === undefined ? undefined : JSON.parse(text);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.getOwnPropertyDescriptor(value, "notice")?.value === notice
+  );
+}
+
+function renderJsonResult(value: unknown, notice: string | undefined): BufferedResult {
+  if (notice && typeof value === "object" && value !== null) {
+    const result = { ...value, notice };
+    const hasCustomSerializer = "toJSON" in result && typeof result.toJSON === "function";
+    const text = JSON.stringify(result);
+    return { text, noticeAttached: !hasCustomSerializer || hasSerializedNotice(text, notice) };
+  }
+  return { text: JSON.stringify(value), noticeAttached: false };
+}
+
 function make(
   audience: Audience,
   stdout: Writer,
@@ -215,7 +196,7 @@ function make(
   display: Display = PLAIN_DISPLAY,
 ): Output["Service"] {
   const json = audience === "json";
-  const results: string[] = [];
+  const results: BufferedResult[] = [];
   let notice: string | undefined;
   let noticeDelivered = false;
   const terminal = makeLive(stderr, display.live, display.layout);
@@ -224,24 +205,22 @@ function make(
   const markNoticeDelivered = Effect.sync(() => {
     noticeDelivered = true;
   });
-  /** A JSON object result carries the pending notice; any other value is kept as it is. */
-  const withNotice = (value: unknown) =>
-    notice && typeof value === "object" && value !== null ? { ...value, notice } : value;
   // Uninterruptible: results leave the buffer only to be written, so an interrupt waits for the
   // write rather than reporting before it lands. A stalled stdout still yields to a second signal.
   const flush = Effect.uninterruptible(
     Effect.suspend(() => {
       if (!results.length) return Effect.void;
-      const text = `${results.join("\n")}\n`;
+      const text = `${results.map((result) => result.text).join("\n")}\n`;
+      const noticeAttached = results.some((result) => result.noticeAttached);
       results.length = 0;
       return terminal
         .around(write(stdout, text))
-        .pipe(Effect.tap(() => (json && notice !== undefined ? markNoticeDelivered : Effect.void)));
+        .pipe(Effect.tap(() => (noticeAttached ? markNoticeDelivered : Effect.void)));
     }),
   );
   return {
     audience,
-    notice: (text) =>
+    showNotice: (text) =>
       Effect.gen(function* () {
         notice = text;
         if (json) return;
@@ -250,12 +229,12 @@ function make(
           Effect.ignoreCause,
         );
       }),
-    noticeDelivered: Effect.sync(() => noticeDelivered),
+    didDeliverNotice: Effect.sync(() => noticeDelivered),
     style,
     live: terminal.live,
     result: (value, text) =>
       Effect.sync(() => {
-        results.push(json ? JSON.stringify(withNotice(value)) : text);
+        results.push(json ? renderJsonResult(value, notice) : { text, noticeAttached: false });
       }),
     note: (text) =>
       terminal.around(
@@ -268,129 +247,19 @@ function make(
         ? terminal.line(agentText)
         : Effect.void;
     },
-    error: (error, invocation, rollback = []) =>
-      encodeDetails(error).pipe(
-        Effect.orDie,
-        Effect.flatMap((details) => {
-          const view = {
-            error,
-            details,
-            guide: failureGuide(error, invocation),
-            style: errorStyle,
-            rollback,
-          };
-          return terminal.around(
-            write(stderr, json ? renderEnvelope(view) : renderErrorText(view)),
-          );
-        }),
-      ),
+    error: (failure, invocation, rollback = []) =>
+      Effect.suspend(() => {
+        const { error } = failure;
+        const guide = failureGuide(error, invocation);
+        const text = json
+          ? failure.renderEnvelope(guide.next, rollback)
+          : renderErrorText({ error, guide, style: errorStyle, rollback });
+        return terminal.around(write(stderr, text));
+      }),
     flush,
     flushNow: json ? Effect.void : flush,
     clear: Effect.sync(() => {
       results.length = 0;
     }),
-  };
-}
-
-/** The terminal facts the live line needs to fit on one row. */
-type LiveLayout = Pick<HostInfo, "columns" | "stringWidth">;
-
-/** Clears the current terminal row: carriage return, then erase the whole line. */
-const ERASE = "\r\u001b[2K";
-const SPINNER = "|/-\\";
-
-/** The spinner character for `elapsed` ms: a new one every 100 ms. */
-function spinnerFrame(elapsed: number): string {
-  return SPINNER[Math.floor(elapsed / 100) % 4] ?? "|";
-}
-
-/**
- * Fits `text` plus `tail` (the elapsed time) into one row, one column short of the width so the
- * cursor never wraps. The tail is dropped first when it alone doesn't fit, then `text` is cut at
- * a grapheme boundary and ends with an ellipsis. With no known width, nothing is cut.
- */
-function fitLiveFrame(text: string, layout: LiveLayout | undefined, tail: string): string {
-  if (!layout || Option.isNone(layout.columns)) return text + tail;
-  const width = Math.max(0, layout.columns.value - 1);
-  const suffix = layout.stringWidth(tail) <= width ? tail : "";
-  if (layout.stringWidth(text + suffix) <= width) return text + suffix;
-  let fitted = "";
-  for (const { segment } of new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
-    text,
-  )) {
-    if (layout.stringWidth(`${fitted}${segment}…${suffix}`) > width) break;
-    fitted += segment;
-  }
-  return layout.stringWidth(`…${suffix}`) <= width ? `${fitted}…${suffix}` : suffix;
-}
-
-/**
- * The stderr side of Output: the live spinner line and the writes that must not interleave with
- * it. One lock serializes redraws and normal writes, so a frame can't split a row of other
- * output, and a write first erases a drawn frame. When the live line is disabled, `around` adds
- * nothing. `line` (for `progress` and `event`) and the frames are best-effort: the first failed
- * write closes them for good, and the command carries on.
- */
-function makeLive(stderr: Writer, enabled: boolean, layout?: LiveLayout) {
-  const lock = Semaphore.makeUnsafe(1);
-  let open = true;
-  let active = false;
-  const close = Effect.sync(() => {
-    open = false;
-  });
-  const bestEffort = (text: string) =>
-    Effect.suspend(() =>
-      open
-        ? write(stderr, text).pipe(
-            Effect.catch(() => close),
-            Effect.onInterrupt(() => close),
-          )
-        : Effect.void,
-    );
-  const around = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-    enabled
-      ? lock.withPermit(
-          Effect.gen(function* () {
-            if (active) yield* bestEffort(ERASE);
-            return yield* effect;
-          }),
-        )
-      : effect;
-  /** Draws one frame unless a write holds the lock; that write erases the line anyway. */
-  const drawFrame = (label: string, started: number) =>
-    lock
-      .withPermitsIfAvailable(1)(
-        Effect.gen(function* () {
-          const elapsed = (yield* Clock.currentTimeMillis) - started;
-          const text = fitLiveFrame(
-            `${spinnerFrame(elapsed)} ${label}`,
-            layout,
-            ` ${(elapsed / 1000).toFixed(1)}s`,
-          );
-          yield* bestEffort(`${ERASE}${text}`);
-        }),
-      )
-      .pipe(Effect.forkChild);
-  const live = Effect.fn("Output.live")(function* (label: string) {
-    if (!enabled) return;
-    const started = yield* Clock.currentTimeMillis;
-    active = true;
-    yield* Effect.addFinalizer(() =>
-      lock.withPermit(
-        Effect.gen(function* () {
-          active = false;
-          yield* bestEffort(ERASE);
-        }),
-      ),
-    );
-    const tick = Effect.sleep("100 millis").pipe(Effect.andThen(drawFrame(label, started)));
-    // Registered after the clear finalizer, so drawing stops before the line clears.
-    yield* tick.pipe(Effect.forever, Effect.forkScoped);
-  });
-  return {
-    live,
-    around,
-    line: (text: string) =>
-      lock.withPermit(Effect.suspend(() => bestEffort(`${active ? ERASE : ""}${text}\n`))),
   };
 }

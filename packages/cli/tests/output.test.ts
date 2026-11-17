@@ -195,6 +195,68 @@ test("in JSON mode flushNow writes nothing until the command ends", async () => 
   expect(result).toEqual({ status: 0, stdout: '{"ok":true}\n', stderr: "" });
 });
 
+test("flushing a null JSON result leaves the telemetry notice pending", async () => {
+  const { layer, stdout, stderr } = Output.memory("json");
+  const delivered = await Effect.runPromise(
+    Effect.gen(function* () {
+      const output = yield* Output;
+      yield* output.showNotice("Telemetry notice");
+      yield* output.result(null, "");
+      yield* output.flush;
+      return yield* output.didDeliverNotice;
+    }).pipe(Effect.provide(layer)),
+  );
+
+  expect(JSON.parse(stdout.join(""))).toBeNull();
+  expect(stderr).toEqual([]);
+  expect(delivered).toBe(false);
+});
+
+test("flushing a JSON object includes the telemetry notice and marks it delivered", async () => {
+  const { layer, stdout, stderr } = Output.memory("json");
+  const delivered = await Effect.runPromise(
+    Effect.gen(function* () {
+      const output = yield* Output;
+      yield* output.showNotice("Telemetry notice");
+      yield* output.result({ ok: true }, "");
+      expect(yield* output.didDeliverNotice).toBe(false);
+      yield* output.flush;
+      return yield* output.didDeliverNotice;
+    }).pipe(Effect.provide(layer)),
+  );
+
+  expect(JSON.parse(stdout.join(""))).toEqual({ ok: true, notice: "Telemetry notice" });
+  expect(stderr).toEqual([]);
+  expect(delivered).toBe(true);
+});
+
+test.each([
+  { name: "drops the notice", expected: null, delivered: false },
+  { name: "retains the notice", expected: { notice: "Telemetry notice" }, delivered: true },
+])("a custom JSON serializer $name", async ({ expected, delivered }) => {
+  const { layer, stdout, stderr } = Output.memory("json");
+  const actual = await Effect.runPromise(
+    Effect.gen(function* () {
+      const output = yield* Output;
+      yield* output.showNotice("Telemetry notice");
+      yield* output.result(
+        {
+          toJSON(this: { notice?: string }) {
+            return delivered ? { notice: this.notice } : null;
+          },
+        },
+        "",
+      );
+      yield* output.flush;
+      return yield* output.didDeliverNotice;
+    }).pipe(Effect.provide(layer)),
+  );
+
+  expect(JSON.parse(stdout.join(""))).toEqual(expected);
+  expect(stderr).toEqual([]);
+  expect(actual).toBe(delivered);
+});
+
 test("Host.memory reports no terminal on either stream", async () => {
   const host = await Effect.runPromise(
     Effect.gen(function* () {

@@ -1,50 +1,34 @@
 /**
- * Reads one registry root from disk into candidates, one per entry directory such as
- * `stacks/bun-api/`: a loaded entry, a rejection that says what is wrong with it, or nothing.
- *
- * `registry.ts` calls `loadRoot` for each root in priority order, then decides which root's
- * candidate wins each kind and id. Loading reads only each entry's directory and its `STACK.md` or
- * `FRAGMENT.md`, so listing a large registry stays cheap. The deep check of everything inside an
- * entry (no symlink anywhere, every directory readable) is set up here as a lazy, cached effect in
- * `LoadState.checks`, keyed by the entry directory. It runs only when a caller asks for that entry
- * (`Registry.get`, `files`, `read` and the rest) or for all of them (`Registry.all`).
- *
- * A rejection message is the text `list` and `validate` print for a broken entry, so its wording
- * is user-visible. An entry whose `schema_version` is newer than this CLI reads is skipped rather
- * than rejected, so a lower root's older copy can win instead. The project root is held to a
- * stricter rule than the others: it, or its `stacks/` or `fragments/`, is skipped whole when it is
- * a symlink, because a checkout controls it.
+ * Loads one registry root from disk. Defer deep checks to keep an ordinary catalog read cheap.
+ * See `loadedCandidate` for the newer-schema exception.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
-import { PermissionDenied } from "../../errors";
-import { isAbsent } from "../absent";
-import { printable } from "../text";
-import { decodeEntry, markdownFile, type Origin } from "./entry";
+import { isAbsent } from "../fs/absent";
+import { denied } from "../fs/denied";
+import { defined } from "../object";
+import { printable } from "../text/text";
+import {
+  decodeEntry,
+  entryKey,
+  markdownFile,
+  type RegistryEntry,
+  type RejectedEntry,
+} from "./entry";
 import { walkEntry } from "./tree";
-import type {
-  Candidate,
-  FileAccess,
-  Reason,
-  RegistryRoot,
-  Rejection,
-  RootCandidate,
-  Skipped,
-} from "./types";
+import type { FileAccess, LocalRegistryRoot, Skipped } from "./types";
 
-/** Where a candidate came from: its root's origin, its kind, its directory and directory name. */
-type CandidateInput = { origin: Origin; kind: Kind; dir: string; id: string };
+type CandidateInput = Pick<LocalRegistryRoot, "origin" | "trusted"> & {
+  kind: Kind;
+  dir: string;
+  id: string;
+};
 
-type RejectedCandidate = Extract<Candidate, { _tag: "Rejected" }>;
-
-/**
- * The layer's loading state: `skipped` collects what loading passed over, and `checks` holds each
- * entry directory's cached deep check.
- */
 export type LoadState = {
   io: FileAccess;
   skipped: Skipped[];
-  checks: Map<string, Effect.Effect<Rejection | undefined>>;
+  /** Cache the outcome of `walkEntry` by entry directory. */
+  treeChecks: Map<string, Effect.Effect<RejectedEntry | undefined>>;
 };
 
 const kinds = [
@@ -52,49 +36,62 @@ const kinds = [
   { kind: "fragment", dir: "fragments" },
 ] as const satisfies ReadonlyArray<{ kind: Kind; dir: string }>;
 
-/** `at` is the entry-relative path the rejection names, when there is one. */
+/** The supplied error is user-visible in command output and validation findings. */
 const rejectCandidate = (
   { origin, kind, dir, id }: CandidateInput,
-  reason: Reason,
+  reason: RejectedEntry["reason"],
   error: string,
   at?: string,
-): RejectedCandidate => ({
-  _tag: "Rejected",
-  rejection: {
-    rejected: { id, kind, origin, dir, error },
+): RejectedEntry =>
+  defined({
+    _tag: "Rejected",
+    id,
+    kind,
+    origin,
+    dir,
+    error,
     reason,
-    ...(at === undefined ? {} : { path: at }),
-  },
-});
-
-/** Decodes the markdown text; the frontmatter `id` must equal the directory name. */
-const decodeCandidate = (input: CandidateInput, text: string) =>
-  Effect.gen(function* () {
-    const { origin, kind, dir, id } = input;
-    const file = markdownFile(kind);
-    const decoded = yield* decodeEntry(kind, text);
-    switch (decoded._tag) {
-      case "Newer":
-        return { _tag: "Newer" as const, version: decoded.version };
-      case "Invalid":
-        return rejectCandidate(input, "decode", decoded.error, file);
-      case "Meta":
-        if (decoded.meta.id !== id)
-          return rejectCandidate(
-            input,
-            "id_mismatch",
-            `id: ${JSON.stringify(decoded.meta.id)} must equal the directory name ${JSON.stringify(id)}`,
-            file,
-          );
-        return {
-          _tag: "Entry" as const,
-          entry: { id, kind, origin, dir, meta: decoded.meta, body: decoded.body },
-        };
-    }
+    path: at,
   });
 
+type NewerEntry = { _tag: "Newer"; version: number };
+
+/** The frontmatter id must match the directory name. */
+const decodeCandidate = Effect.fnUntraced(function* (
+  input: CandidateInput,
+  text: string,
+): Effect.fn.Return<RegistryEntry | NewerEntry> {
+  const { origin, kind, dir, id, trusted } = input;
+  const file = markdownFile(kind);
+  const decoded = yield* decodeEntry(kind, text);
+  switch (decoded._tag) {
+    case "Newer":
+      return { _tag: "Newer", version: decoded.version };
+    case "Invalid":
+      return rejectCandidate(input, "decode", decoded.error, file);
+    case "Meta":
+      if (decoded.meta.id !== id)
+        return rejectCandidate(
+          input,
+          "id_mismatch",
+          `id: ${JSON.stringify(decoded.meta.id)} must equal the directory name ${JSON.stringify(id)}`,
+          file,
+        );
+      return {
+        id,
+        kind,
+        origin,
+        dir,
+        meta: decoded.meta,
+        body: decoded.body,
+        shadows: [],
+        trusted,
+      };
+  }
+});
+
 /** Reads the entry's `STACK.md` or `FRAGMENT.md`, refusing a symlink or anything but a file. */
-const readCandidate = (input: CandidateInput, io: FileAccess) =>
+const readCandidate = (io: FileAccess, input: CandidateInput) =>
   Effect.gen(function* () {
     const file = markdownFile(input.kind);
     const at = io.path.join(input.dir, file);
@@ -113,43 +110,35 @@ const readCandidate = (input: CandidateInput, io: FileAccess) =>
     return yield* decodeCandidate(input, text.success);
   });
 
-/** The deep check: the first symlink anywhere in the entry, or an unreadable directory. */
-const checkCandidateTree = (input: CandidateInput, io: FileAccess) =>
-  Effect.gen(function* () {
-    const walked = yield* Effect.result(walkEntry(io, input.dir));
-    if (walked._tag === "Failure")
-      return rejectCandidate(input, "unreadable", "the entry directory is unreadable", ".")
-        .rejection;
-    if (walked.success._tag === "Link")
-      return rejectCandidate(input, "symlink", `symlink: ${walked.success.rel}`, walked.success.rel)
-        .rejection;
-    return undefined;
-  });
+const checkCandidateTree = Effect.fnUntraced(function* (io: FileAccess, input: CandidateInput) {
+  const walked = yield* Effect.result(walkEntry(io, input.dir));
+  if (walked._tag === "Failure")
+    return rejectCandidate(input, "unreadable", "the entry directory is unreadable", ".");
+  if (walked.success._tag === "Link")
+    return rejectCandidate(input, "symlink", `symlink: ${walked.success.rel}`, walked.success.rel);
+  return undefined;
+});
 
 /**
- * Registers the entry's deep check, then reads its markdown. A newer `schema_version` runs the
- * deep check right away: a broken directory stays a rejection, a sound one is logged and skipped.
+ * Check a newer-schema entry immediately so a broken tree remains a rejection. Skipping a
+ * sound newer entry lets a compatible lower-priority copy win.
  */
-const loadedCandidate = (input: CandidateInput, state: LoadState) =>
-  Effect.gen(function* () {
-    const check = yield* Effect.cached(checkCandidateTree(input, state.io));
-    state.checks.set(input.dir, check);
-    const loaded = yield* readCandidate(input, state.io);
-    if (loaded._tag !== "Newer") return loaded;
-    const problem = yield* check;
-    if (problem) return { _tag: "Rejected" as const, rejection: problem };
-    const { origin, kind, id, dir } = input;
-    yield* Effect.logWarning(
-      `Skipped ${origin} ${kind} ${printable(id)}: schema_version ${loaded.version} is newer than this CLI reads`,
-    );
-    state.skipped.push({ reason: "newer", origin, kind, id, dir, version: loaded.version });
-    return undefined;
-  });
+const loadedCandidate = Effect.fnUntraced(function* (input: CandidateInput, state: LoadState) {
+  const check = yield* Effect.cached(checkCandidateTree(state.io, input));
+  state.treeChecks.set(input.dir, check);
+  const loaded = yield* readCandidate(state.io, input);
+  if (loaded._tag !== "Newer") return loaded;
+  const problem = yield* check;
+  if (problem) return problem;
+  const { origin, kind, id, dir } = input;
+  yield* Effect.logWarning(
+    `Skipped ${origin} ${kind} ${printable(id)}: schema_version ${loaded.version} is newer than this CLI reads`,
+  );
+  state.skipped.push({ reason: "newer", origin, kind, id, dir, version: loaded.version });
+  return undefined;
+});
 
-/**
- * One name under a root's `stacks/` or `fragments/`. The entry directory itself must be a real
- * directory: a symlink or an unreadable one is rejected, and a plain file there is ignored.
- */
+/** Reject an unreadable or symlinked entry directory. A plain file in the collection is ignored. */
 const readEntryDirectory = (input: CandidateInput, state: LoadState) =>
   Effect.gen(function* () {
     const self = yield* Effect.result(state.io.fs.lstat(input.dir));
@@ -166,13 +155,10 @@ const sortedNames = ({ fs }: FileAccess, dir: string) =>
   fs.readDirectory(dir).pipe(
     Effect.map((found) => [...found].sort()),
     Effect.catch((error) =>
-      isAbsent(error)
-        ? Effect.succeed<Array<string>>([])
-        : Effect.fail(new PermissionDenied({ details: { reason: "read", path: dir } })),
+      isAbsent(error) ? Effect.succeed<Array<string>>([]) : Effect.fail(denied("read", dir)),
     ),
   );
 
-/** True when a project registry directory is a symlink, logging that it is skipped. */
 const linkedProjectDir = ({ fs }: FileAccess, dir: string) =>
   fs.lstat(dir).pipe(
     Effect.map((info) => info.type === "SymbolicLink"),
@@ -185,43 +171,46 @@ const linkedProjectDir = ({ fs }: FileAccess, dir: string) =>
   );
 
 /**
- * Whether a root or one of its directories is skipped as a symlink, which applies to the project
- * root only. A skipped directory is recorded in `skipped`.
+ * Project roots and their stack and fragment collections are checked because the checkout controls
+ * them. User and bundled roots can be symlinked by the user or package manager.
  */
-const skippedAsLink = (root: RegistryRoot, dir: string, state: LoadState) =>
+const skippedAsLink = (root: LocalRegistryRoot, dir: string, state: LoadState) =>
   Effect.gen(function* () {
     if (root.origin !== "project" || !(yield* linkedProjectDir(state.io, dir))) return false;
     state.skipped.push({ reason: "symlink", origin: root.origin, dir });
     return true;
   });
 
-type FoundByKey = Map<string, RootCandidate[]>;
+type CandidatesByKey = Map<string, RegistryEntry[]>;
 
-/** Loads one root's `stacks/` or `fragments/`, appending each candidate to its `kind/id` list. */
-const loadKind = (
-  root: RegistryRoot,
+const loadKind = Effect.fnUntraced(function* (
+  root: LocalRegistryRoot,
   { kind, dir }: (typeof kinds)[number],
   state: LoadState,
-  found: FoundByKey,
-) =>
-  Effect.gen(function* () {
-    const { io } = state;
-    const parent = io.path.join(root.path, dir);
-    if (yield* skippedAsLink(root, parent, state)) return;
-    for (const id of yield* sortedNames(io, parent)) {
-      const input = { origin: root.origin, kind, dir: io.path.join(parent, id), id };
-      const loaded = yield* readEntryDirectory(input, state);
-      if (!loaded) continue;
-      const key = `${kind}/${id}`;
-      found.set(key, [...(found.get(key) ?? []), { root, candidate: loaded }]);
-    }
-  });
+  found: CandidatesByKey,
+) {
+  const { io } = state;
+  const parent = io.path.join(root.path, dir);
+  if (yield* skippedAsLink(root, parent, state)) return;
+  for (const id of yield* sortedNames(io, parent)) {
+    const input = {
+      origin: root.origin,
+      trusted: root.trusted,
+      kind,
+      dir: io.path.join(parent, id),
+      id,
+    };
+    const loaded = yield* readEntryDirectory(input, state);
+    if (!loaded) continue;
+    const key = entryKey(kind, id);
+    found.set(key, [...(found.get(key) ?? []), loaded]);
+  }
+});
 
 /**
- * Loads every candidate of one root, stacks first and then fragments, each by sorted name,
- * appending each to its `kind/id` list in `found` after the higher roots' candidates.
+ * Append candidates after the higher roots, stacks first and then fragments, each sorted by name.
  */
-export const loadRoot = (root: RegistryRoot, state: LoadState, found: FoundByKey) =>
+export const loadRoot = (root: LocalRegistryRoot, state: LoadState, found: CandidatesByKey) =>
   Effect.gen(function* () {
     if (yield* skippedAsLink(root, root.path, state)) return;
     for (const kind of kinds) yield* loadKind(root, kind, state, found);

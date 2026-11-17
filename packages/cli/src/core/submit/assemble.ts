@@ -1,32 +1,20 @@
 /**
- * Writes a submission into the temporary clone of the upstream repository, so the clone's
- * registry looks exactly as it would after the pull request merges.
- *
- * For each entry it decides whether the submission adds it or updates it, copies the author's
- * entry directory over the clone's copy, brings along its search card (the JSON file under
- * `search/` that describes the entry to `stacks search`), and records the author's GitHub login
- * in `authors.json`, the registry file that says who may update each entry. An id the upstream
- * registry has already removed is refused, since ids are never reused, and so is an id someone
- * else owns.
- *
- * `submit.ts::submit` calls `assemble` right after the clone, then validates and stages what it
- * wrote. Every write goes through `filesystem.ts::writePermission`, so a denied write reports the
- * path as `PermissionDenied` and any other filesystem failure is a defect. Start at `assemble`.
+ * Assembles a proposed registry update in the temporary clone so it can be checked as it would
+ * appear upstream.
  */
 import { AuthorsFile, authorKey, Kind, type SearchMetadata } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, type PlatformError, Predicate, Result, Schema } from "effect";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
+import { defined } from "../object";
 import { Registry } from "../registry/registry";
 import { searchSourceDigest } from "../search/digest";
 import { decodeSidecar, readSearchFile, sidecarPath } from "../search/sidecar";
 import { kindDir, type SubmittedEntry } from "./entries";
 import { writePermission } from "./filesystem";
 
-/** Where the registry sits in the upstream repository. */
 export const REGISTRY_PATH = "packages/cli/registry";
 export const AUTHORS_FILE = "authors.json";
 
-/** A submitted entry once `assemble` knows whether it adds a new id or updates an existing one. */
 export type PlannedEntry = SubmittedEntry & { update: boolean };
 
 /** `removed.json`: only the kind of each removed id matters here. */
@@ -50,16 +38,14 @@ const readUpstream = <A>(file: string, schema: Schema.Codec<A, string>, fallback
 const wasRemoved = (removed: Removed, entry: SubmittedEntry) =>
   Object.hasOwn(removed.entries, entry.id) && removed.entries[entry.id]?.kind === entry.kind;
 
-/** The login `authors.json` gives the entry, if any. */
 const ownerOf = (authors: AuthorsFile, entry: SubmittedEntry) => {
   const key = authorKey(entry.kind, entry.id);
   return Object.hasOwn(authors, key) ? authors[key] : undefined;
 };
 
 /**
- * Whether each entry is new or an update. An id the upstream registry removed is always refused,
- * since ids are never reused. An id it has is refused unless `authors.json` gives it to this
- * login, which makes the submission an update.
+ * Removed ids cannot be reused. An existing id is an update only for the login recorded in
+ * `authors.json`.
  */
 const planEntries = Effect.fn("submit.planEntries")(function* (options: {
   registry: string;
@@ -80,13 +66,13 @@ const planEntries = Effect.fn("submit.planEntries")(function* (options: {
     const owner = ownerOf(options.authors, entry);
     if (gone || (exists && owner !== options.login))
       return yield* new BadInput({
-        details: {
+        details: defined({
           flag: "collision",
           kind: entry.kind,
           id: entry.id,
           removed: gone && !exists,
-          ...(owner === undefined ? {} : { owner }),
-        },
+          owner,
+        }),
       });
     planned.push({ ...entry, update: exists });
   }
@@ -117,10 +103,8 @@ const readUnavailable = (error: PlatformError.PlatformError) =>
   error.reason._tag === "NotFound" || error.reason._tag === "PermissionDenied";
 
 /**
- * Works out which side of a failed copy was refused. The copy's error doesn't say whether reading
- * the author's file or writing the clone failed, so the source path it names is checked for read
- * access: unreadable is a read denial on the entry, readable means the write into `target` was
- * denied. Anything else is a defect.
+ * Node gives the source path for either copy failure. Check its read access to distinguish an entry
+ * read denial from a clone write denial.
  */
 const copyFailure = Effect.fn("submit.copyFailure")(function* (
   error: PlatformError.PlatformError,
@@ -143,7 +127,6 @@ const copyFailure = Effect.fn("submit.copyFailure")(function* (
   return yield* Effect.die(error);
 });
 
-/** Replaces the clone's copy of an entry with the author's directory. */
 const copyEntry = Effect.fn("submit.copyEntry")(function* (registry: string, entry: PlannedEntry) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -173,11 +156,7 @@ function freshCard(raw: Record<string, unknown>, card: SearchMetadata, digest: s
   return { ...raw, source: { ...source, digest, by: "author", reviewedAt: null } };
 }
 
-/**
- * The restamped card for `bytes` (`freshCard`), or `undefined` when it needs no change or can't be
- * restamped: the entry doesn't load from the clone, or the card doesn't decode or parse as an
- * object. The checks report such a card later.
- */
+/** Defer malformed cards and entries to the submission checks if they cannot be restamped. */
 const restampedCard = Effect.fn("submit.restampedCard")(function* (
   entry: PlannedEntry,
   bytes: Uint8Array,
@@ -191,25 +170,24 @@ const restampedCard = Effect.fn("submit.restampedCard")(function* (
 });
 
 /**
- * The search card that goes upstream with the entry: the author's own card, or, for an update
- * that brings none, the card upstream already has. Its `source` is brought up to date with the
- * entry as submitted (`restampedCard`). A card that can't be restamped is copied as it is; the
- * checks report it.
+ * Reuse the upstream card on updates that bring none, then restamp it against the submitted entry.
  */
 const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry: PlannedEntry) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const card = sidecarPath(entry);
   const target = path.join(registry, card);
-  const own = yield* readSearchFile(entry.root, card);
+  const io = { fs, path };
+  const own = yield* readSearchFile(io, entry.root, card);
   const bytes =
-    own ?? (yield* readSearchFile(registry, card).pipe(Effect.orElseSucceed(() => undefined)));
+    own ?? (yield* readSearchFile(io, registry, card).pipe(Effect.orElseSucceed(() => undefined)));
   if (bytes === undefined) return;
   yield* writePermission(
     fs.makeDirectory(path.dirname(target), { recursive: true }),
     path.dirname(target),
   );
   const fresh = yield* restampedCard(entry, bytes);
+  // If a supplied card cannot be restamped, keep its bytes so submission checks report it.
   if (fresh !== undefined)
     yield* writePermission(
       fs.writeFileString(target, `${JSON.stringify(fresh, null, 2)}\n`),
@@ -225,10 +203,6 @@ const nextAuthors = (authors: AuthorsFile, planned: ReadonlyArray<PlannedEntry>,
   return Object.fromEntries(Object.entries(next).sort(([a], [b]) => (a < b ? -1 : 1)));
 };
 
-/**
- * Builds the outgoing registry in the clone: each entry under `stacks/` or `fragments/`, its card
- * under `search/`, and its `authors.json` line naming `login`.
- */
 export const assemble = Effect.fn("submit.assemble")(function* (options: {
   registry: string;
   entries: ReadonlyArray<SubmittedEntry>;

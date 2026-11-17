@@ -1,16 +1,7 @@
 /**
- * Writes the brief for `stacks add`: what a coding agent reads after fragments are applied to a
- * project that already exists.
- *
- * `render.ts::renderBrief` hands over here whenever its context carries an `add` section. An add
- * brief differs from a new-project brief in scope. Guidance covers only the fragments this `add`
- * brings in, since the agent already built the rest, while the definition of done covers the whole
- * merged manifest, because verify runs every step. It also lists the files parked under
- * `.stacks/incoming/` for the agent to merge by hand, and any required fragment the project lacks.
- *
- * When an untrusted addition's verify steps weren't accepted (`add.digestRecorded` is false), the
- * brief tells the agent to stop and have the user accept them in a terminal (Trust model points 3
- * and 4). Start at `renderAddBrief`; the sections run top to bottom.
+ * Renders the add brief with new guidance and matching recipe notes, avoiding repetition of work
+ * already present in the project.
+ * The definition of done covers the whole manifest because verify runs the project as a whole.
  */
 import { APP_TAG, withStepDefaults } from "@steamfield/stacks-format";
 import type { ComposedStep, Composition } from "../compose/types";
@@ -28,16 +19,13 @@ import {
 } from "./blocks";
 import { nest } from "./headings";
 import * as T from "./text";
-import type { Brief, BriefContext } from "./types";
+import type { AddBriefContext, Brief, BriefContext } from "./types";
 import { type BriefWriter, briefWriter } from "./writer";
 
-type AddContext = NonNullable<BriefContext["add"]>;
-
-/** An add brief includes only the new guidance, but the whole project's definition of done. */
 export function renderAddBrief(
   composition: Composition<Entry | null>,
   context: BriefContext,
-  add: AddContext,
+  add: AddBriefContext,
 ): Brief {
   const out = briefWriter();
   const cli = context.invocation;
@@ -70,11 +58,14 @@ export function renderAddBrief(
   return out.brief();
 }
 
-/** The untrusted entries, and the accept instruction when their steps weren't recorded. */
+/**
+ * List untrusted entries through `writeUntrustedList` (trust point 3). Use the digest decision
+ * from `mergeAddManifest` (trust point 4).
+ */
 function writeUntrusted(
   out: BriefWriter,
   composition: Composition<Entry | null>,
-  add: AddContext,
+  add: AddBriefContext,
   cli: string,
 ): void {
   if (composition.untrusted.length === 0) return;
@@ -89,7 +80,7 @@ function writeFacts(
   out: BriefWriter,
   composition: Composition<Entry | null>,
   context: BriefContext,
-  add: AddContext,
+  add: AddBriefContext,
 ): void {
   out.fixed(
     T.add.stack(add.stack),
@@ -109,11 +100,10 @@ function writeFacts(
   if (context.invocation !== "stacks") out.fixed(T.facts.invocation(context.invocation));
 }
 
-/** The job statement, versions and ground rules for working in an existing repository. */
 function writeJobAndGroundRules(
   out: BriefWriter,
   context: BriefContext,
-  add: AddContext,
+  add: AddBriefContext,
   cli: string,
 ): void {
   out.fixed(
@@ -136,8 +126,7 @@ function writeJobAndGroundRules(
   if (add.createAgentsMd) out.fixed(T.add.createAgentsMd);
 }
 
-/** The parked files to merge and the required fragments the project still lacks. */
-function writePendingWork(out: BriefWriter, add: AddContext): void {
+function writePendingWork(out: BriefWriter, add: AddBriefContext): void {
   if (add.mergeNeeded.length) {
     out.fixed("", T.add.merge, "", T.add.mergeTask, "");
     out.data(
@@ -164,7 +153,7 @@ function writeDependencies(
   out.data(...toolLines(composition.tools, context));
 }
 
-/** Each added fragment's guidance, followed by any current recipe notes that name it. */
+/** Keep each added fragment's recipe notes next to its guidance so their context is clear. */
 function writeGuidance(out: BriefWriter, composition: Composition<Entry | null>): void {
   for (const entry of composition.fragments) {
     out.fixed("", T.sections.fragment(oneLine(entry.meta.name), entry.id));
@@ -181,7 +170,7 @@ function writeGuidance(out: BriefWriter, composition: Composition<Entry | null>)
 /** The whole manifest's steps, commands and environment, as verify will run them. */
 function writeDefinitionOfDone(
   out: BriefWriter,
-  manifest: AddContext["manifest"],
+  manifest: AddBriefContext["manifest"],
   cli: string,
 ): void {
   const steps: ComposedStep[] = manifest.verify.map((step) => ({

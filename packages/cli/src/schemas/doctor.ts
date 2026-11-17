@@ -1,9 +1,4 @@
-/**
- * The shape of what `stacks doctor --json` prints: the facts someone needs to debug an install,
- * such as the version, the directories the CLI reads and writes, whether the bundled registry and
- * skill were found, the remote index's cache state and any error reading `config.json`.
- * `core/doctor.ts` builds it.
- */
+/** Defines the `doctor --json` report. */
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";
 import { RemoteStatus } from "./remote-index";

@@ -1,9 +1,6 @@
 /**
- * The `doctor` command: prints where this copy of the CLI keeps its files and whether its
- * configuration reads, so a user can check an install before filing a bug.
- *
- * `core/doctor.ts::doctor` gathers the report without failing on a broken `config.json` (that is
- * listed as a problem instead); this file only renders it.
+ * Renders the `stacks doctor` report. A broken settings file is a diagnostic finding so the
+ * command still works when it is needed most.
  */
 import { Effect } from "effect";
 import { Command } from "effect/cli";

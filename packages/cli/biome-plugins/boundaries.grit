@@ -87,12 +87,12 @@ $node where {
       not {
         or {
           and {
-            $filename <: r".*/src/core/(?:manifest|fingerprint|search/digest)\.ts$",
+            $filename <: r".*/src/core/(?:project/manifest|fingerprint|search/digest)\.ts$",
             $src <: r"[\"']node:crypto[\"']"
           },
           and { $filename <: r".*/src/services/output\.ts$", $src <: r"[\"']node:util[\"']" },
           and {
-            $filename <: r".*/src/core/scaffold/write\.ts$",
+            $filename <: r".*/src/core/project/writer\.ts$",
             $src <: r"[\"']node:fs/promises[\"']"
           }
         }

@@ -1,45 +1,43 @@
 /**
- * Shows the one-time telemetry notice, and makes sure it is shown once across every CLI run on
- * the machine.
- *
- * Before telemetry sends anything, the user is told what is collected and how to turn it off. The
- * run that prints the notice (the "notice run") sends nothing itself; `telemetry/index.ts` only
- * stores a deferred scaffold and the project link on it. There are two notices: the first one for
- * an install that has never seen one, and a second, shorter one about dependency names for an
- * install that saw the original version 1 notice before that data was collected.
- *
- * `notice.json` records the outcome. A run takes the notice by writing it as a pending claim (its
- * own `claimId`) before printing, so a concurrent run neither prints it again nor counts it as
- * seen. The claim is settled when the run ends (`settleNotice`, from the Telemetry layer's
- * finalizer): if the output carrying the notice reached the user, the file becomes a plain record
- * of when it was shown; if not, the claim is withdrawn so a later run shows it again. In `--json`
- * mode the notice rides in the result object, so it counts as delivered only once that result is
- * written.
+ * Owns delivery of the telemetry privacy notices. A claim keeps concurrent invocations from
+ * displaying the same notice.
  */
 import { Clock, Effect, Option } from "effect";
 import type { Consent } from "../schemas/telemetry";
 import type { Output } from "../services/output";
-import { directory, Notice, read, remove, type Storage, timestamp, uuid, write } from "./storage";
+import {
+  claimStaleness,
+  directory,
+  Notice,
+  read,
+  remove,
+  type Storage,
+  timestamp,
+  uuid,
+  write,
+} from "./storage";
 
 /** The notice version this CLI shows; an older recorded version owes the second notice. */
 const NOTICE_VERSION = 2;
-/** A pending claim untouched this long belongs to a run that never settled it. */
-const STALE_CLAIM_MS = 600_000;
 
 /**
- * What `showNotice` found. `shown` marks a notice run, which sends nothing. `claimId` is set when
+ * `isNoticeRun` covers a due notice even without an `Output`. `claimId` is set when
  * this run holds a pending claim it must settle, with `previous` the record the claim replaced.
  */
 export type NoticeOutcome = {
-  shown: boolean;
+  isNoticeRun: boolean;
   claimId: string | undefined;
   previous: typeof Notice.Type | undefined;
 };
 
 /** No notice is due on this run. */
-export const NO_NOTICE: NoticeOutcome = { shown: false, claimId: undefined, previous: undefined };
-const SHOWN_WITHOUT_CLAIM: NoticeOutcome = {
-  shown: true,
+export const NO_NOTICE: NoticeOutcome = {
+  isNoticeRun: false,
+  claimId: undefined,
+  previous: undefined,
+};
+const NOTICE_WITHOUT_CLAIM: NoticeOutcome = {
+  isNoticeRun: true,
   claimId: undefined,
   previous: undefined,
 };
@@ -55,7 +53,7 @@ const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
   output: Output["Service"],
   text: string,
 ) {
-  yield* directory(store, store.root);
+  yield* directory(store, ".");
   yield* recoverNotice(store);
   const claimId = yield* uuid;
   const created = yield* Effect.result(
@@ -71,8 +69,8 @@ const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
     ),
   );
   if (created._tag === "Failure") return undefined;
-  yield* output.notice(text);
-  if (yield* output.noticeDelivered) {
+  yield* output.showNotice(text);
+  if (yield* output.didDeliverNotice) {
     yield* write(store, "notice.json", settledRecord(yield* timestamp));
     return undefined;
   }
@@ -85,8 +83,8 @@ const owesSecondNotice = (notice: typeof Notice.Type) =>
 
 /**
  * Prints the second notice when the recorded notice is an older version. The claim id carries a
- * `second:` prefix, which `consent.ts` reads to keep counting this install as notified while the
- * claim is pending.
+ * `second:` prefix tells `noticeAcknowledged` the first notice already counts while the update
+ * is pending.
  */
 const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
   store: Storage,
@@ -104,13 +102,13 @@ const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
       claimId,
     }),
   );
-  if (claimed._tag === "Failure") return SHOWN_WITHOUT_CLAIM;
-  yield* output.notice(text);
-  if (yield* output.noticeDelivered) {
+  if (claimed._tag === "Failure") return NOTICE_WITHOUT_CLAIM;
+  yield* output.showNotice(text);
+  if (yield* output.didDeliverNotice) {
     yield* write(store, "notice.json", settledRecord(shown.value.noticeShownAt));
-    return SHOWN_WITHOUT_CLAIM;
+    return NOTICE_WITHOUT_CLAIM;
   }
-  return { shown: true, claimId, previous: shown.value };
+  return { isNoticeRun: true, claimId, previous: shown.value };
 });
 
 /**
@@ -130,13 +128,13 @@ export const showNotice = Effect.fn("telemetry.showNotice")(function* (input: {
     if (output !== undefined) return yield* notifySecond(store, output, input.secondText);
     const previous = yield* read(store, "notice.json", Notice).pipe(Effect.option);
     return Option.isSome(previous) && owesSecondNotice(previous.value)
-      ? SHOWN_WITHOUT_CLAIM
+      ? NOTICE_WITHOUT_CLAIM
       : NO_NOTICE;
   }
   if (reason !== "not_notified") return NO_NOTICE;
-  if (output === undefined) return SHOWN_WITHOUT_CLAIM;
+  if (output === undefined) return NOTICE_WITHOUT_CLAIM;
   return {
-    shown: true,
+    isNoticeRun: true,
     claimId: yield* claimNotice(store, output, input.firstText),
     previous: undefined,
   };
@@ -156,7 +154,7 @@ export const settleNotice = Effect.fn("telemetry.settleNotice")(function* (
   if (!claimId || output === undefined) return;
   const current = yield* read(store, "notice.json", Notice).pipe(Effect.option);
   if (Option.isNone(current) || current.value.claimId !== claimId) return;
-  if (yield* output.noticeDelivered) {
+  if (yield* output.didDeliverNotice) {
     yield* write(
       store,
       "notice.json",
@@ -188,8 +186,7 @@ const recoverNotice = Effect.fn("telemetry.recoverNotice")(function* (store: Sto
   const stat = yield* store.fs.stat(target).pipe(Effect.option);
   if (Option.isNone(stat)) return;
   const now = yield* Clock.currentTimeMillis;
-  const modified = Option.getOrElse(stat.value.mtime, () => new Date(now)).getTime();
-  if (now - modified <= STALE_CLAIM_MS) return;
+  if (claimStaleness(now, stat.value.mtime) === "fresh") return;
   const observed = yield* read(store, "notice.json", Notice).pipe(Effect.option);
   if (Option.isSome(observed) && !observed.value.pending) return;
   // Move the marker aside atomically, then check that what moved is the marker that was read.

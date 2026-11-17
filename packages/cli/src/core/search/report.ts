@@ -1,19 +1,10 @@
 /**
- * Renders a search result as the text `stacks search` prints for the human and agent audiences.
- *
- * `commands/search.ts` calls `renderSearch` with the merged result from `run.ts::search`; `--json`
- * prints the result itself instead. The text has three parts: notices (why ranking was local,
- * whether anything fit), one block per hit with the reasons it matched and its evidence, and the
- * `Next:` lines that tell an agent what to run. Every value that came from an entry or the API
- * passes through `text.ts::printable`, so a hit can't send terminal control characters.
- *
- * The `Next:` advice names only a trusted entry, because using an untrusted one needs a person to
- * accept it (`.claude/rules/architecture.md`, "Trust model", point 3), and asks the agent to
- * confirm with the user when nothing matched strongly.
+ * Renders search results and next actions for text audiences. Use `printable` to escape terminal
+ * controls in names, summaries, matched phrases, caveats and evidence.
  */
 import type { SearchHit, SearchResult } from "@steamfield/stacks-format";
-import { printable } from "../text";
-import { wrap } from "../wrap";
+import { printable } from "../text/text";
+import { wrap } from "../text/wrap";
 
 const localReasons = {
   offline: "offline",
@@ -39,7 +30,6 @@ function reasons(hit: SearchHit): string {
     .join("; ");
 }
 
-/** The stats and last-run evidence on one line, or empty when the hit has neither. */
 function evidenceText(hit: SearchHit, statsPopulation: SearchResult["statsPopulation"]): string {
   const { stats, lastRun } = hit.evidence;
   const seeded = statsPopulation === "seeded development data" ? ", seeded" : "";
@@ -61,7 +51,6 @@ function penaltiesLine(hit: SearchHit): string {
   return `Penalties: ${penalties.join(", ")}`;
 }
 
-/** The first line of a hit: kind, id, the display name for humans, its tier and trust. */
 function headline(hit: SearchHit, human: boolean): string {
   const name = human ? ` · ${printable(hit.name)}` : "";
   const trust = hit.trusted ? "" : ", untrusted";
@@ -101,7 +90,10 @@ function fragmentFirst(result: SearchResult): SearchResult["fragments"][number] 
     : undefined;
 }
 
-/** The `Next:` lines: add a fragment, start from a stack, ask the user, or search again. */
+/**
+ * Recommend trusted entries because using an untrusted one needs the user's approval
+ * (trust point 3). Ask the user to confirm the fit when `noStrongMatch` is set.
+ */
 function next(result: SearchResult, invocation: string): string {
   const recovery = [
     `Next: ${invocation} list stacks`,
@@ -123,7 +115,6 @@ function next(result: SearchResult, invocation: string): string {
   ].join("\n");
 }
 
-/** The paragraphs before the hits, each followed by a blank line. */
 function notices(result: SearchResult, empty: boolean): string[] {
   const reason = result.remoteReason;
   return [

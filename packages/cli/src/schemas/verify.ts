@@ -1,13 +1,6 @@
 /**
- * The shapes of what `stacks verify --json` prints: the result on stdout and the live events on
- * stderr.
- *
- * Verify runs the steps in the project's manifest (`.stacks/manifest.json`), the project's
- * definition of done, and reports whether the project is green. Before any step runs, it checks
- * that the steps haven't changed since the project was made ("Trust model" point 5 in
- * `.claude/rules/architecture.md`); `VerifyChange` says what differs when they have.
- * `core/verify/run.ts` builds the result (`core/verify/tamper.ts` for a `changed` run) and
- * `core/verify/events.ts` writes the events.
+ * Defines the verify report and live events. `VerifyChange` describes the difference found by
+ * `checkTamper` (trust point 5).
  */
 import {
   FailureKind,

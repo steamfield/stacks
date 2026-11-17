@@ -1,20 +1,6 @@
 /**
- * When someone runs `stacks new <stack>`, this module builds the project on disk.
- *
- * A stack is a recipe for a whole new project, and fragments are reusable additions (CI, git
- * hooks, a database) layered onto it. `commands/new.ts` parses the flags and calls `scaffold`,
- * which composes the stack with its fragments (`compose/compose.ts`), checks the target directory
- * (`scaffold/target.ts`) and asks git where it stands (`scaffold/git.ts`). It then renders every
- * file in memory, including the brief (`.stacks/BRIEF.md`, the task text for the coding agent) and
- * the manifest (`.stacks/manifest.json`, the committed record of what was composed and how to
- * verify it). The result returns to `commands/new.ts`, which prints it and hands the project to an
- * agent.
- *
- * Nothing is written until everything has rendered, so a dry run (`--dry-run`) stops right before
- * the writer. The writes happen in a fixed order: the entry files and the rest of `.stacks/`, then
- * the manifest, then the state record (a file outside the project holding the verify digests),
- * then `git init`. Any failure from the first write on rolls all of it back. No command from any
- * entry runs here (Trust model point 1). Start at `scaffold`.
+ * Builds a new project from a composition (trust point 1). Rendering finishes before `openProject`,
+ * so preview and real runs use the same rendered plan.
  */
 import type { AgentId, Manifest } from "@steamfield/stacks-format";
 import { Effect, Exit, FileSystem, Option, Path } from "effect";
@@ -39,19 +25,25 @@ import { targetAgents } from "../compose/agents";
 import { compose, dropFlags } from "../compose/compose";
 import { composeFilesWithNeutral, type RenderedFile } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
-import type { Composition } from "../compose/types";
+import type { Composition, MissingTool } from "../compose/types";
 import { fingerprintFromFiles } from "../fingerprint";
-import { type HandoffDecision, handoffRecord } from "../handoff";
-import { buildManifest, encodeManifest, MANIFEST_PATH } from "../manifest";
-import { removeProjectState, writeProjectState } from "../project-state";
+import {
+  decideHandoff,
+  type HandoffDecision,
+  type HandoffPreferences,
+  settleHandoff,
+} from "../handoff/decide";
+import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
+import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
+import { newPreset } from "../project/preset";
+import { removeProjectState, writeProjectState } from "../project/state";
+import { templateOverrides, templateValues } from "../project/template-values";
+import { openProject, type ProjectWriter } from "../project/writer";
 import { DEFAULT_PAYLOAD, type Payload } from "../registry/entry";
-import { slug } from "../slug";
-import { hasControl } from "../text";
+import { slug } from "../text/slug";
+import { hasControl } from "../text/text";
 import { fillMarkers } from "./fill";
-import { type GitProbe, gitInit, gitInstalled, probeGit } from "./git";
 import { inspectTarget } from "./target";
-import { templateOverrides, templateValues } from "./values";
-import { openProject, type ProjectWriter } from "./write";
 
 export type NewOptions = {
   stack: string;
@@ -64,44 +56,72 @@ export type NewOptions = {
   without: ReadonlyArray<string>;
   sandbox: boolean;
   preset?: NewPreset;
-  /** `--payload`; absent is the stack's example. */
   payload?: Payload;
-  /** `--own-repo`: inside another repository, give the project its own. */
   ownRepo?: boolean;
   yes: boolean;
   agents: ReadonlyArray<AgentId> | undefined;
-  /** `--scope`, as given. */
   scope: string | undefined;
-  /**
-   * The handoff for the composed project, given the ids of its untrusted entries; decided before
-   * anything is written, so the manifest records it in the one write.
-   */
-  handoff: (untrusted: ReadonlyArray<string>) => HandoffDecision;
+  handoff: HandoffPreferences;
 };
 
-/** What `new` wrote or planned, and the handoff the command carries out next. */
-type Scaffolded = {
+export type Scaffolded = {
   result: Omit<NewResult, "handoff">;
   decision: HandoffDecision;
   manifest: Manifest;
   composition: Composition;
 };
 
-/** One file to write: rendered entry files and the fixed `.stacks/` files alike. */
 type PlannedFile = Pick<RenderedFile, "path" | "bytes" | "executable">;
 
-/** What a failed `git init` changed: its exit code and the brief rewritten without git. */
 type GitInitFailure = { exitCode: number; brief: Brief };
 
-const encoder = new TextEncoder();
+type NewResultInput = Pick<
+  Scaffolded["result"],
+  "project" | "dryRun" | "fingerprint" | "preset" | "payload" | "written" | "stateRecord"
+> & {
+  composition: Composition;
+  brief: Brief;
+  git: GitProbe;
+  gitFailure: GitInitFailure | undefined;
+  missing: ReadonlyArray<MissingTool>;
+};
 
-/**
- * Explicit flags (including `--sandbox`), then the setting, then default. Lean composes and
- * records as default, minus the default fragments.
- */
-function scaffoldPreset(options: NewOptions, setting: NewOptions["preset"]): NewPreset {
-  return options.preset ?? (options.sandbox ? "sandbox" : (setting ?? "default"));
+function newResult(input: NewResultInput): Scaffolded["result"] {
+  const { composition, git, gitFailure } = input;
+  const brief = gitFailure?.brief ?? input.brief;
+  const warnings: Array<NewResult["warnings"][number]> = [
+    ...composition.warnings,
+    ...(git.warning ? [git.warning] : []),
+  ];
+  if (gitFailure)
+    warnings.push({ code: "git_init_failed", id: "git", exitCode: gitFailure.exitCode });
+
+  return {
+    project: input.project,
+    dryRun: input.dryRun,
+    fingerprint: input.fingerprint,
+    stack: composition.stack.id,
+    fragments: composition.fragments.map((fragment) => fragment.id),
+    preset: input.preset,
+    payload: input.payload,
+    agents: [...composition.agents],
+    written: input.written,
+    brief: BRIEF_PATH,
+    briefWords: brief.briefWords,
+    fixedWords: brief.fixedWords,
+    missingTools: input.missing.map(({ tool, owners, drop }) => ({
+      tool,
+      owners: [...owners],
+      drop,
+    })),
+    untrusted: [...composition.untrusted],
+    warnings,
+    git: gitFailure ? "none" : git.state.kind,
+    stateRecord: input.stateRecord,
+  };
 }
+
+const encoder = new TextEncoder();
 
 /**
  * `--own-repo` inside another work tree: the target becomes its own fresh repository. The target
@@ -146,24 +166,27 @@ const composeProject = (input: {
   preset: NewPreset;
   payload: Payload;
   settings: Settings;
-}) =>
-  compose({
+}) => {
+  const { preset } = input;
+  const lean = preset === "lean";
+  return compose({
     stack: input.options.stack,
     with: input.options.with,
     without: input.options.without,
-    preset: input.preset === "lean" ? "default" : input.preset,
-    lean: input.preset === "lean",
+    preset: lean ? "default" : preset,
+    lean,
     payload: input.payload,
     agents: targetAgents(input.options.agents, input.settings),
     always: input.settings.always ?? [],
     mode: "new",
   });
+};
 
 /**
  * Refuses fragments that need their own repository when the target sits inside another one. A
  * repository rooted at the target is the project's own, so it can hold them.
  */
-const checkOwnRepo = (composition: Composition, git: GitProbe) =>
+const checkScaffoldRepository = (composition: Composition, git: GitProbe) =>
   Effect.gen(function* () {
     if (git.state.kind !== "parent" || git.own || !composition.needsOwnRepo.length) return;
     const owners = composition.needsOwnRepo.map((id) => ({ kind: "fragment" as const, id }));
@@ -181,7 +204,6 @@ const checkOwnRepo = (composition: Composition, git: GitProbe) =>
     });
   });
 
-/** The manifest for the composition, with the name, fingerprint and handoff filled in. */
 const projectManifest = (input: {
   composition: Composition;
   name: string;
@@ -191,16 +213,14 @@ const projectManifest = (input: {
 }) =>
   Effect.gen(function* () {
     const built = yield* buildManifest(input.composition, { briefWords: input.briefWords });
-    // Outside the step digest (Trust model point 5), so filling it changes no digest.
-    return {
-      ...built,
-      name: input.name,
-      fingerprint: input.fingerprint,
-      handoff: handoffRecord(input.decision, built.createdAt),
-    } satisfies Manifest;
+    return settleHandoff(
+      { ...built, name: input.name, fingerprint: input.fingerprint },
+      input.decision,
+      built.createdAt,
+    );
   });
 
-/** Writes the entry files and `.stacks/`, with the manifest after everything else. */
+/** Write the manifest last among project files. */
 const writeFiles = Effect.fn("scaffold.writeFiles")(function* (
   writer: ProjectWriter,
   files: ReadonlyArray<PlannedFile>,
@@ -244,8 +264,9 @@ const initializeGit = Effect.fn("scaffold.initializeGit")(function* (
 }, Effect.scoped);
 
 /**
- * Writes the project in one scope: the files, then the state record, then `git init`. Any failure
- * or interruption rolls back everything written so far, in reverse.
+ * Write project files, then the state record, then initialize git within one scope. A later
+ * failure or interruption rolls back earlier writes through `openProject` and the state
+ * record's `removeProjectState` release.
  */
 const writeProject = (input: {
   dir: string;
@@ -277,27 +298,22 @@ const writeProject = (input: {
     }),
   );
 
-/**
- * `new`: compose, check the target, render every file in memory, then write the entry files and
- * `.stacks/` through the safe writer and `git init` a fresh target. Runs nothing from any entry
- * (Trust model point 1). Any failure or interruption after the first write rolls every write
- * back. A dry run stops after rendering, before opening the writer.
- */
+/** Scaffold from entry data alone (trust point 1). Previews stop before `openProject`. */
 export const scaffold = (options: NewOptions) =>
   Effect.gen(function* () {
     const host = yield* Host;
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
 
     const overrides = yield* templateOverrides(options);
     const { dir, name } = yield* projectLocation(options, host.cwd);
-    const preset = scaffoldPreset(options, settings.preset);
+    const preset = newPreset(options, settings.preset);
     const payload = options.payload ?? DEFAULT_PAYLOAD;
     const composition = yield* composeProject({ options, preset, payload, settings });
 
     const target = yield* inspectTarget(dir);
     const installed = yield* gitInstalled;
     const git = ownRepository(yield* probeGit(target, installed), options.ownRepo);
-    yield* checkOwnRepo(composition, git);
+    yield* checkScaffoldRepository(composition, git);
 
     const missing = yield* missingToolsOnPath(composition);
 
@@ -323,7 +339,11 @@ export const scaffold = (options: NewOptions) =>
         invocation: host.invocation,
       });
     const brief = renderFor(git.state);
-    const decision = options.handoff(composition.untrusted.map((entry) => entry.id));
+    const decision = decideHandoff({
+      ...options.handoff,
+      dryRun: options.dryRun,
+      untrusted: composition.untrusted.map((entry) => entry.id),
+    });
     const manifest = yield* projectManifest({
       composition,
       name,
@@ -344,37 +364,18 @@ export const scaffold = (options: NewOptions) =>
           initGit: git.init,
           briefWithoutGit: () => renderFor({ kind: "none" }),
         });
-    const { gitFailure } = outcome;
-    const finalBrief = gitFailure?.brief ?? brief;
-    const warnings: Array<NewResult["warnings"][number]> = [
-      ...composition.warnings,
-      ...(git.warning ? [git.warning] : []),
-    ];
-    if (gitFailure)
-      warnings.push({ code: "git_init_failed", id: "git", exitCode: gitFailure.exitCode });
-
-    const result = {
+    const result = newResult({
       project: dir,
       dryRun: options.dryRun,
       fingerprint: contentFingerprint,
-      stack: composition.stack.id,
-      fragments: composition.fragments.map((fragment) => fragment.id),
       preset,
       payload,
-      agents: [...composition.agents],
       written,
-      brief: BRIEF_PATH,
-      briefWords: finalBrief.briefWords,
-      fixedWords: finalBrief.fixedWords,
-      missingTools: missing.map((item) => ({
-        tool: item.tool,
-        owners: [...item.owners],
-        drop: [...item.drop],
-      })),
-      untrusted: [...composition.untrusted],
-      warnings,
-      git: gitFailure ? "none" : git.state.kind,
-      stateRecord: outcome.stateRecord,
-    } satisfies Scaffolded["result"];
+      composition,
+      brief,
+      missing,
+      git,
+      ...outcome,
+    });
     return { result, decision, manifest, composition } satisfies Scaffolded;
   });

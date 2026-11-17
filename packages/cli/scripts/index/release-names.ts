@@ -3,12 +3,11 @@ import {
   type Kind,
   type NamedComposition,
   type OfficialNames,
-  type StackMeta,
 } from "@steamfield/stacks-format";
 import { Console, Effect, FileSystem, Path, Schema } from "effect";
 import { parseDocument } from "yaml";
 import { compose } from "../../src/core/compose/compose";
-import { decodeEntry, type Entry, isStack, splitFrontmatter } from "../../src/core/registry/entry";
+import { decodeEntry, isStack, type Stack, splitFrontmatter } from "../../src/core/registry/entry";
 import { Registry } from "../../src/core/registry/registry";
 import { releaseTags, withReleaseRegistry } from "./history";
 
@@ -53,9 +52,7 @@ const releaseKindIds = Effect.fn("index.releaseKindIds")(function* (root: string
   return { ids, degraded };
 });
 
-const stackCompositions = Effect.fn("index.releaseCompositions")(function* (
-  stack: Entry & { meta: StackMeta },
-) {
+const stackCompositions = Effect.fn("index.releaseCompositions")(function* (stack: Stack) {
   const compositions: NamedComposition[] = [];
   for (const extra of [[], ...stack.meta.fragments.optional.map((id) => [id])]) {
     const composed = yield* compose({

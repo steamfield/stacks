@@ -1,9 +1,4 @@
-/**
- * The shape of what `stacks update --json` prints. `update` compares this copy's version with the
- * latest on npm (`core/update/update.ts`). `status` picks the shape: `up-to-date` or `ahead` need
- * nothing, `available` names how this copy was installed and the command that would upgrade it,
- * and `updated` means a global npm install was upgraded in place.
- */
+/** Defines the `update --json` result for each install outcome. */
 import { Schema } from "effect";
 import { NoticeFields } from "./notice";
 

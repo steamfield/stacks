@@ -1,15 +1,6 @@
 /**
- * Decides whether this run may collect telemetry, and if not, why.
- *
- * The answer is a reason (`Consent`): `enabled`, or the first rule that turned telemetry off.
- * `stacks telemetry` shows the reason to the user, so the order of the checks below is behavior:
- * the user's own opt-outs (`--no-telemetry`, `--offline`, `DO_NOT_TRACK`,
- * `STACKS_TELEMETRY_DISABLED`, the settings file) win over the facts about this build and machine
- * (CI, a source build, no endpoint, an unwritable state directory), and the one-time notice
- * comes last, because a run that hasn't shown it yet sends nothing.
- *
- * `telemetry/index.ts` calls `consent` before every record and flush. `standingOff` tells it which
- * reasons keep telemetry off for good, so anything already queued is deleted.
+ * Decides whether an invocation may collect telemetry. The order matters because status reports
+ * the first applicable reason.
  */
 import { Effect, Option } from "effect";
 import type { AppConfig } from "../config";
@@ -25,7 +16,10 @@ const STANDING_REASONS: ReadonlyArray<Consent> = ["do_not_track", "environment",
  */
 export const standingOff = (reason: Consent) => STANDING_REASONS.includes(reason);
 
-/** Works through the consent rules in order and returns the first reason that applies. */
+/**
+ * Opt-outs take precedence over build or machine limitations so status explains the user's
+ * choice. Notice eligibility comes last because it only matters on a run that could send.
+ */
 export const consent = Effect.fn("telemetry.consent")(function* (input: {
   config: AppConfig["Service"];
   store: Storage;
@@ -36,7 +30,7 @@ export const consent = Effect.fn("telemetry.consent")(function* (input: {
   if (yield* config.offline) return "offline";
   if (config.telemetry.doNotTrack) return "do_not_track";
   if (config.telemetry.disabled) return "environment";
-  const settings = yield* Effect.result(config.settings);
+  const settings = yield* Effect.result(config.readSettingsFile);
   if (settings._tag === "Failure") return "config_invalid";
   if (settings.success.telemetry === false) return "config";
   if (config.ci) return "ci";
@@ -49,7 +43,7 @@ export const consent = Effect.fn("telemetry.consent")(function* (input: {
 
 /** Proves the telemetry directory is writable by creating it and a scratch directory inside it. */
 const stateWritable = (store: Storage) =>
-  directory(store, store.root).pipe(
+  directory(store, ".").pipe(
     Effect.andThen(Effect.scoped(store.fs.makeTempDirectoryScoped({ directory: store.root }))),
     Effect.result,
     Effect.map((attempt) => attempt._tag === "Success"),

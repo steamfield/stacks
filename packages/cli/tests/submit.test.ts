@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
-import { skeleton } from "../src/core/create-text";
+import { skeleton } from "../src/core/create/text";
 import { ErrorEnvelope } from "../src/errors";
 import { SubmitResult } from "../src/schemas/submit";
 import { runCli, tempDir } from "./helpers/cli";

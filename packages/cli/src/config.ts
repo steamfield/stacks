@@ -1,45 +1,46 @@
 /**
- * The CLI's configuration: the one module that reads environment variables, plus the user's
- * `config.json` settings, served to every command through the `AppConfig` service.
- *
- * `runtime.ts::AppLayer` builds the service once per invocation (from the live environment in
- * `bin.ts`, from a test's own record in `tests/helpers/cli.ts`). The layer copies the environment
- * once and every later read uses that copy, including `childEnv`, which builds the whole
- * environment of each child process the CLI starts, so nothing is inherited behind the CLI's back.
- *
- * Every field is lazy and read on its own. That matters because `stacks doctor` and `--version`
- * must still work when `config.json` is broken: building the layer never opens the file, and
- * `paths`, `logging` and `color` never touch it. Only `get` and `settings` read and decode it, and
- * they fail with `InvalidConfig` for the command that asked. An unknown `LOG_LEVEL` falls back to
- * `warn` rather than failing.
- *
- * It also owns agent detection: `AgentMarkers` lists the environment variables coding agents set
- * in their shells, and `AppConfig.agent` picks the agent output audience and refuses
- * confirmations under an agent (Trust model point 4). Verify strips those markers and the CLI's
- * own `STACKS_*` settings from a step's environment (`AGENT_MARKER_NAMES`, `CLI_SETTING_NAMES`).
+ * Owns environment and settings reads. Settings are lazy so a broken `config.json` leaves
+ * diagnostics and version output available.
  */
 import { homedir } from "node:os";
 import { AgentId, type DetectedAgent } from "@steamfield/stacks-format";
-import { Config, ConfigProvider, Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
+import { Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
+import { type Build, SOURCE_BUILD } from "./build";
+import {
+  CONFIG_FILENAME,
+  DEFAULT_CACHE_HOME,
+  DEFAULT_CONFIG_HOME,
+  DEFAULT_DATA_HOME,
+  DEFAULT_LOG_FILE,
+  DEFAULT_LOG_FORMAT,
+  DEFAULT_LOG_LEVEL,
+  DEFAULT_STATE_HOME,
+  SLUG,
+  TELEMETRY_DIRNAME,
+} from "./constants";
+import { defined } from "./core/object";
+import { AgentMarkers, CLI_ENV } from "./env-names";
 import { InvalidConfig } from "./errors";
-import { Settings } from "./schemas";
-import { SLUG } from "./version";
+import { Settings } from "./schemas/config";
 export type Environment = Record<string, string | undefined>;
 export type Paths = {
+  /** `HOME`, then the OS home directory. */
   home: string;
+  /** `config.json` under `user`. */
   config: string;
+  /** `STACKS_DATA_DIR`, then `stacks` under `XDG_DATA_HOME` or `home/.local/share`. */
   data: string;
+  /** `stacks` under `XDG_CACHE_HOME`, falling back to `home/.cache`. */
   cache: string;
-  /**
-   * Out-of-project state, such as project state records: STACKS_STATE_DIR, else
-   * `$XDG_STATE_HOME/stacks/`.
-   */
+  /** `STACKS_STATE_DIR`, then `stacks` under `XDG_STATE_HOME` or `home/.local/state`. */
   state: string;
-  /** The user registry root, beside config.json: `$XDG_CONFIG_HOME/stacks/`. */
+  /** The `telemetry` directory under `state`. */
+  telemetry: string;
+  /** `stacks` under `XDG_CONFIG_HOME`, falling back to `home/.config`. */
   user: string;
   /**
-   * STACKS_REGISTRY_DIR as given: replaces `Host.registry` as the bundled root when set.
-   * `registry.ts::bundledRoot` resolves it against `Host.cwd`.
+   * `STACKS_REGISTRY_DIR` as given, or absent to use `Host.registry`.
+   * `bundledRoot` resolves it against `Host.cwd`.
    */
   registry?: string;
 };
@@ -49,98 +50,15 @@ export type LogSettings = {
   file: string;
   noColor: boolean;
 };
-/**
- * One agent session marker: the environment variable `name`, set and non-empty (and equal to
- * `equals` when given), means `agent`; `"by-value"` reads the agent from the value itself.
- * `confirmed` is the date the marker was last checked against the agent's documentation; no
- * marker has been checked yet, so none carries it.
- */
-const AgentMarker = Schema.Struct({
-  name: Schema.String.check(Schema.isPattern(/^[A-Z][A-Z0-9_]*$/, { expected: "a variable name" })),
-  agent: Schema.Union([AgentId, Schema.Literal("by-value")]),
-  equals: Schema.optionalKey(Schema.String),
-  confirmed: Schema.optionalKey(
-    Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/, { expected: "a date" })),
-  ),
-});
-type AgentMarker = typeof AgentMarker.Type;
-const marker = (name: string, agent: AgentMarker["agent"], equals?: string) => ({
-  name,
-  agent,
-  ...(equals === undefined ? {} : { equals }),
-});
-/**
- * Agent detection's markers, checked in order; the first match wins. `AI_AGENT` is the
- * cross-agent convention: its value is matched by prefix against the known ids, and any other
- * non-empty value is `"other"`. Cursor's trace id variable isn't here because its integrated
- * terminal sets it for people too.
- */
-export const AgentMarkers: ReadonlyArray<AgentMarker> = Schema.decodeUnknownSync(
-  Schema.Array(AgentMarker),
-)([
-  marker("CLAUDECODE", "claude"),
-  marker("CLAUDE_CODE", "claude"),
-  marker("CODEX_SANDBOX", "codex"),
-  marker("CODEX_CI", "codex"),
-  marker("CODEX_THREAD_ID", "codex"),
-  marker("OPENCODE", "opencode"),
-  marker("OPENCODE_CLIENT", "opencode"),
-  marker("CURSOR_AGENT", "cursor"),
-  marker("CURSOR_EXTENSION_HOST_ROLE", "cursor", "agent-exec"),
-  marker("AI_AGENT", "by-value"),
-]);
-/**
- * Every marker variable, once each: `childEnv`'s `remove` list for a verify step, so a project's
- * own tools don't think they run under an agent.
- */
-export const AGENT_MARKER_NAMES: ReadonlyArray<string> = [
-  ...new Set(AgentMarkers.map((item) => item.name)),
-];
-/** CLI settings, shared by their readers and verify's child-environment removal list. */
-const CLI_ENV = {
-  logLevel: "LOG_LEVEL",
-  dataDir: "STACKS_DATA_DIR",
-  stateDir: "STACKS_STATE_DIR",
-  registryDir: "STACKS_REGISTRY_DIR",
-  logFormat: "STACKS_LOG_FORMAT",
-  logFile: "STACKS_LOG_FILE",
-  offline: "STACKS_OFFLINE",
-  telemetryDisabled: "STACKS_TELEMETRY_DISABLED",
-  telemetryDebug: "STACKS_TELEMETRY_DEBUG",
-  telemetryUrl: "STACKS_TELEMETRY_URL",
-  indexUrl: "STACKS_INDEX_URL",
-  devApiUrl: "STACKS_DEV_API_URL",
-} as const;
-/**
- * The settings verify removes from a step's environment. `LOG_LEVEL` stays: projects read the same
- * name for their own logging, and a person running `LOG_LEVEL=debug stacks verify` means it for them.
- */
-export const CLI_SETTING_NAMES: ReadonlyArray<string> = Object.values(CLI_ENV).filter(
-  (name) => name !== CLI_ENV.logLevel,
-);
-/**
- * The variables that point git at a repository, work tree, index or object store instead of
- * letting it discover one from its working directory: `childEnv`'s `remove` list for the CLI's
- * own git calls. A git hook or alias exports `GIT_DIR` (and a pre-commit hook `GIT_INDEX_FILE`),
- * so `new` run from one would otherwise inspect or initialize the caller's repository. The
- * discovery limits (`GIT_CEILING_DIRECTORIES`, `GIT_DISCOVERY_ACROSS_FILESYSTEM`) select nothing
- * and stay, as do settings such as `GIT_CONFIG_GLOBAL`.
- */
-export const GIT_REPOSITORY_VARIABLES: ReadonlyArray<string> = [
-  "GIT_DIR",
-  "GIT_WORK_TREE",
-  "GIT_INDEX_FILE",
-  "GIT_OBJECT_DIRECTORY",
-  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-  "GIT_COMMON_DIR",
-  "GIT_NAMESPACE",
-  "GIT_QUARANTINE_PATH",
-];
-/** The agent `env` names, by `AgentMarkers` in order; a blank value counts as unset. */
-export function detectAgent(env: Environment): DetectedAgent {
+const envFrom = (captured: Environment) => (key: string) =>
+  Object.hasOwn(captured, key) ? captured[key] || undefined : undefined;
+
+/** Reads markers in priority order for the audience and person-only gates (trust point 4). */
+export function detectAgent(captured: Environment): DetectedAgent {
+  const env = envFrom(captured);
   for (const item of AgentMarkers) {
-    const value = env[item.name];
-    if (!value) continue;
+    const value = env(item.name);
+    if (value === undefined) continue;
     if (item.equals !== undefined && value !== item.equals) continue;
     if (item.agent !== "by-value") return item.agent;
     const named = value.toLowerCase();
@@ -148,16 +66,6 @@ export function detectAgent(env: Environment): DetectedAgent {
   }
   return "none";
 }
-/** A config provider over `env` with blank values removed, so a blank variable reads as unset. */
-function provider(env: Environment) {
-  return ConfigProvider.layer(
-    ConfigProvider.fromEnvRecord(
-      Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v !== "")),
-    ),
-  );
-}
-const text = (key: string, fallback = "") => Config.String(key).pipe(Config.withDefault(fallback));
-
 const LOG_LEVELS: Readonly<Record<string, LogSettings["level"]>> = {
   trace: "Trace",
   debug: "Debug",
@@ -167,24 +75,25 @@ const LOG_LEVELS: Readonly<Record<string, LogSettings["level"]>> = {
   fatal: "Fatal",
   none: "None",
 };
-/** A `LOG_LEVEL` value, matched without case; anything unknown is `Warn`. */
-function logLevel(value: string): LogSettings["level"] {
+/** A case-insensitive `LOG_LEVEL` value, with `DEFAULT_LOG_LEVEL` for missing or unknown values. */
+function logLevel(value: string | undefined): LogSettings["level"] {
+  if (value === undefined) return DEFAULT_LOG_LEVEL;
   const name = value.toLowerCase();
   // Own keys only: `constructor` or `__proto__` would otherwise read Object.prototype.
-  return (Object.hasOwn(LOG_LEVELS, name) ? LOG_LEVELS[name] : undefined) ?? "Warn";
+  return (Object.hasOwn(LOG_LEVELS, name) ? LOG_LEVELS[name] : undefined) ?? DEFAULT_LOG_LEVEL;
 }
 
 /** An opt-out variable is on when set to anything but blank, `0` or `false`. */
 const switchedOff = (value: string | undefined) =>
-  value !== undefined && !["", "0", "false"].includes(value);
+  value !== undefined && value !== "0" && value !== "false";
 
 /**
  * The hosted API URL: `STACKS_DEV_API_URL` when it is a plain http(s) loopback URL in a source
  * build (no credentials, query or fragment), else the build's default.
  */
 function apiUrlFor(value: string, build: Build): string | undefined {
-  const { releaseBuild, defaultApiUrl } = build;
-  if (releaseBuild || !URL.canParse(value)) return defaultApiUrl;
+  const { releaseBuild, officialApiUrl } = build;
+  if (releaseBuild || !URL.canParse(value)) return officialApiUrl;
   const url = new URL(value);
   const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
   return loopback &&
@@ -194,7 +103,7 @@ function apiUrlFor(value: string, build: Build): string | undefined {
     !url.search &&
     !url.hash
     ? url.href
-    : defaultApiUrl;
+    : officialApiUrl;
 }
 
 /** A child's whole environment: what was captured, minus `remove`, plus `set`. */
@@ -207,45 +116,44 @@ const childEnvFrom =
     return { ...env, ...set };
   };
 
-/** Facts fixed when the CLI is built: bin supplies them; source builds and tests use `SOURCE_BUILD`. */
-export type Build = { releaseBuild: boolean; defaultApiUrl: string | undefined };
-export const SOURCE_BUILD: Build = { releaseBuild: false, defaultApiUrl: undefined };
-function configLayer(env: Environment | undefined, build: Build) {
+function configLayer(environment: Environment | undefined, build: Build) {
   // Copied when the layer is created, so later changes to the live environment aren't seen.
-  const captured = { ...(env ?? process.env) };
+  const captured = { ...(environment ?? process.env) };
+  const env = envFrom(captured);
   return Layer.effect(
     AppConfig,
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      // Every variable read has a default, so a failure here is a bug rather than bad input.
-      const read = <A>(program: Config.Config<A>) =>
-        program.pipe(Effect.provide(provider(captured)), Effect.orDie);
-      const paths = Effect.gen(function* () {
-        const home = yield* read(text("HOME", homedir()));
-        const xdg = (key: string, ...fallback: string[]) =>
-          read(text(key, path.join(home, ...fallback)));
-        const config = yield* xdg("XDG_CONFIG_HOME", ".config");
-        const data = yield* read(
-          text(CLI_ENV.dataDir, path.join(yield* xdg("XDG_DATA_HOME", ".local", "share"), SLUG)),
+      const paths = Effect.sync((): Paths => {
+        const home = env("HOME") ?? homedir();
+        const user = path.join(
+          env("XDG_CONFIG_HOME") ?? path.join(home, DEFAULT_CONFIG_HOME),
+          SLUG,
         );
-        const cache = path.join(yield* xdg("XDG_CACHE_HOME", ".cache"), SLUG);
-        const state = yield* read(
-          text(CLI_ENV.stateDir, path.join(yield* xdg("XDG_STATE_HOME", ".local", "state"), SLUG)),
-        );
-        const registry = yield* read(text(CLI_ENV.registryDir));
-        return {
-          config: path.join(config, SLUG, "config.json"),
+        const config = path.join(user, CONFIG_FILENAME);
+        const data =
+          env(CLI_ENV.dataDir) ??
+          path.join(env("XDG_DATA_HOME") ?? path.join(home, DEFAULT_DATA_HOME), SLUG);
+        const cache = path.join(env("XDG_CACHE_HOME") ?? path.join(home, DEFAULT_CACHE_HOME), SLUG);
+        const state =
+          env(CLI_ENV.stateDir) ??
+          path.join(env("XDG_STATE_HOME") ?? path.join(home, DEFAULT_STATE_HOME), SLUG);
+        const telemetry = path.join(state, TELEMETRY_DIRNAME);
+        const registry = env(CLI_ENV.registryDir);
+        return defined({
+          config,
           home,
           data,
           cache,
           state,
-          user: path.join(config, SLUG),
-          ...(registry ? { registry } : {}),
-        };
+          telemetry,
+          user,
+          registry,
+        });
       });
       // A missing file is no settings; any read, parse or decode failure is InvalidConfig.
-      const settings = Effect.gen(function* () {
+      const readSettingsFile = Effect.gen(function* () {
         const locations = yield* paths;
         const exists = yield* fs.exists(locations.config);
         if (!exists) return {};
@@ -256,54 +164,58 @@ function configLayer(env: Environment | undefined, build: Build) {
         });
         return yield* Schema.decodeUnknownEffect(Settings, { onExcessProperty: "error" })(unknown);
       }).pipe(Effect.mapError(() => new InvalidConfig()));
-      const get = yield* Effect.cached(
+      const settings = yield* Effect.cached(
         Effect.gen(function* () {
           const locations = yield* paths;
-          const file = yield* settings;
-          const override = yield* read(text(CLI_ENV.dataDir));
+          const file = yield* readSettingsFile;
+          const override = env(CLI_ENV.dataDir);
           return { ...file, dataDir: override || file.dataDir || locations.data };
         }).pipe(Effect.mapError(() => new InvalidConfig())),
       );
-      const logging = Effect.gen(function* () {
-        const level = logLevel(yield* read(text(CLI_ENV.logLevel, "warn")));
-        const format = yield* read(text(CLI_ENV.logFormat));
-        return {
-          level,
-          format: format === "json" ? ("json" as const) : ("human" as const),
-          file: yield* read(text(CLI_ENV.logFile)),
-          noColor: Boolean(yield* read(text("NO_COLOR"))),
-        };
-      });
+      const noColor = env("NO_COLOR") !== undefined;
+      const logging = Effect.sync(
+        (): LogSettings => ({
+          level: logLevel(env(CLI_ENV.logLevel)),
+          format: env(CLI_ENV.logFormat) === "json" ? "json" : DEFAULT_LOG_FORMAT,
+          file: env(CLI_ENV.logFile) ?? DEFAULT_LOG_FILE,
+          noColor,
+        }),
+      );
+      const indexUrl = env(CLI_ENV.indexUrl);
       // `--offline` and `--no-telemetry` set these per invocation, on top of the environment.
       let offlineFlag = false;
       let telemetryFlag = false;
       return {
-        get,
         settings,
+        readSettingsFile,
         paths,
         releaseBuild: build.releaseBuild,
         telemetry: {
-          doNotTrack: switchedOff(captured.DO_NOT_TRACK),
-          disabled: switchedOff(captured[CLI_ENV.telemetryDisabled]),
-          debug: captured[CLI_ENV.telemetryDebug] === "1",
-          url: captured[CLI_ENV.telemetryUrl] || undefined,
+          doNotTrack: switchedOff(env("DO_NOT_TRACK")),
+          disabled: switchedOff(env(CLI_ENV.telemetryDisabled)),
+          debug: env(CLI_ENV.telemetryDebug) === "1",
         },
+        telemetryUrl: env(CLI_ENV.telemetryUrl) ?? build.officialTelemetryUrl,
         noTelemetry: Effect.sync(() => telemetryFlag),
         setNoTelemetry: (value: boolean) =>
           Effect.sync(() => {
             telemetryFlag = value;
           }),
         logging,
+        // Children receive captured blank values unchanged.
         childEnv: childEnvFrom(captured),
         agent: Effect.sync(() => detectAgent(captured)),
         color: Effect.succeed({
-          noColor: Boolean(captured.NO_COLOR),
-          forceColor: captured.FORCE_COLOR === "1",
+          noColor,
+          forceColor: env("FORCE_COLOR") === "1",
         }),
+        // CI is a presence check, including when it is set to an empty string.
         ci: captured.CI !== undefined,
-        indexUrl: read(text(CLI_ENV.indexUrl)).pipe(Effect.map((url) => url || undefined)),
-        apiUrl: read(text(CLI_ENV.devApiUrl)).pipe(Effect.map((value) => apiUrlFor(value, build))),
-        offline: Effect.sync(() => offlineFlag || captured[CLI_ENV.offline] === "1"),
+        indexUrl: Effect.succeed(indexUrl),
+        officialIndexUrl: build.officialIndexUrl,
+        remoteIndexUrl: Effect.succeed(indexUrl ?? build.officialIndexUrl),
+        apiUrl: Effect.sync(() => apiUrlFor(env(CLI_ENV.devApiUrl) ?? "", build)),
+        offline: Effect.sync(() => offlineFlag || env(CLI_ENV.offline) === "1"),
         setOffline: (value: boolean) =>
           Effect.sync(() => {
             offlineFlag = value;
@@ -313,24 +225,27 @@ function configLayer(env: Environment | undefined, build: Build) {
   );
 }
 /**
- * The invocation's configuration. `get` is the file's settings with environment defaults
- * applied, read once and cached; `settings` rereads the file each time.
+ * `settings` applies invocation defaults and caches the result. `readSettingsFile` decodes the
+ * current file without defaults so telemetry can recheck consent and `saveSetting` can write it.
  */
 export class AppConfig extends Context.Service<
   AppConfig,
   {
     releaseBuild: boolean;
-    telemetry: { doNotTrack: boolean; disabled: boolean; debug: boolean; url: string | undefined };
+    telemetry: { doNotTrack: boolean; disabled: boolean; debug: boolean };
+    telemetryUrl: string | undefined;
     noTelemetry: Effect.Effect<boolean>;
     setNoTelemetry: (value: boolean) => Effect.Effect<void>;
+    /** The configured override, which disables hosted stats even if it matches the official URL. */
     indexUrl: Effect.Effect<string | undefined>;
+    officialIndexUrl: string | undefined;
+    remoteIndexUrl: Effect.Effect<string | undefined>;
     /** The hosted API: the build's default, or a loopback development endpoint in a source build. */
     apiUrl: Effect.Effect<string | undefined>;
     offline: Effect.Effect<boolean>;
     setOffline: (value: boolean) => Effect.Effect<void>;
-    get: Effect.Effect<Settings, InvalidConfig>;
-    /** Current file settings, without environment defaults; consent is rechecked before sending. */
     settings: Effect.Effect<Settings, InvalidConfig>;
+    readSettingsFile: Effect.Effect<Settings, InvalidConfig>;
     paths: Effect.Effect<Paths>;
     logging: Effect.Effect<LogSettings>;
     color: Effect.Effect<{ noColor: boolean; forceColor: boolean }>;

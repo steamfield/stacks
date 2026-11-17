@@ -22,7 +22,7 @@ import { Duration, Effect, Exit, Schema } from "effect";
 import { afterAll, beforeEach, expect, test } from "vitest";
 import { type Entry, isRejected } from "../src/core/registry/entry";
 import { Registry } from "../src/core/registry/registry";
-import { BUDGET } from "../src/core/validate/budget";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { ComposeConflictDetails } from "../src/errors";
 import { NewResult } from "../src/schemas/new";
 import { BriefPreview } from "../src/schemas/validate";

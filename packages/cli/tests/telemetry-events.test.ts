@@ -27,6 +27,7 @@ import { AddResult } from "../src/schemas/add";
 import { NewResult } from "../src/schemas/new";
 import { ShowReport } from "../src/schemas/show";
 import { VerifyResult } from "../src/schemas/verify";
+import { Telemetry } from "../src/telemetry";
 import { VERSION } from "../src/version";
 import { ndjson } from "./helpers/cli";
 import { minimal, writeEntry } from "./helpers/registry";
@@ -38,8 +39,6 @@ import {
   spooled,
   type TelemetryServer,
   telemetryCli,
-  telemetryLayer,
-  telemetryModule,
   telemetryRoot,
   telemetryServer,
   workspace,
@@ -698,15 +697,15 @@ test.each([
       durationMs: name === "test" ? ms : 0,
     })),
   });
-  const { Telemetry } = await import(telemetryModule);
   // The real service consumes the public RunRecord; the parser cannot produce 10-minute steps
   // deterministically without waiting. No process or telemetry service is replaced here.
   const program = Effect.gen(function* () {
     const telemetry = yield* Telemetry;
     yield* telemetry.recordVerify(record);
     yield* telemetry.flush;
-  }).pipe(Effect.provide(await telemetryLayer({ home, cwd: root, env: env() })));
-  await Effect.runPromise(program);
+  });
+  const result = await telemetryCli([], { home, env: env(), host: { cwd: root }, program });
+  expect(result).toEqual({ status: 0, stdout: "", stderr: "" });
   const events = server.events().filter((event) => event.type === "verify");
   expect(events).toHaveLength(1);
   const event = Schema.decodeUnknownSync(TelemetryVerifyEventV3, { onExcessProperty: "error" })(

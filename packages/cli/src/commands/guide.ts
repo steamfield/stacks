@@ -1,16 +1,8 @@
-/**
- * The `guide` command and `guide author`: print the text a coding agent reads to learn how to use
- * stacks, and the guide to writing new stacks and fragments.
- *
- * Running `stacks` with no subcommand prints the same agent guide (`cli.ts` calls `printGuide`). The
- * text itself comes from `core/guide.ts`; this file picks which text each audience gets. A person at
- * a terminal gets an extra opening line and text wrapped to the terminal width; an agent gets the
- * guide unwrapped.
- */
+/** Renders the CLI usage and authoring guides. */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command } from "effect/cli";
 import { AUTHOR_TOPICS, authorGuide, guideCommands, guideText, humanLead } from "../core/guide";
-import { wrap } from "../core/wrap";
+import { wrap } from "../core/text/wrap";
 import { GuideAuthorResult, GuideResult } from "../schemas/guide";
 import { Host } from "../services/host";
 import { Output } from "../services/output";

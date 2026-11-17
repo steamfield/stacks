@@ -4,7 +4,7 @@ import { it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { countWords } from "../src/core/brief/words";
-import { BUDGET } from "../src/core/validate/budget";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { BriefPreview, type Finding, ValidateReport } from "../src/schemas/validate";
 import { quiet, runCli, tempDir, terminal, writeError } from "./helpers/cli";
 import { spawnGit } from "./helpers/git";
@@ -1336,6 +1336,33 @@ test("--brief takes --with as a comma list and --without, like new", async () =>
     "one",
     "two",
   ]);
+});
+
+test.each([
+  {
+    flag: "--with",
+    list: "one,two",
+    spaced: "one, two",
+    selected: ["extra", "helper", "one", "two"],
+  },
+  { flag: "--without", list: "helper,extra", spaced: "helper, extra", selected: [] },
+])("--brief $flag composes the same brief with spaces after commas", async (row) => {
+  const root = temp();
+  stack(root, "base", "fragments:\n  default: [helper, extra]\n  optional: [one, two]");
+  for (const id of ["helper", "extra", "one", "two"]) fragment(root, id);
+  const args = [root, "--brief", "base", "--json", row.flag];
+  const decode = Schema.decodeUnknownSync(BriefPreview);
+
+  const compact = await run([...args, row.list]);
+  expect(compact.status, compact.stderr).toBe(0);
+  expect(compact.stderr).toBe("");
+  const preview = decode(JSON.parse(compact.stdout), { onExcessProperty: "error" });
+  expect(preview.fragments).toEqual(row.selected);
+
+  const spaced = await run([...args, row.spaced]);
+  expect(spaced.status, spaced.stderr).toBe(0);
+  expect(spaced.stderr).toBe("");
+  expect(decode(JSON.parse(spaced.stdout), { onExcessProperty: "error" })).toEqual(preview);
 });
 
 test("control characters from an entry are escaped in human output [1.5#10]", async () => {

@@ -4,8 +4,8 @@ import { Effect, Layer, Option } from "effect";
 import { TestClock } from "effect/testing";
 import { expect, test, vi } from "vitest";
 import { AppConfig } from "../src/config";
-import { renderList } from "../src/core/list-report";
-import { wrap } from "../src/core/wrap";
+import { renderList } from "../src/core/list/report";
+import { wrap } from "../src/core/text/wrap";
 import { stringWidth } from "../src/platform/width";
 import { Host } from "../src/services/host";
 import { Output } from "../src/services/output";
@@ -75,13 +75,13 @@ test("wrap preserves tilde fences and shorter markers inside a longer fence", ()
 
 it.effect("live frames retain elapsed time within a narrow terminal", () => {
   const stderr: string[] = [];
-  const layer = Output.layer(
-    false,
-    async () => {},
-    async (text) => {
+  const layer = Output.layer({
+    jsonFlag: false,
+    stdout: async () => {},
+    stderr: async (text) => {
       stderr.push(text);
     },
-  ).pipe(
+  }).pipe(
     Layer.provide(AppConfig.memory({ NO_COLOR: "" })),
     Layer.provide(Host.memory({ ...terminal, columns: Option.some(20), stringWidth })),
     Layer.provide(NodeServices.layer),

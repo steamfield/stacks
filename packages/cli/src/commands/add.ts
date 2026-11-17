@@ -1,30 +1,30 @@
-/**
- * Defines `stacks add <fragment...>`: its flags and help text, and the steps from parsed flags to
- * a printed result.
- *
- * A fragment is a reusable addition (CI, git hooks, a database) for an existing project. This
- * handler turns the flags into options, asks a person to pick fragments when none were named and
- * a terminal is there (`core/prompting.ts::pickAdd`), and calls `core/add.ts::add` to do the work.
- * The printing and the handoff (launching or pointing a coding agent at the project) go through
- * `completeHandoff` in `commands/handoff.ts`, the flow `new` shares.
- *
- * The registry (where entries are found) is built for the `--dir` project rather than the current
- * directory, so that project's own entries count in the picker, the add and the telemetry event.
- * Telemetry is recorded once the handoff is settled, so the event says what really happened.
- */
+/** Handles `stacks add` and records telemetry after the handoff settles. */
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { add } from "../core/add";
+import { type Added, add } from "../core/add/index";
 import { renderAdd } from "../core/add/report";
-import { type HandoffDecision, handoffRecord } from "../core/handoff";
-import { pickAdd, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
-import { Registry, remoteRoots } from "../core/registry/registry";
+import type { AddOptions } from "../core/add/types";
+import { type SettledHandoff, settleHandoff } from "../core/handoff/decide";
+import { handoffResult, renderHandoff } from "../core/handoff/render";
+import {
+  annotateHandoff,
+  handoffContext,
+  launchHandoff,
+  prepareHandoff,
+  printLaunch,
+  resolveChoice,
+} from "../core/handoff/run";
+import { pickAdd, promptingAllowed, runningCommand } from "../core/prompting";
+import { Registry } from "../core/registry/registry";
+import { projectRoots } from "../core/registry/roots";
 import { Usage } from "../errors";
-import { INCOMING, METADATA_DIR } from "../project-layout";
+import { INCOMING } from "../project-layout";
 import { AddResult } from "../schemas/add";
 import { Host } from "../services/host";
+import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
-import { completeHandoff, prepareHandoff, projectFlags } from "./handoff";
+import type { TelemetrySource } from "../telemetry/events";
+import { type ExactProjectOptions, projectFlags, replayProjectFlags } from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
 
@@ -43,17 +43,23 @@ const addFlags = {
 
 type AddFlags = Command.Command.Config.Infer<typeof addFlags>;
 
-type Added = Effect.Success<ReturnType<typeof add>>;
+const addReplayNames = {
+  source: null,
+  fragments: null,
+  dir: "dir",
+  sandbox: "sandbox",
+  yes: "yes",
+  agents: "agents",
+  launch: "launch",
+  noLaunch: "no-launch",
+} satisfies Record<keyof AddFlags, string | null>;
 
 /**
  * Builds the registry `add` uses for the picker, the add and its telemetry, so all three see the
  * `--dir` project's own entries rather than the current directory's.
  */
 const projectRegistry = Effect.fn("add.projectRegistry")(function* (project: string) {
-  const path = yield* Path.Path;
-  const roots = (yield* remoteRoots).map((entry) =>
-    entry.origin === "project" ? { ...entry, path: path.join(project, METADATA_DIR) } : entry,
-  );
+  const roots = yield* projectRoots(project);
   return yield* Registry.pipe(Effect.provide(Registry.layer(roots)));
 });
 
@@ -68,83 +74,75 @@ const chooseFragments = Effect.fn("add.chooseFragments")(function* (
 ) {
   if (flags.fragments.length) return flags.fragments;
   const picked = yield* pickAdd(project).pipe(Effect.provideService(Registry, registry));
-  if (picked.length) yield* runningCommand(["add", ...picked, ...replayAddFlags(flags)]);
+  if (picked.length)
+    yield* runningCommand(["add", ...picked, ...replayProjectFlags(addReplayNames, flags)]);
   return picked;
 });
 
-function replayAddFlags(flags: AddFlags) {
-  return replayFlags({
-    dir: Option.getOrUndefined(flags.dir),
-    sandbox: flags.sandbox,
-    yes: flags.yes,
-    agents: flags.agents,
-    launch: Option.getOrUndefined(flags.launch),
-    "no-launch": flags.noLaunch,
-  });
-}
-
 /** Records the `add` telemetry event with the settled handoff, then flushes the spool. */
-const recordAdd =
-  (input: {
-    telemetry: Telemetry["Service"];
-    registry: Registry["Service"];
-    added: Added;
-    source: Effect.Success<ReturnType<typeof sourceValue>>;
-  }) =>
-  (settled: HandoffDecision) => {
-    const { manifest, composition } = input.added;
-    return input.telemetry
-      .recordScaffold(
-        {
-          type: "add",
-          manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
-          without: [],
-          source: input.source,
-          steps: officialSteps(composition),
-        },
-        input.registry,
-      )
-      .pipe(Effect.andThen(input.telemetry.flush));
-  };
+const recordAdd = Effect.fn("add.recordTelemetry")(function* (input: {
+  telemetry: Telemetry["Service"];
+  registry: Registry["Service"];
+  added: Added;
+  decision: SettledHandoff;
+  source: TelemetrySource;
+}) {
+  const { manifest, composition } = input.added;
+  yield* input.telemetry.recordScaffold(
+    {
+      type: "add",
+      manifest: settleHandoff(manifest, input.decision, manifest.createdAt),
+      without: [],
+      source: input.source,
+      steps: officialSteps(composition),
+    },
+    input.registry,
+  );
+  yield* input.telemetry.flush;
+});
 
 export const addCommand = Command.make("add", addFlags, (flags) =>
   Effect.gen(function* () {
     const host = yield* Host;
     const path = yield* Path.Path;
     const { json } = yield* root;
-    const source = yield* sourceValue(flags.source);
-    if (!flags.fragments.length && !(yield* promptingAllowed)) return yield* new Usage();
-    const handoff = yield* prepareHandoff(flags, json);
+    const { source: sourceInput, dir, launch, noLaunch, fragments: requested, ...parsed } = flags;
+    const source = yield* sourceValue(sourceInput);
+    if (!requested.length && !(yield* promptingAllowed)) return yield* new Usage();
+    const preferences = yield* prepareHandoff({ launch, noLaunch }, json);
     const project = path.resolve(
       host.cwd,
-      Option.getOrElse(flags.dir, () => "."),
+      Option.getOrElse(dir, () => "."),
     );
     const registry = yield* projectRegistry(project);
     const fragments = yield* chooseFragments(flags, project, registry);
     if (!fragments.length) return;
-    const added = yield* add({
+    const options = {
+      ...parsed,
       root: project,
       fragments,
-      sandbox: flags.sandbox,
-      yes: flags.yes,
-      agents: flags.agents.length ? flags.agents : undefined,
-      handoff,
-    }).pipe(Effect.provideService(Registry, registry));
-    const { result, decision, manifest } = added;
+      handoff: preferences,
+    };
+    const added = yield* add(
+      options satisfies ExactProjectOptions<typeof options, AddOptions>,
+    ).pipe(Effect.provideService(Registry, registry));
+    const { result, manifest } = added;
     const telemetry = yield* Telemetry;
-    yield* completeHandoff({
-      project: result.project,
-      agent: manifest.agents[0],
-      untrusted: result.untrusted,
-      decision,
-      beforeHandoff: recordAdd({ telemetry, registry, added, source }),
-      render: (context) =>
-        renderAdd(
-          { ...result, untrusted: context.untrusted },
-          { ...context, invocation: host.invocation },
-        ),
-      encode: (handoff) => Schema.encodeSync(AddResult)({ ...result, handoff }),
-    });
+    const output = yield* Output;
+    const context = yield* handoffContext(result.project, manifest.agents[0], result.untrusted);
+    const summary = renderAdd({ ...result, untrusted: context.untrusted }, context);
+    const { decision, prefix } = yield* resolveChoice(added.decision, result.project, summary);
+    yield* recordAdd({ telemetry, registry, added, decision, source });
+    yield* annotateHandoff(decision);
+    if (decision.kind !== "launch") {
+      const handoff = handoffResult(decision, context.invocation);
+      return yield* output.result(
+        Schema.encodeSync(AddResult)({ ...result, handoff }),
+        `${prefix}${renderHandoff(decision, context)}`,
+      );
+    }
+    yield* printLaunch(decision, context.shown, prefix);
+    yield* launchHandoff(decision, result.project, context);
   }).pipe(recordCommandError("add")),
 ).pipe(
   Command.withDescription(

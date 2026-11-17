@@ -1,15 +1,6 @@
 /**
- * The one place the CLI spawns, signals and probes processes through Node's process APIs (Bun
- * implements the same `node:child_process` and `process.kill`).
- *
- * `services/processes.ts` builds the `Processes` service on these and is the only module outside
- * `platform/` allowed to import this file; `platform/signals.ts` uses the kill helpers for the
- * signal policy. A process group is a process plus everything it starts; signaling the negative
- * of the leader's pid reaches all of them, which is how a step's grandchildren get stopped too.
- *
- * These functions report failure as values (`false`, or an errno in the error channel) instead of
- * throwing, because their callers run inside signal handlers and finalizers where a throw would
- * cut cleanup short.
+ * Adapts Node process creation and signaling. Failures are returned as values so a signal
+ * handler or finalizer can finish its cleanup.
  */
 import { spawn } from "node:child_process";
 import { constants } from "node:os";
@@ -31,10 +22,8 @@ export type Child = {
   readonly running: () => boolean;
 };
 /**
- * One invocation's live processes, shared by the Processes service and bin.ts's signal policy:
- * the process groups started and not yet seen gone (SIGKILLed before a forced exit), the
- * interactive child holding the terminal, if any, and a callback the policy sets to hear when
- * that child is gone.
+ * Tracks started groups until they are seen gone and the interactive child until it releases the
+ * terminal. The callback lets `installSignalPolicy` react when the child releases it.
  */
 export type ProcessHolder = {
   readonly groups: Set<number>;

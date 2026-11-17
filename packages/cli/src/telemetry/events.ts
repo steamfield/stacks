@@ -1,17 +1,6 @@
 /**
- * Turns what a command did into the body of a telemetry event, keeping out anything that could
- * identify a person or a private entry.
- *
- * Each telemetry event is an envelope (event id, install id, CLI version, platform, agent, time)
- * plus a body that depends on its type: `new` and `add` (a project was scaffolded or extended),
- * `show`, `error` and `verify`. The shapes are `TelemetryEventV3` from `@steamfield/stacks-format`,
- * a wire contract with the server, so a field here changes only with that schema. This module
- * builds the bodies as pure functions; `telemetry/index.ts` adds the envelope and validates the
- * whole event against the schema before it is queued.
- *
- * The privacy rule is in `official` and `publicId`: only an entry that is both trusted and from
- * the bundled registry or the signed remote index is reported by id. Every other id becomes
- * `custom`, and verify step names the CLI didn't write itself are reported as `custom` too.
+ * Builds telemetry event bodies against the published wire contract. `official` and `publicId`
+ * govern which entry ids may be included.
  */
 import type {
   EntryRef,
@@ -23,8 +12,11 @@ import type {
   TelemetryNewEvent,
   TelemetryVerifyEventV3,
 } from "@steamfield/stacks-format";
+import { defined } from "../core/object";
 import type { Entry } from "../core/registry/entry";
 import type { Project } from "./storage";
+
+export type TelemetrySource = TelemetryNewEvent["source"];
 
 /**
  * What `new` or `add` hands to telemetry: the manifest it wrote, the default fragments left out,
@@ -34,7 +26,7 @@ export type ScaffoldFacts = {
   type: "new" | "add";
   manifest: Manifest;
   without: readonly EntryRef[];
-  source?: TelemetryNewEvent["source"];
+  source?: TelemetrySource;
   steps: readonly string[];
 };
 export type ShowFacts = Pick<Entry, "kind" | "id" | "origin" | "trusted">;
@@ -87,7 +79,7 @@ export function scaffoldEvent(input: ScaffoldFacts) {
   const { manifest } = input;
   const entries = [...(manifest.stack ? [manifest.stack] : []), ...manifest.fragments];
   const origin = officialOrigin(entries);
-  return {
+  return defined({
     type: input.type,
     stack: manifest.stack ? publicId(manifest.stack) : "custom",
     fragments: [...manifest.fragments]
@@ -97,13 +89,13 @@ export function scaffoldEvent(input: ScaffoldFacts) {
     preset: manifest.preset,
     targetAgents: manifest.agents,
     handoff: manifest.handoff?.kind ?? "print",
-    ...(input.source === undefined ? {} : { source: input.source }),
-    ...(origin === undefined ? {} : { origin }),
+    source: input.source,
+    origin,
     nonOfficial: nonOfficialCounts(entries),
     ...(entries.every(official) && manifest.fingerprint
       ? { fingerprint: manifest.fingerprint }
       : {}),
-  };
+  });
 }
 
 /** Error tags reported by name; any other tag is reported as `other`. */
@@ -144,14 +136,14 @@ function durationBucket(ms: number): TelemetryVerifyEventV3["steps"][number]["du
 
 /** One verify step as reported: names the CLI didn't compose become `custom`. */
 function stepFacts(step: RunStep, known: ReadonlySet<string>) {
-  return {
+  return defined({
     name: known.has(step.name) ? step.name : "custom",
     phase: step.phase,
-    ...(step.layer === undefined ? {} : { layer: step.layer }),
+    layer: step.layer,
     status: step.status,
-    ...(step.failureKind === undefined ? {} : { failureKind: step.failureKind }),
+    failureKind: step.failureKind,
     duration: durationBucket(step.durationMs),
-  };
+  });
 }
 
 /** Seconds from an ISO time to a millisecond clock reading, never negative. */
@@ -171,7 +163,7 @@ export function verifyEvent(
   asked?: number,
 ) {
   const known = new Set(project?.steps ?? []);
-  return {
+  return defined({
     type: "verify" as const,
     scope: record.scope,
     outcome: record.outcome,
@@ -180,7 +172,7 @@ export function verifyEvent(
     stepsChanged: project
       ? record.steps.filter((step) => !known.has(step.name)).length
       : record.steps.length,
-    ...(asked === undefined ? {} : { asked }),
+    asked,
     secondsSinceScaffold: project
       ? secondsSince(project.scaffoldedAt, now)
       : record.secondsSinceCreated,
@@ -193,7 +185,7 @@ export function verifyEvent(
           ),
         }
       : {}),
-  };
+  });
 }
 
 /** Each field's downstream use; docs/reference/telemetry.md carries the same table. */

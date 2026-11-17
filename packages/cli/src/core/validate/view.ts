@@ -1,9 +1,6 @@
 /**
- * Small helpers every `stacks validate` check uses to place a finding: which entries sit under the
- * validated root, an entry's path relative to that root, and the finding constructor itself.
- *
- * `index.ts` and `preview.ts` build a `View`'s `inRoot` and `file` with `rootPaths`; the check
- * modules call `finding` and `entryFile`. Paths in findings always use `/`, whatever the platform.
+ * Builds root-relative finding locations and finding values. Report paths use slash separators on
+ * every platform.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import type { Path } from "effect";
@@ -20,7 +17,6 @@ export function rootPaths(path: Path.Path, root: string): Pick<View, "inRoot" | 
   };
 }
 
-/** A finding about one entry. */
 export function finding(
   entry: { kind: Kind; id: string },
   fields: Omit<Finding, "kind" | "entry">,

@@ -1,29 +1,15 @@
 /**
- * Checks, before `stacks verify` runs anything, that the project's verify steps are still the
- * ones that were recorded when the project was made (Trust model, point 5).
- *
- * The steps live in `.stacks/manifest.json`, inside the project, where an agent could edit a
- * failing check into `true`. So the CLI keeps two digests (sha256 fingerprints) of them: one in
- * the manifest itself (`verifyDigest`) and one in the state record, a file outside the project
- * under `Paths.state` that the agent's edits to the project don't reach. `checkTamper` digests the
- * steps again and compares in this order: with the manifest's own digest, then with the state
- * record for the manifest's `projectId`. With no record under that id, it looks for a record
- * holding this manifest's real path, and finding one counts as a change: the `projectId` changed
- * while the path stayed (an edited id, or another project's manifest copied over this one). A
- * project copied to a new directory keeps its id, so the by-id lookup finds the original's record. With no record at all, the check is `manifest-only`, which still runs
- * but can't count as a full check.
- *
- * `commands/verify.ts` calls `checkTamper` right after reading the manifest. A change stops the
- * run (`changedResult` builds its report) until a person at a terminal runs `--accept-changes`,
- * which `acceptChanges` carries out; the command refuses it under an agent (Trust model, point 4).
+ * Owns `checkTamper` (trust point 5) and persists acceptance after `requireConfirmation`
+ * (trust point 4). The state record is outside the project so editing the manifest cannot
+ * rewrite both digests.
  */
-import type { Manifest, TamperCheck } from "@steamfield/stacks-format";
-import { Clock, Effect, FileSystem, Path } from "effect";
+import type { Manifest } from "@steamfield/stacks-format";
+import { Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
 import { type InvalidConfig, PermissionDenied } from "../../errors";
 import { MANIFEST_PATH } from "../../project-layout";
-import type { VerifyChange, VerifyResult } from "../../schemas/verify";
-import { digestSettings, digestStep, digestSteps, encodeManifest } from "../manifest";
+import type { VerifyChange } from "../../schemas/verify";
+import { digestSettings, digestStep, digestSteps, encodeManifest } from "../project/manifest";
 import {
   type FoundState,
   findProjectState,
@@ -32,28 +18,20 @@ import {
   projectStateFor,
   projectStatePath,
   replaceProjectState,
-} from "../project-state";
-import { openProject } from "../scaffold/write";
-import { isAppStep, secondsSinceCreated, skippedStep, type VerifyPlan } from "./plan";
+} from "../project/state";
+import { openProject } from "../project/writer";
 
-/**
- * The tamper check's finding. `record` is the state record for the manifest's `projectId`, the one
- * a run updates; `stale` is a record found only by the manifest's real path, under another id.
- */
-export type Tamper = {
-  tamperCheck: TamperCheck;
-  changed?: VerifyChange;
-  record?: FoundState;
-  stale?: FoundState;
-  /** The manifest's real path, as a state record holds it. */
-  manifestPath: string;
-};
+/** Only an id match supplies the current record. A path match under an old id proves a change. */
+export type Tamper = { manifestPath: string } & (
+  | { tamperCheck: "full"; record: FoundState; stale?: never; changed?: VerifyChange }
+  | { tamperCheck: "full"; record?: never; stale: FoundState; changed: VerifyChange }
+  | { tamperCheck: "manifest-only"; record?: never; stale?: never; changed?: VerifyChange }
+);
 
-const CHANGED = "not run: the verify steps changed since they were recorded";
+export type ChangedTamper = Tamper & { changed: VerifyChange };
 
 const sorted = (names: Iterable<string>) => [...names].sort();
 
-/** Which steps and settings differ from a state record, by its per-step and settings digests. */
 function itemize(manifest: Manifest, state: ProjectState) {
   const now = new Map(manifest.verify.map((step) => [step.name, digestStep(step)]));
   const was = new Map(Object.entries(state.stepDigests));
@@ -68,20 +46,19 @@ function itemize(manifest: Manifest, state: ProjectState) {
     settings: digestSettings(manifest) !== state.settingsDigest,
   };
 }
-/** With no state record there is nothing to name the change from. */
+/** Without a recorded baseline, there are no prior steps or settings to itemize changes from. */
 const NOT_ITEMIZED = { removed: [], added: [], edited: [], settings: false };
 
 type RecordCheck = {
   manifest: Manifest;
   manifestPath: string;
-  /** The steps' digest as they are now. */
   digest: string;
   record: FoundState;
 };
 
 /**
- * Compared with the record for this `projectId`. `against` names the first copy that disagreed:
- * the manifest's own digest, else the record's. The change is itemized from the record either way.
+ * `against` reports a manifest digest mismatch first. The state record supplies the itemized
+ * changes regardless of which digest disagrees.
  */
 function checkAgainstRecord({ manifest, manifestPath, digest, record }: RecordCheck): Tamper {
   const manifestOk = digest === manifest.verifyDigest;
@@ -122,12 +99,11 @@ function manifestOnly(manifestPath: string, manifestOk: boolean): Tamper {
 }
 
 /**
- * The tamper check, before any step runs (Trust model, point 5). The manifest's steps are
- * digested again and compared with its own `verifyDigest`, then with the state record for its
- * `projectId`; with no record for that id, a record holding this manifest's real path is looked
- * for, and finding one is a change (`reason: "project-id"`). No record at all is `manifest-only`.
- * A record a newer stacks wrote fails `InvalidConfig`. What changed is named from the record's per-step
- * digests whenever there is a record, whichever copy disagreed.
+ * Check the manifest digest and the state baseline before steps run (trust point 5). Look up
+ * state by id first so moved or copied projects retain their baseline. Without an id match, a
+ * record at the same real path signals an id change, including a manifest copied over this one.
+ * With no record, an intact manifest digest permits a `manifest-only` run. A newer record fails
+ * as `InvalidConfig`.
  */
 export const checkTamper = (
   manifest: Manifest,
@@ -146,10 +122,7 @@ export const checkTamper = (
     return manifestOnly(manifestPath, digest === manifest.verifyDigest);
   });
 
-/**
- * The state record that accepts the steps as they are now. It keeps `createdAt` and the timing
- * fields of whichever record the check found, so accepting a change doesn't reset them.
- */
+/** Carry creation and timing fields forward so accepting new steps does not reset them. */
 function acceptedState(accepted: Manifest, original: Manifest, tamper: Tamper): ProjectState {
   const kept = tamper.record?.state ?? tamper.stale?.state;
   return {
@@ -161,12 +134,8 @@ function acceptedState(accepted: Manifest, original: Manifest, tamper: Tamper): 
 }
 
 /**
- * `--accept-changes`, once the caller has checked that a person at a terminal asked: records the
- * manifest's steps as they are now. The state record for the manifest's `projectId` is written
- * first (created when there is none), keeping `createdAt` and the timing fields of whichever
- * record was found; then the manifest's `verifyDigest`. The scope restores both files on failure.
- * A record found only by path, under another id, is removed last. The writes and rollback can't
- * be interrupted part way; an interrupt takes effect once they are done.
+ * After `requireConfirmation` (trust point 4), write the state baseline first and the manifest
+ * digest second, with both scoped for rollback. Remove a record found only under the old id last.
  */
 export const acceptChanges = (
   manifest: Manifest,
@@ -219,37 +188,8 @@ export const acceptChanges = (
   });
 
 /**
- * When the project was made, for `secondsSinceCreated`: the state record's `createdAt` (the one
- * for this id, else one found by path), since the manifest's is outside the digest and an agent
- * could move it; the manifest's only when there is no record.
+ * Prefer the state timestamp because an agent can edit the manifest's undigested timestamp.
+ * Use the manifest timestamp only when neither state lookup found a record.
  */
 export const createdAtOf = (manifest: Manifest, tamper: Tamper): string =>
   (tamper.record ?? tamper.stale)?.state.createdAt ?? manifest.createdAt;
-
-/**
- * The result of a run the tamper check stopped: every step skipped, nothing run (not even
- * teardown, since no setup ran). `started` is when the command began, from Clock.
- */
-export const changedResult = (
-  plan: VerifyPlan,
-  manifest: Manifest,
-  tamper: Tamper & { changed: VerifyChange },
-  started: number,
-): Effect.Effect<VerifyResult> =>
-  Effect.gen(function* () {
-    const ended = yield* Clock.currentTimeMillis;
-    const result: VerifyResult = {
-      outcome: "changed",
-      ...(plan.steps.some(isAppStep) ? { stages: { base: "changed", app: null } } : {}),
-      scope: plan.scope,
-      steps: plan.steps.map((step) => skippedStep(step, CHANGED)),
-      totals: { passed: 0, failed: 0, skipped: plan.steps.length },
-      durationMs: ended - started,
-      secondsSinceCreated: secondsSinceCreated(createdAtOf(manifest, tamper), ended),
-      tamperCheck: tamper.tamperCheck,
-      changed: tamper.changed,
-      firstGreen: false,
-      stateRecord: tamper.record !== undefined,
-    };
-    return result;
-  });

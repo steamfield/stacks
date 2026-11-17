@@ -1,14 +1,11 @@
 /**
- * Turns the result of `stacks new` into the text summary a person or an agent reads.
- *
- * `commands/new.ts` calls `renderNew` for the `human` and `agent` audiences (`--json` prints the
- * result object instead). `add/report.ts` reuses `warningLine` and `missingLine`, so both commands
- * describe a warning or a missing tool the same way.
+ * Renders the text summary for `stacks new`. Shared warnings and tool lines let `renderAdd`
+ * describe the same conditions consistently.
  */
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { collapsePaths } from "../brief/paths";
-import { printable } from "../text";
+import { printable } from "../text/text";
 
 /** Warnings the Git line already reports, so the Warnings list leaves them out. */
 const GIT_WARNINGS: ReadonlyArray<string> = ["git_init_failed", "git_unusable"];
@@ -26,7 +23,7 @@ const gitLine = (result: Pick<NewResult, "warnings" | "git" | "dryRun">) => {
   return "git not found; no repository";
 };
 
-/** One warning as a sentence; `new` and `add` share it, and an unknown code prints as data. */
+/** Render unknown warning codes as data. */
 export const warningLine = (warning: { code: string; id: string }) => {
   const id = printable(warning.id);
   switch (warning.code) {
@@ -50,7 +47,6 @@ export const warningLine = (warning: { code: string; id: string }) => {
   }
 };
 
-/** One missing tool, the entries that need it and the flags that would drop them. */
 export const missingLine = (item: NewResult["missingTools"][number]) => {
   const owners = item.owners.map((owner) => printable(owner.id)).join(", ");
   const skip = item.drop
@@ -62,11 +58,9 @@ export const missingLine = (item: NewResult["missingTools"][number]) => {
 };
 
 /**
- * `new`'s text summary: the stack, fragments, git, the brief, missing tools with their skip flags,
- * warnings and untrusted entries; `core/handoff.ts` renders the next step after it. A human also
- * gets the project's absolute path and the written files collapsed; an agent reads the files from
- * the brief and the disk; a dry run lists its planned files for both, since nothing is on disk.
- * Every value that came from an entry or the filesystem is escaped for the terminal.
+ * Humans get the absolute project path and collapsed file listing. Agents can inspect the brief and
+ * disk, but previews list planned files in both audiences because nothing was written.
+ * Use `printable` on entry ids and file listings to escape terminal controls.
  */
 export function renderNew(
   result: Omit<NewResult, "handoff">,

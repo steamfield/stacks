@@ -1,16 +1,4 @@
-/**
- * Writes a planned `stacks add` into the project as one all-or-nothing transaction.
- *
- * `core/add.ts` calls `applyAdd` with the plan from `add/plan.ts`, the merged manifest and the
- * rendered brief. Every write goes through `scaffold/write.ts::openProject`, which never
- * overwrites a file it didn't create unless asked to `rewrite` one, and rolls back everything on a
- * failure or Ctrl+C. The order matters: entry files and parked copies first, then the rest of
- * `.stacks/` and the brief, then the state record (the per-project file outside the project
- * holding verify digests), and the manifest last, the same order `stacks new` uses.
- * `.stacks/.gitignore` and `NOTES.md` are created only when missing; after that they belong to the
- * project. A path the writer refuses because something is already there fails as
- * `PermissionDenied` naming that path.
- */
+/** Applies an add plan as one transaction through `openProject`. */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 import { PermissionDenied } from "../../errors";
@@ -24,19 +12,19 @@ import {
   STATE_DIR,
 } from "../../project-layout";
 import type { Brief } from "../brief/types";
-import { encodeManifest } from "../manifest";
+import { denied } from "../fs/denied";
+import { encodeManifest } from "../project/manifest";
 import {
   projectStateFor,
   projectStatePath,
   replaceProjectState,
   warnUnwritten,
-} from "../project-state";
-import { openProject } from "../scaffold/write";
+} from "../project/state";
+import { openProject } from "../project/writer";
 import type { AddPlan } from "./plan";
 import type { AddProject } from "./project";
 
 const encoder = new TextEncoder();
-const denied = (path: string) => new PermissionDenied({ details: { reason: "write", path } });
 
 /**
  * Write the project's state record and say whether it was written. A project that has a manifest
@@ -69,7 +57,7 @@ const recordState = (
       Effect.as(true),
       Effect.catchTag("PlatformError", (error) =>
         project.previous
-          ? Effect.fail(denied(target))
+          ? Effect.fail(denied("write", target))
           : warnUnwritten(error, target).pipe(Effect.as(false)),
       ),
     );
@@ -80,10 +68,7 @@ const STARTER_METADATA: ReadonlyArray<readonly [string, string]> = [
   [NOTES_PATH, NOTES],
 ];
 
-/**
- * Every planned file write in path order: new project files are created, parked files are
- * created under incoming, and a JSON merge replaces the file already parked there.
- */
+/** Apply the new and parked file writes in path order, using `rewrite` only for a parked merge. */
 function fileOperations(plan: AddPlan) {
   return [
     ...plan.write.map((file) => ({
@@ -105,8 +90,10 @@ function fileOperations(plan: AddPlan) {
 }
 
 /**
- * Write the delta as one transaction: entry files, then `.stacks/` metadata and the brief, the
- * state record, and the manifest last. A failure rolls back everything the writer created.
+ * Write entry files and parked copies before the remaining `.stacks/` metadata and brief. Record
+ * state before the manifest. As in `scaffold`'s initial project write, the manifest comes last
+ * among project files so it describes a complete write. `openProject` and `replaceProjectState`
+ * undo their changes if the transaction fails or is interrupted.
  */
 export const applyAdd = (input: {
   root: string;

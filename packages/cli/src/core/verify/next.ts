@@ -1,28 +1,21 @@
 /**
- * The one sentence that tells an agent what to do after a verify run that isn't green.
- *
- * Agents loop on `stacks verify` until it's green, so this sentence steers that loop: fix the
- * code rather than the steps, install what the machine lacks, or ask a person to accept changed
- * steps. The wording follows the rules in the brief (`.stacks/BRIEF.md`). The same text appears
- * in two places: `report.ts` prints it as the report's `Next:` line, and `errors.ts` puts it in
- * the error envelope's `next` for `VerifyFailed` and `VerifyChanged`, so `--json` readers get the
- * step a person reads.
+ * Owns the next action shared by the verify report and error envelope so agents and people get the
+ * same instruction.
  */
 import type { FailureKind, Outcome } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../../project-layout";
 import type { VerifyResult } from "../../schemas/verify";
 
-/**
- * The fixed next action after a non-green verify run, worded as the brief's rules word it. `kinds`
- * are the run's failure kinds: a failed run where every one is `env` points at the machine instead
- * of the code. Green and interrupted runs have none. A run the tamper check stopped passes
- * `"changed"`. The report prints it as its `Next:` line; the error envelope carries it as `next`.
- */
-export function verifyNext(
+export type VerifyNextArgs = [
   outcome: Outcome | "changed",
   invocation: string,
-  kinds: ReadonlyArray<FailureKind> = [],
+  kinds?: ReadonlyArray<FailureKind>,
   stages?: VerifyResult["stages"],
+];
+
+/** Use the brief's wording for the shared next action. Green and interrupted runs have none. */
+export function verifyNext(
+  ...[outcome, invocation, kinds = [], stages]: VerifyNextArgs
 ): string | undefined {
   switch (outcome) {
     case "failed":
@@ -38,8 +31,9 @@ export function verifyNext(
 }
 
 /**
- * After a failed run: the machine when every failure is `env`, else the code. When only the app
- * stage failed, the agent is also pointed at the brief's application section.
+ * Point at the machine when every failure is `env`. Other failures point at the code or config
+ * the checks exercise so the agent keeps the checks intact. If only the app failed, also point
+ * at the brief's application section.
  */
 function failedNext(
   invocation: string,
@@ -57,8 +51,7 @@ function failedNext(
     : `fix the code or config these steps exercise, not the steps, then run ${invocation} verify again.`;
 }
 
-/** `verifyNext` as the report's `Next:` line. */
-export function nextLine(...args: Parameters<typeof verifyNext>): string | undefined {
+export function nextLine(...args: VerifyNextArgs): string | undefined {
   const next = verifyNext(...args);
   return next === undefined ? undefined : `Next: ${next}`;
 }

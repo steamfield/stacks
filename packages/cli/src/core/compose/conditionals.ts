@@ -1,28 +1,7 @@
-/**
- * Resolves the conditional blocks in an entry's markdown body for one composition.
- *
- * An entry (a stack or a fragment) can hold prose meant only for some compositions, such as a
- * paragraph that matters only when the `postgres` fragment is present or only under `--sandbox`:
- *
- *   <!-- stacks:when stack=go-cli,python-react preset=default -->
- *   ...
- *   <!-- stacks:end -->
- *
- * Commas are OR within a key, several keys are AND, blocks don't nest and each marker is alone on
- * its line. A matching block loses its marker lines; a non-matching block is removed whole.
- * Markers are found on every line, code fences included: an entry that shows a marker as an
- * example has to indent it or break its spelling. `stacks:fill` markers are a different thing
- * (text the agent replaces) and pass through untouched.
- *
- * `compose.ts` calls `resolveConditionals` on every composed body before the brief is rendered,
- * and again with `withFragment` to pull out the recipe notes `stacks add` shows. `validate` uses
- * `scanConditionals` to report malformed markers, and `brief/words.ts` uses `isConditionalMarker`
- * so marker lines don't count toward word budgets.
- */
+/** Scans and resolves `stacks:when` blocks in entry bodies. */
 import type { ConditionalProblem } from "../../errors";
 import { DEFAULT_PAYLOAD, PAYLOADS, type Payload } from "../registry/entry";
 
-/** What a block's condition is matched against. */
 export type ConditionContext = {
   stack: string;
   tags: ReadonlyArray<string>;
@@ -40,10 +19,7 @@ export type Condition = Partial<Record<Key, ReadonlyArray<string>>>;
 type ConditionalError = { line: number; problem: ConditionalProblem };
 
 const MARKER = /^\s*<!--\s*stacks:(\S+)(.*?)-->\s*$/;
-/**
- * `stacks:fill`, `stacks:fill: text` and `stacks:fill:text` mark text the agent
- * replaces; they are not conditionals and stay as written.
- */
+/** `stacks:fill` markers pass through for the agent or `fillMarkers`. */
 const isFill = (directive: string) => directive === "fill" || directive.startsWith("fill:");
 const KEYS: ReadonlyArray<Key> = ["stack", "tag", "tag!=", "mode", "preset", "with", "payload"];
 const VALUES: Partial<Record<Key, ReadonlyArray<string>>> = {
@@ -58,7 +34,6 @@ export function isConditionalMarker(line: string): boolean {
   return match?.[1] === "when" || match?.[1] === "end";
 }
 
-/** A `when` marker's condition, or what is wrong with it. */
 function parseCondition(spec: string): Condition | ConditionalProblem {
   const parts = spec.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "empty";
@@ -100,16 +75,14 @@ function matches(condition: Condition, context: ConditionContext): boolean {
   });
 }
 
-/** A well-formed block: its `when` and `end` lines (1-based in the body) and its condition. */
+/** The `when` and `end` lines are 1-based within the body. */
 type ConditionalBlock = { start: number; end: number; condition: Condition };
 
-/** The scan so far: the block whose `when` has no `end` yet, and the blocks already closed. */
 type MarkerState = {
   open: { line: number; condition: Condition } | undefined;
   blocks: ConditionalBlock[];
 };
 
-/** Applies one marker line to the scan, or reports what is wrong with it. */
 function scanMarker(
   match: RegExpExecArray,
   line: number,
@@ -129,7 +102,11 @@ function scanMarker(
   return undefined;
 }
 
-/** Every block in `body`, in order, or the first malformed marker. */
+/**
+ * Markers must occupy their own lines and blocks cannot nest. The scan stops at the first
+ * malformed marker. It includes fenced and indented code, so literal examples need a different
+ * spelling.
+ */
 export function scanConditionals(
   body: string,
 ): { blocks: ReadonlyArray<ConditionalBlock> } | ConditionalError {
@@ -150,9 +127,8 @@ export function scanConditionals(
 }
 
 /**
- * `body` with every block resolved for `context`, or the first malformed marker. A blank line
- * left doubled by a removal is dropped, so a removed block leaves no gap.
- * With `withFragment`, keep only matching blocks explicitly naming that fragment, for add notes.
+ * Resolve blocks without leaving doubled blank lines. For add notes, keep only matching blocks that
+ * explicitly name `withFragment`.
  */
 export function resolveConditionals(
   body: string,
@@ -178,7 +154,6 @@ export function resolveConditionals(
   return { text: keepLines(lines, drop) };
 }
 
-/** `lines` without the dropped ones, skipping a blank line that a removal would leave doubled. */
 function keepLines(lines: ReadonlyArray<string>, drop: ReadonlySet<number>): string {
   const out: string[] = [];
   let removed = false;

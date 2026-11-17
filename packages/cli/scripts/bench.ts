@@ -1,11 +1,12 @@
 import { NodeServices } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
-import { SOURCE_BUILD } from "../src/config";
+import { SOURCE_BUILD } from "../src/build";
 import { NetLayer } from "../src/platform/net";
 import { installSignalPolicy } from "../src/platform/signals";
 import { AppLayer, runInvocation } from "../src/runtime";
 import { Host } from "../src/services/host";
-import { Output, type Writer } from "../src/services/output";
+import { Output } from "../src/services/output";
+import type { Writer } from "../src/services/output-write";
 import { Foreground } from "../src/services/processes";
 import { type AgentAdapter, agents } from "./bench/agents";
 import { help, options } from "./bench/options";
@@ -60,7 +61,7 @@ if (import.meta.main) {
       runBench(process.argv.slice(2)).pipe(
         Effect.tap(() => Effect.flatMap(Output, (out) => out.flush)),
         Effect.orDie,
-        Effect.provide(Layer.provideMerge(AppLayer(output, undefined, SOURCE_BUILD), platform)),
+        Effect.provide(Layer.provideMerge(AppLayer({ output, build: SOURCE_BUILD }), platform)),
         Effect.scoped,
       ),
       controller.signal,

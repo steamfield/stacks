@@ -1,28 +1,23 @@
 /**
- * Asks the npm registry for the newest published version of stacks. This is the only network
- * request `stacks update` makes.
- *
- * `update.ts::update` calls `latestVersion` once. The registry's answer is untrusted text, so its
- * `version` field is decoded with `version.ts::Version` before it can reach output or the
- * `npm install` argument list. Every way the request can go wrong (no connection, a non-2xx
- * status, a body that isn't JSON, a version that doesn't decode, the deadline passing) becomes the
- * same `UpstreamUnavailable` failure, carrying the HTTP status when there was one.
+ * Makes update's single request to the npm registry. It decodes the returned version with `Version`
+ * before it can reach output or argv.
  */
 import { Duration, Effect, Option, Schema } from "effect";
 import { HttpClient } from "effect/http";
+import { NPM_REGISTRY_TIMEOUT_SECONDS, NPM_REGISTRY_URL } from "../../constants";
 import { UpstreamUnavailable } from "../../errors";
 import { PACKAGE } from "../../version";
+import { defined } from "../object";
 import { Version } from "./version";
 
-/** The registry's "latest" document for a package, reduced to the one field read. */
 const LatestDocument = Schema.Struct({ version: Version });
 
 /** The registry URL; the scoped name's `/` is escaped as npm expects. */
-const LATEST_URL = `https://registry.npmjs.org/${PACKAGE.replace("/", "%2f")}/latest`;
+const LATEST_URL = `${NPM_REGISTRY_URL}/${PACKAGE.replace("/", "%2f")}/latest`;
 
 const unavailable = (status?: number) =>
   new UpstreamUnavailable({
-    details: { service: "npm-registry", ...(status === undefined ? {} : { status }) },
+    details: defined({ service: "npm-registry", status }),
   });
 
 /** One GET of the latest document, decoded; needs a scope for the response. */
@@ -39,9 +34,12 @@ const fetchLatest = (client: HttpClient.HttpClient) =>
     return decoded.version;
   });
 
-/** One bounded request, with upstream text decoded before it can enter output or argv. */
+/**
+ * Report transport, status, decode and deadline failures as `UpstreamUnavailable`. Keep the
+ * response status when available.
+ */
 export const latestVersion = Effect.fn("update.latestVersion")(function* (
-  timeout = Duration.seconds(10),
+  timeout = Duration.seconds(NPM_REGISTRY_TIMEOUT_SECONDS),
 ) {
   const client = yield* HttpClient.HttpClient;
   const result = yield* fetchLatest(client).pipe(Effect.scoped, Effect.timeoutOption(timeout));

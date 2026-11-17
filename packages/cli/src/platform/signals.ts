@@ -1,22 +1,8 @@
 /**
- * What Ctrl+C, SIGTERM, SIGHUP and SIGQUIT do to a running `stacks` command.
- *
- * Normally the first SIGINT, SIGTERM or SIGHUP interrupts the command: its finalizers run (a
- * rollback, a verify teardown, stopping child process groups) and the CLI exits 130. One Ctrl+C
- * often arrives twice, once from the terminal and once from a wrapper such as `npm exec`, so a
- * second signal within 1 s is ignored as that same keypress. One that comes later means the
- * person wants out now: every registered process group is SIGKILLed and the CLI exits 130 at
- * once. SIGQUIT keeps its default action, after the groups are SIGKILLed.
- *
- * While `new` has handed the terminal to a coding agent (the interactive child, recorded in
- * `ProcessHolder.foreground`), the terminal's own SIGINT and SIGQUIT already reached the child,
- * so the CLI ignores them; SIGTERM and SIGHUP are forwarded to the child, and the CLI stops once
- * the child exits.
- *
- * `decide` and `foregroundCleared` are the policy as pure functions of the past signals and the
- * clock, which the tests drive directly. `installSignalPolicy` wires them to the process for one
- * invocation; `bin.ts` calls it. AGENTS.md ("Error handling", "Signals") states the same policy.
+ * Owns the CLI signal policy. Pure decisions take signal history and time as inputs so they can
+ * be tested without delivering OS signals.
  */
+import { EXIT_INTERRUPTED } from "../errors";
 import { killGroupsNow, killProcess, type ProcessHolder } from "./process";
 
 type PolicySignal = "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT";
@@ -32,7 +18,7 @@ export type SignalState = {
 };
 /**
  * One Ctrl+C can arrive twice: the terminal delivers it to the whole foreground group while a
- * wrapper (scripts/dev.ts, `npm exec`) forwards its own copy. A second interrupting signal sooner
+ * wrapper such as `npm exec` forwards its own copy. A second interrupting signal sooner
  * than this after the first is that same keypress.
  */
 export const SECOND_SIGNAL_MS = 1000;
@@ -100,7 +86,7 @@ function carryOut(action: SignalAction, signal: PolicySignal, context: PolicyCon
       return;
     case "force-exit":
       killGroupsNow(holder.groups);
-      process.exit(130);
+      process.exit(EXIT_INTERRUPTED);
       return;
     case "default":
       // With no listener left the runtime restores the default action; deliver it again. Dying
@@ -129,6 +115,7 @@ export function installSignalPolicy(holder: ProcessHolder, interrupt: () => void
     for (const [signal, listener] of listeners) process.off(signal, listener);
   };
   const context: PolicyContext = { holder, interrupt, removeListeners };
+  // Node invokes signal callbacks outside Effect, so both callbacks use the same wall clock.
   for (const signal of signals) {
     const listener = () => {
       const next = decide(state, signal, Date.now(), holder.foreground !== undefined);

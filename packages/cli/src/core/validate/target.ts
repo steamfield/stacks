@@ -1,31 +1,21 @@
 /**
- * Works out what `stacks validate [path]` was pointed at: the bundled registry, a registry root, or
- * one entry inside a root.
- *
- * A registry root is a directory holding `stacks/` or `fragments/` (or `search/`); an entry is a
- * directory under one of those two, such as `<root>/stacks/go-cli`. `commands/validate.ts` calls
- * `resolveTarget` first and passes the `Target` to `index.ts::validate` or
- * `preview.ts::previewBrief`. Whether the target is the bundled registry matters later: the
- * bundled registry ships to every user, so it must resolve every reference inside itself.
- *
- * Start at `resolveTarget`; `resolveGiven` holds the rules for a given path, in the order they
- * apply.
+ * Resolves validation to a registry root or single entry and identifies the bundled target for
+ * `validationRoots`.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 import { NotFound } from "../../errors";
 import { Host } from "../../services/host";
 import { markdownFile } from "../registry/entry";
-import { bundledRoot } from "../registry/registry";
+import { bundledRoot } from "../registry/roots";
 
 /**
- * What `validate` checks: a registry root, and with `only` one entry under it. `bundled` is true
- * for the bundled registry (the shipped one, or STACKS_REGISTRY_DIR), which must be
- * self-contained.
+ * What `validate` checks: a registry root, and with `only` one entry under it. `asBundled`
+ * keeps resolution inside the target, including when `bundledRoot` resolves an override.
  */
 export type Target = {
   root: string;
-  bundled: boolean;
+  asBundled: boolean;
   only?: { kind: Kind; id: string };
 };
 
@@ -34,7 +24,6 @@ const kinds = [
   { kind: "fragment", dir: "fragments" },
 ] as const;
 
-/** The services and the bundled root's real path every probe below reads. */
 type Probe = { fs: FileSystem.FileSystem; path: Path.Path; bundledReal: string };
 
 const missing = (looked: string) => new NotFound({ details: { suggestions: [], looked } });
@@ -65,7 +54,7 @@ const registryDirectory = (probe: Probe, at: string) =>
   Effect.gen(function* () {
     for (const dir of ["stacks", "fragments", "search"])
       if (yield* isDirectory(probe.fs, probe.path.join(at, dir)))
-        return { root: at, bundled: yield* isBundled(probe, at) } satisfies Target;
+        return { root: at, asBundled: yield* isBundled(probe, at) } satisfies Target;
     return undefined;
   });
 
@@ -82,14 +71,13 @@ const entryDirectory = (probe: Probe, at: string) =>
       const root = path.dirname(parent);
       return {
         root,
-        bundled: yield* isBundled(probe, root),
+        asBundled: yield* isBundled(probe, root),
         only: { kind, id: path.basename(at) },
       } satisfies Target;
     }
     return undefined;
   });
 
-/** Whether `at` holds a `STACK.md` or `FRAGMENT.md`. */
 const hasEntryFile = (probe: Probe, at: string) =>
   Effect.gen(function* () {
     for (const { kind } of kinds)
@@ -109,7 +97,6 @@ const entryOrRegistry = (probe: Probe, at: string) =>
     return (yield* registryDirectory(probe, at)) ?? entry;
   });
 
-/** The target for an existing absolute path `at`, or `NotFound` naming it. */
 const resolveGiven = (probe: Probe, at: string) =>
   Effect.gen(function* () {
     if (!(yield* isDirectory(probe.fs, at))) return yield* missing(at);
@@ -118,7 +105,7 @@ const resolveGiven = (probe: Probe, at: string) =>
     // An entry outside a `stacks/` or `fragments/` directory belongs to no registry.
     if (yield* hasEntryFile(probe, at)) return yield* missing(at);
     // The bundled registry's own directory is a root even while it holds no entries.
-    if (yield* isBundled(probe, at)) return { root: at, bundled: true } satisfies Target;
+    if (yield* isBundled(probe, at)) return { root: at, asBundled: true } satisfies Target;
     return yield* missing(at);
   });
 
@@ -133,11 +120,11 @@ export const resolveTarget = (given: string | undefined) =>
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const host = yield* Host;
-    const bundled = yield* bundledRoot;
-    const probe: Probe = { fs, path, bundledReal: yield* realPath(fs, bundled.path) };
+    const registryRoot = yield* bundledRoot;
+    const probe: Probe = { fs, path, bundledReal: yield* realPath(fs, registryRoot.path) };
     if (given === undefined) {
-      if (!bundled.found) return yield* missing(bundled.path);
-      return { root: bundled.path, bundled: true } satisfies Target;
+      if (!registryRoot.found) return yield* missing(registryRoot.path);
+      return { root: registryRoot.path, asBundled: true } satisfies Target;
     }
     return yield* resolveGiven(probe, path.resolve(host.cwd, given));
   });

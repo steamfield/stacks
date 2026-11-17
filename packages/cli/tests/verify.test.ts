@@ -8,8 +8,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { AGENT_MARKER_NAMES } from "../src/config";
-import { encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
+import { AGENT_MARKER_NAMES } from "../src/env-names";
 import { alive, writeError } from "./helpers/cli";
 import {
   decodeResult,
@@ -497,6 +497,53 @@ describe("selection", () => {
     expect(stepNamed(decoded, "build").status).toBe("skipped");
   });
 
+  test("--only selects both names in a comma list with spaces", async () => {
+    const root = space.dir();
+    writeProject(root, [...steps, { name: "build", run: "touch built" }]);
+    const result = await verify(["--only", "lint, test", "--json"], { cwd: root });
+    expect(result.status, result.stderr).toBe(0);
+    expect(splitEvents(result.stderr).rest).toBe("");
+    expect(startedSteps(result.stderr)).toEqual(["install", "lint", "test", "clean"]);
+    const decoded = decodeResult(result.stdout);
+    expect(decoded).toMatchObject({ outcome: "partial", scope: "partial" });
+    expect(decoded.steps.map(({ name, status }) => [name, status])).toEqual([
+      ["install", "passed"],
+      ["lint", "passed"],
+      ["test", "passed"],
+      ["build", "skipped"],
+      ["clean", "passed"],
+    ]);
+    expect(["installed", "linted", "tested", "built", "torn"].filter((f) => has(root, f))).toEqual([
+      "installed",
+      "linted",
+      "tested",
+      "torn",
+    ]);
+  });
+
+  test("--only ignores a whitespace-only value and runs the full plan", async () => {
+    const root = space.dir();
+    writeProject(root, steps);
+    const result = await verify(["--only", " ", "--json"], { cwd: root });
+    expect(result.status, result.stderr).toBe(0);
+    expect(splitEvents(result.stderr).rest).toBe("");
+    expect(startedSteps(result.stderr)).toEqual(["install", "lint", "test", "clean"]);
+    const decoded = decodeResult(result.stdout);
+    expect(decoded).toMatchObject({ outcome: "green", scope: "full" });
+    expect(decoded.steps.map(({ name, status }) => [name, status])).toEqual([
+      ["install", "passed"],
+      ["lint", "passed"],
+      ["test", "passed"],
+      ["clean", "passed"],
+    ]);
+    expect(["installed", "linted", "tested", "torn"].filter((f) => has(root, f))).toEqual([
+      "installed",
+      "linted",
+      "tested",
+      "torn",
+    ]);
+  });
+
   test("an unknown --only name exits 2 listing the known check and serve names, running nothing [1.3a#14]", async () => {
     const root = space.dir();
     writeProject(root, [
@@ -534,6 +581,29 @@ describe("selection", () => {
     expect(stepNamed(decoded, "test").reason).toEqual(expect.any(String));
     expect(has(root, "tested")).toBe(false);
     expect(has(root, "linted")).toBe(true);
+  });
+
+  test("--skip-tag skips both tags in a comma list with spaces", async () => {
+    const root = space.dir();
+    writeProject(root, [...steps, { name: "build", run: "touch built", tags: ["expensive"] }]);
+    const result = await verify(["--skip-tag", "slow, expensive", "--json"], { cwd: root });
+    expect(result.status, result.stderr).toBe(0);
+    expect(splitEvents(result.stderr).rest).toBe("");
+    expect(startedSteps(result.stderr)).toEqual(["install", "lint", "clean"]);
+    const decoded = decodeResult(result.stdout);
+    expect(decoded).toMatchObject({ outcome: "partial", scope: "partial" });
+    expect(decoded.steps.map(({ name, status }) => [name, status])).toEqual([
+      ["install", "passed"],
+      ["lint", "passed"],
+      ["test", "skipped"],
+      ["build", "skipped"],
+      ["clean", "passed"],
+    ]);
+    expect(["installed", "linted", "tested", "built", "torn"].filter((f) => has(root, f))).toEqual([
+      "installed",
+      "linted",
+      "torn",
+    ]);
   });
 
   test("a partial run with a failing step is failed, not partial", async () => {

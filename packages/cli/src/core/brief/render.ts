@@ -1,27 +1,11 @@
 /**
- * Writes `.stacks/BRIEF.md`, the task a coding agent reads first after `stacks new`: what was
- * scaffolded, what to install and decide, each entry's guidance and the definition of done.
- *
- * `core/scaffold/new.ts` calls `renderBrief` with a composition (a stack combined with its
- * fragments: files, verify steps, env and notes) and a context of facts about the run (project
- * name, git state, files written, tools missing from PATH). `core/add.ts` calls it for `stacks
- * add`, which hands over to `render-add.ts`; `core/validate/` calls it to measure briefs against
- * their word budgets. The function is pure: it reads nothing and returns the text with its word
- * counts.
- *
- * Every sentence the CLI itself writes comes from `text.ts`; this file only decides which ones
- * appear and in what order, and places the entries' own text between them. Section order is part
- * of the contract, pinned byte for byte by digest tests. Untrusted entries are named before
- * anything they wrote (Trust model point 3). With an app (a fragment with category `app`), the
- * definition of done is split: the base first, then the application built on top of it.
- *
- * Start at `renderBrief`; each `write*` step is one section, in the order the brief prints them.
+ * Renders the new-project brief. Section and list order matter because digests pin its bytes.
  */
 import { APP_TAG } from "@steamfield/stacks-format";
 import { METADATA_DIR } from "../../project-layout";
 import type { Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
-import { envPrefix, slug } from "../slug";
+import { envPrefix, slug } from "../text/slug";
 import {
   dependencyLines,
   environmentNote,
@@ -37,7 +21,6 @@ import {
 } from "./blocks";
 import { nest } from "./headings";
 import { collapsePaths } from "./paths";
-import { renderAddBrief } from "./render-add";
 import * as T from "./text";
 import type { Brief, BriefContext } from "./types";
 import { type BriefWriter, briefWriter } from "./writer";
@@ -47,22 +30,16 @@ type NewBrief = {
   composition: Composition<Entry | null>;
   context: BriefContext;
   stack: Entry;
-  /** The application fragment, if the composition has one. */
   app: Entry | null;
-  /** Every fragment except the app. */
   base: ReadonlyArray<Entry>;
-  /** How the agent should spell the CLI (`Host.invocation`). */
   cli: string;
 };
 
 /**
- * The brief an agent follows to a green verify: sections in the plan's order, entry bodies with
- * headings nested under their section, and, with an app, the definition of done split into the
- * base and the application. `briefWords` counts the whole text; `fixedWords` the lines from
- * `text.ts`, so `fixedWords <= briefWords`.
+ * Pure rendering. With an app, give the base its own definition of done first because
+ * `runApp` requires a green base.
  */
 export function renderBrief(composition: Composition<Entry | null>, context: BriefContext): Brief {
-  if (context.add) return renderAddBrief(composition, context, context.add);
   if (!composition.stack) throw new Error("A new-project brief requires a stack");
   const { stack, app } = composition;
   const brief: NewBrief = {
@@ -96,7 +73,7 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
   return out.brief();
 }
 
-/** The untrusted entries, where they came from, and the instruction to ask the user first. */
+/** Warn about untrusted entries before any of their guidance (trust point 3). */
 function writeUntrusted(out: BriefWriter, composition: Composition<Entry | null>): void {
   const { untrusted } = composition;
   if (untrusted.length === 0) return;
@@ -136,7 +113,6 @@ function listed(composition: Composition<Entry | null>): "packages" | "tools" | 
   return composition.tools.length ? "tools" : "none";
 }
 
-/** The facts list: stack, project slug, fragments, preset, agents and the files written. */
 function writeFacts(out: BriefWriter, brief: NewBrief): void {
   const { composition, context, stack, app, cli } = brief;
   out.fixed(
@@ -153,7 +129,6 @@ function writeFacts(out: BriefWriter, brief: NewBrief): void {
   if (cli !== "stacks") out.fixed(T.facts.invocation(cli));
 }
 
-/** The written files, with crowded directories collapsed to one line each. */
 function writeWrittenPaths(out: BriefWriter, written: ReadonlyArray<string>): void {
   if (written.length === 0) return;
   out.fixed(T.facts.written);
@@ -164,13 +139,11 @@ function writeWrittenPaths(out: BriefWriter, written: ReadonlyArray<string>): vo
   }
 }
 
-/** One list item for a `collapsePaths` line, with the path in code and any file count after it. */
 function writtenPathItem(line: string): string {
   const dir = / \(\d+ files\)$/.exec(line);
   return `  - ${dir ? `${T.code(line.slice(0, dir.index))}${dir[0]}` : T.code(line)}`;
 }
 
-/** The ground rules: generators, git, written files, AGENTS.md, notes and missing tools. */
 function writeGroundRules(out: BriefWriter, context: BriefContext): void {
   out.gap();
   out.fixed(T.ground.heading, "", T.ground.generators, T.ground.git(context.git));
@@ -200,23 +173,17 @@ function writeDependencies(
   }
 }
 
-/** One entry's section: its heading, then its body with headings nested beneath it. */
 function writeGuidance(out: BriefWriter, heading: string, entry: Entry): void {
   out.gap();
   out.fixed(heading);
   out.data(...bodyLines(entry));
 }
 
-/** An entry body nested under its section, trimmed of blank lines, after a blank line. */
 function bodyLines(entry: Entry): string[] {
   const body = nest(entry.body).replace(/^\n+|\n+$/g, "");
   return body ? ["", ...body.split("\n")] : [];
 }
 
-/**
- * The definition of done for the base (the whole project when there is no app): its steps, its
- * commands and environment, then the rules.
- */
 function writeDefinitionOfDone(out: BriefWriter, brief: NewBrief): void {
   const { composition, app, cli } = brief;
   out.gap();
@@ -232,16 +199,13 @@ function writeDefinitionOfDone(out: BriefWriter, brief: NewBrief): void {
   writeRules(out, brief);
 }
 
-/**
- * The base's commands or env. With an app, the app's own are left out and shown in the
- * application section instead.
- */
+/** Show the app's own values in the application section only. */
 function baseRecord(brief: NewBrief, field: "commands" | "env"): Record<string, string> {
   if (!brief.app) return brief.composition[field];
   return merged([brief.stack, ...brief.base], field);
 }
 
-/** One record merged over `entries` in order, later keys replacing earlier ones. */
+/** Fold in entry order so later entries supply the value for a shared key. */
 function merged(entries: ReadonlyArray<Entry>, field: "commands" | "env"): Record<string, string> {
   return Object.fromEntries(new Map(entries.flatMap((entry) => Object.entries(entry.meta[field]))));
 }
@@ -264,7 +228,6 @@ function writeRules(out: BriefWriter, brief: NewBrief): void {
   );
 }
 
-/** The application section: the app's guidance, its own steps, commands and environment. */
 function writeApplication(out: BriefWriter, brief: NewBrief): void {
   const { composition, app, cli } = brief;
   if (!app) return;
@@ -298,7 +261,6 @@ function writeApplicationEnvironment(out: BriefWriter, brief: NewBrief, app: Ent
   if (unsaid.length) out.fixed("", ...unsaid);
 }
 
-/** Manual QA, then what to do once verify is green (docs, review, commit, summary). */
 function writeAfterGreen(out: BriefWriter, brief: NewBrief): void {
   const { composition, context, stack, cli } = brief;
   const reviewer =

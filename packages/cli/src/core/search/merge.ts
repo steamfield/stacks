@@ -1,19 +1,6 @@
 /**
- * Combines the hosted API's search hits with the local ranking into the one result `stacks search`
- * prints.
- *
- * `run.ts::search` ranks locally and asks the API at the same time, then hands both here. When the
- * API answered, its hits win for official entries (bundled or from the signed index), because the
- * hosted ranking can be fresher. A local override, a project or user entry with the same kind and
- * id as an official one, always wins over the API's hit, since that local entry is the one
- * `stacks new` or `stacks add` would actually use. When the API wasn't used, the local ranking is
- * the result.
- *
- * Evidence is merged per hit: an API hit missing stats or a last run borrows the local value.
- * Because API and local stats can come from different populations, each hit's stats source is
- * tracked so the result can say when any shown number is seeded development data. The requested
- * `limit` and `kind` filter apply only after merging, so an override is never cut before it can
- * replace its official twin.
+ * Merges local and hosted search hits. Hosted ranking can be fresher, but a local override wins
+ * because it is the entry new or add would use.
  */
 import {
   compareSearchHits,
@@ -27,10 +14,9 @@ import type { RemoteSearch } from "./remote";
 
 type StatsSource = "api" | "local";
 
-/** The `kind:id` key that identifies one entry across both rankings. */
 const hitKey = (hit: Pick<SearchHit, "kind" | "id">) => `${hit.kind}:${hit.id}`;
 
-/** An API hit whose missing stats or last run is filled from the local hit for the same entry. */
+/** Borrow missing API evidence from the local hit for the same entry. */
 function withLocalEvidence(hit: SearchHit, local: SearchHit | undefined): SearchHit {
   const stats = hit.evidence.stats ?? local?.evidence.stats;
   const lastRun = hit.evidence.lastRun ?? local?.evidence.lastRun;
@@ -44,8 +30,8 @@ function withLocalEvidence(hit: SearchHit, local: SearchHit | undefined): Search
 }
 
 /**
- * The API's hits, minus overridden entries, joined with the local hits the API didn't return, in
- * rank order; plus where each shown hit's stats came from.
+ * Keep each hit's stats source because the API and local cache may represent different
+ * populations. The combined result can then disclose any seeded development data.
  */
 function mergeHits(
   local: ReadonlyArray<SearchHit>,
@@ -86,7 +72,10 @@ function shownPopulation(
   return populations[0];
 }
 
-/** The final search result: merged hits, the ranking used, the remote status and the population. */
+/**
+ * Apply limit and kind after merging so a local override cannot be cut before replacing its
+ * official counterpart.
+ */
 export function mergeSearch(
   local: SearchResult,
   remote: RemoteSearch,

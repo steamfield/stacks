@@ -2,22 +2,14 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { it } from "@effect/vitest";
-import { Effect, Option, Schema } from "effect";
-import { Command } from "effect/cli";
+import { Effect, Option } from "effect";
 import { TestClock } from "effect/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
-import { cli } from "../src/cli";
-import { RemoteIndex } from "../src/core/remote-index";
-import { DoctorReport } from "../src/schemas/doctor";
-import { ListResult } from "../src/schemas/list";
-import { VERSION } from "../src/version";
+import { RemoteIndex } from "../src/core/registry/remote/service";
 import { bundleFile, digestOf, rawBundle } from "./fixtures/index/harness";
-import { runCli, tempDir } from "./helpers/cli";
+import { tempDir } from "./helpers/cli";
 import {
   buildRemoteFixture,
-  environment,
-  keys,
-  localHttp,
   named,
   publish,
   type RemoteFixture,
@@ -60,40 +52,6 @@ const create = async () => {
   success(await invoke(["new", "sample", target, "--sandbox", "--no-launch", "--json"]));
   return target;
 };
-
-test("without an official or configured URL the remote origin stays off", async () => {
-  for (const command of ["list", "doctor"]) {
-    const args = [command, "--json"];
-    const result = await runCli(args, {
-      home,
-      env: environment(home),
-      http: localHttp(server.url),
-      host: { registry: bundled },
-      program: Command.runWith(cli, { version: VERSION, renderErrors: false })(args).pipe(
-        Effect.provide(RemoteIndex.layer({ keys, officialUrl: undefined })),
-      ),
-    });
-    success(result);
-    expect(server.requests).toEqual([]);
-    const report = JSON.parse(result.stdout);
-    if (command === "doctor") {
-      expect(
-        Schema.decodeUnknownSync(DoctorReport, { onExcessProperty: "error" })(report).remoteIndex,
-      ).toEqual({
-        url: null,
-        isDefaultUrl: false,
-        offline: false,
-        cachedAt: null,
-        lastAttempt: null,
-        lastOutcome: null,
-        backoffUntil: null,
-      });
-    } else {
-      const list = Schema.decodeUnknownSync(ListResult)(report);
-      expect(list.entries.every((entry) => entry.origin !== "index")).toBe(true);
-    }
-  }
-});
 
 test("an unavailable stack bundle uses the complete bundled composition", async () => {
   const file = join(bundled, "stacks/sample/STACK.md");

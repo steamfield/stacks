@@ -1,38 +1,11 @@
 /**
- * Every way a CLI command can fail on purpose, and what the user or agent sees when it does.
- *
- * A tagged error here is a class whose `_tag` (`NotFound`, `PermissionDenied`, ...) names the kind
- * of failure. Code anywhere in the CLI fails with one through Effect's error channel
- * (`return yield* new NotFound({ details })`) rather than throwing. Each tag has a fixed message,
- * so an agent can match on it, and an optional closed `details` struct carrying what is specific
- * to this failure: an id, a path, close suggestions. Details hold only values the CLI produced or
- * the caller passed, never file contents or secrets. Anything thrown instead is a defect (a bug),
- * reported as `Defect` with exit 1.
- *
- * The file has four parts, in order:
- * 1. The error classes and their `details` schemas.
- * 2. `errorTable`, the one place each tag gets its exit code, whether retrying can help, and
- *    whether the command's report stays on stdout (`VerifyFailed` keeps its verify report there).
- *    `main.ts` reads `exitCode` once the command ends and `bin.ts` hands that number to the shell,
- *    so an agent can branch on it: 2 fix the input, 3 fix the config, 4 retry, 5 read the verify
- *    report, 6 ask a person, 130 interrupted.
- * 3. `failureGuide`, the lines printed under the message in `human` and `agent` output, ending in
- *    a `Next:` action that names a real command.
- * 4. The JSON error envelope (`ErrorEnvelope`), the last stderr line under `--json`, and
- *    `encodeDetails`, which writes `details` into it.
- *
- * `services/output.ts::Output.error` is where parts 3 and 4 are printed; the envelope's `next` is
- * the same text as the `Next:` line. Adding a tag means adding its class to `errorClasses`, its row
- * to `errorTable`, and its cases to `failureGuide` and `encodeDetails`; `tests/errors.test.ts`
- * checks that they agree.
+ * Defines CLI error tags and their public details. Fixed messages let callers
+ * match failures, while closed details hold CLI-produced values or caller arguments.
+ * A new tag needs its class, an entry in `errorClasses`, and a case in `failureGuide`.
  */
 import { FailureKind, Kind } from "@steamfield/stacks-format";
-import { Effect, Schema } from "effect";
-import { shellArg } from "./core/shell";
-import { TEMPLATE_VARIABLES } from "./core/template";
-import { printable } from "./core/text";
-import { verifyNext } from "./core/verify/next";
-import { BRIEF_PATH, MANIFEST_PATH } from "./project-layout";
+import { Effect, Record as EffectRecord, Schema } from "effect";
+import { defined } from "./core/object";
 import { Origin } from "./schemas/origin";
 import { VerifyChange, VerifyResult } from "./schemas/verify";
 
@@ -45,7 +18,7 @@ import { VerifyChange, VerifyResult } from "./schemas/verify";
  * - a parser-rejected value: the flag or argument, the value, what was expected, and optionally
  *   the command path and close known values;
  * - an unknown flag: the flag, its command, and close flags or labeled positional arguments;
- * - an unknown subcommand: what was typed and up to three close names (`core/suggest.ts`);
+ * - an unknown subcommand: what was typed and up to three close names (`closest`);
  * - two flags that can't be used together, as typed (`new --launch` with `--no-launch`).
  */
 export const UsageDetails = Schema.Union([
@@ -67,6 +40,7 @@ export const UsageDetails = Schema.Union([
 export class Usage extends Schema.TaggedError<Usage>()("Usage", {
   details: Schema.optionalKey(UsageDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Invalid command.";
 }
 
@@ -169,12 +143,13 @@ export const BadInputDetails = Schema.Union([
 export class BadInput extends Schema.TaggedError<BadInput>()("BadInput", {
   details: Schema.optionalKey(BadInputDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Invalid input.";
 }
 
 /**
  * Something looked up wasn't there.
- * - `suggestions`: up to three known ids close to the one given (`core/suggest.ts::closest`).
+ * - `suggestions`: up to three known ids close to the one given (`closest`).
  * - `id` and `kind`: the stack or fragment id that wasn't found, so a caller can tell a wrong stack
  *   from a wrong `--with`/`--without` id.
  * - `kind: "project"` (no `id`): `verify` found no `.stacks/manifest.json` walking up from
@@ -201,10 +176,12 @@ export const NotFoundDetails = Schema.Struct({
 export class NotFound extends Schema.TaggedError<NotFound>()("NotFound", {
   details: Schema.optionalKey(NotFoundDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Not found.";
 }
 
 export class NotConfigured extends Schema.TaggedError<NotConfigured>()("NotConfigured", {}) {
+  static readonly exit = 3;
   override readonly message = "Configuration is required.";
 }
 
@@ -219,6 +196,7 @@ export const InvalidConfigDetails = Schema.Struct({
 export class InvalidConfig extends Schema.TaggedError<InvalidConfig>()("InvalidConfig", {
   details: Schema.optionalKey(InvalidConfigDetails),
 }) {
+  static readonly exit = 3;
   override readonly message = "Configuration is invalid.";
 }
 
@@ -237,12 +215,15 @@ export const UpdateFailedDetails = Schema.Struct({
 export class UpdateFailed extends Schema.TaggedError<UpdateFailed>()("UpdateFailed", {
   details: Schema.optionalKey(UpdateFailedDetails),
 }) {
+  static readonly exit = 6;
   override readonly message = "Update failed.";
 }
 export class UpstreamUnavailable extends Schema.TaggedError<UpstreamUnavailable>()(
   "UpstreamUnavailable",
   { details: Schema.optionalKey(UpstreamUnavailableDetails) },
 ) {
+  static readonly exit = 4;
+  static readonly retryable = true;
   override readonly message = "Upstream service is unavailable.";
 }
 
@@ -261,6 +242,8 @@ export const VerifyFailedDetails = Schema.Struct({
 export class VerifyFailed extends Schema.TaggedError<VerifyFailed>()("VerifyFailed", {
   details: Schema.optionalKey(VerifyFailedDetails),
 }) {
+  static readonly exit = 5;
+  static readonly keepsResult = true;
   override readonly message = "Verify failed.";
 }
 
@@ -269,6 +252,8 @@ export const VerifyChangedDetails = VerifyChange;
 export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyChanged", {
   details: Schema.optionalKey(VerifyChangedDetails),
 }) {
+  static readonly exit = 5;
+  static readonly keepsResult = true;
   override readonly message = "Verify steps changed since they were recorded.";
 }
 
@@ -301,6 +286,7 @@ export const PermissionDeniedDetails = Schema.Struct({
 export class PermissionDenied extends Schema.TaggedError<PermissionDenied>()("PermissionDenied", {
   details: Schema.optionalKey(PermissionDeniedDetails),
 }) {
+  static readonly exit = 6;
   override readonly message = "Permission denied.";
 }
 
@@ -345,6 +331,7 @@ export const EntryInvalidDetails = Schema.Struct({
 export class EntryInvalid extends Schema.TaggedError<EntryInvalid>()("EntryInvalid", {
   details: Schema.optionalKey(EntryInvalidDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Entry is invalid.";
 }
 
@@ -387,6 +374,7 @@ export const ComposeConflictDetails = Schema.Struct({
 export class ComposeConflict extends Schema.TaggedError<ComposeConflict>()("ComposeConflict", {
   details: Schema.optionalKey(ComposeConflictDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "These entries can't be composed.";
 }
 
@@ -406,6 +394,7 @@ export const TargetNotEmptyDetails = Schema.Struct({
 export class TargetNotEmpty extends Schema.TaggedError<TargetNotEmpty>()("TargetNotEmpty", {
   details: Schema.optionalKey(TargetNotEmptyDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "The target directory is not empty.";
 }
 
@@ -417,16 +406,21 @@ export const ValidationFailedDetails = Schema.Struct({
 export class ValidationFailed extends Schema.TaggedError<ValidationFailed>()("ValidationFailed", {
   details: Schema.optionalKey(ValidationFailedDetails),
 }) {
+  static readonly exit = 2;
+  static readonly keepsResult = true;
   override readonly message = "Validation failed.";
 }
 
 export class Interrupted extends Schema.TaggedError<Interrupted>()("Interrupted", {}) {
+  static readonly exit = 130;
   override readonly message = "Command interrupted.";
 }
 export class Defect extends Schema.TaggedError<Defect>()("Defect", {}) {
+  static readonly exit = 1;
   override readonly message = "An unexpected error occurred.";
 }
 export class BrokenPipe extends Schema.TaggedError<BrokenPipe>()("BrokenPipe", {}) {
+  static readonly exit = 0;
   override readonly message = "Output pipe closed.";
 }
 
@@ -448,8 +442,7 @@ export class SpawnFailed extends Schema.TaggedError<SpawnFailed>()("SpawnFailed"
 // The tag registry: exit codes, retryability, kept results
 // ---------------------------------------------------------------------------------------------
 
-/** Every error class main reports; a unit test keeps it equal to `errorTable`'s keys. */
-export const errorClasses = [
+export const errorClasses = {
   Usage,
   BadInput,
   NotFound,
@@ -467,56 +460,26 @@ export const errorClasses = [
   Interrupted,
   Defect,
   BrokenPipe,
-] as const;
-export type AppError = InstanceType<(typeof errorClasses)[number]>;
-
-/** Every tag, for the envelope's schema. A unit test keeps it equal to `errorTable`'s keys. */
-export const ErrorTag = Schema.Literals([
-  "Usage",
-  "BadInput",
-  "NotFound",
-  "NotConfigured",
-  "InvalidConfig",
-  "UpstreamUnavailable",
-  "UpdateFailed",
-  "VerifyFailed",
-  "VerifyChanged",
-  "PermissionDenied",
-  "EntryInvalid",
-  "ComposeConflict",
-  "TargetNotEmpty",
-  "ValidationFailed",
-  "Interrupted",
-  "Defect",
-  "BrokenPipe",
-]);
-
-type ErrorSpec = { exit: number; retryable: boolean; keepsResult: boolean };
+} as const;
+export type AppError = InstanceType<(typeof errorClasses)[keyof typeof errorClasses]>;
 
 /**
- * Exit code, retryability and whether a failure keeps the command's result on stdout. Exit codes
- * are the branch an agent takes: 2 fix the input, 3 fix the config, 4 retry later, 5 read the
- * verify report, 6 ask a person, 130 the run was stopped, 1 a bug.
+ * Each tag's exit code, retryability, kept result and details schema, read from its class. Exit
+ * codes are the branch an agent takes: 2 fix the input, 3 fix the config, 4 retry later, 5 read
+ * the verify report, 6 ask a person, 130 the run was stopped, 1 a bug.
  */
-export const errorTable = {
-  Usage: { exit: 2, retryable: false, keepsResult: false },
-  BadInput: { exit: 2, retryable: false, keepsResult: false },
-  NotFound: { exit: 2, retryable: false, keepsResult: false },
-  NotConfigured: { exit: 3, retryable: false, keepsResult: false },
-  InvalidConfig: { exit: 3, retryable: false, keepsResult: false },
-  UpstreamUnavailable: { exit: 4, retryable: true, keepsResult: false },
-  UpdateFailed: { exit: 6, retryable: false, keepsResult: false },
-  VerifyFailed: { exit: 5, retryable: false, keepsResult: true },
-  VerifyChanged: { exit: 5, retryable: false, keepsResult: true },
-  PermissionDenied: { exit: 6, retryable: false, keepsResult: false },
-  EntryInvalid: { exit: 2, retryable: false, keepsResult: false },
-  ComposeConflict: { exit: 2, retryable: false, keepsResult: false },
-  TargetNotEmpty: { exit: 2, retryable: false, keepsResult: false },
-  ValidationFailed: { exit: 2, retryable: false, keepsResult: true },
-  Interrupted: { exit: 130, retryable: false, keepsResult: false },
-  Defect: { exit: 1, retryable: false, keepsResult: false },
-  BrokenPipe: { exit: 0, retryable: false, keepsResult: false },
-} as const satisfies Record<AppError["_tag"], ErrorSpec> & Record<typeof ErrorTag.Type, ErrorSpec>;
+export const errorTable = Object.freeze(
+  EffectRecord.map(errorClasses, (Class) =>
+    Object.freeze({
+      exit: Class.exit,
+      retryable: "retryable" in Class && Class.retryable,
+      keepsResult: "keepsResult" in Class && Class.keepsResult,
+      details: "details" in Class.fields ? Class.fields.details.schema : undefined,
+    }),
+  ),
+);
+export const ErrorTag = Schema.Literals(EffectRecord.keys(errorTable));
+export const EXIT_INTERRUPTED = errorTable.Interrupted.exit;
 
 export function exitCode(error: AppError): number {
   return errorTable[error._tag].exit;
@@ -529,682 +492,38 @@ export function keepsResult(error: AppError): boolean {
 }
 /** `value` as an `AppError` when it is an instance of one of `errorClasses`, else undefined. */
 export function knownError(value: unknown): AppError | undefined {
-  return errorClasses.some((Class) => value instanceof Class) ? (value as AppError) : undefined;
-}
-
-// ---------------------------------------------------------------------------------------------
-// Failure guides: the lines and `Next:` action printed under the message
-// ---------------------------------------------------------------------------------------------
-
-/**
- * What a failure tells its reader beyond the fixed message: `lines`, one per detail field worth
- * showing, and `next`, the one action to take, without a `Next:` prefix. Text modes print the lines
- * and then `Next: <next>`; the JSON envelope carries `next`. A keeps-result failure's report ends
- * with its own `Next:` line, so text modes don't print `next` for it (`Output.error`).
- */
-export type FailureGuide = { lines: string[]; next?: string };
-
-const guide = (lines: string[], next?: string): FailureGuide =>
-  next === undefined ? { lines } : { lines, next };
-
-/** The `Did you mean:` line for close known names, or no line when there are none. */
-const didYouMean = (suggestions: ReadonlyArray<string> | undefined): string[] =>
-  suggestions?.length ? [`Did you mean: ${suggestions.map(printable).join(", ")}?`] : [];
-
-/** The guide for `error`. `invocation` is `Host.invocation`, for commands quoted in it. */
-export function failureGuide(error: AppError, invocation: string): FailureGuide {
-  switch (error._tag) {
-    case "Usage":
-      return usageGuide(error, invocation);
-    case "PermissionDenied":
-      return permissionGuide(error);
-    case "TargetNotEmpty":
-      return targetGuide(error, invocation);
-    case "BadInput":
-      return error.details
-        ? badInputGuide(error.details, invocation)
-        : guide([], `run ${invocation} --help for the command's flags.`);
-    case "NotFound":
-      return notFoundGuide(error, invocation);
-    // The report on stdout ends with these counts already; `--json` keeps them in details.
-    case "ValidationFailed":
-      return guide(
-        [],
-        `fix the error findings in the report on stdout, then run ${invocation} validate again.`,
-      );
-    case "EntryInvalid":
-      return entryGuide(error, invocation);
-    case "ComposeConflict":
-      return composeGuide(error, invocation);
-    case "InvalidConfig":
-      return configGuide(error, invocation);
-    case "VerifyFailed":
-      return verifyFailedGuide(error, invocation);
-    case "VerifyChanged":
-      return guide(
-        error.details ? changeLines(error.details) : [],
-        verifyNext("changed", invocation),
-      );
-    case "NotConfigured":
-      return guide([], `run ${invocation} doctor to see the configuration it reads.`);
-    case "UpstreamUnavailable":
-      return guide(
-        error.details ? upstreamLines(error.details) : [],
-        "wait a moment, then run the same command again.",
-      );
-    case "UpdateFailed":
-      return updateFailedGuide(error);
-    case "Interrupted":
-      return guide([], "run the same command again when you're ready.");
-    case "Defect":
-      return guide(
-        [],
-        "set STACKS_LOG_FILE to a file path and run the command again; the file records where it failed. Report it if it repeats.",
-      );
-    case "BrokenPipe":
-      return guide([]);
+  for (const Class of Object.values(errorClasses)) {
+    if (value instanceof Class) return value;
   }
-}
-
-/** The human lines naming what changed; `--accept-changes` prints the same lines. */
-export function changeLines(change: typeof VerifyChange.Type): string[] {
-  const names = (label: string, list: ReadonlyArray<string>) =>
-    list.length ? [`${label}: ${list.map(printable).join(", ")}`] : [];
-  const items = [
-    ...names("Edited", change.edited),
-    ...names("Added", change.added),
-    ...names("Removed", change.removed),
-    ...(change.settings ? ["Settings: the manifest's env or preset changed"] : []),
-  ];
-  return [
-    changeBaseline(change),
-    ...(items.length
-      ? items
-      : ["Which steps changed is not itemized: there are no per-step digests to compare with."]),
-  ];
-}
-
-function changeBaseline(change: typeof VerifyChange.Type): string {
-  if (change.reason === "project-id")
-    return "Against: the state record for this project directory, which is kept under another projectId";
-  if (change.against === "manifest") return "Against: the manifest's own verifyDigest";
-  return "Against: the state record kept outside the project";
-}
-
-function upstreamLines(details: typeof UpstreamUnavailableDetails.Type): string[] {
-  return [
-    `Service: ${details.service === "github" ? "GitHub" : "npm registry"}`,
-    ...(details.step === undefined ? [] : [`Step: ${details.step}`]),
-    ...(details.status === undefined ? [] : [`Status: ${details.status}`]),
-  ];
-}
-
-function updateFailedGuide(error: UpdateFailed): FailureGuide {
-  const details = error.details;
-  return guide(
-    [
-      ...(details?.exitCode === undefined ? [] : [`npm exit: ${details.exitCode}`]),
-      ...(details?.timedOut ? ["npm timed out."] : []),
-    ],
-    `run ${details?.command ?? "the npm install"} yourself to see npm's output.`,
-  );
-}
-
-/** No detail lines: the verify report on stdout already lists each failed step. */
-function verifyFailedGuide(error: VerifyFailed, invocation: string): FailureGuide {
-  const failed = error.details?.failed ?? [];
-  return guide(
-    [],
-    verifyNext(
-      "failed",
-      invocation,
-      failed.map((step) => step.failureKind),
-      error.details?.stages,
-    ),
-  );
-}
-
-// Usage
-
-function usageGuide(error: Usage, invocation: string): FailureGuide {
-  const details = error.details;
-  if (details && "flags" in details)
-    return guide(
-      [`${details.flags[0]} and ${details.flags[1]} can't be used together.`],
-      "drop one of them.",
-    );
-  if (details && "value" in details) return invalidValueGuide(details, invocation);
-  if (details && "flag" in details) return unknownFlagGuide(details, invocation);
-  return guide(
-    [
-      ...(details?.command === undefined ? [] : [`Command: ${printable(details.command)}`]),
-      ...didYouMean(details?.suggestions),
-    ],
-    `run ${invocation} --help to list the commands, or ${invocation} <command> --help for one.`,
-  );
-}
-
-function invalidValueGuide(
-  details: Extract<typeof UsageDetails.Type, { value: string }>,
-  invocation: string,
-): FailureGuide {
-  // A flag arrives with its dashes (`--agents`); a positional argument by its bare name.
-  const positional = !details.flag.startsWith("-");
-  const command =
-    details.command && details.command !== "stacks"
-      ? `${invocation} ${details.command}`
-      : invocation;
-  return guide(
-    [
-      `${positional ? "Argument" : "Flag"}: ${printable(details.flag)}`,
-      `Value: ${printable(details.value)}`,
-      `Expected: ${printable(details.expected)}`,
-      ...didYouMean(details.suggestions),
-    ],
-    `pass a value from Expected; ${printable(command)} --help lists every ${positional ? "argument" : "flag"}.`,
-  );
-}
-
-function unknownFlagGuide(
-  details: Extract<typeof UsageDetails.Type, { flag: string; command: string }>,
-  invocation: string,
-): FailureGuide {
-  const command = details.command === "stacks" ? invocation : `${invocation} ${details.command}`;
-  return guide(
-    [
-      `Flag: ${printable(details.flag)}`,
-      `Command: ${printable(details.command)}`,
-      ...didYouMean(details.suggestions),
-    ],
-    `run ${printable(command)} --help to list the flags and arguments.`,
-  );
-}
-
-// PermissionDenied
-
-function permissionGuide(error: PermissionDenied): FailureGuide {
-  const details = error.details;
-  if (!details)
-    return guide(
-      [],
-      "check the permissions on the files this command reads and writes, then run it again.",
-    );
-  const why = permissionReason(details.reason);
-  return guide(
-    [...(details.path ? [`Path: ${printable(details.path)}`] : []), ...why.lines],
-    why.next,
-  );
-}
-
-function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"]): FailureGuide {
-  switch (reason) {
-    case "read":
-      return guide([], "check the path's read permissions, then run this command again.");
-    case "escape":
-      return guide(
-        ["The path resolves outside the project directory, through a symlink or `..`."],
-        "remove that symlink from the project directory, or pick another directory.",
-      );
-    case "blocked":
-      return guide(
-        [
-          "A file or directory in the project is in the way of a planned path. Nothing was changed.",
-        ],
-        "move or rename the blocking item, then run add again.",
-      );
-    case "unwritable":
-      return guide(
-        ["The project directory or a file in it can't be written. Nothing was left behind."],
-        "pick a directory you can write to, or fix this one's permissions.",
-      );
-    case "agent":
-      return guide(
-        ["This needs a person's confirmation, and an agent was detected. Nothing was changed."],
-        "ask the user to run this command from their own terminal.",
-      );
-    case "no-tty":
-      return guide(
-        ["This needs a person's confirmation, and stdin is not a terminal. Nothing was changed."],
-        "run this command from a terminal.",
-      );
-    case "state-unwritable":
-      return guide(
-        [
-          "The state record outside the project can't be written, so nothing was confirmed or changed.",
-        ],
-        "make that directory writable (or set STACKS_STATE_DIR to one that is), then run this command again.",
-      );
-    case "launch":
-      return guide(
-        ["The agent CLI was found on PATH but can't be run by you. The project was written."],
-        "fix the binary's permissions, or start your agent in the project yourself.",
-      );
-    case "github":
-      return guide(
-        ["GitHub refused to fork the repository or push the branch for the account gh uses."],
-        "run gh auth status to see that account, log in with one that can fork the repository (gh auth login), then run submit again.",
-      );
-    // A write to stdout or stderr failed, so nothing can be shown anyway.
-    case "write":
-      return guide([]);
-  }
-}
-
-// TargetNotEmpty
-
-function targetGuide(error: TargetNotEmpty, invocation: string): FailureGuide {
-  const details = error.details;
-  if (!details) return guide([], "pick a directory that doesn't exist yet or is empty.");
-  const next = targetNext(details, invocation);
-  return guide(
-    [
-      `Path: ${printable(details.path)}`,
-      ...(details.entries.length ? [`Contains: ${details.entries.map(printable).join(", ")}`] : []),
-      ...next.lines,
-    ],
-    next.next,
-  );
-}
-
-/** The `new` and `skill install` cases of a non-empty target, told apart by the target path. */
-function targetNext(details: typeof TargetNotEmptyDetails.Type, invocation: string): FailureGuide {
-  // `skill install`'s target is `.claude/skills/<name>`; the default skill needs no name.
-  const skill = /[/\\]\.claude[/\\]skills[/\\](stacks(?:-author)?)$/.exec(details.path)?.[1];
-  const install = `${invocation} skill install${skill === "stacks-author" ? " stacks-author" : ""}`;
-  if (details.blocker === "non-file")
-    return guide(
-      [],
-      `move the item named ${details.entries[0] ?? "SKILL.md"} out of the target directory, or run ${install} --print to copy the skill elsewhere.`,
-    );
-  // `skill install`'s differing files; its details are only path and entries.
-  if (skill !== undefined && details.entries.length > 0)
-    return guide(
-      [],
-      `rerun ${install} with --force to replace ${details.entries.length > 1 ? "them" : "it"}, or --print to copy it elsewhere.`,
-    );
-  if (details.scaffold === "unfinished")
-    return guide(
-      ["Scaffold: unfinished. An earlier `new` wrote this."],
-      `continue with ${BRIEF_PATH}, or remove the directory to start again.`,
-    );
-  if (details.scaffold === "green")
-    return guide(
-      ["Scaffold: green. This is a finished project."],
-      `pick another directory for a new project, or extend this one with ${invocation} add.`,
-    );
-  return guide([], "pick a directory that doesn't exist yet or is empty.");
-}
-
-// NotFound
-
-function notFoundGuide(error: NotFound, invocation: string): FailureGuide {
-  // `looked` means a path was missing (validate); `root`, an id missing from a registry root
-  // `list` doesn't read; otherwise an id missing from the registries `list` shows.
-  const details = error.details;
-  if (!details) return guide([], `run ${invocation} list to see what exists.`);
-  if (details.path)
-    return guide(
-      [`Path: ${printable(details.path)}`],
-      `restore the bundled skill directory or reinstall @steamfield/stacks, then run ${invocation} doctor.`,
-    );
-  if (details.kind === "cwd")
-    return guide(
-      ["The working directory no longer exists."],
-      "cd to a directory that exists, then run the command again.",
-    );
-  if (details.kind === "project")
-    return guide(
-      [
-        `Looked for: ${MANIFEST_PATH} in ${printable(details.looked ?? ".")} and every directory above it`,
-      ],
-      `run this command again from inside a project ${invocation} new created, or create one with ${invocation} new <stack> <dir>.`,
-    );
-  return guide(
-    [
-      ...(details.looked ? [`Looked for: ${printable(details.looked)}`] : []),
-      ...(details.id !== undefined
-        ? [`${entryKindLabel(details.kind)}: ${printable(details.id)}`]
-        : []),
-      ...didYouMean(details.suggestions),
-    ],
-    notFoundNext(details, invocation),
-  );
-}
-
-function entryKindLabel(kind: (typeof NotFoundDetails.Type)["kind"]): string {
-  if (kind === "fragment") return "Fragment";
-  if (kind === "stack") return "Stack";
-  return "Id";
-}
-
-function notFoundNext(details: typeof NotFoundDetails.Type, invocation: string): string {
-  if (details.directory)
-    return `pass ${printable(details.directory)} to submit that directory, or run ${invocation} list to see every stack and fragment id.`;
-  if (details.looked)
-    return "pass a registry root (a directory holding stacks/ or fragments/) or an entry directory inside one.";
-  if (details.root)
-    return `${invocation} validate ${shellArg(printable(details.root))} lists the ids under that root.`;
-  return `run ${invocation} list to see every stack and fragment id.`;
-}
-
-// EntryInvalid, ComposeConflict, InvalidConfig
-
-function entryGuide(error: EntryInvalid, invocation: string): FailureGuide {
-  const details = error.details;
-  if (!details) return guide([], `run ${invocation} validate to list every problem.`);
-  const line = details.line === undefined ? "" : `:${details.line}`;
-  return guide(
-    [
-      `Entry: ${printable(details.id)} (${details.origin}, ${details.reason})`,
-      ...(details.path ? [`Path: ${printable(details.path)}${line}`] : []),
-      ...(details.problem ? [`Problem: ${details.problem}`] : []),
-    ],
-    details.reason === "template"
-      ? `use only ${TEMPLATE_VARIABLES.join(", ")} in that file's {{ }} tokens, or drop its .tmpl suffix to copy it as is.`
-      : `fix that entry or leave it out; ${invocation} validate lists every problem in a registry.`,
-  );
-}
-
-function composeGuide(error: ComposeConflict, invocation: string): FailureGuide {
-  const details = error.details;
-  if (!details) return guide([], `run ${invocation} show <id> to see what each entry requires.`);
-  const next = composeNext(details, invocation);
-  return guide(
-    [
-      `Reason: ${details.reason}`,
-      ...(details.stack ? [`Stack: ${printable(details.stack)}`] : []),
-      ...(details.ids.length ? [`Fragments: ${details.ids.map(printable).join(", ")}`] : []),
-      ...(details.path
-        ? [
-            `${details.reason === "needs_own_repo" ? "Repository" : "Path"}: ${printable(details.path)}`,
-          ]
-        : []),
-      ...(details.step ? [`Step: ${printable(details.step)}`] : []),
-      ...(details.key ? [`Key: ${printable(details.key)}`] : []),
-      ...next.lines,
-    ],
-    next.next,
-  );
-}
-
-function composeNext(
-  details: typeof ComposeConflictDetails.Type,
-  invocation: string,
-): FailureGuide {
-  if (details.reason === "needs_own_repo")
-    return guide(
-      [],
-      details.fix?.length
-        ? `run again with --own-repo to give the project its own git repository inside that one, or with ${details.fix.map(printable).join(" ")} to leave those fragments out, or pick a directory outside that repository.`
-        : "run again with --own-repo to give the project its own git repository inside that one, or pick a directory outside that repository.",
-    );
-  if (details.reason === "reserved_path")
-    return guide(
-      [
-        "The CLI owns .git/ and .stacks/ in a project; no entry may write under them, in any letter case.",
-      ],
-      "remove or rename that file in the entry.",
-    );
-  return guide(
-    [],
-    `change --with or --without so these entries fit, or pick another stack; ${invocation} show <id> lists what each entry requires and conflicts with.`,
-  );
-}
-
-function configGuide(error: InvalidConfig, invocation: string): FailureGuide {
-  const details = error.details;
-  if (!details) return guide([], `run ${invocation} doctor to see which file is invalid.`);
-  if (details.schemaVersion !== undefined)
-    return guide(
-      [
-        `Path: ${printable(details.path)}`,
-        `Schema version: ${details.schemaVersion}, from a newer stacks.`,
-      ],
-      "upgrade @steamfield/stacks, then run this command again.",
-    );
-  return guide(
-    [`Path: ${printable(details.path)}`],
-    details.path.endsWith(MANIFEST_PATH)
-      ? "restore that file from version control (it isn't edited by hand), then run this command again."
-      : `fix that file so it matches the documented keys (${invocation} doctor shows the error), then run this command again.`,
-  );
-}
-
-// BadInput
-
-/** BadInput's three own-field shapes first, then submit's, then the `id`-carrying flags. */
-function badInputGuide(details: typeof BadInputDetails.Type, invocation: string): FailureGuide {
-  if (details.flag === "request")
-    return guide(
-      [`Request length: ${details.length}`],
-      `run ${invocation} search with a request of 1 to 500 characters after trimming.`,
-    );
-  if (details.flag === "limit")
-    return guide(
-      [`Flag: --limit ${printable(details.value)}`],
-      `run ${invocation} search with --limit from 1 to 20.`,
-    );
-  if (details.flag === "offline") return offlineGuide(details.command, invocation);
-  if (isSubmitDetails(details)) return submitGuide(details, invocation);
-  return idInputGuide(details, invocation);
-}
-
-function offlineGuide(command: "submit" | undefined, invocation: string): FailureGuide {
-  return command === "submit"
-    ? guide(
-        ["submit needs GitHub, and offline mode makes no network requests."],
-        `run ${invocation} submit without --offline and with STACKS_OFFLINE unset.`,
-      )
-    : guide(
-        ["update needs the npm registry, and offline mode makes no network requests."],
-        `run ${invocation} update without --offline and with STACKS_OFFLINE unset.`,
-      );
-}
-
-/** The BadInput shapes that carry an `id`, apart from submit's `collision`. */
-type IdInputDetails = Exclude<
-  typeof BadInputDetails.Type,
-  SubmitDetails | { flag: "request" | "limit" | "offline" }
->;
-
-function idInputGuide(details: IdInputDetails, invocation: string): FailureGuide {
-  const id = printable(details.id);
-  switch (details.flag) {
-    case "create_id":
-      return guide(
-        [`Id: ${id}`],
-        "use a lowercase kebab-case id, with only letters and digits between hyphens.",
-      );
-    case "create_shadows":
-      return guide(
-        [`Id: ${id}`, `Origins: ${details.origins?.join(", ") ?? ""}`],
-        `use --from ${details.origins?.[0] ?? "<origin>"} to start from a copy, or pick another id.`,
-      );
-    case "create_target":
-      return guide([`Path: ${id}`], "edit the existing entry, or choose an unused id.");
-    case "from":
-      return guide(
-        [`Origin: ${id}`],
-        "copy from bundled, index or project; user is the destination.",
-      );
-    case "confirmation":
-      return guide(
-        ["The copy was declined. Nothing was changed."],
-        "review the entry before copying it.",
-      );
-    case "fragment":
-      return details.alreadyApplied?.length
-        ? guide(
-            [`Already applied: ${details.alreadyApplied.map(printable).join(", ")}`],
-            `choose unapplied fragments with ${invocation} list.`,
-          )
-        : guide([`Id: ${id}`], `add takes fragments; use ${invocation} new for a stack.`);
-    case "agents":
-    case "sandbox":
-      return guide(
-        [`Flag: --${details.flag}`],
-        "use the preset and agents recorded in the manifest.",
-      );
-    case "payload":
-      return guide(
-        [`Flag: --payload ${id}`, "This stack ships no such payload variant."],
-        "drop --payload to start from the stack's example; only stacks with a payloads/none/ directory offer --payload none.",
-      );
-    case "scope":
-      return guide(
-        [`Flag: --scope ${id}`],
-        "pass an npm scope such as acme or @acme: lowercase, URL-safe, no /.",
-      );
-    case "source":
-      return guide(["Flag: --source"], "pass web, docs, skill, cli or other.");
-    case "with_without":
-      return guide(
-        [`Id: ${id}`, "Flags: --with and --without"],
-        `name ${id} in only one of --with and --without.`,
-      );
-    case "name":
-      return guide(
-        [`Flag: --name ${id}`],
-        "pass --name with a project name that has no control characters, double quotes or backslashes.",
-      );
-    case "author":
-      return guide(
-        [`Flag: --${details.flag} ${id}`],
-        `pass --${details.flag} without control characters.`,
-      );
-    case "dir":
-      return guide(
-        [`Directory name: ${id}`],
-        "pick a project directory whose name has no control characters.",
-      );
-    case "kind":
-      return guide(
-        [`Id: ${id}`, "Kinds: stack, fragment"],
-        "select --kind stack or --kind fragment.",
-      );
-    case "brief_stack":
-      return guide(
-        [`Id: ${id}`],
-        `--brief takes a stack; choose one with ${invocation} list stacks.`,
-      );
-    case "brief":
-      return guide(
-        [`Flag: ${id}`],
-        "--with, --without and --sandbox need --brief <stack>; add it, or drop the flag.",
-      );
-    case "only":
-      return guide(
-        [
-          `Flag: --only ${id}`,
-          ...(details.known?.length
-            ? [`Check and serve steps: ${details.known.map(printable).join(", ")}`]
-            : ["This project has no check or serve steps."]),
-        ],
-        "pass --only names from that list; setup and teardown steps always run.",
-      );
-    case "submit_entry":
-      return guide(
-        [`Entry: ${id}`],
-        "pass one entry directory (<root>/stacks/<id> or <root>/fragments/<id>) instead.",
-      );
-    case "submit_id":
-      return guide(
-        [`Id: ${id}`],
-        "pass a lowercase kebab-case entry id from your user registry, or an entry directory as a path containing a / (./<id> in the current directory).",
-      );
-  }
-}
-
-// BadInput from submit
-
-const SUBMIT_FLAGS = [
-  "repo",
-  "tool",
-  "submission",
-  "collision",
-  "unchanged",
-  "git_identity",
-  "branch_taken",
-] as const;
-type SubmitDetails = Extract<typeof BadInputDetails.Type, { flag: (typeof SUBMIT_FLAGS)[number] }>;
-function isSubmitDetails(details: typeof BadInputDetails.Type): details is SubmitDetails {
-  return (SUBMIT_FLAGS as ReadonlyArray<string>).includes(details.flag);
-}
-
-/** Blocking findings shown in text modes; the envelope's details keep every one. */
-const SHOWN_BLOCKERS = 10;
-
-/** `Blocked: <kind> <id>: <check> (<severity>)`, then ` at <file>[:<line>]` when known. */
-function blockerLine(blocker: typeof SubmissionBlocker.Type): string {
-  const line = blocker.line === undefined ? "" : `:${blocker.line}`;
-  const where = blocker.file === undefined ? "" : ` at ${printable(blocker.file)}${line}`;
-  return `Blocked: ${blocker.kind} ${printable(blocker.id)}: ${blocker.check} (${blocker.severity})${where}`;
-}
-
-function submitGuide(details: SubmitDetails, invocation: string): FailureGuide {
-  switch (details.flag) {
-    case "repo":
-      return guide(
-        [`Flag: --repo ${printable(details.value)}`],
-        "pass --repo as owner/name of a GitHub repository you can read, or leave it out for steamfield/stacks.",
-      );
-    case "tool":
-      return details.reason === "missing"
-        ? guide(
-            [`${details.tool} is not on PATH; submit opens the pull request with gh and git.`],
-            `install ${details.tool === "gh" ? "the GitHub CLI (https://cli.github.com) and run gh auth login" : "git"}, then run ${invocation} submit again.`,
-          )
-        : guide(
-            ["gh is not logged in to GitHub."],
-            `run gh auth login, then run ${invocation} submit again.`,
-          );
-    case "submission":
-      return guide(
-        [
-          ...details.blockers.slice(0, SHOWN_BLOCKERS).map(blockerLine),
-          ...(details.blockers.length > SHOWN_BLOCKERS
-            ? [`And ${details.blockers.length - SHOWN_BLOCKERS} more.`]
-            : []),
-        ],
-        `run ${invocation} validate <entry dir> --submission for each finding's message, fix them, then run ${invocation} submit again.`,
-      );
-    case "collision":
-      return guide(
-        [
-          `${details.kind === "stack" ? "Stack" : "Fragment"}: ${printable(details.id)}`,
-          details.removed
-            ? "The registry removed this id, and ids are never reused."
-            : "The registry already has this id.",
-          ...(details.owner === undefined
-            ? []
-            : [`authors.json gives it to @${printable(details.owner)}.`]),
-        ],
-        "pick another id for your entry (ids are permanent), or ask its author to submit the change.",
-      );
-    case "unchanged":
-      return guide(
-        ["The upstream registry already holds these entries exactly as submitted."],
-        "change the entry first, or leave it out of the submission.",
-      );
-    case "git_identity":
-      return guide(
-        ["git refused the commit because no author name or email is set."],
-        `run git config --global user.name and git config --global user.email, then run ${invocation} submit again.`,
-      );
-    case "branch_taken":
-      return guide(
-        [
-          `Branch: ${printable(details.branch)}`,
-          `The pull request branch on your fork has commits ${invocation} submit didn't make.`,
-        ],
-        `update that pull request by hand, ask a registry maintainer to, or delete the branch on your fork to start over; ${invocation} submit only replaces a branch it pushed itself.`,
-      );
-  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
 // The JSON error envelope
 // ---------------------------------------------------------------------------------------------
+
+// Published anyOf order breaks ties between overlapping details in decoders.
+const detailsOrder: ReadonlyArray<typeof ErrorTag.Type> = [
+  "UpstreamUnavailable",
+  "UpdateFailed",
+  "Usage",
+  "BadInput",
+  "NotFound",
+  "InvalidConfig",
+  "VerifyFailed",
+  "VerifyChanged",
+  "PermissionDenied",
+  "EntryInvalid",
+  "ComposeConflict",
+  "TargetNotEmpty",
+  "ValidationFailed",
+];
+const envelopeDetails = Schema.Union(
+  Array.from(
+    new Set([...detailsOrder, ...ErrorTag.literals]),
+    (tag) => errorTable[tag].details,
+  ).filter((schema) => schema !== undefined),
+);
 
 /**
  * The one stderr line a `--json` failure ends with (`Output.error`). `next` is the failure's one
@@ -1218,23 +537,7 @@ export const ErrorEnvelope = Schema.Struct({
     retryable: Schema.Boolean,
     next: Schema.optionalKey(Schema.String),
     rollback: Schema.optionalKey(Schema.Struct({ incomplete: Schema.Array(Schema.String) })),
-    details: Schema.optionalKey(
-      Schema.Union([
-        UpstreamUnavailableDetails,
-        UpdateFailedDetails,
-        UsageDetails,
-        BadInputDetails,
-        NotFoundDetails,
-        InvalidConfigDetails,
-        VerifyFailedDetails,
-        VerifyChangedDetails,
-        PermissionDeniedDetails,
-        EntryInvalidDetails,
-        ComposeConflictDetails,
-        TargetNotEmptyDetails,
-        ValidationFailedDetails,
-      ]),
-    ),
+    details: Schema.optionalKey(envelopeDetails),
   }),
 }).annotate({
   title: "Error envelope",
@@ -1242,48 +545,59 @@ export const ErrorEnvelope = Schema.Struct({
 });
 export type ErrorEnvelope = typeof ErrorEnvelope.Type;
 
-/** Encodes `value` with `schema`, rejecting keys the schema doesn't name. */
-const encodeClosed = <S extends Schema.Top>(schema: S, value: S["Type"] | undefined) =>
-  value === undefined
-    ? Effect.succeed(undefined)
-    : Schema.encodeUnknownEffect(schema)(value, { onExcessProperty: "error" });
+// ErrorEnvelope keeps the published schema order. On the wire, details precede rollback
+// and have already been encoded by the tag's own schema in encodeDetails.
+const encodeEnvelope = Schema.encodeSync(
+  Schema.Struct({
+    error: ErrorEnvelope.fields.error.mapFields(({ rollback, ...fields }) => ({
+      ...fields,
+      details: Schema.optionalKey(Schema.Unknown),
+      rollback,
+    })),
+  }),
+);
+
+class PreparedFailure {
+  readonly error: AppError;
+  readonly #details: unknown;
+
+  private constructor(error: AppError, details: unknown) {
+    this.error = error;
+    this.#details = details;
+  }
+
+  static prepare = Effect.fn("errors.prepareFailure")(function* (error: AppError) {
+    const details = yield* encodeDetails(error);
+    return new PreparedFailure(error, details);
+  });
+
+  renderEnvelope(next: string | undefined, rollback: ReadonlyArray<string>): string {
+    const { error } = this;
+    const details = this.#details;
+    const envelope = encodeEnvelope({
+      error: defined({
+        tag: error._tag,
+        message: error.message,
+        retryable: retryable(error),
+        next,
+        details,
+        ...(rollback.length === 0 ? {} : { rollback: { incomplete: rollback } }),
+      }),
+    });
+    return `${JSON.stringify(envelope)}\n`;
+  }
+}
+
+export type { PreparedFailure };
+export const prepareFailure = PreparedFailure.prepare;
 
 /**
  * A failure's details, encoded with the tag's details schema. Construction already drops keys
  * the schema doesn't name; this catches a details object mutated afterwards.
  */
-export function encodeDetails(error: AppError): Effect.Effect<unknown, Schema.SchemaError> {
-  switch (error._tag) {
-    case "Usage":
-      return encodeClosed(UsageDetails, error.details);
-    case "PermissionDenied":
-      return encodeClosed(PermissionDeniedDetails, error.details);
-    case "EntryInvalid":
-      return encodeClosed(EntryInvalidDetails, error.details);
-    case "BadInput":
-      return encodeClosed(BadInputDetails, error.details);
-    case "NotFound":
-      return encodeClosed(NotFoundDetails, error.details);
-    case "ComposeConflict":
-      return encodeClosed(ComposeConflictDetails, error.details);
-    case "TargetNotEmpty":
-      return encodeClosed(TargetNotEmptyDetails, error.details);
-    case "ValidationFailed":
-      return encodeClosed(ValidationFailedDetails, error.details);
-    case "InvalidConfig":
-      return encodeClosed(InvalidConfigDetails, error.details);
-    case "VerifyFailed":
-      return encodeClosed(VerifyFailedDetails, error.details);
-    case "VerifyChanged":
-      return encodeClosed(VerifyChangedDetails, error.details);
-    case "UpstreamUnavailable":
-      return encodeClosed(UpstreamUnavailableDetails, error.details);
-    case "UpdateFailed":
-      return encodeClosed(UpdateFailedDetails, error.details);
-    case "NotConfigured":
-    case "Interrupted":
-    case "Defect":
-    case "BrokenPipe":
-      return Effect.succeed(undefined);
-  }
+function encodeDetails(error: AppError): Effect.Effect<unknown, Schema.SchemaError> {
+  const schema = errorTable[error._tag].details;
+  if (schema === undefined || !("details" in error) || error.details === undefined)
+    return Effect.succeed(undefined);
+  return Schema.encodeUnknownEffect(schema)(error.details, { onExcessProperty: "error" });
 }

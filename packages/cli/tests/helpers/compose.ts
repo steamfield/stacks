@@ -7,7 +7,8 @@ import { AppConfig } from "../../src/config";
 import { targetAgents } from "../../src/core/compose/agents";
 import { compose } from "../../src/core/compose/compose";
 import type { ComposeOptions } from "../../src/core/compose/types";
-import { Registry, type RegistryRoots } from "../../src/core/registry/registry";
+import { Registry } from "../../src/core/registry/registry";
+import type { RegistryRoots } from "../../src/core/registry/roots";
 import { tempDir } from "./cli";
 import { composeRegistry } from "./registry";
 
@@ -29,7 +30,7 @@ export function composeExit(
     writeFileSync(join(xdg, "stacks", "config.json"), JSON.stringify(setup.config));
   }
   const program = Effect.gen(function* () {
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
     return yield* compose({
       stack: "web-stack",
       with: [],

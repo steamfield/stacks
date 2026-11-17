@@ -1,19 +1,10 @@
-/**
- * The `search` command: takes what the user wants to build, in their own words, and returns the
- * stacks and fragments that fit it best.
- *
- * This file checks the input and renders the result. `core/search/run.ts::search` does the ranking:
- * it asks the hosted stacks API and ranks the local registry in parallel, then merges the two with
- * local entries winning. `--local`, `--offline` and the telemetry opt-outs keep the request text on
- * the machine. The request length and hit counts are added to the command's log record; the text
- * itself is not.
- */
+/** Validates `stacks search` requests and renders the results. */
 import { SearchResult } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { renderSearch } from "../core/search/report";
 import { search } from "../core/search/run";
-import { textWidth } from "../core/wrap";
+import { textWidth } from "../core/text/wrap";
 import { BadInput } from "../errors";
 import { Host } from "../services/host";
 import { Invocation } from "../services/invocation";
@@ -67,6 +58,7 @@ export const searchCommand = Command.make(
       });
       const output = yield* Output;
       const host = yield* Host;
+      // Query text stays out of the command log.
       yield* (yield* Invocation).annotate({
         requestLength: String(length),
         remote: result.remote,

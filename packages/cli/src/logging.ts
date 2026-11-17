@@ -1,19 +1,8 @@
 /**
- * The CLI's logger: every log record a command produces is built, queued and written here.
- *
- * Effect code logs with `Effect.log*`; `main.ts` installs `Logging.logger`, which turns each call
- * into a plain record through `entry` and queues it. Nothing is written while the command runs.
- * `main` calls `flush` once the command finishes: records go to the JSONL file named by
- * `STACKS_LOG_FILE` (when set) and, for the human audience only, to stderr as short lines. `main`
- * also builds the one `command` summary record per invocation with `entry`.
- *
- * Records are a contract: tools and tests read the JSONL file, so field names and shapes don't
- * change. `entry` is the only builder, and it keeps data out of the log. Annotation values must be
- * scalars, keys that look like secrets are redacted, and an error contributes only its tag,
- * message, exit status and stack, never an arbitrary cause object. A log sink failing (an
- * unwritable file, a closed stderr) never fails the command or changes its exit status.
+ * Builds and drains the invocation's sanitized log records. The JSONL fields are a contract with
+ * tools that read the log.
  */
-import { Context, Effect, FileSystem, Layer, Logger, Path, References } from "effect";
+import { Context, Effect, FileSystem, Layer, Logger, LogLevel, Path, References } from "effect";
 import type { LogSettings } from "./config";
 import { type AppError, exitCode } from "./errors";
 import { Output } from "./services/output";
@@ -76,6 +65,17 @@ export function entry(input: {
     };
   return record;
 }
+type CommandLog = {
+  finished: number;
+  started: number;
+  invocationId: string;
+  error: AppError | undefined;
+  defect: string | undefined;
+  unwritten: string | undefined;
+  status: number;
+  fields: Readonly<Record<string, string | number | boolean | null>>;
+};
+
 /**
  * The invocation's logger and its queue of records. `flush` writes and empties the queue; with
  * `quiet` it skips stderr (the JSON and agent audiences) and still appends to the file.
@@ -84,7 +84,7 @@ export class Logging extends Context.Service<
   Logging,
   {
     logger: Logger.Logger<unknown, void>;
-    records: LogEntry[];
+    command: (minimum: LogSettings["level"], summary: CommandLog) => void;
     flush: (settings: LogSettings, quiet?: boolean) => Effect.Effect<void>;
   }
 >()("stacks/Logging") {
@@ -123,7 +123,30 @@ export class Logging extends Context.Service<
         );
       return {
         logger,
-        records,
+        command: (
+          minimum,
+          { finished, started, invocationId, error, defect, unwritten, status, fields },
+        ) => {
+          const level = error ? "Error" : "Info";
+          if (LogLevel.isGreaterThan(minimum, level)) return;
+          records.push(
+            entry({
+              date: new Date(finished),
+              level,
+              message: "command",
+              annotations: {
+                invocationId,
+                duration: finished - started,
+                outcome: error ? "failure" : "success",
+                status,
+                ...fields,
+                ...(defect ? { defect } : {}),
+                ...(unwritten ? { result: "unwritten", resultError: unwritten } : {}),
+              },
+              error,
+            }),
+          );
+        },
         flush: (settings, quiet = false) =>
           Effect.gen(function* () {
             for (const record of records.splice(0)) {
@@ -138,7 +161,6 @@ export class Logging extends Context.Service<
       };
     }),
   );
-  static memory = () => Logging.layer;
 }
 
 /** A record as one stderr line: the whole JSON record, or time, level, message and outcome. */

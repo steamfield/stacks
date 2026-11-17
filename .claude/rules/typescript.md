@@ -23,7 +23,7 @@ A shape that a Schema or a service already defines is derived, never retyped: `t
 
 ## Assertions
 
-`exactOptionalPropertyTypes` is off, but `Schema.optionalKey` still rejects a key that is present with `undefined` when it encodes. Build optional fields with a conditional spread, `...(x === undefined ? {} : { x })`, never `{ x: maybe }`.
+`exactOptionalPropertyTypes` is off, but `Schema.optionalKey` still rejects a key that is present with `undefined` when it encodes. Build optional fields with `defined()` in `packages/cli` and a conditional spread (`...(x === undefined ? {} : { x })`) in packages without it.
 
 No `!`. `as` is allowed in three places only: `JSON.parse(text) as unknown` before a decode; widening a const tuple for membership inside a type predicate (`(VALUES as ReadonlyArray<string>).includes(name)`); and a regex capture group the pattern always matches. Everywhere else:
 

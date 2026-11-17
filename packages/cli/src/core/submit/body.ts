@@ -1,16 +1,9 @@
 /**
- * Renders the text of the pull request `stacks submit` opens: its title (also the commit subject)
- * and its Markdown body.
- *
- * The body is what a maintainer reads first when reviewing a submission: the entries, how they
- * did under the submission checks, the warnings left for maintainers, the author's proposed
- * search queries and the review checklist. `submit.ts::submit` renders both after the checks
- * pass; the dry run returns the body, and a real run writes it to a file for `gh --body-file`.
- * Entry descriptions and queries come from the author, so they are folded onto one line and their
- * control characters escaped (`text.ts::printable`) before they reach the Markdown.
+ * Renders the submission commit subject and pull request text. Fold author descriptions and
+ * queries onto one line and use `printable` to keep control characters out of Markdown.
  */
 import type { Finding } from "../../schemas/validate";
-import { printable } from "../text";
+import { printable } from "../text/text";
 
 /**
  * The maintainer checklist every entry pull request carries; CONTRIBUTING.md and the entry pull
@@ -28,7 +21,6 @@ const MAINTAINER_CHECKLIST: ReadonlyArray<string> = [
 
 type BodyEntry = { kind: string; id: string; update: boolean; description: string };
 
-/** One line of text for Markdown: control characters escaped, newlines folded. */
 const oneLine = (text: string) => printable(text.replace(/\s+/g, " ").trim());
 
 /** The pull request title, and the commit subject: `feat(registry): add <id> <kind>`. */
@@ -44,7 +36,6 @@ const entryLine = (entry: BodyEntry) =>
 const warningLine = (finding: Finding) =>
   `- \`${finding.entry ?? ""}\`: ${finding.check}${finding.file === undefined ? "" : ` (${finding.file})`}`;
 
-/** The validation summary line, then the warnings maintainers resolve, if any. */
 function validationLines(findings: ReadonlyArray<Finding>): string[] {
   const count = (severity: Finding["severity"]) =>
     findings.filter((finding) => finding.severity === severity).length;
@@ -59,10 +50,6 @@ function queryLines(queries: ReadonlyArray<string>): string[] {
   return queries.map((query) => `- ${oneLine(query)}`);
 }
 
-/**
- * The pull request body: what is submitted, how it validated, the warnings left for maintainers,
- * the author's proposed search queries, the CLI version and the maintainer checklist.
- */
 export function pullRequestBody(options: {
   entries: ReadonlyArray<BodyEntry>;
   findings: ReadonlyArray<Finding>;

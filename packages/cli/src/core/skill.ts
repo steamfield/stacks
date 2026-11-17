@@ -1,28 +1,17 @@
 /**
- * Installs one of the CLI's bundled agent skills into a Claude Code skills directory, or prints
- * its `SKILL.md`, for `stacks skill install`.
- *
- * A skill is a folder of instructions a coding agent loads on its own when a task matches it. The
- * package ships two under `skills/` (`Host.skill`): `stacks`, which teaches an agent to use the
- * CLI, and `stacks-author`, which teaches it to write entries. `commands/skill.ts` calls
- * `installSkill`, which copies every file of `skills/<name>/` to `.claude/skills/<name>/` under
- * the user's HOME, or under the project's git root with `--project`.
- *
- * Every installed file is compared with the bundled one before anything is written. Identical
- * files are left alone, missing ones are written, and if any file differs the whole install is
- * refused with `TargetNotEmpty` unless `--force` is given, so a skill the user edited is never
- * overwritten by surprise. Writes go through `scaffold/write.ts::openProject`, which refuses
- * symlinks out of the target and rolls back every file written if a later one fails. Start at
- * `installSkill`.
+ * Installs or prints bundled skills. `writeSkill` checks existing installs and uses `openProject`
+ * for path containment and rollback.
  */
 import { Duration, Effect, FileSystem, Option, Path, type PlatformError } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../config";
+import { AppConfig } from "../config";
+import { GIT_REPOSITORY_VARIABLES } from "../env-names";
 import { NotFound, PermissionDenied, TargetNotEmpty } from "../errors";
 import type { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";
 import { type Captured, Processes } from "../services/processes";
+import { denied } from "./fs/denied";
 import { rewriteAuthorLinks } from "./guide";
-import { openProject, type ProjectWriter } from "./scaffold/write";
+import { openProject, type ProjectWriter } from "./project/writer";
 
 /**
  * The word budget for each skill's `SKILL.md`. A skill's SKILL.md loads whole whenever it
@@ -36,11 +25,9 @@ export const SKILL_WORDS = { stacks: 600, "stacks-author": 800 } as const satisf
 
 /** One file of a bundled skill: its path relative to the skill directory, `/`-separated. */
 type SkillFile = { readonly rel: string; readonly bytes: Uint8Array };
-/** How an installed file compares with the bundled one. */
 type FileState = "absent" | "same" | "differs";
 type PlannedFile = SkillFile & { readonly state: FileState };
 
-/** The directory part of a `/`-separated relative path that has one. */
 const parentOf = (rel: string) => rel.slice(0, rel.lastIndexOf("/"));
 
 const sameBytes = (left: Uint8Array, right: Uint8Array) =>
@@ -101,8 +88,7 @@ const readSkillFiles = (dir: string) =>
   });
 
 /**
- * The printed copy of a skill. The authoring skill's links to its references become the
- * `guide author` command that prints each one, since the printed copy travels without them.
+ * Printed skill text goes through `rewriteAuthorLinks`.
  */
 function printedText(raw: string, name: SkillName, cli: string): string {
   if (name !== "stacks-author") return raw;
@@ -158,8 +144,6 @@ const installedFiles = (options: {
     new TargetNotEmpty({
       details: { path: dir, entries: [...entries], ...(blocker ? { blocker } : {}) },
     });
-  const denied = (rel: string) =>
-    new PermissionDenied({ details: { reason: "unwritable", path: shown(rel) } });
   const escaped = (rel: string) =>
     new PermissionDenied({ details: { reason: "escape", path: shown(rel) } });
 
@@ -173,20 +157,21 @@ const installedFiles = (options: {
           Effect.catch((error) =>
             error.reason._tag === "NotFound"
               ? Effect.succeed(undefined)
-              : Effect.fail(denied(file.rel)),
+              : Effect.fail(denied("unwritable", shown(file.rel))),
           ),
         );
       if (info?.type === "SymbolicLink") return yield* escaped(file.rel);
       if (info && info.type !== "File") return yield* occupied([file.rel], "non-file");
       if (!info) return "absent" satisfies FileState;
-      const current = yield* fs.readFile(at).pipe(Effect.mapError(() => denied(file.rel)));
+      const current = yield* fs
+        .readFile(at)
+        .pipe(Effect.mapError(() => denied("unwritable", shown(file.rel))));
       return (sameBytes(current, file.bytes) ? "same" : "differs") satisfies FileState;
     });
 
   return { inspect, occupied };
 };
 
-/** Writes the absent files and rewrites the differing ones; identical files stay untouched. */
 const applyPlan = (writer: ProjectWriter, name: SkillName, planned: ReadonlyArray<PlannedFile>) =>
   Effect.gen(function* () {
     for (const file of planned) {
@@ -196,8 +181,8 @@ const applyPlan = (writer: ProjectWriter, name: SkillName, planned: ReadonlyArra
   });
 
 /**
- * Writes every file of the skill under `skills/<name>/`. Every file is checked before any is
- * written, so a differing file refuses the whole install (unless `force`) and nothing changes.
+ * Check every file before writing so a local edit blocks the entire install until the person
+ * explicitly uses `--force`. `applyPlan` leaves matching files alone.
  */
 const writeSkill = (options: {
   skills: string;

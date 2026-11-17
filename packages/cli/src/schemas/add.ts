@@ -1,15 +1,6 @@
 /**
- * The shape of what `stacks add --json` prints, so an agent can decode it and act on it.
- *
- * `add` applies fragments (reusable pieces such as CI or git hooks) to a project that already
- * exists. The result says which files were written, skipped because an identical copy was there,
- * or parked under `.stacks/incoming/` for the agent to merge (`mergeNeeded`), plus what changed in
- * the manifest (`.stacks/manifest.json`) and the handoff to the agent. The fields `add` shares
- * with `new` (`missingTools`, `untrusted`, `handoff`) are taken from `NewResult` so the two never
- * drift apart.
- *
- * `core/add.ts` builds it, `commands/handoff.ts` adds the handoff, and `stacks schema add` prints
- * it as JSON Schema.
+ * Defines the `add --json` result. Shared fields come from `NewResult` so both results use the
+ * same contract.
  */
 import { TamperCheck } from "@steamfield/stacks-format";
 import { Schema } from "effect";

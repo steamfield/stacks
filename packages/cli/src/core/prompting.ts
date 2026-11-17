@@ -1,18 +1,6 @@
 /**
- * Asks a person for the arguments they left off `stacks new`, `stacks add` or `stacks create`,
- * through numbered menus at the terminal.
- *
- * Running `stacks new` with no stack at a terminal shows a numbered list of stacks, then optional
- * fragments, a preset and a directory. `commands/new.ts`, `commands/add.ts` and
- * `commands/create.ts` call `pickNew`, `pickAdd` and `pickCreate`; each returns plain values the
- * command then uses as if they had been typed as flags. Afterwards `runningCommand` prints the
- * equivalent command line (`Running: stacks new ...`) so it can be rerun without the menus.
- *
- * Menus appear only for the `human` audience (a person at their own terminal) with a terminal on
- * both stdin and stdout; `canPrompt` is that gate. An agent, `--json`, CI or a pipe gets the
- * command's normal noninteractive behavior instead, because nobody is there to answer (Trust model
- * point 4). Nothing is written while a menu is open, so Ctrl+C there leaves no trace.
- * `displayPicker` is shared with the handoff picker in `commands/handoff.ts`.
+ * Collects missing command arguments through terminal pickers gated by `canPrompt` (trust point
+ * 4). Leaving writes until after selection lets Ctrl+C exit a menu without changes.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, Path, Terminal } from "effect";
@@ -24,17 +12,20 @@ import type { Origin } from "../schemas/origin";
 import { Host } from "../services/host";
 import { type Audience, Output } from "../services/output";
 import { fitsStack } from "./compose/selection";
-import { listResult, projectChoices } from "./list";
-import { MANIFEST_PATH, readManifest } from "./manifest";
-import { defaultRoots, Registry } from "./registry/registry";
+import { listResult, projectChoices } from "./list/index";
+import { MANIFEST_PATH, readManifest } from "./project/manifest";
+import { newPreset } from "./project/preset";
+import { Registry } from "./registry/registry";
+import { defaultRoots } from "./registry/roots";
 import type { NewOptions } from "./scaffold/new";
-import { shellArg } from "./shell";
-import { slug } from "./slug";
-import { printable } from "./text";
+import { numberedRows } from "./text/numbered-rows";
+import { shellArg } from "./text/shell";
+import { slug } from "./text/slug";
+import { printable } from "./text/text";
 
 /**
- * Pickers run only for the human audience with a terminal on both stdin and stdout; agents,
- * `--json`, CI and pipes keep the noninteractive behavior.
+ * Pickers require the human audience and both terminal streams so a person can answer
+ * (trust point 4).
  */
 export const canPrompt = (input: {
   audience: Audience;
@@ -42,7 +33,6 @@ export const canPrompt = (input: {
   stdoutIsTTY: boolean;
 }): boolean => input.audience === "human" && input.stdinIsTTY && input.stdoutIsTTY;
 
-/** `canPrompt` for this invocation. */
 export const promptingAllowed = Effect.gen(function* () {
   const host = yield* Host;
   const output = yield* Output;
@@ -85,7 +75,7 @@ const readAnswer = (terminal: Terminal.Terminal, question: string) =>
   );
 
 /** Shows the numbered choices, then asks until the answer names only listed numbers. */
-const selectValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =>
+const pickArgumentValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =>
   Effect.gen(function* () {
     if (!selection.choices.length && !selection.multiple) return yield* new Usage();
     yield* displayPicker(terminal, menuText(selection));
@@ -97,29 +87,25 @@ const selectValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =
     }
   });
 
-/** A single-choice picker's one value. */
 const selectOne = <A>(terminal: Terminal.Terminal, selection: Omit<Selection<A>, "multiple">) =>
-  selectValues(terminal, selection).pipe(
+  pickArgumentValues(terminal, selection).pipe(
     Effect.flatMap((values) => {
       const value = values[0];
       return value === undefined ? Effect.fail(new Usage()) : Effect.succeed(value);
     }),
   );
 
-/** The terminal's question and picker operations, bound to one `Terminal`. */
 const promptSession = Effect.map(Terminal.Terminal, (terminal) => ({
   read: (question: string) => readAnswer(terminal, question),
-  select: <A>(selection: Selection<A>) => selectValues(terminal, selection),
+  select: <A>(selection: Selection<A>) => pickArgumentValues(terminal, selection),
   one: <A>(selection: Omit<Selection<A>, "multiple">) => selectOne(terminal, selection),
 }));
 
 type PromptSession = Effect.Success<typeof promptSession>;
 
 function menuText(selection: Selection<unknown>): string {
-  const rows = selection.choices.map(
-    (choice, index) => `  ${index + 1}) ${printable(choice.label)}\n`,
-  );
-  return `\n${selection.title} (Ctrl+C to quit)\n${rows.join("")}`;
+  const rows = numberedRows(selection.choices.map(({ label }) => printable(label)));
+  return `\n${selection.title} (Ctrl+C to quit)\n${rows.map((row) => `${row}\n`).join("")}`;
 }
 
 function selectionQuestion(mode: SelectionMode): string {
@@ -218,19 +204,16 @@ const PRESET_CHOICES: ReadonlyArray<Choice<NewPreset>> = [
   { label: "Lean (no default fragments)", value: "lean" },
 ];
 
-/**
- * `--preset` or `--sandbox` when given; otherwise a picker whose Enter choice is the `preset`
- * setting, or `default` for a preview, which ignores the setting.
- */
 const pickPreset = Effect.fn("prompting.pickPreset")(function* (
   input: Pick<NewOptions, "preset" | "sandbox" | "dryRun">,
   prompt: PromptSession,
 ) {
-  if (input.preset !== undefined) return input.preset;
-  if (input.sandbox) return "sandbox";
+  if (input.preset !== undefined || input.sandbox) return newPreset(input);
   // Settings are read even for a preview, so an invalid config file still fails here.
-  const settings = yield* (yield* AppConfig).get;
-  const preset = input.dryRun ? "default" : (settings.preset ?? "default");
+  const settings = yield* (yield* AppConfig).settings;
+  // Keep the picker's historical Enter choice for dry runs while RFC Q1 is open.
+  // Named-stack previews use the setting through `newPreset`.
+  const preset = newPreset(input, input.dryRun ? undefined : settings.preset);
   const presetIndex = PRESET_CHOICES.findIndex((choice) => choice.value === preset);
   return yield* prompt.one<NewPreset>({
     title: "Composition preset",
@@ -302,13 +285,13 @@ const pickCopySource = (prompt: PromptSession) =>
     return yield* prompt.one({ title: "Copy source", choices });
   });
 
+export type ReplayValue = string | boolean | ReadonlyArray<string> | undefined;
+
 /**
  * The flags of the command a picker settled on, for the `Running:` line. Built from parsed
  * values, never argv; `runningCommand` shell-quotes them, which also protects picked paths.
  */
-export function replayFlags(
-  flags: Readonly<Record<string, string | boolean | ReadonlyArray<string> | undefined>>,
-) {
+export function replayFlags(flags: Readonly<Record<string, ReplayValue>>) {
   return Object.entries(flags).flatMap(([name, value]) => {
     if (value === undefined || value === false) return [];
     if (value === true) return [`--${name}`];

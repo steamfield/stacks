@@ -5,15 +5,17 @@
 import { NodeServices } from "@effect/platform-node";
 import { INDEX_PUBLIC_KEYS } from "@steamfield/stacks-format";
 import { Effect, Layer, Option } from "effect";
-import { SOURCE_BUILD } from "../../src/config";
+import { hasFlag } from "../../src/argv";
+import { SOURCE_BUILD } from "../../src/build";
 import { Allowlist } from "../../src/core/allowlist";
-import { hasFlag, main } from "../../src/main";
+import { main } from "../../src/main";
 import { NetLayer } from "../../src/platform/net";
 import { installSignalPolicy } from "../../src/platform/signals";
 import { stringWidth } from "../../src/platform/width";
 import { AppLayer, runInvocation } from "../../src/runtime";
 import { Host } from "../../src/services/host";
-import { Output, type Writer } from "../../src/services/output";
+import { Output } from "../../src/services/output";
+import type { Writer } from "../../src/services/output-write";
 import { Foreground } from "../../src/services/processes";
 
 const [registry, ...args] = process.argv.slice(2) as [string, ...string[]];
@@ -48,14 +50,17 @@ const platform = Layer.mergeAll(
 const controller = new AbortController();
 const dispose = installSignalPolicy(holder, () => controller.abort());
 try {
-  const application = AppLayer(
-    Output.layer(hasFlag(args, "--json"), writer(process.stdout), writer(process.stderr)),
-    undefined,
-    SOURCE_BUILD,
-  );
+  const application = AppLayer({
+    output: Output.layer({
+      jsonFlag: hasFlag(args, "--json"),
+      stdout: writer(process.stdout),
+      stderr: writer(process.stderr),
+    }),
+    build: SOURCE_BUILD,
+  });
   const allowlist = Allowlist.layer({ keys: INDEX_PUBLIC_KEYS }).pipe(Layer.provide(application));
   process.exitCode = await runInvocation(
-    main(args).pipe(
+    main({ args }).pipe(
       Effect.provide(Layer.provideMerge(Layer.merge(application, allowlist), platform)),
       Effect.scoped,
     ),

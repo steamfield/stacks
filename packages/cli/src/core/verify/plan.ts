@@ -1,23 +1,12 @@
-/**
- * Decides which of a project's verify steps a `stacks verify` run will execute, and in what order.
- *
- * A verify step is one command from the manifest (`.stacks/manifest.json`), with a phase: `setup`
- * prepares, `check` tests, `serve` starts a server and probes it, `teardown` cleans up. Steps tagged
- * `app` form a second stage that runs after the base steps. `planVerify` puts the steps in run
- * order (base then app, each by phase, then manifest order) and applies the selection flags
- * (`--only`, `--skip-tag`, `--all`), recording a fixed reason for every step it leaves out.
- * `--only` picks among check and serve steps and never leaves out setup or teardown, because the
- * checks depend on them; `--skip-tag` and the default skips apply to every phase.
- *
- * `commands/verify.ts` calls `planVerify` to reject a bad `--only` name early and to build a
- * `changed` result; `run.ts::runVerify` plans again and runs the plan. Nothing here touches the
- * project or runs a process.
- */
-import type { ManifestStep } from "@steamfield/stacks-format";
-import { type Phase, type ResolvedStep, withStepDefaults } from "@steamfield/stacks-format";
+/** Orders manifest steps and applies verify's selection flags without running anything. */
+import {
+  type ManifestStep,
+  type Phase,
+  type ResolvedStep,
+  withStepDefaults,
+} from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { BadInput } from "../../errors";
-import type { StepResult } from "../../schemas/verify";
 
 const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
 /** Steps that check the project's hygiene (fill markers, harness, CI, hooks), not its code. */
@@ -26,20 +15,21 @@ export const HYGIENE_SKIPPED = "a hygiene check; --all or --only <name> runs it"
 const PRESET_SKIPPED = "skipped by default in this preset; --all or --only <name> runs it";
 const NOT_SELECTED = "not selected by --only";
 
-/** A manifest step with its defaults applied. */
 export type PlannedStep = ResolvedStep & { skipByDefault: boolean };
 
-export type SelectOptions = {
+export type VerifyOptions = {
   only: ReadonlyArray<string>;
   skipTags: ReadonlyArray<string>;
   all: boolean;
 };
 
+type StepSkip = { kind: "default" | "selection"; reason: string };
+
 export type VerifyPlan = {
   /** In run order: base then app, each by phase and then manifest order. */
   steps: ReadonlyArray<PlannedStep>;
-  /** Steps left out by selection, with the fixed reason each is skipped. */
-  skipped: ReadonlyMap<string, string>;
+  /** Why each omitted step was skipped and whether that skip makes its stage partial. */
+  skipped: ReadonlyMap<string, StepSkip>;
   scope: "full" | "partial";
 };
 
@@ -51,24 +41,12 @@ export const stepFields = (step: PlannedStep) => ({
   command: step.run,
 });
 
-/** The result of a step that didn't run, with the fixed reason it was skipped. */
-export const skippedStep = (step: PlannedStep, reason: string): StepResult => ({
-  ...stepFields(step),
-  status: "skipped",
-  durationMs: 0,
-  reason,
-});
-
-/** Whole seconds from `createdAt` to `now`, never negative; 0 when `createdAt` doesn't parse. */
-export const secondsSinceCreated = (createdAt: string, now: number) => {
-  const created = Date.parse(createdAt);
-  return Number.isFinite(created) ? Math.max(0, Math.floor((now - created) / 1000)) : 0;
-};
-
-/** Whether the step belongs to the app stage, which runs after the base steps. */
 export const isAppStep = (step: PlannedStep) => step.tags.includes("app");
 
-/** Only check and serve steps can be picked with `--only`, which never leaves out setup or teardown. */
+/**
+ * Keep setup and teardown outside `--only` because selected checks still depend on them.
+ * `--skip-tag` and default skips can affect any phase.
+ */
 const isSelectable = (step: PlannedStep) => step.phase === "check" || step.phase === "serve";
 
 /**
@@ -80,7 +58,7 @@ const resolveStep = ({ owner: _owner, skipByDefault, ...step }: ManifestStep): P
   return { ...defaults, skipByDefault: skipByDefault || defaults.tags.includes(HYGIENE_TAG) };
 };
 
-/** Base steps then app steps, each grouped by phase, keeping manifest order within a group. */
+/** Run base before app, by phase within each stage and in manifest order within each phase. */
 const runOrder = (steps: ReadonlyArray<PlannedStep>) =>
   [false, true].flatMap((app) =>
     PHASES.flatMap((phase) =>
@@ -89,24 +67,27 @@ const runOrder = (steps: ReadonlyArray<PlannedStep>) =>
   );
 
 /** Why the selection flags leave this step out, or undefined when it runs. First match wins. */
-function selectionSkip(step: PlannedStep, options: SelectOptions): string | undefined {
+function selectionSkip(step: PlannedStep, options: VerifyOptions): StepSkip | undefined {
   if (step.skipByDefault && !options.all && !options.only.includes(step.name))
-    return step.tags.includes(HYGIENE_TAG) ? HYGIENE_SKIPPED : PRESET_SKIPPED;
+    return {
+      kind: "default",
+      reason: step.tags.includes(HYGIENE_TAG) ? HYGIENE_SKIPPED : PRESET_SKIPPED,
+    };
   if (options.only.length > 0 && isSelectable(step) && !options.only.includes(step.name))
-    return NOT_SELECTED;
+    return { kind: "selection", reason: NOT_SELECTED };
   const tag = step.tags.find((item) => options.skipTags.includes(item));
-  return tag === undefined ? undefined : `tagged ${tag}; --skip-tag leaves it out`;
+  return tag === undefined
+    ? undefined
+    : { kind: "selection", reason: `tagged ${tag}; --skip-tag leaves it out` };
 }
 
 /**
- * Orders the steps and applies the selection flags. `--only` and `--skip-tag` make the scope
- * `partial`; `skipByDefault` steps (`prod` under `--sandbox`, and every `hygiene` step) run with
- * `--all` or an explicit `--only` name. `--all` keeps the scope `full`. An `--only` name that is
- * no check or serve step is `BadInput`, listing those names.
+ * `--all` lifts default skips. A name in `--only` also lifts the default skip for that step.
+ * `--only` and `--skip-tag` still filter steps and make the run partial even with `--all`.
  */
 export function planVerify(
   manifestSteps: ReadonlyArray<ManifestStep>,
-  options: SelectOptions,
+  options: VerifyOptions,
 ): Effect.Effect<VerifyPlan, BadInput> {
   const steps = runOrder(manifestSteps.map(resolveStep));
   const known = steps
@@ -114,12 +95,13 @@ export function planVerify(
     .map((step) => step.name)
     .sort();
   const unknown = options.only.find((name) => !known.includes(name));
+  // Help callers recover from a bad selection by reporting the eligible check and serve names.
   if (unknown !== undefined)
     return Effect.fail(new BadInput({ details: { id: unknown, flag: "only", known } }));
-  const skipped = new Map<string, string>();
+  const skipped = new Map<string, StepSkip>();
   for (const step of steps) {
-    const reason = selectionSkip(step, options);
-    if (reason !== undefined) skipped.set(step.name, reason);
+    const skip = selectionSkip(step, options);
+    if (skip !== undefined) skipped.set(step.name, skip);
   }
   const scope = options.only.length > 0 || options.skipTags.length > 0 ? "partial" : "full";
   return Effect.succeed({ steps, skipped, scope });

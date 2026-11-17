@@ -1,54 +1,44 @@
 /**
- * Runs every check `stacks validate` makes over one registry root and collects the report.
- *
- * `commands/validate.ts` calls `validate` with the `Target` that `target.ts::resolveTarget` found
- * (a registry root, or one entry under it). This module builds a `View`, the one read-only picture
- * of the registry every check works from: the validated entries (those under the root), the
- * resolution set (every entry of every origin, with the root's entries winning), their source
- * text and a lazily rendered set of compositions. It then runs the check groups in `checks`, one
- * module each, and sorts what they find.
- *
- * A problem in an entry is a finding (an error, warning or note), never a failure, so one bad
- * entry can't hide the rest; the command fails `ValidationFailed` on any error finding. The order
- * of `checks` and the sort in `compareFindings` decide the order a report lists findings in.
- * `preview.ts` reuses `checks`, `compareFindings` and `validationRoots` for `validate --brief`.
- *
- * Start at `validate`.
+ * Runs registry checks against one read-only view whose target root takes precedence when
+ * resolving references. Checks collect findings so one bad entry cannot hide the rest.
+ * `compareFindings` orders the findings.
  */
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
-import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
-import { defaultRoots, Registry, type RegistryRoots } from "../registry/registry";
-import { addCompositionChecks } from "./add-compositions";
-import { authorChecks } from "./authors";
-import { commandChecks } from "./commands";
-import { composeEachChecks } from "./compose-each";
-import { composedFiles, renderedFileChecks } from "./composed";
-import { bodyChecks, compositionChecks } from "./compositions";
-import { conditionalChecks } from "./conditionals";
-import { conditionalReachChecks } from "./conditionals-reach";
-import { datedChecks } from "./dated";
-import { dependencyChecks } from "./deps";
-import { fileChecks } from "./files";
-import { loadChecks, metadataChecks } from "./format";
-import { gitChecks } from "./git";
-import { headingChecks } from "./headings";
-import { importChecks } from "./imports";
-import { ledgerChecks } from "./ledger-notes";
-import { referenceChecks } from "./references";
-import { searchChecks } from "./search";
-import { shippedReferenceChecks } from "./shipped-refs";
+import { defined } from "../object";
+import { type Entry, isFragment, isRejected, type RegistryEntry } from "../registry/entry";
+import { Registry } from "../registry/registry";
+import { defaultRoots, type RegistryRoots } from "../registry/roots";
+import { authorChecks } from "./checks/authors";
+import { commandChecks } from "./checks/commands";
+import { conditionalChecks } from "./checks/conditionals";
+import { conditionalReachChecks } from "./checks/conditionals-reach";
+import { datedChecks } from "./checks/dated";
+import { dependencyChecks } from "./checks/deps";
+import { fileChecks } from "./checks/files";
+import { loadChecks, metadataChecks } from "./checks/format";
+import { gitChecks } from "./checks/git";
+import { headingChecks } from "./checks/headings";
+import { importChecks } from "./checks/imports";
+import { ledgerChecks } from "./checks/ledger-notes";
+import { referenceChecks } from "./checks/references";
+import { searchChecks } from "./checks/search";
+import { shippedReferenceChecks } from "./checks/shipped-refs";
+import { submissionChecks } from "./checks/submission";
+import { templateChecks } from "./checks/templates";
+import { verifyNotes } from "./checks/verify-notes";
+import { versionSensitiveChecks } from "./checks/version-sensitive";
+import { addCompositionChecks } from "./compositions/add-compositions";
+import { composeEachChecks } from "./compositions/compose-each";
+import { composedFiles, renderedFileChecks } from "./compositions/composed";
+import { bodyChecks, compositionChecks } from "./compositions/compositions";
 import { snapshotRegistry } from "./snapshot";
 import { readSources } from "./sources";
-import { submissionChecks } from "./submission";
 import type { Target } from "./target";
-import { templateChecks } from "./templates";
 import type { Check, SourceView, View } from "./types";
-import { verifyNotes } from "./verify-notes";
-import { versionSensitiveChecks } from "./version-sensitive";
 import { rootPaths } from "./view";
 
-/** Every check group, run in this order; each module owns one class of findings over the view. */
+/** Check order also breaks ties between size rows of the same kind. */
 export const checks: ReadonlyArray<Check> = [
   loadChecks,
   searchChecks,
@@ -83,7 +73,7 @@ export const checks: ReadonlyArray<Check> = [
  */
 export const validationRoots = (target: Target) =>
   Effect.gen(function* () {
-    if (target.bundled) return [{ origin: "bundled", path: target.root }] satisfies RegistryRoots;
+    if (target.asBundled) return [{ origin: "bundled", path: target.root }] satisfies RegistryRoots;
     const others = yield* defaultRoots;
     // The root keeps the origin it already has for this invocation; any other directory is
     // treated like the user directory, the place an author's own entries live.
@@ -133,33 +123,32 @@ const wantedBy =
  * stacks would cost time that grows with the bundled registry for nothing.
  */
 function sourceEntries(
-  all: ReadonlyArray<Entry | RejectedEntry>,
-  validated: ReadonlyArray<Entry | RejectedEntry>,
+  all: ReadonlyArray<RegistryEntry>,
+  validated: ReadonlyArray<RegistryEntry>,
 ): ReadonlyArray<Entry> {
   const entries = all.filter((item): item is Entry => !isRejected(item));
   if (entries.some((item) => validated.includes(item) && isFragment(item))) return entries;
   return entries.filter((item) => validated.includes(item) || isFragment(item));
 }
 
-/** The view every check reads, over the resolution set `all`. */
-const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
+const buildView = (target: Target, all: ReadonlyArray<RegistryEntry>) =>
   Effect.gen(function* () {
     const path = yield* Path.Path;
     const { inRoot, file } = rootPaths(path, target.root);
     const wanted = wantedBy(target.only);
     const validated = all.filter((item) => inRoot(item) && wanted(item));
-    const sourceView: SourceView = {
+    const sourceView: SourceView = defined({
       root: target.root,
-      bundled: target.bundled,
-      ...(target.only === undefined ? {} : { only: target.only }),
+      asBundled: target.asBundled,
+      only: target.only,
       entries: validated.filter((item): item is Entry => !isRejected(item)),
-      rejected: validated.filter((item): item is RejectedEntry => isRejected(item)),
+      rejected: validated.filter(isRejected),
       all,
       sources: yield* readSources(sourceEntries(all, validated)),
       wanted,
       inRoot,
       file,
-    };
+    });
     // Rendering compositions is the slowest work; several checks share one run of it.
     return {
       ...sourceView,
@@ -167,7 +156,6 @@ const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
     } satisfies View;
   });
 
-/** Runs each check in order, one after another, and concatenates what they return. */
 const runChecks = (view: View, list: ReadonlyArray<Check>) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
@@ -180,7 +168,6 @@ const runChecks = (view: View, list: ReadonlyArray<Check>) =>
     return { findings, sizes };
   });
 
-/** The report: entry counts of the validated set, sorted findings and sorted size rows. */
 function buildReport(
   view: View,
   { findings, sizes }: { findings: Finding[]; sizes: SizeRow[] },
@@ -190,7 +177,7 @@ function buildReport(
     validated.filter((item) => item.kind === kind).length;
   return {
     root: view.root,
-    bundled: view.bundled,
+    bundled: view.asBundled,
     entries: { stacks: count("stack"), fragments: count("fragment") },
     findings: findings.sort(compareFindings),
     // Stable sort: within a kind, rows stay in the order the checks produced them.
@@ -199,9 +186,8 @@ function buildReport(
 }
 
 /**
- * Validates the entries under `target.root` (or the one entry `target.only` names). Never stops
- * at the first bad entry: every problem is a finding. Fails only when a root can't be read.
- * `submission` adds the readiness checks for the public registry (`validate --submission`).
+ * An unreadable root fails validation itself. For an error finding, the command uses
+ * `ValidationFailed` and leaves result retention to `keepsResult`.
  */
 export const validate = (target: Target, options: { submission?: boolean } = {}) =>
   Effect.gen(function* () {

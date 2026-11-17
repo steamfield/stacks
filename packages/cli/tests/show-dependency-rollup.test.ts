@@ -1,12 +1,17 @@
-import { realpathSync } from "node:fs";
+import { realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type { IndexEntry, RegistryIndex } from "@steamfield/stacks-format";
-import { Effect, Option } from "effect";
-import { Command } from "effect/cli";
+import {
+  EntryBundle,
+  type IndexEntry,
+  type Kind,
+  type RegistryIndex,
+  SignedIndex,
+} from "@steamfield/stacks-format";
+import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { cli } from "../src/cli";
-import { RemoteIndex } from "../src/core/remote-index";
+import { bundleFile, digestOf, rawBundle } from "./fixtures/index/harness";
 import { quiet, runCli, terminal } from "./helpers/cli";
+import { remoteCli, remoteServer } from "./helpers/remote-index";
 import { put } from "./helpers/search-metadata";
 import { fragment, showReport, stack } from "./helpers/show-preview";
 import { workspace } from "./helpers/verify";
@@ -185,28 +190,40 @@ test("optional requirements can cycle while reporting both packages once", async
   });
 });
 
+async function publishBundle(
+  out: string,
+  registry: string,
+  kind: Kind,
+  id: string,
+): Promise<IndexEntry> {
+  const bundle = rawBundle(registry, kind, id);
+  const ref = {
+    id,
+    kind,
+    schemaVersion: 1,
+    name: id,
+    description: "Fixture bundle",
+    tags: [],
+    digest: await digestOf(bundle),
+  };
+  put(bundleFile(out, ref), JSON.stringify(Schema.encodeSync(EntryBundle)(bundle)));
+  return ref;
+}
+
 test.each(["different current", "unavailable current", "user override"])(
   "stack dependencies follow the effective pinned composition with %s",
   async (scenario) => {
     const { home, registry } = fixture();
     const remoteRoot = space.dir();
-    const remoteStack = stack(
-      remoteRoot,
-      "sample",
-      "deps:\n  cli: [cobra]\nfragments:\n  default: [release]",
-    );
-    const pinnedRelease = fragment(
+    stack(remoteRoot, "sample", "deps:\n  cli: [cobra]\nfragments:\n  default: [release]");
+    fragment(
       remoteRoot,
       "release",
       "requires: [pinned-support]\ndeps:\n  runtime: [pinned-package]",
     );
-    const pinnedSupport = fragment(
-      remoteRoot,
-      "pinned-support",
-      "deps:\n  runtime: [pinned-support]",
-    );
+    fragment(remoteRoot, "pinned-support", "deps:\n  runtime: [pinned-support]");
     const currentRoot = space.dir();
-    const currentRelease = fragment(
+    fragment(
       currentRoot,
       "release",
       "requires: [current-support]\ndeps:\n  runtime: [current-package]",
@@ -220,65 +237,39 @@ test.each(["different current", "unavailable current", "user override"])(
       );
       fragment(registry, "local-support", "deps:\n  runtime: [local-support]");
     }
-    const refs: IndexEntry[] = [
-      {
-        id: "sample",
-        kind: "stack",
-        schemaVersion: 1,
-        name: "Pinned stack",
-        description: "A stack pinned to historical fragment content.",
-        tags: [],
-        digest: `sha256:${"1".repeat(64)}`,
-        composition: {
-          release: `sha256:${"2".repeat(64)}`,
-          "pinned-support": `sha256:${"3".repeat(64)}`,
-        },
-      },
-      {
-        id: "release",
-        kind: "fragment",
-        schemaVersion: 1,
-        name: "Current release",
-        description: "A newer fragment with different dependencies.",
-        tags: [],
-        digest: `sha256:${"4".repeat(64)}`,
-      },
-    ];
+    const out = space.dir();
+    const sample = await publishBundle(out, remoteRoot, "stack", "sample");
+    const release = await publishBundle(out, remoteRoot, "fragment", "release");
+    const support = await publishBundle(out, remoteRoot, "fragment", "pinned-support");
+    const current = await publishBundle(out, currentRoot, "fragment", "release");
+    if (scenario === "unavailable current") rmSync(bundleFile(out, current));
     const index: RegistryIndex = {
       formatVersion: 1,
       minCli: "0.0.0",
       generatedAt: "2026-10-31T00:00:00Z",
       commit: "test",
-      entries: refs,
+      entries: [
+        { ...sample, composition: { release: release.digest, "pinned-support": support.digest } },
+        current,
+      ],
     };
-    const bundles = new Map<string, string>([
-      [`sha256:${"1".repeat(64)}`, remoteStack],
-      [`sha256:${"2".repeat(64)}`, pinnedRelease],
-      [`sha256:${"3".repeat(64)}`, pinnedSupport],
-    ]);
-    if (scenario !== "unavailable current") bundles.set(`sha256:${"4".repeat(64)}`, currentRelease);
-    const remote: RemoteIndex["Service"] = {
-      current: Effect.succeed(Option.some(index)),
-      bundle: (ref) => Effect.succeed(Option.fromUndefinedOr(bundles.get(ref.digest))),
-      status: Effect.succeed({
-        url: "https://index.example.test/v1/index.json",
-        isDefaultUrl: false,
-        offline: false,
-        cachedAt: null,
-        lastAttempt: null,
-        lastOutcome: null,
-        backoffUntil: null,
-      }),
-    };
-    const args = ["show", "sample", "--json"];
-    const result = await runCli(args, {
-      home,
-      env: quiet,
-      host: { registry },
-      program: Command.runWith(cli, { version: "test", renderErrors: false })(args).pipe(
-        Effect.provideService(RemoteIndex, remote),
+    put(
+      join(out, "v1/index.json"),
+      JSON.stringify(
+        Schema.encodeSync(SignedIndex)({
+          keyId: "test",
+          signature: "",
+          payload: JSON.stringify(index),
+        }),
       ),
-    });
+    );
+    const server = await remoteServer(out);
+    const result = await remoteCli(["show", "sample", "--json"], {
+      home,
+      server,
+      env: { ...quiet, STACKS_INDEX_URL: `${server.url}/v1/index.json` },
+      host: { registry },
+    }).finally(server.close);
     const report = await showReport(result);
     const prefix = scenario === "user override" ? "local" : "pinned";
     expect(report).toMatchObject({

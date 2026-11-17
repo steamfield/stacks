@@ -1,18 +1,6 @@
 /**
- * Turns a composition's planned files into the bytes that will land in the project.
- *
- * `plan-files.ts::planFiles` decides which entry writes each path and how: copied as is, rendered
- * from a `.tmpl` template, or merged from several entries' JSON. This module reads those sources
- * from the registry and renders the templates with a set of template values (project name, slug,
- * author, year). It is the one renderer for every entry file: `scaffold/new.ts` writes its output
- * for `stacks new`, `add/prepare.ts` plans `stacks add` with it, `core/fingerprint.ts` hashes it,
- * and `validate/composed.ts` checks it. The CLI's own `.stacks/` files are rendered elsewhere.
- *
- * `NEUTRAL_VARS` are fixed template values, so a composition's fingerprint (a hash identifying
- * exactly what was composed) doesn't depend on the user's settings or the date.
- * `composeFilesWithNeutral` reads every source once and renders it with both value sets, so the
- * written files and the fingerprint come from the same snapshot. Output is sorted by path, and a
- * file's `executable` flag comes from its source's permission bits.
+ * Renders planned entry files into bytes. Project and fingerprint rendering share a source snapshot
+ * through `composeFilesWithNeutral`.
  */
 import { Effect, type FileSystem, type Path } from "effect";
 import { EntryInvalid, type PermissionDenied } from "../../errors";
@@ -39,14 +27,10 @@ export const NEUTRAL_VARS: Readonly<TemplateValues> = Object.freeze({
   year: "2000",
 });
 
-/** A planned file after reading: final bytes, or template text still to be rendered. */
 type SourceFile = Omit<RenderedFile, "bytes"> &
   ({ bytes: Uint8Array } | { template: { text: string; entry: Entry; source: string } });
 
-/**
- * The registry to read sources through. Validation passes its own so it reads the snapshot it
- * already checked; standalone rendering reads the current source files through a fresh one.
- */
+/** Reuse validation's checked registry snapshot. Standalone rendering reads current sources. */
 const fileReader = (registry?: Registry["Service"]) =>
   registry ? Effect.succeed(registry) : Registry.pipe(Effect.provide(Registry.layer([])));
 
@@ -55,7 +39,6 @@ const byPath = (a: SourceFile, b: SourceFile) => {
   return a.path > b.path ? 1 : 0;
 };
 
-/** Read once so project-valued and neutral rendering use the same source snapshot. */
 const readFiles = (
   composition: Composition<Entry | null>,
   registry?: Registry["Service"],
@@ -70,13 +53,13 @@ const readFiles = (
     const files: SourceFile[] = [];
     for (const planned of composition.files)
       files.push(yield* readSource(reader, entries, planned));
+    // Both renderings use the same path order and source snapshot for writes and fingerprints.
     return files.sort(byPath);
   });
 
 /**
- * One planned file's content. A merge already holds its final bytes; a copy is read as bytes and
- * a template as text. An unreadable source stays the registry's `PermissionDenied`, as everywhere
- * else.
+ * Encode merged text from the plan without rereading its sources. Unreadable copy or template
+ * sources keep the registry's `PermissionDenied`.
  */
 const readSource = (
   reader: Registry["Service"],
@@ -91,6 +74,7 @@ const readSource = (
     const file = {
       path: planned.path,
       owner: planned.owners.map((writer) => `${writer.kind}:${writer.id}`).join("+"),
+      // The planned source's mode determines whether the rendered file is executable.
       executable: (planned.mode & 0o111) !== 0,
     };
     if (planned.kind === "merge")
@@ -108,7 +92,6 @@ const readSource = (
     return { ...file, template: { text, entry, source } } satisfies SourceFile;
   });
 
-/** The single renderer, shared by standalone composition and scaffold's two value sets. */
 const renderFiles = (sources: ReadonlyArray<SourceFile>, values: TemplateValues) =>
   Effect.forEach(sources, (source): Effect.Effect<RenderedFile, EntryInvalid> => {
     if ("bytes" in source) return Effect.succeed(source);
@@ -129,14 +112,13 @@ const renderFiles = (sources: ReadonlyArray<SourceFile>, values: TemplateValues)
     return Effect.succeed({ ...file, bytes: new TextEncoder().encode(rendered.text) });
   });
 
-/** Render the entry files only; the CLI's own `.stacks/` files are separate. */
+/** The CLI's own metadata files are separate from this entry rendering. */
 export const composeFiles = (
   composition: Composition<Entry | null>,
   values: TemplateValues,
   registry?: Registry["Service"],
 ) => Effect.flatMap(readFiles(composition, registry), (sources) => renderFiles(sources, values));
 
-/** Scaffold's files and fingerprint input, rendered from one read of every source. */
 export const composeFilesWithNeutral = (
   composition: Composition<Entry | null>,
   values: TemplateValues,

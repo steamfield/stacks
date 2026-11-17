@@ -1,12 +1,6 @@
 /**
- * Guesses tags such as `node`, `bun` or `monorepo` from a project's files, for a `stacks add` into
- * a project no known stack made.
- *
- * Fragment files can hold `stacks:when` blocks that render only for certain tags. A stack declares
- * its tags, but a project `stacks new` didn't create has none, so `add/prepare.ts` calls
- * `inferTags` and composition uses the guesses for those blocks alone. They never decide whether a
- * fragment fits the project, and they aren't written to the manifest. Files are checked for
- * existence or read as data; nothing runs.
+ * Infers conditional template tags for an add without a known stack. These tags are never persisted
+ * to the manifest.
  */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 
@@ -18,7 +12,7 @@ const Package = Schema.Struct({
 const isScripts = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 const MANIFESTS = ["package.json", "go.mod", "pyproject.toml", "Cargo.toml"] as const;
 
-/** Infer conditional tags from repository data only; these never determine applies_to fit. */
+/** Infer conditional tags by inspecting files as data. The guesses never determine `applies_to`. */
 export const inferTags = Effect.fn("add.inferTags")(function* (root: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;

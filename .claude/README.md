@@ -35,6 +35,7 @@ The rest are path-scoped:
 | --- | --- | --- |
 | `typescript.md` | TypeScript in `packages/cli` and `packages/mcp` sources, tests and scripts, root `tests/` and `scripts/`, and the hooks | Strict TypeScript conventions |
 | `cli/cli.md` | `packages/cli/src/` | The CLI UX contract |
+| `cli/comments.md` | `packages/cli/src/` | What source comments say: symbol citations, short headers, one glossary |
 | `cli/effect.md` | `packages/cli/src/` and `tests/` | The CLI's Effect policy: services, runtime, errors, parsed input, config and logging |
 | `cli/testing.md`, `cli/verification.md` | `packages/cli/src/` and `tests/` | Tests and done-checks |
 | `format/format.md` | `packages/format/` | Keeps its runtime source portable |

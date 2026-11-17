@@ -1,15 +1,6 @@
 /**
- * The `telemetry` command group: lets a user see, turn on, turn off, reset or send the anonymous
- * usage events the CLI collects.
- *
- * The events, the queue and the consent rules live in `telemetry/` (`telemetry/index.ts::Telemetry`
- * and `telemetry/consent.ts`); this file is the user's controls over them. Turning telemetry on is
- * a person's decision, so `enable` refuses under a detected agent or without a terminal on stdin
- * (trust model point 4). `disable` and `reset` work anywhere, because declining never needs a
- * person. The consent choice is saved as the `telemetry` setting in `config.json`.
- *
- * `cli.ts` leaves this group out of the one-time telemetry notice, so a user reading or changing
- * the setting never sees it.
+ * Handles telemetry settings and queue controls. Declining collection needs no confirmation
+ * (trust point 4).
  */
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { Command } from "effect/cli";
@@ -39,7 +30,7 @@ const requirePerson = Effect.gen(function* () {
 /** Writes `config.json` with its `telemetry` setting replaced, keeping every other setting. */
 const saveSetting = Effect.fn("telemetry.saveSetting")(function* (enabled: boolean) {
   const config = yield* AppConfig;
-  const settings = yield* config.settings;
+  const settings = yield* config.readSettingsFile;
   const paths = yield* config.paths;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;

@@ -1,19 +1,12 @@
 /**
- * Reads the raw text of entries for `stacks validate`, so a finding can name the file and line a
- * problem is on.
- *
- * The registry hands checks decoded entries: metadata and a body without its frontmatter. Line
- * numbers in the file need the text as it is on disk, so `index.ts` and `preview.ts` call
- * `readSources` once and put the result on the `View` as `sources`. A file that can't be read is
- * left out (or read as empty text for the markdown file); the checks that care, such as
- * `files.ts`, report unreadable files themselves.
+ * Reads entry source text so findings can name file lines, including frontmatter. Unreadable
+ * source text can be omitted while checks such as `fileChecks` report the read failure.
  */
 import { Effect, Result } from "effect";
 import type { Entry, EntryFile } from "../registry/entry";
 import { markdownFile } from "../registry/entry";
 import { Registry } from "../registry/registry";
 
-/** One shipped file of an entry, with its text. */
 export type Source = EntryFile & { text: string };
 
 /**
@@ -26,9 +19,9 @@ export type EntrySources = {
   files: ReadonlyArray<Source>;
 };
 
-/** The sources of one entry. */
 const readEntrySources = (registry: Registry["Service"], entry: Entry) =>
   Effect.gen(function* () {
+    // Empty Markdown on a read failure lets other source checks continue.
     const text = yield* registry
       .read(entry, markdownFile(entry.kind))
       .pipe(Effect.orElseSucceed(() => ""));

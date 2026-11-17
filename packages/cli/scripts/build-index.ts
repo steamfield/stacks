@@ -1,9 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { NodeServices } from "@effect/platform-node";
 import { Clock, Console, Effect, Layer, Option, Path } from "effect";
-import { AppConfig, SOURCE_BUILD } from "../src/config";
+import { SOURCE_BUILD } from "../src/build";
+import { AppConfig } from "../src/config";
 import { Registry } from "../src/core/registry/registry";
-import { printable } from "../src/core/text";
+import { printable } from "../src/core/text/text";
 import { validate } from "../src/core/validate";
 import { stringWidth } from "../src/platform/width";
 import { Host } from "../src/services/host";
@@ -31,7 +32,7 @@ const root = fileURLToPath(new URL("../registry", import.meta.url));
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const validateRegistry = Effect.fn("index.validateRegistry")(function* () {
-  const report = yield* validate({ root, bundled: true });
+  const report = yield* validate({ root, asBundled: true });
   const failures = report.findings.filter((finding) => finding.severity !== "note");
   if (failures.length > 0)
     return yield* Effect.fail(

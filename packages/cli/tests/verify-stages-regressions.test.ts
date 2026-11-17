@@ -3,9 +3,11 @@ import { join } from "node:path";
 import { Effect, type FileSystem, type Path } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppConfig } from "../src/config";
-import { MANIFEST_PATH } from "../src/core/manifest";
+import { MANIFEST_PATH } from "../src/core/project/manifest";
+import { planVerify } from "../src/core/verify/plan";
 import { recordRun } from "../src/core/verify/record";
-import { type RunResult, runVerify } from "../src/core/verify/run";
+import type { RunResult } from "../src/core/verify/result";
+import { runVerify } from "../src/core/verify/run";
 import { checkTamper } from "../src/core/verify/tamper";
 import { quiet, runCli } from "./helpers/cli";
 import {
@@ -104,7 +106,7 @@ test.each(["base", "app"] as const)(
       const services = yield* Effect.context<FileSystem.FileSystem | Path.Path | AppConfig>();
       yield* runVerify(
         { ...project, createdAt: project.manifest.createdAt },
-        { only: [], skipTags: [], all: false },
+        yield* planVerify(project.manifest.verify, { only: [], skipTags: [], all: false }),
         (result) =>
           recordRun({ ...project, tamper, acceptedChanges: false }, result).pipe(
             Effect.tap(() =>

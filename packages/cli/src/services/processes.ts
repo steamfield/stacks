@@ -1,20 +1,6 @@
 /**
- * The one way CLI code starts a child process. `stacks verify` runs its steps through it, `new`
- * launches the chosen coding agent with it, and git, `gh` and `npm` calls go through it too.
- *
- * Every command except `interactive` runs in its own process group (the child and everything it
- * starts, signaled together by one negative pid), with stdin closed and output kept in a bounded
- * buffer. Stopping a group is always SIGTERM, up to 5 s for it to exit, then SIGKILL. After a
- * command exits, its output pipes get 2 s to close; a grandchild still holding them then has its
- * group killed, and the result says so (`Finished.pipesHeld`). `interactive` is the exception: the
- * child joins the CLI's own group so the terminal and its Ctrl+C belong to it.
- *
- * Callers never touch Node's process APIs. Those live in `platform/process.ts`, which no other
- * core or services file may import (a Grit rule in `biome-plugins/boundaries.grit` enforces it). The live groups and
- * the interactive child are recorded in `Foreground`, a holder `bin.ts` shares with the signal
- * policy (`platform/signals.ts`), so a forced exit can SIGKILL whatever is still running.
- *
- * Start at the `Processes` service at the bottom; `processGroups` owns the group lifecycle.
+ * Owns child process and process-group lifetimes. `Foreground` shares live ownership with
+ * `installSignalPolicy` so forced exits can clean up.
  */
 import {
   type Cause,
@@ -115,7 +101,7 @@ interface Running {
 /** What `processGroups` needs to spawn a group leader; detaching and piping are fixed. */
 type LaunchRequest = Pick<SpawnRequest, "file" | "args" | "cwd" | "env" | "onData">;
 
-/** The per-invocation `ProcessHolder` (see platform/process.ts), provided by bin.ts. */
+/** Supplies the invocation's `ProcessHolder` to the process service. */
 export class Foreground extends Context.Service<Foreground, ProcessHolder>()("stacks/Foreground") {
   static make = (): ProcessHolder => ({
     groups: new Set(),
@@ -416,8 +402,7 @@ const releaseInteractive = (holder: ProcessHolder, child: Child) =>
         yield* Effect.timeoutOption(child.exited, SETTLE);
       }
     }
-    // The terminal is the CLI's again; the signal policy may now act on a SIGTERM or SIGHUP it
-    // forwarded to the child.
+    // Notify `foregroundCleared` through the holder when terminal control returns.
     holder.foreground = undefined;
     holder.onForegroundCleared?.();
   });

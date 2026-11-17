@@ -1,17 +1,10 @@
-/**
- * The `skill install` command: copies one of the agent skills bundled with the CLI (`stacks` or
- * `stacks-author`) into a Claude Code skills directory, or prints its `SKILL.md` with `--print`.
- *
- * A skill is a folder of instructions a coding agent loads on its own. `core/skill.ts::installSkill`
- * does the comparing and writing; this file checks the skill name and renders one line about what
- * happened. `skill` itself has no handler, so `stacks skill` alone shows its help.
- */
+/** Handles installing or printing a bundled agent skill. */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { shownPath } from "../core/shown-path";
 import { installSkill } from "../core/skill";
-import { closest } from "../core/suggest";
-import { printable } from "../core/text";
+import { shownPath } from "../core/text/shown-path";
+import { closest } from "../core/text/suggest";
+import { printable } from "../core/text/text";
 import { Usage } from "../errors";
 import { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";

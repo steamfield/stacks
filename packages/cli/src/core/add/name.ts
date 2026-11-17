@@ -1,15 +1,10 @@
 /**
- * Guesses a project's name for `stacks add` when its manifest doesn't record one, so fragment
- * templates that use `{{name}}` render sensibly.
- *
- * `add/prepare.ts` calls `inferName` only for a project without a recorded name (one `stacks new`
- * didn't create, or an older manifest). The name comes from `package.json`, `pyproject.toml`,
- * `go.mod` or `Cargo.toml`, in that order, and otherwise from the directory name. These files are
- * parsed as data and never run (Trust model point 1).
+ * Infers a project name so fragment templates can fill `{{name}}` even on an adopted project or
+ * one with an older manifest. Project manifests are read as data (trust point 1).
  */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { parse } from "smol-toml";
-import { slug } from "../slug";
+import { slug } from "../text/slug";
 
 const Package = Schema.Struct({ name: Schema.optionalKey(Schema.String) });
 const Python = Schema.Struct({
@@ -18,13 +13,9 @@ const Python = Schema.Struct({
 });
 const Cargo = Schema.Struct({ package: Schema.optionalKey(Package) });
 
-/** Project files a name is read from, in precedence order. */
 const SOURCES = ["package.json", "pyproject.toml", "go.mod", "Cargo.toml"] as const;
 
-/**
- * The project name one file declares, or `undefined` when it names none. Throws when the file
- * doesn't parse; the caller turns that into a `name_unreadable` warning.
- */
+/** Throws on malformed input so `inferName` can warn and try the next source. */
 function declaredName(source: (typeof SOURCES)[number], text: string): string | undefined {
   switch (source) {
     case "package.json": {
@@ -48,10 +39,7 @@ function declaredName(source: (typeof SOURCES)[number], text: string): string | 
   }
 }
 
-/**
- * Infer a template name from project files without running anything, falling back to the
- * directory name. A file that exists but can't be parsed adds a warning and the next one is tried.
- */
+/** Fall back to the directory name after trying the declared names in `SOURCES` order. */
 export const inferName = (root: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;

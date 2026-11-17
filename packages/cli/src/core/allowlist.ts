@@ -1,16 +1,5 @@
 /**
- * Fetches the signed dependency allowlist: the package names maintainers reviewed per ecosystem.
- *
- * `list`, `show` and `new` call `Allowlist.refresh`, which may make one request to
- * `<api>/v1/allowlist.json`; telemetry (`telemetry/index.ts`) calls `Allowlist.cached`, which only
- * reads the last verified copy. Either way the result is an `Option`, and every failure (offline, network,
- * bad signature, unreadable cache) is silent and returns what was cached before, or nothing.
- *
- * The file is a signed envelope like the remote index, and its signature is always checked against
- * the maintainers' keys (`remote-index/verification.ts::signatureValid`). With no API URL, or no
- * published key to check against, the service never makes a request. The body and state live in
- * `allowlist.json` and `allowlist.state.json` directly under the cache directory, with the refresh
- * and backoff rules of `core/cached-fetch.ts`.
+ * Provides the signed dependency allowlist through `signatureValid` and `makeCachedFetch`.
  */
 import {
   DependencyAllowlist,
@@ -21,9 +10,8 @@ import { Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
 import { type CacheFailure, makeCachedFetch } from "./cached-fetch";
-import { signatureValid } from "./remote-index/verification";
+import { signatureValid } from "./registry/remote/verification";
 
-/** Decodes the envelope, requires a valid signature, then decodes the allowlist payload. */
 const verifyAllowlist = Effect.fn("allowlist.verify")(function* (
   text: string,
   keys: typeof INDEX_PUBLIC_KEYS,
@@ -42,11 +30,10 @@ const noAllowlist = {
   cached: Effect.succeed(Option.none<DependencyAllowlist>()),
 };
 
-/** The verified dependency allowlist, refreshed on request or read from the cache. */
 export class Allowlist extends Context.Service<
   Allowlist,
   {
-    /** The allowlist, requested when the cached copy is older than 24 hours. */
+    /** `makeCachedFetch` keeps the last verified allowlist when a refresh fails. */
     readonly refresh: Effect.Effect<Option.Option<DependencyAllowlist>>;
     /** The last verified allowlist at any age, with no request. */
     readonly cached: Effect.Effect<Option.Option<DependencyAllowlist>>;

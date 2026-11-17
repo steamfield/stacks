@@ -1,41 +1,33 @@
 /**
- * Runs `stacks update`: compares the running version with the newest one on npm, and upgrades a
- * global npm install when a person asks for it.
- *
- * `commands/update.ts` calls `update`. It decodes the running version, asks `latest.ts` for the
- * published one (the command's single network request), compares them with
- * `version.ts::compareVersions`, and stops there when nothing newer exists. For a newer version it
- * asks `install.ts::installMethod` how this copy was installed. With `--check`, or for any install
- * other than a confirmed global npm one, it reports the command to run and installs nothing.
- *
- * The install itself runs `npm install -g <package>@<version>` as a fixed argument list with the
- * decoded version, never a shell command built from registry text (Trust model, point 1). It is
- * refused under a detected agent, because upgrading the user's tools is a person's decision
- * (Trust model, point 4). Offline mode is refused before the request: no version is cached, so
- * there is nothing to compare against.
+ * Checks for a newer version and upgrades a confirmed global npm install when requested. Offline
+ * checks are refused because there is no cached version to compare.
  */
 import { Duration, Effect, Schema } from "effect";
 import { AppConfig } from "../../config";
+import { NPM_INSTALL_TIMEOUT_MINUTES } from "../../constants";
 import { BadInput, PermissionDenied, UpdateFailed } from "../../errors";
 import type { UpdateResult } from "../../schemas/update";
 import { Output } from "../../services/output";
 import { Processes } from "../../services/processes";
 import { PACKAGE, VERSION } from "../../version";
-import { shellArg } from "../shell";
+import { shellArg } from "../text/shell";
 import { installMethod } from "./install";
 import { latestVersion } from "./latest";
 import { compareVersions, Version } from "./version";
 
 type Install = Extract<UpdateResult, { status: "available" }>["install"];
 
-/** The command a person runs to get `latest`, spelled for how this copy was installed. */
+/** Suggest `npx` to callers whose running copy came from the npx cache. */
 function updateCommand(install: Install, latest: string): string {
   return install === "npx"
     ? `npx -y ${PACKAGE}@${shellArg(latest)}`
     : `npm install -g ${PACKAGE}@${shellArg(latest)}`;
 }
 
-/** Runs `npm install -g` for `latest`; a spawn failure, timeout or nonzero exit is `UpdateFailed`. */
+/**
+ * Pass the decoded version as fixed argv (trust point 1). Report a spawn failure, timeout or
+ * nonzero exit as `UpdateFailed`.
+ */
 const installLatest = Effect.fn("update.installLatest")(function* (options: {
   npm: string;
   latest: string;
@@ -43,6 +35,7 @@ const installLatest = Effect.fn("update.installLatest")(function* (options: {
   timeout: Duration.Duration;
 }) {
   const config = yield* AppConfig;
+  // Refuse a detected agent because updating tools is a person's decision (trust point 4).
   if ((yield* config.agent) !== "none")
     return yield* new PermissionDenied({ details: { reason: "agent" } });
   const processes = yield* Processes;
@@ -65,7 +58,6 @@ const installLatest = Effect.fn("update.installLatest")(function* (options: {
     });
 });
 
-/** Check explicitly; install only a newer version in a confirmed global npm location. */
 export const update = Effect.fn("update.update")(function* (options: {
   check: boolean;
   current?: string;
@@ -97,7 +89,7 @@ export const update = Effect.fn("update.update")(function* (options: {
     npm: installation.npm,
     latest,
     command,
-    timeout: options.installTimeout ?? Duration.minutes(5),
+    timeout: options.installTimeout ?? Duration.minutes(NPM_INSTALL_TIMEOUT_MINUTES),
   });
   return { status: "updated", current, latest, install: "npm-global" } satisfies UpdateResult;
 });

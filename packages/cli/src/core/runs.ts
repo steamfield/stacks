@@ -1,28 +1,16 @@
 /**
- * Summarizes one project's own history for `stacks runs`: how often verify ran, how it last
- * ended, and how long the project took to go green.
- *
- * `commands/runs.ts` calls `projectRuns` from the working directory and prints `renderRuns`. The
- * summary is put together from four places: the nearest manifest (`manifest.ts`), the state
- * record outside the project (`project-state.ts`, for creation and first-green times), verify's
- * run history (`.stacks/state/runs.jsonl`, one `RunRecord` JSON line per run, written by
- * `verify/record.ts`) and `.stacks/NOTES.md`, where the agent lists the questions it had to ask a
- * person under `## Asked`. `countAsked` counts those questions; telemetry's verify event
- * (`telemetry/projects.ts`) reuses it.
- *
- * Missing pieces read as unknown rather than failing: no history file means zero runs, a line that
- * doesn't decode is counted in `skippedLines`, and no notes file means `interventions` is null. A
- * history file the CLI can't read is a `PermissionDenied` failure, though, since reporting zero
- * runs there would be false.
+ * Summarizes project verify history, trusted timing and questions from the notes. Missing inputs
+ * produce zero runs or unknown values, while unreadable history fails because reporting zero runs
+ * would be misleading.
  */
 import { RunRecord } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Result, Schema } from "effect";
 import { PermissionDenied } from "../errors";
 import { NOTES_PATH, RUNS_PATH } from "../project-layout";
 import type { ProjectRuns } from "../schemas/runs";
-import { locateManifest, readManifest } from "./manifest";
-import { findProjectState } from "./project-state";
-import { printable } from "./text";
+import { locateManifest, readManifest } from "./project/manifest";
+import { findProjectState } from "./project/state";
+import { printable } from "./text/text";
 
 /**
  * The fence still open after a fence marker line, or `undefined` once it closes. As in Markdown, a
@@ -97,7 +85,6 @@ function minutesBetween(createdAt: string | undefined, at: string | null | undef
   return Number.isFinite(value) ? value : null;
 }
 
-/** The run summary for the project at or above `cwd`. */
 export const projectRuns = (cwd: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;

@@ -3,7 +3,7 @@ import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, Exit, type FileSystem, type Path, References } from "effect";
 import { AppConfig, type Environment } from "../../src/config";
 import type { Composition } from "../../src/core/compose/types";
-import { buildManifest } from "../../src/core/manifest";
+import { buildManifest } from "../../src/core/project/manifest";
 import { composeExit } from "./compose";
 
 /**

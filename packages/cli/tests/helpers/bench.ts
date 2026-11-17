@@ -15,7 +15,8 @@ import { Clock, Effect, Layer, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { expect } from "vitest";
 import type { AgentAdapter } from "../../scripts/bench/agents";
-import { AppConfig, type Environment, SOURCE_BUILD } from "../../src/config";
+import { SOURCE_BUILD } from "../../src/build";
+import { AppConfig, type Environment } from "../../src/config";
 import { NetLayer } from "../../src/platform/net";
 import { AppLayer, runInvocation } from "../../src/runtime";
 import { Ledger, LedgerRecord } from "../../src/schemas/ledger";
@@ -328,7 +329,11 @@ export function benchFixture(space: ReturnType<typeof workspace>, compiled?: () 
         Effect.tap(() => Effect.flatMap(Output, (out) => out.flush)),
         Effect.provide(
           Layer.provideMerge(
-            AppLayer(output.layer, { ...env, ...options.env }, SOURCE_BUILD),
+            AppLayer({
+              output: output.layer,
+              env: { ...env, ...options.env },
+              build: SOURCE_BUILD,
+            }),
             platform,
           ),
         ),

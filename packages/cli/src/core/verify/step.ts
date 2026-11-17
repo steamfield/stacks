@@ -1,18 +1,6 @@
 /**
- * Runs one verify step for `stacks verify` and turns whatever happened into a step result.
- *
- * `run.ts::runVerify` calls `runStep` for each step it doesn't skip. A step is a shell command
- * from the manifest, run through `Processes` in its own process group with stdin closed. The
- * function never fails: a missing command, a timeout or a bad exit becomes a failed result with a
- * failure kind (`env` when the machine lacks something, `step` when the command itself failed,
- * `timeout`) and a fixed reason, which `next.ts` and the brief's rules use to say what to fix.
- *
- * Before anything starts, the step's `cwd` must resolve, through symlinks, to a directory inside
- * the project; otherwise it fails without running. A `check`, `setup` or `teardown` step runs to
- * exit under its `timeout`. A `serve` step starts a server and races three things: its probe URL
- * answering (`probe.ts`), the server exiting, and the `within` deadline. When the probe wins, the
- * server is stopped and its port must close, which catches a process that escaped the step's
- * process group. Start at `runStep`.
+ * Runs a verify step and returns failures as values so the runner can report them. Serving uses a
+ * scoped process and checks the port afterward to catch a process that escaped its group.
  */
 import type { FailureKind } from "@steamfield/stacks-format";
 import { Clock, Duration, Effect, FileSystem, Path } from "effect";
@@ -20,19 +8,17 @@ import type { SpawnFailed } from "../../errors";
 import type { StepResult } from "../../schemas/verify";
 import { Output, stripAnsi } from "../../services/output";
 import { type Finished, Processes } from "../../services/processes";
-import { printable } from "../text";
+import { printable } from "../text/text";
 import { type PlannedStep, stepFields } from "./plan";
 import { portAnswers, portClosed, probeReady, probeTarget } from "./probe";
 import { outputLine } from "./report";
 
-/** Where steps run: the project root as found, its real path, and the step environment. */
 export type StepContext = { root: string; realRoot: string; env: Record<string, string> };
 
 const PIPES_HELD_REASON = "the step left a process holding its output; it was stopped after 2 s";
 const EARLY_EXIT_REASON =
   "serve command exited before its probe passed; serve commands must stay in the foreground";
 
-/** "500ms", "90s", "10m" (the entry format's duration pattern). */
 function parseDuration(text: string): Duration.Duration {
   const match = /^(\d+)(ms|s|m)$/.exec(text);
   const value = Number(match?.[1] ?? 0);
@@ -59,7 +45,6 @@ function spawnReason(error: SpawnFailed, cwd: string): string {
   }
 }
 
-/** Output lines, prefixed with the step name, as live progress (human mode only). */
 function progressLines(name: string, progress: (text: string) => Effect.Effect<void>) {
   let pending = "";
   return {
@@ -76,10 +61,7 @@ function progressLines(name: string, progress: (text: string) => Effect.Effect<v
   };
 }
 
-/**
- * Builds the step's result: the planned step's fields, the given ones (an output tail stripped of
- * terminal escapes) and the time since `started`.
- */
+/** Strip terminal escapes from the output tail before putting it in the step result. */
 function stepReporter(step: PlannedStep, started: number) {
   const finish = (fields: Partial<StepResult> & Pick<StepResult, "status">) =>
     Effect.map(
@@ -115,8 +97,8 @@ const stepDirectory = (step: PlannedStep, context: StepContext) =>
   });
 
 /**
- * Runs one step and reports it; never fails. A step whose `cwd` is missing or resolves outside
- * the project, or (serve) whose probe URL is wrong or whose port is taken, fails without running.
+ * Refuse a bad working directory, probe URL or occupied port before running a process. Use
+ * `Processes.run` or `Processes.start` for a separate process group and closed stdin.
  */
 export const runStep = (step: PlannedStep, context: StepContext) =>
   Effect.scoped(
@@ -147,7 +129,7 @@ type CommandOptions = {
   report: StepReporter;
 };
 
-/** Runs a setup, check or teardown step (or a serve step with no probe) to exit. */
+/** Without a readiness probe, judge the step by its exit or timeout, even for a serve step. */
 const command = ({ step, spec, report }: CommandOptions) =>
   Effect.gen(function* () {
     const processes = yield* Processes;
@@ -161,9 +143,8 @@ const command = ({ step, spec, report }: CommandOptions) =>
   });
 
 /**
- * A finished command's result. Exit 127 is the shell's "command not found", which is the
- * machine's problem (`env`), not the step's. `pipesHeld` means a background process kept the
- * output open after the command exited and `Processes` stopped it.
+ * Exit 127 means the shell could not find the command (`env`). `Finished.pipesHeld` records a
+ * background process that held output open until `Processes.run` cleaned up.
  */
 const commandResult = (step: PlannedStep, finished: Finished, report: StepReporter) => {
   const tail = finished.tail ? { outputTail: finished.tail } : {};
@@ -185,7 +166,6 @@ const commandResult = (step: PlannedStep, finished: Finished, report: StepReport
   });
 };
 
-/** How a serve step's race ended: the probe answered, the server exited, or `within` ran out. */
 type ServeEnd = { _tag: "ready" } | { _tag: "exited"; finished: Finished } | { _tag: "timeout" };
 
 type ServeOptions = {
@@ -195,10 +175,7 @@ type ServeOptions = {
   report: StepReporter;
 };
 
-/**
- * Starts a server and races its probe against its exit and the `within` deadline. The server is
- * stopped when the inner scope closes, before the port-closed check in `serveResult`.
- */
+/** The server scope closes before `serveResult` checks for a closed port. */
 const serve = ({ step, spec, expect, report }: ServeOptions) =>
   Effect.gen(function* () {
     const processes = yield* Processes;

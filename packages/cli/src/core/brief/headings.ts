@@ -1,16 +1,6 @@
 /**
- * Markdown line handling for entry bodies: moving their headings under a brief section, and
- * finding the prose lines outside code blocks.
- *
- * An entry's body (the Markdown below its frontmatter) is written as a standalone document, often
- * starting with its own `# Title`. When `render.ts` places that body under a `## Stack: ...`
- * section, `nest` drops the title and shifts the remaining headings down so the brief's outline
- * stays consistent. `core/validate/` uses `proseLines` to check headings and wording without
- * reading inside fenced examples.
- *
- * ATX headings are the `#`-prefixed kind; setext headings (underlined with `===` or `---`) are
- * left alone. A fence is a line opening or closing a code block with three or more backticks or
- * tildes.
+ * Nests standalone entry headings under a brief section and identifies prose outside fenced
+ * examples.
  */
 
 const ATX = /^ {0,3}(#{1,6})(?=[ \t]|$)/;
@@ -20,10 +10,9 @@ const H1 = /^ {0,3}#(?:[ \t]|$)/;
 const nonBlank = (line: string) => line.trim() !== "";
 
 /**
- * An entry body nested under a brief section whose heading is `level - 1` deep: a leading level-1
- * heading is dropped when more content follows (the section heading names the entry). Other ATX
- * headings shift so the shallowest lands at `level`, keeping relative depth and clamping at
- * `######`. Lines inside fenced code blocks are never touched; setext headings are left alone.
+ * Drop a leading ATX title if more content follows because the section names the entry. Shift
+ * the other ATX headings together to fit the brief's outline while preserving their relative
+ * depth up to level six. The shallowest lands at `level`. Keep fenced code and setext headings.
  */
 export function nest(body: string, level = 3): string {
   const lines = withoutTitle(body.split("\n"));
@@ -51,7 +40,7 @@ function withoutTitle(lines: ReadonlyArray<string>): string[] {
   return [...lines.slice(0, first), ...lines.slice(next)];
 }
 
-/** Each line's ATX heading depth, 0 for a non-heading or any line in or around a fence. */
+/** Zero keeps non-headings, fence markers and fenced examples out of the heading shift. */
 function headingDepths(lines: ReadonlyArray<string>): number[] {
   let fence: string | undefined;
   const depths: number[] = [];
@@ -65,7 +54,6 @@ function headingDepths(lines: ReadonlyArray<string>): number[] {
   return depths;
 }
 
-/** The open fence after a fence line: it opens one, closes the open one, or sits inside it. */
 function fenceAfter(open: string | undefined, marker: string): string | undefined {
   if (open === undefined) return marker;
   return closes(marker, open) ? undefined : open;
@@ -76,14 +64,13 @@ function closes(marker: string, open: string): boolean {
   return marker[0] === open[0] && marker.length >= open.length;
 }
 
-/** A heading line at `depth + shift`, clamped to 1 to 6, with its leading indent removed. */
 function shiftedHeading(line: string, depth: number, shift: number): string {
   const indent = line.length - line.trimStart().length;
   const next = Math.min(6, Math.max(1, depth + shift));
   return `${"#".repeat(next)}${line.slice(indent + depth)}`;
 }
 
-/** Markdown lines outside fenced examples, retaining their source line numbers. */
+/** Preserve source line numbers for heading and wording findings while skipping fenced examples. */
 export function proseLines(text: string): Array<{ text: string; line: number }> {
   const prose: Array<{ text: string; line: number }> = [];
   let fence: string | undefined;

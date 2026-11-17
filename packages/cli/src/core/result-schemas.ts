@@ -1,11 +1,6 @@
 /**
- * The catalog behind `stacks schema <name>`: every JSON shape the CLI prints, by name.
- *
- * An agent that reads `--json` output can ask the CLI for the exact shape it will get, as a JSON
- * Schema document, instead of guessing from examples. This file maps each name to its Effect
- * Schema (from `schemas/`, `errors.ts` or `@steamfield/stacks-format`) and converts one on
- * request. `commands/schema.ts` lists and prints them. A new `--json` result or event needs an
- * entry here; the MCP package mirrors these shapes, and its e2e test fails when the two drift.
+ * Registers CLI results and events so consumers can get the exact output contract from
+ * `stacks schema`. The MCP schema drift test compares the shapes it mirrors against this catalog.
  */
 import { SearchResult } from "@steamfield/stacks-format";
 import { Schema } from "effect";
@@ -25,10 +20,7 @@ import { UpdateResult } from "../schemas/update";
 import { BriefPreview, ValidateReport } from "../schemas/validate";
 import { VerifyEvent, VerifyResult } from "../schemas/verify";
 
-/**
- * Every JSON shape the CLI prints, by the name `schema <name>` takes: each command's `--json`
- * result, the error envelope and verify's live events. Sorted by name.
- */
+/** The keys match the names accepted by `stacks schema`, in alphabetical order. */
 export const RESULT_SCHEMAS = {
   add: { schema: AddResult, describes: "add --json" },
   create: { schema: CreateResult, describes: "create --json" },

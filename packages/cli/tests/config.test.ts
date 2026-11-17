@@ -17,16 +17,16 @@ test("configuration is lazy and caches within each layer, but not across invocat
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const config = yield* AppConfig;
-        const first = yield* config.get;
+        const first = yield* config.settings;
         yield* Effect.sync(() => writeFileSync(file, '{"dataDir":"/second"}'));
-        const second = yield* config.get;
+        const second = yield* config.settings;
         return [first, second];
       }).pipe(Effect.provide(layer), Effect.provide(NodeServices.layer)),
     );
     expect(result).toEqual([{ dataDir: "/first" }, { dataDir: "/first" }]);
     const fresh = await Effect.runPromise(
       Effect.gen(function* () {
-        return yield* (yield* AppConfig).get;
+        return yield* (yield* AppConfig).settings;
       }).pipe(Effect.provide(layer), Effect.provide(NodeServices.layer)),
     );
     expect(fresh).toEqual({ dataDir: "/second" });

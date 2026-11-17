@@ -1,36 +1,29 @@
-/**
- * The `list` command: shows the stacks, fragments and apps a user can build from, with where each
- * came from (its origin) and whether it is trusted.
- *
- * Inside a project (a directory holding `.stacks/manifest.json`), the default view changes to the
- * fragments that project can still add. Otherwise it is the whole catalog, optionally narrowed to
- * one group. The `--json` result is the same in both cases, with a `project` field added inside a
- * project.
- *
- * The steps, in order: refresh the signed dependency allowlist (best effort), read the project's
- * manifest if there is one, load every registry root with the project root pointed at `--dir`,
- * read the bundled run ledger and the published stats, then render. `core/list.ts` builds the rows
- * and the addable set; `core/list-report.ts` writes the text. A manifest that can't be read or
- * decoded is a warning, not a failure: the full catalog is still useful.
- */
+/** Renders the registry catalog or the fragments a project can still add. */
 import type { AuthorsFile, Manifest } from "@steamfield/stacks-format";
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import { readLedger } from "../core/ledger";
-import { type Group, groups, listResult, projectChoices, toRow, withStats } from "../core/list";
-import { renderAddable, renderList } from "../core/list-report";
-import { MANIFEST_PATH, readManifest } from "../core/manifest";
-import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
-import { Registry, remoteRoots } from "../core/registry/registry";
-import { shellArg } from "../core/shell";
-import { shownPath } from "../core/shown-path";
-import { Stats } from "../core/stats";
-import { closest } from "../core/suggest";
-import { printable } from "../core/text";
-import { textWidth } from "../core/wrap";
+import {
+  type Group,
+  groups,
+  listResult,
+  projectChoices,
+  toRow,
+  withStats,
+} from "../core/list/index";
+import { renderAddable, renderList } from "../core/list/report";
+import { MANIFEST_PATH, readManifest } from "../core/project/manifest";
+import { isRejected, type RegistryEntry } from "../core/registry/entry";
+import { Registry } from "../core/registry/registry";
+import { projectRoots, type RegistryRoots } from "../core/registry/roots";
+import { Stats } from "../core/stats/index";
+import { shellArg } from "../core/text/shell";
+import { shownPath } from "../core/text/shown-path";
+import { closest } from "../core/text/suggest";
+import { printable } from "../core/text/text";
+import { textWidth } from "../core/text/wrap";
 import { Usage } from "../errors";
-import { METADATA_DIR } from "../project-layout";
 import type { LedgerRecord } from "../schemas/ledger";
 import { ListResult } from "../schemas/list";
 import { Host } from "../services/host";
@@ -71,23 +64,14 @@ const readProjectManifest = (manifestFile: string) =>
     );
   });
 
-/** The usual registry roots, with the project root moved to `--dir`'s `.stacks/`. */
-const rootsFor = (projectRoot: string) =>
-  Effect.gen(function* () {
-    const path = yield* Path.Path;
-    return (yield* remoteRoots).map((entry) =>
-      entry.origin === "project" ? { ...entry, path: path.join(projectRoot, METADATA_DIR) } : entry,
-    );
-  });
-
 /** The bundled run ledger, read from the bundled root; absent when there is no bundled root. */
-const bundledLedger = (roots: Effect.Success<typeof remoteRoots>) => {
-  const bundled = roots.find((root) => root.origin === "bundled");
-  return bundled ? readLedger(bundled.path) : Effect.succeed(undefined);
+const bundledLedger = (roots: RegistryRoots) => {
+  const registryRoot = roots.find((root) => root.origin === "bundled");
+  return registryRoot ? readLedger(registryRoot.path) : Effect.succeed(undefined);
 };
 
 /** Every entry, rejected ones included, and the bundled `authors.json`, from these roots. */
-const loadRegistry = (roots: Effect.Success<typeof remoteRoots>) =>
+const loadRegistry = (roots: RegistryRoots) =>
   Registry.pipe(
     Effect.flatMap((registry) => Effect.all({ items: registry.all, authors: registry.authors })),
     Effect.provide(Registry.layer(roots)),
@@ -95,13 +79,10 @@ const loadRegistry = (roots: Effect.Success<typeof remoteRoots>) =>
 
 /** One row per usable entry, whatever the group, for the addable view and the catalog's counts. */
 const allRows = (
-  items: ReadonlyArray<Entry | RejectedEntry>,
+  items: ReadonlyArray<RegistryEntry>,
   records: ReadonlyArray<LedgerRecord>,
   authors: AuthorsFile,
-) =>
-  items
-    .filter((item): item is Entry => !isRejected(item))
-    .map((entry) => toRow(entry, records, authors));
+) => items.filter((item) => !isRejected(item)).map((entry) => toRow(entry, records, authors));
 
 /** Rejected rows with their directories as text shows them: relative for an agent. */
 const shownRejected = (rejected: ListResult["rejected"], agent: boolean) =>
@@ -148,7 +129,7 @@ export const listCommand = Command.make(
       const manifest: Manifest | undefined = yield* readProjectManifest(
         path.join(projectRoot, MANIFEST_PATH),
       );
-      const roots = yield* rootsFor(projectRoot);
+      const roots = yield* projectRoots(projectRoot);
       const ledger = yield* bundledLedger(roots);
       const records = ledger?.records ?? [];
       const { items, authors } = yield* loadRegistry(roots);

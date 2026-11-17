@@ -1,14 +1,20 @@
+import assert from "node:assert/strict";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { it } from "@effect/vitest";
 import { Manifest, TelemetryEventV2, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Clock, Effect, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { NewResult } from "../src/schemas/new";
+import { VerifyEvent, VerifyResult } from "../src/schemas/verify";
+import { ndjson } from "./helpers/cli";
 import {
+  files,
   json,
   ok,
   spooled,
+  spoolFiles,
   type TelemetryServer,
   telemetryCli,
   telemetryRoot,
@@ -16,6 +22,7 @@ import {
   workspace,
   writeJson,
 } from "./helpers/telemetry";
+import { readManifestAt } from "./helpers/verify";
 
 let space: ReturnType<typeof workspace>;
 let server: TelemetryServer;
@@ -61,6 +68,76 @@ test("notice scaffold is delivered before its first verify with the original pro
   expect(seconds).toBeCloseTo(
     (Date.parse(verified?.sentAt ?? "") - Date.parse(manifest.createdAt)) / 1000,
     0,
+  );
+});
+
+test("a notice-run scaffold and its first verify leave recoverable telemetry on disk", async () => {
+  const created = await run(["new", "go-cli", "project", "--json"]);
+  ok(created);
+  const result = JSON.parse(created.stdout);
+  expect(Object.keys(result).at(-1)).toBe("notice");
+  expect(Schema.decodeUnknownSync(NewResult)(result).notice).toContain("telemetry disable");
+  const cwd = join(home(), "project");
+  const manifest = readManifestAt(cwd);
+  const root = telemetryRoot(home());
+  const linkFile = `projects/${manifest.projectId}.json`;
+  const deferredFile = `deferred/${manifest.projectId}.json`;
+  expect(
+    files(root)
+      .map((file) => relative(root, file))
+      .sort(),
+  ).toEqual([deferredFile, "notice.json", linkFile]);
+  const noticeFile = join(root, "notice.json");
+  const notice = json(noticeFile);
+  const isoTime = expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  expect(notice).toEqual({ noticeShownAt: isoTime, noticeVersion: 2 });
+  const link = json(join(root, linkFile));
+  assert(link && typeof link === "object" && "telemetryProjectId" in link);
+  const steps = ["install", "lint", "typecheck", "test"];
+  expect(link).toEqual({
+    telemetryProjectId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    scaffoldedAt: manifest.createdAt,
+    stack: "go-cli",
+    fragments: ["tools"],
+    steps,
+  });
+  const deferred = json(join(root, deferredFile));
+  assert(deferred && typeof deferred === "object");
+  expect(deferred).toMatchObject({ type: "new", projectId: link.telemetryProjectId });
+  expect(server.requests).toEqual([]);
+
+  server.mode("fail");
+  const verified = await run(["verify", "--json"], cwd);
+  expect(verified.status).toBe(0);
+  expect(Schema.decodeUnknownSync(VerifyResult)(JSON.parse(verified.stdout)).outcome).toBe("green");
+  const decodeVerifyEvent = Schema.decodeUnknownSync(VerifyEvent);
+  const events = ndjson(verified.stderr).map((event) => decodeVerifyEvent(event));
+  expect(events.map(({ event, name }) => [event, name])).toEqual(
+    steps.flatMap((step) => [
+      ["step-started", step],
+      ["step-finished", step],
+    ]),
+  );
+  expect(existsSync(join(root, deferredFile))).toBe(false);
+  expect(json(noticeFile)).toEqual(notice);
+  expect(json(join(root, linkFile))).toEqual({ ...link, firstTestPassAt: isoTime });
+  const pending = spooled(home());
+  const scaffoldEvent = pending.find((event) => event.type === "new");
+  const verifyEvent = pending.find((event) => event.type === "verify");
+  expect(scaffoldEvent).toMatchObject(deferred);
+  expect(scaffoldEvent?.projectId).not.toBe(manifest.projectId);
+  expect(verifyEvent).toMatchObject({
+    projectId: scaffoldEvent?.projectId,
+    outcome: "green",
+    secondsToFirstTestPass: expect.any(Number),
+  });
+  expect(server.requests).toEqual([
+    { method: "POST", path: "/v1/events", events: [scaffoldEvent, verifyEvent] },
+  ]);
+  expect(spoolFiles(home()).sort()).toEqual(
+    [scaffoldEvent, verifyEvent]
+      .map((event) => join(root, "spool", `${event?.eventId}.json`))
+      .sort(),
   );
 });
 

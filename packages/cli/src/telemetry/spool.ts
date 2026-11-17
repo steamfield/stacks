@@ -1,18 +1,20 @@
 /**
- * The queue of telemetry events waiting to be sent, kept as files on disk.
- *
- * Recording an event never touches the network: `telemetry/index.ts` writes it to the spool
- * (`spool/<eventId>.json` in the telemetry directory) and a later flush sends it. The spool is
- * bounded: events older than 7 days are dropped and only the newest 500 are kept.
- *
- * A flush (`client.ts::deliver`) takes a batch out of the spool by renaming its files into a fresh
- * `claims/<uuid>/` directory, so two CLI runs flushing at once never send the same event. When the
- * flush ends, whatever is left in the claim goes back to the spool (`restore`). A claim abandoned
- * by a run that crashed is put back by the next flush once it is ten minutes old (`recover`).
+ * Owns the bounded on-disk telemetry queue. Moving events into a claim before sending gives each
+ * batch one owner.
  */
 import { TelemetryEvent, TelemetryEventV2, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
-import { DAY, directory, names, read, remove, type Storage, uuid, write } from "./storage";
+import {
+  claimStaleness,
+  DAY,
+  directory,
+  names,
+  read,
+  remove,
+  type Storage,
+  uuid,
+  write as writeFile,
+} from "./storage";
 
 /** Events older than this are dropped from the spool. */
 const MAX_EVENT_AGE = 7 * DAY;
@@ -20,8 +22,6 @@ const MAX_EVENT_AGE = 7 * DAY;
 const MAX_SPOOLED = 500;
 /** The most events one flush claims, and the most stale claims one flush recovers. */
 const BATCH_SIZE = 50;
-/** A claim directory older than this belongs to a run that never finished its flush. */
-const STALE_CLAIM_MS = 600_000;
 
 // Older event versions stay decodable so events queued by an earlier CLI release still send.
 const Event = Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3]);
@@ -60,11 +60,11 @@ export const trim = Effect.fn("telemetry.trim")(function* (store: Storage) {
 });
 
 /** Adds an event to the spool, then trims it. */
-export const enqueue = Effect.fn("telemetry.enqueue")(function* (
+export const write = Effect.fn("telemetry.spool.write")(function* (
   store: Storage,
   event: typeof Event.Type,
 ) {
-  yield* write(store, store.path.join("spool", `${event.eventId}.json`), event);
+  yield* writeFile(store, store.path.join("spool", `${event.eventId}.json`), event);
   yield* trim(store);
 });
 
@@ -73,7 +73,7 @@ export const enqueue = Effect.fn("telemetry.enqueue")(function* (
  * vanished meanwhile was already handled and is skipped.
  */
 export const restore = Effect.fn("telemetry.restore")(function* (store: Storage, claim: string) {
-  yield* directory(store, store.path.join(store.root, "spool"));
+  yield* directory(store, "spool");
   for (const name of yield* names(store, claim)) {
     yield* store.fs
       .rename(store.path.join(store.root, claim, name), store.path.join(store.root, "spool", name))
@@ -94,9 +94,7 @@ export const recover = Effect.fn("telemetry.recover")(function* (store: Storage)
     const claim = store.path.join("claims", name);
     const stat = yield* store.fs.stat(store.path.join(store.root, claim)).pipe(Effect.option);
     if (Option.isNone(stat)) continue;
-    // A file system without modification times reads as just modified, so the claim is kept.
-    const modified = Option.getOrElse(stat.value.mtime, () => new Date(now)).getTime();
-    if (now - modified > STALE_CLAIM_MS) yield* restore(store, claim);
+    if (claimStaleness(now, stat.value.mtime) === "stale") yield* restore(store, claim);
   }
 });
 
@@ -109,7 +107,7 @@ export const claim = Effect.fn("telemetry.claim")(function* (
   events: readonly Pending[],
 ) {
   const dir = store.path.join("claims", yield* uuid);
-  yield* directory(store, store.path.join(store.root, dir));
+  yield* directory(store, dir);
   const claimed: Pending[] = [];
   for (const item of events) {
     if (claimed.length === BATCH_SIZE) break;

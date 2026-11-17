@@ -14,10 +14,11 @@ import { NodeServices } from "@effect/platform-node";
 import { APP_TAG, Manifest } from "@steamfield/stacks-format";
 import { Effect, Exit, Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
-import { MANIFEST_PATH } from "../src/core/manifest";
+import { MANIFEST_PATH } from "../src/core/project/manifest";
 import { type Entry, isRejected } from "../src/core/registry/entry";
-import { Registry, type RegistryRoots, trustOf } from "../src/core/registry/registry";
-import { BUDGET } from "../src/core/validate/budget";
+import { Registry } from "../src/core/registry/registry";
+import type { RegistryRoots } from "../src/core/registry/roots";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { EntryInvalid, NotFound, PermissionDenied } from "../src/errors";
 import { NewResult } from "../src/schemas/new";
 import { quiet, runCli, tempDir } from "./helpers/cli";
@@ -178,23 +179,24 @@ test("roots that don't exist are empty, not errors", async () => {
   expect(Exit.isSuccess(exit) && exit.value.filter((item) => !isRejected(item))).toHaveLength(6);
 });
 
-test("trust is by origin and root in 1.0: project entries and an overridden bundled root are untrusted", () => {
-  const entry = (origin: "project" | "user" | "bundled") => ({
-    id: "s",
-    kind: "stack" as const,
-    origin,
-    dir: "/x",
-    shadows: [],
-    meta: {} as never,
-    body: "",
-  });
-  expect(trustOf(entry("project"), { origin: "project", path: "/p" })).toBe(false);
-  expect(trustOf(entry("user"), { origin: "user", path: "/u" })).toBe(true);
-  expect(trustOf(entry("bundled"), { origin: "bundled", path: "/b" })).toBe(true);
-  expect(trustOf(entry("bundled"), { origin: "bundled", path: "/b", overridden: true })).toBe(
-    false,
-  );
-});
+test.each([
+  ["project", false, false],
+  ["user", false, true],
+  ["bundled", false, true],
+  ["bundled", true, false],
+] as const)(
+  "%s root (overridden=%s) assigns trust %s to its entries",
+  async (origin, overridden, trusted) => {
+    const exit = await run(
+      [{ origin, path: smallRegistry, overridden }],
+      Registry.pipe(
+        Effect.flatMap((registry) => registry.get("stack", "go-api")),
+        Effect.map((entry) => entry.trusted),
+      ),
+    );
+    expect(exit).toEqual(Exit.succeed(trusted));
+  },
+);
 
 test.each([
   ["the filesystem root", (): string => "/"],

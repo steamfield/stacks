@@ -1,15 +1,6 @@
 /**
- * Collects what `stacks doctor` reports: the facts someone needs to tell why the CLI misbehaves on
- * their machine.
- *
- * The report holds the version and platform, the directories the CLI uses, whether the bundled
- * registry (the stacks and fragments shipped in the package) and the bundled agent skill were
- * found, the remote index's cache status and any error reading `config.json`. Doctor has to work
- * when everything else is broken, so a bad config file is reported in `configErrors` instead of
- * failing, and the remote index is described from config alone when its service isn't provided.
- * Nothing here refreshes the index or reaches the network.
- *
- * `commands/doctor.ts` runs `doctor` and renders the encoded `DoctorReport` (`schemas/doctor.ts`).
+ * Collects installation and configuration diagnostics, including cached `RemoteIndex.status`.
+ * Reporting settings errors as data lets diagnosis work on a broken installation.
  */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { AppConfig } from "../config";
@@ -17,8 +8,8 @@ import { DoctorReport } from "../schemas/doctor";
 import type { RemoteStatus } from "../schemas/remote-index";
 import { Host } from "../services/host";
 import { VERSION } from "../version";
-import { bundledRoot } from "./registry/registry";
-import { RemoteIndex } from "./remote-index";
+import { RemoteIndex } from "./registry/remote/service";
+import { bundledRoot } from "./registry/roots";
 
 /** Whether the bundled skills root holds `stacks/SKILL.md`; any failure to look counts as absent. */
 const skillInstalled = (skillRoot: string) =>
@@ -38,7 +29,7 @@ const skillInstalled = (skillRoot: string) =>
 const configState = (defaultData: string) =>
   Effect.gen(function* () {
     const config = yield* AppConfig;
-    const read = yield* Effect.result(config.get);
+    const read = yield* Effect.result(config.settings);
     if (read._tag === "Failure") return { configErrors: [read.failure.message], data: defaultData };
     return { configErrors: [], data: read.success.dataDir ?? defaultData };
   });

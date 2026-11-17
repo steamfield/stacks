@@ -6,9 +6,11 @@ import { NodeServices } from "@effect/platform-node";
 import { INDEX_PUBLIC_KEYS } from "@steamfield/stacks-format";
 import { Clock, Effect, type Exit, Layer, Option, type Scope, Terminal } from "effect";
 import type { HttpClient } from "effect/http";
-import { AppConfig, type Environment, SOURCE_BUILD } from "../../src/config";
+import { hasFlag } from "../../src/argv";
+import { type Build, SOURCE_BUILD } from "../../src/build";
+import { AppConfig, type Environment } from "../../src/config";
 import { Allowlist } from "../../src/core/allowlist";
-import { hasFlag, main } from "../../src/main";
+import { main } from "../../src/main";
 import { NetLayer } from "../../src/platform/net";
 import { stringWidth } from "../../src/platform/width";
 import { AppLayer, runInvocation } from "../../src/runtime";
@@ -73,11 +75,12 @@ export async function runCli(
     env?: Environment;
     releaseBuild?: boolean;
     apiUrl?: string;
+    build?: Partial<Pick<Build, "officialIndexUrl" | "officialTelemetryUrl">>;
     allowlistKeys?: typeof INDEX_PUBLIC_KEYS;
     clock?: Clock.Clock;
     http?: Layer.Layer<HttpClient.HttpClient>;
     home?: string;
-    program?: Parameters<typeof main>[1];
+    program?: Parameters<typeof main>[0]["program"];
     signal?: AbortSignal;
     /** Overrides for the Host fixture, such as the TTY flags. */
     host?: Partial<HostInfo>;
@@ -98,11 +101,11 @@ export async function runCli(
       await gate?.(text);
       into.push(text);
     };
-  const output = Output.layer(
-    hasFlag(args, "--json"),
-    capture(stdout, options.stdout),
-    capture(stderr, options.stderr),
-  );
+  const output = Output.layer({
+    jsonFlag: hasFlag(args, "--json"),
+    stdout: capture(stdout, options.stdout),
+    stderr: capture(stderr, options.stderr),
+  });
   const script = options.terminal ?? scriptedTerminal();
   const terminal = Layer.effect(
     Terminal.Terminal,
@@ -140,15 +143,21 @@ export async function runCli(
   );
   try {
     // A release build's API URL is the one bin passes in; tests pass theirs the same way.
-    const application = AppLayer(output, env, {
-      releaseBuild: options.releaseBuild ?? false,
-      defaultApiUrl: options.apiUrl ?? SOURCE_BUILD.defaultApiUrl,
+    const application = AppLayer({
+      output,
+      env,
+      build: {
+        ...SOURCE_BUILD,
+        releaseBuild: options.releaseBuild ?? SOURCE_BUILD.releaseBuild,
+        officialApiUrl: options.apiUrl,
+        ...options.build,
+      },
     });
     const allowlist = Allowlist.layer({ keys: options.allowlistKeys ?? INDEX_PUBLIC_KEYS }).pipe(
       Layer.provide(application),
     );
     const status = await runInvocation(
-      main(args, options.program).pipe(
+      main({ args, program: options.program }).pipe(
         Effect.provide(Layer.provideMerge(Layer.merge(application, allowlist), platform)),
         Effect.scoped,
         (program) =>

@@ -7,7 +7,8 @@
  * promise, which is why the exit status for an interrupted run (130) is decided here.
  */
 import { Cause, Effect, Exit, Layer } from "effect";
-import { AppConfig, type Build, type Environment } from "./config";
+import type { Build } from "./build";
+import { AppConfig, type Environment } from "./config";
 import { Logging } from "./logging";
 import type { Host } from "./services/host";
 import type { Output } from "./services/output";
@@ -17,11 +18,15 @@ import { Processes } from "./services/processes";
  * Processes; the platform supplies FileSystem, Path, Host and Foreground. An `env` of
  * `undefined` reads the live process environment; tests pass their own.
  */
-export const AppLayer = (
-  output: Layer.Layer<Output, never, Host | AppConfig>,
-  env: Environment | undefined,
-  build: Build,
-) =>
+export const AppLayer = ({
+  output,
+  build,
+  env,
+}: {
+  output: Layer.Layer<Output, never, Host | AppConfig>;
+  build: Build;
+  env?: Environment;
+}) =>
   Layer.mergeAll(Processes.layer, Logging.layer).pipe(
     Layer.provideMerge(output),
     Layer.provideMerge(env === undefined ? AppConfig.layer(build) : AppConfig.memory(env, build)),

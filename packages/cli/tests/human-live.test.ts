@@ -22,16 +22,16 @@ const frames = (writes: readonly string[]) =>
 function capture(options: { json?: boolean; tty?: boolean; stderr?: Writer } = {}) {
   const stdout: string[] = [];
   const stderr: string[] = [];
-  const layer = Output.layer(
-    options.json ?? false,
-    async (s) => {
+  const layer = Output.layer({
+    jsonFlag: options.json ?? false,
+    stdout: async (s) => {
       stdout.push(s);
     },
-    async (s) => {
+    stderr: async (s) => {
       await options.stderr?.(s);
       stderr.push(s);
     },
-  ).pipe(
+  }).pipe(
     Layer.provide(AppConfig.memory({ NO_COLOR: "", LOG_LEVEL: "none" })),
     Layer.provide(Host.memory({ stdoutIsTTY: options.tty ?? true })),
     Layer.provide(NodeServices.layer),

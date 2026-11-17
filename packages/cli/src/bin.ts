@@ -11,22 +11,18 @@
  * `main.ts::main` through `runtime.ts::runInvocation` and sets `process.exitCode` from the status
  * it returns. The order is deliberate: stream error handlers come first, and the signal policy is
  * removed only after the run has settled.
- *
- * Bun replaces three build-time constants. `PACKAGED_ESCAPES` lists the registry files the packer
- * had to rename (npm drops literal `.gitignore` and `bunfig.toml` members, so they ship as
- * `<name>.stacks`), and `packagedFiles` maps reads of those paths back to the original name, for
- * the bundled registry only. `STACKS_RELEASE_BUILD` marks a release, and
- * `STACKS_PUBLISHED_TELEMETRY` the one build that may send telemetry to the official endpoint.
  */
 import { fileURLToPath } from "node:url";
 import { NodeServices } from "@effect/platform-node";
 import { INDEX_PUBLIC_KEYS } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Layer, Option } from "effect";
+import { hasFlag } from "./argv";
+import { CLI_BUILD, packagedEscapes } from "./build";
 import { Allowlist } from "./core/allowlist";
 import { RemoteIndex } from "./core/remote-index";
 import { NotFound } from "./errors";
 import { invocationFor } from "./invocation";
-import { hasFlag, main } from "./main";
+import { main } from "./main";
 import { workingDirectory } from "./platform/cwd";
 import { NetLayer } from "./platform/net";
 import { installSignalPolicy } from "./platform/signals";
@@ -47,19 +43,15 @@ const writer =
 process.stdout.on("error", () => {});
 process.stderr.on("error", () => {});
 const args = process.argv.slice(2);
-const output = Output.layer(
-  hasFlag(args, "--json"),
-  writer(process.stdout),
-  writer(process.stderr),
-);
+const output = Output.layer({
+  jsonFlag: hasFlag(args, "--json"),
+  stdout: writer(process.stdout),
+  stderr: writer(process.stderr),
+});
 // This invocation's process groups and interactive child, shared with the signal policy.
 const holder = Foreground.make();
 const registry = fileURLToPath(new URL("../registry/", import.meta.url));
 const cwd = workingDirectory();
-// Replaced by Bun at build time; source development has no escaped asset paths.
-declare const PACKAGED_ESCAPES: ReadonlyArray<string>;
-declare const STACKS_RELEASE_BUILD: boolean;
-declare const STACKS_PUBLISHED_TELEMETRY: boolean;
 // Packers drop literal .gitignore and bunfig.toml members even when present in a tarball. Only
 // this installed registry's reads translate the packer's escape; authors and core see the
 // original names.
@@ -67,11 +59,7 @@ const packagedFiles = Layer.effect(
   FileSystem.FileSystem,
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const escapedPaths = new Set(
-      (typeof PACKAGED_ESCAPES === "undefined" ? [] : PACKAGED_ESCAPES).map(
-        (file) => `${registry}${file}`,
-      ),
-    );
+    const escapedPaths = new Set(packagedEscapes.map((file) => `${registry}${file}`));
     // An escaped file is read from its `.stacks` copy when one exists.
     const resolve = (file: string) =>
       escapedPaths.has(file)
@@ -125,16 +113,8 @@ const platform = Layer.mergeAll(
     invocation: invocationFor(process.argv[1] ?? ""),
   }),
 );
-// The hosted API: search, stats and the dependency allowlist.
-const DEFAULT_API_URL: string | undefined = "https://stacks.steamfield.io";
-const application = AppLayer(output, undefined, {
-  releaseBuild: typeof STACKS_RELEASE_BUILD !== "undefined" && STACKS_RELEASE_BUILD,
-  defaultApiUrl: DEFAULT_API_URL,
-});
-// No official index host exists yet, so the remote origin is off unless STACKS_INDEX_URL is set.
-const remote = RemoteIndex.layer({ keys: INDEX_PUBLIC_KEYS, officialUrl: undefined }).pipe(
-  Layer.provide(application),
-);
+const application = AppLayer({ output, build: CLI_BUILD });
+const remote = RemoteIndex.layer({ keys: INDEX_PUBLIC_KEYS }).pipe(Layer.provide(application));
 const allowlist = Allowlist.layer({ keys: INDEX_PUBLIC_KEYS }).pipe(Layer.provide(application));
 const layer = Layer.mergeAll(application, remote, allowlist).pipe(Layer.provideMerge(platform));
 // The shell's directory was removed after it entered it: every command reads or writes relative
@@ -144,11 +124,9 @@ const controller = new AbortController();
 const removeSignalPolicy = installSignalPolicy(holder, () => controller.abort());
 try {
   process.exitCode = await runInvocation(
-    main(args, Option.isSome(cwd) ? undefined : missingDirectory, {
-      officialUrl:
-        typeof STACKS_PUBLISHED_TELEMETRY !== "undefined" && STACKS_PUBLISHED_TELEMETRY
-          ? DEFAULT_API_URL
-          : undefined,
+    main({
+      args,
+      program: Option.isSome(cwd) ? undefined : missingDirectory,
     }).pipe(Effect.provide(layer), Effect.scoped),
     controller.signal,
   );

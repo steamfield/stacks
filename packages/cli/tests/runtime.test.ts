@@ -2,7 +2,8 @@ import { NodeServices } from "@effect/platform-node";
 import { INDEX_PUBLIC_KEYS } from "@steamfield/stacks-format";
 import { Effect, Layer } from "effect";
 import { expect, test } from "vitest";
-import { AppConfig, SOURCE_BUILD } from "../src/config";
+import { SOURCE_BUILD } from "../src/build";
+import { AppConfig } from "../src/config";
 import { Allowlist } from "../src/core/allowlist";
 import { BrokenPipe } from "../src/errors";
 import { main } from "../src/main";
@@ -24,7 +25,9 @@ test("production AppLayer reads normalized environment lazily", async () => {
     Effect.gen(function* () {
       return yield* (yield* AppConfig).paths;
     }).pipe(
-      Effect.provide(Layer.provideMerge(AppLayer(output.layer, undefined, SOURCE_BUILD), platform)),
+      Effect.provide(
+        Layer.provideMerge(AppLayer({ output: output.layer, build: SOURCE_BUILD }), platform),
+      ),
     ),
   );
   expect(paths.config).toContain(process.env.HOME);
@@ -51,25 +54,25 @@ test("BrokenPipe is a quiet successful interruption", async () => {
   expect(result).toEqual({ status: 0, stdout: "", stderr: "" });
 });
 test("actual EPIPE from Output writer is quiet", async () => {
-  const output = Output.layer(
-    false,
-    async () => {
+  const output = Output.layer({
+    jsonFlag: false,
+    stdout: async () => {
       throw Object.assign(new Error("closed"), { code: "EPIPE" });
     },
-    async () => {
+    stderr: async () => {
       throw new Error("must not report EPIPE");
     },
-  );
+  });
   const platform = Layer.mergeAll(
     NodeServices.layer,
     Host.memory(),
     Foreground.layer(Foreground.make()),
     NetLayer,
   );
-  const application = AppLayer(output, {}, SOURCE_BUILD);
+  const application = AppLayer({ output, env: {}, build: SOURCE_BUILD });
   expect(
     await Effect.runPromise(
-      main(["--version"]).pipe(
+      main({ args: ["--version"] }).pipe(
         Effect.provide(
           Layer.provideMerge(
             Layer.merge(

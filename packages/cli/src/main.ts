@@ -2,7 +2,7 @@
  * Runs one CLI invocation from start to finish: the command itself, then everything that has to
  * happen after it, whether it succeeded, failed, crashed or was interrupted with Ctrl+C.
  *
- * `bin.ts` calls `main(args)` and passes the result to `runtime.ts::runInvocation`, which turns
+ * `bin.ts` calls `main({ args })` and passes the result to `runtime.ts::runInvocation`, which turns
  * the returned number into the process exit status. `main` parses and runs the command tree from
  * `cli.ts` through effect/cli, with the logger from `logging.ts` and a fresh `Invocation` (the
  * service a command uses to report a launched agent's exit status, extra log fields or paths a
@@ -24,6 +24,7 @@
 import { AgentId, Harness } from "@steamfield/stacks-format";
 import { Cause, Clock, Console, Effect, Exit, Logger, Random, References } from "effect";
 import { CliConfig, CliError, CliOutput, Command, GlobalFlag, type HelpDoc } from "effect/cli";
+import { beforeSeparator, hasFlag } from "./argv";
 import { cli } from "./cli";
 import { AppConfig, type LogSettings } from "./config";
 import { helpFooter } from "./core/guide";
@@ -46,15 +47,6 @@ import { Output } from "./services/output";
 import { Telemetry } from "./telemetry";
 import { VERSION } from "./version";
 
-/** The arguments before the first `--`; what follows it belongs to the command, not the CLI. */
-function beforeSeparator(args: readonly string[]): readonly string[] {
-  const end = args.indexOf("--");
-  return end === -1 ? args : args.slice(0, end);
-}
-/** Whether one of `flags` comes before any `--`; what follows `--` belongs to the command. */
-export function hasFlag(args: readonly string[], ...flags: readonly string[]): boolean {
-  return beforeSeparator(args).some((arg) => flags.includes(arg));
-}
 function childCommands(command: Command.Command.Any): Command.Command.Any[] {
   return command.subcommands.flatMap((group) => group.commands);
 }
@@ -178,18 +170,15 @@ function invalidValueUsage(error: CliError.InvalidValue, command: string): Usage
 
 /**
  * Runs one invocation and returns its exit status; it never fails. `program` defaults to parsing
- * `args` with the real command tree; tests pass their own. `telemetryOptions.officialUrl` is set
- * only in a build made to publish telemetry.
+ * `args` with the real command tree.
  */
-export function main(
-  args: readonly string[],
-  program: Effect.Effect<
-    void,
-    unknown,
-    Command.Services<typeof cli> | Command.Environment
-  > = Command.runWith(cli, { version: VERSION, renderErrors: false })(args),
-  telemetryOptions: { officialUrl?: string } = {},
-) {
+export function main({
+  args,
+  program = Command.runWith(cli, { version: VERSION, renderErrors: false })(args),
+}: {
+  args: readonly string[];
+  program?: Effect.Effect<void, unknown, Command.Services<typeof cli> | Command.Environment>;
+}) {
   return Effect.uninterruptibleMask((restore) =>
     Effect.gen(function* () {
       const output = yield* Output;
@@ -247,7 +236,7 @@ export function main(
       yield* logging.flush(settings, quiet || expectedFailure(error, defect));
       return status;
     }),
-  ).pipe(Effect.provide(Telemetry.layer(telemetryOptions)), Effect.provide(Stats.layer));
+  ).pipe(Effect.provide(Telemetry.layer()), Effect.provide(Stats.layer));
 }
 
 /**

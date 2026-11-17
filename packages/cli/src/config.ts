@@ -21,6 +21,7 @@
 import { homedir } from "node:os";
 import { AgentId, type DetectedAgent } from "@steamfield/stacks-format";
 import { Config, ConfigProvider, Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
+import { type Build, SOURCE_BUILD } from "./build";
 import { InvalidConfig } from "./errors";
 import { Settings } from "./schemas";
 import { SLUG } from "./version";
@@ -183,8 +184,8 @@ const switchedOff = (value: string | undefined) =>
  * build (no credentials, query or fragment), else the build's default.
  */
 function apiUrlFor(value: string, build: Build): string | undefined {
-  const { releaseBuild, defaultApiUrl } = build;
-  if (releaseBuild || !URL.canParse(value)) return defaultApiUrl;
+  const { releaseBuild, officialApiUrl } = build;
+  if (releaseBuild || !URL.canParse(value)) return officialApiUrl;
   const url = new URL(value);
   const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
   return loopback &&
@@ -194,7 +195,7 @@ function apiUrlFor(value: string, build: Build): string | undefined {
     !url.search &&
     !url.hash
     ? url.href
-    : defaultApiUrl;
+    : officialApiUrl;
 }
 
 /** A child's whole environment: what was captured, minus `remove`, plus `set`. */
@@ -207,9 +208,6 @@ const childEnvFrom =
     return { ...env, ...set };
   };
 
-/** Facts fixed when the CLI is built: bin supplies them; source builds and tests use `SOURCE_BUILD`. */
-export type Build = { releaseBuild: boolean; defaultApiUrl: string | undefined };
-export const SOURCE_BUILD: Build = { releaseBuild: false, defaultApiUrl: undefined };
 function configLayer(env: Environment | undefined, build: Build) {
   // Copied when the layer is created, so later changes to the live environment aren't seen.
   const captured = { ...(env ?? process.env) };
@@ -274,6 +272,7 @@ function configLayer(env: Environment | undefined, build: Build) {
           noColor: Boolean(yield* read(text("NO_COLOR"))),
         };
       });
+      const indexUrl = read(text(CLI_ENV.indexUrl)).pipe(Effect.map((url) => url || undefined));
       // `--offline` and `--no-telemetry` set these per invocation, on top of the environment.
       let offlineFlag = false;
       let telemetryFlag = false;
@@ -286,8 +285,8 @@ function configLayer(env: Environment | undefined, build: Build) {
           doNotTrack: switchedOff(captured.DO_NOT_TRACK),
           disabled: switchedOff(captured[CLI_ENV.telemetryDisabled]),
           debug: captured[CLI_ENV.telemetryDebug] === "1",
-          url: captured[CLI_ENV.telemetryUrl] || undefined,
         },
+        telemetryUrl: captured[CLI_ENV.telemetryUrl] || build.officialTelemetryUrl,
         noTelemetry: Effect.sync(() => telemetryFlag),
         setNoTelemetry: (value: boolean) =>
           Effect.sync(() => {
@@ -301,7 +300,9 @@ function configLayer(env: Environment | undefined, build: Build) {
           forceColor: captured.FORCE_COLOR === "1",
         }),
         ci: captured.CI !== undefined,
-        indexUrl: read(text(CLI_ENV.indexUrl)).pipe(Effect.map((url) => url || undefined)),
+        indexUrl,
+        officialIndexUrl: build.officialIndexUrl,
+        remoteIndexUrl: indexUrl.pipe(Effect.map((url) => url ?? build.officialIndexUrl)),
         apiUrl: read(text(CLI_ENV.devApiUrl)).pipe(Effect.map((value) => apiUrlFor(value, build))),
         offline: Effect.sync(() => offlineFlag || captured[CLI_ENV.offline] === "1"),
         setOffline: (value: boolean) =>
@@ -320,10 +321,14 @@ export class AppConfig extends Context.Service<
   AppConfig,
   {
     releaseBuild: boolean;
-    telemetry: { doNotTrack: boolean; disabled: boolean; debug: boolean; url: string | undefined };
+    telemetry: { doNotTrack: boolean; disabled: boolean; debug: boolean };
+    telemetryUrl: string | undefined;
     noTelemetry: Effect.Effect<boolean>;
     setNoTelemetry: (value: boolean) => Effect.Effect<void>;
+    /** The configured override, which disables hosted stats even if it matches the official URL. */
     indexUrl: Effect.Effect<string | undefined>;
+    officialIndexUrl: string | undefined;
+    remoteIndexUrl: Effect.Effect<string | undefined>;
     /** The hosted API: the build's default, or a loopback development endpoint in a source build. */
     apiUrl: Effect.Effect<string | undefined>;
     offline: Effect.Effect<boolean>;

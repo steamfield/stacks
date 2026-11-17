@@ -159,7 +159,7 @@ export class Telemetry extends Context.Service<
     clear: (reset: boolean) => Effect.Effect<boolean>;
   }
 >()("stacks/Telemetry") {
-  static layer = (options: { officialUrl?: string } = {}) =>
+  static layer = () =>
     Layer.effect(
       Telemetry,
       Effect.gen(function* () {
@@ -176,7 +176,7 @@ export class Telemetry extends Context.Service<
           path,
           root: path.join((yield* config.paths).state, "telemetry"),
         };
-        const url = config.telemetry.url ?? options.officialUrl;
+        const url = config.telemetryUrl;
         // This invocation's state: the notice outcome and whether main should flush after output.
         let noticeOutcome: NoticeOutcome = NO_NOTICE;
         let flushAfterOutput = false;

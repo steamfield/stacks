@@ -1,7 +1,8 @@
 import { fileURLToPath } from "node:url";
 import { NodeServices } from "@effect/platform-node";
 import { Clock, Console, Effect, Layer, Option, Path } from "effect";
-import { AppConfig, SOURCE_BUILD } from "../src/config";
+import { SOURCE_BUILD } from "../src/build";
+import { AppConfig } from "../src/config";
 import { Registry } from "../src/core/registry/registry";
 import { printable } from "../src/core/text";
 import { validate } from "../src/core/validate";

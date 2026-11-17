@@ -6,6 +6,7 @@ import { Effect, Predicate, Result } from "effect";
 import type { Finding } from "../../../schemas/validate";
 import { proseLines } from "../../brief/headings";
 import type { Composition } from "../../compose/types";
+import { defined } from "../../object";
 import { shellWords } from "../../text/shell";
 import { sourceOf, uniqueFindings } from "../compositions/composed";
 import type { Source } from "../sources";
@@ -94,13 +95,16 @@ function referenceFinding(
   });
   if (!contributor || !view.entries.some((entry) => entry.dir === contributor.entry.dir))
     return undefined;
-  return finding(contributor.entry, {
-    check: issue.check,
-    severity: issue.severity,
-    file: view.file(contributor.entry, contributor.file.source),
-    ...(contributor.line === undefined ? {} : { line: contributor.line }),
-    message: `${file.path}: ${issue.message}`,
-  });
+  return finding(
+    contributor.entry,
+    defined({
+      check: issue.check,
+      severity: issue.severity,
+      file: view.file(contributor.entry, contributor.file.source),
+      line: contributor.line,
+      message: `${file.path}: ${issue.message}`,
+    }),
+  );
 }
 
 type Provided = { paths: ReadonlySet<string>; declared: Declared };

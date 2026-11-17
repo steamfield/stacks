@@ -5,6 +5,7 @@
 import { Clock, Effect, type FileSystem, type Path, Ref, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { AppConfig } from "../config";
+import { defined } from "../core/object";
 import { locateManifest, readManifest } from "../core/project/manifest";
 import { planVerify, type VerifyOptions, type VerifyPlan } from "../core/verify/plan";
 import { type RecordContext, type RecordFacts, recordRun } from "../core/verify/record";
@@ -112,20 +113,20 @@ const runAndRecord = (context: RecordContext, project: VerifyProject, plan: Veri
 
 /** The failed steps, each with its failure kind and exit code, for `VerifyFailed`'s details. */
 function failedDetails(result: VerifyResult) {
-  return {
+  return defined({
     failed: result.steps.flatMap((step) =>
       step.status === "failed" && step.failureKind
         ? [
-            {
+            defined({
               name: step.name,
               failureKind: step.failureKind,
-              ...(step.exitCode === undefined ? {} : { exitCode: step.exitCode }),
-            },
+              exitCode: step.exitCode,
+            }),
           ]
         : [],
     ),
-    ...(result.stages === undefined ? {} : { stages: result.stages }),
-  };
+    stages: result.stages,
+  });
 }
 
 export const verifyCommand = Command.make(

@@ -1,5 +1,6 @@
 import { AgentId } from "@steamfield/stacks-format";
 import { Schema } from "effect";
+import { defined } from "./core/object";
 
 /**
  * One agent session marker: the environment variable `name`, set and non-empty (and equal to
@@ -16,11 +17,12 @@ const AgentMarker = Schema.Struct({
   ),
 });
 type AgentMarker = typeof AgentMarker.Type;
-const marker = (name: string, agent: AgentMarker["agent"], equals?: string) => ({
-  name,
-  agent,
-  ...(equals === undefined ? {} : { equals }),
-});
+const marker = (name: string, agent: AgentMarker["agent"], equals?: string) =>
+  defined({
+    name,
+    agent,
+    equals,
+  });
 /**
  * Agent detection's markers, checked in order; the first match wins. `AI_AGENT` is the
  * cross-agent convention: its value is matched by prefix against the known ids, and any other

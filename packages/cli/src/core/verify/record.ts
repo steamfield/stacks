@@ -10,6 +10,7 @@ import { METADATA_DIR, RUNS_PATH, STATE_DIR } from "../../project-layout";
 import type { VerifyResult } from "../../schemas/verify";
 import { Telemetry } from "../../telemetry";
 import { VERSION } from "../../version";
+import { defined } from "../object";
 import { findProjectState, reasonOf, saveProjectState, warnUnwritten } from "../project/state";
 import { printable } from "../text/text";
 import type { RunResult } from "./result";
@@ -30,15 +31,16 @@ export type RecordContext = {
 type Finished = RunResult | VerifyResult;
 
 /** A step as the run record keeps it: no command text, reason or output. */
-const runStep = (step: Finished["steps"][number]): RunStep => ({
-  name: step.name,
-  phase: step.phase,
-  ...(step.layer ? { layer: step.layer } : {}),
-  status: step.status,
-  ...(step.failureKind ? { failureKind: step.failureKind } : {}),
-  ...(step.exitCode === undefined ? {} : { exitCode: step.exitCode }),
-  durationMs: step.durationMs,
-});
+const runStep = (step: Finished["steps"][number]): RunStep =>
+  defined({
+    name: step.name,
+    phase: step.phase,
+    ...(step.layer ? { layer: step.layer } : {}),
+    status: step.status,
+    ...(step.failureKind ? { failureKind: step.failureKind } : {}),
+    exitCode: step.exitCode,
+    durationMs: step.durationMs,
+  });
 
 type RecordFields = { agent: RunRecord["agent"]; now: number };
 

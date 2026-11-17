@@ -6,6 +6,7 @@ import type { Kind } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
 import { isAbsent } from "../fs/absent";
 import { denied } from "../fs/denied";
+import { defined } from "../object";
 import { printable } from "../text/text";
 import {
   decodeEntry,
@@ -41,16 +42,17 @@ const rejectCandidate = (
   reason: RejectedEntry["reason"],
   error: string,
   at?: string,
-): RejectedEntry => ({
-  _tag: "Rejected",
-  id,
-  kind,
-  origin,
-  dir,
-  error,
-  reason,
-  ...(at === undefined ? {} : { path: at }),
-});
+): RejectedEntry =>
+  defined({
+    _tag: "Rejected",
+    id,
+    kind,
+    origin,
+    dir,
+    error,
+    reason,
+    path: at,
+  });
 
 type NewerEntry = { _tag: "Newer"; version: number };
 

@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { AgentId, type DetectedAgent } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { type Build, SOURCE_BUILD } from "./build";
+import { defined } from "./core/object";
 import { AgentMarkers, CLI_ENV } from "./env-names";
 import { InvalidConfig } from "./errors";
 import { Settings } from "./schemas/config";
@@ -125,7 +126,7 @@ function configLayer(environment: Environment | undefined, build: Build) {
           path.join(env("XDG_STATE_HOME") ?? path.join(home, ".local", "state"), SLUG);
         const telemetry = path.join(state, "telemetry");
         const registry = env(CLI_ENV.registryDir);
-        return {
+        return defined({
           config,
           home,
           data,
@@ -133,8 +134,8 @@ function configLayer(environment: Environment | undefined, build: Build) {
           state,
           telemetry,
           user,
-          ...(registry === undefined ? {} : { registry }),
-        };
+          registry,
+        });
       });
       // A missing file is no settings; any read, parse or decode failure is InvalidConfig.
       const readSettingsFile = Effect.gen(function* () {

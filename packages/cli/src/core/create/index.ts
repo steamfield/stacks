@@ -11,6 +11,7 @@ import type { CreateResult } from "../../schemas/create";
 import type { Origin } from "../../schemas/origin";
 import { Host } from "../../services/host";
 import { Output } from "../../services/output";
+import { defined } from "../object";
 import { openProject } from "../project/writer";
 import { type Entry, isRejected, markdownFile } from "../registry/entry";
 import { Registry } from "../registry/registry";
@@ -222,9 +223,9 @@ const readSnapshot = (entry: Entry) =>
         .pipe(Effect.map((bytes) => ({ source: file.source, bytes, permissions: file.mode }))),
     );
     const search = yield* registry.search(entry);
-    return {
+    return defined({
       directories: tree.directories,
       files,
-      ...(search === undefined ? {} : { search }),
-    } satisfies Snapshot;
+      search,
+    }) satisfies Snapshot;
   });

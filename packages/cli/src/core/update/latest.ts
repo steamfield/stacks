@@ -6,6 +6,7 @@ import { Duration, Effect, Option, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import { UpstreamUnavailable } from "../../errors";
 import { PACKAGE } from "../../version";
+import { defined } from "../object";
 import { Version } from "./version";
 
 const LatestDocument = Schema.Struct({ version: Version });
@@ -15,7 +16,7 @@ const LATEST_URL = `https://registry.npmjs.org/${PACKAGE.replace("/", "%2f")}/la
 
 const unavailable = (status?: number) =>
   new UpstreamUnavailable({
-    details: { service: "npm-registry", ...(status === undefined ? {} : { status }) },
+    details: defined({ service: "npm-registry", status }),
   });
 
 /** One GET of the latest document, decoded; needs a scope for the response. */

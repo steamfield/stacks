@@ -5,6 +5,7 @@
  */
 import { FailureKind, Kind } from "@steamfield/stacks-format";
 import { Effect, Record as EffectRecord, Schema } from "effect";
+import { defined } from "./core/object";
 import { Origin } from "./schemas/origin";
 import { VerifyChange, VerifyResult } from "./schemas/verify";
 
@@ -574,14 +575,14 @@ class PreparedFailure {
     const { error } = this;
     const details = this.#details;
     const envelope = encodeEnvelope({
-      error: {
+      error: defined({
         tag: error._tag,
         message: error.message,
         retryable: retryable(error),
-        ...(next === undefined ? {} : { next }),
-        ...(details === undefined ? {} : { details }),
+        next,
+        details,
         ...(rollback.length === 0 ? {} : { rollback: { incomplete: rollback } }),
-      },
+      }),
     });
     return `${JSON.stringify(envelope)}\n`;
   }

@@ -6,6 +6,7 @@ import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-forma
 import { Context, Effect, FileSystem, Layer, Option, Path } from "effect";
 import { EntryInvalid, NotFound, type PermissionDenied } from "../../errors";
 import { denied } from "../fs/denied";
+import { defined } from "../object";
 import { decodeAuthors, readSearchFile, sidecarPath } from "../search/sidecar";
 import {
   type CatalogEntry,
@@ -90,12 +91,12 @@ function rejectionError({ path }: FileAccess, item: RejectedEntry, id: string) {
   const { reason } = item;
   if (reason === "unreadable") return denied("read", path.join(item.dir, item.path ?? "."));
   return new EntryInvalid({
-    details: {
+    details: defined({
       id,
       origin: item.origin,
       reason,
-      ...(item.path === undefined ? {} : { path: item.path }),
-    },
+      path: item.path,
+    }),
   });
 }
 

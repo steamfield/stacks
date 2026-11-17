@@ -26,6 +26,7 @@ import type { Composition } from "../compose/types";
 import { goAllowlistKey } from "../deps/index";
 import { readLedger } from "../ledger";
 import { toRow } from "../list/index";
+import { defined } from "../object";
 import { type CatalogEntry, type Entry, isFragment } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type RegistryRoots, remoteRoots } from "../registry/roots";
@@ -94,12 +95,12 @@ const reviewEntry = Effect.fn("show.review")(function* (request: {
   const lastRun = yield* reportLastRun({ entry, indexRun: row.lastRun, records, registry });
   const selection = yield* selectionMetadata(entry, catalog, registry);
   const { meta } = entry;
-  return {
+  return defined({
     ...row,
     ...stats,
     path: entry.dir,
     deps: meta.deps,
-    ...(dependencyRollup === undefined ? {} : { dependencyRollup }),
+    dependencyRollup,
     ...copy,
     tools: meta.tools,
     decisions: meta.decisions,
@@ -115,7 +116,7 @@ const reviewEntry = Effect.fn("show.review")(function* (request: {
     briefWords: composition ? canonicalBrief(composition).briefWords : null,
     briefCap: composition ? composedLimit(composition) : BUDGET.composed,
     lastRun,
-  } satisfies ShowReport;
+  }) satisfies ShowReport;
 });
 
 /**

@@ -3,14 +3,25 @@
  * and atomic replacement keeps interrupted writes from leaving partial files.
  */
 import { TelemetryNewEvent } from "@steamfield/stacks-format";
-import { Clock, Effect, FileSystem, Path, Random, Schema, Struct } from "effect";
+import { Clock, Effect, FileSystem, Option, Path, Random, Schema, Struct } from "effect";
 import { replaceFile } from "../core/fs/replace-file";
 
-/** The filesystem services and the absolute telemetry directory every helper works in. */
+/** Filesystem services and the absolute root for store-relative paths. */
 export type Storage = { fs: FileSystem.FileSystem; path: Path.Path; root: string };
 
 /** One day in milliseconds, the unit of every retention window. */
 export const DAY = 86_400_000;
+
+/** A claim untouched this long belongs to a run that never finished. */
+const STALE_CLAIM_MS = 600_000;
+
+/** Filesystems without modification times treat claims as freshly modified. */
+export function claimStaleness(now: number, mtime: Option.Option<Date>) {
+  const modified = Option.getOrElse(mtime, () => new Date(now)).getTime();
+  const age = now - modified;
+  if (Number.isNaN(age)) return "unknown";
+  return age > STALE_CLAIM_MS ? "stale" : "fresh";
+}
 
 /**
  * A random version 4 UUID drawn from Effect's `Random`, so tests can make it deterministic.
@@ -33,9 +44,9 @@ export const timestamp = Clock.currentTimeMillis.pipe(
   Effect.map((now) => new Date(now).toISOString()),
 );
 
-/** Creates a directory and its parents, owner-only. `at` is an absolute path. */
-export const directory = Effect.fn("telemetry.directory")(function* (store: Storage, at: string) {
-  yield* store.fs.makeDirectory(at, { recursive: true, mode: 0o700 });
+/** Owner-only permissions protect installed telemetry state. */
+export const directory = Effect.fn("telemetry.directory")(function* (store: Storage, dir: string) {
+  yield* store.fs.makeDirectory(store.path.join(store.root, dir), { recursive: true, mode: 0o700 });
 });
 
 /** Reads a store file and decodes it, rejecting properties the schema doesn't name. */
@@ -48,14 +59,13 @@ export const read = <S extends Schema.Codec<unknown, string>>(
     .readFileString(store.path.join(store.root, file))
     .pipe(Effect.flatMap(Schema.decodeUnknownEffect(schema, { onExcessProperty: "error" })));
 
-/** Store paths are relative to the root unless a helper says otherwise. */
 export const write = Effect.fn("telemetry.write")(function* (
   store: Storage,
   file: string,
   value: unknown,
 ) {
   const at = store.path.join(store.root, file);
-  yield* directory(store, store.path.dirname(at));
+  yield* directory(store, store.path.dirname(file));
   yield* replaceFile(at, JSON.stringify(value), { mode: 0o600 }).pipe(
     Effect.provideService(FileSystem.FileSystem, store.fs),
     Effect.provideService(Path.Path, store.path),
@@ -153,17 +163,18 @@ export const DeferredScaffold = Schema.fromJsonString(
  */
 export const installId = Effect.fn("telemetry.installId")(function* (store: Storage) {
   const file = store.path.join(store.root, "install.json");
-  if (!(yield* store.fs.exists(file))) yield* createInstallId(store, file);
+  if (!(yield* store.fs.exists(file))) yield* createInstallId(store);
   return (yield* read(store, "install.json", Install)).installId;
 });
 
-const createInstallId = Effect.fn("telemetry.createInstallId")(function* (
-  store: Storage,
-  file: string,
-) {
-  yield* directory(store, store.root);
+const createInstallId = Effect.fn("telemetry.createInstallId")(function* (store: Storage) {
+  yield* directory(store, ".");
   yield* store.fs
-    .writeFileString(file, JSON.stringify({ installId: yield* uuid }), { flag: "wx", mode: 0o600 })
+    .writeFileString(
+      store.path.join(store.root, "install.json"),
+      JSON.stringify({ installId: yield* uuid }),
+      { flag: "wx", mode: 0o600 },
+    )
     .pipe(
       Effect.catchIf(
         (error) => error.reason._tag === "AlreadyExists",

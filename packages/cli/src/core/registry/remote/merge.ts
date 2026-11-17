@@ -3,7 +3,7 @@
  * invocation so reading the catalog never downloads files.
  */
 import { type IndexEntry, IndexEntry as IndexEntrySchema } from "@steamfield/stacks-format";
-import { Effect, FileSystem, Option, Path, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import {
   type CatalogEntry,
   catalogRow,
@@ -16,6 +16,7 @@ import {
   type Origin,
   type RegistryEntry,
 } from "../entry";
+import type { FileAccess } from "../types";
 import { directoryMatches } from "./files";
 import type { ConfiguredIndex } from "./service";
 
@@ -26,11 +27,10 @@ const aboveIndex = (entry: RegistryEntry | undefined) =>
 
 /** A missing, unreadable or invalid bundle has no entry, so resolution can fall back. */
 const readEntry = Effect.fn("registry.remoteEntry")(function* (
+  { fs, path }: FileAccess,
   remote: ConfiguredIndex,
   ref: IndexEntry,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
   const dir = yield* remote.bundle(ref);
   if (Option.isNone(dir)) return undefined;
   const text = yield* fs
@@ -67,6 +67,7 @@ const pinnedReference = (id: string, digest: string): IndexEntry => ({
  * copies on digest matches and discard the whole pin set if any fragment is unavailable.
  */
 const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
+  io: FileAccess,
   remote: ConfiguredIndex,
   ref: IndexEntry,
   bundledEntries: ReadonlyArray<Entry>,
@@ -76,12 +77,12 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
     const original = bundledEntries.find((entry) => entry.kind === "fragment" && entry.id === id);
     if (
       original &&
-      (yield* directoryMatches({ id, kind: "fragment", digest, dir: original.dir }))
+      (yield* directoryMatches(io, { id, kind: "fragment", digest, dir: original.dir }))
     ) {
       fragments.push(original);
       continue;
     }
-    const fragment = yield* readEntry(remote, pinnedReference(id, digest));
+    const fragment = yield* readEntry(io, remote, pinnedReference(id, digest));
     if (!fragment) return undefined;
     fragments.push(fragment);
   }
@@ -114,6 +115,7 @@ function bundledComposition(original: Entry | undefined, bundledEntries: Readonl
  * back to `bundledComposition` when the index stack or a pinned fragment is unavailable.
  */
 const resolveReference = Effect.fn("registry.resolveReference")(function* (
+  io: FileAccess,
   ref: IndexEntry,
   options: {
     remote: ConfiguredIndex;
@@ -122,13 +124,13 @@ const resolveReference = Effect.fn("registry.resolveReference")(function* (
   },
 ) {
   const { remote, original, bundledEntries } = options;
-  const same = original && (yield* directoryMatches({ ...ref, dir: original.dir }));
-  const entry = same ? original : yield* readEntry(remote, ref);
+  const same = original && (yield* directoryMatches(io, { ...ref, dir: original.dir }));
+  const entry = same ? original : yield* readEntry(io, remote, ref);
   if (!entry)
     return ref.kind === "stack" ? bundledComposition(original, bundledEntries) : undefined;
   const shadows: Entry["shadows"] = original ? ["bundled"] : [];
   if (ref.kind === "fragment") return same ? original : { ...entry, shadows };
-  const pinned = yield* pinnedFragments(remote, ref, bundledEntries);
+  const pinned = yield* pinnedFragments(io, remote, ref, bundledEntries);
   if (pinned === undefined) return bundledComposition(original, bundledEntries);
   return { ...entry, composition: pinned, ...(same ? {} : { shadows }) };
 });
@@ -160,6 +162,7 @@ const indexCatalogRow = (ref: IndexEntry): CatalogEntry => ({
  * the index as a shadow.
  */
 const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
+  io: FileAccess,
   remote: ConfiguredIndex,
   options: {
     local: ReadonlyMap<string, RegistryEntry>;
@@ -169,8 +172,6 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   },
 ) {
   const { local, bundledEntries, catalog, resolutions } = options;
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
   const index = yield* remote.current;
   const originals = new Map(bundledEntries.map((entry) => [entryKey(entry.kind, entry.id), entry]));
   for (const ref of Option.isSome(index) ? index.value.entries : []) {
@@ -183,10 +184,8 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
     }
     catalog.set(key, indexCatalogRow(ref));
     const resolve = yield* Effect.cached(
-      resolveReference(ref, { remote, original: originals.get(key), bundledEntries }).pipe(
+      resolveReference(io, ref, { remote, original: originals.get(key), bundledEntries }).pipe(
         Effect.map((entry) => entry ?? existing),
-        Effect.provideService(FileSystem.FileSystem, fs),
-        Effect.provideService(Path.Path, path),
       ),
     );
     resolutions.set(key, resolve);
@@ -194,6 +193,7 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
 });
 
 export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
+  io: FileAccess,
   remote: ConfiguredIndex,
   local: ReadonlyMap<string, RegistryEntry>,
   bundledEntries: ReadonlyArray<Entry>,
@@ -202,7 +202,7 @@ export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
   const resolutions = new Map<string, Resolution>(
     Array.from(local, ([key, entry]) => [key, Effect.succeed(entry)]),
   );
-  yield* mergeIndex(remote, { local, bundledEntries, catalog, resolutions });
+  yield* mergeIndex(io, remote, { local, bundledEntries, catalog, resolutions });
   return {
     catalog: Effect.succeed([...catalog.values()].sort(compareEntries)),
     all: Effect.forEach([...resolutions.values()], (effect) => effect).pipe(

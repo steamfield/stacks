@@ -5,6 +5,7 @@
 import { TelemetryEvent, TelemetryEventV2, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
 import {
+  claimStaleness,
   DAY,
   directory,
   names,
@@ -21,8 +22,6 @@ const MAX_EVENT_AGE = 7 * DAY;
 const MAX_SPOOLED = 500;
 /** The most events one flush claims, and the most stale claims one flush recovers. */
 const BATCH_SIZE = 50;
-/** A claim directory older than this belongs to a run that never finished its flush. */
-const STALE_CLAIM_MS = 600_000;
 
 // Older event versions stay decodable so events queued by an earlier CLI release still send.
 const Event = Schema.Union([TelemetryEvent, TelemetryEventV2, TelemetryEventV3]);
@@ -74,7 +73,7 @@ export const write = Effect.fn("telemetry.spool.write")(function* (
  * vanished meanwhile was already handled and is skipped.
  */
 export const restore = Effect.fn("telemetry.restore")(function* (store: Storage, claim: string) {
-  yield* directory(store, store.path.join(store.root, "spool"));
+  yield* directory(store, "spool");
   for (const name of yield* names(store, claim)) {
     yield* store.fs
       .rename(store.path.join(store.root, claim, name), store.path.join(store.root, "spool", name))
@@ -95,9 +94,7 @@ export const recover = Effect.fn("telemetry.recover")(function* (store: Storage)
     const claim = store.path.join("claims", name);
     const stat = yield* store.fs.stat(store.path.join(store.root, claim)).pipe(Effect.option);
     if (Option.isNone(stat)) continue;
-    // A file system without modification times reads as just modified, so the claim is kept.
-    const modified = Option.getOrElse(stat.value.mtime, () => new Date(now)).getTime();
-    if (now - modified > STALE_CLAIM_MS) yield* restore(store, claim);
+    if (claimStaleness(now, stat.value.mtime) === "stale") yield* restore(store, claim);
   }
 });
 
@@ -110,7 +107,7 @@ export const claim = Effect.fn("telemetry.claim")(function* (
   events: readonly Pending[],
 ) {
   const dir = store.path.join("claims", yield* uuid);
-  yield* directory(store, store.path.join(store.root, dir));
+  yield* directory(store, dir);
   const claimed: Pending[] = [];
   for (const item of events) {
     if (claimed.length === BATCH_SIZE) break;

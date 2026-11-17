@@ -23,7 +23,7 @@ import {
   type ScaffoldFacts,
   type ShowFacts,
 } from "./events";
-import { linkScaffold, markDepsSpooled, verifyEventFor } from "./links";
+import { linkScaffold, locateProject, markDepsSpooled, verifyEventFor } from "./links";
 import { NO_NOTICE, type NoticeOutcome, settleNotice, showNotice } from "./notice";
 import * as spoolFiles from "./spool";
 import {
@@ -155,24 +155,21 @@ export class Telemetry extends Context.Service<
          */
         const spool = Effect.fn("telemetry.spool")(function* (
           build: Effect.Effect<EventBody, unknown>,
-          options: { verifyRun?: boolean; eventId?: string } = {},
+          eventId?: string,
         ) {
           const event = yield* Schema.decodeUnknownEffect(TelemetryEventV3, {
             onExcessProperty: "error",
           })({
             ...(yield* envelope),
             ...(yield* build),
-            ...(options.eventId === undefined ? {} : { eventId: options.eventId }),
+            ...(eventId === undefined ? {} : { eventId }),
           });
           if (config.telemetry.debug) {
             if (output) yield* output.note(JSON.stringify(event));
             return;
           }
           yield* spoolFiles.write(store, event);
-          if (options.verifyRun && event.type === "verify" && event.deps !== undefined)
-            yield* markDepsSpooled(store, host.cwd, event.sentAt).pipe(
-              Effect.provideContext(files),
-            );
+          return event;
         });
 
         /** Spools deferred scaffolds in file name order. */
@@ -183,7 +180,7 @@ export class Telemetry extends Context.Service<
             const deferred = yield* Effect.result(read(store, file, DeferredScaffold));
             if (deferred._tag === "Success") {
               const { eventId, ...event } = deferred.success;
-              yield* spool(Effect.succeed(event), { eventId });
+              yield* spool(Effect.succeed(event), eventId);
             }
             yield* remove(store, file);
           }
@@ -214,14 +211,15 @@ export class Telemetry extends Context.Service<
         );
 
         /** Records an event when telemetry is enabled and this isn't the notice run. */
-        const record = (build: Effect.Effect<EventBody, unknown>, verifyRun = false) =>
+        const record = (event: Effect.Effect<unknown, unknown>) =>
           safe(
             notify.pipe(
               Effect.andThen(check),
               Effect.flatMap((reason) => {
                 if (noticeOutcome.isNoticeRun || reason !== "enabled") return Effect.void;
-                return spool(build, { verifyRun });
+                return event;
               }),
+              Effect.asVoid,
             ),
             undefined,
           );
@@ -251,7 +249,7 @@ export class Telemetry extends Context.Service<
                   Effect.flatMap((value) =>
                     noticeOutcome.isNoticeRun
                       ? deferScaffold(value)
-                      : spool(linkScaffold(store, value)),
+                      : spool(linkScaffold(store, value)).pipe(Effect.asVoid),
                   ),
                 );
               }),
@@ -260,16 +258,25 @@ export class Telemetry extends Context.Service<
           );
         };
 
-        const recordVerify = (run: RunRecord) =>
-          record(
+        const recordVerify = Effect.fn("telemetry.recordVerify")(function* (run: RunRecord) {
+          const location = yield* Effect.cached(
+            locateProject(host.cwd).pipe(Effect.provideContext(files)),
+          );
+          const event = yield* spool(
             verifyEventFor({
               store,
-              cwd: host.cwd,
+              location,
               record: run,
               cachedAllowlist: allowlist.cached,
             }).pipe(Effect.provideContext(files)),
-            true,
           );
+          if (event?.type === "verify" && event.deps !== undefined)
+            yield* markDepsSpooled(
+              store,
+              { cwd: host.cwd, location: yield* location },
+              event.sentAt,
+            ).pipe(Effect.provideContext(files));
+        }, record);
 
         /** Sends queued events within `deadline` ms; otherwise reports why nothing was sent. */
         const flush = (deadline: number) =>
@@ -334,9 +341,15 @@ export class Telemetry extends Context.Service<
           recordVerify,
           recordShow: (entry: ShowFacts) =>
             record(
-              Effect.sync(() => ({ type: "show" as const, kind: entry.kind, id: publicId(entry) })),
+              spool(
+                Effect.sync(() => ({
+                  type: "show" as const,
+                  kind: entry.kind,
+                  id: publicId(entry),
+                })),
+              ),
             ),
-          recordError: (input: ErrorFacts) => record(Effect.sync(() => errorEvent(input))),
+          recordError: (input: ErrorFacts) => record(spool(Effect.sync(() => errorEvent(input)))),
           flush: flush(FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid),
           flushNow: flush(FLUSH_NOW_MS),
           clear: (reset: boolean) =>

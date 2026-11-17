@@ -18,6 +18,7 @@ import { newPreset } from "./project/preset";
 import { Registry } from "./registry/registry";
 import { defaultRoots } from "./registry/roots";
 import type { NewOptions } from "./scaffold/new";
+import { numberedRows } from "./text/numbered-rows";
 import { shellArg } from "./text/shell";
 import { slug } from "./text/slug";
 import { printable } from "./text/text";
@@ -74,7 +75,7 @@ const readAnswer = (terminal: Terminal.Terminal, question: string) =>
   );
 
 /** Shows the numbered choices, then asks until the answer names only listed numbers. */
-const selectValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =>
+const pickArgumentValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =>
   Effect.gen(function* () {
     if (!selection.choices.length && !selection.multiple) return yield* new Usage();
     yield* displayPicker(terminal, menuText(selection));
@@ -87,7 +88,7 @@ const selectValues = <A>(terminal: Terminal.Terminal, selection: Selection<A>) =
   });
 
 const selectOne = <A>(terminal: Terminal.Terminal, selection: Omit<Selection<A>, "multiple">) =>
-  selectValues(terminal, selection).pipe(
+  pickArgumentValues(terminal, selection).pipe(
     Effect.flatMap((values) => {
       const value = values[0];
       return value === undefined ? Effect.fail(new Usage()) : Effect.succeed(value);
@@ -96,17 +97,15 @@ const selectOne = <A>(terminal: Terminal.Terminal, selection: Omit<Selection<A>,
 
 const promptSession = Effect.map(Terminal.Terminal, (terminal) => ({
   read: (question: string) => readAnswer(terminal, question),
-  select: <A>(selection: Selection<A>) => selectValues(terminal, selection),
+  select: <A>(selection: Selection<A>) => pickArgumentValues(terminal, selection),
   one: <A>(selection: Omit<Selection<A>, "multiple">) => selectOne(terminal, selection),
 }));
 
 type PromptSession = Effect.Success<typeof promptSession>;
 
 function menuText(selection: Selection<unknown>): string {
-  const rows = selection.choices.map(
-    (choice, index) => `  ${index + 1}) ${printable(choice.label)}\n`,
-  );
-  return `\n${selection.title} (Ctrl+C to quit)\n${rows.join("")}`;
+  const rows = numberedRows(selection.choices.map(({ label }) => printable(label)));
+  return `\n${selection.title} (Ctrl+C to quit)\n${rows.map((row) => `${row}\n`).join("")}`;
 }
 
 function selectionQuestion(mode: SelectionMode): string {

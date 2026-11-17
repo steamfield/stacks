@@ -186,7 +186,7 @@ const composeProject = (input: {
  * Refuses fragments that need their own repository when the target sits inside another one. A
  * repository rooted at the target is the project's own, so it can hold them.
  */
-const checkOwnRepo = (composition: Composition, git: GitProbe) =>
+const checkScaffoldRepository = (composition: Composition, git: GitProbe) =>
   Effect.gen(function* () {
     if (git.state.kind !== "parent" || git.own || !composition.needsOwnRepo.length) return;
     const owners = composition.needsOwnRepo.map((id) => ({ kind: "fragment" as const, id }));
@@ -313,7 +313,7 @@ export const scaffold = (options: NewOptions) =>
     const target = yield* inspectTarget(dir);
     const installed = yield* gitInstalled;
     const git = ownRepository(yield* probeGit(target, installed), options.ownRepo);
-    yield* checkOwnRepo(composition, git);
+    yield* checkScaffoldRepository(composition, git);
 
     const missing = yield* missingToolsOnPath(composition);
 

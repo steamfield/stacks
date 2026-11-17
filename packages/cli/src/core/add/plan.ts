@@ -1,18 +1,18 @@
 /** Plans file placement for `stacks add` without writing to the project. */
-import { Effect, FileSystem, Option, Path, type PlatformError } from "effect";
+import { Effect, FileSystem, Option, Path } from "effect";
 import { ComposeConflict, PermissionDenied } from "../../errors";
 import { INCOMING, METADATA_DIR } from "../../project-layout";
 import type { AddResult } from "../../schemas/add";
 import { deepMerge } from "../compose/merge";
 import type { Composition, PlannedFile } from "../compose/types";
+import { isAbsent } from "../fs/absent";
+import { denied } from "../fs/denied";
 import { gitToplevel } from "../project/git";
 import { within } from "../project/writer";
 import type { Entry } from "../registry/entry";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const denied = (path: string) => new PermissionDenied({ details: { reason: "write", path } });
-const absent = (error: PlatformError.PlatformError) => error.reason._tag === "NotFound";
 
 export type AddPlan = {
   readonly write: ReadonlyArray<PlannedFile & { readonly bytes: Uint8Array }>;
@@ -43,28 +43,30 @@ export const checkAddRoot = (root: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const info = yield* fs.stat(root).pipe(Effect.mapError(() => denied(root)));
-    if (info.type !== "Directory") return yield* denied(root);
+    const info = yield* fs.stat(root).pipe(Effect.mapError(() => denied("write", root)));
+    if (info.type !== "Directory") return yield* denied("write", root);
     for (const rel of [METADATA_DIR, INCOMING]) {
       const at = path.join(root, rel);
       const type = yield* fs.lstat(at).pipe(
         Effect.map((value) => value.type),
         Effect.catch((error) =>
-          absent(error) ? Effect.succeed("Missing") : Effect.fail(denied(at)),
+          error.reason._tag === "NotFound"
+            ? Effect.succeed("Missing")
+            : Effect.fail(denied("write", at)),
         ),
       );
-      if (type !== "Missing" && type !== "Directory") return yield* denied(at);
+      if (type !== "Missing" && type !== "Directory") return yield* denied("write", at);
     }
   });
 
 /** Fail when a fragment that needs its own repository would land inside a parent repository. */
-const checkOwnRepo = (root: string, needsOwnRepo: ReadonlyArray<string>) =>
+const checkAddRepository = (root: string, needsOwnRepo: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     if (needsOwnRepo.length === 0) return;
     const toplevel = yield* gitToplevel(root);
     if (!toplevel) return;
     const fs = yield* FileSystem.FileSystem;
-    const top = yield* fs.realPath(toplevel).pipe(Effect.mapError(() => denied(root)));
+    const top = yield* fs.realPath(toplevel).pipe(Effect.mapError(() => denied("write", root)));
     if (top === root) return;
     return yield* new ComposeConflict({
       details: { reason: "needs_own_repo", ids: [...needsOwnRepo], path: top },
@@ -82,17 +84,14 @@ const readLive = (root: string, rel: string) =>
     const target = path.join(root, rel);
     const checkLink = (at: string) =>
       Effect.gen(function* () {
-        const real = yield* fs.realPath(at).pipe(Effect.mapError(() => denied(at)));
-        if (!within(root, real, path.sep)) return yield* denied(at);
+        const real = yield* fs.realPath(at).pipe(Effect.mapError(() => denied("write", at)));
+        if (!within(root, real, path.sep)) return yield* denied("write", at);
       });
-    // BadResource is a file where a directory was expected, so nothing can exist below it.
     const liveType = (at: string) =>
       fs.lstat(at).pipe(
         Effect.map((value) => value.type),
         Effect.catch((error) =>
-          absent(error) || error.reason._tag === "BadResource"
-            ? Effect.succeed("Missing")
-            : Effect.fail(denied(at)),
+          isAbsent(error) ? Effect.succeed("Missing") : Effect.fail(denied("write", at)),
         ),
       );
     let at = root;
@@ -104,7 +103,7 @@ const readLive = (root: string, rel: string) =>
         return yield* new PermissionDenied({ details: { reason: "blocked", path: at } });
       if (type === "SymbolicLink") yield* checkLink(at);
     }
-    return yield* fs.readFile(target).pipe(Effect.mapError(() => denied(target)));
+    return yield* fs.readFile(target).pipe(Effect.mapError(() => denied("write", target)));
   });
 
 /** Walk parked files depth first in sorted name order. */
@@ -118,17 +117,21 @@ const listParked = (root: string) =>
         const names = yield* fs
           .readDirectory(at)
           .pipe(
-            Effect.catch((error) => (absent(error) ? Effect.succeed([]) : Effect.fail(denied(at)))),
+            Effect.catch((error) =>
+              error.reason._tag === "NotFound"
+                ? Effect.succeed([])
+                : Effect.fail(denied("write", at)),
+            ),
           );
         const files: string[] = [];
         for (const name of [...names].sort()) {
           const child = `${rel}/${name}`;
           const info = yield* fs
             .lstat(path.join(root, child))
-            .pipe(Effect.mapError(() => denied(child)));
+            .pipe(Effect.mapError(() => denied("write", child)));
           if (info.type === "Directory") files.push(...(yield* listDirectory(child)));
           else if (info.type === "File") files.push(child);
-          else return yield* denied(path.join(root, child));
+          else return yield* denied("write", path.join(root, child));
         }
         return files;
       });
@@ -221,8 +224,10 @@ export const planAdd = (input: {
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     yield* checkAddRoot(input.root);
-    const root = yield* fs.realPath(input.root).pipe(Effect.mapError(() => denied(input.root)));
-    yield* checkOwnRepo(root, input.composition.needsOwnRepo);
+    const root = yield* fs
+      .realPath(input.root)
+      .pipe(Effect.mapError(() => denied("write", input.root)));
+    yield* checkAddRepository(root, input.composition.needsOwnRepo);
     const incoming = [...(yield* listParked(root))];
     const candidates = yield* Effect.forEach(input.rendered, (item) =>
       readLive(root, item.file.path).pipe(Effect.map((live): Candidate => ({ ...item, live }))),

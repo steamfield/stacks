@@ -12,6 +12,7 @@ import {
   STATE_DIR,
 } from "../../project-layout";
 import type { Brief } from "../brief/types";
+import { denied } from "../fs/denied";
 import { encodeManifest } from "../project/manifest";
 import {
   projectStateFor,
@@ -24,7 +25,6 @@ import type { AddPlan } from "./plan";
 import type { AddProject } from "./project";
 
 const encoder = new TextEncoder();
-const denied = (path: string) => new PermissionDenied({ details: { reason: "write", path } });
 
 /**
  * Write the project's state record and say whether it was written. A project that has a manifest
@@ -57,7 +57,7 @@ const recordState = (
       Effect.as(true),
       Effect.catchTag("PlatformError", (error) =>
         project.previous
-          ? Effect.fail(denied(target))
+          ? Effect.fail(denied("write", target))
           : warnUnwritten(error, target).pipe(Effect.as(false)),
       ),
     );

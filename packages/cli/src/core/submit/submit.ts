@@ -8,6 +8,7 @@ import { BadInput, type SubmissionBlocker } from "../../errors";
 import type { SubmitResult } from "../../schemas/submit";
 import type { Finding } from "../../schemas/validate";
 import { VERSION } from "../../version";
+import { compareEntries } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
 import { validate } from "../validate/index";
@@ -99,13 +100,7 @@ const checkEntries = Effect.fn("submit.checkEntries")(function* (
   return findings;
 });
 
-const kindRank = (entry: PlannedEntry) => (entry.kind === "stack" ? 0 : 1);
-
-/** Stacks first, then by id: the branch, title and result don't depend on argument order. */
-const inOrder = (entries: ReadonlyArray<PlannedEntry>) =>
-  [...entries].sort((a, b) => kindRank(a) - kindRank(b) || (a.id < b.id ? -1 : 1));
-
-/** Use the first entry from `inOrder` so argument order cannot change the branch. */
+/** Use the first sorted entry so argument order cannot change the branch. */
 const branchName = (entries: ReadonlyArray<PlannedEntry>) => {
   const first = entries[0];
   return first === undefined ? "entry" : `entry/${first.kind}-${first.id}`;
@@ -225,7 +220,8 @@ export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptio
       const clone = path.join(temp, "upstream");
       yield* cloneUpstream(tools, { repo: options.repo, cwd: temp, dest: clone });
       const registry = path.join(clone, REGISTRY_PATH);
-      const entries = inOrder(yield* assemble({ registry, entries: sources, login: tools.login }));
+      const assembled = yield* assemble({ registry, entries: sources, login: tools.login });
+      const entries = assembled.toSorted(compareEntries);
       const findings = yield* checkEntries(registry, entries);
       const branch = branchName(entries);
       const files = yield* stage(tools, clone, {

@@ -43,7 +43,7 @@ export const consent = Effect.fn("telemetry.consent")(function* (input: {
 
 /** Proves the telemetry directory is writable by creating it and a scratch directory inside it. */
 const stateWritable = (store: Storage) =>
-  directory(store, store.root).pipe(
+  directory(store, ".").pipe(
     Effect.andThen(Effect.scoped(store.fs.makeTempDirectoryScoped({ directory: store.root }))),
     Effect.result,
     Effect.map((attempt) => attempt._tag === "Success"),

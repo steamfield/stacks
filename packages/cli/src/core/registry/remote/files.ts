@@ -3,15 +3,15 @@
  * `bundleDigest` allows reuse only while the disk contents match the index.
  */
 import { bundleDigest, type EntryBundle, type IndexEntry } from "@steamfield/stacks-format";
-import { Effect, FileSystem, Path } from "effect";
+import { Effect } from "effect";
+import type { FileAccess } from "../types";
 
 type BundleFile = EntryBundle["files"][number];
 
 const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
+  { fs, path }: FileAccess,
   entry: Pick<IndexEntry, "id" | "kind"> & { dir: string },
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
   const files: Array<BundleFile> = [];
   const visit = (relative: string): Effect.Effect<void, unknown> =>
     Effect.gen(function* () {
@@ -38,9 +38,10 @@ const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
 
 /** Any failure to reconstruct the bundle counts as a digest mismatch. */
 export const directoryMatches = (
+  io: FileAccess,
   entry: Pick<IndexEntry, "id" | "kind" | "digest"> & { dir: string },
 ) =>
-  directoryBundle(entry).pipe(
+  directoryBundle(io, entry).pipe(
     Effect.flatMap(bundleDigest),
     Effect.map((digest) => digest === entry.digest),
     Effect.orElseSucceed(() => false),
@@ -57,11 +58,10 @@ const fileBytes = (file: BundleFile) =>
 
 /** Create bundle files exclusively in the empty staging directory after checking every path. */
 export const extractBundle = Effect.fn("remoteIndex.extract")(function* (
+  { fs, path }: FileAccess,
   bundle: EntryBundle,
   dir: string,
 ) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
   // BundlePath already rejects traversal; aliases are rejected here, before any write.
   if (bundle.files.some((file) => hasAliasSegment(file.path))) return yield* Effect.fail("invalid");
   for (const file of bundle.files) {

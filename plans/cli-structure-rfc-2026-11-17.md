@@ -455,9 +455,9 @@ Q1 above may add a second fix. Any drift found during stage 4, such as validate 
 
 Fix 1 landed in stage 0 (`fix(cli): trim comma-separated items...`): blank items are now ignored too, so `verify --only ' '` runs the full plan where it used to fail with `BadInput`.
 
-Found during execution, all pre-existing and left unchanged by the refactor (each needs its own `fix(cli):` with a failing test):
+Found during execution, all pre-existing and left unchanged by the refactor commits. Items 3 and 4 were then fixed in their own `fix(cli):` commits with failing tests first; item 2 turned out not to be a bug:
 
-2. **Validate and selection disagree on a rejected default.** With default fragment `ci` rejected and optional `old-ci` declaring `conflicts: [ci]`, validate's replacement planning returns `["ci"]` and plans the composition as fine, while composing with `old-ci` fails with `EntryInvalid` for `ci` before conflict checking. Stage 4's consolidation of the two rules was skipped for this reason.
+2. **Not a bug: validate and selection on a rejected default.** With default fragment `ci` rejected and optional `old-ci` declaring `conflicts: [ci]`, composing with `--with old-ci` alone fails with `EntryInvalid` for `ci`, but validate's replacement planning means `--with old-ci --without ci`, and that composition succeeds in both `new` and `validate --brief` with the same fingerprint. A conflicting default always needs `--without` (a valid one gives `ComposeConflict`), so the two rules agree. The stage 4 consolidation was still skipped, since the two inputs differ.
 3. **Verify stage outcome under `--only` plus `--skip-tag`.** A base check tagged `hygiene` and `slow`, run with `verify --only base,app-check --skip-tag slow --json`, is skipped by `--skip-tag`, yet both stages report `green` and the app check runs; expected is a partial base with the app check skipped. `selectionSkip` lifts the hygiene default for `--only` before applying `--skip-tag`, while `stageOutcome` still treats the omission as a default skip.
 4. **A `null` JSON result marks the telemetry notice delivered.** In `Output.memory("json")`: `showNotice(...)`, `result(null, "")`, `flush` prints `null` without the notice, yet `didDeliverNotice` returns true. No command returns `null` today, so it is latent.
 

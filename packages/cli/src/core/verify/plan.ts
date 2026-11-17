@@ -3,7 +3,6 @@ import type { ManifestStep } from "@steamfield/stacks-format";
 import { type Phase, type ResolvedStep, withStepDefaults } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { BadInput } from "../../errors";
-import type { StepResult } from "../../schemas/verify";
 
 const PHASES: ReadonlyArray<Phase> = ["setup", "check", "serve", "teardown"];
 /** Steps that check the project's hygiene (fill markers, harness, CI, hooks), not its code. */
@@ -35,19 +34,6 @@ export const stepFields = (step: PlannedStep) => ({
   ...(step.layer ? { layer: step.layer } : {}),
   command: step.run,
 });
-
-export const skippedStep = (step: PlannedStep, reason: string): StepResult => ({
-  ...stepFields(step),
-  status: "skipped",
-  durationMs: 0,
-  reason,
-});
-
-/** Whole seconds from `createdAt` to `now`, never negative; 0 when `createdAt` doesn't parse. */
-export const secondsSinceCreated = (createdAt: string, now: number) => {
-  const created = Date.parse(createdAt);
-  return Number.isFinite(created) ? Math.max(0, Math.floor((now - created) / 1000)) : 0;
-};
 
 export const isAppStep = (step: PlannedStep) => step.tags.includes("app");
 

@@ -5,49 +5,26 @@
 import type { Manifest, Outcome } from "@steamfield/stacks-format";
 import { Cause, Clock, Effect, Exit, FileSystem } from "effect";
 import { AGENT_MARKER_NAMES, AppConfig, CLI_SETTING_NAMES } from "../../config";
-import type { StepResult, VerifyResult } from "../../schemas/verify";
 import { stepFinished, stepStarted } from "./events";
+import { isAppStep, type PlannedStep, planVerify } from "./plan";
 import {
-  isAppStep,
-  type PlannedStep,
-  planVerify,
-  type SelectOptions,
-  secondsSinceCreated,
+  BASE_FAILED,
+  INTERRUPTED,
+  type RunResult,
+  type RunState,
+  type Stage,
   skippedStep,
-  type VerifyPlan,
-} from "./plan";
-import { runStep, type StepContext } from "./step";
+  skipSteps,
+  summarize,
+  type VerifyOptions,
+} from "./result";
+import { runStep } from "./step";
 
 /** Use `createdAtOf` because the manifest timestamp is editable and outside the digest. */
 type VerifyProject = { root: string; manifest: Manifest; createdAt: string };
-type VerifyOptions = SelectOptions;
-/** Omit tamper fields and the `changed` outcome because a blocked run never enters the runner. */
-export type RunResult = Omit<
-  VerifyResult,
-  "outcome" | "tamperCheck" | "changed" | "firstGreen" | "stateRecord"
-> & { outcome: Exclude<VerifyResult["outcome"], "changed"> };
-
-type Stage = "base" | "app";
-type Stages = NonNullable<RunResult["stages"]>;
 
 const SETUP_FAILED = "an earlier setup step failed";
-const BASE_FAILED = "base-failed";
 const BASE_PARTIAL = "the base did not fully run; the app stage waits for a full verify";
-const INTERRUPTED = "the run was interrupted";
-
-/**
- * Both the stage runner and its finalizers write this state so interruption still yields a whole
- * result.
- */
-type RunState = {
-  readonly plan: VerifyPlan;
-  readonly options: VerifyOptions;
-  readonly context: StepContext;
-  readonly results: Map<string, StepResult>;
-  stages: Stages;
-  /** The stage that started last; an interrupt that reaches the run is charged to it. */
-  activeStage: Stage;
-};
 
 type StageRun = {
   readonly stage: Stage;
@@ -216,58 +193,3 @@ const runApp = (state: RunState, app: ReadonlyArray<PlannedStep>) =>
       skipSteps(state, app, (step) => state.plan.skipped.get(step.name) ?? INTERRUPTED);
     }
   });
-
-const skipSteps = (
-  state: RunState,
-  steps: ReadonlyArray<PlannedStep>,
-  reason: (step: PlannedStep) => string,
-) => {
-  for (const step of steps) state.results.set(step.name, skippedStep(step, reason(step)));
-};
-
-/** Charge interruption to the most recent stage, even if its masked teardown already finished. */
-const markRunInterrupted = (state: RunState, app: ReadonlyArray<PlannedStep>) => {
-  state.stages = { ...state.stages, [state.activeStage]: "interrupted" };
-  if (state.activeStage === "base") skipSteps(state, app, () => BASE_FAILED);
-};
-
-type SummaryOptions = {
-  app: ReadonlyArray<PlannedStep>;
-  started: number;
-  createdAt: string;
-  interrupted: boolean;
-};
-
-/** Keep results in plan order with a skipped row for any step interruption left unreached. */
-const summarize = (state: RunState, options: SummaryOptions) =>
-  Effect.gen(function* () {
-    if (options.interrupted) markRunInterrupted(state, options.app);
-    const { plan } = state;
-    const steps = plan.steps.map(
-      (step) => state.results.get(step.name) ?? skippedStep(step, INTERRUPTED),
-    );
-    const ended = yield* Clock.currentTimeMillis;
-    const count = (status: StepResult["status"]) =>
-      steps.filter((step) => step.status === status).length;
-    const result: RunResult = {
-      outcome: runOutcome(options.interrupted, count("failed"), plan.scope),
-      scope: plan.scope,
-      ...(options.app.length ? { stages: { ...state.stages } } : {}),
-      steps,
-      totals: { passed: count("passed"), failed: count("failed"), skipped: count("skipped") },
-      durationMs: ended - options.started,
-      secondsSinceCreated: secondsSinceCreated(options.createdAt, ended),
-    };
-    return result;
-  });
-
-function runOutcome(
-  interrupted: boolean,
-  failed: number,
-  scope: RunResult["scope"],
-): Exclude<Outcome, "changed"> {
-  if (interrupted) return "interrupted";
-  if (failed) return "failed";
-  if (scope === "partial") return "partial";
-  return "green";
-}

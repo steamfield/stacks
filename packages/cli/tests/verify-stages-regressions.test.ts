@@ -5,7 +5,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { AppConfig } from "../src/config";
 import { MANIFEST_PATH } from "../src/core/manifest";
 import { recordRun } from "../src/core/verify/record";
-import { type RunResult, runVerify } from "../src/core/verify/run";
+import type { RunResult } from "../src/core/verify/result";
+import { runVerify } from "../src/core/verify/run";
 import { checkTamper } from "../src/core/verify/tamper";
 import { quiet, runCli } from "./helpers/cli";
 import {

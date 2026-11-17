@@ -15,6 +15,8 @@ import { HttpClient } from "effect/http";
 import { AppConfig } from "../../../config";
 import type { RemoteStatus } from "../../../schemas/remote-index";
 import { type Cache, type CachedResource, makeCachedFetch } from "../../cached-fetch";
+import { indexRoot } from "../roots";
+import type { IndexRegistryRoot } from "../types";
 import { directoryMatches, extractBundle } from "./files";
 import { type RemoteFailure, verifyIndex } from "./verification";
 
@@ -155,9 +157,21 @@ const cachedBundle = Effect.fn("remoteIndex.cachedBundle")(function* (
   return Option.map(fetched, ({ value }) => value);
 });
 
-function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): RemoteIndex["Service"] {
+type IndexAccess = {
+  /** The verified index, refreshed when the cached copy is older than 24 hours. */
+  readonly current: Effect.Effect<Option.Option<VerifiedIndex>>;
+  /** The directory holding the entry's verified files, downloading them if needed. */
+  readonly bundle: (entry: IndexEntry) => Effect.Effect<Option.Option<string>>;
+  /** The cache state for `doctor`, with no request. */
+  readonly status: Effect.Effect<RemoteStatus>;
+};
+
+export type ConfiguredIndex = IndexAccess & { readonly root: IndexRegistryRoot };
+type UnconfiguredIndex = IndexAccess & { readonly root: undefined };
+
+function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): UnconfiguredIndex {
   return {
-    trusted: false,
+    root: undefined,
     current: Effect.succeed(Option.none()),
     bundle: () => Effect.succeed(Option.none()),
     status: offline.pipe(Effect.map(offStatus)),
@@ -166,16 +180,7 @@ function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): RemoteInde
 
 export class RemoteIndex extends Context.Service<
   RemoteIndex,
-  {
-    /** Whether the effective URL matches the official URL and requires a valid signature. */
-    readonly trusted: boolean;
-    /** The verified index, refreshed when the cached copy is older than 24 hours. */
-    readonly current: Effect.Effect<Option.Option<VerifiedIndex>>;
-    /** The directory holding the entry's verified files, downloading them if needed. */
-    readonly bundle: (entry: IndexEntry) => Effect.Effect<Option.Option<string>>;
-    /** The cache state for `doctor`, with no request. */
-    readonly status: Effect.Effect<RemoteStatus>;
-  }
+  ConfiguredIndex | UnconfiguredIndex
 >()("stacks/RemoteIndex") {
   static layer = ({ keys }: { keys: typeof INDEX_PUBLIC_KEYS }) =>
     Layer.effect(
@@ -186,12 +191,11 @@ export class RemoteIndex extends Context.Service<
         const client = yield* HttpClient.HttpClient;
         const config = yield* AppConfig;
         const scope = yield* Scope.Scope;
-        const officialUrl = config.officialIndexUrl;
-        const url = yield* config.remoteIndexUrl;
-        if (url === undefined) return unconfiguredIndex(config.offline);
+        const root = yield* indexRoot(config);
+        if (root === undefined) return unconfiguredIndex(config.offline);
+        const { url } = root;
         const cache = { fs, path, root: path.join((yield* config.paths).cache, "index") };
-        // Only the official index can confer trust, so `verifyIndex` requires its signature.
-        const verification = { isDefaultUrl: url === officialUrl, keys };
+        const verification = { isDefaultUrl: root.trusted, keys };
         const cached = yield* makeCachedFetch({
           cache,
           client,
@@ -210,7 +214,7 @@ export class RemoteIndex extends Context.Service<
         );
         const access = { cache, cached, url };
         return {
-          trusted: verification.isDefaultUrl,
+          root,
           current: cached.current(),
           status: readStatus(access, config.offline, verification.isDefaultUrl),
           bundle: (entry) =>

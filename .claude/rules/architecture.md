@@ -24,7 +24,7 @@ Humans own what lasts and agents own what ages. Composition, layout, enforcement
 Code comments cite these points by number.
 
 1. The CLI executes nothing it reads, as above.
-2. Trust comes from where an entry was found (`core/registry/registry.ts::trustOf`): project entries and entries from a bundled root overridden by `STACKS_REGISTRY_DIR` are untrusted; user entries and the shipped bundled ones are trusted. Index entries are trusted only from the official index URL (`RemoteIndex.trusted`), so a configured `STACKS_INDEX_URL` is untrusted unless it equals that URL.
+2. Trust comes from the root that supplied the entry. `localRoot` trusts user roots and the shipped bundled root. Project roots and bundled roots overridden by `STACKS_REGISTRY_DIR` are untrusted. `indexRoot` trusts the official index URL, including when `STACKS_INDEX_URL` explicitly sets that same URL.
 3. An untrusted entry never launches an agent or reaches the handoff picker (`core/handoff/decide.ts::decideHandoff`), and copying or adding one needs a person to accept it.
 4. A confirmation needs a person: under a detected agent or without a terminal on stdin the CLI never prompts or accepts on someone's behalf (`verify --accept-changes` exits 6, an untrusted `add` keeps the previous digest baseline).
 5. `verify` checks the manifest's step digest against the project's state record before any step runs (`core/verify/tamper.ts::checkTamper`); changed steps run nothing until a person accepts them.

@@ -6,7 +6,7 @@ import { Clock, Effect, type FileSystem, type Path, Ref, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { AppConfig } from "../config";
 import { locateManifest, readManifest } from "../core/project/manifest";
-import { planVerify } from "../core/verify/plan";
+import { planVerify, type VerifyPlan } from "../core/verify/plan";
 import { type RecordFacts, recordRun } from "../core/verify/record";
 import { renderVerify } from "../core/verify/report";
 import { changedResult } from "../core/verify/result";
@@ -27,7 +27,6 @@ type VerifyFlags = {
   readonly acceptChanges: boolean;
 };
 
-type Plan = Effect.Success<ReturnType<typeof planVerify>>;
 type RecordContext = Parameters<typeof recordRun>[0];
 
 /** Fails unless a person at a terminal is running the command (trust model point 4). */
@@ -59,7 +58,7 @@ const prepareRun = (flags: VerifyFlags) =>
     const { manifest, tamper } = flags.acceptChanges
       ? yield* acceptChanges(read, located.path, checked)
       : { manifest: read, tamper: checked };
-    return { located, options, plan, manifest, tamper };
+    return { located, plan, manifest, tamper };
   });
 
 /** Writes the report in the invocation's audience. */
@@ -80,7 +79,7 @@ const writeResult = (result: VerifyResult) =>
 /** The changed-steps run: records it and reports which steps changed, running none of them. */
 const reportChanged = (input: {
   context: RecordContext;
-  plan: Plan;
+  plan: VerifyPlan;
   tamper: Tamper & { changed: NonNullable<Tamper["changed"]> };
   started: number;
 }) =>
@@ -101,14 +100,14 @@ const reportChanged = (input: {
 const runAndRecord = (
   context: RecordContext,
   project: Parameters<typeof runVerify>[0],
-  options: Parameters<typeof runVerify>[1],
+  plan: VerifyPlan,
 ) =>
   Effect.gen(function* () {
     const services = yield* Effect.context<
       FileSystem.FileSystem | Path.Path | AppConfig | Telemetry
     >();
     const facts = yield* Ref.make<RecordFacts>({ firstGreen: false, stateRecord: false });
-    const run = yield* runVerify(project, options, (finished) =>
+    const run = yield* runVerify(project, plan, (finished) =>
       recordRun(context, finished).pipe(
         Effect.flatMap((settled) => Ref.set(facts, settled)),
         Effect.provideContext(services),
@@ -166,7 +165,7 @@ export const verifyCommand = Command.make(
   (flags) =>
     Effect.gen(function* () {
       const started = yield* Clock.currentTimeMillis;
-      const { located, options, plan, manifest, tamper } = yield* prepareRun(flags);
+      const { located, plan, manifest, tamper } = yield* prepareRun(flags);
       const context = {
         root: located.root,
         manifest,
@@ -178,7 +177,7 @@ export const verifyCommand = Command.make(
         return yield* reportChanged({ context, plan, tamper: { ...tamper, changed }, started });
 
       const project = { root: located.root, manifest, createdAt: createdAtOf(manifest, tamper) };
-      const { run, facts } = yield* runAndRecord(context, project, options);
+      const { run, facts } = yield* runAndRecord(context, project, plan);
       const result: VerifyResult = {
         ...run,
         tamperCheck: tamper.tamperCheck,

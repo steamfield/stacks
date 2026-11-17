@@ -1,4 +1,3 @@
-/** Defines the registry origin values used by `trustOf` (trust point 2). */
 import { Schema } from "effect";
 
 /** Where an entry was found, from the highest-priority root to the lowest. */

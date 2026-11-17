@@ -34,7 +34,7 @@ The architecture map is the file index. [AGENTS.md](../../../AGENTS.md#architect
   for example because its schema is too new, allowing a lower root's copy to win.
 - **Deep check.** An on-demand walk of an entry's tree to catch symlinks and unreadable paths.
 - **Trust.** Whether the CLI treats an entry as trusted for actions such as automatic handoff.
-  See `trustOf` and the trust model. [Architecture rules](../../../.claude/rules/architecture.md#trust-model)
+  Entries inherit trust from `localRoot` or `indexRoot`. [Architecture rules](../../../.claude/rules/architecture.md#trust-model)
 - **Index.** An optional remote catalog that names downloadable entry bundles. Both the
   official and configured origins use the signed envelope and check bundle digests.
   See `verifyIndex` for the official URL's signature requirement.

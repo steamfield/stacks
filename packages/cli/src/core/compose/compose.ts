@@ -1,24 +1,6 @@
 /**
- * Combines a stack with its fragments into one composition, the plan every later step works from.
- *
- * A composition is the result of combining a stack (a recipe for a whole project) with fragments
- * (reusable additions such as CI or a database): the files to write, the verify steps, env
- * defaults, commands, decisions, tools and the notes the brief shows. `scaffold/new.ts` calls
- * `compose` for `stacks new`, `add/prepare.ts` for `stacks add`, and `show`, `validate` and
- * telemetry call it to preview or check compositions. The brief, the manifest and the fingerprint
- * are all built from what it returns, so the order of every list here is behavior: tests pin the
- * results by digest.
- *
- * `compose` runs in steps: `selection.ts::selectFragments` picks and orders the fragments, each
- * entry's `stacks:when` blocks are resolved for this composition (`conditionals.ts`),
- * `plan-files.ts::planFiles` decides which entry writes each file, and the merge helpers below
- * aggregate steps, env, commands and the rest in composition order. It reads entries only through
- * `Registry` and runs nothing (Trust model point 1 in `.claude/rules/architecture.md`).
- *
- * In `add` mode the stack is context only: its body and steps aren't emitted again, and its
- * blocks that name an added fragment become the brief's recipe notes. `missingTools` and
- * `dropFlags` turn a composition's tool needs into the hints `new` and `add` print. Start at
- * `compose`.
+ * Builds an ordered composition from entries read through `Registry` without executing them
+ * (trust point 1). The brief, manifest and fingerprint depend on list order, which digest tests pin.
  */
 import { APP_TAG, shippedPath, withStepDefaults } from "@steamfield/stacks-format";
 import { Effect } from "effect";
@@ -55,10 +37,6 @@ const PROD_TAG = "prod";
 
 type ComposeError = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;
 
-/**
- * A stack id plus `--with`/`--without`, `Settings.always` and a preset, composed into what `new`
- * writes and the brief describes. Reads only through `Registry`; otherwise pure.
- */
 export function compose(
   options: ComposeOptions,
 ): Effect.Effect<Composition, ComposeError, Registry>;
@@ -129,8 +107,8 @@ export function compose(
 }
 
 /**
- * What `stacks:when` blocks are matched against. Without a stack (an `add` to a project no known
- * stack made), tags inferred from the project's files stand in for the stack's.
+ * For an add without a known stack, inferred tags stand in for stack tags when resolving
+ * conditionals.
  */
 function conditionContext(
   options: ComposeOptions<"new" | "add">,
@@ -190,7 +168,6 @@ const recipeNotes = Effect.fn("compose.recipeNotes")(function* (
   return notes;
 });
 
-/** Each entry with its body's conditional blocks resolved; a malformed block is `EntryInvalid`. */
 function resolver(registry: Registry["Service"], context: ConditionContext, withFragment?: string) {
   return <E extends Entry>(entry: E) =>
     Effect.gen(function* () {
@@ -241,12 +218,12 @@ function steps(entries: ReadonlyArray<Entry>, app: Entry | null, sandbox: boolea
   });
 }
 
-/** `commands` in composition order; a later entry's command replaces an earlier one's. */
+/** Later entries replace earlier commands with the same key. */
 export function mergeCommands(entries: ReadonlyArray<Entry>): Record<string, string> {
   return Object.fromEntries(entries.flatMap((entry) => Object.entries(entry.meta.commands)));
 }
 
-/** `env` in composition order; two different defaults for one key is a conflict. */
+/** Fold env in composition order and reject different defaults for the same key. */
 export function mergeEnv(entries: ReadonlyArray<Entry>) {
   return Effect.gen(function* () {
     const env = new Map<string, { value: string; owner: Entry }>();
@@ -271,7 +248,6 @@ function decisions(entries: ReadonlyArray<Entry>, stack: Entry | null): Composit
   );
 }
 
-/** Each tool an entry needs, in first-seen order, with the entries that need it. */
 function toolOwners(entries: ReadonlyArray<Entry>): Composition["tools"] {
   const tools = (entry: Entry) =>
     isFragment(entry) ? [...entry.meta.tools, ...entry.meta.requiresTools] : entry.meta.tools;
@@ -311,8 +287,8 @@ function mergeDeps(entries: ReadonlyArray<Entry>): Composition["deps"] {
 }
 
 /**
- * The untrusted entries among those contributing prose, one per directory. Trust point 3: every
- * recipe that reaches the brief, add notes included, takes part in the handoff's trust decision.
+ * Include every recipe that contributes prose in handoff trust (trust point 3). List each
+ * untrusted directory once because a recipe can contribute notes for several additions.
  */
 function untrustedEntries(contributors: ReadonlyArray<Entry>): Composition["untrusted"] {
   const byDir = new Map(contributors.map((entry) => [entry.dir, entry]));
@@ -322,12 +298,7 @@ function untrustedEntries(contributors: ReadonlyArray<Entry>): Composition["untr
 }
 
 /**
- * Tools not on PATH, each with the flags that would have left it out; `new` and `add` print these
- * as warnings. A tool goes only when every fragment needing it goes, and a fragment goes only when
- * everything that requires it goes too, so the hint covers that whole set: `--without` for a
- * default or `always` fragment, dropping `--with` for one the user added. A fragment pulled in
- * only by `requires` needs no flag of its own. Nothing can drop a tool the stack or its required
- * fragments need.
+ * Use `dropFlags` for the selections that would remove the tool's owners.
  */
 export function missingTools(
   composition: Composition<Entry | null>,
@@ -339,8 +310,9 @@ export function missingTools(
 }
 
 /**
- * The flags that would leave every one of `owners` out of the composition (`missingTools`' rule,
- * also used for `needs_own_repo`): empty when the stack or a required fragment is among them.
+ * The hint must remove every owner and each fragment that requires one. Use `--without` for defaults or always
+ * selections and remove `--with` for explicit selections. Transitive requirements need no flag of
+ * their own. The stack and its required fragments cannot be dropped.
  */
 export function dropFlags(
   composition: Composition<Entry | null>,
@@ -360,7 +332,6 @@ export function dropFlags(
   });
 }
 
-/** `ids` plus every fragment that requires one of them, directly or through other fragments. */
 function withRequirers(fragments: ReadonlyArray<Entry>, ids: ReadonlyArray<string>): Set<string> {
   const requirers = (id: string) =>
     fragments

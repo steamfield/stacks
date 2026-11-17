@@ -1,12 +1,6 @@
-/**
- * The one line `stacks update` prints in text mode for each outcome of `update.ts::update`.
- *
- * `commands/update.ts` prints this line for the human and agent audiences; `--json` prints the
- * `UpdateResult` itself. The wording is user-visible, so agents may match on it.
- */
+/** Owns update's text wording, which callers may match when handling an outcome. */
 import type { UpdateResult } from "../../schemas/update";
 
-/** The text line for an update result. */
 export function renderUpdate(result: UpdateResult): string {
   switch (result.status) {
     case "up-to-date":

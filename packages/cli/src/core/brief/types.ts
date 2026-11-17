@@ -1,7 +1,5 @@
 /**
- * The shapes `renderBrief` takes and returns. They live in their own file so every module in
- * `core/brief/` and its callers (`core/scaffold/`, `core/add/`, `core/validate/`) import them in
- * one direction.
+ * Owns the brief's input and result types so modules can use them without a rendering dependency.
  */
 import type { Manifest } from "@steamfield/stacks-format";
 import type { MissingTool } from "../compose/types";
@@ -44,5 +42,5 @@ export type BriefContext = {
   invocation: string;
 };
 
-/** The brief's text and its word counts; `fixedWords` is the share written by `text.ts`. */
+/** The brief's text and word counts. `fixedWords` counts CLI wording and cannot exceed `briefWords`. */
 export type Brief = { text: string; briefWords: number; fixedWords: number };

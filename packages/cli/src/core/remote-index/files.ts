@@ -1,23 +1,12 @@
 /**
- * Moves remote index entries between their downloaded form and a directory on disk.
- *
- * An index entry ships as a bundle: one JSON document listing every file of the entry with its
- * path, contents and executable bit. Its digest (`bundleDigest` from `@steamfield/stacks-format`)
- * is a SHA-256 over the canonical form of that list, and the signed index records the digest each
- * entry must have. `core/remote-index.ts` uses this module in two directions:
- *
- * - `directoryMatches` reads an extracted directory back into a bundle and recomputes its digest,
- *   so a cached copy is used only while it still hashes to what the index promised. Anything odd
- *   (a symlink, a missing file, an unreadable directory) is simply "doesn't match".
- * - `extractBundle` writes a verified bundle's files into an empty directory, refusing paths with
- *   empty or `.` segments before writing anything and never overwriting a file.
+ * Compares on-disk entries with index digests and extracts downloaded bundles. Recomputing
+ * `bundleDigest` allows reuse only while the disk contents match the index.
  */
 import { bundleDigest, type EntryBundle, type IndexEntry } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 
 type BundleFile = EntryBundle["files"][number];
 
-/** Reads every file under `entry.dir` into a bundle; a symlink or other non-file fails. */
 const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
   entry: Pick<IndexEntry, "id" | "kind"> & { dir: string },
 ) {
@@ -33,6 +22,7 @@ const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
           yield* visit(relative ? `${relative}/${name}` : name);
         return;
       }
+      // A link or special file cannot represent a cached bundle member.
       if (stat.type !== "File") return yield* Effect.fail("invalid");
       const content = yield* fs.readFile(at);
       files.push({
@@ -46,7 +36,7 @@ const directoryBundle = Effect.fn("remoteIndex.directoryBundle")(function* (
   return { id: entry.id, kind: entry.kind, files } satisfies EntryBundle;
 });
 
-/** True when the directory holds exactly the bundle with `entry.digest`; any failure is false. */
+/** Any failure to reconstruct the bundle counts as a digest mismatch. */
 export const directoryMatches = (
   entry: Pick<IndexEntry, "id" | "kind" | "digest"> & { dir: string },
 ) =>
@@ -65,7 +55,7 @@ const fileBytes = (file: BundleFile) =>
     ? new TextEncoder().encode(file.content)
     : Buffer.from(file.content, "base64");
 
-/** Writes a bundle's files under `dir` with exclusive creates, after checking every path first. */
+/** Create bundle files exclusively in the empty staging directory after checking every path. */
 export const extractBundle = Effect.fn("remoteIndex.extract")(function* (
   bundle: EntryBundle,
   dir: string,

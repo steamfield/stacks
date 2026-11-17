@@ -1,14 +1,6 @@
 /**
- * Every fixed sentence of the brief, so its wording can be read and reviewed in one place.
- *
- * The brief (`.stacks/BRIEF.md`) is the task text a coding agent reads first. `render.ts` and
- * `render-add.ts` decide which of these sentences appear and in what order, and place the
- * entries' own text between them; nothing else in the CLI writes brief prose. The words here
- * count as the brief's fixed share in the word budgets, and tests pin the brief's bytes, so a
- * wording change here is a deliberate change to what every agent reads.
- *
- * A `cli` parameter is `Host.invocation`: `stacks`, or the `npx` form when run through npx, so a
- * command the brief names is one the agent can run. `code` wraps a value as inline code.
+ * Keeps the brief's fixed wording together for review. It counts toward the fixed word budget
+ * and digest tests pin its bytes. Commands use `Host.invocation` so they work for the current install.
  */
 import { INCOMING, MANIFEST_PATH, METADATA_DIR, NOTES_PATH } from "../../project-layout";
 import type { GitState } from "./types";
@@ -19,11 +11,7 @@ const verify = (cli: string, flags = "") => code(`${cli} verify${flags}`);
 
 export const title = (project: string, stack: string) => `# Build ${project}: ${stack}`;
 
-/**
- * The first screen: an ordered action list. Step 1 installs the declared packages (the command
- * when stacks can spell it, else a pointer to the list), step 2 runs the code checks, step 4 is
- * the single done command.
- */
+/** The action list starts with installation and ends with the single done command. */
 export const start = {
   heading: "## Start here",
   did: "stacks wrote the starter files and this brief and ran nothing. Next:",

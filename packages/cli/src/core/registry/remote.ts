@@ -1,21 +1,6 @@
 /**
- * Merges the signed remote index into the registry, between the user root and the bundled one.
- *
- * The index is a published list of entries (`IndexEntry`: kind, id, tags and a content digest)
- * whose files are downloaded as bundles on demand through `core/remote-index.ts::RemoteIndex`.
- * `registry.ts` hands this module the local winners and the bundled root's entries;
- * `remoteRegistry` returns the merged catalog, listing and lookup the `Registry` service exposes.
- *
- * Precedence follows the root order. A project or user entry beats the index, which only adds
- * `index` to its shadows. An index entry beats a bundled one, but when the bundled copy's files
- * match the index digest the bundled entry is used as is (same directory, same identity), so
- * nothing is downloaded and run evidence still matches. A stack from the index also pins the exact
- * default fragments it was proven with (`composition`); if any of them can't be had, the bundled
- * stack is used with its own bundled fragments. Index entries are trusted only from the official
- * URL (Trust model, point 2).
- *
- * Downloads are lazy: reading names (`catalog`) never fetches a bundle, and each entry's
- * resolution is cached for this invocation only. Start at `remoteRegistry`.
+ * Merges index entries between the user and bundled roots. Bundle resolution is lazy and cached per
+ * invocation so reading the catalog never downloads files.
  */
 import { type IndexEntry, IndexEntry as IndexEntrySchema } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
@@ -34,14 +19,10 @@ type Resolution = Effect.Effect<Entry | RejectedEntry | undefined>;
 
 const entryKey = (entry: Pick<Entry, "kind" | "id">) => `${entry.kind}/${entry.id}`;
 
-/** Whether an entry comes from a root above the index (project or user). */
 const aboveIndex = (entry: Entry | RejectedEntry | undefined) =>
   entry?.origin === "project" || entry?.origin === "user";
 
-/**
- * Downloads one index entry's bundle and decodes its markdown. Any problem (no bundle, an
- * unreadable or invalid file, an id that doesn't match) means no entry, never a failure.
- */
+/** A missing, unreadable or invalid bundle has no entry, so resolution can fall back. */
 const readEntry = Effect.fn("registry.remoteEntry")(function* (
   remote: RemoteIndex["Service"],
   ref: IndexEntry,
@@ -81,8 +62,8 @@ const pinnedReference = (id: string, digest: string): IndexEntry => ({
 });
 
 /**
- * The fragments an index stack was proven with, in its `composition` order: the bundled copy
- * when its files match the pinned digest, otherwise the download. Undefined when any is missing.
+ * Preserve the exact fragment versions and order the index stack was proven with. Use bundled
+ * copies on digest matches and discard the whole pin set if any fragment is unavailable.
  */
 const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
   remote: RemoteIndex["Service"],
@@ -107,9 +88,8 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
 });
 
 /**
- * The bundled stack with its bundled required and default fragments, and what they require,
- * pinned as its composition: the fallback when the index copy can't be used. A fragment entry
- * comes back unchanged.
+ * Rebuild pins from the bundled stack's requirements and defaults if the index composition
+ * cannot be used. Bundled fragments pass through.
  */
 function bundledComposition(original: Entry | undefined, bundled: ReadonlyArray<Entry>) {
   if (original?.meta.kind !== "stack") return original;
@@ -129,10 +109,8 @@ function bundledComposition(original: Entry | undefined, bundled: ReadonlyArray<
 }
 
 /**
- * Resolves one index reference to the entry `get` hands back. A bundled copy with matching files
- * is reused; otherwise the bundle is downloaded and shadows the bundled copy. A stack also gets
- * its pinned fragments, or falls back to `bundledComposition` when the stack or a fragment can't
- * be read.
+ * Reuse a bundled digest match to avoid a download and keep its run evidence applicable. Fall
+ * back to `bundledComposition` when the index stack or a pinned fragment is unavailable.
  */
 const resolveReference = Effect.fn("registry.resolveReference")(function* (
   ref: IndexEntry,
@@ -187,9 +165,8 @@ const indexCatalogRow = (ref: IndexEntry): CatalogEntry => ({
 });
 
 /**
- * Adds each usable index reference to `catalog` and `resolutions`. A reference this CLI can't
- * read (newer schema, invalid shape) is ignored; one a project or user entry hides only adds to
- * that entry's shadows.
+ * Ignore references with newer or invalid schemas. For a winning project or user entry, record
+ * the index as a shadow.
  */
 const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   remote: RemoteIndex["Service"],
@@ -204,6 +181,7 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const index = yield* remote.current;
+  // Trust downloaded entries only from the official index URL (trust point 2).
   const { trusted } = remote;
   const originals = new Map(bundled.map((entry) => [entryKey(entry), entry]));
   const locals = new Map(local.map((entry) => [entryKey(entry), entry]));
@@ -227,11 +205,6 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   }
 });
 
-/**
- * The registry view over the local winners plus, when `enabled` and a `RemoteIndex` is provided,
- * the index: its catalog, its full listing and a lookup by kind and id. Bundle effects are cached
- * per entry; reading names never evaluates them.
- */
 export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
   local: ReadonlyArray<Entry | RejectedEntry>,
   bundled: ReadonlyArray<Entry>,
@@ -254,7 +227,6 @@ export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
   };
 });
 
-/** Stacks first, then fragments, each by id. */
 function compareEntries(a: Pick<Entry, "id" | "kind">, b: Pick<Entry, "id" | "kind">): number {
   if (a.kind !== b.kind) return a.kind === "stack" ? -1 : 1;
   return a.id < b.id ? -1 : 1;

@@ -1,16 +1,6 @@
 /**
- * Reads the files inside one entry directory without ever following a symlink.
- *
- * An entry is a directory of text and files that `stacks new` and `stacks add` copy into a
- * project, and a registry root may come from a checkout the user doesn't control. A symlink inside
- * an entry could point anywhere on the machine (the user's SSH keys, `/`), so every name here is
- * `lstat`ed before anything reads or descends into it, and the first symlink stops the walk.
- * `walkEntry` returns that link as a `Link` result rather than failing; `load.ts` reports it as
- * a rejected entry, and `entryTree` and `readEntryFile` fail with `EntryInvalid`.
- *
- * `load.ts` uses `walkEntry` for the per-entry deep check that `get`, `files`, `tree`, `read`,
- * `bytes` and `all` run. `registry.ts` uses `entryTree` for `Registry.tree` and `Registry.files`,
- * and `readEntryFile` for `Registry.read` and `Registry.bytes`.
+ * Reads and walks entry trees. Link checks keep a registry checkout from redirecting a read
+ * anywhere on the machine.
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
@@ -19,7 +9,6 @@ import { isAbsent } from "../absent";
 import type { Entry, EntryFile } from "./entry";
 import type { FileAccess, Walked } from "./types";
 
-/** One name inside an entry: a symlink stops the walk, a directory is walked in turn. */
 const walkChild = (
   io: FileAccess,
   dir: string,
@@ -42,9 +31,8 @@ const walkChild = (
   });
 
 /**
- * Regular files and directories under `dir` (or under `dir/rel`), depth first by sorted name,
- * stopping at the first symlink. Each name is lstat'ed before anything descends into it, so a link
- * is never followed.
+ * Start from an already checked directory and walk its regular files and directories depth
+ * first by sorted name. Return the first symlink as a value so loading can report a rejection.
  */
 export const walkEntry = (
   io: FileAccess,
@@ -80,11 +68,7 @@ export const entryTree = (io: FileAccess, entry: Entry) =>
     };
   });
 
-/**
- * The files an entry ships into a project, sorted by `source`: each tree file that maps to a
- * project path. Stack overlays belong only to fragments and payloads only to stacks, so a
- * misplaced one is left out here; validate reports it.
- */
+/** Exclude overlays on stacks and payloads on fragments, which validation reports. */
 export function shippedFiles(
   entry: Pick<Entry, "kind">,
   files: ReadonlyArray<{ source: string; mode: number }>,
@@ -101,10 +85,9 @@ export function shippedFiles(
 }
 
 /**
- * Reads one file of an entry by its entry-relative `source`. It `lstat`s the entry directory and
- * every prefix of `source` down to the file first, so a symlink anywhere is `EntryInvalid`
- * (`symlink`) and nothing behind it is read. An empty, `.` or `..` segment, or a missing file, is
- * `EntryInvalid` (`missing`); any other failure is `PermissionDenied` naming the path.
+ * Check every path prefix, including the entry directory, without following links. Report
+ * `EntryInvalid` with `missing` for absent files and invalid segments, or `symlink` for links.
+ * Other failures are `PermissionDenied`.
  */
 export const readEntryFile = <A>(
   io: FileAccess,

@@ -1,20 +1,6 @@
 /**
- * Every file the CLI puts into a user's project goes through this module, whether the user ran
- * `stacks new`, `stacks add` or `stacks create`.
- *
- * Callers open a writer with `openProject` and write through it: `scaffold/new.ts` for `new`,
- * `add/write.ts` for `add`, plus `create.ts`, `skill.ts`, `verify/tamper.ts` and
- * `commands/handoff.ts` for their smaller writes. The writer refuses any path that would land
- * outside the project root once symlinks are resolved (the root's "real path"), and it creates
- * files with the `wx` flag, so it never overwrites a file it didn't make. To change a file that
- * was already there, callers use `rewrite`, which keeps the original bytes and mode.
- *
- * The rollback is why the module is shaped as one big closure. `openProject` registers a scope
- * finalizer before its first write, then records each file and directory as it creates it. If the
- * scope ends in a failure or an interrupt (Ctrl+C), the finalizer restores rewritten files and
- * removes what was created, newest first, so a failed `new` leaves no half-written project. A
- * restore that fails doesn't stop the rest; its path goes to `Invocation.rollbackIncomplete`,
- * which the error envelope reports. Start at `openProject`.
+ * Owns project file writes through `openProject`. The writer is a closure so its operations share
+ * the state that its scope finalizer uses to roll back.
  */
 import { rmdir } from "node:fs/promises";
 import { Effect, Exit, FileSystem, Option, Path, type PlatformError, type Scope } from "effect";
@@ -23,22 +9,12 @@ import { Invocation } from "../../services/invocation";
 import { isAbsent } from "../absent";
 
 /**
- * The one way `new` and `add` write into a project. Every file is created exclusively (never over an existing file or through a final
- * symlink). On the way down, every symlinked directory is resolved and every directory created is
- * checked before anything is made beneath it, so nothing is created outside the project root's
- * real path. After each file is written its parent's real path is checked again, and a file whose
- * parent has moved out of the project is removed and refused.
- *
- * That narrows a race but doesn't close it: a process that swaps a directory for a symlink
- * between the last check and the write can still land one exclusive-create file outside the
- * project for as long as it takes to notice and remove it. Without `openat`-style calls (which
- * Effect's FileSystem doesn't offer) no path-based writer can do better.
- *
- * Everything it creates is tracked, and a scope finalizer removes it when the scope closes with a
- * failure or an interruption, so a failed `new` leaves no half project.
+ * Exclusive creates and resolved-path checks constrain symlink escapes. A concurrent directory
+ * swap can still put a file outside the root, and cleanup on detection is best effort. Closing
+ * that race requires `openat`-style calls that Effect's filesystem API lacks.
  */
 export type ProjectWriter = {
-  /** The project root's real path. */
+  /** The resolved real path used for containment checks. */
   readonly root: string;
   /** Creates `rel`; true adds execute bits for read bits, a number preserves ordinary mode bits. */
   readonly write: (
@@ -48,9 +24,8 @@ export type ProjectWriter = {
   ) => Effect.Effect<void, PermissionDenied | TargetNotEmpty>;
   /** Replaces a file this writer created, with the same checks. */
   readonly replace: (rel: string, data: Uint8Array) => Effect.Effect<void, PermissionDenied>;
-  /** Rewrites an existing regular file, retaining its original bytes for rollback. */
+  /** Rewrites an existing regular file, retaining its original bytes and mode for rollback. */
   readonly rewrite: (rel: string, data: Uint8Array) => Effect.Effect<void, PermissionDenied>;
-  /** Creates a directory (and its parents) under the root. */
   readonly directory: (rel: string) => Effect.Effect<void, PermissionDenied | TargetNotEmpty>;
   /**
    * Hands a directory the CLI's own process is about to create (git's `.git`) to the rollback,
@@ -64,7 +39,6 @@ export type ProjectWriter = {
   readonly discard: (rel: string) => Effect.Effect<void>;
 };
 
-/** The original bytes and mode of a file `rewrite` replaced, restored on rollback. */
 type Backup = { bytes: Uint8Array; mode: number };
 
 const unwritable = (at: string) =>
@@ -75,12 +49,11 @@ const escapes = (at: string) => new PermissionDenied({ details: { reason: "escap
 const isAlreadyExists = (error: PlatformError.PlatformError) =>
   error.reason._tag === "AlreadyExists";
 
-/** Whether a finished write failed only because the file was already there. */
 const failedAsExisting = (exit: Exit.Exit<void, PlatformError.PlatformError>) =>
   Exit.isFailure(exit) &&
   exit.cause.reasons.some((reason) => reason._tag === "Fail" && isAlreadyExists(reason.error));
 
-/** Splits a project-relative path, refusing anything that could leave the root by name. */
+/** Reject absolute and traversal paths before resolving links or touching the filesystem. */
 function segments(rel: string): ReadonlyArray<string> | undefined {
   if (rel.startsWith("/")) return undefined;
   const parts = rel.split("/");
@@ -104,9 +77,8 @@ export function within(root: string, path: string, separator: string): boolean {
 const removeEmptyDirectory = (dir: string) => Effect.ignore(Effect.tryPromise(() => rmdir(dir)));
 
 /**
- * Opens `dir` for writing, creating it and any missing parents (tracked for rollback), and
- * resolves its real path. The finalizer it adds to the current scope undoes every tracked write
- * unless the scope closes successfully.
+ * Track the directory and any missing parents so the scope can undo writes on failure or
+ * interruption.
  */
 export function openProject(
   dir: string,
@@ -184,7 +156,7 @@ export function openProject(
         }),
       ).pipe(Effect.catchTag("PlatformError", () => Effect.fail(unwritable(file))));
 
-    /** Puts a rewritten file's original bytes back; false when it is no longer ours to touch. */
+    /** Restore only while the path still names a regular file inside the project. */
     const restoreBackup = (file: string, backup: Backup) =>
       Effect.gen(function* () {
         const info = yield* fs.lstat(file);
@@ -192,7 +164,7 @@ export function openProject(
         yield* atomicReplace(file, backup.bytes, backup.mode);
         return true;
       });
-    /** Restores every backup, recording each one that couldn't be restored and carrying on. */
+    // Continue on restore failure and give `Invocation.rollbackIncomplete` the path for the envelope.
     const restoreBackups = Effect.gen(function* () {
       for (const [file, backup] of backups) {
         const restored = yield* Effect.exit(restoreBackup(file, backup));
@@ -222,10 +194,7 @@ export function openProject(
     const targetExists = (absolute: string) =>
       new TargetNotEmpty({ details: { path: absolute, entries: [] } });
 
-    /**
-     * The root and its missing parents, top down. An exclusive open refuses a root that already
-     * exists.
-     */
+    /** Return missing parents top down. Exclusive opens refuse an existing root. */
     const missingAncestors = (absolute: string) =>
       Effect.gen(function* () {
         const missing: string[] = [];
@@ -293,9 +262,8 @@ export function openProject(
       });
 
     /**
-     * Creates the directories down to `parts`. A symlink on the way is resolved before anything
-     * is made beneath it, and each directory made is checked right after, so no directory is ever
-     * created outside the root.
+     * Resolve existing links before descending and check each new directory before writing beneath
+     * it.
      */
     const ensure = (parts: ReadonlyArray<string>, rel: string) =>
       Effect.gen(function* () {
@@ -359,7 +327,7 @@ export function openProject(
         }),
       );
 
-    /** Removes a file this writer created, untracks it, then creates it again with `data`. */
+    /** Untrack the removed file before creating its replacement so rollback tracks the new write. */
     const replaceCreated = (rel: string, data: Uint8Array) =>
       Effect.gen(function* () {
         const parts = segments(rel);

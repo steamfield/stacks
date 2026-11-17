@@ -1,11 +1,6 @@
 /**
- * Works out the values that fill an entry's `.tmpl` files, such as the project name and author,
- * for `stacks new` and `stacks add`.
- *
- * `templateOverrides` checks the user's `--name`, `--author` and `--scope` early, so a bad flag
- * fails before any slow work (`commands/new.ts`, `scaffold/new.ts` and `add/prepare.ts` call it).
- * `templateValues` then builds the full set from those flags, the user's settings and git, and
- * the composition renders files with it.
+ * Owns template values and validates explicit overrides early so invalid flags fail before slow
+ * work.
  */
 import { Clock, Effect, Option, Schema } from "effect";
 import { BadInput, InvalidConfig } from "../../errors";
@@ -57,7 +52,7 @@ const authorFor = (input: {
     return authorValue(yield* gitUserName(input.git.cwd)) ?? "";
   });
 
-/** One author precedence and one complete fixed-variable set for every project writer. */
+/** Share one author precedence and variable set so project writers render templates consistently. */
 export const templateValues = (input: {
   name: string;
   settings: Settings;

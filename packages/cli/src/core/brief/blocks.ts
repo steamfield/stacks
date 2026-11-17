@@ -1,14 +1,4 @@
-/**
- * The pieces both kinds of brief share: the verify step table and its command fence, the
- * commands and environment tables, the untrusted-entry list, the decisions list and the tool
- * status lines.
- *
- * `render.ts` writes the brief for `stacks new` and `render-add.ts` the one for `stacks add`; both
- * call into this file so a table or list reads the same in either. Entry text that lands in a
- * Markdown table cell goes through `cell`, which keeps it on one line and escapes `|`. Verify
- * commands never go in a table, because escaping would change them; they are printed verbatim in
- * a fenced block instead, so a command an agent copies is the command verify runs.
- */
+/** Renders shared Markdown blocks so tables and lists read the same in both briefs. */
 import { DEFAULT_STEP_TIMEOUT } from "@steamfield/stacks-format";
 import type { ComposedStep, Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
@@ -17,31 +7,24 @@ import * as T from "./text";
 import type { BriefContext } from "./types";
 import type { BriefWriter } from "./writer";
 
-/** Verify's phase order; steps run phase by phase. */
 const PHASES = ["setup", "check", "serve", "teardown"] as const;
 
-/** Entry text folded onto one line, for headings, facts and list items. */
 export const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
 
-/** Entry text made safe for one Markdown table cell. */
+/** Fold and escape entry text so it occupies one Markdown table cell. */
 const cell = (text: string) => oneLine(text).replaceAll("|", "\\|");
 
-/** Run order: by phase, then composition order within a phase. */
+/** Match `planVerify` within a stage: phase order, with composition order breaking ties. */
 export function runOrder(steps: ReadonlyArray<ComposedStep>): ComposedStep[] {
   return PHASES.flatMap((phase) => steps.filter((step) => step.phase === phase));
 }
 
-/**
- * The verify table for steps already in run order, then each command in a fence, so a copied
- * command is the command run.
- */
 export function writeStepTable(out: BriefWriter, ordered: ReadonlyArray<ComposedStep>): void {
   out.data(...stepTable(ordered));
   out.fixed("", T.done.commandsBelow, "");
   out.data(...commandFence(ordered));
 }
 
-/** What the `Expects` cell says about one step; empty when nothing is notable. */
 function expectations(step: ComposedStep): string {
   return [
     ...(step.expect ? [T.done.within(step.expect.http, step.expect.within)] : []),
@@ -51,7 +34,7 @@ function expectations(step: ComposedStep): string {
   ].join("; ");
 }
 
-/** The verify table. A column no step in this table fills is left out. */
+/** Omit optional columns that no step fills. */
 function stepTable(ordered: ReadonlyArray<ComposedStep>): string[] {
   const rows = ordered.map((step) => ({ step, expects: expectations(step) }));
   const layer = rows.some(({ step }) => step.layer !== undefined);
@@ -69,8 +52,8 @@ function stepTable(ordered: ReadonlyArray<ComposedStep>): string[] {
 }
 
 /**
- * Each step's command as written, under a `# name` comment, in a fence longer than any backtick
- * run in the commands so none can close it.
+ * Keep commands verbatim for copying because table escaping would change them. Use a fence
+ * longer than any backtick run in the commands so their contents cannot close it.
  */
 function commandFence(ordered: ReadonlyArray<ComposedStep>): string[] {
   const backtickRuns = ordered.flatMap((step) => step.run.match(/`+/g) ?? []);
@@ -99,7 +82,6 @@ export function writeCommandTable(
   );
 }
 
-/** The environment variables and their defaults as a table. */
 export function envTable(env: Record<string, string>): string[] {
   return [
     ...T.done.environmentHead,
@@ -126,8 +108,8 @@ export function writeEnvironment(out: BriefWriter, cli: string, env: Record<stri
 }
 
 /**
- * The heading, the instruction to stop and the list of untrusted entries (Trust model point 3:
- * the agent must ask the user before using them). Each brief adds its own closing lines.
+ * Use the contributors from `untrustedEntries` to ask the agent to stop for the user's approval
+ * (trust point 3). Each brief adds its own closing lines.
  */
 export function writeUntrustedList(
   out: BriefWriter,
@@ -151,7 +133,6 @@ export function writeDecisions(
   out.data(...decisions.map((decision) => `- ${oneLine(decision.text)}`));
 }
 
-/** One line per dependency role: `- role: name, name`. */
 export function dependencyLines(deps: Composition<Entry | null>["deps"]): string[] {
   return deps.map((dep) => `- ${dep.role}: ${dep.names.join(", ")}`);
 }

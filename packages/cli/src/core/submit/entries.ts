@@ -1,16 +1,6 @@
 /**
- * Turns the arguments of `stacks submit` into the entries to submit.
- *
- * An argument is either a path to an entry directory (`./my-registry/stacks/demo-app`) or a bare
- * id looked up in the user registry, where an author keeps personal stacks and fragments
- * (`stacks create` writes them there). An id is refused unless it is kebab-case, so a value such
- * as `../x` never reaches a lookup. An id found as both a stack and a fragment is ambiguous and
- * refused; an id found nowhere gets a did-you-mean, plus a hint when the working directory has a
- * folder by that name.
- *
- * `submit.ts::submit` calls `resolveEntries` before any network work; `assemble.ts` copies the
- * resulting directories into the upstream clone. Path arguments resolve through
- * `validate/target.ts::resolveTarget`, the same rule `stacks validate <path>` uses.
+ * Resolves submission arguments as user registry ids or entry directories. Path arguments use
+ * `resolveTarget` to match validation.
  */
 import { Kebab, type Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
@@ -20,7 +10,6 @@ import { Host } from "../../services/host";
 import { closest } from "../suggest";
 import { resolveTarget, type Target } from "../validate/target";
 
-/** An entry to submit: its registry root and directory where the author keeps it. */
 export type SubmittedEntry = { kind: Kind; id: string; root: string; dir: string };
 
 const KIND_DIRS = [
@@ -36,7 +25,7 @@ const isDirectory = (fs: FileSystem.FileSystem, at: string) =>
     Effect.orElseSucceed(() => false),
   );
 
-/** An entry id is kebab-case; anything else (`../x`, `Demo_App`) is refused before any lookup. */
+/** Require kebab-case before id lookup so paths and malformed names cannot act as ids. */
 const checkId = (id: string) =>
   Schema.is(Kebab)(id)
     ? Effect.void
@@ -66,7 +55,6 @@ const unknownId = Effect.fn("submit.unknownId")(function* (
   });
 });
 
-/** An id in the user registry: the one kind that has it, or a did-you-mean over both. */
 const userEntry = Effect.fn("submit.userEntry")(function* (id: string) {
   yield* checkId(id);
   const fs = yield* FileSystem.FileSystem;
@@ -111,9 +99,8 @@ const directoryEntry = Effect.fn("submit.directoryEntry")(function* (value: stri
 });
 
 /**
- * The entries `submit` was given: each an entry directory (`<root>/stacks/<id>`), or an id in
- * the user registry (see `isPath`). A path that names a whole registry, an id both kinds use, or
- * an id that isn't kebab-case is refused; the same entry given twice is submitted once.
+ * Require an entry directory or an unambiguous kebab-case id. Deduplicate repeated references to
+ * one entry.
  */
 export const resolveEntries = Effect.fn("submit.resolveEntries")(function* (
   given: ReadonlyArray<string>,

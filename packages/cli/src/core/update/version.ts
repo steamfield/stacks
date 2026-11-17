@@ -1,12 +1,4 @@
-/**
- * Checks and compares npm version strings for `stacks update`.
- *
- * `latest.ts` decodes the registry's answer with `Version` before the text can reach output or an
- * `npm install` argument, and `update.ts` decodes the running version the same way. Then
- * `compareVersions` decides whether the published version is newer, the same or older. The order
- * is semver precedence: the three numbers compare numerically, and a prerelease (`1.2.0-beta.1`)
- * sorts before its release (`1.2.0`).
- */
+/** Owns the version decoder and semver comparison used by update. */
 import { Schema } from "effect";
 
 /** npm versions accepted at the registry boundary and for the running package. */
@@ -15,13 +7,12 @@ export const Version = Schema.String.check(
   Schema.isMaxLength(64),
 );
 
-/** -1, 0 or 1 by plain `<` comparison. */
 function order(left: string | bigint, right: string | bigint): number {
   if (left === right) return 0;
   return left < right ? -1 : 1;
 }
 
-/** One dot-separated prerelease identifier: numbers numerically, numbers before words. */
+/** Compare numeric identifiers numerically and sort them before words. */
 function identifierOrder(left: string, right: string): number {
   const leftNumeric = /^\d+$/.test(left);
   const rightNumeric = /^\d+$/.test(right);
@@ -30,10 +21,7 @@ function identifierOrder(left: string, right: string): number {
   return order(left, right);
 }
 
-/**
- * Two prerelease tags, where `undefined` means a release: a release sorts after any prerelease,
- * and a tag that is a prefix of the other sorts first.
- */
+/** An absent tag is a release and sorts after any prerelease. A tag that is a prefix sorts first. */
 function prereleaseOrder(left: string | undefined, right: string | undefined): number {
   if (left === right) return 0;
   if (left === undefined) return 1;
@@ -51,7 +39,6 @@ function prereleaseOrder(left: string | undefined, right: string | undefined): n
   return 0;
 }
 
-/** Splits `1.2.3-beta.1` into its numbers and the prerelease tag after the first `-`. */
 function splitVersion(version: string) {
   const dash = version.indexOf("-");
   return {
@@ -60,7 +47,6 @@ function splitVersion(version: string) {
   };
 }
 
-/** Semver precedence over versions already decoded with Version. */
 export function compareVersions(left: string, right: string): number {
   const leftParts = splitVersion(left);
   const rightParts = splitVersion(right);

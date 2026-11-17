@@ -1,20 +1,6 @@
 /**
- * When someone runs `stacks new <stack>`, this module builds the project on disk.
- *
- * A stack is a recipe for a whole new project, and fragments are reusable additions (CI, git
- * hooks, a database) layered onto it. `commands/new.ts` parses the flags and calls `scaffold`,
- * which composes the stack with its fragments (`compose/compose.ts`), checks the target directory
- * (`scaffold/target.ts`) and asks git where it stands (`scaffold/git.ts`). It then renders every
- * file in memory, including the brief (`.stacks/BRIEF.md`, the task text for the coding agent) and
- * the manifest (`.stacks/manifest.json`, the committed record of what was composed and how to
- * verify it). The result returns to `commands/new.ts`, which prints it and hands the project to an
- * agent.
- *
- * Nothing is written until everything has rendered, so a dry run (`--dry-run`) stops right before
- * the writer. The writes happen in a fixed order: the entry files and the rest of `.stacks/`, then
- * the manifest, then the state record (a file outside the project holding the verify digests),
- * then `git init`. Any failure from the first write on rolls all of it back. No command from any
- * entry runs here (Trust model point 1). Start at `scaffold`.
+ * Builds a new project from a composition (trust point 1). Rendering finishes before `openProject`,
+ * so preview and real runs use the same rendered plan.
  */
 import type { AgentId, Manifest } from "@steamfield/stacks-format";
 import { Effect, Exit, FileSystem, Option, Path } from "effect";
@@ -64,13 +50,10 @@ export type NewOptions = {
   without: ReadonlyArray<string>;
   sandbox: boolean;
   preset?: NewPreset;
-  /** `--payload`; absent is the stack's example. */
   payload?: Payload;
-  /** `--own-repo`: inside another repository, give the project its own. */
   ownRepo?: boolean;
   yes: boolean;
   agents: ReadonlyArray<AgentId> | undefined;
-  /** `--scope`, as given. */
   scope: string | undefined;
   /**
    * The handoff for the composed project, given the ids of its untrusted entries; decided before
@@ -79,7 +62,6 @@ export type NewOptions = {
   handoff: (untrusted: ReadonlyArray<string>) => HandoffDecision;
 };
 
-/** What `new` wrote or planned, and the handoff the command carries out next. */
 type Scaffolded = {
   result: Omit<NewResult, "handoff">;
   decision: HandoffDecision;
@@ -87,10 +69,8 @@ type Scaffolded = {
   composition: Composition;
 };
 
-/** One file to write: rendered entry files and the fixed `.stacks/` files alike. */
 type PlannedFile = Pick<RenderedFile, "path" | "bytes" | "executable">;
 
-/** What a failed `git init` changed: its exit code and the brief rewritten without git. */
 type GitInitFailure = { exitCode: number; brief: Brief };
 
 const encoder = new TextEncoder();
@@ -181,7 +161,6 @@ const checkOwnRepo = (composition: Composition, git: GitProbe) =>
     });
   });
 
-/** The manifest for the composition, with the name, fingerprint and handoff filled in. */
 const projectManifest = (input: {
   composition: Composition;
   name: string;
@@ -200,7 +179,7 @@ const projectManifest = (input: {
     } satisfies Manifest;
   });
 
-/** Writes the entry files and `.stacks/`, with the manifest after everything else. */
+/** Write the manifest last among project files. */
 const writeFiles = Effect.fn("scaffold.writeFiles")(function* (
   writer: ProjectWriter,
   files: ReadonlyArray<PlannedFile>,
@@ -244,8 +223,9 @@ const initializeGit = Effect.fn("scaffold.initializeGit")(function* (
 }, Effect.scoped);
 
 /**
- * Writes the project in one scope: the files, then the state record, then `git init`. Any failure
- * or interruption rolls back everything written so far, in reverse.
+ * Write project files, then the state record, then initialize git within one scope. A later
+ * failure or interruption rolls back earlier writes through `openProject` and the state
+ * record's `removeProjectState` release.
  */
 const writeProject = (input: {
   dir: string;
@@ -277,12 +257,7 @@ const writeProject = (input: {
     }),
   );
 
-/**
- * `new`: compose, check the target, render every file in memory, then write the entry files and
- * `.stacks/` through the safe writer and `git init` a fresh target. Runs nothing from any entry
- * (Trust model point 1). Any failure or interruption after the first write rolls every write
- * back. A dry run stops after rendering, before opening the writer.
- */
+/** Scaffold from entry data alone (trust point 1). Previews stop before `openProject`. */
 export const scaffold = (options: NewOptions) =>
   Effect.gen(function* () {
     const host = yield* Host;

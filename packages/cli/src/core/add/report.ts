@@ -1,11 +1,4 @@
-/**
- * Turns the result of `stacks add` into the text summary a person or an agent reads.
- *
- * `commands/add.ts` calls `renderAdd` for the `human` and `agent` audiences (`--json` prints the
- * result object instead). It borrows `warningLine` and `missingLine` from `scaffold/report.ts`, so
- * `new` and `add` describe a warning or a missing tool the same way. The `Stop:` line appears when
- * an untrusted step's digest wasn't recorded (Trust model point 4).
- */
+/** Renders the text summary for `stacks add`. */
 import type { AddResult } from "../../schemas/add";
 import type { Audience } from "../../services/output";
 import { missingLine, warningLine } from "../scaffold/report";
@@ -41,6 +34,7 @@ export function renderAdd(
     ...result.untrusted.map(
       (entry) => `Untrusted: ${printable(entry.id)} (${entry.origin}): ${printable(entry.dir)}`,
     ),
+    // The acceptance decision comes from `mergeAddManifest` (trust point 4).
     ...(!result.digestRecorded
       ? [
           `Stop: ask the user to review the new steps and run ${context.invocation} verify --accept-changes in their terminal.`,

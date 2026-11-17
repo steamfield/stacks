@@ -1,11 +1,6 @@
 /**
- * Decides what a failed filesystem write means for `stacks submit`.
- *
- * `submit` writes only into its own temporary directory (the clone, the pull request body), so a
- * denied write is something the user can fix, such as an unwritable `TMPDIR`, and reports as
- * `PermissionDenied` with the path. Any other filesystem failure there means the CLI's own
- * workspace broke, which is a defect rather than an expected failure. `submit.ts` and
- * `assemble.ts` wrap each write in `writePermission`.
+ * Classifies submission write failures. Permission errors give the user a path they can fix, while
+ * other failures in the CLI's own temporary workspace indicate a defect.
  */
 import { Effect, type PlatformError } from "effect";
 import { PermissionDenied } from "../../errors";

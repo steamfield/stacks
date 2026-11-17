@@ -1,25 +1,6 @@
 /**
- * Runs one CLI invocation from start to finish: the command itself, then everything that has to
- * happen after it, whether it succeeded, failed, crashed or was interrupted with Ctrl+C.
- *
- * `bin.ts` calls `main(args)` and passes the result to `runtime.ts::runInvocation`, which turns
- * the returned number into the process exit status. `main` parses and runs the command tree from
- * `cli.ts` through effect/cli, with the logger from `logging.ts` and a fresh `Invocation` (the
- * service a command uses to report a launched agent's exit status, extra log fields or paths a
- * rollback couldn't restore).
- *
- * Commands never write to the streams directly: they buffer their result in `Output`. Once the
- * command ends, `main` settles that buffer in a fixed order. Framework text (help, `--version`)
- * is printed only on success. Log lines are flushed, stderr only for the human audience. Then the
- * result is flushed on success, or on failure stdout is cleared and one error is written, except
- * for a keeps-result tag (`VerifyFailed`, `VerifyChanged`, `ValidationFailed`), whose report is
- * flushed first because it is what the caller needs to read. Telemetry flushes after that, and the
- * one `command` summary record is logged last. A closed stdout or stderr (`BrokenPipe`) ends the
- * invocation quietly with 0, except after a keeps-result tag, which keeps its exit status.
- *
- * The whole sequence runs under `Effect.uninterruptibleMask`: only the command itself can be
- * interrupted, so output and logs still settle after Ctrl+C. Parser failures become `Usage` with
- * did-you-mean suggestions from `core/suggest.ts::closest`. Start at `main`.
+ * Runs the command tree and settles the invocation's output, logs and exit status. Settlement
+ * runs even when the command is interrupted.
  */
 import { AgentId, Harness } from "@steamfield/stacks-format";
 import { Cause, Clock, Console, Effect, Exit, Logger, Random, References } from "effect";
@@ -353,7 +334,7 @@ const writeFramework = ({ framework, args, invocation }: FrameworkOutput) =>
  */
 type WriteOutcome = { error?: AppError; defect?: string; unwritten?: string; closed?: boolean };
 
-/** Flushes a keeps-result report; returns the failure's tag when it couldn't be written. */
+/** Returns the write error tag when the report could not be flushed, except for EPIPE. */
 const flushKeptResult = Effect.gen(function* () {
   const output = yield* Output;
   const flushed = yield* Effect.exit(output.flush);
@@ -371,8 +352,8 @@ const writeFailure = (
 ): Effect.Effect<WriteOutcome, never, Output> =>
   Effect.gen(function* () {
     const output = yield* Output;
-    // A keeps-result failure writes its report first; the envelope still comes last on stderr.
-    // A closed stdout or stderr can't turn it into a pass.
+    // For tags selected by `keepsResult`, flush the handler's buffered report before the envelope.
+    // Preserve the failure status even if a downstream reader closed the pipe.
     const keep = keepsResult(error);
     const unwritten = keep ? yield* flushKeptResult : undefined;
     if (!keep) yield* output.clear;

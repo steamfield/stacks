@@ -1,10 +1,5 @@
 /**
- * The `schema` command: prints the JSON Schema of any `--json` result, the error envelope or
- * verify's live events, so an agent can validate what it parses without reading the source.
- *
- * The schemas and their names come from `core/result-schemas.ts::RESULT_SCHEMAS`. With no name the
- * command lists them; an unknown name fails as `Usage` with did-you-mean suggestions. The printed
- * document is JSON in every audience.
+ * Prints machine-readable schemas so callers can validate CLI output without reading the source.
  */
 import { Effect, Option } from "effect";
 import { Argument, Command } from "effect/cli";

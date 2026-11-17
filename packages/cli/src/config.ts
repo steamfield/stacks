@@ -1,22 +1,6 @@
 /**
- * The CLI's configuration: the one module that reads environment variables, plus the user's
- * `config.json` settings, served to every command through the `AppConfig` service.
- *
- * `runtime.ts::AppLayer` builds the service once per invocation (from the live environment in
- * `bin.ts`, from a test's own record in `tests/helpers/cli.ts`). The layer copies the environment
- * once and every later read uses that copy, including `childEnv`, which builds the whole
- * environment of each child process the CLI starts, so nothing is inherited behind the CLI's back.
- *
- * Every field is lazy and read on its own. That matters because `stacks doctor` and `--version`
- * must still work when `config.json` is broken: building the layer never opens the file, and
- * `paths`, `logging` and `color` never touch it. Only `get` and `settings` read and decode it, and
- * they fail with `InvalidConfig` for the command that asked. An unknown `LOG_LEVEL` falls back to
- * `warn` rather than failing.
- *
- * It also owns agent detection: `AgentMarkers` lists the environment variables coding agents set
- * in their shells, and `AppConfig.agent` picks the agent output audience and refuses
- * confirmations under an agent (Trust model point 4). Verify strips those markers and the CLI's
- * own `STACKS_*` settings from a step's environment (`AGENT_MARKER_NAMES`, `CLI_SETTING_NAMES`).
+ * Owns environment and settings reads. Settings are lazy so a broken `config.json` leaves
+ * diagnostics and version output available.
  */
 import { homedir } from "node:os";
 import { AgentId, type DetectedAgent } from "@steamfield/stacks-format";
@@ -39,7 +23,7 @@ export type Paths = {
   user: string;
   /**
    * STACKS_REGISTRY_DIR as given: replaces `Host.registry` as the bundled root when set.
-   * `registry.ts::bundledRoot` resolves it against `Host.cwd`.
+   * `bundledRoot` resolves it against `Host.cwd`.
    */
   registry?: string;
 };
@@ -136,7 +120,7 @@ export const GIT_REPOSITORY_VARIABLES: ReadonlyArray<string> = [
   "GIT_NAMESPACE",
   "GIT_QUARANTINE_PATH",
 ];
-/** The agent `env` names, by `AgentMarkers` in order; a blank value counts as unset. */
+/** Reads markers in priority order for the audience and person-only gates (trust point 4). */
 export function detectAgent(env: Environment): DetectedAgent {
   for (const item of AgentMarkers) {
     const value = env[item.name];

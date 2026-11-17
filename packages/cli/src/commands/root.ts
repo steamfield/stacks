@@ -1,18 +1,10 @@
 /**
- * The bare `stacks` command and the three flags every subcommand accepts: `--json`, `--offline` and
- * `--no-telemetry`.
- *
- * It lives in its own file so subcommands can import it without importing `cli.ts`, which imports
- * them: `new` and `add` read `--json` with `yield* root` to decide whether they may launch an agent.
- * `cli.ts` adds the description, the no-subcommand handler and the subcommands.
+ * Owns the root command and shared flags. Keeping it separate lets handlers access parsed flags
+ * without importing the command tree that imports them.
  */
 import { Command, Flag } from "effect/cli";
 
-/**
- * The root command with its shared flags, before its handler and subcommands are attached in
- * `cli.ts`. A subcommand reads the shared flags with `yield* root` (`new` needs `--json` to
- * decide its handoff); the context is keyed by the command's name, so it is the same one.
- */
+/** `yield* root` shares the parsed context with `cli` because both use the same command name. */
 export const root = Command.make("stacks").pipe(
   Command.withSharedFlags({
     noTelemetry: Flag.Boolean("no-telemetry").pipe(

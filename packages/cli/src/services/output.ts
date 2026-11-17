@@ -1,23 +1,6 @@
 /**
- * Everything the CLI prints goes through this service: a command's result, its warnings, live
- * progress, verify's live events and the error a failed run ends with.
- *
- * The first thing it settles is the audience, meaning who reads this invocation's output: `json`
- * with `--json`, `human` at a person's own terminal, `agent` everywhere else (an agent's shell, a
- * pipe, CI). Commands render text by `Output.audience`; nothing else may differ between them.
- *
- * Results are buffered, not written as they come. `main.ts` calls `flush` once the command
- * succeeds and `clear` when it fails, so a failed run leaves stdout empty and stderr ends with
- * the error (`error`), a JSON envelope in JSON mode. `flushNow` writes early, before `new` hands
- * the terminal to a coding agent. Writes to stdout and stderr fail as `BrokenPipe` when the
- * reader closed the pipe (EPIPE) and as `PermissionDenied` otherwise; `progress`, `event` and the
- * live line instead swallow write failures and stop writing after the first one.
- *
- * Only a human gets styling. Color is decided once per stream: on when that stream is a
- * terminal or `FORCE_COLOR=1` is set, off whenever `NO_COLOR` is set. The live line (`live`, a
- * spinner redrawn on stderr) needs stderr to be a terminal and is off under `NO_COLOR` too.
- *
- * `bin.ts` builds the real layer from `Host` and `AppConfig`; tests use `fixed` or `memory`.
+ * Owns audience selection and application writes to stdout and stderr. Buffering lets
+ * `writeFailure` or `flushSuccess` settle the result when the command ends.
  */
 import { stripVTControlCharacters, styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
@@ -35,11 +18,6 @@ import {
 } from "../errors";
 import { Host, type HostInfo } from "./host";
 
-/**
- * Who reads this invocation's output. `json`: `--json` was given. `human`: stdout is a terminal
- * and no agent is detected. `agent`: everything else (an agent's shell, a pipe, CI). The three
- * never behave differently; only the rendering changes.
- */
 export type Audience = "json" | "agent" | "human";
 /** Remove terminal styling and cursor sequences before storing or displaying step output. */
 export const stripAnsi = stripVTControlCharacters;
@@ -87,8 +65,7 @@ export class Output extends Context.Service<
     /** Resolved once when the layer is built; commands pick their text rendering by it. */
     audience: Audience;
     /**
-     * The one-time telemetry notice (`telemetry/notice.ts`): written to stderr at once in text
-     * modes, or attached as `notice` to the JSON result when it is flushed.
+     * Writes the notice from `showNotice` to stderr in text modes or attaches it to the JSON result.
      */
     notice: (text: string) => Effect.Effect<void>;
     /** Whether the notice reached its reader: written to stderr, or flushed with a JSON result. */
@@ -110,8 +87,7 @@ export class Output extends Context.Service<
     event: (value: unknown, agentText?: string) => Effect.Effect<void>;
     /**
      * Encodes details and writes the envelope; details with excess properties are a defect.
-     * `invocation` (`Host.invocation`) is quoted in the failure's guide (`errors.ts::failureGuide`):
-     * the envelope's `next`, and the text modes' detail and `Next:` lines.
+     * `failureGuide` uses `Host.invocation` to build runnable hints for every audience.
      */
     error: (
       error: AppError,
@@ -176,7 +152,7 @@ type ErrorView = {
   rollback: ReadonlyArray<string>;
 };
 
-/** The JSON error envelope (`errors.ts::ErrorEnvelope`) as one line. */
+/** Encodes `ErrorEnvelope` as one line. */
 function renderEnvelope({ error, details, guide, rollback }: ErrorView): string {
   return `${JSON.stringify({
     error: {

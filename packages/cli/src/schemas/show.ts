@@ -1,13 +1,4 @@
-/**
- * The shape of what `stacks show <id> --json` prints: everything someone needs to review one
- * entry (a stack or fragment) before using it, without running anything.
- *
- * It starts from `list`'s row (`ListRow`) and adds the entry's guidance text (`body`), its files,
- * verify steps, commands and dependencies, word counts against their budgets, plain-language copy
- * from the search sidecar (`plain`), published stats and the latest bundled run (`lastRun`, with
- * `sameContent` saying whether that run proved the current content). `core/show.ts::showReport`
- * builds it.
- */
+/** Defines the `show --json` report. It extends `ListRow` so shared catalog fields stay aligned. */
 import {
   Category,
   DependencyCard,

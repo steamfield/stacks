@@ -1,7 +1,4 @@
-/**
- * Reads the process's working directory for `bin.ts`, which puts it in `Host.cwd`. It lives here
- * because only `bin.ts` and `platform/` may touch `process`.
- */
+/** Reads the working directory at the Node boundary. */
 import { Option } from "effect";
 
 /**

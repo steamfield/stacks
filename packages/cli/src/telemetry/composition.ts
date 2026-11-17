@@ -1,18 +1,6 @@
 /**
- * Checks the facts an `add` telemetry event reports against the registry, so a hand-edited
- * manifest can't make a custom project look like an official one.
- *
- * `stacks add` reads the project's manifest (`.stacks/manifest.json`), which anyone can edit. Its
- * entry refs claim an origin and trust, and its fingerprint (a hash of the whole composition)
- * groups green rates per composition on the server. Before an `add` event is built,
- * `telemetry/index.ts` passes the manifest through `completeAddFacts`, which:
- *
- * 1. looks every stack and fragment id up in the registry and keeps the origin and trust found
- *    there, not the ones the manifest claims (an id the registry doesn't know becomes `unknown`);
- * 2. drops the manifest's fingerprint, and computes a fresh one only when every entry is official
- *    and composing the stack with exactly those fragments reproduces them.
- *
- * `new` events skip this: `stacks new` built the manifest in the same run.
+ * Checks add telemetry facts against the registry so editing a manifest cannot make a custom
+ * composition look official. New already built its own manifest in the current invocation.
  */
 import type { EntryRef, Manifest } from "@steamfield/stacks-format";
 import { Effect } from "effect";

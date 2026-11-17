@@ -1,10 +1,6 @@
 /**
- * A byte buffer that keeps only the newest bytes a child process wrote, up to a fixed capacity.
- *
- * `services/processes.ts` feeds every output chunk of a child into one of these, so a step that
- * prints gigabytes still costs the CLI a bounded amount of memory. When the buffer is full, the
- * oldest bytes are dropped and `truncated` turns true. Reading the text back starts at the first
- * whole UTF-8 character, since the cut can land in the middle of one.
+ * Keeps a bounded tail of process output. Decoding starts at a whole UTF-8 character because
+ * eviction can cut through one.
  */
 export class NewestBytes {
   private chunks: Uint8Array[] = [];

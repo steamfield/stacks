@@ -1,22 +1,6 @@
 /**
- * The CLI's process entry point: the only module that touches Node's process directly, and the
- * place one run of `stacks` starts and ends.
- *
- * The packaged `dist/stacks` script checks the Node version and imports the bundle built from this
- * file. Top to bottom, it reads `--json` from argv (the one argv read before parsing, because the
- * output audience must exist even when parsing fails), creates the stdout and stderr writers,
- * builds the platform layer (Node services, the `Host` facts about this process and where the
- * package's assets live, the network layer, the process-group registry) and the application layer
- * from `runtime.ts::AppLayer`, installs the signal policy (`platform/signals.ts`), runs
- * `main.ts::main` through `runtime.ts::runInvocation` and sets `process.exitCode` from the status
- * it returns. The order is deliberate: stream error handlers come first, and the signal policy is
- * removed only after the run has settled.
- *
- * Bun replaces three build-time constants. `PACKAGED_ESCAPES` lists the registry files the packer
- * had to rename (npm drops literal `.gitignore` and `bunfig.toml` members, so they ship as
- * `<name>.stacks`), and `packagedFiles` maps reads of those paths back to the original name, for
- * the bundled registry only. `STACKS_RELEASE_BUILD` marks a release, and
- * `STACKS_PUBLISHED_TELEMETRY` the one build that may send telemetry to the official endpoint.
+ * The Node entry point wires the platform and application layers. Stream error handlers are
+ * installed before any write, and signal listeners stay installed until the invocation settles.
  */
 import { fileURLToPath } from "node:url";
 import { NodeServices } from "@effect/platform-node";
@@ -46,19 +30,20 @@ const writer =
 // Stream errors are also delivered to each write callback; this prevents Node's default uncaught event report.
 process.stdout.on("error", () => {});
 process.stderr.on("error", () => {});
+// The audience must be available even if parsing fails, so read --json here.
 const args = process.argv.slice(2);
 const output = Output.layer(
   hasFlag(args, "--json"),
   writer(process.stdout),
   writer(process.stderr),
 );
-// This invocation's process groups and interactive child, shared with the signal policy.
 const holder = Foreground.make();
 const registry = fileURLToPath(new URL("../registry/", import.meta.url));
 const cwd = workingDirectory();
 // Replaced by Bun at build time; source development has no escaped asset paths.
 declare const PACKAGED_ESCAPES: ReadonlyArray<string>;
 declare const STACKS_RELEASE_BUILD: boolean;
+// A publish build supplies the default telemetry endpoint.
 declare const STACKS_PUBLISHED_TELEMETRY: boolean;
 // Packers drop literal .gitignore and bunfig.toml members even when present in a tarball. Only
 // this installed registry's reads translate the packer's escape; authors and core see the

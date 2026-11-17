@@ -1,10 +1,4 @@
-/**
- * The remote index's cache status, as `stacks doctor` reports it.
- *
- * The remote index is an optional signed list of entries the CLI downloads and caches for 24 hours
- * (`core/remote-index.ts`). `url` is null when no index is configured. The other fields say when
- * the cache was filled, how the last request went, and until when failed requests are held back.
- */
+/** Defines the remote index cache status reported by `doctor`. */
 import { Schema } from "effect";
 
 export const RemoteStatus = Schema.Struct({

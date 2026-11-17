@@ -1,13 +1,6 @@
 /**
- * The telemetry pieces `stacks new` and `stacks add` both need, kept here so neither command
- * imports from the other.
- *
- * `commands/new.ts` and `commands/add.ts` use the `--source` flag (how the user found stacks),
- * wrap their handlers in `recordCommandError` so a failure sends an error event, and pass
- * `officialSteps` into their scaffold event. Events go to `telemetry/` (`Telemetry`), which checks
- * consent before anything is stored. Only step names from official entries (bundled, or from the
- * official index, and trusted) are reported; a personal or project entry's step names stay on the
- * machine. Recording an error can't be interrupted and never changes the command's own failure.
+ * Owns shared scaffold telemetry flags and recording helpers, so neither command imports the
+ * other.
  */
 import { TelemetryNewEvent } from "@steamfield/stacks-format";
 import { Cause, Effect, Option, Schema } from "effect";

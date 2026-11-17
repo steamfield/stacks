@@ -1,12 +1,6 @@
 /**
- * The `submit` command: opens a draft pull request that adds the user's own stacks or fragments to
- * the public registry on GitHub.
- *
- * `core/submit/submit.ts::submit` does the work through the GitHub CLI (`gh`) and `git` with fixed
- * arguments: it clones the upstream registry, checks the entries against it, then forks, pushes and
- * opens the pull request. With `--dry-run` it stops after the checks. This file collects the flags
- * and renders the outcome; a dry run's `Next:` line repeats the command without `--dry-run`, so an
- * agent shows the user the dry run and the user decides whether to send it.
+ * Handles `stacks submit`. A dry run prints the exact command to send the submission so an agent
+ * can show the checks before the user decides.
  */
 import { Effect, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";

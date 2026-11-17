@@ -1,23 +1,5 @@
 /**
- * The `Telemetry` service: how commands record anonymous usage events and send them later.
- *
- * Commands call it at a few points: `new` and `add` record a scaffold (`recordScaffold`), `show`
- * an entry view, `commands/telemetry-hooks.ts` a failed `new` or `add`, and verify's
- * `core/verify/record.ts` a finished run. Recording builds the event body (`events.ts`), wraps it
- * in an envelope (install id, CLI version, platform, agent, time), validates it against
- * `TelemetryEventV3` and writes it to the spool (`spool.ts`). Nothing goes over the network until
- * a flush (`client.ts::deliver`): `new`, `add` and `verify` flush themselves, and `main` calls
- * `flushAfterOutput` for any other command that asked for it, once its output is written.
- *
- * Every record and flush first asks `consent.ts::consent` whether telemetry is on. The first run
- * that would send shows a one-time notice instead (`notice.ts`): that notice run sends nothing,
- * though `new` and `add` on it save their scaffold under `deferred/` and link the project, and the
- * next enabled run sends the saved scaffold first. With `STACKS_TELEMETRY_DEBUG=1` events are
- * printed as notes instead of queued.
- *
- * Telemetry is best effort. Every method runs inside `safe`, which turns any failure, defect or
- * interruption into a fixed fallback and a debug log, so collection never changes a command's
- * output or exit. That is why this boundary may use `catchCause`.
+ * Owns telemetry recording and delivery for an invocation. `safe` keeps telemetry best effort.
  */
 import { type RunRecord, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Cause, Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";

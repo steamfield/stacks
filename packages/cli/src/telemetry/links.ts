@@ -13,7 +13,7 @@ import { DAY, Project, read, remove, type Storage, uuid, write } from "./storage
 
 /** A project link older than this is ignored and deleted. */
 const LINK_RETENTION = 365 * DAY;
-/** Dependency names are sent at most once in this window per project. */
+/** Minimum interval before a linked project is eligible to spool dependency names again. */
 const DEPS_INTERVAL = 7 * DAY;
 
 const ProjectJson = Schema.fromJsonString(Project);
@@ -25,7 +25,7 @@ type ProjectLink = { file: string; root: string; project: Project };
  * Creates or refreshes the project's link and returns the scaffold event body with the telemetry
  * project id. A refresh keeps the link's id and scaffold time and adds the new step names.
  */
-export const scaffold = Effect.fn("telemetry.scaffold")(function* (
+export const linkScaffold = Effect.fn("telemetry.linkScaffold")(function* (
   store: Storage,
   input: ScaffoldFacts,
 ) {
@@ -97,14 +97,13 @@ const askedCount = (store: Storage, location: Option.Option<ManifestLocation>) =
         Effect.map((notes) => (Option.isSome(notes) ? countAsked(notes.value) : undefined)),
       );
 
-/** Whether the link last sent dependency names less than `DEPS_INTERVAL` ago. */
-const depsSentRecently = (project: Project, now: number) => {
+const depsSpooledRecently = (project: Project, now: number) => {
   const previous = project.depsSentAt === undefined ? Number.NaN : Date.parse(project.depsSentAt);
   return Number.isFinite(previous) && now - previous < DEPS_INTERVAL;
 };
 
 /** Builds the verify event for the project in `cwd`, updating its link along the way. */
-export const verify = Effect.fn("telemetry.verify")(function* (input: {
+export const verifyEventFor = Effect.fn("telemetry.verifyEventFor")(function* (input: {
   store: Storage;
   cwd: string;
   record: RunRecord;
@@ -117,19 +116,18 @@ export const verify = Effect.fn("telemetry.verify")(function* (input: {
   const link = found && (yield* noteFirstTestPass(store, found, { record, now }));
   const event = verifyEvent(record, link?.project, now, yield* askedCount(store, location));
   if (!link || record.outcome !== "green") return event;
-  if (depsSentRecently(link.project, now)) return event;
+  if (depsSpooledRecently(link.project, now)) return event;
   const allowlist = yield* input.cachedAllowlist;
   if (Option.isNone(allowlist)) return event;
   const deps = yield* readDependencies(link.root, allowlist.value);
   return { ...event, deps };
 });
 
-/** Records on the project's link that dependency names were queued at `sentAt`. */
-export const markDepsSent = Effect.fn("telemetry.markDepsSent")(function* (
+export const markDepsSpooled = Effect.fn("telemetry.markDepsSpooled")(function* (
   store: Storage,
   cwd: string,
-  sentAt: string,
+  eventTime: string,
 ) {
   const link = yield* linkedProject(store, yield* locate(cwd));
-  if (link) yield* write(store, link.file, { ...link.project, depsSentAt: sentAt });
+  if (link) yield* write(store, link.file, { ...link.project, depsSentAt: eventTime });
 });

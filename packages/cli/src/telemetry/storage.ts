@@ -101,7 +101,7 @@ export const Notice = Schema.fromJsonString(
  * It ties a scaffolded project to a random `telemetryProjectId` (the manifest's own id never
  * leaves the machine) and keeps the facts later verify events need: when it was scaffolded, the
  * step names the CLI wrote (other names are reported as `custom`), the first passing test run and
- * when dependency names were last sent.
+ * when dependency names were last spooled.
  */
 export const Project = Schema.Struct({
   telemetryProjectId: Schema.String.check(Schema.isUUID()),

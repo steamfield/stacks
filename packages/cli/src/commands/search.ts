@@ -4,7 +4,7 @@ import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { renderSearch } from "../core/search/report";
 import { search } from "../core/search/run";
-import { textWidth } from "../core/wrap";
+import { textWidth } from "../core/text/wrap";
 import { BadInput } from "../errors";
 import { Host } from "../services/host";
 import { Invocation } from "../services/invocation";

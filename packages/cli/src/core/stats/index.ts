@@ -6,8 +6,8 @@
 import { type Kind, StatsDetail, StatsSummary } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
-import { AppConfig } from "../config";
-import { type Cache, type CacheFailure, makeCachedFetch } from "./cached-fetch";
+import { AppConfig } from "../../config";
+import { type Cache, type CacheFailure, makeCachedFetch } from "../cached-fetch";
 
 type Request = (at: string) => Effect.Effect<string, CacheFailure, Scope.Scope>;
 

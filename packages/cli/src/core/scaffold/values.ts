@@ -5,9 +5,9 @@
 import { Clock, Effect, Option, Schema } from "effect";
 import { BadInput, InvalidConfig } from "../../errors";
 import { NpmScope, type Settings } from "../../schemas/config";
-import { envPrefix, slug } from "../slug";
 import { authorValue, type TemplateValues } from "../template";
-import { hasControl } from "../text";
+import { envPrefix, slug } from "../text/slug";
+import { hasControl } from "../text/text";
 import { gitUserName } from "./git";
 
 /** Check explicit values before composition or target inspection, preserving new's error order. */

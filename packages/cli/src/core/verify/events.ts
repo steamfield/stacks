@@ -5,7 +5,7 @@
 import { Effect, Schema } from "effect";
 import { type StepResult, VerifyEvent } from "../../schemas/verify";
 import { Output } from "../../services/output";
-import { printable } from "../text";
+import { printable } from "../text/text";
 import type { PlannedStep } from "./plan";
 
 const emit = (event: VerifyEvent, agentText?: string) =>

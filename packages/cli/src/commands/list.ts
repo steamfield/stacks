@@ -4,17 +4,25 @@ import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import { readLedger } from "../core/ledger";
-import { type Group, groups, listResult, projectChoices, toRow, withStats } from "../core/list";
-import { renderAddable, renderList } from "../core/list-report";
+import {
+  type Group,
+  groups,
+  listResult,
+  projectChoices,
+  toRow,
+  withStats,
+} from "../core/list/index";
+import { renderAddable, renderList } from "../core/list/report";
 import { MANIFEST_PATH, readManifest } from "../core/manifest";
 import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
-import { Registry, remoteRoots } from "../core/registry/registry";
-import { shellArg } from "../core/shell";
-import { shownPath } from "../core/shown-path";
-import { Stats } from "../core/stats";
-import { closest } from "../core/suggest";
-import { printable } from "../core/text";
-import { textWidth } from "../core/wrap";
+import { Registry } from "../core/registry/registry";
+import { remoteRoots } from "../core/registry/roots";
+import { Stats } from "../core/stats/index";
+import { shellArg } from "../core/text/shell";
+import { shownPath } from "../core/text/shown-path";
+import { closest } from "../core/text/suggest";
+import { printable } from "../core/text/text";
+import { textWidth } from "../core/text/wrap";
 import { Usage } from "../errors";
 import { METADATA_DIR } from "../project-layout";
 import type { LedgerRecord } from "../schemas/ledger";

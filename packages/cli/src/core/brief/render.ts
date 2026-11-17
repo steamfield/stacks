@@ -6,7 +6,7 @@ import { APP_TAG } from "@steamfield/stacks-format";
 import { METADATA_DIR } from "../../project-layout";
 import type { Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
-import { envPrefix, slug } from "../slug";
+import { envPrefix, slug } from "../text/slug";
 import {
   dependencyLines,
   environmentNote,

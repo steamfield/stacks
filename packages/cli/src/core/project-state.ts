@@ -7,9 +7,9 @@ import { Effect, Exit, FileSystem, Option, Path, type PlatformError, Schema } fr
 import { AppConfig } from "../config";
 import { InvalidConfig, PermissionDenied } from "../errors";
 import { Invocation } from "../services/invocation";
+import { replaceFile } from "./fs/replace-file";
 import { digestSettings, digestStep, newerSchemaVersion } from "./manifest";
-import { replaceFile } from "./replace-file";
-import { printable } from "./text";
+import { printable } from "./text/text";
 
 /**
  * The second copy of a project's verify digest, outside the project. `stepDigests` and

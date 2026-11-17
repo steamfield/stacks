@@ -3,7 +3,7 @@
  * unavailable when too few projects reported, and `greenField` labels seeded data.
  */
 import type { CountCell, RateCell, ShareCell, ValueCell } from "@steamfield/stacks-format";
-import type { ListRow } from "../schemas/list";
+import type { ListRow } from "../../schemas/list";
 
 /** The flat stats a `list` row carries; `show` renders its detail through the same shape. */
 type StatsFields = NonNullable<ListRow["stats"]>;

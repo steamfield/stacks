@@ -10,7 +10,7 @@ import { NOTES_PATH, RUNS_PATH } from "../project-layout";
 import type { ProjectRuns } from "../schemas/runs";
 import { locateManifest, readManifest } from "./manifest";
 import { findProjectState } from "./project-state";
-import { printable } from "./text";
+import { printable } from "./text/text";
 
 /**
  * The fence still open after a fence marker line, or `undefined` once it closes. As in Markdown, a

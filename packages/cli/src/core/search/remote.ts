@@ -6,7 +6,7 @@ import { type RankInput, SearchResponse, type SearchResult } from "@steamfield/s
 import { Clock, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../../config";
-import { replaceFile } from "../replace-file";
+import { replaceFile } from "../fs/replace-file";
 
 type Request = Pick<RankInput, "request" | "limit" | "kind"> & {
   local: boolean;

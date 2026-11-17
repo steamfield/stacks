@@ -3,8 +3,8 @@
  * controls in names, summaries, matched phrases, caveats and evidence.
  */
 import type { SearchHit, SearchResult } from "@steamfield/stacks-format";
-import { printable } from "../text";
-import { wrap } from "../wrap";
+import { printable } from "../text/text";
+import { wrap } from "../text/wrap";
 
 const localReasons = {
   offline: "offline",

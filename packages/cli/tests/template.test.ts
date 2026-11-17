@@ -2,8 +2,8 @@
 import { it } from "@effect/vitest";
 import { Schema } from "effect";
 import { expect, test } from "vitest";
-import { envPrefix, slug } from "../src/core/slug";
 import { renderTemplate, type TemplateValues } from "../src/core/template";
+import { envPrefix, slug } from "../src/core/text/slug";
 
 const values: TemplateValues = {
   project_name: "My App",

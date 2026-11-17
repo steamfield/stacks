@@ -5,8 +5,8 @@
 import type { AgentId, DetectedAgent, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../project-layout";
 import { type Audience, plainStyle, type Style } from "../services/output";
-import { shellArg } from "./shell";
-import { printable } from "./text";
+import { shellArg } from "./text/shell";
+import { printable } from "./text/text";
 
 /** Why `new` printed the prompt instead of launching an agent. */
 type PrintReason =

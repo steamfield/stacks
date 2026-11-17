@@ -6,7 +6,7 @@
 import { Clock, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
 import { RemoteStatus } from "../schemas/remote-index";
-import { replaceFile } from "./replace-file";
+import { replaceFile } from "./fs/replace-file";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CACHE_LIFETIME_MS = DAY_MS;

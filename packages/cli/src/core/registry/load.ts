@@ -5,8 +5,8 @@
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
 import { PermissionDenied } from "../../errors";
-import { isAbsent } from "../absent";
-import { printable } from "../text";
+import { isAbsent } from "../fs/absent";
+import { printable } from "../text/text";
 import { decodeEntry, markdownFile, type Origin } from "./entry";
 import { walkEntry } from "./tree";
 import type {

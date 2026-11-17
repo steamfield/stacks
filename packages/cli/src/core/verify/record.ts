@@ -11,7 +11,7 @@ import type { VerifyResult } from "../../schemas/verify";
 import { Telemetry } from "../../telemetry";
 import { VERSION } from "../../version";
 import { findProjectState, reasonOf, saveProjectState, warnUnwritten } from "../project-state";
-import { printable } from "../text";
+import { printable } from "../text/text";
 import type { RunResult } from "./run";
 import type { Tamper } from "./tamper";
 

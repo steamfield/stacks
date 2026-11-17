@@ -8,7 +8,7 @@ import type { SpawnFailed } from "../../errors";
 import type { StepResult } from "../../schemas/verify";
 import { Output, stripAnsi } from "../../services/output";
 import { type Finished, Processes } from "../../services/processes";
-import { printable } from "../text";
+import { printable } from "../text/text";
 import { type PlannedStep, stepFields } from "./plan";
 import { portAnswers, portClosed, probeReady, probeTarget } from "./probe";
 import { outputLine } from "./report";

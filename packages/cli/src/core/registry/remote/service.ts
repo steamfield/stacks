@@ -12,13 +12,13 @@ import {
 } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Option, Path, Schema, Scope } from "effect";
 import { HttpClient } from "effect/http";
-import { AppConfig } from "../config";
-import type { RemoteStatus } from "../schemas/remote-index";
-import { type Cache, type CachedResource, makeCachedFetch } from "./cached-fetch";
-import { directoryMatches, extractBundle } from "./remote-index/files";
-import { type RemoteFailure, verifyIndex } from "./remote-index/verification";
+import { AppConfig } from "../../../config";
+import type { RemoteStatus } from "../../../schemas/remote-index";
+import { type Cache, type CachedResource, makeCachedFetch } from "../../cached-fetch";
+import { directoryMatches, extractBundle } from "./files";
+import { type RemoteFailure, verifyIndex } from "./verification";
 
-export { RemoteStatus } from "../schemas/remote-index";
+export { RemoteStatus } from "../../../schemas/remote-index";
 
 type VerifiedIndex = RegistryIndex;
 type Access = {

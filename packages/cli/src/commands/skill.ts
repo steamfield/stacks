@@ -1,10 +1,10 @@
 /** Handles installing or printing a bundled agent skill. */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { shownPath } from "../core/shown-path";
 import { installSkill } from "../core/skill";
-import { closest } from "../core/suggest";
-import { printable } from "../core/text";
+import { shownPath } from "../core/text/shown-path";
+import { closest } from "../core/text/suggest";
+import { printable } from "../core/text/text";
 import { Usage } from "../errors";
 import { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";

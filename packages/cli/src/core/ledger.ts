@@ -7,7 +7,7 @@ import { AgentId } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Path, Result, Schedule, Schema } from "effect";
 import { InvalidConfig } from "../errors";
 import { Ledger, type LedgerLastRun, LedgerRecord } from "../schemas/ledger";
-import { replaceFile } from "./replace-file";
+import { replaceFile } from "./fs/replace-file";
 
 /**
  * What `readLedger` found. `present` is false only when the file doesn't exist; `fileValid` is

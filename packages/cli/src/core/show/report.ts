@@ -3,14 +3,14 @@
  * inspect the full entry and uses `printable` to keep untrusted text from steering the terminal.
  */
 import type { RolledDependency, StackStatsDetail } from "@steamfield/stacks-format";
-import type { ShowReport } from "../schemas/show";
-import { plainStyle, type Style } from "../services/output";
-import { goAllowlistKey } from "./deps";
-import { DEFAULT_PAYLOAD } from "./registry/entry";
-import { statsFields, statsLine } from "./stats-text";
-import { printable } from "./text";
-import { BUDGET } from "./validate/budget";
-import { wrap, wrapWords } from "./wrap";
+import type { ShowReport } from "../../schemas/show";
+import { plainStyle, type Style } from "../../services/output";
+import { goAllowlistKey } from "../deps";
+import { DEFAULT_PAYLOAD } from "../registry/entry";
+import { statsFields, statsLine } from "../stats/text";
+import { printable } from "../text/text";
+import { wrap, wrapWords } from "../text/wrap";
+import { BUDGET } from "../validate/budget";
 
 /** The terminal width and the display-width measure that wraps human text. */
 type Layout = { width: number; measure: (text: string) => number };

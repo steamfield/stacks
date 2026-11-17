@@ -6,7 +6,7 @@ import { Effect, Predicate, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { proseLines } from "../brief/headings";
 import type { Composition } from "../compose/types";
-import { shellWords } from "../shell";
+import { shellWords } from "../text/shell";
 import { runnerTarget } from "./commands";
 import { sourceOf, uniqueFindings } from "./composed";
 import { isNativeConfig, parseNativeConfig } from "./native-config";

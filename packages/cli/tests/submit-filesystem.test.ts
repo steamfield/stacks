@@ -5,7 +5,7 @@ import { Cause, Effect, Exit, FileSystem, PlatformError, Schema } from "effect";
 import { Command } from "effect/cli";
 import { afterEach, expect, test } from "vitest";
 import { cli } from "../src/cli";
-import { skeleton } from "../src/core/create-text";
+import { skeleton } from "../src/core/create/text";
 import { assemble } from "../src/core/submit/assemble";
 import type { SubmittedEntry } from "../src/core/submit/entries";
 import { ErrorEnvelope } from "../src/errors";

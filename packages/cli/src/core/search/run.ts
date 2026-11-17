@@ -6,7 +6,8 @@
 import { rank } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { AppConfig } from "../../config";
-import { Registry, remoteRoots } from "../registry/registry";
+import { Registry } from "../registry/registry";
+import { remoteRoots } from "../registry/roots";
 import { searchInput } from "./input";
 import { mergeSearch } from "./merge";
 import { remoteSearch } from "./remote";

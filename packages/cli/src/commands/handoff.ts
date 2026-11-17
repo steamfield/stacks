@@ -20,8 +20,8 @@ import {
 import { encodeManifest, MANIFEST_PATH, readManifest } from "../core/manifest";
 import { displayPicker } from "../core/prompting";
 import { openProject } from "../core/scaffold/write";
-import { shownPath } from "../core/shown-path";
-import { printable } from "../core/text";
+import { shownPath } from "../core/text/shown-path";
+import { printable } from "../core/text/text";
 import { Interrupted, PermissionDenied, Usage } from "../errors";
 import type { NewResult } from "../schemas/new";
 import { Host } from "../services/host";

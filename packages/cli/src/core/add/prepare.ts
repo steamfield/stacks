@@ -18,7 +18,7 @@ import type { Entry } from "../registry/entry";
 import { gitInstalled } from "../scaffold/git";
 import { templateOverrides, templateValues } from "../scaffold/values";
 import type { TemplateValues } from "../template";
-import { printable } from "../text";
+import { printable } from "../text/text";
 import { inferName } from "./name";
 import { type AddPlan, planAdd } from "./plan";
 import type { AddProject } from "./project";

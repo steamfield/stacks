@@ -5,7 +5,7 @@
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { collapsePaths } from "../brief/paths";
-import { printable } from "../text";
+import { printable } from "../text/text";
 
 /** Warnings the Git line already reports, so the Warnings list leaves them out. */
 const GIT_WARNINGS: ReadonlyArray<string> = ["git_init_failed", "git_unusable"];

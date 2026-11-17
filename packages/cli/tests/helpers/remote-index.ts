@@ -21,7 +21,7 @@ import { expect } from "vitest";
 import { SOURCE_BUILD } from "../../src/build";
 import { cli } from "../../src/cli";
 import { AppConfig, type Environment } from "../../src/config";
-import type { RemoteIndex as RemoteIndexService } from "../../src/core/remote-index";
+import type { RemoteIndex as RemoteIndexService } from "../../src/core/registry/remote/service";
 import { NetLayer } from "../../src/platform/net";
 import { VERSION } from "../../src/version";
 import {
@@ -131,7 +131,7 @@ export const cacheRoot = (home: string) => join(home, "cache/stacks/index");
 
 type RemoteDependencies = FileSystem.FileSystem | Path.Path | HttpClient.HttpClient | AppConfig;
 async function indexLayer(): Promise<Layer.Layer<RemoteIndexService, never, RemoteDependencies>> {
-  const { RemoteIndex } = await import("../../src/core/remote-index");
+  const { RemoteIndex } = await import("../../src/core/registry/remote/service");
   return RemoteIndex.layer({ keys });
 }
 

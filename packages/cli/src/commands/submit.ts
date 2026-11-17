@@ -4,9 +4,9 @@
  */
 import { Effect, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { shellArg } from "../core/shell";
 import { DEFAULT_REPO, type SubmitOptions, submit } from "../core/submit/submit";
-import { printable } from "../core/text";
+import { shellArg } from "../core/text/shell";
+import { printable } from "../core/text/text";
 import { SubmitResult } from "../schemas/submit";
 import { Host } from "../services/host";
 import { Output } from "../services/output";

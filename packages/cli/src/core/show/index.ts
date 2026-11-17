@@ -14,26 +14,27 @@ import {
   stackDependencies,
 } from "@steamfield/stacks-format";
 import { Effect, Option, Result } from "effect";
-import { AppConfig } from "../config";
-import { BadInput, NotFound } from "../errors";
-import type { LedgerRecord } from "../schemas/ledger";
-import type { ShowReport } from "../schemas/show";
-import { Output } from "../services/output";
-import { countWords } from "./brief/words";
-import { targetAgents } from "./compose/agents";
-import { fitsStack } from "./compose/selection";
-import type { Composition } from "./compose/types";
-import { goAllowlistKey } from "./deps";
-import { readLedger } from "./ledger";
-import { toRow } from "./list";
-import { type CatalogEntry, type Entry, isFragment } from "./registry/entry";
-import { Registry, type RegistryRoots, remoteRoots } from "./registry/registry";
-import { searchSourceDigest } from "./search/digest";
-import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
-import { composeNew, reportLastRun } from "./show-last-run";
-import { Stats } from "./stats";
-import { closest } from "./suggest";
-import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "./validate/budget";
+import { AppConfig } from "../../config";
+import { BadInput, NotFound } from "../../errors";
+import type { LedgerRecord } from "../../schemas/ledger";
+import type { ShowReport } from "../../schemas/show";
+import { Output } from "../../services/output";
+import { countWords } from "../brief/words";
+import { targetAgents } from "../compose/agents";
+import { fitsStack } from "../compose/selection";
+import type { Composition } from "../compose/types";
+import { goAllowlistKey } from "../deps";
+import { readLedger } from "../ledger";
+import { toRow } from "../list/index";
+import { type CatalogEntry, type Entry, isFragment } from "../registry/entry";
+import { Registry } from "../registry/registry";
+import { type RegistryRoots, remoteRoots } from "../registry/roots";
+import { searchSourceDigest } from "../search/digest";
+import { decodeDependencyCards, decodeSidecar } from "../search/sidecar";
+import { Stats } from "../stats/index";
+import { closest } from "../text/suggest";
+import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "../validate/budget";
+import { composeNew, reportLastRun } from "./last-run";
 
 /**
  * The full review of entry `id`, from `reviewRoots` or the usual roots (remote index included).

@@ -2,12 +2,12 @@
  * Renders the catalog and addable-fragment views. `printable` keeps entry text from issuing
  * terminal control sequences.
  */
-import type { ListResult, ListRow } from "../schemas/list";
-import { plainStyle, type Style } from "../services/output";
-import { type Group, inGroup } from "./list";
-import { statsLine } from "./stats-text";
-import { printable } from "./text";
-import { wrapWords } from "./wrap";
+import type { ListResult, ListRow } from "../../schemas/list";
+import { plainStyle, type Style } from "../../services/output";
+import { statsLine } from "../stats/text";
+import { printable } from "../text/text";
+import { wrapWords } from "../text/wrap";
+import { type Group, inGroup } from "./index";
 
 type Measure = (text: string) => number;
 

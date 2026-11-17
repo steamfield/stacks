@@ -6,7 +6,7 @@ import { stripVTControlCharacters, styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
 import { Clock, Context, Effect, Layer, Option, type Scope, Semaphore } from "effect";
 import { AppConfig } from "../config";
-import { printable } from "../core/text";
+import { printable } from "../core/text/text";
 import {
   type AppError,
   BrokenPipe,

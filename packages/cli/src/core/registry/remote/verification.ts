@@ -4,7 +4,7 @@
  */
 import { type INDEX_PUBLIC_KEYS, RegistryIndex, SignedIndex } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
-import { VERSION } from "../../version";
+import { VERSION } from "../../../version";
 
 type RemoteOutcome = "ok" | "timeout" | "network" | "not_found" | "invalid" | "unsupported";
 /**

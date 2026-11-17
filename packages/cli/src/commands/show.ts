@@ -2,10 +2,10 @@
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
-import { showReport } from "../core/show";
-import { renderShow } from "../core/show-report";
-import { shownPath } from "../core/shown-path";
-import { textWidth } from "../core/wrap";
+import { showReport } from "../core/show/index";
+import { renderShow } from "../core/show/report";
+import { shownPath } from "../core/text/shown-path";
+import { textWidth } from "../core/text/wrap";
 import { ShowReport } from "../schemas/show";
 import { Host } from "../services/host";
 import { Output } from "../services/output";

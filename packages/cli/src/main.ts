@@ -9,8 +9,8 @@ import { beforeSeparator, hasFlag } from "./argv";
 import { cli } from "./cli";
 import { AppConfig, type LogSettings } from "./config";
 import { helpFooter } from "./core/guide";
-import { Stats } from "./core/stats";
-import { closest } from "./core/suggest";
+import { Stats } from "./core/stats/index";
+import { closest } from "./core/text/suggest";
 import {
   type AppError,
   BrokenPipe,

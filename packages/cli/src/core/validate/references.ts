@@ -5,7 +5,7 @@
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { type Entry, isStack, type RejectedEntry } from "../registry/entry";
-import { closest } from "../suggest";
+import { closest } from "../text/suggest";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
 

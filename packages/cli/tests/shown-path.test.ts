@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Effect } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { shownPath } from "../src/core/shown-path";
+import { shownPath } from "../src/core/text/shown-path";
 import { tempDir } from "./helpers/cli";
 
 const dirs: ReturnType<typeof tempDir>[] = [];

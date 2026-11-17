@@ -4,6 +4,7 @@ import { Manifest } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import * as T from "../src/core/brief/text";
+import { AddResult } from "../src/schemas/add";
 import { Settings } from "../src/schemas/config";
 import { DoctorReport } from "../src/schemas/doctor";
 import { NewResult } from "../src/schemas/new";
@@ -18,6 +19,7 @@ import {
 } from "./helpers/create";
 import { minimal, writeEntry } from "./helpers/registry";
 import { reviewSearchFixture } from "./helpers/search-fixture";
+import { readManifestAt } from "./helpers/verify";
 
 afterEach(releaseCreate);
 function setup(settings?: unknown) {
@@ -141,6 +143,51 @@ test.each([
     presetBehavior(await newProject(home, registry, "app", flags), preset);
   },
 );
+
+test.each<{ setting: Manifest["preset"]; flags: string[]; preset: Manifest["preset"] }>([
+  { setting: "sandbox", flags: [], preset: "default" },
+  { setting: "default", flags: ["--sandbox"], preset: "sandbox" },
+])(
+  "first add records $preset with setting $setting and flags $flags",
+  async ({ setting, flags, preset }) => {
+    const { home, registry } = setup({ preset: setting });
+    const result = await addDecision(home, registry, home, flags);
+    expect(result.createdManifest).toBe(true);
+    expectAddPreset(result, preset);
+  },
+);
+
+test("add keeps a recorded default preset with a sandbox setting", async () => {
+  const { home, registry } = setup({ preset: "sandbox" });
+  const created = await newProject(home, registry, "app", ["--preset", "default"]);
+  expect(created.manifest.preset).toBe("default");
+  const result = await addDecision(home, registry, created.result.project);
+  expect(result.createdManifest).toBe(false);
+  expectAddPreset(result, "default");
+});
+
+async function addDecision(home: string, registry: string, project: string, flags: string[] = []) {
+  writeEntry({
+    root: registry,
+    kind: "fragment",
+    dir: "decision",
+    frontmatter: minimal("fragment", "decision", 'decisions: ["Choose a colour (default blue)."]'),
+  });
+  return jsonResult(
+    await createCli(home, ["add", "decision", "--dir", project, "--json", ...flags], {
+      host: { registry },
+    }),
+    AddResult,
+  );
+}
+
+function expectAddPreset(result: AddResult, preset: Manifest["preset"]) {
+  expect(readManifestAt(result.project).preset).toBe(preset);
+  const brief = readFileSync(join(result.project, result.brief), "utf8");
+  const sandbox = preset === "sandbox";
+  expect(brief).toContain(sandbox ? T.decisions.yes : T.decisions.ask);
+  expect(brief).not.toContain(sandbox ? T.decisions.ask : T.decisions.yes);
+}
 
 test.each(["Sandbox", "other", null, 1])(
   "an invalid preset setting %j remains a config error [3.1b#20]",

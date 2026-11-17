@@ -4,19 +4,21 @@
  */
 import { stripVTControlCharacters, styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
-import { Clock, Context, Effect, Layer, Option, type Scope, Semaphore } from "effect";
+import { Context, Effect, Layer, type Scope } from "effect";
 import { AppConfig } from "../config";
+import { failureGuide } from "../core/failure-guide";
 import { printable } from "../core/text/text";
 import {
   type AppError,
-  BrokenPipe,
+  type BrokenPipe,
   encodeDetails,
-  failureGuide,
   keepsResult,
-  PermissionDenied,
+  type PermissionDenied,
   retryable,
 } from "../errors";
-import { Host, type HostInfo } from "./host";
+import { Host } from "./host";
+import { type LiveLayout, makeLive } from "./output-live";
+import { type Writer, write } from "./output-write";
 
 export type Audience = "json" | "agent" | "human";
 /** Remove terminal styling and cursor sequences before storing or displaying step output. */
@@ -38,7 +40,6 @@ export function resolveAudience({
   return !ci && stdoutIsTTY && agent === "none" ? "human" : "agent";
 }
 
-export type Writer = (text: string) => Promise<void>;
 type StyleKind = "error" | "warn" | "ok" | "skip" | "dim" | "next";
 export type Style = (kind: StyleKind, text: string) => string;
 export const plainStyle: Style = (_kind, text) => text;
@@ -52,17 +53,6 @@ const formats = {
 } as const;
 const makeStyle = (enabled: boolean): Style =>
   enabled ? (kind, text) => styleText(formats[kind], text, { validateStream: false }) : plainStyle;
-
-/** Writes `text`, failing `BrokenPipe` on EPIPE and `PermissionDenied` on any other error. */
-function write(writer: Writer, text: string) {
-  return Effect.tryPromise({
-    try: () => writer(text),
-    catch: (error) =>
-      typeof error === "object" && error !== null && "code" in error && error.code === "EPIPE"
-        ? new BrokenPipe()
-        : new PermissionDenied({ details: { reason: "write" } }),
-  });
-}
 
 export class Output extends Context.Service<
   Output,
@@ -279,108 +269,5 @@ function make(
     clear: Effect.sync(() => {
       results.length = 0;
     }),
-  };
-}
-
-/** The terminal facts the live line needs to fit on one row. */
-type LiveLayout = Pick<HostInfo, "columns" | "stringWidth">;
-
-/** Clears the current terminal row: carriage return, then erase the whole line. */
-const ERASE = "\r\u001b[2K";
-const SPINNER = "|/-\\";
-
-/** The spinner character for `elapsed` ms: a new one every 100 ms. */
-function spinnerFrame(elapsed: number): string {
-  return SPINNER[Math.floor(elapsed / 100) % 4] ?? "|";
-}
-
-/**
- * Fits `text` plus `tail` (the elapsed time) into one row, one column short of the width so the
- * cursor never wraps. The tail is dropped first when it alone doesn't fit, then `text` is cut at
- * a grapheme boundary and ends with an ellipsis. With no known width, nothing is cut.
- */
-function fitLiveFrame(text: string, layout: LiveLayout | undefined, tail: string): string {
-  if (!layout || Option.isNone(layout.columns)) return text + tail;
-  const width = Math.max(0, layout.columns.value - 1);
-  const suffix = layout.stringWidth(tail) <= width ? tail : "";
-  if (layout.stringWidth(text + suffix) <= width) return text + suffix;
-  let fitted = "";
-  for (const { segment } of new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
-    text,
-  )) {
-    if (layout.stringWidth(`${fitted}${segment}…${suffix}`) > width) break;
-    fitted += segment;
-  }
-  return layout.stringWidth(`…${suffix}`) <= width ? `${fitted}…${suffix}` : suffix;
-}
-
-/**
- * The stderr side of Output: the live spinner line and the writes that must not interleave with
- * it. One lock serializes redraws and normal writes, so a frame can't split a row of other
- * output, and a write first erases a drawn frame. When the live line is disabled, `around` adds
- * nothing. `line` (for `progress` and `event`) and the frames are best-effort: the first failed
- * write closes them for good, and the command carries on.
- */
-function makeLive(stderr: Writer, enabled: boolean, layout?: LiveLayout) {
-  const lock = Semaphore.makeUnsafe(1);
-  let open = true;
-  let active = false;
-  const close = Effect.sync(() => {
-    open = false;
-  });
-  const bestEffort = (text: string) =>
-    Effect.suspend(() =>
-      open
-        ? write(stderr, text).pipe(
-            Effect.catch(() => close),
-            Effect.onInterrupt(() => close),
-          )
-        : Effect.void,
-    );
-  const around = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-    enabled
-      ? lock.withPermit(
-          Effect.gen(function* () {
-            if (active) yield* bestEffort(ERASE);
-            return yield* effect;
-          }),
-        )
-      : effect;
-  /** Draws one frame unless a write holds the lock; that write erases the line anyway. */
-  const drawFrame = (label: string, started: number) =>
-    lock
-      .withPermitsIfAvailable(1)(
-        Effect.gen(function* () {
-          const elapsed = (yield* Clock.currentTimeMillis) - started;
-          const text = fitLiveFrame(
-            `${spinnerFrame(elapsed)} ${label}`,
-            layout,
-            ` ${(elapsed / 1000).toFixed(1)}s`,
-          );
-          yield* bestEffort(`${ERASE}${text}`);
-        }),
-      )
-      .pipe(Effect.forkChild);
-  const live = Effect.fn("Output.live")(function* (label: string) {
-    if (!enabled) return;
-    const started = yield* Clock.currentTimeMillis;
-    active = true;
-    yield* Effect.addFinalizer(() =>
-      lock.withPermit(
-        Effect.gen(function* () {
-          active = false;
-          yield* bestEffort(ERASE);
-        }),
-      ),
-    );
-    const tick = Effect.sleep("100 millis").pipe(Effect.andThen(drawFrame(label, started)));
-    // Registered after the clear finalizer, so drawing stops before the line clears.
-    yield* tick.pipe(Effect.forever, Effect.forkScoped);
-  });
-  return {
-    live,
-    around,
-    line: (text: string) =>
-      lock.withPermit(Effect.suspend(() => bestEffort(`${active ? ERASE : ""}${text}\n`))),
   };
 }

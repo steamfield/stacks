@@ -12,9 +12,9 @@ import type { Consent, TelemetryFlush, TelemetryStatus } from "../schemas/teleme
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 import { VERSION } from "../version";
-import { deliver } from "./client";
 import { completeAddFacts } from "./composition";
 import { consent, standingOff } from "./consent";
+import { deliver } from "./deliver";
 import {
   type Envelope,
   type ErrorFacts,
@@ -23,8 +23,8 @@ import {
   type ScaffoldFacts,
   type ShowFacts,
 } from "./events";
+import { markDepsSent, scaffold, verify } from "./links";
 import { NO_NOTICE, type NoticeOutcome, settleNotice, showNotice } from "./notice";
-import { markDepsSent, scaffold, verify } from "./projects";
 import { enqueue } from "./spool";
 import {
   DeferredScaffold,

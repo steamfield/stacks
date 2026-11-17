@@ -4,7 +4,8 @@
  */
 import { GitHubLogin } from "@steamfield/stacks-format";
 import { Duration, Effect, Option, Schema } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
+import { AppConfig } from "../../config";
+import { GIT_REPOSITORY_VARIABLES } from "../../env-names";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { type Captured, Processes } from "../../services/processes";
 import { shellArg } from "../text/shell";

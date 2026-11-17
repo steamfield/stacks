@@ -6,7 +6,7 @@ This is the contract every command keeps: who the output is for, what goes to st
 
 On the first enabled telemetry invocation, text audiences receive one privacy notice on stderr and JSON results gain an optional `notice` string. That invocation queues no events. Telemetry failures stay silent; explicit telemetry control commands report incomplete cleanup in their result. See [Telemetry](telemetry.md).
 
-Output has three audiences, picked once per invocation. `--json` is the machine contract below. Without it, the output is for a human only when stdout is a terminal, no coding agent is detected (`CLAUDECODE`, `AI_AGENT` and the other markers in `src/config.ts`) and `CI` is unset; everything else (an agent's shell, a pipe, CI) gets agent output, the default.
+Output has three audiences, picked once per invocation. `--json` is the machine contract below. Without it, the output is for a human only when stdout is a terminal, no coding agent is detected (`CLAUDECODE`, `AI_AGENT` and the other markers in `src/env-names.ts`) and `CI` is unset; everything else (an agent's shell, a pipe, CI) gets agent output, the default.
 
 ```mermaid
 flowchart TB

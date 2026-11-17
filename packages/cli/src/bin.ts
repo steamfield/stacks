@@ -19,7 +19,8 @@ import { installSignalPolicy } from "./platform/signals";
 import { stringWidth } from "./platform/width";
 import { AppLayer, runInvocation } from "./runtime";
 import { Host } from "./services/host";
-import { Output, type Writer } from "./services/output";
+import { Output } from "./services/output";
+import type { Writer } from "./services/output-write";
 import { Foreground } from "./services/processes";
 
 /** Writes to a Node stream, resolving once the stream accepted the text and failing on its error. */

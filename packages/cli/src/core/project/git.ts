@@ -1,6 +1,7 @@
 /** Owns the fixed git commands used to inspect or initialize a project (trust point 1). */
 import { Duration, Effect, FileSystem, Option } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
+import { AppConfig } from "../../config";
+import { GIT_REPOSITORY_VARIABLES } from "../../env-names";
 import type { NewResult } from "../../schemas/new";
 import { type Finished, Processes } from "../../services/processes";
 import type { GitState } from "../brief/types";

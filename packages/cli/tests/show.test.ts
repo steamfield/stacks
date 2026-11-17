@@ -2,7 +2,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { countWords } from "../src/core/brief/words";
-import { BUDGET } from "../src/core/validate/budget";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { quiet, runCli, terminal } from "./helpers/cli";
 import { ledgerRecord, writeLedger } from "./helpers/ledger";
 import { minimal, writeEntry } from "./helpers/registry";

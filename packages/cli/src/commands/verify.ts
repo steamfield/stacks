@@ -9,14 +9,9 @@ import { locateManifest, readManifest } from "../core/project/manifest";
 import { planVerify } from "../core/verify/plan";
 import { type RecordFacts, recordRun } from "../core/verify/record";
 import { renderVerify } from "../core/verify/report";
+import { changedResult } from "../core/verify/result";
 import { runVerify } from "../core/verify/run";
-import {
-  acceptChanges,
-  changedResult,
-  checkTamper,
-  createdAtOf,
-  type Tamper,
-} from "../core/verify/tamper";
+import { acceptChanges, checkTamper, createdAtOf, type Tamper } from "../core/verify/tamper";
 import { PermissionDenied, VerifyChanged, VerifyFailed } from "../errors";
 import { MANIFEST_PATH, RUNS_PATH } from "../project-layout";
 import { VerifyResult } from "../schemas/verify";

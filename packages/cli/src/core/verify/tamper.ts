@@ -4,11 +4,11 @@
  * rewrite both digests.
  */
 import type { Manifest, TamperCheck } from "@steamfield/stacks-format";
-import { Clock, Effect, FileSystem, Path } from "effect";
+import { Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
 import { type InvalidConfig, PermissionDenied } from "../../errors";
 import { MANIFEST_PATH } from "../../project-layout";
-import type { VerifyChange, VerifyResult } from "../../schemas/verify";
+import type { VerifyChange } from "../../schemas/verify";
 import { digestSettings, digestStep, digestSteps, encodeManifest } from "../project/manifest";
 import {
   type FoundState,
@@ -20,7 +20,6 @@ import {
   replaceProjectState,
 } from "../project/state";
 import { openProject } from "../project/writer";
-import { isAppStep, secondsSinceCreated, skippedStep, type VerifyPlan } from "./plan";
 
 /** Update only the state record found by id. A record found by path under another id is `stale`. */
 export type Tamper = {
@@ -30,8 +29,6 @@ export type Tamper = {
   stale?: FoundState;
   manifestPath: string;
 };
-
-const CHANGED = "not run: the verify steps changed since they were recorded";
 
 const sorted = (names: Iterable<string>) => [...names].sort();
 
@@ -196,28 +193,3 @@ export const acceptChanges = (
  */
 export const createdAtOf = (manifest: Manifest, tamper: Tamper): string =>
   (tamper.record ?? tamper.stale)?.state.createdAt ?? manifest.createdAt;
-
-/** A changed run skips every step, including teardown, because no setup ran. */
-export const changedResult = (
-  plan: VerifyPlan,
-  manifest: Manifest,
-  tamper: Tamper & { changed: VerifyChange },
-  started: number,
-): Effect.Effect<VerifyResult> =>
-  Effect.gen(function* () {
-    const ended = yield* Clock.currentTimeMillis;
-    const result: VerifyResult = {
-      outcome: "changed",
-      ...(plan.steps.some(isAppStep) ? { stages: { base: "changed", app: null } } : {}),
-      scope: plan.scope,
-      steps: plan.steps.map((step) => skippedStep(step, CHANGED)),
-      totals: { passed: 0, failed: 0, skipped: plan.steps.length },
-      durationMs: ended - started,
-      secondsSinceCreated: secondsSinceCreated(createdAtOf(manifest, tamper), ended),
-      tamperCheck: tamper.tamperCheck,
-      changed: tamper.changed,
-      firstGreen: false,
-      stateRecord: tamper.record !== undefined,
-    };
-    return result;
-  });

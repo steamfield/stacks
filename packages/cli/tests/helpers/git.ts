@@ -1,7 +1,7 @@
 import { type SpawnSyncOptions, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { GIT_REPOSITORY_VARIABLES } from "../../src/config";
+import { GIT_REPOSITORY_VARIABLES } from "../../src/env-names";
 
 /**
  * This process's environment without the variables that point git at a repository. A git hook

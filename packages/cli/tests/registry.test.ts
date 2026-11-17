@@ -18,7 +18,7 @@ import { MANIFEST_PATH } from "../src/core/project/manifest";
 import { type Entry, isRejected } from "../src/core/registry/entry";
 import { Registry, trustOf } from "../src/core/registry/registry";
 import type { RegistryRoots } from "../src/core/registry/roots";
-import { BUDGET } from "../src/core/validate/budget";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { EntryInvalid, NotFound, PermissionDenied } from "../src/errors";
 import { NewResult } from "../src/schemas/new";
 import { quiet, runCli, tempDir } from "./helpers/cli";

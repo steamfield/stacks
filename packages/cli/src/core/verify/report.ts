@@ -3,9 +3,9 @@
  * `outputLine` before reaching a terminal.
  */
 import type { FailureKind } from "@steamfield/stacks-format";
-import { changeLines } from "../../errors";
 import type { StepResult, VerifyResult } from "../../schemas/verify";
 import { type Audience, plainStyle, type Style, stripAnsi } from "../../services/output";
+import { changeLines } from "../failure-guide";
 import { printable } from "../text/text";
 import { nextLine } from "./next";
 import { HYGIENE_SKIPPED } from "./plan";

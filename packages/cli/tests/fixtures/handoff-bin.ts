@@ -14,7 +14,8 @@ import { installSignalPolicy } from "../../src/platform/signals";
 import { stringWidth } from "../../src/platform/width";
 import { AppLayer, runInvocation } from "../../src/runtime";
 import { Host } from "../../src/services/host";
-import { Output, type Writer } from "../../src/services/output";
+import { Output } from "../../src/services/output";
+import type { Writer } from "../../src/services/output-write";
 import { Foreground } from "../../src/services/processes";
 
 const [registry, ...args] = process.argv.slice(2) as [string, ...string[]];

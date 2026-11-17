@@ -12,7 +12,7 @@ import { Telemetry } from "../../telemetry";
 import { VERSION } from "../../version";
 import { findProjectState, reasonOf, saveProjectState, warnUnwritten } from "../project/state";
 import { printable } from "../text/text";
-import type { RunResult } from "./run";
+import type { RunResult } from "./result";
 import type { Tamper } from "./tamper";
 
 /** Where a project's run records go, relative to its root (ignored by its `.gitignore`). */

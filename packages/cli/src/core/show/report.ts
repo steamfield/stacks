@@ -10,7 +10,7 @@ import { DEFAULT_PAYLOAD } from "../registry/entry";
 import { statsFields, statsLine } from "../stats/text";
 import { printable } from "../text/text";
 import { wrap, wrapWords } from "../text/wrap";
-import { BUDGET } from "../validate/budget";
+import { BUDGET } from "../validate/compositions/budget";
 
 /** The terminal width and the display-width measure that wraps human text. */
 type Layout = { width: number; measure: (text: string) => number };

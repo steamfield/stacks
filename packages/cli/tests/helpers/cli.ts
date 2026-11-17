@@ -15,7 +15,8 @@ import { NetLayer } from "../../src/platform/net";
 import { stringWidth } from "../../src/platform/width";
 import { AppLayer, runInvocation } from "../../src/runtime";
 import { Host, type HostInfo } from "../../src/services/host";
-import { Output, type Writer } from "../../src/services/output";
+import { Output } from "../../src/services/output";
+import type { Writer } from "../../src/services/output-write";
 import { Foreground, Processes } from "../../src/services/processes";
 
 /** The package's authoring guide, which bin.ts resolves beside the registry. */

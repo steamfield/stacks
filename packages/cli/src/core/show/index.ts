@@ -33,7 +33,7 @@ import { searchSourceDigest } from "../search/digest";
 import { decodeDependencyCards, decodeSidecar } from "../search/sidecar";
 import { Stats } from "../stats/index";
 import { closest } from "../text/suggest";
-import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "../validate/budget";
+import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "../validate/compositions/budget";
 import { composeNew, reportLastRun } from "./last-run";
 
 /**

@@ -5,6 +5,7 @@
  */
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
+import { defined } from "../object";
 import { type Entry, isFragment, isRejected, type RegistryEntry } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { defaultRoots, type RegistryRoots } from "../registry/roots";
@@ -136,10 +137,10 @@ const buildView = (target: Target, all: ReadonlyArray<RegistryEntry>) =>
     const { inRoot, file } = rootPaths(path, target.root);
     const wanted = wantedBy(target.only);
     const validated = all.filter((item) => inRoot(item) && wanted(item));
-    const sourceView: SourceView = {
+    const sourceView: SourceView = defined({
       root: target.root,
       asBundled: target.asBundled,
-      ...(target.only === undefined ? {} : { only: target.only }),
+      only: target.only,
       entries: validated.filter((item): item is Entry => !isRejected(item)),
       rejected: validated.filter(isRejected),
       all,
@@ -147,7 +148,7 @@ const buildView = (target: Target, all: ReadonlyArray<RegistryEntry>) =>
       wanted,
       inRoot,
       file,
-    };
+    });
     // Rendering compositions is the slowest work; several checks share one run of it.
     return {
       ...sourceView,

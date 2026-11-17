@@ -14,6 +14,7 @@ import { LedgerLastRun, type LedgerRecord } from "../../schemas/ledger";
 import type { ListResult, ListRow } from "../../schemas/list";
 import { fitsStack } from "../compose/selection";
 import { lastRun } from "../ledger";
+import { defined } from "../object";
 import { type Entry, isRejected, type RegistryEntry } from "../registry/entry";
 import { statsFields } from "../stats/text";
 
@@ -31,7 +32,7 @@ export function toRow(
 ): ListRow {
   const { meta } = entry;
   const author = rowAuthor(entry, authors);
-  return {
+  return defined({
     id: entry.id,
     kind: entry.kind,
     name: meta.name,
@@ -41,9 +42,9 @@ export function toRow(
     origin: entry.origin,
     trusted: entry.trusted,
     shadows: entry.shadows,
-    ...(author === undefined ? {} : { author }),
+    author,
     lastRun: rowLastRun(entry, records),
-  };
+  });
 }
 
 function rowAuthor(entry: Entry, authors: AuthorsFile): string | undefined {

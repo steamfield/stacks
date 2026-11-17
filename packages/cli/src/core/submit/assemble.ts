@@ -5,6 +5,7 @@
 import { AuthorsFile, authorKey, Kind, type SearchMetadata } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, type PlatformError, Predicate, Result, Schema } from "effect";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
+import { defined } from "../object";
 import { Registry } from "../registry/registry";
 import { searchSourceDigest } from "../search/digest";
 import { decodeSidecar, readSearchFile, sidecarPath } from "../search/sidecar";
@@ -65,13 +66,13 @@ const planEntries = Effect.fn("submit.planEntries")(function* (options: {
     const owner = ownerOf(options.authors, entry);
     if (gone || (exists && owner !== options.login))
       return yield* new BadInput({
-        details: {
+        details: defined({
           flag: "collision",
           kind: entry.kind,
           id: entry.id,
           removed: gone && !exists,
-          ...(owner === undefined ? {} : { owner }),
-        },
+          owner,
+        }),
       });
     planned.push({ ...entry, update: exists });
   }

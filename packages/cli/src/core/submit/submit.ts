@@ -8,6 +8,7 @@ import { BadInput, type SubmissionBlocker } from "../../errors";
 import type { SubmitResult } from "../../schemas/submit";
 import type { Finding } from "../../schemas/validate";
 import { VERSION } from "../../version";
+import { defined } from "../object";
 import { compareEntries } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { sidecarPath } from "../search/sidecar";
@@ -65,14 +66,15 @@ const blocks = (finding: Finding) =>
   finding.severity === "error" ||
   (finding.severity === "warning" && !MAINTAINER_WARNINGS.includes(finding.check));
 
-const toBlocker = (entry: PlannedEntry, finding: Finding): typeof SubmissionBlocker.Type => ({
-  kind: entry.kind,
-  id: entry.id,
-  check: finding.check,
-  severity: finding.severity === "error" ? "error" : "warning",
-  ...(finding.file === undefined ? {} : { file: finding.file }),
-  ...(finding.line === undefined ? {} : { line: finding.line }),
-});
+const toBlocker = (entry: PlannedEntry, finding: Finding): typeof SubmissionBlocker.Type =>
+  defined({
+    kind: entry.kind,
+    id: entry.id,
+    check: finding.check,
+    severity: finding.severity === "error" ? "error" : "warning",
+    file: finding.file,
+    line: finding.line,
+  });
 
 /**
  * Validate as bundled entries so references resolve only inside the assembled registry. Apply

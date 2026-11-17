@@ -12,6 +12,7 @@ import type {
   TelemetryNewEvent,
   TelemetryVerifyEventV3,
 } from "@steamfield/stacks-format";
+import { defined } from "../core/object";
 import type { Entry } from "../core/registry/entry";
 import type { Project } from "./storage";
 
@@ -78,7 +79,7 @@ export function scaffoldEvent(input: ScaffoldFacts) {
   const { manifest } = input;
   const entries = [...(manifest.stack ? [manifest.stack] : []), ...manifest.fragments];
   const origin = officialOrigin(entries);
-  return {
+  return defined({
     type: input.type,
     stack: manifest.stack ? publicId(manifest.stack) : "custom",
     fragments: [...manifest.fragments]
@@ -88,13 +89,13 @@ export function scaffoldEvent(input: ScaffoldFacts) {
     preset: manifest.preset,
     targetAgents: manifest.agents,
     handoff: manifest.handoff?.kind ?? "print",
-    ...(input.source === undefined ? {} : { source: input.source }),
-    ...(origin === undefined ? {} : { origin }),
+    source: input.source,
+    origin,
     nonOfficial: nonOfficialCounts(entries),
     ...(entries.every(official) && manifest.fingerprint
       ? { fingerprint: manifest.fingerprint }
       : {}),
-  };
+  });
 }
 
 /** Error tags reported by name; any other tag is reported as `other`. */
@@ -135,14 +136,14 @@ function durationBucket(ms: number): TelemetryVerifyEventV3["steps"][number]["du
 
 /** One verify step as reported: names the CLI didn't compose become `custom`. */
 function stepFacts(step: RunStep, known: ReadonlySet<string>) {
-  return {
+  return defined({
     name: known.has(step.name) ? step.name : "custom",
     phase: step.phase,
-    ...(step.layer === undefined ? {} : { layer: step.layer }),
+    layer: step.layer,
     status: step.status,
-    ...(step.failureKind === undefined ? {} : { failureKind: step.failureKind }),
+    failureKind: step.failureKind,
     duration: durationBucket(step.durationMs),
-  };
+  });
 }
 
 /** Seconds from an ISO time to a millisecond clock reading, never negative. */
@@ -162,7 +163,7 @@ export function verifyEvent(
   asked?: number,
 ) {
   const known = new Set(project?.steps ?? []);
-  return {
+  return defined({
     type: "verify" as const,
     scope: record.scope,
     outcome: record.outcome,
@@ -171,7 +172,7 @@ export function verifyEvent(
     stepsChanged: project
       ? record.steps.filter((step) => !known.has(step.name)).length
       : record.steps.length,
-    ...(asked === undefined ? {} : { asked }),
+    asked,
     secondsSinceScaffold: project
       ? secondsSince(project.scaffoldedAt, now)
       : record.secondsSinceCreated,
@@ -184,7 +185,7 @@ export function verifyEvent(
           ),
         }
       : {}),
-  };
+  });
 }
 
 /** Each field's downstream use; docs/reference/telemetry.md carries the same table. */

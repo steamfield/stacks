@@ -5,6 +5,7 @@
 import { Effect, Schema } from "effect";
 import { type StepResult, VerifyEvent } from "../../schemas/verify";
 import { Output } from "../../services/output";
+import { defined } from "../object";
 import { printable } from "../text/text";
 import type { PlannedStep } from "./plan";
 
@@ -23,11 +24,13 @@ export const stepStarted = (step: PlannedStep) =>
 
 /** The finish event serves JSON readers. Human progress comes from `runStep`. */
 export const stepFinished = (result: StepResult) =>
-  emit({
-    event: "step-finished",
-    name: result.name,
-    phase: result.phase,
-    status: result.status,
-    ...(result.failureKind === undefined ? {} : { failureKind: result.failureKind }),
-    durationMs: result.durationMs,
-  });
+  emit(
+    defined({
+      event: "step-finished",
+      name: result.name,
+      phase: result.phase,
+      status: result.status,
+      failureKind: result.failureKind,
+      durationMs: result.durationMs,
+    }),
+  );

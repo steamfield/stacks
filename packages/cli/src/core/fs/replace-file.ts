@@ -4,6 +4,7 @@
  * rename replaces a target symlink itself.
  */
 import { Effect, FileSystem, Path, type PlatformError } from "effect";
+import { defined } from "../object";
 
 export const replaceFile = (
   target: string,
@@ -20,10 +21,10 @@ export const replaceFile = (
       });
       const temporary = path.join(directory, "value");
       // `wx` refuses to follow anything already at the temporary path.
-      const writeOptions: { flag: "wx"; mode?: number } = {
+      const writeOptions: { flag: "wx"; mode?: number } = defined({
         flag: "wx",
-        ...(options?.mode === undefined ? {} : { mode: options.mode }),
-      };
+        mode: options?.mode,
+      });
       yield* typeof text === "string"
         ? fs.writeFileString(temporary, text, writeOptions)
         : fs.writeFile(temporary, text, writeOptions);

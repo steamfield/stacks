@@ -16,6 +16,7 @@ import { targetAgents } from "../../compose/agents";
 import { compose } from "../../compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../../compose/files";
 import type { ComposeOptions, Composition } from "../../compose/types";
+import { defined } from "../../object";
 import { type Entry, isFragment, isStack, shippedOnlyFor, shipsFor } from "../../registry/entry";
 import { Registry } from "../../registry/registry";
 import type { Source } from "../sources";
@@ -241,13 +242,16 @@ function recordTemplateFailure(
   );
   if (!entry || !isValidated(view, entry)) return;
   state.findings.push(
-    finding(entry, {
-      check: "compose",
-      severity: "error",
-      file: view.file(entry, details.path),
-      ...(details.line === undefined ? {} : { line: details.line }),
-      message: `${stack.id}: unknown template variable in ${details.path ?? "a shipped file"}`,
-    }),
+    finding(
+      entry,
+      defined({
+        check: "compose",
+        severity: "error",
+        file: view.file(entry, details.path),
+        line: details.line,
+        message: `${stack.id}: unknown template variable in ${details.path ?? "a shipped file"}`,
+      }),
+    ),
   );
 }
 

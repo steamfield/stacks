@@ -5,6 +5,7 @@ import { GIT_REPOSITORY_VARIABLES } from "../../env-names";
 import type { NewResult } from "../../schemas/new";
 import { type Finished, Processes } from "../../services/processes";
 import type { GitState } from "../brief/types";
+import { defined } from "../object";
 import type { Target } from "../scaffold/target";
 
 const TIMEOUT = Duration.seconds(10);
@@ -73,11 +74,11 @@ function withoutToplevel(target: Target, found: Finished | undefined): GitProbe 
   const exitCode = exitOf(found);
   return {
     ...NO_GIT,
-    warning: {
+    warning: defined({
       code: "git_unusable",
       id: "git",
-      ...(exitCode === undefined ? {} : { exitCode }),
-    },
+      exitCode,
+    }),
   };
 }
 

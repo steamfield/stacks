@@ -2,6 +2,7 @@
 import { TelemetryAccepted, type TelemetryBatch } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
 import { type HttpClient, HttpClientRequest } from "effect/http";
+import { defined } from "../core/object";
 import type { TelemetryFlush } from "../schemas/telemetry";
 import { claim, type Pending, recover, restore, trim } from "./spool";
 import { DAY, installId, names, Project, read, remove, type Storage, write } from "./storage";
@@ -112,7 +113,7 @@ const send = Effect.fn("telemetry.send")(function* (input: Delivery, state: Stat
   const { store } = input;
   yield* recover(store);
   const cursor = yield* pruneProjects(store, state.projectCursor);
-  const cleared = { until: 0, ...(cursor === undefined ? {} : { projectCursor: cursor }) };
+  const cleared = defined({ until: 0, projectCursor: cursor });
   if (cursor !== undefined) yield* saveState(store, cleared);
   const events = yield* trim(store);
   if (!events.length) return enabledFlush({ sent: 0, kept: 0, rejected: 0 });

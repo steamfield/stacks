@@ -9,6 +9,7 @@ import {
   type HelpDoc,
 } from "effect/cli";
 import { cli } from "./cli";
+import { defined } from "./core/object";
 import { closest } from "./core/text/suggest";
 import { Usage } from "./errors";
 import { VERSION } from "./version";
@@ -121,13 +122,13 @@ function valueSuggestions(error: CliError.InvalidValue): string[] | undefined {
 function invalidValueUsage(error: CliError.InvalidValue, command: string): Usage {
   const suggestions = valueSuggestions(error);
   return new Usage({
-    details: {
+    details: defined({
       flag: error.kind === "argument" ? error.option : `--${error.option}`,
       value: error.value,
       expected: error.expected,
       command,
-      ...(suggestions === undefined ? {} : { suggestions }),
-    },
+      suggestions,
+    }),
   });
 }
 

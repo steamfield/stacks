@@ -6,6 +6,7 @@ import { Cause, Context, Effect, FileSystem, Layer, Option, Path, Schema } from 
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
 import { Allowlist } from "../core/allowlist";
+import { defined } from "../core/object";
 import { Registry } from "../core/registry/registry";
 import { defectTrace } from "../logging";
 import type { Consent, TelemetryFlush, TelemetryStatus } from "../schemas/telemetry";
@@ -162,7 +163,7 @@ export class Telemetry extends Context.Service<
           })({
             ...(yield* envelope),
             ...(yield* build),
-            ...(eventId === undefined ? {} : { eventId }),
+            ...defined({ eventId }),
           });
           if (config.telemetry.debug) {
             if (output) yield* output.note(JSON.stringify(event));

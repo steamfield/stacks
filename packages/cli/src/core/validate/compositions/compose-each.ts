@@ -4,16 +4,16 @@
  */
 import { AgentId, type FragmentMeta, type StackMeta } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
-import type { ComposeConflict } from "../../errors";
-import type { Finding } from "../../schemas/validate";
-import { compose } from "../compose/compose";
-import { fitsStack } from "../compose/selection";
-import type { ComposeOptions } from "../compose/types";
-import { type Entry, isStack, shippedOnlyFor } from "../registry/entry";
+import type { ComposeConflict } from "../../../errors";
+import type { Finding } from "../../../schemas/validate";
+import { compose } from "../../compose/compose";
+import { fitsStack } from "../../compose/selection";
+import type { ComposeOptions } from "../../compose/types";
+import { type Entry, isStack, shippedOnlyFor } from "../../registry/entry";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 import { uniqueFindings } from "./composed";
 import { compositionSingles, describe, replacementDefaults } from "./compositions";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
 
 type Stack = Entry & { meta: StackMeta };
 type Fragment = Entry & { meta: FragmentMeta };

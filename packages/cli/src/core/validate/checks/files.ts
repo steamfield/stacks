@@ -5,14 +5,14 @@
  */
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
-import type { Finding, SizeRow } from "../../schemas/validate";
-import { countWords } from "../brief/words";
-import { isConditionalMarker, scanConditionals } from "../compose/conditionals";
-import { fitsStack } from "../compose/selection";
-import { type Entry, type EntryFile, isStack, PAYLOADS } from "../registry/entry";
-import { Registry } from "../registry/registry";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding, SizeRow } from "../../../schemas/validate";
+import { countWords } from "../../brief/words";
+import { isConditionalMarker, scanConditionals } from "../../compose/conditionals";
+import { fitsStack } from "../../compose/selection";
+import { type Entry, type EntryFile, isStack, PAYLOADS } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 export const fileChecks: Check = (view) =>
   Effect.gen(function* () {

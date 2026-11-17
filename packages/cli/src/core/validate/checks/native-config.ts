@@ -6,7 +6,7 @@
  */
 import { Result, Schema } from "effect";
 import { parse as parseToml } from "smol-toml";
-import { shellWords } from "../shell";
+import { shellWords } from "../../shell";
 
 export type NativeCommand = { words: readonly string[]; permission: boolean };
 

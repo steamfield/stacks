@@ -4,16 +4,16 @@
  */
 import type { Kind, SearchMetadata, SearchVocabulary } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Result } from "effect";
-import { PermissionDenied } from "../../errors";
-import type { Finding } from "../../schemas/validate";
-import { countWords } from "../brief/words";
-import type { Entry } from "../registry/entry";
-import { Registry } from "../registry/registry";
-import { searchSourceDigest } from "../search/digest";
-import { decodeSidecar, decodeVocabulary, readSearchFile, sidecarPath } from "../search/sidecar";
+import { PermissionDenied } from "../../../errors";
+import type { Finding } from "../../../schemas/validate";
+import { countWords } from "../../brief/words";
+import type { Entry } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import { searchSourceDigest } from "../../search/digest";
+import { decodeSidecar, decodeVocabulary, readSearchFile, sidecarPath } from "../../search/sidecar";
+import type { Check, View } from "../types";
+import { finding } from "../view";
 import { exampleProblems, hedgedExamples } from "./search-examples";
-import type { Check, View } from "./types";
-import { finding } from "./view";
 
 /** Builds a finding about the card being checked, so callers name only check, severity, text. */
 type CardIssue = (check: string, severity: Finding["severity"], message: string) => Finding;

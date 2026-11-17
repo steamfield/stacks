@@ -33,7 +33,7 @@ import { decodeDependencyCards, decodeSidecar } from "./search/sidecar";
 import { composeNew, reportLastRun } from "./show-last-run";
 import { Stats } from "./stats";
 import { closest } from "./suggest";
-import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "./validate/budget";
+import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "./validate/compositions/budget";
 
 /**
  * The full review of entry `id`, from `reviewRoots` or the usual roots (remote index included).

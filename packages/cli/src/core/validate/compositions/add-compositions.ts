@@ -4,21 +4,21 @@
  */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { mergeAddManifest } from "../add/manifest";
-import { renderBrief } from "../brief/render";
-import { targetAgents } from "../compose/agents";
-import { compose, mergeCommands, mergeEnv } from "../compose/compose";
-import { fitsStack } from "../compose/selection";
-import type { Composition } from "../compose/types";
-import { buildManifest } from "../manifest";
-import { type Entry, isFragment, isStack } from "../registry/entry";
+import type { Finding } from "../../../schemas/validate";
+import { mergeAddManifest } from "../../add/manifest";
+import { renderBrief } from "../../brief/render";
+import { targetAgents } from "../../compose/agents";
+import { compose, mergeCommands, mergeEnv } from "../../compose/compose";
+import { fitsStack } from "../../compose/selection";
+import type { Composition } from "../../compose/types";
+import { buildManifest } from "../../manifest";
+import { type Entry, isFragment, isStack } from "../../registry/entry";
+import { duplicateRuns } from "../checks/verify-notes";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 import { canonicalContext, composedLimit } from "./budget";
 import { uniqueFindings } from "./composed";
 import { describe, replacementDefaults } from "./compositions";
-import type { Check, View } from "./types";
-import { duplicateRuns } from "./verify-notes";
-import { entryFile, finding } from "./view";
 
 type Preset = "default" | "sandbox";
 type Agents = ReturnType<typeof targetAgents>;

@@ -3,11 +3,11 @@
  * `missingLayers` defines the required checks, including an expect probe for web and API stacks.
  */
 import { APP_TAG } from "@steamfield/stacks-format";
-import type { Finding, SizeRow } from "../../schemas/validate";
-import type { ComposeWarning, Composition } from "../compose/types";
+import type { Finding, SizeRow } from "../../../schemas/validate";
+import type { ComposeWarning, Composition } from "../../compose/types";
+import type { PlanShape, Preset, Stack, View } from "../types";
+import { entryFile, finding } from "../view";
 import { canonicalBrief, composedLimit } from "./budget";
-import type { PlanShape, Preset, Stack, View } from "./types";
-import { entryFile, finding } from "./view";
 
 type Occurrence = { preset: Preset; plan: PlanShape };
 

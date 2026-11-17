@@ -5,12 +5,12 @@
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
-import type { Finding } from "../../schemas/validate";
-import type { Entry } from "../registry/entry";
-import { shellWords } from "../shell";
-import { sourceOf, uniqueFindings } from "./composed";
-import type { Check, Composed, View } from "./types";
-import { finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import type { Entry } from "../../registry/entry";
+import { shellWords } from "../../shell";
+import { sourceOf, uniqueFindings } from "../compositions/composed";
+import type { Check, Composed, View } from "../types";
+import { finding } from "../view";
 
 type ComposedFile = Composed["files"][number];
 

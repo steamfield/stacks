@@ -3,13 +3,13 @@
  * use file line numbers so authors can jump to the marker.
  */
 import { Effect } from "effect";
-import type { ConditionalProblem } from "../../errors";
-import type { Finding } from "../../schemas/validate";
-import { type Condition, scanConditionals } from "../compose/conditionals";
-import { type Entry, isStack, markdownFile } from "../registry/entry";
-import { Registry } from "../registry/registry";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { ConditionalProblem } from "../../../errors";
+import type { Finding } from "../../../schemas/validate";
+import { type Condition, scanConditionals } from "../../compose/conditionals";
+import { type Entry, isStack, markdownFile } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 const PROBLEMS: Record<ConditionalProblem, string> = {
   unclosed: "a when block has no end marker",

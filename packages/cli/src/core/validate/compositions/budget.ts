@@ -2,12 +2,12 @@
  * Owns entry and composed-brief word budgets. `canonicalContext` keeps counts independent of the
  * machine running validation.
  */
-import { projectFiles } from "../../project-layout";
-import { VERSION } from "../../version";
-import { renderBrief } from "../brief/render";
-import type { Brief, BriefContext } from "../brief/types";
-import type { Composition } from "../compose/types";
-import type { Entry } from "../registry/entry";
+import { projectFiles } from "../../../project-layout";
+import { VERSION } from "../../../version";
+import { renderBrief } from "../../brief/render";
+import type { Brief, BriefContext } from "../../brief/types";
+import type { Composition } from "../../compose/types";
+import type { Entry } from "../../registry/entry";
 
 /**
  * Word budgets keep guidance short enough for an agent to read in one pass. `fixedWords` shows

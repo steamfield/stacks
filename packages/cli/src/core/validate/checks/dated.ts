@@ -4,12 +4,12 @@
  * fenced examples because their contents are code.
  */
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { proseLines } from "../brief/headings";
-import type { Entry } from "../registry/entry";
-import type { EntrySources } from "./sources";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import { proseLines } from "../../brief/headings";
+import type { Entry } from "../../registry/entry";
+import type { EntrySources } from "../sources";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 const MONTHS =
   "January|February|March|April|May|June|July|August|September|October|November|December";

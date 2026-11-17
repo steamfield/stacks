@@ -5,12 +5,12 @@
  */
 import type { FragmentMeta } from "@steamfield/stacks-format";
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { scanConditionals } from "../compose/conditionals";
-import { fitsStack } from "../compose/selection";
-import { type Entry, isFragment, isStack } from "../registry/entry";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import { scanConditionals } from "../../compose/conditionals";
+import { fitsStack } from "../../compose/selection";
+import { type Entry, isFragment, isStack } from "../../registry/entry";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 export const conditionalReachChecks: Check = (view) =>
   Effect.sync(() => ({

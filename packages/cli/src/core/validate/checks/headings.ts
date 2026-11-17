@@ -3,10 +3,10 @@
  * `proseLines` skips fenced examples.
  */
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { proseLines } from "../brief/headings";
-import type { Check } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import { proseLines } from "../../brief/headings";
+import type { Check } from "../types";
+import { entryFile, finding } from "../view";
 
 type ProseLine = ReturnType<typeof proseLines>[number];
 

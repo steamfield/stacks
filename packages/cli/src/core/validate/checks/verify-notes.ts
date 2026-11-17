@@ -3,12 +3,12 @@
  * fragments have nothing checkable and a repeat can be intentional.
  */
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import type { Composition } from "../compose/types";
-import { isFragment } from "../registry/entry";
-import { uniqueFindings } from "./composed";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import type { Composition } from "../../compose/types";
+import { isFragment } from "../../registry/entry";
+import { uniqueFindings } from "../compositions/composed";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 export const verifyNotes: Check = (view) =>
   Effect.gen(function* () {

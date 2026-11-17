@@ -3,11 +3,11 @@
  * validated root gets a note because it depends on the machine’s other registries.
  */
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { type Entry, isStack, type RejectedEntry } from "../registry/entry";
-import { closest } from "../suggest";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import { type Entry, isStack, type RejectedEntry } from "../../registry/entry";
+import { closest } from "../../suggest";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 type Targets = {
   fragments: ReadonlyArray<Entry | RejectedEntry>;

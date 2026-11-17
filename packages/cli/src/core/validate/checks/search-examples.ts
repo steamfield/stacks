@@ -5,11 +5,11 @@
  */
 import type { SearchMetadata } from "@steamfield/stacks-format";
 import { Effect } from "effect";
-import { selectFragments } from "../compose/selection";
-import { isRejected } from "../registry/entry";
-import { Registry } from "../registry/registry";
-import { describe } from "./compositions";
-import type { View } from "./types";
+import { selectFragments } from "../../compose/selection";
+import { isRejected } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import { describe } from "../compositions/compositions";
+import type { View } from "../types";
 
 type Example = NonNullable<SearchMetadata["projectExamples"]>[number];
 

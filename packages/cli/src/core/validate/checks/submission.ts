@@ -4,14 +4,14 @@
  */
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { type Entry, markdownFile } from "../registry/entry";
-import { Registry } from "../registry/registry";
-import { sidecarPath } from "../search/sidecar";
+import type { Finding } from "../../../schemas/validate";
+import { type Entry, markdownFile } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import { sidecarPath } from "../../search/sidecar";
+import { ABSOLUTE_PATH, escapeRegExp, FILL_MARKER, isEnvFile, secretIn } from "../patterns";
+import type { Check, View } from "../types";
+import { finding } from "../view";
 import { unreadable } from "./files";
-import { ABSOLUTE_PATH, escapeRegExp, FILL_MARKER, isEnvFile, secretIn } from "./patterns";
-import type { Check, View } from "./types";
-import { finding } from "./view";
 
 /**
  * Where a scanned text sits: the entry's markdown file, a shipped file under `files/` or

@@ -4,7 +4,7 @@ import { it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { countWords } from "../src/core/brief/words";
-import { BUDGET } from "../src/core/validate/budget";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { BriefPreview, type Finding, ValidateReport } from "../src/schemas/validate";
 import { quiet, runCli, tempDir, terminal, writeError } from "./helpers/cli";
 import { spawnGit } from "./helpers/git";

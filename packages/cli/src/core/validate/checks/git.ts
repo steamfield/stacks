@@ -5,14 +5,14 @@
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Option, Path, Result } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
-import type { SpawnFailed } from "../../errors";
-import type { Finding } from "../../schemas/validate";
-import { type Captured, Processes } from "../../services/processes";
-import { type Entry, markdownFile } from "../registry/entry";
-import { Registry } from "../registry/registry";
-import type { Check, View } from "./types";
-import { finding } from "./view";
+import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../../config";
+import type { SpawnFailed } from "../../../errors";
+import type { Finding } from "../../../schemas/validate";
+import { type Captured, Processes } from "../../../services/processes";
+import { type Entry, markdownFile } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import type { Check, View } from "../types";
+import { finding } from "../view";
 
 /** Paths per `git check-ignore` call, well under any argv limit. */
 const BATCH = 200;

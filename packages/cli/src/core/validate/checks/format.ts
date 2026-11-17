@@ -4,11 +4,11 @@
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { type Entry, markdownFile, type RejectedEntry } from "../registry/entry";
-import { Registry, type Skipped } from "../registry/registry";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import { type Entry, markdownFile, type RejectedEntry } from "../../registry/entry";
+import { Registry, type Skipped } from "../../registry/registry";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 function rejectedCheck(reason: string | undefined, error: string) {
   switch (reason) {

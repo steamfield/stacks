@@ -3,18 +3,18 @@
  * attributes issues to the files that contributed to the rendered config.
  */
 import { Effect, Predicate, Result } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { proseLines } from "../brief/headings";
-import type { Composition } from "../compose/types";
-import { shellWords } from "../shell";
+import type { Finding } from "../../../schemas/validate";
+import { proseLines } from "../../brief/headings";
+import type { Composition } from "../../compose/types";
+import { shellWords } from "../../shell";
+import { sourceOf, uniqueFindings } from "../compositions/composed";
+import type { Source } from "../sources";
+import type { Check, Composed, View } from "../types";
+import { finding } from "../view";
 import { runnerTarget } from "./commands";
-import { sourceOf, uniqueFindings } from "./composed";
 import { isNativeConfig, parseNativeConfig } from "./native-config";
 import { nativeReferences } from "./native-refs";
 import type { ReferenceIssue } from "./reference-issue";
-import type { Source } from "./sources";
-import type { Check, Composed, View } from "./types";
-import { finding } from "./view";
 
 type Emit = (issue: ReferenceIssue) => void;
 type ReferenceFile = { snapshot: Composed; file: Composed["files"][number] };

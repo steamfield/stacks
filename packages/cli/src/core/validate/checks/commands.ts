@@ -3,12 +3,12 @@
  * ship. It uses `shellTokens` for static analysis (trust point 1).
  */
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import type { Composition } from "../compose/types";
-import { shellTokens, shellWords } from "../shell";
-import { uniqueFindings } from "./composed";
-import type { Check, View } from "./types";
-import { entryFile, finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import type { Composition } from "../../compose/types";
+import { shellTokens, shellWords } from "../../shell";
+import { uniqueFindings } from "../compositions/composed";
+import type { Check, View } from "../types";
+import { entryFile, finding } from "../view";
 
 /**
  * The project command a shell command runs through `make`, `bun run`, `npm run`, `pnpm` or `yarn`

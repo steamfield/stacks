@@ -4,12 +4,12 @@
  * expression intact.
  */
 import { Effect } from "effect";
-import type { Finding } from "../../schemas/validate";
-import type { Entry } from "../registry/entry";
-import { TEMPLATE_VARIABLES } from "../template";
-import type { Source } from "./sources";
-import type { Check, View } from "./types";
-import { finding } from "./view";
+import type { Finding } from "../../../schemas/validate";
+import type { Entry } from "../../registry/entry";
+import { TEMPLATE_VARIABLES } from "../../template";
+import type { Source } from "../sources";
+import type { Check, View } from "../types";
+import { finding } from "../view";
 
 function templateFindings(view: View, entry: Entry, file: Source): Finding[] {
   if (!file.source.endsWith(".tmpl")) return [];

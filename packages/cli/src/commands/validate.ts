@@ -2,8 +2,8 @@
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { shownPath } from "../core/shown-path";
+import { previewBrief } from "../core/validate/compositions/preview";
 import { validate } from "../core/validate/index";
-import { previewBrief } from "../core/validate/preview";
 import {
   renderPreview,
   renderPreviewBrief,

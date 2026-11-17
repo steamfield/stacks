@@ -9,7 +9,7 @@ import { goAllowlistKey } from "./deps";
 import { DEFAULT_PAYLOAD } from "./registry/entry";
 import { statsFields, statsLine } from "./stats-text";
 import { printable } from "./text";
-import { BUDGET } from "./validate/budget";
+import { BUDGET } from "./validate/compositions/budget";
 import { wrap, wrapWords } from "./wrap";
 
 /** The terminal width and the display-width measure that wraps human text. */

@@ -1,5 +1,5 @@
 /** Describes a reference problem in rendered config before `sourceOf` attributes it to an entry. */
-import type { Finding } from "../../schemas/validate";
+import type { Finding } from "../../../schemas/validate";
 
 export type ReferenceIssue = {
   check: string;

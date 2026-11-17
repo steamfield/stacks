@@ -17,7 +17,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { MANIFEST_PATH } from "../src/core/manifest";
 import { type Entry, isRejected } from "../src/core/registry/entry";
 import { Registry, type RegistryRoots, trustOf } from "../src/core/registry/registry";
-import { BUDGET } from "../src/core/validate/budget";
+import { BUDGET } from "../src/core/validate/compositions/budget";
 import { EntryInvalid, NotFound, PermissionDenied } from "../src/errors";
 import { NewResult } from "../src/schemas/new";
 import { quiet, runCli, tempDir } from "./helpers/cli";

@@ -11,14 +11,16 @@ import type {
   EntryInvalid,
   NotFound,
   PermissionDenied,
-} from "../../errors";
-import type { Finding, SizeRow } from "../../schemas/validate";
-import { countWords } from "../brief/words";
-import { targetAgents } from "../compose/agents";
-import { compose } from "../compose/compose";
-import { fitsStack } from "../compose/selection";
-import type { Composition } from "../compose/types";
-import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
+} from "../../../errors";
+import type { Finding, SizeRow } from "../../../schemas/validate";
+import { countWords } from "../../brief/words";
+import { targetAgents } from "../../compose/agents";
+import { compose } from "../../compose/compose";
+import { fitsStack } from "../../compose/selection";
+import type { Composition } from "../../compose/types";
+import { type Entry, isFragment, isRejected, type RejectedEntry } from "../../registry/entry";
+import { type Check, type PlanShape, PRESETS, type Preset, type Stack, type View } from "../types";
+import { entryFile, finding } from "../view";
 import { bodyLimit } from "./budget";
 import {
   emptyResults,
@@ -29,8 +31,6 @@ import {
   type StackResults,
   stackFindings,
 } from "./composition-findings";
-import { type Check, type PlanShape, PRESETS, type Preset, type Stack, type View } from "./types";
-import { entryFile, finding } from "./view";
 
 type ComposeFailure = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;
 type Fragment = Entry & { meta: FragmentMeta };

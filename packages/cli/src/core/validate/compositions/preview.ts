@@ -4,26 +4,26 @@
  * and fingerprint bytes.
  */
 import { Effect, Path } from "effect";
-import { AppConfig } from "../../config";
-import { BadInput, NotFound } from "../../errors";
-import type { BriefPreview, Finding } from "../../schemas/validate";
-import { targetAgents } from "../compose/agents";
-import { compose } from "../compose/compose";
-import type { ComposeOptions, Composition } from "../compose/types";
-import { fingerprint } from "../fingerprint";
-import { type Entry, isRejected, type RejectedEntry } from "../registry/entry";
-import { Registry } from "../registry/registry";
+import { AppConfig } from "../../../config";
+import { BadInput, NotFound } from "../../../errors";
+import type { BriefPreview, Finding } from "../../../schemas/validate";
+import { targetAgents } from "../../compose/agents";
+import { compose } from "../../compose/compose";
+import type { ComposeOptions, Composition } from "../../compose/types";
+import { fingerprint } from "../../fingerprint";
+import { type Entry, isRejected, type RejectedEntry } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import { loadChecks } from "../checks/format";
+import { gitChecks } from "../checks/git";
+import { checks, compareFindings, validationRoots } from "../index";
+import { readSources } from "../sources";
+import type { Target } from "../target";
+import type { View } from "../types";
+import { rootPaths } from "../view";
 import { addCompositionChecks } from "./add-compositions";
 import { canonicalBrief, composedLimit } from "./budget";
 import { composeEachChecks } from "./compose-each";
 import { composedFiles } from "./composed";
-import { loadChecks } from "./format";
-import { gitChecks } from "./git";
-import { checks, compareFindings, validationRoots } from "./index";
-import { readSources } from "./sources";
-import type { Target } from "./target";
-import type { View } from "./types";
-import { rootPaths } from "./view";
 
 type PreviewOptions = {
   stack: string;

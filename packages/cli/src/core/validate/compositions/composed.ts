@@ -10,18 +10,18 @@ import type {
   EntryInvalid,
   NotFound,
   PermissionDenied,
-} from "../../errors";
-import type { Finding } from "../../schemas/validate";
-import { targetAgents } from "../compose/agents";
-import { compose } from "../compose/compose";
-import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../compose/files";
-import type { ComposeOptions, Composition } from "../compose/types";
-import { type Entry, isFragment, isStack, shippedOnlyFor, shipsFor } from "../registry/entry";
-import { Registry } from "../registry/registry";
+} from "../../../errors";
+import type { Finding } from "../../../schemas/validate";
+import { targetAgents } from "../../compose/agents";
+import { compose } from "../../compose/compose";
+import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../../compose/files";
+import type { ComposeOptions, Composition } from "../../compose/types";
+import { type Entry, isFragment, isStack, shippedOnlyFor, shipsFor } from "../../registry/entry";
+import { Registry } from "../../registry/registry";
+import type { Source } from "../sources";
+import type { Check, Composed, RenderState, SourceView, View } from "../types";
+import { entryFile, finding } from "../view";
 import { compositionPlans, describe, replacementDefaults } from "./compositions";
-import type { Source } from "./sources";
-import type { Check, Composed, RenderState, SourceView, View } from "./types";
-import { entryFile, finding } from "./view";
 
 /** A compose failure only the per-adapter render reports. */
 type ComposeFailure = ComposeConflict | EntryInvalid;

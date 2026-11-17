@@ -4,15 +4,15 @@
  * break projects.
  */
 import { Effect, Result } from "effect";
-import type { LedgerRecord } from "../../schemas/ledger";
-import type { Finding } from "../../schemas/validate";
-import { compose } from "../compose/compose";
-import type { ComposeOptions } from "../compose/types";
-import { fingerprint, proofFingerprint } from "../fingerprint";
-import { latestRecord, ledgerAdapterSets, readCanaries, readLedger } from "../ledger";
-import type { Entry } from "../registry/entry";
-import type { Check } from "./types";
-import { entryFile, finding } from "./view";
+import type { LedgerRecord } from "../../../schemas/ledger";
+import type { Finding } from "../../../schemas/validate";
+import { compose } from "../../compose/compose";
+import type { ComposeOptions } from "../../compose/types";
+import { fingerprint, proofFingerprint } from "../../fingerprint";
+import { latestRecord, ledgerAdapterSets, readCanaries, readLedger } from "../../ledger";
+import type { Entry } from "../../registry/entry";
+import type { Check } from "../types";
+import { entryFile, finding } from "../view";
 
 export const ledgerChecks: Check = (view) =>
   Effect.gen(function* () {

@@ -10,13 +10,13 @@ import {
   type Ecosystem as EcosystemType,
 } from "@steamfield/stacks-format";
 import { Clock, Effect, FileSystem, Path, Result, Schema } from "effect";
-import type { Finding } from "../../schemas/validate";
-import { countWords } from "../brief/words";
-import { goAllowlistKey } from "../deps";
-import { readSearchFile } from "../search/sidecar";
+import type { Finding } from "../../../schemas/validate";
+import { countWords } from "../../brief/words";
+import { goAllowlistKey } from "../../deps";
+import { readSearchFile } from "../../search/sidecar";
+import type { Check, View } from "../types";
+import { finding } from "../view";
 import { versionedPlain } from "./search";
-import type { Check, View } from "./types";
-import { finding } from "./view";
 
 /** A reviewed card is due for another review once its review date is this old. */
 const REVIEW_INTERVAL_MS = 365 * 86_400_000;

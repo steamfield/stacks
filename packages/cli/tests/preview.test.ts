@@ -14,7 +14,7 @@ import { afterEach, expect, test } from "vitest";
 import { cli } from "../src/cli";
 import * as T from "../src/core/brief/text";
 import { countWords } from "../src/core/brief/words";
-import { canonicalContext } from "../src/core/validate/budget";
+import { canonicalContext } from "../src/core/validate/compositions/budget";
 import { NewResult } from "../src/schemas/new";
 import { BriefPreview, Finding, ValidateReport } from "../src/schemas/validate";
 import { VERSION } from "../src/version";

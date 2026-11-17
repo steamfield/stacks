@@ -52,6 +52,11 @@ test("a slow terminal redraw has the same snapshot as a fast step", () => {
   ).toBe(expected);
 });
 
+test("human captures strip trailing carriage returns and preserve them within a line", () => {
+  const capture = "show\r\r\nvalidate\r\nprogress\rresult\nfinal\r";
+  expect(normalizeTerminal(capture)).toBe("show\nvalidate\nprogress\rresult\nfinal");
+});
+
 test("only same-timestamp telemetry events lose the random UUID ordering", () => {
   const envelope = {
     schemaVersion: 3,

@@ -4,6 +4,7 @@ import { Schema } from "effect";
 export type Normalize = (text: string) => string;
 
 const ERASE = "\r\u001b[2K";
+const TRAILING_TERMINAL_CR = /\r+(?=\n|$)/g;
 
 export function normalizeTerminal(text: string) {
   // script(1) can echo its injected EOF. Spinner redraws depend on when a step is scheduled.
@@ -12,7 +13,7 @@ export function normalizeTerminal(text: string) {
     .split(ERASE)
     .filter((part, index) => index === 0 || !/^[|/\\-] [^\r\n]*$/.test(part))
     .join("")
-    .replaceAll("\r\n", "\n");
+    .replace(TRAILING_TERMINAL_CR, "");
 }
 
 type Event = TelemetryBatch["events"][number];

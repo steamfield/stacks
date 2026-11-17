@@ -14,6 +14,7 @@ import {
   type AppError,
   BrokenPipe,
   Defect,
+  errorTable,
   exitCode,
   Interrupted,
   keepsResult,
@@ -70,7 +71,7 @@ export function main({
         ),
       );
       const observed = observeExit(exit, help.last());
-      if (observed.error instanceof BrokenPipe) return 0;
+      if (observed.error instanceof BrokenPipe) return exitStatus({ error: observed.error });
       if (hasFrameworkOutput(observed, framework))
         yield* writeFramework({ framework, args, invocation });
       // Log lines reach stderr only for a human; an agent or JSON reader gets them in the file only.
@@ -78,12 +79,11 @@ export function main({
       const quiet = output.audience !== "human";
       yield* logging.flush(settings, quiet);
       const written = yield* settleOutput(observed.error, invocation, reported.state.rollback);
-      if (written.closed) return 0;
-      yield* (yield* Telemetry).flushAfterOutput;
       const { error, unwritten } = written;
+      if (quietBrokenPipe(written)) return exitStatus(written);
+      yield* (yield* Telemetry).flushAfterOutput;
       const defect = written.defect ?? observed.defect;
-      // A command's own status (a launched agent's) applies only when the command succeeded.
-      const status = error ? exitCode(error) : (reported.state.status ?? 0);
+      const status = exitStatus({ ...written, agentStatus: reported.state.status });
       const finished = yield* Clock.currentTimeMillis;
       recordCommand({
         settings,
@@ -184,21 +184,23 @@ const writeFramework = ({ framework, args, invocation }: FrameworkOutput) =>
   });
 
 /**
- * What writing the outcome left: the error to report (possibly replaced by a `Defect`), a defect
- * trace, the tag of a kept result that couldn't be written, or `closed` when a stream closed and
- * the invocation ends quietly with 0.
+ * A closed stream and an unwritten result are distinct. Only `unwritten` adds a write error to
+ * the command log. `defect` is a trace from settling output itself.
  */
 type WriteOutcome = { error?: AppError; defect?: string; unwritten?: string; closed?: boolean };
 
-/** Returns the write error tag when the report could not be flushed, except for EPIPE. */
-const flushKeptResult = Effect.gen(function* () {
+const flushKeptResult: Effect.Effect<
+  Pick<WriteOutcome, "closed" | "unwritten">,
+  never,
+  Output
+> = Effect.gen(function* () {
   const output = yield* Output;
   const flushed = yield* Effect.exit(output.flush);
-  if (Exit.isSuccess(flushed)) return undefined;
+  if (Exit.isSuccess(flushed)) return {};
   const failure = flushed.cause.reasons.find(Cause.isFailReason);
-  if (failure && !(failure.error instanceof BrokenPipe))
-    return knownError(failure.error)?._tag ?? "Defect";
-  return undefined;
+  if (!failure) return {};
+  if (failure.error instanceof BrokenPipe) return { closed: true };
+  return { unwritten: knownError(failure.error)?._tag ?? "Defect" };
 });
 
 const writeFailure = (
@@ -208,25 +210,20 @@ const writeFailure = (
 ): Effect.Effect<WriteOutcome, never, Output> =>
   Effect.gen(function* () {
     const output = yield* Output;
-    // For tags selected by `keepsResult`, flush the handler's buffered report before the envelope.
-    // Preserve the failure status even if a downstream reader closed the pipe.
     const keep = keepsResult(error);
-    const unwritten = keep ? yield* flushKeptResult : undefined;
+    const result = keep ? yield* flushKeptResult : {};
     if (!keep) yield* output.clear;
     const written = yield* Effect.exit(output.error(error, invocation, rollback));
-    if (Exit.isSuccess(written)) return { error, unwritten };
-    if (
-      !keep &&
-      written.cause.reasons.some(
-        (reason) => Cause.isFailReason(reason) && reason.error instanceof BrokenPipe,
-      )
-    )
-      return { closed: true };
-    if (!written.cause.reasons.some(Cause.isDieReason)) return { error, unwritten };
+    if (Exit.isSuccess(written)) return { ...result, error };
+    const closed = written.cause.reasons.some(
+      (reason) => Cause.isFailReason(reason) && reason.error instanceof BrokenPipe,
+    );
+    const outcome = { ...result, error, closed: result.closed || closed };
+    if (quietBrokenPipe(outcome) || !written.cause.reasons.some(Cause.isDieReason)) return outcome;
     // The details didn't encode against their closed schema: report a defect instead.
     const defect = new Defect();
     yield* output.error(defect, invocation, rollback).pipe(Effect.ignoreCause);
-    return { error: defect, defect: defectTrace(Cause.squash(written.cause)), unwritten };
+    return { ...outcome, error: defect, defect: defectTrace(Cause.squash(written.cause)) };
   });
 
 /** Flushes a successful result; a write failure other than a closed stream becomes the error. */
@@ -317,4 +314,19 @@ function recordCommand({
 /** Framework text is printed only on success: a help request or anything the framework logged. */
 function hasFrameworkOutput(observed: ObservedExit, framework: string[]): boolean {
   return !observed.error && (observed.help || framework.length > 0);
+}
+
+function quietBrokenPipe({ error, closed, defect }: WriteOutcome): boolean {
+  if (error instanceof BrokenPipe) return true;
+  // A defect encoding a keeps-result envelope still wins after EPIPE flushing its report.
+  if (!closed || defect !== undefined) return false;
+  return error === undefined || !keepsResult(error);
+}
+
+function exitStatus(outcome: WriteOutcome & { agentStatus?: number }): number {
+  if (quietBrokenPipe(outcome)) return errorTable.BrokenPipe.exit;
+  // Kept reports, including closed and unwritten ones, interruptions and defects use the tag's
+  // exit. Only a successful command uses the status set by Invocation.exitWith.
+  if (outcome.error !== undefined) return exitCode(outcome.error);
+  return outcome.agentStatus ?? 0;
 }

@@ -5,6 +5,7 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 import type { Build } from "./build";
 import { AppConfig, type Environment } from "./config";
+import { EXIT_INTERRUPTED } from "./errors";
 import { Logging } from "./logging";
 import type { Host } from "./services/host";
 import type { Output } from "./services/output";
@@ -31,7 +32,7 @@ export const AppLayer = ({
 /**
  * Runs `program` and returns its exit status. `main` settles output under a mask, but a fiber
  * interrupted by `signal` stays interrupted after that cleanup, so an interrupt-only outcome maps
- * to 130 here. Anything else that escapes `main` is rethrown for Node to report.
+ * to `EXIT_INTERRUPTED` here. Anything else that escapes `main` is rethrown for Node to report.
  */
 export async function runInvocation(
   program: Effect.Effect<number>,
@@ -39,6 +40,6 @@ export async function runInvocation(
 ): Promise<number> {
   const exit = await Effect.runPromiseExit(program, { signal });
   if (Exit.isSuccess(exit)) return exit.value;
-  if (Cause.hasInterruptsOnly(exit.cause)) return 130;
+  if (Cause.hasInterruptsOnly(exit.cause)) return EXIT_INTERRUPTED;
   throw Cause.squash(exit.cause);
 }

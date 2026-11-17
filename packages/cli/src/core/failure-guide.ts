@@ -217,66 +217,50 @@ function permissionGuide(error: PermissionDenied): FailureGuide {
       [],
       "check the permissions on the files this command reads and writes, then run it again.",
     );
-  const why = permissionReason(details.reason);
+  const why = permissionReasons[details.reason];
   return guide(
     [...(details.path ? [`Path: ${printable(details.path)}`] : []), ...why.lines],
     why.next,
   );
 }
 
-function permissionReason(reason: (typeof PermissionDeniedDetails.Type)["reason"]): FailureGuide {
-  switch (reason) {
-    case "read":
-      return guide([], "check the path's read permissions, then run this command again.");
-    case "escape":
-      return guide(
-        ["The path resolves outside the project directory, through a symlink or `..`."],
-        "remove that symlink from the project directory, or pick another directory.",
-      );
-    case "blocked":
-      return guide(
-        [
-          "A file or directory in the project is in the way of a planned path. Nothing was changed.",
-        ],
-        "move or rename the blocking item, then run add again.",
-      );
-    case "unwritable":
-      return guide(
-        ["The project directory or a file in it can't be written. Nothing was left behind."],
-        "pick a directory you can write to, or fix this one's permissions.",
-      );
-    case "agent":
-      return guide(
-        ["This needs a person's confirmation, and an agent was detected. Nothing was changed."],
-        "ask the user to run this command from their own terminal.",
-      );
-    case "no-tty":
-      return guide(
-        ["This needs a person's confirmation, and stdin is not a terminal. Nothing was changed."],
-        "run this command from a terminal.",
-      );
-    case "state-unwritable":
-      return guide(
-        [
-          "The state record outside the project can't be written, so nothing was confirmed or changed.",
-        ],
-        "make that directory writable (or set STACKS_STATE_DIR to one that is), then run this command again.",
-      );
-    case "launch":
-      return guide(
-        ["The agent CLI was found on PATH but can't be run by you. The project was written."],
-        "fix the binary's permissions, or start your agent in the project yourself.",
-      );
-    case "github":
-      return guide(
-        ["GitHub refused to fork the repository or push the branch for the account gh uses."],
-        "run gh auth status to see that account, log in with one that can fork the repository (gh auth login), then run submit again.",
-      );
-    // A write to stdout or stderr failed, so nothing can be shown anyway.
-    case "write":
-      return guide([]);
-  }
-}
+const permissionReasons = {
+  read: guide([], "check the path's read permissions, then run this command again."),
+  escape: guide(
+    ["The path resolves outside the project directory, through a symlink or `..`."],
+    "remove that symlink from the project directory, or pick another directory.",
+  ),
+  blocked: guide(
+    ["A file or directory in the project is in the way of a planned path. Nothing was changed."],
+    "move or rename the blocking item, then run add again.",
+  ),
+  unwritable: guide(
+    ["The project directory or a file in it can't be written. Nothing was left behind."],
+    "pick a directory you can write to, or fix this one's permissions.",
+  ),
+  agent: guide(
+    ["This needs a person's confirmation, and an agent was detected. Nothing was changed."],
+    "ask the user to run this command from their own terminal.",
+  ),
+  "no-tty": guide(
+    ["This needs a person's confirmation, and stdin is not a terminal. Nothing was changed."],
+    "run this command from a terminal.",
+  ),
+  "state-unwritable": guide(
+    ["The state record outside the project can't be written, so nothing was confirmed or changed."],
+    "make that directory writable (or set STACKS_STATE_DIR to one that is), then run this command again.",
+  ),
+  launch: guide(
+    ["The agent CLI was found on PATH but can't be run by you. The project was written."],
+    "fix the binary's permissions, or start your agent in the project yourself.",
+  ),
+  github: guide(
+    ["GitHub refused to fork the repository or push the branch for the account gh uses."],
+    "run gh auth status to see that account, log in with one that can fork the repository (gh auth login), then run submit again.",
+  ),
+  // This guide also renders write failures where stderr is still open.
+  write: guide([]),
+} satisfies Record<(typeof PermissionDeniedDetails.Type)["reason"], FailureGuide>;
 
 // TargetNotEmpty
 

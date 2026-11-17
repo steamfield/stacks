@@ -2,7 +2,7 @@
  * Defines shared validation contracts separately from check orchestration so checks can use them
  * without depending on their runner.
  */
-import type { Kind, StackMeta } from "@steamfield/stacks-format";
+import type { Kind } from "@steamfield/stacks-format";
 import type { Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
 import type { PermissionDenied } from "../../errors";
@@ -10,13 +10,12 @@ import type { Finding, SizeRow } from "../../schemas/validate";
 import type { Processes } from "../../services/processes";
 import type { RenderedFile } from "../compose/files";
 import type { ComposeOptions, Composition } from "../compose/types";
-import type { Entry, RejectedEntry } from "../registry/entry";
+import type { Entry, RegistryEntry, RejectedEntry } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import type { EntrySources } from "./sources";
 
 export const PRESETS = ["default", "sandbox"] as const;
 export type Preset = (typeof PRESETS)[number];
-export type Stack = Entry & { meta: StackMeta };
 
 /** One composition to check: `added` names the extra fragments, undefined for the base one. */
 export type PlanShape = {
@@ -52,7 +51,7 @@ export type View = {
   only?: { kind: Kind; id: string };
   entries: ReadonlyArray<Entry>;
   rejected: ReadonlyArray<RejectedEntry>;
-  all: ReadonlyArray<Entry | RejectedEntry>;
+  all: ReadonlyArray<RegistryEntry>;
   /** Each readable entry's markdown text and shipped files, keyed by the entry's directory. */
   sources: ReadonlyMap<string, EntrySources>;
   /** Renders the compositions under check on first use; later runs return the same state. */

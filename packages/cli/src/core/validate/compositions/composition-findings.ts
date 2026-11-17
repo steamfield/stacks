@@ -5,7 +5,8 @@
 import { APP_TAG } from "@steamfield/stacks-format";
 import type { Finding, SizeRow } from "../../../schemas/validate";
 import type { ComposeWarning, Composition } from "../../compose/types";
-import type { PlanShape, Preset, Stack, View } from "../types";
+import type { Stack } from "../../registry/entry";
+import type { PlanShape, Preset, View } from "../types";
 import { entryFile, finding } from "../view";
 import { canonicalBrief, composedLimit } from "./budget";
 

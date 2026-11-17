@@ -5,7 +5,7 @@
  */
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
-import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
+import { type Entry, isFragment, isRejected, type RegistryEntry } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { defaultRoots, type RegistryRoots } from "../registry/roots";
 import { authorChecks } from "./checks/authors";
@@ -122,15 +122,15 @@ const wantedBy =
  * stacks would cost time that grows with the bundled registry for nothing.
  */
 function sourceEntries(
-  all: ReadonlyArray<Entry | RejectedEntry>,
-  validated: ReadonlyArray<Entry | RejectedEntry>,
+  all: ReadonlyArray<RegistryEntry>,
+  validated: ReadonlyArray<RegistryEntry>,
 ): ReadonlyArray<Entry> {
   const entries = all.filter((item): item is Entry => !isRejected(item));
   if (entries.some((item) => validated.includes(item) && isFragment(item))) return entries;
   return entries.filter((item) => validated.includes(item) || isFragment(item));
 }
 
-const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
+const buildView = (target: Target, all: ReadonlyArray<RegistryEntry>) =>
   Effect.gen(function* () {
     const path = yield* Path.Path;
     const { inRoot, file } = rootPaths(path, target.root);
@@ -141,7 +141,7 @@ const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
       bundled: target.bundled,
       ...(target.only === undefined ? {} : { only: target.only }),
       entries: validated.filter((item): item is Entry => !isRejected(item)),
-      rejected: validated.filter((item): item is RejectedEntry => isRejected(item)),
+      rejected: validated.filter(isRejected),
       all,
       sources: yield* readSources(sourceEntries(all, validated)),
       wanted,

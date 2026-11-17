@@ -6,7 +6,7 @@
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
 import type { Finding } from "../../../schemas/validate";
-import type { Entry } from "../../registry/entry";
+import { type Entry, isFragment } from "../../registry/entry";
 import { shellWords } from "../../text/shell";
 import { sourceOf, uniqueFindings } from "../compositions/composed";
 import type { Check, Composed, View } from "../types";
@@ -101,8 +101,7 @@ function allowedOwners(view: View, entry: Entry, source: string): Set<string> {
     if (allowed.has(key)) continue;
     allowed.add(key);
     const dependency = view.all.find((item) => item.kind === "fragment" && item.id === id);
-    if (dependency && "meta" in dependency && dependency.meta.kind === "fragment")
-      pending.push(...dependency.meta.requires);
+    if (dependency && isFragment(dependency)) pending.push(...dependency.meta.requires);
   }
   return allowed;
 }

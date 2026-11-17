@@ -14,7 +14,7 @@ import {
 } from "../core/list/index";
 import { renderAddable, renderList } from "../core/list/report";
 import { MANIFEST_PATH, readManifest } from "../core/project/manifest";
-import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
+import { isRejected, type RegistryEntry } from "../core/registry/entry";
 import { Registry } from "../core/registry/registry";
 import { projectRoots, type RegistryRoots } from "../core/registry/roots";
 import { Stats } from "../core/stats/index";
@@ -79,13 +79,10 @@ const loadRegistry = (roots: RegistryRoots) =>
 
 /** One row per usable entry, whatever the group, for the addable view and the catalog's counts. */
 const allRows = (
-  items: ReadonlyArray<Entry | RejectedEntry>,
+  items: ReadonlyArray<RegistryEntry>,
   records: ReadonlyArray<LedgerRecord>,
   authors: AuthorsFile,
-) =>
-  items
-    .filter((item): item is Entry => !isRejected(item))
-    .map((entry) => toRow(entry, records, authors));
+) => items.filter((item) => !isRejected(item)).map((entry) => toRow(entry, records, authors));
 
 /** Rejected rows with their directories as text shows them: relative for an agent. */
 const shownRejected = (rejected: ListResult["rejected"], agent: boolean) =>

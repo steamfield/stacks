@@ -11,7 +11,7 @@ import { targetAgents } from "../../compose/agents";
 import { compose } from "../../compose/compose";
 import type { ComposeOptions, Composition } from "../../compose/types";
 import { fingerprint } from "../../fingerprint";
-import { type Entry, isRejected, type RejectedEntry } from "../../registry/entry";
+import { type Entry, isRejected, type RegistryEntry } from "../../registry/entry";
 import { Registry } from "../../registry/registry";
 import { loadChecks } from "../checks/format";
 import { gitChecks } from "../checks/git";
@@ -63,7 +63,7 @@ const previewInRegistry = (target: Target, options: ComposeOptions) =>
   });
 
 /** `--brief` takes a stack; an id that only a fragment has is a usage mistake, not "not found". */
-function namesOnlyAFragment(all: ReadonlyArray<Entry | RejectedEntry>, id: string): boolean {
+function namesOnlyAFragment(all: ReadonlyArray<RegistryEntry>, id: string): boolean {
   return (
     !all.some((entry) => entry.kind === "stack" && entry.id === id) &&
     all.some((entry) => entry.kind === "fragment" && entry.id === id)
@@ -91,7 +91,7 @@ const previewView = (
     composition,
     options,
   }: {
-    all: ReadonlyArray<Entry | RejectedEntry>;
+    all: ReadonlyArray<RegistryEntry>;
     composition: Composition;
     options: ComposeOptions;
   },

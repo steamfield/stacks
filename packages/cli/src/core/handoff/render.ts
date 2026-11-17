@@ -1,10 +1,11 @@
 /** Renders the handoff prompt, picker and launch examples. */
 import type { AgentId, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../../project-layout";
+import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { shellArg } from "../text/shell";
 import { printable } from "../text/text";
-import type { HandoffDecision } from "./decide";
+import type { HandoffDecision, SettledHandoff } from "./decide";
 import { LAUNCH_ARGS, LAUNCH_ORDER } from "./launchers";
 
 /** The binaries of every terminal launcher, in launch order, as the no-agent-found line names them. */
@@ -24,6 +25,15 @@ export const pickerText = (options: ReadonlyArray<Harness>) => {
 /** The one prompt every outcome gives the agent. No quotes or backticks, so it pastes into a shell. */
 export const agentPrompt = (invocation: string) =>
   `Read ${BRIEF_PATH} and carry it out. It's your full task for this project; you're done when ${invocation} verify passes.`;
+
+export const handoffResult = (
+  decision: Exclude<SettledHandoff, { kind: "launch" }>,
+  invocation: string,
+): NewResult["handoff"] => ({
+  ...decision,
+  untrusted: [...decision.untrusted],
+  prompt: agentPrompt(invocation),
+});
 
 /** Text a POSIX shell takes literally without any quoting. */
 const SHELL_SAFE = /^[A-Za-z0-9._/+-]+$/;

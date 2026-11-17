@@ -3,8 +3,16 @@ import { Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import type { Composition } from "../core/compose/types";
-import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
-import { completeHandoff, prepareHandoff } from "../core/handoff/run";
+import { type SettledHandoff, settleHandoff } from "../core/handoff/decide";
+import { handoffResult, renderHandoff } from "../core/handoff/render";
+import {
+  annotateHandoff,
+  handoffContext,
+  launchHandoff,
+  prepareHandoff,
+  printLaunch,
+  resolveChoice,
+} from "../core/handoff/run";
 import { templateOverrides } from "../core/project/template-values";
 import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
@@ -160,36 +168,34 @@ function leftOutFragments(composition: Composition, without: ReadonlyArray<strin
  * Records the `new` telemetry event with the settled handoff, then flushes the spool. A preview
  * records nothing, and without consent the left-out fragments aren't looked up.
  */
-const recordNew =
-  (input: {
-    telemetry: Telemetry["Service"];
-    registry: Registry["Service"];
-    scaffolded: Scaffolded;
-    without: ReadonlyArray<string>;
-    source: Effect.Success<ReturnType<typeof sourceValue>>;
-  }) =>
-  (settled: HandoffDecision) =>
-    Effect.gen(function* () {
-      const { telemetry, registry } = input;
-      const { result, manifest, composition } = input.scaffolded;
-      if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
-      const without = yield* Effect.forEach(leftOutFragments(composition, input.without), (id) =>
-        registry
-          .get("fragment", id)
-          .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
-      );
-      yield* telemetry.recordScaffold(
-        {
-          type: "new",
-          manifest: { ...manifest, handoff: handoffRecord(settled, manifest.createdAt) },
-          without,
-          source: input.source,
-          steps: officialSteps(composition),
-        },
-        registry,
-      );
-      yield* telemetry.flush;
-    });
+const recordNew = Effect.fn("new.recordTelemetry")(function* (input: {
+  telemetry: Telemetry["Service"];
+  registry: Registry["Service"];
+  scaffolded: Scaffolded;
+  decision: SettledHandoff;
+  without: ReadonlyArray<string>;
+  source: Effect.Success<ReturnType<typeof sourceValue>>;
+}) {
+  const { telemetry, registry } = input;
+  const { result, manifest, composition } = input.scaffolded;
+  if (result.dryRun || (yield* telemetry.consent) !== "enabled") return;
+  const without = yield* Effect.forEach(leftOutFragments(composition, input.without), (id) =>
+    registry
+      .get("fragment", id)
+      .pipe(Effect.orElseSucceed(() => ({ id, origin: "unknown", trusted: false }))),
+  );
+  yield* telemetry.recordScaffold(
+    {
+      type: "new",
+      manifest: settleHandoff(manifest, input.decision, manifest.createdAt),
+      without,
+      source: input.source,
+      steps: officialSteps(composition),
+    },
+    registry,
+  );
+  yield* telemetry.flush;
+});
 
 export const newCommand = Command.make("new", newFlags, (flags) =>
   Effect.gen(function* () {
@@ -198,28 +204,32 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
     const source = yield* sourceValue(flags.source);
     const options = yield* resolveArguments(flags);
     yield* (yield* Allowlist).refresh;
-    const handoff = yield* prepareHandoff(flags, json);
-    const scaffolded = yield* scaffold({ ...options, handoff });
-    const { result, decision } = scaffolded;
+    const preferences = yield* prepareHandoff(flags, json);
+    const scaffolded = yield* scaffold({ ...options, handoff: preferences });
+    const { result } = scaffolded;
     const telemetry = yield* Telemetry;
     const registry = yield* Registry;
-    yield* completeHandoff({
-      project: result.project,
-      agent: result.agents[0],
-      untrusted: result.untrusted,
+    const context = yield* handoffContext(result.project, result.agents[0], result.untrusted);
+    const summary = renderNew({ ...result, untrusted: context.untrusted }, context);
+    const { decision, prefix } = yield* resolveChoice(scaffolded.decision, result.project, summary);
+    yield* recordNew({
+      telemetry,
+      registry,
+      scaffolded,
       decision,
-      preview: result.dryRun,
-      beforeHandoff: recordNew({
-        telemetry,
-        registry,
-        scaffolded,
-        without: options.without,
-        source,
-      }),
-      render: (context) =>
-        renderNew({ ...result, untrusted: context.untrusted }, { ...context, style: output.style }),
-      encode: (handoff) => Schema.encodeSync(NewResult)({ ...result, handoff }),
+      without: options.without,
+      source,
     });
+    yield* annotateHandoff(decision);
+    if (decision.kind !== "launch") {
+      const handoff = handoffResult(decision, context.invocation);
+      return yield* output.result(
+        Schema.encodeSync(NewResult)({ ...result, handoff }),
+        result.dryRun ? summary : `${prefix}${renderHandoff(decision, context)}`,
+      );
+    }
+    yield* printLaunch(decision, context.shown, prefix);
+    yield* launchHandoff(decision, result.project, context);
   }).pipe(
     recordCommandError("new", flags.stack),
     Effect.provide(Layer.unwrap(Effect.map(remoteRoots, Registry.layer))),

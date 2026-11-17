@@ -27,7 +27,12 @@ import { composeFilesWithNeutral, type RenderedFile } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
 import type { Composition } from "../compose/types";
 import { fingerprintFromFiles } from "../fingerprint";
-import { type HandoffDecision, handoffRecord } from "../handoff/decide";
+import {
+  decideHandoff,
+  type HandoffDecision,
+  type HandoffPreferences,
+  settleHandoff,
+} from "../handoff/decide";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
 import { newPreset } from "../project/preset";
@@ -56,11 +61,7 @@ export type NewOptions = {
   yes: boolean;
   agents: ReadonlyArray<AgentId> | undefined;
   scope: string | undefined;
-  /**
-   * The handoff for the composed project, given the ids of its untrusted entries; decided before
-   * anything is written, so the manifest records it in the one write.
-   */
-  handoff: (untrusted: ReadonlyArray<string>) => HandoffDecision;
+  handoff: HandoffPreferences;
 };
 
 type Scaffolded = {
@@ -166,13 +167,11 @@ const projectManifest = (input: {
 }) =>
   Effect.gen(function* () {
     const built = yield* buildManifest(input.composition, { briefWords: input.briefWords });
-    // Outside the step digest (Trust model point 5), so filling it changes no digest.
-    return {
-      ...built,
-      name: input.name,
-      fingerprint: input.fingerprint,
-      handoff: handoffRecord(input.decision, built.createdAt),
-    } satisfies Manifest;
+    return settleHandoff(
+      { ...built, name: input.name, fingerprint: input.fingerprint },
+      input.decision,
+      built.createdAt,
+    );
   });
 
 /** Write the manifest last among project files. */
@@ -294,7 +293,11 @@ export const scaffold = (options: NewOptions) =>
         invocation: host.invocation,
       });
     const brief = renderFor(git.state);
-    const decision = options.handoff(composition.untrusted.map((entry) => entry.id));
+    const decision = decideHandoff({
+      ...options.handoff,
+      dryRun: options.dryRun,
+      untrusted: composition.untrusted.map((entry) => entry.id),
+    });
     const manifest = yield* projectManifest({
       composition,
       name,

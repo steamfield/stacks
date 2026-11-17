@@ -1,5 +1,5 @@
 /** Decides launch eligibility and the recorded handoff (trust points 3 and 4). */
-import type { AgentId, DetectedAgent, Harness } from "@steamfield/stacks-format";
+import type { AgentId, DetectedAgent, Harness, Manifest } from "@steamfield/stacks-format";
 import { LAUNCH_ARGS, LAUNCH_ORDER } from "./launchers";
 
 /** Why `new` printed the prompt instead of launching an agent. */
@@ -38,6 +38,7 @@ export function launchDecision(agent: Harness, bin: string, prompt: string): Lau
 }
 
 export type HandoffInput = {
+  dryRun?: boolean;
   /** `AppConfig.agent`. */
   detected: DetectedAgent;
   json: boolean;
@@ -57,18 +58,22 @@ export type HandoffInput = {
   prompt: string;
 };
 
+export type HandoffPreferences = Omit<HandoffInput, "untrusted" | "dryRun">;
+export type SettledHandoff = Exclude<HandoffDecision, { kind: "choose" }>;
+
 /** The agents to try, in order: `--launch` alone, else the configured ones, then the rest. */
 export const candidates = (preferred: Harness | undefined, configured: ReadonlyArray<AgentId>) =>
   preferred ? [preferred] : [...new Set([...configured, ...LAUNCH_ORDER])];
 
 /**
- * The handoff, decided by the first rule that matches. The order is the behavior: each rule
+ * Previews always print a plan. Otherwise, the first matching rule wins. Each rule
  * outranks every rule below it. An untrusted entry stops at rule 5 at the latest, so it never
  * reaches `launch` or `choose` (trust point 3), and nothing launches or asks without a person at
  * a terminal on both stdin and stdout (trust point 4).
  */
 export function decideHandoff(input: HandoffInput): HandoffDecision {
   const { untrusted } = input;
+  if (input.dryRun) return printDecision("no-launch", untrusted);
   // 1. Already running under an agent: tell that agent what to do instead of starting another.
   if (input.detected !== "none") return { kind: "inside-agent", agent: input.detected, untrusted };
   // 2. `--json` callers read the result; nothing is launched for them.
@@ -128,13 +133,20 @@ function recordedAgent(agent: Harness | "other"): AgentId | "other" {
 }
 
 /**
- * The manifest's `handoff` record. A pending choice is recorded as `print` with no agent until
- * the picker settles it.
+ * Handoff is outside the step digest (trust point 5). A pending choice is recorded as `print`
+ * with no agent until the picker settles it.
  */
-export const handoffRecord = (decision: HandoffDecision, at: string) => ({
-  kind: decision.kind === "choose" ? "print" : decision.kind,
-  ...(decision.kind === "print" || decision.kind === "choose"
-    ? {}
-    : { agent: recordedAgent(decision.agent) }),
-  at,
+export const settleHandoff = (
+  manifest: Manifest,
+  decision: HandoffDecision,
+  at: string,
+): Manifest => ({
+  ...manifest,
+  handoff: {
+    kind: decision.kind === "choose" ? "print" : decision.kind,
+    ...(decision.kind === "print" || decision.kind === "choose"
+      ? {}
+      : { agent: recordedAgent(decision.agent) }),
+    at,
+  },
 });

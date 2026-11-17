@@ -6,14 +6,20 @@ import { Interrupted, PermissionDenied, Usage } from "../../errors";
 import type { NewResult } from "../../schemas/new";
 import { Host } from "../../services/host";
 import { Invocation } from "../../services/invocation";
-import { type Audience, Output } from "../../services/output";
+import { Output } from "../../services/output";
 import { Processes } from "../../services/processes";
 import { encodeManifest, MANIFEST_PATH, readManifest } from "../project/manifest";
 import { openProject } from "../project/writer";
 import { displayPicker } from "../prompting";
 import { shownPath } from "../text/shown-path";
 import { printable } from "../text/text";
-import { candidates, decideHandoff, type HandoffDecision, handoffRecord } from "./decide";
+import {
+  candidates,
+  type HandoffDecision,
+  type HandoffPreferences,
+  type SettledHandoff,
+  settleHandoff,
+} from "./decide";
 import { LAUNCH_ARGS } from "./launchers";
 import { agentPrompt, pickerQuestion, pickerText, renderHandoff } from "./render";
 
@@ -21,41 +27,36 @@ import { agentPrompt, pickerQuestion, pickerText, renderHandoff } from "./render
 type HandoffFlags = { launch: Option.Option<Harness>; noLaunch: boolean; dryRun?: boolean };
 
 /**
- * Validates the handoff flags and gathers what the decision needs (the detected agent, the
- * configured agents and the harnesses found on this machine). Returns the decision as a function
- * of the untrusted entry ids, because only composition knows them, and the decision has to exist
- * before anything is written so the manifest can record it.
+ * Validates launch flags before composition supplies the trust input to `decideHandoff`.
  */
-export const prepareHandoff = (flags: HandoffFlags, json: boolean) =>
-  Effect.gen(function* () {
-    const preferred = Option.getOrUndefined(flags.launch);
-    yield* validatePreferences(flags, json);
-    const host = yield* Host;
-    const config = yield* AppConfig;
-    const detected = yield* config.agent;
-    const configured = (yield* config.get).agents ?? [];
-    const launch = !flags.noLaunch && !flags.dryRun;
-    // Searching PATH is only worth it when a launch is possible at all.
-    const found =
-      detected === "none" && !json && launch
-        ? yield* findHarnesses(candidates(preferred, configured))
-        : new Map<Harness, string>();
-    return (untrusted: ReadonlyArray<string>): HandoffDecision => {
-      if (flags.dryRun) return { kind: "print", reason: "no-launch", untrusted };
-      return decideHandoff({
-        detected,
-        json,
-        launch,
-        stdinIsTTY: host.stdinIsTTY,
-        stdoutIsTTY: host.stdoutIsTTY,
-        untrusted,
-        ...(preferred ? { preferred } : {}),
-        configured,
-        found,
-        prompt: agentPrompt(host.invocation),
-      });
-    };
-  });
+export const prepareHandoff = Effect.fn("handoff.prepareHandoff")(function* (
+  flags: HandoffFlags,
+  json: boolean,
+) {
+  const preferred = Option.getOrUndefined(flags.launch);
+  yield* validatePreferences(flags, json);
+  const host = yield* Host;
+  const config = yield* AppConfig;
+  const detected = yield* config.agent;
+  const configured = (yield* config.get).agents ?? [];
+  const launch = !flags.noLaunch && !flags.dryRun;
+  // Searching PATH is only worth it when a launch is possible at all.
+  const found =
+    detected === "none" && !json && launch
+      ? yield* findHarnesses(candidates(preferred, configured))
+      : new Map<Harness, string>();
+  return {
+    detected,
+    json,
+    launch,
+    stdinIsTTY: host.stdinIsTTY,
+    stdoutIsTTY: host.stdoutIsTTY,
+    ...(preferred ? { preferred } : {}),
+    configured,
+    found,
+    prompt: agentPrompt(host.invocation),
+  } satisfies HandoffPreferences;
+});
 
 /** Rejects `--launch` alongside a flag that rules a launch out. */
 function validatePreferences(flags: HandoffFlags, json: boolean) {
@@ -100,27 +101,24 @@ const findApp = Effect.fn("handoff.findApp")(function* (app: string) {
 });
 
 /**
- * Rewrites the manifest's handoff record when the handoff turned out differently from the one
- * written with the project. A manifest without a handoff record is left alone.
+ * Preserves the original `handoff.at` and skips manifests with no handoff record.
+ * A declined picker still rewrites the record, so a write failure can surface.
  */
-const recordHandoff = (project: string, decision: HandoffDecision) =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const path = yield* Path.Path;
-      const manifest = yield* readManifest(path.join(project, MANIFEST_PATH));
-      if (!manifest.handoff) return;
-      const writer = yield* openProject(project);
-      yield* writer.rewrite(
-        MANIFEST_PATH,
-        new TextEncoder().encode(
-          encodeManifest({
-            ...manifest,
-            handoff: handoffRecord(decision, manifest.handoff.at),
-          }),
-        ),
-      );
-    }),
+const rewriteHandoff = Effect.fn("handoff.rewriteHandoff")(function* (
+  project: string,
+  decision: SettledHandoff,
+) {
+  const path = yield* Path.Path;
+  const manifest = yield* readManifest(path.join(project, MANIFEST_PATH));
+  if (!manifest.handoff) return;
+  const writer = yield* openProject(project);
+  yield* writer.rewrite(
+    MANIFEST_PATH,
+    new TextEncoder().encode(
+      encodeManifest(settleHandoff(manifest, decision, manifest.handoff.at)),
+    ),
   );
+}, Effect.scoped);
 
 /** The handoff recorded when a launch failed, or a person chose no agent. */
 const notLaunched = {
@@ -164,24 +162,23 @@ const chooseHarness = Effect.fn("handoff.chooseHarness")(function* (decision: Ch
 });
 
 /**
- * For a `choose` decision, prints the summary, asks the person and records their choice in the
- * manifest; any other decision passes through. The summary is flushed before the picker so it is
- * on screen while they choose.
+ * Flushes the summary before the picker takes over the terminal. The caller prefixes its final
+ * output with the summary only when the picker hasn't already shown it.
  */
-const resolveChoice = Effect.fn("handoff.resolveChoice")(function* (
+export const resolveChoice = Effect.fn("handoff.resolveChoice")(function* (
   decision: HandoffDecision,
   project: string,
   summary: string,
 ) {
-  if (decision.kind !== "choose") return decision;
+  if (decision.kind !== "choose") return { decision, prefix: `${summary}\n\n` };
   const output = yield* Output;
   yield* output.result(null, summary);
   yield* output.flushNow;
   const selected = yield* chooseHarness(decision);
   const terminal = yield* Terminal.Terminal;
   yield* displayPicker(terminal, "\n");
-  yield* recordHandoff(project, selected);
-  return selected;
+  yield* rewriteHandoff(project, selected);
+  return { decision: selected, prefix: "" };
 });
 
 /**
@@ -205,7 +202,7 @@ const launchTerminal = Effect.fn("handoff.launchTerminal")(function* (
     .pipe(
       Effect.catchTag("SpawnFailed", (failure) =>
         Effect.andThen(
-          recordHandoff(project, notLaunched).pipe(Effect.ignore),
+          rewriteHandoff(project, notLaunched).pipe(Effect.ignore),
           failure.errno === "EACCES"
             ? Effect.fail(
                 new PermissionDenied({ details: { reason: "launch", path: decision.bin } }),
@@ -223,11 +220,11 @@ const launchTerminal = Effect.fn("handoff.launchTerminal")(function* (
  */
 const recordAppFallback = Effect.fn("handoff.recordAppFallback")(function* (
   project: string,
-  decision: HandoffDecision,
+  decision: SettledHandoff,
 ) {
   const invocation = yield* Invocation;
   const before = yield* invocation.rollbackCount;
-  yield* recordHandoff(project, decision).pipe(
+  yield* rewriteHandoff(project, decision).pipe(
     Effect.catch((failure) =>
       invocation.rollbackCount.pipe(
         Effect.flatMap((after) => (after > before ? Effect.fail(failure) : Effect.void)),
@@ -270,68 +267,54 @@ const summaryTrust = Effect.fn("handoff.summaryTrust")(function* (
   );
 });
 
-const launchText = (decision: Extract<HandoffDecision, { kind: "launch" }>, shown: string) =>
-  decision.via === "app"
-    ? `Opening the Codex app on ${printable(shown)}...`
-    : `Launching ${printable(decision.bin)} in ${printable(shown)}...`;
+export const handoffContext = Effect.fn("handoff.context")(function* (
+  project: string,
+  agent: AgentId | undefined,
+  entries: NewResult["untrusted"],
+) {
+  const host = yield* Host;
+  const output = yield* Output;
+  const shown = yield* shownPath(host.cwd, project);
+  const untrusted = yield* summaryTrust(entries);
+  return {
+    shown,
+    untrusted,
+    agent,
+    invocation: host.invocation,
+    audience: output.audience,
+    style: output.style,
+  };
+});
 
-type SummaryContext = {
-  shown: string;
-  audience: Audience;
-  untrusted: NewResult["untrusted"];
-};
-
-/** What `new` or `add` hands to `completeHandoff`. */
-type CompleteHandoffInput = {
-  project: string;
-  agent: AgentId | undefined;
-  untrusted: NewResult["untrusted"];
-  decision: HandoffDecision;
-  /** A dry run: the result text is the summary alone. */
-  preview?: boolean;
-  render: (context: SummaryContext) => string;
-  encode: (handoff: NewResult["handoff"]) => unknown;
-  /** Runs once the handoff is settled, before anything launches (telemetry). */
-  beforeHandoff?: (decision: HandoffDecision) => Effect.Effect<void>;
-};
-
-/** Render the result, then print the next task or give the terminal to the selected agent. */
-export const completeHandoff = (input: CompleteHandoffInput) =>
-  Effect.gen(function* () {
-    const host = yield* Host;
-    const output = yield* Output;
-    const shown = yield* shownPath(host.cwd, input.project);
-    const untrusted = yield* summaryTrust(input.untrusted);
-    const summary = input.render({ shown, audience: output.audience, untrusted });
-    // A person who chose has already seen the summary, so it isn't printed twice.
-    const prefix = input.decision.kind === "choose" ? "" : `${summary}\n\n`;
-    const decision = yield* resolveChoice(input.decision, input.project, summary);
-    if (input.beforeHandoff) yield* input.beforeHandoff(decision);
-    yield* (yield* Invocation).annotate({
-      handoff: decision.kind,
-      ...(decision.kind === "print" ? {} : { agent: decision.agent }),
-    });
-    const context = {
-      shown,
-      invocation: host.invocation,
-      audience: output.audience,
-      agent: input.agent,
-      style: output.style,
-    };
-    if (decision.kind !== "launch") {
-      yield* output.result(
-        input.encode({
-          ...decision,
-          untrusted: [...decision.untrusted],
-          prompt: agentPrompt(host.invocation),
-        }),
-        input.preview ? summary : `${prefix}${renderHandoff(decision, context)}`,
-      );
-      return;
-    }
-    yield* output.result(null, `${prefix}${launchText(decision, shown)}`);
-    // The launch line has to reach the terminal before the agent takes it over.
-    yield* output.flushNow;
-    if (decision.via === "app") yield* launchApp(input.project, context);
-    else yield* launchTerminal(decision, input.project);
+export const annotateHandoff = Effect.fn("handoff.annotate")(function* (decision: SettledHandoff) {
+  yield* (yield* Invocation).annotate({
+    handoff: decision.kind,
+    ...(decision.kind === "print" ? {} : { agent: decision.agent }),
   });
+});
+
+type LaunchDecision = Extract<SettledHandoff, { kind: "launch" }>;
+
+export const printLaunch = Effect.fn("handoff.printLaunch")(function* (
+  decision: LaunchDecision,
+  shown: string,
+  prefix: string,
+) {
+  const output = yield* Output;
+  const line =
+    decision.via === "app"
+      ? `Opening the Codex app on ${printable(shown)}...`
+      : `Launching ${printable(decision.bin)} in ${printable(shown)}...`;
+  yield* output.result(null, `${prefix}${line}`);
+  // The launch line has to reach the terminal before the agent takes it over.
+  yield* output.flushNow;
+});
+
+export const launchHandoff = Effect.fn("handoff.launch")(function* (
+  decision: LaunchDecision,
+  project: string,
+  context: Parameters<typeof renderHandoff>[1],
+) {
+  if (decision.via === "app") yield* launchApp(project, context);
+  else yield* launchTerminal(decision, project);
+});

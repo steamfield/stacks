@@ -1,6 +1,6 @@
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { appendRecord } from "../../src/core/ledger";
-import { within } from "../../src/core/scaffold/write";
+import { within } from "../../src/core/project/writer";
 import { LedgerRecord } from "../../src/schemas/ledger";
 import { Output } from "../../src/services/output";
 import { effortOf } from "./agents";

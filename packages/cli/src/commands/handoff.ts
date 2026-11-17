@@ -17,9 +17,9 @@ import {
   pickerText,
   renderHandoff,
 } from "../core/handoff";
-import { encodeManifest, MANIFEST_PATH, readManifest } from "../core/manifest";
+import { encodeManifest, MANIFEST_PATH, readManifest } from "../core/project/manifest";
 import { displayPicker } from "../core/prompting";
-import { openProject } from "../core/scaffold/write";
+import { openProject } from "../core/project/writer";
 import { shownPath } from "../core/shown-path";
 import { printable } from "../core/text";
 import { Interrupted, PermissionDenied, Usage } from "../errors";

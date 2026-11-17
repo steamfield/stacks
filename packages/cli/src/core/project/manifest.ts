@@ -5,15 +5,15 @@
 import { createHash } from "node:crypto";
 import { Manifest, type ManifestStep, withStepDefaults } from "@steamfield/stacks-format";
 import { Clock, Effect, FileSystem, Path, Random, Schema } from "effect";
-import { InvalidConfig, NotFound, PermissionDenied } from "../errors";
-import { MANIFEST_PATH } from "../project-layout";
-import { VERSION } from "../version";
-import { isAbsent } from "./absent";
-import { canonicalJson } from "./canonical-json";
-import type { Composition } from "./compose/types";
-import type { Entry } from "./registry/entry";
+import { InvalidConfig, NotFound, PermissionDenied } from "../../errors";
+import { MANIFEST_PATH } from "../../project-layout";
+import { VERSION } from "../../version";
+import { isAbsent } from "../absent";
+import { canonicalJson } from "../canonical-json";
+import type { Composition } from "../compose/types";
+import type { Entry } from "../registry/entry";
 
-export { MANIFEST_PATH } from "../project-layout";
+export { MANIFEST_PATH } from "../../project-layout";
 
 /** What the digest reads from a manifest; a later optional field can't reach it by accident. */
 export type DigestInput = Pick<Manifest, "verify" | "env" | "preset">;

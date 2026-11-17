@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Effect, type FileSystem, type Path } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AppConfig } from "../src/config";
-import { MANIFEST_PATH } from "../src/core/manifest";
+import { MANIFEST_PATH } from "../src/core/project/manifest";
 import { recordRun } from "../src/core/verify/record";
 import { type RunResult, runVerify } from "../src/core/verify/run";
 import { checkTamper } from "../src/core/verify/tamper";

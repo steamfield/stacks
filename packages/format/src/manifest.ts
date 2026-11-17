@@ -73,7 +73,7 @@ export const Manifest = Schema.Struct({
       return undefined;
     }),
   ),
-  /** `"sha256:<hex>"` from `core/manifest.ts::digestSteps`. */
+  /** `"sha256:<hex>"` from the CLI's `digestSteps`. */
   verifyDigest: Schema.String,
   briefWords: Schema.Number,
   handoff: Schema.optionalKey(

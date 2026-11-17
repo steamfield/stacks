@@ -9,7 +9,7 @@ import type { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";
 import { type Captured, Processes } from "../services/processes";
 import { rewriteAuthorLinks } from "./guide";
-import { openProject, type ProjectWriter } from "./scaffold/write";
+import { openProject, type ProjectWriter } from "./project/writer";
 
 /**
  * The word budget for each skill's `SKILL.md`. A skill's SKILL.md loads whole whenever it

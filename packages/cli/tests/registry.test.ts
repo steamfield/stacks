@@ -14,7 +14,7 @@ import { NodeServices } from "@effect/platform-node";
 import { APP_TAG, Manifest } from "@steamfield/stacks-format";
 import { Effect, Exit, Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
-import { MANIFEST_PATH } from "../src/core/manifest";
+import { MANIFEST_PATH } from "../src/core/project/manifest";
 import { type Entry, isRejected } from "../src/core/registry/entry";
 import { Registry, type RegistryRoots, trustOf } from "../src/core/registry/registry";
 import { BUDGET } from "../src/core/validate/budget";

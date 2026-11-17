@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdirSync, realpathSync, writeFileSync } from "n
 import { join } from "node:path";
 import { Cause, Effect, Exit, FileSystem, PlatformError, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { locateManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { locateManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import { projectRuns } from "../src/core/runs";
 import { exitCode, PermissionDenied } from "../src/errors";
 import { ProjectRuns } from "../src/schemas/runs";

@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { Manifest } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
-import { MANIFEST_PATH } from "../src/core/manifest";
+import { MANIFEST_PATH } from "../src/core/project/manifest";
 import { NewResult } from "../src/schemas/new";
 import type { HostInfo } from "../src/services/host";
 import { fakeAgent } from "./helpers/agents";

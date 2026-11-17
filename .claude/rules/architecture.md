@@ -8,7 +8,7 @@ The skill gives general structure. This rule carries the product constraints it 
 
 The CLI executes nothing it reads and never calls an LLM. `list`, `show`, `new`, `add`, `validate` and `create` read, compose and write entries; only `verify` runs commands, and only the steps in the project's own manifest. The CLI's other programs are fixed and never come from an entry:
 
-- Constant git commands (`core/scaffold/git.ts`): `git init` from `new`, read-only lookups from `new` and `add`.
+- Constant git commands (`core/project/git.ts`): `git init` from `new`, read-only lookups from `new` and `add`.
 - The harness chosen at handoff, through `Processes.interactive` or `Processes.exec`, never for an untrusted entry.
 - `update`, only when a person runs it: one request to the npm registry, then `npm` with fixed arguments and a checked version.
 - `submit`: `gh` and `git` with fixed arguments (`core/submit/github.ts`) in a temporary clone.

@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Cause, Effect, Exit } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { openProject, type ProjectWriter } from "../src/core/scaffold/write";
+import { openProject, type ProjectWriter } from "../src/core/project/writer";
 import { tempDir } from "./helpers/cli";
 
 const dirs: ReturnType<typeof tempDir>[] = [];

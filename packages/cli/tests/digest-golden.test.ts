@@ -4,7 +4,12 @@ import { NodeServices } from "@effect/platform-node";
 import { Effect, Exit } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { fingerprint } from "../src/core/fingerprint";
-import { type DigestInput, digestSettings, digestStep, digestSteps } from "../src/core/manifest";
+import {
+  type DigestInput,
+  digestSettings,
+  digestStep,
+  digestSteps,
+} from "../src/core/project/manifest";
 import { searchSourceDigest } from "../src/core/search/digest";
 import { tempDir } from "./helpers/cli";
 import { bundledAt, composeExit } from "./helpers/compose";

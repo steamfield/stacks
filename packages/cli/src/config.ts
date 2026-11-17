@@ -6,10 +6,21 @@ import { homedir } from "node:os";
 import { AgentId, type DetectedAgent } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { type Build, SOURCE_BUILD } from "./build";
+import {
+  CONFIG_FILENAME,
+  DEFAULT_CACHE_HOME,
+  DEFAULT_CONFIG_HOME,
+  DEFAULT_DATA_HOME,
+  DEFAULT_LOG_FILE,
+  DEFAULT_LOG_FORMAT,
+  DEFAULT_LOG_LEVEL,
+  DEFAULT_STATE_HOME,
+  SLUG,
+  TELEMETRY_DIRNAME,
+} from "./constants";
 import { AgentMarkers, CLI_ENV } from "./env-names";
 import { InvalidConfig } from "./errors";
 import { Settings } from "./schemas/config";
-import { SLUG } from "./version";
 export type Environment = Record<string, string | undefined>;
 export type Paths = {
   /** `HOME`, then the OS home directory. */
@@ -63,11 +74,12 @@ const LOG_LEVELS: Readonly<Record<string, LogSettings["level"]>> = {
   fatal: "Fatal",
   none: "None",
 };
-/** A `LOG_LEVEL` value, matched without case; anything unknown is `Warn`. */
-function logLevel(value: string): LogSettings["level"] {
+/** A case-insensitive `LOG_LEVEL` value, with `DEFAULT_LOG_LEVEL` for missing or unknown values. */
+function logLevel(value: string | undefined): LogSettings["level"] {
+  if (value === undefined) return DEFAULT_LOG_LEVEL;
   const name = value.toLowerCase();
   // Own keys only: `constructor` or `__proto__` would otherwise read Object.prototype.
-  return (Object.hasOwn(LOG_LEVELS, name) ? LOG_LEVELS[name] : undefined) ?? "Warn";
+  return (Object.hasOwn(LOG_LEVELS, name) ? LOG_LEVELS[name] : undefined) ?? DEFAULT_LOG_LEVEL;
 }
 
 /** An opt-out variable is on when set to anything but blank, `0` or `false`. */
@@ -114,16 +126,19 @@ function configLayer(environment: Environment | undefined, build: Build) {
       const path = yield* Path.Path;
       const paths = Effect.sync((): Paths => {
         const home = env("HOME") ?? homedir();
-        const user = path.join(env("XDG_CONFIG_HOME") ?? path.join(home, ".config"), SLUG);
-        const config = path.join(user, "config.json");
+        const user = path.join(
+          env("XDG_CONFIG_HOME") ?? path.join(home, DEFAULT_CONFIG_HOME),
+          SLUG,
+        );
+        const config = path.join(user, CONFIG_FILENAME);
         const data =
           env(CLI_ENV.dataDir) ??
-          path.join(env("XDG_DATA_HOME") ?? path.join(home, ".local", "share"), SLUG);
-        const cache = path.join(env("XDG_CACHE_HOME") ?? path.join(home, ".cache"), SLUG);
+          path.join(env("XDG_DATA_HOME") ?? path.join(home, DEFAULT_DATA_HOME), SLUG);
+        const cache = path.join(env("XDG_CACHE_HOME") ?? path.join(home, DEFAULT_CACHE_HOME), SLUG);
         const state =
           env(CLI_ENV.stateDir) ??
-          path.join(env("XDG_STATE_HOME") ?? path.join(home, ".local", "state"), SLUG);
-        const telemetry = path.join(state, "telemetry");
+          path.join(env("XDG_STATE_HOME") ?? path.join(home, DEFAULT_STATE_HOME), SLUG);
+        const telemetry = path.join(state, TELEMETRY_DIRNAME);
         const registry = env(CLI_ENV.registryDir);
         return {
           config,
@@ -159,9 +174,9 @@ function configLayer(environment: Environment | undefined, build: Build) {
       const noColor = env("NO_COLOR") !== undefined;
       const logging = Effect.sync(
         (): LogSettings => ({
-          level: logLevel(env(CLI_ENV.logLevel) ?? "warn"),
-          format: env(CLI_ENV.logFormat) === "json" ? "json" : "human",
-          file: env(CLI_ENV.logFile) ?? "",
+          level: logLevel(env(CLI_ENV.logLevel)),
+          format: env(CLI_ENV.logFormat) === "json" ? "json" : DEFAULT_LOG_FORMAT,
+          file: env(CLI_ENV.logFile) ?? DEFAULT_LOG_FILE,
           noColor,
         }),
       );

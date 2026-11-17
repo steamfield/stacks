@@ -6,6 +6,7 @@ import { type RankInput, SearchResponse, type SearchResult } from "@steamfield/s
 import { Clock, Effect, FileSystem, Option, Path, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../../config";
+import { FAILURE_BACKOFF_MS, SEARCH_DEADLINE_MS } from "../../constants";
 import { replaceFile } from "../fs/replace-file";
 
 type Request = Pick<RankInput, "request" | "limit" | "kind"> & {
@@ -17,8 +18,6 @@ export type RemoteSearch =
   | { remote: "unavailable" }
   | { remote: "off"; remoteReason: NonNullable<SearchResult["remoteReason"]> };
 
-const REQUEST_DEADLINE_MS = 800;
-const BACKOFF_MS = 600_000;
 const BACKOFF_FILE = "backoff.json";
 
 /** Backoff persists only expiry times in epoch milliseconds, keyed by API endpoint. */
@@ -81,12 +80,15 @@ export const remoteSearch = Effect.fn("search.remote")(function* (input: Request
   if ((backoffs[url] ?? 0) > (yield* Clock.currentTimeMillis)) return off("backoff");
   const response = yield* fetchSearch(url, input).pipe(
     Effect.scoped,
-    Effect.timeoutOption(REQUEST_DEADLINE_MS),
+    Effect.timeoutOption(SEARCH_DEADLINE_MS),
     Effect.orElseSucceed(() => Option.none()),
   );
   if (Option.isSome(response))
     return { remote: "used", response: response.value } satisfies RemoteSearch;
   // The expiry counts from when the request gave up, not from when it started.
-  yield* saveBackoff(cache, { ...backoffs, [url]: (yield* Clock.currentTimeMillis) + BACKOFF_MS });
+  yield* saveBackoff(cache, {
+    ...backoffs,
+    [url]: (yield* Clock.currentTimeMillis) + FAILURE_BACKOFF_MS,
+  });
   return { remote: "unavailable" } satisfies RemoteSearch;
 });

@@ -5,14 +5,14 @@
  */
 import { Clock, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
+import {
+  CACHE_FRESHNESS_MS,
+  CACHED_FETCH_DEADLINE_MS,
+  FAILURE_BACKOFF_MS,
+  NOT_FOUND_BACKOFF_MS,
+} from "../constants";
 import { RemoteStatus } from "../schemas/remote-index";
 import { replaceFile } from "./fs/replace-file";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const CACHE_LIFETIME_MS = DAY_MS;
-const FAILURE_BACKOFF_MS = 10 * 60 * 1000;
-const NOT_FOUND_BACKOFF_MS = DAY_MS;
-const REQUEST_DEADLINE_MS = 1500;
 
 /** The state file's format. `backoffs` maps each request URL to its backoff expiry. */
 const State = Schema.Struct({
@@ -99,7 +99,7 @@ const requestText = Effect.fn("cachedFetch.request")(function* (
 const withinDeadline = <B, R>(load: Effect.Effect<Loaded<B>, CacheFailure, R | Scope.Scope>) =>
   load.pipe(
     Effect.scoped,
-    Effect.timeoutOption(REQUEST_DEADLINE_MS),
+    Effect.timeoutOption(CACHED_FETCH_DEADLINE_MS),
     Effect.flatMap((loaded) =>
       Option.isSome(loaded) ? Effect.succeed(loaded.value) : Effect.fail<CacheFailure>("timeout"),
     ),
@@ -205,7 +205,7 @@ export const makeCachedFetch = Effect.fn("cachedFetch.make")(function* <A>(optio
   const current = Effect.fn("cachedFetch.current")(function* () {
     yield* loadSaved;
     const now = yield* Clock.currentTimeMillis;
-    if (Option.isSome(body) && now - storedTime(state.cachedAt) < CACHE_LIFETIME_MS) return body;
+    if (Option.isSome(body) && now - storedTime(state.cachedAt) < CACHE_FRESHNESS_MS) return body;
     const fetched = yield* options.load ? run(url, options.load) : get(url, decode);
     if (Option.isNone(fetched)) return body;
     yield* recordSuccess(fetched.value);

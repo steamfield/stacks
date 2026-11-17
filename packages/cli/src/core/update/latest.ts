@@ -4,6 +4,7 @@
  */
 import { Duration, Effect, Option, Schema } from "effect";
 import { HttpClient } from "effect/http";
+import { NPM_REGISTRY_TIMEOUT_SECONDS, NPM_REGISTRY_URL } from "../../constants";
 import { UpstreamUnavailable } from "../../errors";
 import { PACKAGE } from "../../version";
 import { Version } from "./version";
@@ -11,7 +12,7 @@ import { Version } from "./version";
 const LatestDocument = Schema.Struct({ version: Version });
 
 /** The registry URL; the scoped name's `/` is escaped as npm expects. */
-const LATEST_URL = `https://registry.npmjs.org/${PACKAGE.replace("/", "%2f")}/latest`;
+const LATEST_URL = `${NPM_REGISTRY_URL}/${PACKAGE.replace("/", "%2f")}/latest`;
 
 const unavailable = (status?: number) =>
   new UpstreamUnavailable({
@@ -37,7 +38,7 @@ const fetchLatest = (client: HttpClient.HttpClient) =>
  * response status when available.
  */
 export const latestVersion = Effect.fn("update.latestVersion")(function* (
-  timeout = Duration.seconds(10),
+  timeout = Duration.seconds(NPM_REGISTRY_TIMEOUT_SECONDS),
 ) {
   const client = yield* HttpClient.HttpClient;
   const result = yield* fetchLatest(client).pipe(Effect.scoped, Effect.timeoutOption(timeout));

@@ -9,6 +9,7 @@
     "dev": "bun scripts/dev.ts",
     "human": "bun scripts/human.ts",
     "build": "bun scripts/build.ts",
+    "behavior-snapshot": "bun scripts/behavior-snapshot.ts",
     "build:index": "bun scripts/build-index.ts",
     "search:eval": "bun scripts/search-eval.ts",
     "decorate": "bun scripts/decorate.ts",

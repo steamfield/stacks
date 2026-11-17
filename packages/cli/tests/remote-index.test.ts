@@ -11,17 +11,19 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { it } from "@effect/vitest";
-import { EntryBundle, type IndexEntry } from "@steamfield/stacks-format";
+import { EntryBundle, type IndexEntry, StatsSummary } from "@steamfield/stacks-format";
 import { Effect, Fiber, Option, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
-import type { RemoteIndex, RemoteStatus } from "../src/core/remote-index";
+import type { RemoteIndex } from "../src/core/remote-index";
 import { DoctorReport } from "../src/schemas/doctor";
 import { LedgerLastRun } from "../src/schemas/ledger";
 import { ListResult } from "../src/schemas/list";
 import { NewResult } from "../src/schemas/new";
+import type { RemoteStatus } from "../src/schemas/remote-index";
 import { ShowReport } from "../src/schemas/show";
 import { bundleFile, digestOf, entryPath, rawBundle, snapshot } from "./fixtures/index/harness";
+import { fakeAgent } from "./helpers/agents";
 import { tempDir } from "./helpers/cli";
 import {
   buildRemoteFixture,
@@ -38,6 +40,7 @@ import {
   remoteServer,
   success,
 } from "./helpers/remote-index";
+import { summary } from "./helpers/stats";
 import { readManifestAt, splitEvents, workspace, writeRecordedProject } from "./helpers/verify";
 
 const built = tempDir();
@@ -172,6 +175,41 @@ test("fresh signed cache supplies an index-only stack and its ledger proof [4.0d
       cachedAt: expect.any(String),
     }),
   );
+});
+
+test("the installed CLI stays on the bundled registry without an index URL", async () => {
+  const env = { ...environment(home), STACKS_REGISTRY_DIR: bundled };
+  // Route the installed binary's HTTP through loopback, including its release API requests.
+  const preload = join(root, "loopback.mjs");
+  writeFileSync(
+    preload,
+    `const fetchLocal = globalThis.fetch;
+globalThis.fetch = (url, init) =>
+  fetchLocal(new URL(new URL(url).pathname, ${JSON.stringify(server.url)}), init);
+`,
+  );
+  const run = (command: string) =>
+    execute(process.execPath, ["--import", preload, installed, command, "--json"], home, env);
+  const listed = list(await run("list"));
+  expect(row(listed)).toMatchObject({ origin: "bundled" });
+  expect(listed.entries.every((entry) => entry.origin !== "index")).toBe(true);
+  const doctor = await run("doctor");
+  success(doctor);
+  expect(
+    server.requests.filter((path) => !["/v1/allowlist.json", "/v1/stats"].includes(path)),
+  ).toEqual([]);
+  const report = Schema.decodeUnknownSync(DoctorReport, { onExcessProperty: "error" })(
+    JSON.parse(doctor.stdout),
+  );
+  expect(report.remoteIndex).toEqual({
+    url: null,
+    isDefaultUrl: false,
+    offline: false,
+    cachedAt: null,
+    lastAttempt: null,
+    lastOutcome: null,
+    backoffUntil: null,
+  });
 });
 
 it.effect("the cache stays fresh for 24 hours, then returns the refreshed index [4.0d#1]", () =>
@@ -468,6 +506,81 @@ test("non-default URL is untrusted and never launches an available agent [4.0d#1
   expect(result.stdout).toMatch(/confirm|untrusted/i);
   expect(existsSync(marker)).toBe(false);
   expect(readFileSync(join(target, ".stacks/BRIEF.md"), "utf8")).toMatch(/confirm|untrusted/i);
+});
+
+test("new reports configured-index entries in both JSON untrusted lists", async () => {
+  makeDifferentBundled();
+  writeFileSync(join(bundled, "fragments/tools/files/pinned.txt"), "different bundled tools\n");
+  const target = join(root, "untrusted-json");
+  const result = await cli(["new", "sample", target, "--sandbox", "--json"], {
+    home,
+    server,
+    env: { STACKS_INDEX_URL: `${server.url}/v1/index.json` },
+  });
+  success(result);
+  const created = Schema.decodeUnknownSync(NewResult)(JSON.parse(result.stdout));
+  expect(created.untrusted).toEqual([
+    { id: "sample", kind: "stack", origin: "index", dir: expect.any(String) },
+    { id: "tools", kind: "fragment", origin: "index", dir: expect.any(String) },
+  ]);
+  expect(created.handoff.untrusted).toEqual(["sample", "tools"]);
+  expect(readManifestAt(target).stack).toMatchObject({ origin: "index", trusted: false });
+});
+
+test("new launches an available agent for an official-index stack", async () => {
+  makeDifferentBundled();
+  const bin = join(root, "bin");
+  const agent = fakeAgent(bin, "claude");
+  const target = join(root, "trusted");
+  const result = await cli(["new", "sample", target, "--sandbox", "--launch", "claude"], {
+    home,
+    server,
+    env: { PATH: bin },
+    host: { stdoutIsTTY: true, stdinIsTTY: true },
+  });
+  success(result);
+  expect(result.stdout).toContain("Launching");
+  expect(agent.ran()).toBe(true);
+  expect(readManifestAt(target)).toMatchObject({
+    stack: { origin: "index", trusted: true },
+    handoff: { kind: "launch", agent: "claude" },
+  });
+});
+
+test.each([
+  { source: "official", stats: true },
+  { source: "configured", stats: false },
+])("list reports stats=$stats for a stack served by the $source index", async ({ stats }) => {
+  makeDifferentBundled();
+  if (!summary.published) throw new Error("Expected published stats");
+  const item = summary.items.find(({ id }) => id === "go-cli");
+  if (!item) throw new Error("Missing published stack stats");
+  writeFileSync(
+    join(root, "published/v1/stats"),
+    JSON.stringify(
+      Schema.encodeSync(StatsSummary)({
+        ...summary,
+        items: [{ ...item, id: "sample" }],
+      }),
+    ),
+  );
+  const result = list(
+    await cli(["list", "--json"], {
+      home,
+      server,
+      apiUrl: server.url,
+      env: stats ? {} : { STACKS_INDEX_URL: `${server.url}/v1/index.json` },
+    }),
+  );
+  const stack = row(result);
+  expect(stack).toMatchObject({ origin: "index", trusted: stats });
+  if (stats) {
+    expect(stack?.stats).toMatchObject({ projects: 215, greenRate: 0.91, sample: 180 });
+  } else {
+    expect(stack).not.toHaveProperty("stats");
+  }
+  expect(server.requests).toContain("/v1/index.json");
+  expect(server.requests.includes("/v1/stats")).toBe(stats);
 });
 
 test.each(["flag", "env"])(

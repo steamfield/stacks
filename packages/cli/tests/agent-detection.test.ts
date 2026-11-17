@@ -1,43 +1,42 @@
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { NodeServices } from "@effect/platform-node";
 import { it } from "@effect/vitest";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import { expect, test } from "vitest";
-import {
-  AGENT_MARKER_NAMES,
-  AgentMarkers,
-  AppConfig,
-  detectAgent,
-  type Environment,
-} from "../src/config";
-import { targetAgents } from "../src/core/compose/agents";
-import { compose } from "../src/core/compose/compose";
-import { buildManifest } from "../src/core/manifest";
-import { Registry } from "../src/core/registry/registry";
-import { Output } from "../src/services/output";
-import { runCli, tempDir } from "./helpers/cli";
-import { bundledAt } from "./helpers/compose";
+import { AGENT_MARKER_NAMES, AgentMarkers, detectAgent, type Environment } from "../src/config";
+import { NewResult } from "../src/schemas/new";
+import { quiet, runCli, tempDir } from "./helpers/cli";
+import { jsonResult } from "./helpers/create";
 import { composeRegistry } from "./helpers/registry";
+import { readManifestAt } from "./helpers/verify";
 
-/** `AppConfig.agent` as the real command path sees it: through `runCli`'s AppLayer. */
 async function detected(env: Environment): Promise<string> {
-  const program = Effect.gen(function* () {
-    const agent = yield* (yield* AppConfig).agent;
-    yield* (yield* Output).result({ agent }, agent);
-  });
-  const result = await runCli(["--json"], { env, program });
-  expect(result.status).toBe(0);
-  return (JSON.parse(result.stdout) as { agent: string }).agent;
+  const result = jsonResult(
+    await runCli(["new", "web-stack", "app", "--json"], {
+      env: { ...quiet, ...env },
+      host: { registry: composeRegistry },
+    }),
+    NewResult,
+  );
+  if (result.handoff.kind === "inside-agent") return result.handoff.agent;
+  expect(result.handoff.reason).toBe("json");
+  return "none";
 }
 
-test.each(AgentMarkers.map((marker) => [marker.name, marker] as const))(
-  "the %s marker is detected [1.2b#8]",
-  async (_name, marker) => {
-    const value = marker.equals ?? (marker.agent === "by-value" ? "codex-cli" : "1");
-    const expected = marker.agent === "by-value" ? "codex" : marker.agent;
-    expect(await detected({ [marker.name]: value })).toBe(expected);
-  },
-);
+test.each([
+  ["CLAUDECODE", "1", "claude"],
+  ["CLAUDE_CODE", "1", "claude"],
+  ["CODEX_SANDBOX", "1", "codex"],
+  ["CODEX_CI", "1", "codex"],
+  ["CODEX_THREAD_ID", "1", "codex"],
+  ["OPENCODE", "1", "opencode"],
+  ["OPENCODE_CLIENT", "1", "opencode"],
+  ["CURSOR_AGENT", "1", "cursor"],
+  ["CURSOR_EXTENSION_HOST_ROLE", "agent-exec", "cursor"],
+  ["AI_AGENT", "codex-cli", "codex"],
+])("the %s marker is detected [1.2b#8]", async (name, value, agent) => {
+  expect(await detected({ [name]: value })).toBe(agent);
+});
 
 test("AI_AGENT names a known agent by prefix; any other value is other; no marker is none [1.2b#8]", async () => {
   expect(await detected({ AI_AGENT: "claude-code" })).toBe("claude");
@@ -80,39 +79,21 @@ it.prop(
 test("a detected agent doesn't change the target agents or the manifest's agents [1.2b#9]", async () => {
   const dir = tempDir();
   try {
-    const env = {
-      HOME: dir.path,
-      XDG_CONFIG_HOME: join(dir.path, "config"),
-      CODEX_THREAD_ID: "thread-1",
-    };
-    const { agent, manifest, files } = await Effect.runPromise(
-      Effect.gen(function* () {
-        const config = yield* AppConfig;
-        const settings = yield* config.get;
-        const composition = yield* compose({
-          stack: "web-stack",
-          with: [],
-          without: [],
-          preset: "default",
-          mode: "new",
-          always: [],
-          agents: targetAgents(undefined, settings),
-        });
-        return {
-          agent: yield* config.agent,
-          manifest: yield* buildManifest(composition, { briefWords: 1 }),
-          files: composition.files.map((file) => file.path),
-        };
-      }).pipe(
-        Effect.provide(Registry.layer(bundledAt(composeRegistry))),
-        Effect.provide(AppConfig.memory(env)),
-        Effect.provide(NodeServices.layer),
-      ),
+    const result = jsonResult(
+      await runCli(["new", "web-stack", "app", "--json"], {
+        home: dir.path,
+        env: { ...quiet, CODEX_THREAD_ID: "thread-1" },
+        host: { registry: composeRegistry },
+      }),
+      NewResult,
     );
-    expect(agent).toBe("codex");
-    expect(manifest.agents).toEqual(["claude"]);
-    expect(files).toContain(".claude/settings.json");
-    expect(files).not.toContain(".codex/config.toml");
+    expect(result.handoff).toMatchObject({ kind: "inside-agent", agent: "codex" });
+    expect(result.agents).toEqual(["claude"]);
+    expect(readManifestAt(result.project).agents).toEqual(["claude"]);
+    expect(result.written).toContain(".claude/settings.json");
+    expect(result.written).not.toContain(".codex/config.toml");
+    expect(existsSync(join(result.project, ".claude/settings.json"))).toBe(true);
+    expect(existsSync(join(result.project, ".codex/config.toml"))).toBe(false);
   } finally {
     dir.cleanup();
   }

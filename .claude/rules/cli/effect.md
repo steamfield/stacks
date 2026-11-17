@@ -45,7 +45,7 @@ Read the CLI's inputs from what `effect/cli` parsed: flag values from the handle
 
 ## Config and logging
 
-`config.ts` is the only env reader: it builds a fresh `ConfigProvider.fromEnvRecord` from blank-normalized env. Paths, logging and output config stay independently readable, because `doctor` and `--version` have to work when `config.json` is broken: layer building never reads fallible config files, schema decoding stays lazy inside commands, and an invalid log level falls back.
+`config.ts` is the only env reader, using one blank-normalizing lookup over a captured record except for `CI` and `childEnv`. Paths, logging and output config stay independently readable, because `doctor` and `--version` have to work when `config.json` is broken: layer building never reads fallible config files, schema decoding stays lazy inside commands, and an invalid log level falls back.
 
 Logger records are built only by `logging.ts::entry`: `time`, `level`, `msg`, `detail`, annotations flattened to scalar top-level keys (secret-looking keys redacted, reserved names prefixed), and a `cause` holding only an `AppError`'s allowlisted fields. Don't construct a record anywhere else or pass an arbitrary object through as a field. A new field is a contract change for anything that reads the JSONL file, including the run records. The logger callback queues plain sanitized entries; flushing uses the captured FileSystem and Output, never a new runtime. A log sink failing (unwritable file, closed stderr) can't fail the command or change its exit.
 

@@ -156,7 +156,7 @@ export class Telemetry extends Context.Service<
         const store: Storage = {
           fs,
           path,
-          root: path.join((yield* config.paths).state, "telemetry"),
+          root: (yield* config.paths).telemetry,
         };
         const url = config.telemetryUrl;
         // This invocation's state: the notice outcome and whether main should flush after output.

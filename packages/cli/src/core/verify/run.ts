@@ -106,7 +106,7 @@ const runStage = (state: RunState, stage: Stage, steps: ReadonlyArray<PlannedSte
  * allows the other checks.
  */
 const stageSkipReason = (state: RunState, run: StageRun, step: PlannedStep) =>
-  state.plan.skipped.get(step.name) ??
+  state.plan.skipped.get(step.name)?.reason ??
   (run.setupFailed && step.phase !== "teardown" ? SETUP_FAILED : undefined);
 
 const runStageStep = (state: RunState, run: StageRun, step: PlannedStep) =>
@@ -170,9 +170,8 @@ function stageOutcome(
 ): Outcome {
   if (interrupted) return "interrupted";
   if (steps.some((step) => state.results.get(step.name)?.status === "failed")) return "failed";
-  const skippedBySelection = (step: PlannedStep) =>
-    state.plan.skipped.has(step.name) && !(step.skipByDefault && !state.plan.all);
-  if (steps.some(skippedBySelection)) return "partial";
+  if (steps.some((step) => state.plan.skipped.get(step.name)?.kind === "selection"))
+    return "partial";
   return "green";
 }
 
@@ -188,6 +187,6 @@ const runApp = (state: RunState, app: ReadonlyArray<PlannedStep>) =>
     } else if (app.some((step) => !state.plan.skipped.has(step.name))) {
       yield* runStage(state, "app", app);
     } else {
-      skipSteps(state, app, (step) => state.plan.skipped.get(step.name) ?? INTERRUPTED);
+      skipSteps(state, app, (step) => state.plan.skipped.get(step.name)?.reason ?? INTERRUPTED);
     }
   });

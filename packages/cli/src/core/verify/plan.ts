@@ -23,13 +23,14 @@ export type VerifyOptions = {
   all: boolean;
 };
 
+type StepSkip = { kind: "default" | "selection"; reason: string };
+
 export type VerifyPlan = {
   /** In run order: base then app, each by phase and then manifest order. */
   steps: ReadonlyArray<PlannedStep>;
-  /** Steps left out by selection, with the fixed reason each is skipped. */
-  skipped: ReadonlyMap<string, string>;
+  /** Why each omitted step was skipped and whether that skip makes its stage partial. */
+  skipped: ReadonlyMap<string, StepSkip>;
   scope: "full" | "partial";
-  all: boolean;
 };
 
 /** The fields every step result copies from its planned step, in the result's key order. */
@@ -66,13 +67,18 @@ const runOrder = (steps: ReadonlyArray<PlannedStep>) =>
   );
 
 /** Why the selection flags leave this step out, or undefined when it runs. First match wins. */
-function selectionSkip(step: PlannedStep, options: VerifyOptions): string | undefined {
+function selectionSkip(step: PlannedStep, options: VerifyOptions): StepSkip | undefined {
   if (step.skipByDefault && !options.all && !options.only.includes(step.name))
-    return step.tags.includes(HYGIENE_TAG) ? HYGIENE_SKIPPED : PRESET_SKIPPED;
+    return {
+      kind: "default",
+      reason: step.tags.includes(HYGIENE_TAG) ? HYGIENE_SKIPPED : PRESET_SKIPPED,
+    };
   if (options.only.length > 0 && isSelectable(step) && !options.only.includes(step.name))
-    return NOT_SELECTED;
+    return { kind: "selection", reason: NOT_SELECTED };
   const tag = step.tags.find((item) => options.skipTags.includes(item));
-  return tag === undefined ? undefined : `tagged ${tag}; --skip-tag leaves it out`;
+  return tag === undefined
+    ? undefined
+    : { kind: "selection", reason: `tagged ${tag}; --skip-tag leaves it out` };
 }
 
 /**
@@ -92,11 +98,11 @@ export function planVerify(
   // Help callers recover from a bad selection by reporting the eligible check and serve names.
   if (unknown !== undefined)
     return Effect.fail(new BadInput({ details: { id: unknown, flag: "only", known } }));
-  const skipped = new Map<string, string>();
+  const skipped = new Map<string, StepSkip>();
   for (const step of steps) {
-    const reason = selectionSkip(step, options);
-    if (reason !== undefined) skipped.set(step.name, reason);
+    const skip = selectionSkip(step, options);
+    if (skip !== undefined) skipped.set(step.name, skip);
   }
   const scope = options.only.length > 0 || options.skipTags.length > 0 ? "partial" : "full";
-  return Effect.succeed({ steps, skipped, scope, all: options.all });
+  return Effect.succeed({ steps, skipped, scope });
 }

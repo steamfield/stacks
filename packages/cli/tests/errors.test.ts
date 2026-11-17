@@ -24,7 +24,9 @@ import {
 import { Output } from "../src/services/output";
 import { ndjson, quiet, runCli, tempDir, terminal, writeError } from "./helpers/cli";
 
-const reported = errorClasses.map((Class) => new Class()).filter((e) => !(e instanceof BrokenPipe));
+const reported = Object.values(errorClasses)
+  .map((Class) => new Class())
+  .filter((e) => !(e instanceof BrokenPipe));
 const COMPOSE_NEXT =
   "change --with or --without so these entries fit, or pick another stack; stacks show <id> lists what each entry requires and conflicts with.";
 const publishedErrors = {
@@ -52,7 +54,7 @@ const errorBehavior = (error: AppError) => ({
   keepsResult: keepsResult(error),
 });
 test.each(
-  errorClasses.map((Class) => {
+  Object.values(errorClasses).map((Class) => {
     const error = new Class();
     return { tag: error._tag, error };
   }),
@@ -86,7 +88,7 @@ test.each(
   });
 });
 test("the class list and the envelope's tag literals cover the published tags", () => {
-  expect(new Set(errorClasses.map((Class) => new Class()._tag))).toEqual(
+  expect(new Set(Object.values(errorClasses).map((Class) => new Class()._tag))).toEqual(
     new Set(Object.keys(publishedErrors)),
   );
   expect(new Set(ErrorTag.literals)).toEqual(new Set(Object.keys(publishedErrors)));

@@ -1,10 +1,10 @@
 /**
  * Defines CLI error tags and their public details. Fixed messages let callers
- * match failures, while closed details hold the specific CLI-produced values or caller
- * arguments.
+ * match failures, while closed details hold CLI-produced values or caller arguments.
+ * A new tag needs its class, an entry in `errorClasses`, and a case in `failureGuide`.
  */
 import { FailureKind, Kind } from "@steamfield/stacks-format";
-import { Effect, Schema } from "effect";
+import { Effect, Record as EffectRecord, Schema } from "effect";
 import { Origin } from "./schemas/origin";
 import { VerifyChange, VerifyResult } from "./schemas/verify";
 
@@ -39,6 +39,7 @@ export const UsageDetails = Schema.Union([
 export class Usage extends Schema.TaggedError<Usage>()("Usage", {
   details: Schema.optionalKey(UsageDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Invalid command.";
 }
 
@@ -141,6 +142,7 @@ export const BadInputDetails = Schema.Union([
 export class BadInput extends Schema.TaggedError<BadInput>()("BadInput", {
   details: Schema.optionalKey(BadInputDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Invalid input.";
 }
 
@@ -173,10 +175,12 @@ export const NotFoundDetails = Schema.Struct({
 export class NotFound extends Schema.TaggedError<NotFound>()("NotFound", {
   details: Schema.optionalKey(NotFoundDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Not found.";
 }
 
 export class NotConfigured extends Schema.TaggedError<NotConfigured>()("NotConfigured", {}) {
+  static readonly exit = 3;
   override readonly message = "Configuration is required.";
 }
 
@@ -191,6 +195,7 @@ export const InvalidConfigDetails = Schema.Struct({
 export class InvalidConfig extends Schema.TaggedError<InvalidConfig>()("InvalidConfig", {
   details: Schema.optionalKey(InvalidConfigDetails),
 }) {
+  static readonly exit = 3;
   override readonly message = "Configuration is invalid.";
 }
 
@@ -209,12 +214,15 @@ export const UpdateFailedDetails = Schema.Struct({
 export class UpdateFailed extends Schema.TaggedError<UpdateFailed>()("UpdateFailed", {
   details: Schema.optionalKey(UpdateFailedDetails),
 }) {
+  static readonly exit = 6;
   override readonly message = "Update failed.";
 }
 export class UpstreamUnavailable extends Schema.TaggedError<UpstreamUnavailable>()(
   "UpstreamUnavailable",
   { details: Schema.optionalKey(UpstreamUnavailableDetails) },
 ) {
+  static readonly exit = 4;
+  static readonly retryable = true;
   override readonly message = "Upstream service is unavailable.";
 }
 
@@ -233,6 +241,8 @@ export const VerifyFailedDetails = Schema.Struct({
 export class VerifyFailed extends Schema.TaggedError<VerifyFailed>()("VerifyFailed", {
   details: Schema.optionalKey(VerifyFailedDetails),
 }) {
+  static readonly exit = 5;
+  static readonly keepsResult = true;
   override readonly message = "Verify failed.";
 }
 
@@ -241,6 +251,8 @@ export const VerifyChangedDetails = VerifyChange;
 export class VerifyChanged extends Schema.TaggedError<VerifyChanged>()("VerifyChanged", {
   details: Schema.optionalKey(VerifyChangedDetails),
 }) {
+  static readonly exit = 5;
+  static readonly keepsResult = true;
   override readonly message = "Verify steps changed since they were recorded.";
 }
 
@@ -273,6 +285,7 @@ export const PermissionDeniedDetails = Schema.Struct({
 export class PermissionDenied extends Schema.TaggedError<PermissionDenied>()("PermissionDenied", {
   details: Schema.optionalKey(PermissionDeniedDetails),
 }) {
+  static readonly exit = 6;
   override readonly message = "Permission denied.";
 }
 
@@ -317,6 +330,7 @@ export const EntryInvalidDetails = Schema.Struct({
 export class EntryInvalid extends Schema.TaggedError<EntryInvalid>()("EntryInvalid", {
   details: Schema.optionalKey(EntryInvalidDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "Entry is invalid.";
 }
 
@@ -359,6 +373,7 @@ export const ComposeConflictDetails = Schema.Struct({
 export class ComposeConflict extends Schema.TaggedError<ComposeConflict>()("ComposeConflict", {
   details: Schema.optionalKey(ComposeConflictDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "These entries can't be composed.";
 }
 
@@ -378,6 +393,7 @@ export const TargetNotEmptyDetails = Schema.Struct({
 export class TargetNotEmpty extends Schema.TaggedError<TargetNotEmpty>()("TargetNotEmpty", {
   details: Schema.optionalKey(TargetNotEmptyDetails),
 }) {
+  static readonly exit = 2;
   override readonly message = "The target directory is not empty.";
 }
 
@@ -389,16 +405,21 @@ export const ValidationFailedDetails = Schema.Struct({
 export class ValidationFailed extends Schema.TaggedError<ValidationFailed>()("ValidationFailed", {
   details: Schema.optionalKey(ValidationFailedDetails),
 }) {
+  static readonly exit = 2;
+  static readonly keepsResult = true;
   override readonly message = "Validation failed.";
 }
 
 export class Interrupted extends Schema.TaggedError<Interrupted>()("Interrupted", {}) {
+  static readonly exit = 130;
   override readonly message = "Command interrupted.";
 }
 export class Defect extends Schema.TaggedError<Defect>()("Defect", {}) {
+  static readonly exit = 1;
   override readonly message = "An unexpected error occurred.";
 }
 export class BrokenPipe extends Schema.TaggedError<BrokenPipe>()("BrokenPipe", {}) {
+  static readonly exit = 0;
   override readonly message = "Output pipe closed.";
 }
 
@@ -420,12 +441,7 @@ export class SpawnFailed extends Schema.TaggedError<SpawnFailed>()("SpawnFailed"
 // The tag registry: exit codes, retryability, kept results
 // ---------------------------------------------------------------------------------------------
 
-/** Every error class main reports; a unit test keeps it equal to `errorTable`'s keys. */
-/**
- * A new tag belongs here, in `ErrorTag` and `errorTable`, and in `failureGuide` and
- * `encodeDetails`. For a tag with details, also update the `ErrorEnvelope` details union.
- */
-export const errorClasses = [
+export const errorClasses = {
   Usage,
   BadInput,
   NotFound,
@@ -443,56 +459,26 @@ export const errorClasses = [
   Interrupted,
   Defect,
   BrokenPipe,
-] as const;
-export type AppError = InstanceType<(typeof errorClasses)[number]>;
-
-/** Every tag, for the envelope's schema. A unit test keeps it equal to `errorTable`'s keys. */
-export const ErrorTag = Schema.Literals([
-  "Usage",
-  "BadInput",
-  "NotFound",
-  "NotConfigured",
-  "InvalidConfig",
-  "UpstreamUnavailable",
-  "UpdateFailed",
-  "VerifyFailed",
-  "VerifyChanged",
-  "PermissionDenied",
-  "EntryInvalid",
-  "ComposeConflict",
-  "TargetNotEmpty",
-  "ValidationFailed",
-  "Interrupted",
-  "Defect",
-  "BrokenPipe",
-]);
-
-type ErrorSpec = { exit: number; retryable: boolean; keepsResult: boolean };
+} as const;
+export type AppError = InstanceType<(typeof errorClasses)[keyof typeof errorClasses]>;
 
 /**
- * Exit code, retryability and whether a failure keeps the command's result on stdout. Exit codes
- * are the branch an agent takes: 2 fix the input, 3 fix the config, 4 retry later, 5 read the
- * verify report, 6 ask a person, 130 the run was stopped, 1 a bug.
+ * Each tag's exit code, retryability, kept result and details schema, read from its class. Exit
+ * codes are the branch an agent takes: 2 fix the input, 3 fix the config, 4 retry later, 5 read
+ * the verify report, 6 ask a person, 130 the run was stopped, 1 a bug.
  */
-export const errorTable = {
-  Usage: { exit: 2, retryable: false, keepsResult: false },
-  BadInput: { exit: 2, retryable: false, keepsResult: false },
-  NotFound: { exit: 2, retryable: false, keepsResult: false },
-  NotConfigured: { exit: 3, retryable: false, keepsResult: false },
-  InvalidConfig: { exit: 3, retryable: false, keepsResult: false },
-  UpstreamUnavailable: { exit: 4, retryable: true, keepsResult: false },
-  UpdateFailed: { exit: 6, retryable: false, keepsResult: false },
-  VerifyFailed: { exit: 5, retryable: false, keepsResult: true },
-  VerifyChanged: { exit: 5, retryable: false, keepsResult: true },
-  PermissionDenied: { exit: 6, retryable: false, keepsResult: false },
-  EntryInvalid: { exit: 2, retryable: false, keepsResult: false },
-  ComposeConflict: { exit: 2, retryable: false, keepsResult: false },
-  TargetNotEmpty: { exit: 2, retryable: false, keepsResult: false },
-  ValidationFailed: { exit: 2, retryable: false, keepsResult: true },
-  Interrupted: { exit: 130, retryable: false, keepsResult: false },
-  Defect: { exit: 1, retryable: false, keepsResult: false },
-  BrokenPipe: { exit: 0, retryable: false, keepsResult: false },
-} as const satisfies Record<AppError["_tag"], ErrorSpec> & Record<typeof ErrorTag.Type, ErrorSpec>;
+export const errorTable = Object.freeze(
+  EffectRecord.map(errorClasses, (Class) =>
+    Object.freeze({
+      exit: Class.exit,
+      retryable: "retryable" in Class && Class.retryable,
+      keepsResult: "keepsResult" in Class && Class.keepsResult,
+      details: "details" in Class.fields ? Class.fields.details.schema : undefined,
+    }),
+  ),
+);
+export const ErrorTag = Schema.Literals(EffectRecord.keys(errorTable));
+export const EXIT_INTERRUPTED = errorTable.Interrupted.exit;
 
 export function exitCode(error: AppError): number {
   return errorTable[error._tag].exit;
@@ -505,12 +491,38 @@ export function keepsResult(error: AppError): boolean {
 }
 /** `value` as an `AppError` when it is an instance of one of `errorClasses`, else undefined. */
 export function knownError(value: unknown): AppError | undefined {
-  return errorClasses.some((Class) => value instanceof Class) ? (value as AppError) : undefined;
+  for (const Class of Object.values(errorClasses)) {
+    if (value instanceof Class) return value;
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
 // The JSON error envelope
 // ---------------------------------------------------------------------------------------------
+
+// Published anyOf order breaks ties between overlapping details in decoders.
+const detailsOrder: ReadonlyArray<typeof ErrorTag.Type> = [
+  "UpstreamUnavailable",
+  "UpdateFailed",
+  "Usage",
+  "BadInput",
+  "NotFound",
+  "InvalidConfig",
+  "VerifyFailed",
+  "VerifyChanged",
+  "PermissionDenied",
+  "EntryInvalid",
+  "ComposeConflict",
+  "TargetNotEmpty",
+  "ValidationFailed",
+];
+const envelopeDetails = Schema.Union(
+  Array.from(
+    new Set([...detailsOrder, ...ErrorTag.literals]),
+    (tag) => errorTable[tag].details,
+  ).filter((schema) => schema !== undefined),
+);
 
 /**
  * The one stderr line a `--json` failure ends with (`Output.error`). `next` is the failure's one
@@ -524,23 +536,7 @@ export const ErrorEnvelope = Schema.Struct({
     retryable: Schema.Boolean,
     next: Schema.optionalKey(Schema.String),
     rollback: Schema.optionalKey(Schema.Struct({ incomplete: Schema.Array(Schema.String) })),
-    details: Schema.optionalKey(
-      Schema.Union([
-        UpstreamUnavailableDetails,
-        UpdateFailedDetails,
-        UsageDetails,
-        BadInputDetails,
-        NotFoundDetails,
-        InvalidConfigDetails,
-        VerifyFailedDetails,
-        VerifyChangedDetails,
-        PermissionDeniedDetails,
-        EntryInvalidDetails,
-        ComposeConflictDetails,
-        TargetNotEmptyDetails,
-        ValidationFailedDetails,
-      ]),
-    ),
+    details: Schema.optionalKey(envelopeDetails),
   }),
 }).annotate({
   title: "Error envelope",
@@ -548,48 +544,13 @@ export const ErrorEnvelope = Schema.Struct({
 });
 export type ErrorEnvelope = typeof ErrorEnvelope.Type;
 
-/** Encodes `value` with `schema`, rejecting keys the schema doesn't name. */
-const encodeClosed = <S extends Schema.Top>(schema: S, value: S["Type"] | undefined) =>
-  value === undefined
-    ? Effect.succeed(undefined)
-    : Schema.encodeUnknownEffect(schema)(value, { onExcessProperty: "error" });
-
 /**
  * A failure's details, encoded with the tag's details schema. Construction already drops keys
  * the schema doesn't name; this catches a details object mutated afterwards.
  */
 export function encodeDetails(error: AppError): Effect.Effect<unknown, Schema.SchemaError> {
-  switch (error._tag) {
-    case "Usage":
-      return encodeClosed(UsageDetails, error.details);
-    case "PermissionDenied":
-      return encodeClosed(PermissionDeniedDetails, error.details);
-    case "EntryInvalid":
-      return encodeClosed(EntryInvalidDetails, error.details);
-    case "BadInput":
-      return encodeClosed(BadInputDetails, error.details);
-    case "NotFound":
-      return encodeClosed(NotFoundDetails, error.details);
-    case "ComposeConflict":
-      return encodeClosed(ComposeConflictDetails, error.details);
-    case "TargetNotEmpty":
-      return encodeClosed(TargetNotEmptyDetails, error.details);
-    case "ValidationFailed":
-      return encodeClosed(ValidationFailedDetails, error.details);
-    case "InvalidConfig":
-      return encodeClosed(InvalidConfigDetails, error.details);
-    case "VerifyFailed":
-      return encodeClosed(VerifyFailedDetails, error.details);
-    case "VerifyChanged":
-      return encodeClosed(VerifyChangedDetails, error.details);
-    case "UpstreamUnavailable":
-      return encodeClosed(UpstreamUnavailableDetails, error.details);
-    case "UpdateFailed":
-      return encodeClosed(UpdateFailedDetails, error.details);
-    case "NotConfigured":
-    case "Interrupted":
-    case "Defect":
-    case "BrokenPipe":
-      return Effect.succeed(undefined);
-  }
+  const schema = errorTable[error._tag].details;
+  if (schema === undefined || !("details" in error) || error.details === undefined)
+    return Effect.succeed(undefined);
+  return Schema.encodeUnknownEffect(schema)(error.details, { onExcessProperty: "error" });
 }

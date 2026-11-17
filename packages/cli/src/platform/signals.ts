@@ -2,6 +2,7 @@
  * Owns the CLI signal policy. Pure decisions take signal history and time as inputs so they can
  * be tested without delivering OS signals.
  */
+import { EXIT_INTERRUPTED } from "../errors";
 import { killGroupsNow, killProcess, type ProcessHolder } from "./process";
 
 type PolicySignal = "SIGINT" | "SIGTERM" | "SIGHUP" | "SIGQUIT";
@@ -85,7 +86,7 @@ function carryOut(action: SignalAction, signal: PolicySignal, context: PolicyCon
       return;
     case "force-exit":
       killGroupsNow(holder.groups);
-      process.exit(130);
+      process.exit(EXIT_INTERRUPTED);
       return;
     case "default":
       // With no listener left the runtime restores the default action; deliver it again. Dying

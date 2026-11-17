@@ -5,7 +5,7 @@ import {
   type Ecosystem as EcosystemType,
 } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
-import { goAllowlistKey } from "../../src/core/deps";
+import { goAllowlistKey } from "../../src/core/deps/index";
 import { type Entry, isRejected } from "../../src/core/registry/entry";
 import { Registry } from "../../src/core/registry/registry";
 import { decodeDependencyCards } from "../../src/core/search/sidecar";

@@ -2,20 +2,20 @@
  * Applies fragments while preserving live scaffold files.
  */
 import { Clock, Effect } from "effect";
-import { AppConfig } from "../config";
-import { BRIEF_PATH } from "../project-layout";
-import type { AddResult } from "../schemas/add";
-import { Host } from "../services/host";
-import { mergeAddManifest } from "./add/manifest";
-import { mergeNeeded } from "./add/plan";
-import { prepareAdd } from "./add/prepare";
-import { readAddProject } from "./add/project";
-import type { AddOptions } from "./add/types";
-import { applyAdd } from "./add/write";
-import { renderBrief } from "./brief/render";
-import { handoffRecord } from "./handoff/decide";
+import { AppConfig } from "../../config";
+import { BRIEF_PATH } from "../../project-layout";
+import type { AddResult } from "../../schemas/add";
+import { Host } from "../../services/host";
+import { renderBrief } from "../brief/render";
+import { handoffRecord } from "../handoff/decide";
+import { mergeAddManifest } from "./manifest";
+import { mergeNeeded } from "./plan";
+import { prepareAdd } from "./prepare";
+import { readAddProject } from "./project";
+import type { AddOptions } from "./types";
+import { applyAdd } from "./write";
 
-export { type AddPlan, checkAddRoot, planAdd } from "./add/plan";
+export { type AddPlan, checkAddRoot, planAdd } from "./plan";
 
 export const add = (options: AddOptions) =>
   Effect.gen(function* () {

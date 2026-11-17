@@ -4,7 +4,7 @@
  */
 import type { DependencyAllowlist, RunRecord } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
-import { readDependencies } from "../core/deps";
+import { readDependencies } from "../core/deps/index";
 import { locateManifest, readManifest } from "../core/project/manifest";
 import { countAsked } from "../core/runs";
 import { NOTES_PATH } from "../project-layout";

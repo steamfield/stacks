@@ -1,7 +1,7 @@
 /** Handles `stacks add` and records telemetry after the handoff settles. */
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { add } from "../core/add";
+import { add } from "../core/add/index";
 import { renderAdd } from "../core/add/report";
 import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
 import { completeHandoff, prepareHandoff } from "../core/handoff/run";

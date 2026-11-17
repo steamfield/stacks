@@ -1338,6 +1338,33 @@ test("--brief takes --with as a comma list and --without, like new", async () =>
   ]);
 });
 
+test.each([
+  {
+    flag: "--with",
+    list: "one,two",
+    spaced: "one, two",
+    selected: ["extra", "helper", "one", "two"],
+  },
+  { flag: "--without", list: "helper,extra", spaced: "helper, extra", selected: [] },
+])("--brief $flag composes the same brief with spaces after commas", async (row) => {
+  const root = temp();
+  stack(root, "base", "fragments:\n  default: [helper, extra]\n  optional: [one, two]");
+  for (const id of ["helper", "extra", "one", "two"]) fragment(root, id);
+  const args = [root, "--brief", "base", "--json", row.flag];
+  const decode = Schema.decodeUnknownSync(BriefPreview);
+
+  const compact = await run([...args, row.list]);
+  expect(compact.status, compact.stderr).toBe(0);
+  expect(compact.stderr).toBe("");
+  const preview = decode(JSON.parse(compact.stdout), { onExcessProperty: "error" });
+  expect(preview.fragments).toEqual(row.selected);
+
+  const spaced = await run([...args, row.spaced]);
+  expect(spaced.status, spaced.stderr).toBe(0);
+  expect(spaced.stderr).toBe("");
+  expect(decode(JSON.parse(spaced.stdout), { onExcessProperty: "error" })).toEqual(preview);
+});
+
 test("control characters from an entry are escaped in human output [1.5#10]", async () => {
   const root = temp();
   stack(root, "sneaky", "", {

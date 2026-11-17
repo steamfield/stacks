@@ -25,16 +25,13 @@ import { BadInput, Usage, ValidationFailed } from "../errors";
 import { BriefPreview, type Finding, ValidateReport } from "../schemas/validate";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
+import { splitValues } from "./handoff";
 
 type CompositionFlags = {
   with: ReadonlyArray<string>;
   without: ReadonlyArray<string>;
   sandbox: boolean;
 };
-
-/** Repeated flags, each value also split on commas: `--with a --with b,c`. */
-const ids = (values: ReadonlyArray<string>) =>
-  values.flatMap((value) => value.split(",")).filter((value) => value !== "");
 
 /** The first composition flag given, for the error when one is used without `--brief`. */
 function compositionFlag(flags: CompositionFlags) {
@@ -164,8 +161,8 @@ export const validateCommand = Command.make(
         return yield* printReport(target, { path, submission: flags.submission });
       yield* printPreview(target, {
         stack,
-        with: ids(flags.with),
-        without: ids(flags.without),
+        with: splitValues(flags.with),
+        without: splitValues(flags.without),
         preset: flags.sandbox ? "sandbox" : "default",
       });
     }),

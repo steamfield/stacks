@@ -1,5 +1,5 @@
 /**
- * Resolves entries by registry precedence, with trust assigned by `trustOf` (trust point 2).
+ * Resolves entries by registry precedence, with trust inherited from `localRoot` or `indexRoot`.
  * Per-invocation caching keeps catalog reads cheap and deep checks lazy and per-entry.
  */
 import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
@@ -9,23 +9,14 @@ import { decodeAuthors, readSearchFile, sidecarPath } from "../search/sidecar";
 import type { CatalogEntry, Entry, EntryFile, Origin, RejectedEntry } from "./entry";
 import { type LoadState, loadRoot } from "./load";
 import { remoteRegistry } from "./remote/merge";
-import type { RegistryRoots } from "./roots";
+import { localRoot, type RegistryRoots } from "./roots";
 import { entryTree, readEntryFile, shippedFiles } from "./tree";
-import type { FileAccess, RegistryRoot, Rejection, RootCandidate, Skipped } from "./types";
+import type { FileAccess, Rejection, RootCandidate, Skipped } from "./types";
 
 export type { Skipped } from "./types";
 
 /** Candidates per `kind/id`, in root order: the first is the winner, the rest it hides. */
 type FoundCandidates = ReadonlyMap<string, ReadonlyArray<RootCandidate>>;
-
-/**
- * Whether an entry is trusted, by origin and root: project entries never are, nor are entries
- * from a bundled root set by STACKS_REGISTRY_DIR; user entries and the shipped bundled ones are
- * (Trust model, point 2).
- */
-export function trustOf(entry: Pick<Entry, "origin">, root: RegistryRoot): boolean {
-  return entry.origin !== "project" && !root.overridden;
-}
 
 function hidesText(shadows: ReadonlyArray<Origin>): string {
   if (!shadows.length) return "";
@@ -46,7 +37,7 @@ function registryWinners(found: FoundCandidates) {
     const { candidate } = winner;
     if (candidate._tag === "Entry") {
       const entry = { ...candidate.entry, shadows };
-      results.push({ ...entry, trusted: trustOf(entry, winner.root) });
+      results.push({ ...entry, trusted: winner.root.trusted });
     } else {
       const { rejected } = candidate.rejection;
       results.push({
@@ -204,9 +195,10 @@ export class Registry extends Context.Service<
         // Filled while `load` runs; read only after it has.
         const state: LoadState = { io, skipped: [], checks: new Map() };
 
+        const localRoots = roots.map(localRoot);
         const load = Effect.gen(function* () {
           const found = new Map<string, RootCandidate[]>();
-          for (const root of roots) yield* loadRoot(root, state, found);
+          for (const root of localRoots) yield* loadRoot(root, state, found);
           return {
             winners: registryWinners(found),
             bundled: registryWinners(bundledOnly(found)),

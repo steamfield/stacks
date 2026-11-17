@@ -3,9 +3,26 @@ import { AppConfig } from "../../config";
 import { METADATA_DIR } from "../../project-layout";
 import { Host } from "../../services/host";
 import { printable } from "../text/text";
-import type { RegistryRoot } from "./types";
+import type { IndexRegistryRoot, LocalRegistryRoot } from "./types";
 
-export type RegistryRoots = ReadonlyArray<RegistryRoot>;
+type RootInput = Omit<LocalRegistryRoot, "trusted"> & { overridden?: boolean; remote?: boolean };
+export type RegistryRoots = ReadonlyArray<RootInput>;
+
+/** Project roots and bundled overrides are untrusted (trust point 2). */
+export function localRoot({ origin, path, overridden }: RootInput): LocalRegistryRoot {
+  return { origin, path, trusted: origin !== "project" && !overridden };
+}
+
+/** An override equal to the official URL still requires its signature (trust point 2). */
+export const indexRoot = Effect.fn("registry.indexRoot")(function* (config: AppConfig["Service"]) {
+  const url = yield* config.remoteIndexUrl;
+  if (url === undefined) return undefined;
+  return Object.freeze({
+    origin: "index",
+    url,
+    trusted: url === config.officialIndexUrl,
+  } satisfies IndexRegistryRoot);
+});
 
 /**
  * The bundled root: STACKS_REGISTRY_DIR resolved against the cwd when set, else
@@ -48,3 +65,11 @@ export const remoteRoots = defaultRoots.pipe(
     roots.map((root) => (root.origin === "bundled" ? { ...root, remote: true } : root)),
   ),
 );
+
+/** Use the selected project's metadata directory for entry resolution. */
+export const projectRoots = Effect.fn("registry.projectRoots")(function* (dir: string) {
+  const path = yield* Path.Path;
+  return (yield* remoteRoots).map((root) =>
+    root.origin === "project" ? { ...root, path: path.join(dir, METADATA_DIR) } : root,
+  );
+});

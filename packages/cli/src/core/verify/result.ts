@@ -1,17 +1,10 @@
 import type { Manifest, Outcome } from "@steamfield/stacks-format";
 import { Clock, Effect } from "effect";
 import type { StepResult, VerifyChange, VerifyResult } from "../../schemas/verify";
-import {
-  isAppStep,
-  type PlannedStep,
-  type SelectOptions,
-  stepFields,
-  type VerifyPlan,
-} from "./plan";
+import { isAppStep, type PlannedStep, stepFields, type VerifyPlan } from "./plan";
 import type { StepContext } from "./step";
 import { createdAtOf, type Tamper } from "./tamper";
 
-export type VerifyOptions = SelectOptions;
 /** Omit tamper fields and the `changed` outcome because a blocked run never enters the runner. */
 export type RunResult = Omit<
   VerifyResult,
@@ -27,7 +20,6 @@ type Stages = NonNullable<RunResult["stages"]>;
  */
 export type RunState = {
   readonly plan: VerifyPlan;
-  readonly options: VerifyOptions;
   readonly context: StepContext;
   readonly results: Map<string, StepResult>;
   stages: Stages;

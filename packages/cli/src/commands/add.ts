@@ -8,9 +8,9 @@ import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
 import { completeHandoff, prepareHandoff } from "../core/handoff/run";
 import { pickAdd, promptingAllowed, runningCommand } from "../core/prompting";
 import { Registry } from "../core/registry/registry";
-import { remoteRoots } from "../core/registry/roots";
+import { projectRoots } from "../core/registry/roots";
 import { Usage } from "../errors";
-import { INCOMING, METADATA_DIR } from "../project-layout";
+import { INCOMING } from "../project-layout";
 import { AddResult } from "../schemas/add";
 import { Host } from "../services/host";
 import { Telemetry } from "../telemetry";
@@ -51,10 +51,7 @@ type Added = Effect.Success<ReturnType<typeof add>>;
  * `--dir` project's own entries rather than the current directory's.
  */
 const projectRegistry = Effect.fn("add.projectRegistry")(function* (project: string) {
-  const path = yield* Path.Path;
-  const roots = (yield* remoteRoots).map((entry) =>
-    entry.origin === "project" ? { ...entry, path: path.join(project, METADATA_DIR) } : entry,
-  );
+  const roots = yield* projectRoots(project);
   return yield* Registry.pipe(Effect.provide(Registry.layer(roots)));
 });
 

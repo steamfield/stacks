@@ -7,7 +7,7 @@ import { Cause, Clock, Effect, Exit, FileSystem } from "effect";
 import { AppConfig } from "../../config";
 import { AGENT_MARKER_NAMES, CLI_SETTING_NAMES } from "../../env-names";
 import { stepFinished, stepStarted } from "./events";
-import { isAppStep, type PlannedStep, planVerify } from "./plan";
+import { isAppStep, type PlannedStep, type VerifyPlan } from "./plan";
 import {
   BASE_FAILED,
   INTERRUPTED,
@@ -17,7 +17,6 @@ import {
   skippedStep,
   skipSteps,
   summarize,
-  type VerifyOptions,
 } from "./result";
 import { runStep } from "./step";
 
@@ -40,16 +39,14 @@ type StageRun = {
  */
 export const runVerify = (
   project: VerifyProject,
-  options: VerifyOptions,
+  plan: VerifyPlan,
   onFinished: (result: RunResult) => Effect.Effect<void> = () => Effect.void,
 ) =>
   Effect.gen(function* () {
-    const plan = yield* planVerify(project.manifest.verify, options);
     const context = yield* stepContext(project);
     const started = yield* Clock.currentTimeMillis;
     const state: RunState = {
       plan,
-      options,
       context,
       results: new Map(),
       stages: { base: "green", app: null },
@@ -174,7 +171,7 @@ function stageOutcome(
   if (interrupted) return "interrupted";
   if (steps.some((step) => state.results.get(step.name)?.status === "failed")) return "failed";
   const skippedBySelection = (step: PlannedStep) =>
-    state.plan.skipped.has(step.name) && !(step.skipByDefault && !state.options.all);
+    state.plan.skipped.has(step.name) && !(step.skipByDefault && !state.plan.all);
   if (steps.some(skippedBySelection)) return "partial";
   return "green";
 }

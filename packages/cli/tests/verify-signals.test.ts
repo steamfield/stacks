@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
 import { locateManifest, readManifest } from "../src/core/project/manifest";
+import { planVerify } from "../src/core/verify/plan";
 import type { RunResult } from "../src/core/verify/result";
 import { runVerify } from "../src/core/verify/run";
 import { alive, quiet, runCli } from "./helpers/cli";
@@ -62,7 +63,7 @@ test("an interrupted run hands onFinished outcome interrupted with the step inte
     const manifest = yield* readManifest(project.path);
     yield* runVerify(
       { root: project.root, manifest, createdAt: manifest.createdAt },
-      { only: [], skipTags: [], all: false },
+      yield* planVerify(manifest.verify, { only: [], skipTags: [], all: false }),
       (result) =>
         Effect.sync(() => {
           finished.push(result);

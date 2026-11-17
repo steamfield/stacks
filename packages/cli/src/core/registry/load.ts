@@ -12,8 +12,8 @@ import { walkEntry } from "./tree";
 import type {
   Candidate,
   FileAccess,
+  LocalRegistryRoot,
   Reason,
-  RegistryRoot,
   Rejection,
   RootCandidate,
   Skipped,
@@ -166,7 +166,7 @@ const linkedProjectDir = ({ fs }: FileAccess, dir: string) =>
  * Project roots and their stack and fragment collections are checked because the checkout controls
  * them. User and bundled roots can be symlinked by the user or package manager.
  */
-const skippedAsLink = (root: RegistryRoot, dir: string, state: LoadState) =>
+const skippedAsLink = (root: LocalRegistryRoot, dir: string, state: LoadState) =>
   Effect.gen(function* () {
     if (root.origin !== "project" || !(yield* linkedProjectDir(state.io, dir))) return false;
     state.skipped.push({ reason: "symlink", origin: root.origin, dir });
@@ -176,7 +176,7 @@ const skippedAsLink = (root: RegistryRoot, dir: string, state: LoadState) =>
 type FoundByKey = Map<string, RootCandidate[]>;
 
 const loadKind = (
-  root: RegistryRoot,
+  root: LocalRegistryRoot,
   { kind, dir }: (typeof kinds)[number],
   state: LoadState,
   found: FoundByKey,
@@ -197,7 +197,7 @@ const loadKind = (
 /**
  * Append candidates after the higher roots, stacks first and then fragments, each sorted by name.
  */
-export const loadRoot = (root: RegistryRoot, state: LoadState, found: FoundByKey) =>
+export const loadRoot = (root: LocalRegistryRoot, state: LoadState, found: FoundByKey) =>
   Effect.gen(function* () {
     if (yield* skippedAsLink(root, root.path, state)) return;
     for (const kind of kinds) yield* loadKind(root, kind, state, found);

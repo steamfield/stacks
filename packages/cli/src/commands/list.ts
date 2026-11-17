@@ -16,7 +16,7 @@ import { renderAddable, renderList } from "../core/list/report";
 import { MANIFEST_PATH, readManifest } from "../core/project/manifest";
 import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
 import { Registry } from "../core/registry/registry";
-import { remoteRoots } from "../core/registry/roots";
+import { projectRoots, type RegistryRoots } from "../core/registry/roots";
 import { Stats } from "../core/stats/index";
 import { shellArg } from "../core/text/shell";
 import { shownPath } from "../core/text/shown-path";
@@ -24,7 +24,6 @@ import { closest } from "../core/text/suggest";
 import { printable } from "../core/text/text";
 import { textWidth } from "../core/text/wrap";
 import { Usage } from "../errors";
-import { METADATA_DIR } from "../project-layout";
 import type { LedgerRecord } from "../schemas/ledger";
 import { ListResult } from "../schemas/list";
 import { Host } from "../services/host";
@@ -65,23 +64,14 @@ const readProjectManifest = (manifestFile: string) =>
     );
   });
 
-/** The usual registry roots, with the project root moved to `--dir`'s `.stacks/`. */
-const rootsFor = (projectRoot: string) =>
-  Effect.gen(function* () {
-    const path = yield* Path.Path;
-    return (yield* remoteRoots).map((entry) =>
-      entry.origin === "project" ? { ...entry, path: path.join(projectRoot, METADATA_DIR) } : entry,
-    );
-  });
-
 /** The bundled run ledger, read from the bundled root; absent when there is no bundled root. */
-const bundledLedger = (roots: Effect.Success<typeof remoteRoots>) => {
+const bundledLedger = (roots: RegistryRoots) => {
   const bundled = roots.find((root) => root.origin === "bundled");
   return bundled ? readLedger(bundled.path) : Effect.succeed(undefined);
 };
 
 /** Every entry, rejected ones included, and the bundled `authors.json`, from these roots. */
-const loadRegistry = (roots: Effect.Success<typeof remoteRoots>) =>
+const loadRegistry = (roots: RegistryRoots) =>
   Registry.pipe(
     Effect.flatMap((registry) => Effect.all({ items: registry.all, authors: registry.authors })),
     Effect.provide(Registry.layer(roots)),
@@ -142,7 +132,7 @@ export const listCommand = Command.make(
       const manifest: Manifest | undefined = yield* readProjectManifest(
         path.join(projectRoot, MANIFEST_PATH),
       );
-      const roots = yield* rootsFor(projectRoot);
+      const roots = yield* projectRoots(projectRoot);
       const ledger = yield* bundledLedger(roots);
       const records = ledger?.records ?? [];
       const { items, authors } = yield* loadRegistry(roots);

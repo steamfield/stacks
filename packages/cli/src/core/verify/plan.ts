@@ -1,6 +1,10 @@
 /** Orders manifest steps and applies verify's selection flags without running anything. */
-import type { ManifestStep } from "@steamfield/stacks-format";
-import { type Phase, type ResolvedStep, withStepDefaults } from "@steamfield/stacks-format";
+import {
+  type ManifestStep,
+  type Phase,
+  type ResolvedStep,
+  withStepDefaults,
+} from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { BadInput } from "../../errors";
 
@@ -25,6 +29,7 @@ export type VerifyPlan = {
   /** Steps left out by selection, with the fixed reason each is skipped. */
   skipped: ReadonlyMap<string, string>;
   scope: "full" | "partial";
+  all: boolean;
 };
 
 /** The fields every step result copies from its planned step, in the result's key order. */
@@ -93,5 +98,5 @@ export function planVerify(
     if (reason !== undefined) skipped.set(step.name, reason);
   }
   const scope = options.only.length > 0 || options.skipTags.length > 0 ? "partial" : "full";
-  return Effect.succeed({ steps, skipped, scope });
+  return Effect.succeed({ steps, skipped, scope, all: options.all });
 }

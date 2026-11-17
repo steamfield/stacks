@@ -5,11 +5,17 @@ import type { Entry, Origin, RejectedEntry } from "./entry";
 
 export type FileAccess = { fs: FileSystem.FileSystem; path: Path.Path };
 
-/**
- * `overridden` marks a bundled root supplied by `STACKS_REGISTRY_DIR` for `trustOf`. `remote`
- * opts into index resolution.
- */
-export type RegistryRoot = { origin: Origin; path: string; overridden?: boolean; remote?: boolean };
+export type RegistryRoot =
+  | { origin: Exclude<Origin, "index">; path: string; trusted: boolean }
+  | IndexRegistryRoot;
+
+export type IndexRegistryRoot = {
+  readonly origin: "index";
+  readonly url: string;
+  readonly trusted: boolean;
+};
+
+export type LocalRegistryRoot = Exclude<RegistryRoot, IndexRegistryRoot>;
 
 /**
  * What loading passed over without an entry or a rejection: an entry whose `schema_version` is
@@ -28,14 +34,14 @@ export type Reason = "decode" | "symlink" | "id_mismatch" | "missing" | "unreada
 
 export type Rejection = { rejected: RejectedEntry; reason: Reason; path?: string };
 
-/** An entry as read from one root, before precedence decides its shadows and trust. */
+/** An entry as read from one root, before resolution adds shadows and inherits root trust. */
 export type Found = Omit<Entry, "shadows" | "trusted">;
 
 export type Candidate =
   | { _tag: "Entry"; entry: Found }
   | { _tag: "Rejected"; rejection: Rejection };
 
-export type RootCandidate = { root: RegistryRoot; candidate: Candidate };
+export type RootCandidate = { root: LocalRegistryRoot; candidate: Candidate };
 
 export type Walked =
   | {

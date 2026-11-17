@@ -13,7 +13,7 @@ import {
   type RejectedEntry,
 } from "../entry";
 import { directoryMatches } from "./files";
-import { RemoteIndex } from "./service";
+import { type ConfiguredIndex, RemoteIndex } from "./service";
 
 type Resolution = Effect.Effect<Entry | RejectedEntry | undefined>;
 
@@ -24,9 +24,8 @@ const aboveIndex = (entry: Entry | RejectedEntry | undefined) =>
 
 /** A missing, unreadable or invalid bundle has no entry, so resolution can fall back. */
 const readEntry = Effect.fn("registry.remoteEntry")(function* (
-  remote: RemoteIndex["Service"],
+  remote: ConfiguredIndex,
   ref: IndexEntry,
-  trusted: boolean,
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -40,9 +39,9 @@ const readEntry = Effect.fn("registry.remoteEntry")(function* (
   return {
     id: ref.id,
     kind: ref.kind,
-    origin: "index",
+    origin: remote.root.origin,
     dir: dir.value,
-    trusted,
+    trusted: remote.root.trusted,
     shadows: [],
     meta: decoded.meta,
     body: decoded.body,
@@ -66,13 +65,13 @@ const pinnedReference = (id: string, digest: string): IndexEntry => ({
  * copies on digest matches and discard the whole pin set if any fragment is unavailable.
  */
 const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
-  remote: RemoteIndex["Service"],
+  remote: ConfiguredIndex,
   ref: IndexEntry,
-  options: { trusted: boolean; bundled: ReadonlyArray<Entry> },
+  bundled: ReadonlyArray<Entry>,
 ) {
   const fragments: Entry[] = [];
   for (const [id, digest] of Object.entries(ref.composition ?? {})) {
-    const original = options.bundled.find((entry) => entry.kind === "fragment" && entry.id === id);
+    const original = bundled.find((entry) => entry.kind === "fragment" && entry.id === id);
     if (
       original &&
       (yield* directoryMatches({ id, kind: "fragment", digest, dir: original.dir }))
@@ -80,7 +79,7 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
       fragments.push(original);
       continue;
     }
-    const fragment = yield* readEntry(remote, pinnedReference(id, digest), options.trusted);
+    const fragment = yield* readEntry(remote, pinnedReference(id, digest));
     if (!fragment) return undefined;
     fragments.push(fragment);
   }
@@ -115,19 +114,18 @@ function bundledComposition(original: Entry | undefined, bundled: ReadonlyArray<
 const resolveReference = Effect.fn("registry.resolveReference")(function* (
   ref: IndexEntry,
   options: {
-    remote: RemoteIndex["Service"];
-    trusted: boolean;
+    remote: ConfiguredIndex;
     original: Entry | undefined;
     bundled: ReadonlyArray<Entry>;
   },
 ) {
-  const { remote, trusted, original, bundled } = options;
+  const { remote, original, bundled } = options;
   const same = original && (yield* directoryMatches({ ...ref, dir: original.dir }));
-  const entry = same ? original : yield* readEntry(remote, ref, trusted);
+  const entry = same ? original : yield* readEntry(remote, ref);
   if (!entry) return ref.kind === "stack" ? bundledComposition(original, bundled) : undefined;
   const shadows: Entry["shadows"] = original ? ["bundled"] : [];
   if (ref.kind === "fragment") return same ? original : { ...entry, shadows };
-  const pinned = yield* pinnedFragments(remote, ref, { trusted, bundled });
+  const pinned = yield* pinnedFragments(remote, ref, bundled);
   if (pinned === undefined) return bundledComposition(original, bundled);
   return { ...entry, composition: pinned, ...(same ? {} : { shadows }) };
 });
@@ -169,7 +167,7 @@ const indexCatalogRow = (ref: IndexEntry): CatalogEntry => ({
  * the index as a shadow.
  */
 const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
-  remote: RemoteIndex["Service"],
+  remote: ConfiguredIndex,
   options: {
     local: ReadonlyArray<Entry | RejectedEntry>;
     bundled: ReadonlyArray<Entry>;
@@ -181,8 +179,6 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const index = yield* remote.current;
-  // Trust downloaded entries only from the official index URL (trust point 2).
-  const { trusted } = remote;
   const originals = new Map(bundled.map((entry) => [entryKey(entry), entry]));
   const locals = new Map(local.map((entry) => [entryKey(entry), entry]));
   for (const ref of Option.isSome(index) ? index.value.entries : []) {
@@ -195,7 +191,7 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
     }
     catalog.set(key, indexCatalogRow(ref));
     const resolve = yield* Effect.cached(
-      resolveReference(ref, { remote, trusted, original: originals.get(key), bundled }).pipe(
+      resolveReference(ref, { remote, original: originals.get(key), bundled }).pipe(
         Effect.map((entry) => entry ?? existing),
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, path),
@@ -215,7 +211,7 @@ export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
     local.map((entry) => [entryKey(entry), Effect.succeed(entry)]),
   );
   const service = enabled ? yield* Effect.serviceOption(RemoteIndex) : Option.none();
-  if (Option.isSome(service))
+  if (Option.isSome(service) && service.value.root !== undefined)
     yield* mergeIndex(service.value, { local, bundled, catalog, resolutions });
   return {
     catalog: [...catalog.values()].sort(compareEntries),

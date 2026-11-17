@@ -273,6 +273,31 @@ test.each(["signature", "keyId", "json"])(
   },
 );
 
+test.each([
+  { signature: "valid", origin: "index" },
+  { signature: "invalid", origin: "bundled" },
+])(
+  "an explicit official URL ($signature signature) uses the $origin stack",
+  async ({ signature, origin }) => {
+    const doctor = await cli(["doctor", "--json"]);
+    success(doctor);
+    const { url } = Schema.decodeUnknownSync(DoctorReport)(JSON.parse(doctor.stdout)).remoteIndex;
+    if (url === null) throw new Error("Missing official fixture index URL");
+
+    makeDifferentBundled();
+    if (signature === "invalid") {
+      writeFileSync(
+        join(root, "published/v1/index.json"),
+        JSON.stringify({ ...fixture.envelope, signature: Buffer.alloc(64).toString("base64") }),
+      );
+    }
+    const result = list(
+      await cli(["list", "--json"], { home, server, env: { STACKS_INDEX_URL: url } }),
+    );
+    expect(row(result)).toMatchObject({ origin, trusted: true });
+  },
+);
+
 test.each([{ formatVersion: 2 }, { minCli: "99.0.0" }])(
   "unsupported payload %j uses bundled entries [4.0d#3]",
   async (change) => {

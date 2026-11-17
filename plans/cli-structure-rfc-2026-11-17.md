@@ -453,6 +453,18 @@ The reviews found duplicated code that has drifted into a real behavior differen
 
 Q1 above may add a second fix. Any drift found during stage 4, such as validate against selection, is added here, not folded into a refactor commit.
 
+Fix 1 landed in stage 0 (`fix(cli): trim comma-separated items...`): blank items are now ignored too, so `verify --only ' '` runs the full plan where it used to fail with `BadInput`.
+
+Found during execution, all pre-existing and left unchanged by the refactor (each needs its own `fix(cli):` with a failing test):
+
+2. **Validate and selection disagree on a rejected default.** With default fragment `ci` rejected and optional `old-ci` declaring `conflicts: [ci]`, validate's replacement planning returns `["ci"]` and plans the composition as fine, while composing with `old-ci` fails with `EntryInvalid` for `ci` before conflict checking. Stage 4's consolidation of the two rules was skipped for this reason.
+3. **Verify stage outcome under `--only` plus `--skip-tag`.** A base check tagged `hygiene` and `slow`, run with `verify --only base,app-check --skip-tag slow --json`, is skipped by `--skip-tag`, yet both stages report `green` and the app check runs; expected is a partial base with the app check skipped. `selectionSkip` lifts the hygiene default for `--only` before applying `--skip-tag`, while `stageOutcome` still treats the omission as a default skip.
+4. **A `null` JSON result marks the telemetry notice delivered.** In `Output.memory("json")`: `showNotice(...)`, `result(null, "")`, `flush` prints `null` without the notice, yet `didDeliverNotice` returns true. No command returns `null` today, so it is latent.
+
+## Execution log (2026-11-17)
+
+Landed on `refactor/cli-structure`, not merged or pushed. Each stage passed `rr check` (7/7) and an empty harness diff against the stage 0 baseline (`diff -r --strip-trailing-cr`; a stray terminal CR in human captures was fixed in the harness in stage 6). CLI tests went from 3,945 to 3,963 passed. Deviations from the plan: `errorTable` derives from static fields on each error class instead of rows carrying schemas; the `DEFAULT_PROBE_WITHIN` item was dropped because the default has one owner already, `withStepDefaults` in `packages/format`; `defined()` replaced 30 spreads, not about 90 (31 existed). A maintainer request added `src/constants.ts`, which now owns every config default and fallback; `build.ts` keeps only the Bun defines.
+
 ## Execution
 
 - **Where:** a landing branch `refactor/cli-structure` in a worktree. Stages merge into it in order, and it merges to `main` locally at the end.

@@ -1,16 +1,8 @@
-/**
- * Merges JSON files that several entries write to the same path.
- *
- * Usually one entry owns each output file, but shared config such as `.claude/settings.json` can
- * be listed in every writer's `merge` field, and then `plan-files.ts` folds the writers' JSON
- * together in composition order with `deepMerge`. `add/plan.ts` uses it too, to fold a fragment's
- * JSON into a copy already parked under `.stacks/incoming/`.
- */
+/** Deep-merges JSON for shared composition files and parked add conflicts. */
 
 /**
- * JSON deep merge for files every writer lists in `merge`: objects merge recursively, arrays
- * concatenate with duplicates removed (by value), and otherwise the later value wins. Merged
- * objects have no prototype, so a `__proto__` key in an entry's file stays an ordinary key.
+ * Merge objects recursively and concatenate arrays with duplicates removed by value. For other
+ * values, the later one wins. Merged objects have no prototype so `__proto__` stays an ordinary key.
  */
 export function deepMerge(earlier: unknown, later: unknown): unknown {
   if (Array.isArray(earlier) && Array.isArray(later)) {

@@ -1,24 +1,6 @@
 /**
- * Decides which fragments go into a composition and in what order.
- *
- * A stack is a recipe for a whole project; a fragment is a reusable addition (CI, git hooks, a
- * database) that composes onto it. When someone runs `stacks new <stack>` or `stacks add
- * <fragment>`, `compose.ts::compose` calls `selectFragments` first, and everything else in a
- * composition (files, verify steps, env, the brief) follows from the list it returns.
- *
- * Fragments come in from five places, applied in this order: the stack's `required` list, its
- * `default` list, the user's `Settings.always`, `--with`, and finally anything those fragments
- * pull in through their own `requires`. Each fragment remembers how it got in (its `Via`), because
- * that decides which rules apply to it: `--sandbox` drops deploy, release and app fragments only
- * from the defaults and `always`; `--without` may remove a default but never a requirement; a
- * fragment the user asked for with `--with` is kept even when its `appliesTo` doesn't name the
- * stack. After selection come the whole-set checks (at most one app, no declared `conflicts`, fit),
- * then `order` sorts requirements first, ties by id, the app last.
- *
- * In `add` mode, fragments the project already has (`existing`) satisfy requirements and still
- * take part in the conflict checks, but they are not selected again. Every failure here is a
- * `ComposeConflict`, `BadInput` or `NotFound` the user can act on; nothing is written. Start at
- * `selectFragments`.
+ * Selects and orders fragments. Each fragment's selection source determines which drop and fit
+ * rules apply.
  */
 import type { Category, FragmentMeta, Kind, StackMeta } from "@steamfield/stacks-format";
 import { Effect } from "effect";
@@ -63,7 +45,6 @@ export function fitsStack(
 const fits = (fragment: Fragment, stack: Stack) =>
   fitsStack(fragment.meta.appliesTo, { id: stack.id, tags: stack.meta.tags });
 
-/** What every lookup needs: the registry, its catalog and the ids that count as fragments. */
 type Lookup = {
   readonly registry: Registry["Service"];
   readonly catalog: ReadonlyArray<CatalogEntry>;
@@ -71,15 +52,13 @@ type Lookup = {
 };
 
 /**
- * One `selectFragments` call's inputs and the state it fills in as it goes. `via` records how
- * each selected fragment got in, `loaded` caches every fragment read, `visits` marks the
- * requirement walk's progress for cycle detection, and `warnings` collects in the order they arise.
+ * `visits` detects cycles. `loaded` shares fragment reads across edges, and `warnings` stays in
+ * discovery order.
  */
 type SelectionRun = Lookup & {
   readonly options: ComposeOptions<"new" | "add">;
   readonly stack: Stack | null;
   readonly without: ReadonlySet<string>;
-  /** `--with` ids, deduplicated and sorted. */
   readonly withIds: ReadonlyArray<string>;
   readonly existing: ReadonlySet<string>;
   readonly sandbox: boolean;
@@ -94,7 +73,6 @@ type RequirementEdge = {
   readonly id: string;
   readonly requirer: string | null;
   readonly how: Via;
-  /** The fragment ids walked to reach this edge, for reporting a cycle. */
   readonly path: ReadonlyArray<string>;
 };
 
@@ -126,11 +104,13 @@ export function selectFragments(
       warnings: [],
     };
 
+    // Resolve required fragments first so defaults and explicit flags cannot downgrade them.
     yield* selectRequired(run);
     yield* selectDefaults(run);
     yield* selectAlways(run);
     yield* selectWith(run);
     warnUnusedWithout(run);
+    // Visit newly selected fragments' requirements in id order to keep findings stable.
     yield* selectRequirements(run);
 
     const selected = [...run.via.keys()].sort(byId).flatMap((id) => run.loaded.get(id) ?? []);
@@ -153,8 +133,8 @@ const knownIds = (catalog: ReadonlyArray<CatalogEntry>, kind: Kind) =>
   catalog.filter((item) => item.kind === kind).map((item) => item.id);
 
 /**
- * `NotFound` for an id the catalog doesn't list. Suggestions come only from entries that pass the
- * full load, so this reads the whole registry, which is fine on a path that already failed.
+ * Suggestions must pass the deep check, so a missing id is the exceptional path that reads the
+ * whole registry.
  */
 const notFound = (registry: Registry["Service"], id: string, kind: Kind) =>
   Effect.gen(function* () {
@@ -165,7 +145,6 @@ const notFound = (registry: Registry["Service"], id: string, kind: Kind) =>
     return yield* new NotFound({ details: { suggestions: closest(id, usable), id, kind } });
   });
 
-/** The stack being composed, or `null` in `add` mode when the project names no known stack. */
 const loadStack = (
   registry: Registry["Service"],
   catalog: ReadonlyArray<CatalogEntry>,
@@ -203,7 +182,6 @@ const checkRequestedFragment = (lookup: Lookup, mode: "new" | "add", id: string)
     return yield* notFound(lookup.registry, id, "fragment");
   });
 
-/** `add` refuses to apply a fragment the project already has. */
 const refuseAlreadyApplied = (withIds: ReadonlyArray<string>, existing: ReadonlySet<string>) =>
   Effect.gen(function* () {
     const applied = withIds.filter((id) => existing.has(id));
@@ -226,7 +204,6 @@ function compositionFragment(run: SelectionRun, id: string) {
   return run.registry.get("fragment", id);
 }
 
-/** The parties of a requirement edge for a conflict: `null` stands for the stack. */
 const edgeParties = (stack: Stack | null, requirer: string | null, id: string) =>
   requirer === null
     ? { ...(stack ? { stack: stack.id } : {}), ids: [id] }
@@ -266,10 +243,7 @@ function requirementProblem(run: SelectionRun, fragment: Fragment, edge: Require
   return undefined;
 }
 
-/**
- * Depth first over `requires`: checks each edge and finds cycles. A fragment the project already
- * has ends the walk, since it is satisfied already.
- */
+/** A fragment already applied to the project satisfies this requirement and ends the walk. */
 const visit = (run: SelectionRun, edge: RequirementEdge): Effect.Effect<void, SelectError> =>
   Effect.gen(function* () {
     if (run.existing.has(edge.id)) return;
@@ -284,8 +258,7 @@ const visit = (run: SelectionRun, edge: RequirementEdge): Effect.Effect<void, Se
   });
 
 /**
- * Walks `fragment`'s own requirements, then records how it got in unless something already did.
- * A requirement of a `required` fragment is itself `required`; any other is `requires`.
+ * A requirement of a required fragment inherits `required`. Other dependencies use `requires`.
  */
 const visitRequirements = (
   run: SelectionRun,
@@ -302,7 +275,7 @@ const visitRequirements = (
     if (!run.via.has(id)) run.via.set(id, how);
   });
 
-/** Step 1, `new` only: the stack's required fragments, with their requirements. */
+/** Select the stack's requirements on new-project compositions. */
 const selectRequired = (run: SelectionRun) =>
   Effect.gen(function* () {
     if (run.options.mode !== "new") return;
@@ -310,10 +283,7 @@ const selectRequired = (run: SelectionRun) =>
       yield* visit(run, { id, requirer: null, how: "required", path: [] });
   });
 
-/**
- * Step 2, `new` only: the stack's defaults (none under `--preset lean`), minus `--without` and
- * the sandbox drops.
- */
+/** Lean drops all defaults. Sandbox and `--without` can drop individual defaults. */
 const selectDefaults = (run: SelectionRun) =>
   Effect.gen(function* () {
     const { options, stack } = run;
@@ -327,7 +297,7 @@ const selectDefaults = (run: SelectionRun) =>
     }
   });
 
-/** Step 3: the user's `always`, where it fits the stack; an unknown or unfitting id only warns. */
+/** An unknown or unfitting `always` id warns because it came from settings. */
 const selectAlways = (run: SelectionRun) =>
   Effect.gen(function* () {
     for (const id of run.options.always) yield* selectAlwaysFragment(run, id);
@@ -350,8 +320,8 @@ const selectAlwaysFragment = (run: SelectionRun, id: string) =>
   });
 
 /**
- * Step 4: `--with`, kept even when it doesn't fit or the sandbox would drop it. In `add` mode an
- * unfitting fragment is refused, because the project already exists and can't be reshaped for it.
+ * Honor explicit `--with` outside the usual fit and sandbox rules. Add still enforces fit because
+ * the existing project cannot be reshaped.
  */
 const selectWith = (run: SelectionRun) =>
   Effect.gen(function* () {
@@ -373,7 +343,6 @@ function warnUnusedWithout(run: SelectionRun) {
       run.warnings.push({ code: "without_not_selected", id });
 }
 
-/** Step 5: the requirements of everything selected so far, walked in id order. */
 const selectRequirements = (run: SelectionRun) =>
   Effect.gen(function* () {
     for (const id of [...run.via.keys()].sort(byId))

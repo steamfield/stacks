@@ -1,7 +1,4 @@
-/**
- * The options `stacks add` passes into `core/add.ts` and on to every step in `core/add/`. Kept in
- * its own file so the modules here can share it without importing each other in a cycle.
- */
+/** Owns the shared add options so the add modules can depend on them without a cycle. */
 import type { AgentId } from "@steamfield/stacks-format";
 import type { HandoffDecision } from "../handoff";
 

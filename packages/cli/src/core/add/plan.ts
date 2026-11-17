@@ -1,19 +1,4 @@
-/**
- * Works out what `stacks add` will do to a project before anything is written.
- *
- * `add` applies fragments (reusable pieces such as CI or git hooks) to a project that already
- * exists, so the files a fragment ships may collide with files the user has. For each rendered
- * file this module decides one of three outcomes: write it (nothing is there), skip it (an
- * identical copy is there) or park it under `.stacks/incoming/` for the user's agent to merge by
- * hand. A live file is never overwritten. When a file is already parked from an earlier `add`, the
- * new one is merged into it if both are JSON, or else kept beside it as a numbered copy
- * (`settings.json.2`).
- *
- * `add/prepare.ts` calls `planAdd` after rendering the fragments; `add/write.ts` carries out the
- * plan. Every read goes through `readLive`, which refuses a path whose symlinks lead outside the
- * project. `checkAddRoot` also runs first in `add/project.ts`, so a `.stacks/` that is a link is
- * refused before the manifest is read. Start at `planAdd`.
- */
+/** Plans file placement for `stacks add` without writing to the project. */
 import { Effect, FileSystem, Option, Path, type PlatformError } from "effect";
 import { ComposeConflict, PermissionDenied } from "../../errors";
 import { INCOMING, METADATA_DIR } from "../../project-layout";
@@ -43,9 +28,7 @@ export type AddPlan = {
 
 type ParkedFile = AddPlan["park"][number];
 type RenderedFile = { file: PlannedFile; bytes: Uint8Array };
-/** A rendered file with the bytes of the live project file at its path, if one exists. */
 type Candidate = RenderedFile & { live: Uint8Array | undefined };
-/** Where one rendered file goes: into the project, nowhere (identical), or under incoming. */
 type Placement =
   | { readonly kind: "write" }
   | { readonly kind: "skip" }
@@ -55,7 +38,7 @@ const writePlacement: Placement = { kind: "write" };
 const skipPlacement: Placement = { kind: "skip" };
 const parkPlacement = (parked: ParkedFile): Placement => ({ kind: "park", parked });
 
-/** Refuse metadata links before reading the manifest or traversing incoming files. */
+/** Refuse metadata links before reads, so links cannot supply the manifest or parked files. */
 export const checkAddRoot = (root: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -124,7 +107,7 @@ const readLive = (root: string, rel: string) =>
     return yield* fs.readFile(target).pipe(Effect.mapError(() => denied(target)));
   });
 
-/** List every file already parked under incoming, depth first in sorted name order. */
+/** Walk parked files depth first in sorted name order. */
 const listParked = (root: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -155,7 +138,6 @@ const listParked = (root: string) =>
 const sameBytes = (a: Uint8Array, b: Uint8Array) =>
   a.length === b.length && a.every((byte, i) => byte === b[i]);
 
-/** Add `rel` and each of its parent directories to the reserved set. */
 function reserve(reserved: Set<string>, rel: string) {
   const parts = rel.split("/");
   for (let depth = 1; depth <= parts.length; depth++) reserved.add(parts.slice(0, depth).join("/"));
@@ -174,7 +156,6 @@ function reservedPaths(candidates: ReadonlyArray<Candidate>, parked: ReadonlyArr
   return reserved;
 }
 
-/** Deep-merge two JSON documents as pretty JSON, or `None` when either isn't JSON. */
 const mergedJson = (parked: Uint8Array, incoming: Uint8Array) =>
   Effect.option(
     Effect.try(() => {
@@ -222,7 +203,6 @@ const parkConflict = (root: string, rendered: RenderedFile, reserved: ReadonlySe
     return parkPlacement({ file, bytes, incoming: copy, action: "copy" });
   });
 
-/** Write a file with no live copy, skip one whose live copy is identical, park the rest. */
 const placeFile = (root: string, candidate: Candidate, reserved: ReadonlySet<string>) => {
   if (candidate.live === undefined) return Effect.succeed(writePlacement);
   if (sameBytes(candidate.live, candidate.bytes)) return Effect.succeed(skipPlacement);
@@ -230,9 +210,8 @@ const placeFile = (root: string, candidate: Candidate, reserved: ReadonlySet<str
 };
 
 /**
- * Plan an add without writing anything. A live project file is never overwritten or merged into,
- * because add leaves existing files as they are: a differing file is parked under incoming for
- * the agent to merge, and only a file already parked there can receive a JSON merge.
+ * Plan without writing. Park conflicts for the agent to preserve live files. JSON merges apply
+ * only to copies already parked.
  */
 export const planAdd = (input: {
   readonly root: string;

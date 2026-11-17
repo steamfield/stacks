@@ -1,16 +1,6 @@
 /**
- * Does all of `stacks add`'s thinking before a single file is written.
- *
- * `core/add.ts` calls `prepareAdd` with the project `add/project.ts` read. It composes only the
- * requested fragments (the delta) onto what the project already has (`compose/compose.ts` in add
- * mode), renders their files with the project's name and settings, asks `add/plan.ts` where each
- * file goes, and builds the manifest entries for the new verify steps. A composition is the result
- * of combining a stack with fragments: files, verify steps, env and notes.
- *
- * Doing all of this up front means a bad request (a step name that clashes with an existing one, a
- * fragment that needs its own git repository) fails before the writer opens, so nothing needs
- * rolling back. A project with no known stack gets tags guessed from its files (`add/tags.ts`),
- * which only steer `stacks:when` blocks in templates.
+ * Prepares an add from the requested fragments only. Resolving conflicts before opening the writer
+ * avoids rollback for an invalid request.
  */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
@@ -35,7 +25,6 @@ import type { AddProject } from "./project";
 import { inferTags } from "./tags";
 import type { AddOptions } from "./types";
 
-/** Compose only the requested delta, then render and classify its files before opening a writer. */
 export const prepareAdd = (options: AddOptions, project: AddProject) =>
   Effect.gen(function* () {
     const { previous, settings, stack, existing } = project;
@@ -82,8 +71,8 @@ export const prepareAdd = (options: AddOptions, project: AddProject) =>
   });
 
 /**
- * Compose the requested fragments in add mode. A project with a manifest keeps its recorded preset
- * and agents; a project with no known stack gets tags inferred from its files for conditionals.
+ * Use the preset and agents preserved by `checkFlagsMatch` so new templates and adapters match
+ * the existing project. Infer tags for conditionals only when there is no known stack.
  */
 const composeDelta = (options: AddOptions, project: AddProject) =>
   Effect.gen(function* () {
@@ -101,7 +90,6 @@ const composeDelta = (options: AddOptions, project: AddProject) =>
     });
   });
 
-/** Print a progress warning for each tool missing from PATH and return them as result warnings. */
 const warnMissingTools = (missing: ReadonlyArray<MissingTool>) =>
   Effect.gen(function* () {
     const output = yield* Output;
@@ -115,13 +103,12 @@ const warnMissingTools = (missing: ReadonlyArray<MissingTool>) =>
     return warnings;
   });
 
-/** The manifest's recorded name when it has one, otherwise one inferred from project files. */
 const projectName = (root: string, previous: Manifest | undefined) =>
   previous?.name !== undefined
     ? Effect.succeed({ name: { value: previous.name, source: "manifest" }, warnings: [] })
     : inferName(root);
 
-/** Pair each planned file with its rendered bytes, in the composition's file order. */
+/** Preserve the composition's file order when pairing planned files with bytes. */
 const renderPlannedFiles = (composition: Composition<Entry | null>, values: TemplateValues) =>
   Effect.gen(function* () {
     const rendered = yield* composeFiles(composition, values);
@@ -133,7 +120,7 @@ const renderPlannedFiles = (composition: Composition<Entry | null>, values: Temp
     });
   });
 
-/** Fail when an added verify step reuses the name of a step the project already has. */
+/** Reject duplicate verify step names before `applyAdd` opens a writer. */
 const checkStepNames = (built: Manifest, previous: Manifest | undefined) => {
   const conflicting = built.verify.find((step) =>
     previous?.verify.some((old) => old.name === step.name),

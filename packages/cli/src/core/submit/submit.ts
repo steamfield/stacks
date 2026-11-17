@@ -1,19 +1,6 @@
 /**
- * Runs `stacks submit`, which proposes a user's own stacks and fragments to the public registry
- * by opening a draft pull request on GitHub.
- *
- * An author keeps personal entries (a stack or a fragment) in the user registry. `submit` copies
- * them into a temporary clone of the upstream repository, checks them there with the same
- * submission checks `stacks validate --submission` runs, and then forks, commits, pushes and
- * opens the pull request. A dry run stops after the checks and the staged file list: it still
- * logs in and clones, but forks, pushes and opens nothing.
- *
- * `commands/submit.ts` parses the flags and calls `submit`. The steps run in a fixed order:
- * `entries.ts::resolveEntries` finds the entries, `github.ts::preflight` checks `gh` and `git`,
- * `github.ts::cloneUpstream` clones, `assemble.ts::assemble` writes the entries and
- * `authors.json` into the clone, `checkEntries` validates them, `stage` stages the files,
- * `body.ts` renders the pull request text and `publish` does the GitHub writes. The clone lives
- * in a scoped temporary directory, removed however the command ends. Start at `submit`.
+ * Runs a submission in a scoped upstream clone, which is removed however the command ends. A dry
+ * run still authenticates, clones and stages so it can report what would be submitted.
  */
 import { Effect, FileSystem, Path, type PlatformError } from "effect";
 import { AppConfig } from "../../config";
@@ -77,7 +64,6 @@ const blocks = (finding: Finding) =>
   finding.severity === "error" ||
   (finding.severity === "warning" && !MAINTAINER_WARNINGS.includes(finding.check));
 
-/** The `details.blockers` row for one blocking finding of `entry`. */
 const toBlocker = (entry: PlannedEntry, finding: Finding): typeof SubmissionBlocker.Type => ({
   kind: entry.kind,
   id: entry.id,
@@ -88,9 +74,8 @@ const toBlocker = (entry: PlannedEntry, finding: Finding): typeof SubmissionBloc
 });
 
 /**
- * Validates each submitted entry in the clone's registry, as that registry's own bundled entries
- * (references resolve only inside it), with the submission checks. Any blocking finding fails the
- * whole submission, listing every blocker; otherwise the entries' own findings are returned.
+ * Validate as bundled entries so references resolve only inside the assembled registry. Apply
+ * the same checks as `stacks validate --submission` and return every blocker together.
  */
 const checkEntries = Effect.fn("submit.checkEntries")(function* (
   registry: string,
@@ -120,13 +105,12 @@ const kindRank = (entry: PlannedEntry) => (entry.kind === "stack" ? 0 : 1);
 const inOrder = (entries: ReadonlyArray<PlannedEntry>) =>
   [...entries].sort((a, b) => kindRank(a) - kindRank(b) || (a.id < b.id ? -1 : 1));
 
-/** The fork's branch, named for the first entry in `inOrder` order. */
+/** Use the first entry from `inOrder` so argument order cannot change the branch. */
 const branchName = (entries: ReadonlyArray<PlannedEntry>) => {
   const first = entries[0];
   return first === undefined ? "entry" : `entry/${first.kind}-${first.id}`;
 };
 
-/** Each entry's description, read from the assembled clone, for the pull request body. */
 const describe = (registry: string, entries: ReadonlyArray<PlannedEntry>) =>
   Effect.gen(function* () {
     const loaded = yield* Registry;
@@ -141,10 +125,6 @@ const describe = (registry: string, entries: ReadonlyArray<PlannedEntry>) =>
     return described;
   }).pipe(Effect.provide(Registry.layer([{ origin: "bundled", path: registry }])));
 
-/**
- * What a submission touches in the clone, repository-relative: each entry directory, each card
- * that exists, and `authors.json`.
- */
 const submittedPaths = Effect.fn("submit.submittedPaths")(function* (
   clone: string,
   entries: ReadonlyArray<PlannedEntry>,
@@ -186,7 +166,7 @@ const stage = Effect.fn("submit.stage")(function* (
   return files;
 });
 
-/** Fork, commit, push and the draft pull request: everything `--dry-run` leaves out. */
+/** Dry runs omit the fork, commit, push and draft pull request. */
 const publish = Effect.fn("submit.publish")(function* (
   tools: Tools,
   options: { repo: string; clone: string; branch: string; title: string; bodyFile: string },
@@ -209,15 +189,13 @@ const publish = Effect.fn("submit.publish")(function* (
 });
 
 /**
- * The directory a failed temporary-directory creation was refused in: the parent of the path the
- * platform error names, so a denial reports the unwritable `TMPDIR` itself.
+ * Report the parent directory from a creation error so a denial points at the unwritable `TMPDIR`.
  */
 const tempParent = (path: Path.Path) => (error: PlatformError.PlatformError) =>
   "pathOrDescriptor" in error.reason && typeof error.reason.pathOrDescriptor === "string"
     ? path.dirname(error.reason.pathOrDescriptor)
     : undefined;
 
-/** The scoped temporary directory holding the clone and the body file. */
 const makeWorkspace = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -227,7 +205,7 @@ const makeWorkspace = Effect.gen(function* () {
   );
 });
 
-/** Writes the pull request body where `gh --body-file` reads it, and returns that path. */
+/** Write the rendered body to a file for `gh --body-file`. */
 const writeBody = Effect.fn("submit.writeBody")(function* (temp: string, body: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -236,11 +214,6 @@ const writeBody = Effect.fn("submit.writeBody")(function* (temp: string, body: s
   return bodyFile;
 });
 
-/**
- * `submit`: checks the entries against a partial clone of the upstream repository and, unless
- * `dryRun`, opens one draft pull request adding them from the login's fork. The clone lives in a
- * temporary directory removed when the command ends, however it ends.
- */
 export const submit = Effect.fn("submit.submit")(function* (options: SubmitOptions) {
   yield* checkArguments(options.repo);
   const sources = yield* resolveEntries(options.entries);

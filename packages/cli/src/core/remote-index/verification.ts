@@ -1,25 +1,16 @@
 /**
- * Decides whether a downloaded remote index can be believed and read by this CLI version.
- *
- * The remote index is an optional list of entries published at a URL; `core/remote-index.ts`
- * downloads it through `core/cached-fetch.ts` and hands the raw text to `verifyIndex`. The text is
- * a signed envelope: a `payload` (the index itself, as a JSON string) plus a `keyId` and an Ed25519
- * `signature` over that payload. For the official index URL the signature must verify against one
- * of the maintainers' public keys compiled into the CLI (`INDEX_PUBLIC_KEYS`); entries from it are
- * trusted (`.claude/rules/architecture.md`, "Trust model", point 2). A configured `STACKS_INDEX_URL`
- * skips the signature check because its entries are untrusted anyway.
- *
- * Each check fails with a short outcome word rather than an error: `invalid` for anything that
- * doesn't decode or verify, `unsupported` for an index written for a newer format or CLI. The
- * cached fetch records that word as the request's outcome and falls back to older data.
- * `core/allowlist.ts` reuses `signatureValid` for the signed dependency allowlist.
+ * Verifies downloaded index envelopes and checks CLI compatibility. The cache uses failure outcomes
+ * to record the reason and fall back to older data.
  */
 import { type INDEX_PUBLIC_KEYS, RegistryIndex, SignedIndex } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
 import { VERSION } from "../../version";
 
 type RemoteOutcome = "ok" | "timeout" | "network" | "not_found" | "invalid" | "unsupported";
-/** Why a remote request produced nothing usable; recorded as the cache's `lastOutcome`. */
+/**
+ * The cache records decode and signature failures as `invalid` and incompatibility as
+ * `unsupported` so fallback retains the reason.
+ */
 export type RemoteFailure = Exclude<RemoteOutcome, "ok">;
 
 /** The two payload fields read before the whole index, so a newer index fails as `unsupported`. */
@@ -41,8 +32,8 @@ function cliMeetsMinimum(minCli: string): boolean {
 }
 
 /**
- * True when the envelope's signature verifies under the trusted key its `keyId` names. An unknown
- * key or an empty signature is false; a key or signature that can't be imported fails as `invalid`.
+ * Unknown keys and empty signatures return false. A key or signature that cannot be decoded
+ * fails as `invalid`.
  */
 export const signatureValid = (envelope: SignedIndex, keys: typeof INDEX_PUBLIC_KEYS) =>
   Effect.tryPromise({
@@ -63,9 +54,9 @@ export const signatureValid = (envelope: SignedIndex, keys: typeof INDEX_PUBLIC_
   });
 
 /**
- * Turns downloaded index text into a `RegistryIndex`, checking in this order: the envelope
- * decodes, the signature verifies (official URL only), the header decodes, the format and minimum
- * CLI version are supported, and the whole payload decodes.
+ * Require an Ed25519 signature over the raw payload under a compiled key for the official URL
+ * (trust point 2). Configured origins get format and compatibility checks because `mergeIndex`
+ * treats their downloads as untrusted.
  */
 export const verifyIndex = Effect.fn("remoteIndex.verify")(function* (
   text: string,

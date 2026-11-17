@@ -1,23 +1,6 @@
 /**
- * The `Registry` service: where every command that needs a stack or fragment finds it.
- *
- * An entry (a stack or a fragment) can live in several places, called roots, searched in priority
- * order: the project's own `.stacks/`, the user's registry directory, the signed remote index and
- * the bundled registry shipped in the package. When two roots hold an entry with the same kind and
- * id, the higher root wins and the lower copies become its `shadows`. Where an entry was found
- * (its origin) also decides whether it is trusted (`trustOf`, Trust model point 2), which later
- * gates launching an agent and accepting changes.
- *
- * Commands build the service with `Registry.layer` over the roots from `defaultRoots`, or from
- * `remoteRoots`, which only entry-consuming commands use because it allows a network request for
- * the index (it marks the bundled root `remote`). The layer loads
- * once per invocation and caches the result for that invocation only. Loading reads each entry's
- * directory and markdown file (`load.ts`), so `catalog` is cheap but preliminary. The deep
- * symlink walk of an entry's tree is a separate per-entry check, also cached, that `get`, `files`,
- * `tree`, `read`, `bytes` and `all` run before handing back an entry; `catalog` never runs it.
- * `remote.ts` merges index entries between the user and bundled roots.
- *
- * Start at `Registry.layer`.
+ * Resolves entries by registry precedence, with trust assigned by `trustOf` (trust point 2).
+ * Per-invocation caching keeps catalog reads cheap and deep checks lazy and per-entry.
  */
 import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Path } from "effect";
@@ -35,7 +18,6 @@ import type { FileAccess, RegistryRoot, Rejection, RootCandidate, Skipped } from
 
 export type { Skipped } from "./types";
 
-/** Registry roots, highest precedence first. */
 export type RegistryRoots = ReadonlyArray<RegistryRoot>;
 
 /** Candidates per `kind/id`, in root order: the first is the winner, the rest it hides. */
@@ -92,21 +74,17 @@ export const remoteRoots = defaultRoots.pipe(
   ),
 );
 
-/** The rejection-message suffix naming the lower copies a broken winner hides. */
 function hidesText(shadows: ReadonlyArray<Origin>): string {
   if (!shadows.length) return "";
   return `; hides ${shadows.join(" and ")} cop${shadows.length > 1 ? "ies" : "y"}`;
 }
 
-/** The distinct origins of the candidates a winner hides, in root order. */
+/** Keep shadow origins in root order so rejection messages reflect precedence. */
 const hiddenOrigins = (hidden: ReadonlyArray<RootCandidate>) => [
   ...new Set(hidden.map(({ root }) => root.origin)),
 ];
 
-/**
- * The winner of each kind and id, sorted stacks first and then by id: an entry with its shadows
- * and trust, or a rejection whose message names what it hides.
- */
+/** Sort stacks before fragments, then by id. A rejected winner still hides lower-priority copies. */
 function registryWinners(found: FoundCandidates) {
   const results: Array<Entry | Rejection> = [];
   for (const [winner, ...hidden] of found.values()) {
@@ -145,7 +123,6 @@ function winnerShadowsByDir(found: FoundCandidates): ReadonlyMap<string, Readonl
   return byDir;
 }
 
-/** The same candidates with every root but the bundled one left out. */
 function bundledOnly(found: FoundCandidates): FoundCandidates {
   return new Map(
     [...found].map(([key, candidates]) => [
@@ -155,7 +132,6 @@ function bundledOnly(found: FoundCandidates): FoundCandidates {
   );
 }
 
-/** A deep-check failure as the listing shows it, naming the copies the entry hides. */
 function rejectedWithShadows(
   problem: Rejection,
   item: Entry | RejectedEntry,
@@ -253,11 +229,7 @@ export class Registry extends Context.Service<
       },
       EntryInvalid | PermissionDenied
     >;
-    /**
-     * The text of one file in an entry, by its entry-relative `source`. Every path segment is
-     * lstat'ed first, so a symlink anywhere under the entry is `EntryInvalid` (`symlink`) and
-     * nothing behind it is read; a missing file is `EntryInvalid` (`missing`).
-     */
+    /** Read text by entry-relative source through `readEntryFile`. */
     readonly read: (
       entry: Entry,
       source: string,
@@ -269,13 +241,6 @@ export class Registry extends Context.Service<
     ) => Effect.Effect<Uint8Array, EntryInvalid | PermissionDenied>;
   }
 >()("stacks/Registry") {
-  /**
-   * Symlinks: an entry directory or anything inside one is never followed, in any root. The
-   * project root and its `stacks/` and `fragments/` must be real directories too (a warning, and
-   * that root or directory is skipped), since a checkout controls them. The user and bundled
-   * roots may be symlinks, as may their `stacks/` and `fragments/`: the user put them there, or a
-   * package manager linked the install.
-   */
   static layer = (roots: RegistryRoots) =>
     Layer.effect(
       Registry,
@@ -286,7 +251,6 @@ export class Registry extends Context.Service<
         // Filled while `load` runs; read only after it has.
         const state: LoadState = { io, skipped: [], checks: new Map() };
 
-        /** Every local root's winners, the bundled root's own winners, and winner shadows. */
         const load = Effect.gen(function* () {
           const found = new Map<string, RootCandidate[]>();
           for (const root of roots) yield* loadRoot(root, state, found);
@@ -298,7 +262,6 @@ export class Registry extends Context.Service<
         });
         const local = yield* Effect.cached(load);
 
-        /** The local winners merged with the remote index, when a root asks for it. */
         const view = yield* Effect.cached(
           Effect.gen(function* () {
             const { winners, bundled } = yield* local;
@@ -313,10 +276,9 @@ export class Registry extends Context.Service<
           }),
         );
 
-        /** The cached deep check of an entry directory; none when loading didn't register one. */
         const deepCheck = (dir: string) => state.checks.get(dir) ?? Effect.succeed(undefined);
 
-        /** A listing item, replaced by its rejection when its deep check fails. */
+        // Keep hidden origins in the rejection if a preliminary winner's deep check fails.
         const checkedItem = (item: Entry | RejectedEntry) =>
           Effect.gen(function* () {
             const problem = yield* deepCheck(item.dir);
@@ -324,7 +286,6 @@ export class Registry extends Context.Service<
             return rejectedWithShadows(problem, item, (yield* local).winnerShadows);
           });
 
-        /** The failure for a listing row that loading rejected, with its original reason. */
         const loadedRejection = (item: RejectedEntry, kind: Kind, id: string) =>
           Effect.gen(function* () {
             const rejected = findRejection((yield* local).winners, kind, id);
@@ -334,7 +295,6 @@ export class Registry extends Context.Service<
             });
           });
 
-        /** One looked-up item as a usable entry: not found, deep-check failure or rejection fail. */
         const checkedGet = (item: Entry | RejectedEntry | undefined, kind: Kind, id: string) =>
           Effect.gen(function* () {
             if (!item) return yield* new NotFound({ details: { suggestions: [], id, kind } });
@@ -344,7 +304,7 @@ export class Registry extends Context.Service<
             return yield* loadedRejection(item, kind, id);
           });
 
-        /** Fails when an entry handed back earlier has failed its deep check. */
+        /** Surface cached deep-check failures before a caller reads an entry it already holds. */
         const checkEntry = (entry: Entry) =>
           Effect.gen(function* () {
             const problem = yield* deepCheck(entry.dir);

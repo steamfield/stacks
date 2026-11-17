@@ -1,19 +1,12 @@
 /**
- * The network checks behind a `serve` verify step: is the server's URL ready, and is its port
- * free before it starts and closed after it stops.
- *
- * A serve step declares `expect.http` (a URL such as `http://localhost:${PORT_WEB}/`) and
- * `expect.within` (how long the server gets). `step.ts` calls `probeTarget` to expand and check the
- * URL, `portAnswers` to refuse a port something else already holds, `probeReady` inside its race,
- * and `portClosed` once the server is stopped. Probes reach loopback addresses only: verify
- * checks the project on this machine and never reaches the network. Sockets come from the `Tcp`
- * service and requests from `HttpClient`, so this module stays free of Node imports.
+ * Owns loopback readiness and port checks for verify. `Tcp` and `HttpClient` keep probes
+ * independent of Node.
  */
 import { Duration, Effect, Option, Schedule } from "effect";
 import { HttpClient } from "effect/http";
 import { Tcp } from "../../services/net";
 
-/** The only hosts a probe may name: verify checks the project, it doesn't reach the network. */
+/** Restrict probes to loopback because verify checks the local project. */
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const CONNECT_TIMEOUT = Duration.seconds(1);
 const REQUEST_TIMEOUT = Duration.seconds(5);
@@ -21,15 +14,13 @@ const PROBE_EVERY = Duration.millis(500);
 /** `portClosed` checks this many times, this far apart: 5 s in all. */
 const CLOSE_CHECKS = 20;
 const CLOSE_CHECK_EVERY = Duration.millis(250);
-/** A `${NAME}` reference in a probe URL. */
 const VARIABLE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 
 type ProbeTarget = { url: string; host: string; port: number };
 
 /**
- * `expect.http` with each `${VAR}` expanded from `env`, checked to be an http URL on a local host.
- * A failure is a fixed reason and the failure kind it reports as: an unset variable is `env` (the
- * environment lacks it), any other bad URL is `step` (the step itself is wrong).
+ * Expand probe variables. Missing variables are environment failures. A malformed or non-local
+ * HTTP URL is a step failure.
  */
 export function probeTarget(
   http: string,

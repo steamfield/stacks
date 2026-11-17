@@ -1,32 +1,22 @@
 /**
- * Pure parsing helpers for reading a project's dependency manifests and lockfiles as plain data.
- *
- * `core/deps.ts` reads files such as `package.json`, `pyproject.toml`, `uv.lock` and `Cargo.lock`
- * and hands their text here. Each parser turns text into a plain record, or `null` when the text
- * isn't valid JSON or TOML or isn't an object, so a malformed file reads as "nothing to report"
- * instead of failing. Nothing here touches the filesystem, and nothing in a manifest is ever run.
- *
- * A major version is the part of a version a dependency report keeps: `18` for `18.3.1`, and
- * `0.7` for `0.7.9`, since under semver every `0.x` minor may break. `packageMajors` builds the
- * name-to-major map from a lockfile's package rows. Start at `packageMajors`.
+ * Parses dependency manifests and lockfiles as data. Version reports retain the minor for `0.x`
+ * because it can introduce breaking changes. Malformed or non-object input returns no data so
+ * one unusable manifest never fails dependency reporting.
  */
 import { Result } from "effect";
 import { parse as parseToml } from "smol-toml";
 
-/** A non-null, non-array object as a plain record, or `null` for anything else. */
 export function object(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value))
     : null;
 }
 
-/** JSON text as a record, or `null` when it doesn't parse or isn't an object. */
 export function json(text: string): Record<string, unknown> | null {
   const parsed = Result.try(() => JSON.parse(text) as unknown);
   return Result.isSuccess(parsed) ? object(parsed.success) : null;
 }
 
-/** TOML text as a record, or `null` when it doesn't parse. */
 export function toml(text: string): Record<string, unknown> | null {
   const parsed = Result.try(() => parseToml(text));
   return Result.isSuccess(parsed) ? object(parsed.success) : null;
@@ -40,7 +30,6 @@ export function major(version: unknown): string | null {
   return parts[1] === "0" ? `0.${parts[2]}` : (parts[1] ?? null);
 }
 
-/** The keys of an object-valued field, such as `package.json`'s `dependencies`. */
 export function names(value: unknown): ReadonlyArray<string> {
   const record = object(value);
   return record === null ? [] : Object.keys(record);
@@ -62,8 +51,8 @@ function referenceOf(entry: unknown): Reference {
 }
 
 /**
- * The majors the project's own package pins, read from its row in the lockfile. A lockfile can
- * hold several versions of one package; the root row says which one the project uses directly.
+ * Several versions of a dependency can coexist in a lockfile. The root row says which version the
+ * project directly uses.
  */
 function rootReferences(
   rows: ReadonlyArray<Record<string, unknown>>,

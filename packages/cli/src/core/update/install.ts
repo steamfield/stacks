@@ -1,15 +1,6 @@
 /**
- * Works out how the running copy of stacks was installed, so `stacks update` knows whether it may
- * upgrade it in place.
- *
- * There are three answers. `npx` means the package runs from npx's cache, so the update command to
- * suggest is an `npx` one. `npm-global` means the package root is the one under npm's global
- * prefix (`npm prefix -g`, then `lib/node_modules/<package>`), compared by real path; only then
- * does `update.ts::update` run `npm install -g`. `other` covers everything else: a source checkout,
- * a project dependency, a missing `npm`, or an `npm prefix` that fails or times out.
- *
- * Detection is best effort. Any failure to look falls back to `other`, which only means the user
- * is shown the command instead of having it run; defects and interruption still propagate.
+ * Identifies how the running CLI was installed. Detection is best effort so it cannot prevent the
+ * version report.
  */
 import { Duration, Effect, FileSystem, Option, Path } from "effect";
 import { AppConfig } from "../../config";
@@ -20,7 +11,6 @@ import { PACKAGE } from "../../version";
 
 type Installation = { install: "npm-global"; npm: string } | { install: "npx" | "other" };
 
-/** npm's global prefix from `npm prefix -g`, or none when it can't be run or says nothing. */
 const globalPrefix = Effect.fn("update.globalPrefix")(function* (
   npm: string,
   timeout: Duration.Duration,
@@ -35,7 +25,7 @@ const globalPrefix = Effect.fn("update.globalPrefix")(function* (
   return Option.some(prefix.stdout.trim());
 });
 
-/** Whether `installed` and `running` resolve to the same real path; unresolvable is no. */
+/** Compare real paths so package links do not hide a global npm install. */
 const samePlace = Effect.fn("update.samePlace")(function* (installed: string, running: string) {
   const fs = yield* FileSystem.FileSystem;
   const installedReal = yield* fs.realPath(installed).pipe(Effect.option);
@@ -66,7 +56,10 @@ const detectGlobal = Effect.fn("update.detectGlobal")(function* (
   return { install: "other" };
 });
 
-/** Optional detection never prevents the version report; defects and interruption still propagate. */
+/**
+ * Inconclusive detection returns `other` so update can show the command without running it.
+ * Defects and interruption still propagate.
+ */
 export const installMethod = Effect.fn("update.installMethod")(function* (
   timeout = Duration.seconds(10),
 ) {

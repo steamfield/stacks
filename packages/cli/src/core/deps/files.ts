@@ -1,23 +1,18 @@
 /**
- * Reads one file from a project for the dependency report, with limits that keep a hostile or
- * unusual project from making the CLI read outside it or read something huge.
- *
- * `core/deps.ts::readDependencies` calls `readProjectFile` for each manifest and lockfile it
- * wants. A file is read only when both its given path and its real path (symlinks followed) stay
- * under the project root, when it is a regular file, and when it is at most 2 MiB. Any refusal or
- * read failure returns `null`, which the caller treats as "file not there": the report is
- * best-effort telemetry, so a file the CLI can't or won't read is left out rather than failing a
- * green verify run.
+ * Reads bounded project files for the dependency report. Unavailable files are omitted because
+ * best-effort telemetry must never fail verification.
  */
 import { ByteSize, Effect, type FileSystem, type Path } from "effect";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
-/** Whether `file` is `root` itself or a path below it; `prefix` is `root` plus a separator. */
 const isUnder = (file: string, root: string, prefix: string) =>
   file === root || file.startsWith(prefix);
 
-/** Read a regular file only when its resolved path stays under the project root. */
+/**
+ * Bound reads to regular files of at most 2 MiB, with both lexical and real paths inside the
+ * project.
+ */
 export const readProjectFile = Effect.fn("deps.readProjectFile")(function* (
   fs: FileSystem.FileSystem,
   path: Path.Path,

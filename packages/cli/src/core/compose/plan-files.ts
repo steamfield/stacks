@@ -1,18 +1,6 @@
 /**
- * Decides which entry writes each file of a composition, before anything is read or written.
- *
- * Every entry (a stack or a fragment) ships files in its directory. Some apply only to certain
- * targets: an agent adapter (`adapters/<agent>/`), a fragment's overlay for one host stack, or a
- * stack's payload variant (`payloads/<variant>/`); `registry/entry.ts::shipsFor` decides. `compose.ts::compose` calls `planFiles` with the
- * composed entries; it keeps only the files that ship for this composition and gives each output
- * path exactly one owner. Two entries may write the same path only when both list it in their
- * `merge` field, and then their JSON is deep-merged in composition order (`merge.ts::deepMerge`).
- * `files.ts::composeFiles` later renders the plan.
- *
- * Paths are refused here rather than mid-write, because a failed write would leave a half-built
- * project: a path naming `.git` or `.stacks` in any spelling a filesystem treats as the same
- * (those directories belong to git and the CLI), and two paths that collide on a case-insensitive
- * volume or where one path's file is another's directory. Start at `planFiles`.
+ * Plans the owner or merge for each shipped path. Reject reserved paths and collisions here so
+ * bad entries cannot leave a half-written project.
  */
 import { type AgentId, outputPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -26,7 +14,6 @@ import type { PlannedFile } from "./types";
 
 /** Code points HFS+ ignores in names (git's `is_hfs_dotgit`): `.git` with one inside opens `.git`. */
 const HFS_IGNORABLE = /[\u{200c}-\u{200f}\u{202a}-\u{202e}\u{206a}-\u{206f}\u{feff}]/gu;
-/** A name the way a case-insensitive filesystem compares it. */
 const fold = (name: string) => name.normalize("NFC").toLowerCase();
 
 /**
@@ -47,16 +34,14 @@ const checkPlannedPath = (path: string) =>
       return yield* Effect.die(new Error("A planned path is empty or escapes the project root"));
   });
 
-/** One entry's claim on an output path. */
 type Writer = { entry: Entry; source: string; template: boolean; mode: number };
-/** What selects an entry's overlays: the target agents, the host stack and its payload. */
 export type FileSelection = {
   agents: ReadonlyArray<AgentId>;
   stack: string | null;
   payload: Payload;
 };
 
-/** Every output path's writers, in composition order. */
+/** Writers retain composition order. */
 function fileWriters(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
@@ -73,7 +58,6 @@ function fileWriters(
   });
 }
 
-/** The output path and writer for one shipped file, or nothing when it doesn't ship here. */
 const writerFor = (entry: Entry, file: EntryFile, selection: FileSelection) =>
   Effect.gen(function* () {
     const { agents, stack, payload } = selection;
@@ -103,7 +87,7 @@ const writerFor = (entry: Entry, file: EntryFile, selection: FileSelection) =>
  */
 type ClaimedPaths = { files: Map<string, string>; dirs: Map<string, string> };
 
-/** Every output path with one owner, or one JSON merge of writers that all list it in `merge`. */
+/** A shared path is valid only when every writer declares it in `merge`. */
 export function planFiles(
   registry: Registry["Service"],
   entries: ReadonlyArray<Entry>,
@@ -124,11 +108,7 @@ export function planFiles(
   });
 }
 
-/**
- * Records `path` as claimed, refusing it when a case-insensitive filesystem would treat it as an
- * earlier path, or when it needs a directory where an earlier path is a file (or the reverse).
- * Either would only fail mid-write, so it is refused before anything is written.
- */
+/** Reject case aliases and file/directory collisions here so they cannot fail mid-write. */
 const claimPath = (
   claimed: ClaimedPaths,
   byPath: ReadonlyMap<string, ReadonlyArray<Writer>>,
@@ -156,7 +136,6 @@ const claimPath = (
     for (const parent of parents) claimed.dirs.set(parent, path);
   });
 
-/** The plan for one path: a copy or template from its only writer, or a JSON merge of them all. */
 function planOutput(
   registry: Registry["Service"],
   input: { path: string; writers: ReadonlyArray<Writer>; first: Writer },

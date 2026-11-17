@@ -1,14 +1,4 @@
-/**
- * Runs the few git commands `stacks new` and `stacks add` need: finding the enclosing repository,
- * checking for commits, `git init` and reading `user.name`.
- *
- * `scaffold/new.ts` calls `probeGit` before writing and `gitInit` after; `add/plan.ts` and
- * `add/prepare.ts` use `gitToplevel` and `gitInstalled`; `scaffold/values.ts` reads the author
- * through `gitUserName`. Every command is a fixed string, so nothing from an entry ever reaches git
- * (Trust model point 1). Each runs through `Processes` without the `GIT_DIR`-style variables a
- * hook might export, so git finds the repository from the working directory alone, and with
- * `LC_ALL=C`, so the "not a git repository" message `probeGit` looks for is never translated.
- */
+/** Owns the fixed git commands used to inspect or initialize a project (trust point 1). */
 import { Duration, Effect, FileSystem, Option } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
 import type { NewResult } from "../../schemas/new";
@@ -24,7 +14,10 @@ const USER_NAME = "git config user.name 2>/dev/null";
 /** What git prints when no repository encloses its working directory. */
 const NOT_A_REPOSITORY = "not a git repository";
 
-/** A constant git command in `cwd`; `undefined` when it couldn't start. */
+/**
+ * Clear hook-exported repository variables so git resolves from `cwd`. Keep diagnostics
+ * untranslated for `probeGit`.
+ */
 const git = (command: string, cwd: string) =>
   Effect.gen(function* () {
     const processes = yield* Processes;
@@ -34,7 +27,6 @@ const git = (command: string, cwd: string) =>
       .pipe(Effect.catchTag("SpawnFailed", () => Effect.succeed(undefined)));
   });
 
-/** Whether the command started, exited 0 and didn't time out. */
 const ok = (finished: Finished | undefined): finished is Finished =>
   finished !== undefined && finished.exitCode === 0 && !finished.timedOut;
 
@@ -48,17 +40,14 @@ const exitOf = (finished: Finished | undefined) => {
 const toplevelOf = (finished: Finished | undefined) =>
   ok(finished) ? finished.tail.trim().split("\n").at(-1) || undefined : undefined;
 
-/** Whether git ran and said no repository encloses its working directory. */
 const isUnenclosed = (found: Finished | undefined) =>
   found !== undefined &&
   found.exitCode !== 0 &&
   !found.timedOut &&
   found.tail.includes(NOT_A_REPOSITORY);
 
-/** The repository root, if git can identify one from cwd alone. */
 export const gitToplevel = (cwd: string) => Effect.map(git(TOPLEVEL, cwd), toplevelOf);
 
-/** Whether git is on the captured PATH (`Processes.which`, the only PATH search). */
 export const gitInstalled = Effect.gen(function* () {
   return Option.isSome(yield* (yield* Processes).which("git"));
 });
@@ -92,14 +81,8 @@ function withoutToplevel(target: Target, found: Finished | undefined): GitProbe 
 }
 
 /**
- * Where the target stands with git, before anything is written: `none` without git; `parent`
- * inside another work tree, or in its own `.git` that already has commits (`own` then); `fresh`
- * when git says no repository encloses it, or in its own repository with nothing committed.
- *
- * Only git's "not a git repository" counts as no repository. Any other failure (a `.git` in the
- * target that git can't read, an unsafe-ownership refusal, a timeout) is `none` with a
- * `git_unusable` warning, so `new` never runs `git init` over a `.git` it can't vouch for or
- * nests a repository inside one git refused to read.
+ * Only git's "not a git repository" counts as no repository. Other failures warn as `git_unusable`
+ * to guard against initializing over a broken `.git` or nesting inside an unreadable repository.
  */
 export const probeGit = (
   target: Target,

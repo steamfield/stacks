@@ -1,12 +1,6 @@
 /**
- * The shapes composition takes in and hands out, kept apart so the modules in `core/compose/` and
- * their callers import them in one direction.
- *
- * `ComposeOptions` is what a command asks for (a stack, `--with`, `--without`, a preset, target
- * agents). `Composition` is the answer `compose.ts::compose` returns: the chosen fragments and how
- * each was selected, the `PlannedFile` list, verify steps, env, commands and the rest. The brief
- * (`core/brief/`), the manifest (`core/manifest.ts`) and the fingerprint (`core/fingerprint.ts`)
- * are all built from a `Composition`.
+ * Owns the shared composition inputs, plan and result so modules can use them without depending on
+ * the implementation.
  */
 import type { AgentId, Kind, ResolvedStep } from "@steamfield/stacks-format";
 import type { Entry, Origin, Payload } from "../registry/entry";
@@ -18,7 +12,6 @@ export type ComposeOptions<M extends "new" | "add" = "new"> = {
   preset: "default" | "sandbox";
   /** Adapter targets, from `targetAgents`. */
   agents: ReadonlyArray<AgentId>;
-  /** `Settings.always`. */
   always: ReadonlyArray<string>;
   mode: M;
   /** Already applied fragments satisfy requirements but emit nothing. */
@@ -71,10 +64,8 @@ export type Composition<S extends Entry | null = Entry> = {
   /** Current recipe blocks that specifically name an added fragment. */
   addNotes?: ReadonlyArray<{ fragment: string; entry: Entry }>;
   inferredTags?: ReadonlyArray<string>;
-  /** How each fragment was selected, in composition order. */
   selection: ReadonlyArray<{ id: string; via: Via }>;
   preset: ComposeOptions["preset"];
-  /** Composed with `--preset lean`: the default fragments left out. */
   lean?: boolean;
   /** The stack's payload variant; absent is the example. */
   payload?: Payload;

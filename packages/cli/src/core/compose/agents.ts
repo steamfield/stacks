@@ -1,12 +1,4 @@
-/**
- * Picks which coding agents a new project ships adapter files for.
- *
- * An adapter is the set of files an entry ships for one agent under `adapters/<agent>/`, such as
- * Claude Code's `.claude/` settings or Codex's `.codex/` hooks. `stacks new`, `stacks add` and the
- * previews in `show` and `validate`
- * call `targetAgents` and pass the result to `compose.ts::compose` as `ComposeOptions.agents`;
- * `plan-files.ts` then keeps only the adapters for those agents.
- */
+/** Selects the agents whose adapter files ship with a project. */
 import type { AgentId } from "@steamfield/stacks-format";
 import type { Settings } from "../../schemas/config";
 

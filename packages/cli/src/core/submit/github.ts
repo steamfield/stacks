@@ -1,20 +1,6 @@
 /**
- * Every program `stacks submit` runs: the `gh` and `git` calls that clone the upstream
- * repository, fork it, commit, push and open or update the draft pull request.
- *
- * Each program is found with `Processes.which` and run through `Processes.exec` with a fixed argv.
- * Only CLI-built values (the repository, branch, paths, a title and a body file) fill the
- * arguments, and nothing from an entry is executed (Trust model, point 1). The CLI holds no
- * credentials: `gh` authenticates its own requests and git's pushes, and git never runs a hook or
- * a credential helper the user configured, because the clone is the CLI's own checkout.
- *
- * `submit.ts::submit` calls these in order: `preflight`, `cloneUpstream`, `gitLocal` for staging,
- * then (unless it's a dry run) `fork`, `commit`, `push`, `openPullRequest` and either
- * `editPullRequest` or `createPullRequest`. How each failure maps is deliberate: a refusal the
- * user must fix (no `gh`, not logged in, no git identity, a repository that doesn't exist, a branch
- * holding someone else's work) is `BadInput`; GitHub refusing this login is `PermissionDenied`;
- * anything else from the network is `UpstreamUnavailable`, which can be retried; a local git
- * command failing in the CLI's own clone is a defect.
+ * Owns the git and GitHub process calls for `stacks submit`. Fixed argv and CLI-built values keep
+ * entry text from executing (trust point 1).
  */
 import { GitHubLogin } from "@steamfield/stacks-format";
 import { Duration, Effect, Option, Schema } from "effect";
@@ -23,9 +9,7 @@ import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { type Captured, Processes } from "../../services/processes";
 import { shellArg } from "../shell";
 
-/** The resolved `gh` and `git` programs and the GitHub login `gh` is using. */
 export type Tools = { gh: string; git: string; login: string };
-/** The stage a failure is reported under in `UpstreamUnavailable`'s details. */
 type Step = "auth" | "clone" | "fork" | "push" | "pr";
 
 const QUICK = Duration.seconds(60);
@@ -40,12 +24,12 @@ const DENIED =
 const MISSING = /not found|does not exist|could not resolve to a repository/i;
 /** gh's failure when the compare API knows no such base, or no history links it to main. */
 const NOT_COMPARABLE = /HTTP 404|HTTP 422|No commit found/;
-/** git's message when a lease no longer matches the remote branch. */
+/** A lease rejection signals that the remote branch no longer meets the push precondition. */
 const LEASE_REJECTED = /stale info|\[rejected\]/;
-/** The subject `submit` gives its commits (`body.ts::title`). */
+/** Match the subject produced by `body.ts::title`. */
 const SUBMIT_SUBJECT = /^feat\(registry\): (?:add|update) /;
 
-/** No hook the user configured runs in the CLI's own temporary checkout. */
+/** Disable user hooks because these operations run in the CLI's own temporary checkout. */
 const NO_HOOKS = ["-c", "core.hooksPath=/dev/null"] as const;
 
 /**
@@ -60,7 +44,7 @@ const toolEnv = (config: typeof AppConfig.Service) =>
     LC_ALL: "C",
   });
 
-/** Runs one program; only a failure to start it at all is `UpstreamUnavailable` here. */
+// Start failures are `UpstreamUnavailable`. Callers classify completed exits for their operation.
 const exec = Effect.fn("submit.exec")(function* (
   argv: readonly [string, ...string[]],
   options: { cwd: string; timeout: Duration.Duration; step: Step },
@@ -87,7 +71,7 @@ function failed(run: Captured, step: Step) {
 
 const branchTaken = (branch: string) => new BadInput({ details: { flag: "branch_taken", branch } });
 
-/** A program on PATH, or the `BadInput` naming it as missing. */
+/** A missing tool is `BadInput` because the caller can install it. */
 const findTool = Effect.fn("submit.findTool")(function* (tool: "gh" | "git") {
   const found = Option.getOrUndefined(yield* (yield* Processes).which(tool));
   if (found === undefined)
@@ -95,7 +79,6 @@ const findTool = Effect.fn("submit.findTool")(function* (tool: "gh" | "git") {
   return found;
 });
 
-/** `gh` and `git` on PATH, `gh` logged in, and the login it uses. */
 export const preflight = Effect.fn("submit.preflight")(function* (cwd: string) {
   const gh = yield* findTool("gh");
   const git = yield* findTool("git");
@@ -119,7 +102,7 @@ export const preflight = Effect.fn("submit.preflight")(function* (cwd: string) {
   return { gh, git, login } satisfies Tools;
 });
 
-/** git's credentials come from `gh` alone, never a helper the user configured. */
+/** Let `gh` own authentication for git's remote operations by clearing other helpers. */
 const credentials = (tools: Tools) => [
   "-c",
   "credential.helper=",
@@ -127,11 +110,9 @@ const credentials = (tools: Tools) => [
   `credential.helper=!${shellArg(tools.gh)} auth git-credential`,
 ];
 
-/** A git command that talks to GitHub: no hooks, and `gh`'s credentials. */
 const remoteGit = (tools: Tools, args: ReadonlyArray<string>) =>
   [tools.git, ...NO_HOOKS, ...credentials(tools), ...args] as const;
 
-/** A partial, shallow clone of `repo`'s `main` into `dest`. */
 export const cloneUpstream = Effect.fn("submit.clone")(function* (
   tools: Tools,
   options: { repo: string; cwd: string; dest: string },
@@ -152,15 +133,12 @@ export const cloneUpstream = Effect.fn("submit.clone")(function* (
     { cwd: options.cwd, timeout: NETWORK, step: "clone" },
   );
   if (ok(cloned)) return;
+  // A missing repository is caller-fixable. Preserve the retry category for upstream failures.
   if (!cloned.timedOut && MISSING.test(cloned.stderr))
     return yield* new BadInput({ details: { flag: "repo", value: options.repo } });
   return yield* failed(cloned, "clone");
 });
 
-/**
- * A git command in the clone, which can only fail on a broken local setup: no hooks run, since
- * the clone is the CLI's own temporary checkout.
- */
 export const gitLocal = Effect.fn("submit.gitLocal")(function* (
   tools: Tools,
   cwd: string,
@@ -173,7 +151,7 @@ export const gitLocal = Effect.fn("submit.gitLocal")(function* (
   });
 });
 
-/** Fails a local git command that didn't succeed as a defect: the CLI's own checkout broke. */
+/** A failed local operation means the CLI's own checkout broke. */
 export const localOk = (run: Captured) =>
   ok(run) ? Effect.void : Effect.die(new Error("A git command in the submission clone failed."));
 
@@ -209,7 +187,6 @@ const forkName = (login: string, repo: string, output: string) => {
   return `${login}/${named?.[1]?.replace(/\.git$/, "") ?? repo.slice(repo.indexOf("/") + 1)}`;
 };
 
-/** Forks `repo` for the login (an existing fork is reused) and returns the fork's `owner/name`. */
 export const fork = Effect.fn("submit.fork")(function* (tools: Tools, repo: string, cwd: string) {
   const forked = yield* exec([tools.gh, "repo", "fork", repo, "--clone=false"], {
     cwd,
@@ -280,7 +257,7 @@ const ownBranch = Effect.fn("submit.ownBranch")(function* (
   if (!(yield* onMain(tools, { cwd, repo: options.repo, parent }))) return yield* taken;
 });
 
-/** Runs a fork request again while a fresh fork still answers "not found". */
+/** A fresh fork can briefly answer "not found", so retry that response within the attempt limit. */
 const untilForkReady = <E, R>(request: Effect.Effect<Captured, E, R>) =>
   Effect.gen(function* () {
     for (let attempt = 1; ; attempt++) {
@@ -323,7 +300,6 @@ export const push = Effect.fn("submit.push")(function* (
   return yield* failed(pushed, "push");
 });
 
-/** The open pull request from the fork's branch, if there is one. */
 export const openPullRequest = Effect.fn("submit.openPullRequest")(function* (
   tools: Tools,
   options: { repo: string; branch: string; cwd: string },
@@ -381,7 +357,6 @@ export const createPullRequest = Effect.fn("submit.createPullRequest")(function*
   return url;
 });
 
-/** Rewrites a reused pull request's title and body to match this submission. */
 export const editPullRequest = Effect.fn("submit.editPullRequest")(function* (
   tools: Tools,
   options: { url: string; title: string; bodyFile: string; cwd: string },

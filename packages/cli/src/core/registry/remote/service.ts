@@ -165,7 +165,7 @@ const cachedBundle = Effect.fn("remoteIndex.cachedBundle")(function* (
 });
 
 type IndexAccess = {
-  /** The verified index, refreshed when the cached copy is older than 24 hours. */
+  /** The verified index, eligible to refresh when the cached copy reaches `CACHE_FRESHNESS_MS`. */
   readonly current: Effect.Effect<Option.Option<VerifiedIndex>>;
   /** The directory holding the entry's verified files, downloading them if needed. */
   readonly bundle: (entry: IndexEntry) => Effect.Effect<Option.Option<string>>;

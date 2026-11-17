@@ -2,13 +2,12 @@
 import { TelemetryAccepted, type TelemetryBatch } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
 import { type HttpClient, HttpClientRequest } from "effect/http";
+import { FAILURE_BACKOFF_MS } from "../constants";
 import { defined } from "../core/object";
 import type { TelemetryFlush } from "../schemas/telemetry";
 import { claim, type Pending, recover, restore, trim } from "./spool";
 import { DAY, installId, names, Project, read, remove, type Storage, write } from "./storage";
 
-/** How long to wait after a failure that gave no usable `Retry-After`. */
-const DEFAULT_BACKOFF_MS = 600_000;
 /** A project link older than this is deleted. */
 const PROJECT_RETENTION = 365 * DAY;
 /** How many project links one flush checks for expiry. */
@@ -66,10 +65,10 @@ const pruneProjects = Effect.fn("telemetry.pruneProjects")(function* (
 
 /** Milliseconds to wait from a `Retry-After` value, given in seconds or as an HTTP date. */
 function retryDelay(value: string | undefined, now: number) {
-  if (value === undefined) return DEFAULT_BACKOFF_MS;
+  if (value === undefined) return FAILURE_BACKOFF_MS;
   if (/^\d+$/.test(value)) return Number(value) * 1000;
   const date = Date.parse(value);
-  return Number.isFinite(date) ? Math.max(0, date - now) : DEFAULT_BACKOFF_MS;
+  return Number.isFinite(date) ? Math.max(0, date - now) : FAILURE_BACKOFF_MS;
 }
 
 /**
@@ -180,7 +179,7 @@ export const deliver = Effect.fn("telemetry.deliver")(function* (
   const previous = yield* readState(store);
   yield* saveState(store, {
     ...previous,
-    until: (yield* Clock.currentTimeMillis) + DEFAULT_BACKOFF_MS,
+    until: (yield* Clock.currentTimeMillis) + FAILURE_BACKOFF_MS,
   });
   return enabledFlush({ sent: 0, kept: yield* countPending(store), rejected: 0 });
 });

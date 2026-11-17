@@ -4,6 +4,7 @@
  */
 import { Duration, Effect, Schema } from "effect";
 import { AppConfig } from "../../config";
+import { NPM_INSTALL_TIMEOUT_MINUTES } from "../../constants";
 import { BadInput, PermissionDenied, UpdateFailed } from "../../errors";
 import type { UpdateResult } from "../../schemas/update";
 import { Output } from "../../services/output";
@@ -88,7 +89,7 @@ export const update = Effect.fn("update.update")(function* (options: {
     npm: installation.npm,
     latest,
     command,
-    timeout: options.installTimeout ?? Duration.minutes(5),
+    timeout: options.installTimeout ?? Duration.minutes(NPM_INSTALL_TIMEOUT_MINUTES),
   });
   return { status: "updated", current, latest, install: "npm-global" } satisfies UpdateResult;
 });

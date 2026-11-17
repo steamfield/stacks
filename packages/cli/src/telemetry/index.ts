@@ -5,6 +5,7 @@ import { type RunRecord, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Cause, Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
+import { TELEMETRY_FLUSH_AFTER_COMMAND_MS, TELEMETRY_FLUSH_NOW_MS } from "../constants";
 import { Allowlist } from "../core/allowlist";
 import { defined } from "../core/object";
 import { Registry } from "../core/registry/registry";
@@ -43,10 +44,6 @@ import {
 
 /** An event body: everything but the envelope fields. */
 type EventBody = Omit<TelemetryEventV3, keyof Envelope>;
-
-/** Flush deadlines in milliseconds: after a command's output, and for `stacks telemetry flush`. */
-const FLUSH_AFTER_COMMAND_MS = 800;
-const FLUSH_NOW_MS = 5000;
 
 /** The privacy page is `/telemetry` on the host that receives the events. */
 const notice = (endpoint: string) =>
@@ -335,7 +332,9 @@ export class Telemetry extends Context.Service<
             flushAfterOutput = true;
           }),
           flushAfterOutput: Effect.suspend(() =>
-            flushAfterOutput ? flush(FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid) : Effect.void,
+            flushAfterOutput
+              ? flush(TELEMETRY_FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid)
+              : Effect.void,
           ),
           status,
           recordScaffold,
@@ -351,8 +350,8 @@ export class Telemetry extends Context.Service<
               ),
             ),
           recordError: (input: ErrorFacts) => record(spool(Effect.sync(() => errorEvent(input)))),
-          flush: flush(FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid),
-          flushNow: flush(FLUSH_NOW_MS),
+          flush: flush(TELEMETRY_FLUSH_AFTER_COMMAND_MS).pipe(Effect.asVoid),
+          flushNow: flush(TELEMETRY_FLUSH_NOW_MS),
           clear: (reset: boolean) =>
             safe(
               Effect.gen(function* () {

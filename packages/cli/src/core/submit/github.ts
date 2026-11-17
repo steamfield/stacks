@@ -7,7 +7,7 @@ import { Duration, Effect, Option, Schema } from "effect";
 import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../config";
 import { BadInput, PermissionDenied, UpstreamUnavailable } from "../../errors";
 import { type Captured, Processes } from "../../services/processes";
-import { shellArg } from "../shell";
+import { shellArg } from "../text/shell";
 
 export type Tools = { gh: string; git: string; login: string };
 type Step = "auth" | "clone" | "fork" | "push" | "pr";

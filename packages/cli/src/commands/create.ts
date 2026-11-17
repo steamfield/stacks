@@ -5,10 +5,10 @@
 import { Category, type Kind } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { Argument, CliError, Command, Flag } from "effect/cli";
-import { type CreateOptions, createEntry } from "../core/create";
+import { type CreateOptions, createEntry } from "../core/create/index";
 import { pickCreate, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
-import { shownPath } from "../core/shown-path";
-import { printable } from "../core/text";
+import { shownPath } from "../core/text/shown-path";
+import { printable } from "../core/text/text";
 import { Usage } from "../errors";
 import { CreateResult } from "../schemas/create";
 import { Origin } from "../schemas/origin";

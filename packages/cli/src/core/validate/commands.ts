@@ -5,7 +5,7 @@
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
 import type { Composition } from "../compose/types";
-import { shellTokens, shellWords } from "../shell";
+import { shellTokens, shellWords } from "../text/shell";
 import { uniqueFindings } from "./composed";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";

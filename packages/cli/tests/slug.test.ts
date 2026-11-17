@@ -1,7 +1,7 @@
 import { it } from "@effect/vitest";
 import { Schema } from "effect";
 import { expect, test } from "vitest";
-import { envPrefix, slug } from "../src/core/slug";
+import { envPrefix, slug } from "../src/core/text/slug";
 
 test.each([
   ["My App", "my-app", "MY_APP"],

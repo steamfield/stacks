@@ -8,9 +8,9 @@ import { Clock, Effect, FileSystem, Path, Random, Schema } from "effect";
 import { InvalidConfig, NotFound, PermissionDenied } from "../../errors";
 import { MANIFEST_PATH } from "../../project-layout";
 import { VERSION } from "../../version";
-import { isAbsent } from "../absent";
-import { canonicalJson } from "../canonical-json";
 import type { Composition } from "../compose/types";
+import { isAbsent } from "../fs/absent";
+import { canonicalJson } from "../fs/canonical-json";
 import type { Entry } from "../registry/entry";
 
 export { MANIFEST_PATH } from "../../project-layout";

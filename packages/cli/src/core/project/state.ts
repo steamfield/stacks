@@ -7,8 +7,8 @@ import { Effect, Exit, FileSystem, Option, Path, type PlatformError, Schema } fr
 import { AppConfig } from "../../config";
 import { InvalidConfig, PermissionDenied } from "../../errors";
 import { Invocation } from "../../services/invocation";
-import { replaceFile } from "../replace-file";
-import { printable } from "../text";
+import { replaceFile } from "../fs/replace-file";
+import { printable } from "../text/text";
 import { digestSettings, digestStep, newerSchemaVersion } from "./manifest";
 
 /**

@@ -17,7 +17,7 @@ import { Schema } from "effect";
 import { afterAll, test as baseTest, describe, expect, vi } from "vitest";
 import type { AgentAdapter } from "../scripts/bench/agents";
 import { AgentMarkers } from "../src/config";
-import { shellArg } from "../src/core/shell";
+import { shellArg } from "../src/core/text/shell";
 import { NewResult } from "../src/schemas/new";
 import { ProjectRuns } from "../src/schemas/runs";
 import { projectFiles } from "./fixtures/composed-files";

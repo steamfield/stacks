@@ -7,7 +7,7 @@ import { Effect, FileSystem, Path, Schema } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, NotFound } from "../../errors";
 import { Host } from "../../services/host";
-import { closest } from "../suggest";
+import { closest } from "../text/suggest";
 import { resolveTarget, type Target } from "../validate/target";
 
 export type SubmittedEntry = { kind: Kind; id: string; root: string; dir: string };

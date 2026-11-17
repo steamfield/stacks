@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Cause, Effect, Exit, FileSystem } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { replaceFile } from "../src/core/replace-file";
+import { replaceFile } from "../src/core/fs/replace-file";
 import { tempDir } from "./helpers/cli";
 
 const directories: ReturnType<typeof tempDir>[] = [];

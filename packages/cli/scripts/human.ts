@@ -2,7 +2,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { AGENT_MARKER_NAMES } from "../src/config";
-import { shellArg } from "../src/core/shell";
+import { shellArg } from "../src/core/text/shell";
 
 export type HumanPlan = { argv: string[]; env: Record<string, string> } | { error: string };
 

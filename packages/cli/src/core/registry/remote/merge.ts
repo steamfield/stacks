@@ -4,8 +4,6 @@
  */
 import { type IndexEntry, IndexEntry as IndexEntrySchema } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
-import { RemoteIndex } from "../remote-index";
-import { directoryMatches } from "../remote-index/files";
 import {
   type CatalogEntry,
   decodeEntry,
@@ -13,7 +11,9 @@ import {
   markdownFile,
   type Origin,
   type RejectedEntry,
-} from "./entry";
+} from "../entry";
+import { directoryMatches } from "./files";
+import { RemoteIndex } from "./service";
 
 type Resolution = Effect.Effect<Entry | RejectedEntry | undefined>;
 

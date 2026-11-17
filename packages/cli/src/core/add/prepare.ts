@@ -18,7 +18,7 @@ import { buildManifest } from "../project/manifest";
 import { templateOverrides, templateValues } from "../project/template-values";
 import type { Entry } from "../registry/entry";
 import type { TemplateValues } from "../template";
-import { printable } from "../text";
+import { printable } from "../text/text";
 import { inferName } from "./name";
 import { type AddPlan, planAdd } from "./plan";
 import type { AddProject } from "./project";

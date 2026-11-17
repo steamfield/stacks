@@ -5,9 +5,9 @@
  */
 import { FailureKind, Kind } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
-import { shellArg } from "./core/shell";
 import { TEMPLATE_VARIABLES } from "./core/template";
-import { printable } from "./core/text";
+import { shellArg } from "./core/text/shell";
+import { printable } from "./core/text/text";
 import { verifyNext } from "./core/verify/next";
 import { BRIEF_PATH, MANIFEST_PATH } from "./project-layout";
 import { Origin } from "./schemas/origin";

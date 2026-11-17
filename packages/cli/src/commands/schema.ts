@@ -4,7 +4,7 @@
 import { Effect, Option } from "effect";
 import { Argument, Command } from "effect/cli";
 import { jsonSchema, RESULT_NAMES, RESULT_SCHEMAS, type ResultName } from "../core/result-schemas";
-import { closest } from "../core/suggest";
+import { closest } from "../core/text/suggest";
 import { Usage } from "../errors";
 import { Output } from "../services/output";
 

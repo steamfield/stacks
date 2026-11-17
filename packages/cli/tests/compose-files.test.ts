@@ -16,8 +16,8 @@ import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../src/core/compose/files";
 import type { Composition } from "../src/core/compose/types";
-import { envPrefix, slug } from "../src/core/slug";
 import type { TemplateValues } from "../src/core/template";
+import { envPrefix, slug } from "../src/core/text/slug";
 import type { EntryInvalid, PermissionDenied } from "../src/errors";
 import {
   BINARY,

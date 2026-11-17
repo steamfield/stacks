@@ -5,10 +5,11 @@
 import type { SearchVocabulary, StatsSummary } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { type LedgerRead, readLedger } from "../ledger";
-import { toRow } from "../list";
+import { toRow } from "../list/index";
 import { type Entry, isRejected } from "../registry/entry";
-import { defaultRoots, Registry } from "../registry/registry";
-import { cachedStats, readStatsCache } from "../stats-cache";
+import { Registry } from "../registry/registry";
+import { defaultRoots } from "../registry/roots";
+import { cachedStats, readStatsCache } from "../stats/cache";
 import { decodeSidecar, decodeVocabulary } from "./sidecar";
 
 const emptyVocabulary: SearchVocabulary = {

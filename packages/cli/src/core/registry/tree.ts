@@ -5,7 +5,7 @@
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
 import { EntryInvalid, PermissionDenied } from "../../errors";
-import { isAbsent } from "../absent";
+import { isAbsent } from "../fs/absent";
 import type { Entry, EntryFile } from "./entry";
 import type { FileAccess, Walked } from "./types";
 

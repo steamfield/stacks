@@ -5,20 +5,21 @@
  */
 import type { Category, Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Schema, Terminal } from "effect";
-import { AppConfig } from "../config";
-import { BadInput, Interrupted, NotFound, PermissionDenied } from "../errors";
-import type { CreateResult } from "../schemas/create";
-import type { Origin } from "../schemas/origin";
-import { Host } from "../services/host";
-import { Output } from "../services/output";
-import { skeleton, starterFiles, trustQuestion } from "./create-text";
-import { openProject } from "./project/writer";
-import { type Entry, isRejected, markdownFile } from "./registry/entry";
-import { defaultRoots, Registry, type RegistryRoots } from "./registry/registry";
-import { sidecarPath } from "./search/sidecar";
-import { showReport } from "./show";
-import { renderShow } from "./show-report";
-import { closest } from "./suggest";
+import { AppConfig } from "../../config";
+import { BadInput, Interrupted, NotFound, PermissionDenied } from "../../errors";
+import type { CreateResult } from "../../schemas/create";
+import type { Origin } from "../../schemas/origin";
+import { Host } from "../../services/host";
+import { Output } from "../../services/output";
+import { openProject } from "../project/writer";
+import { type Entry, isRejected, markdownFile } from "../registry/entry";
+import { Registry } from "../registry/registry";
+import { defaultRoots, type RegistryRoots } from "../registry/roots";
+import { sidecarPath } from "../search/sidecar";
+import { showReport } from "../show/index";
+import { renderShow } from "../show/report";
+import { closest } from "../text/suggest";
+import { skeleton, starterFiles, trustQuestion } from "./text";
 
 const EntryId = Schema.String.check(Schema.isPattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/));
 

@@ -6,7 +6,7 @@ import { rmdir } from "node:fs/promises";
 import { Effect, Exit, FileSystem, Option, Path, type PlatformError, type Scope } from "effect";
 import { PermissionDenied, TargetNotEmpty } from "../../errors";
 import { Invocation } from "../../services/invocation";
-import { isAbsent } from "../absent";
+import { isAbsent } from "../fs/absent";
 
 /**
  * Exclusive creates and resolved-path checks constrain symlink escapes. A concurrent directory

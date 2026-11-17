@@ -4,7 +4,7 @@
  */
 import type { BriefPreview, Finding, SizeRow, ValidateReport } from "../../schemas/validate";
 import type { Audience } from "../../services/output";
-import { printable } from "../text";
+import { printable } from "../text/text";
 
 const n = (value: number) => value.toLocaleString("en-US");
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;

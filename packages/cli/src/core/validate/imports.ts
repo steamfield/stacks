@@ -7,7 +7,7 @@ import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
 import type { Finding } from "../../schemas/validate";
 import type { Entry } from "../registry/entry";
-import { shellWords } from "../shell";
+import { shellWords } from "../text/shell";
 import { sourceOf, uniqueFindings } from "./composed";
 import type { Check, Composed, View } from "./types";
 import { finding } from "./view";

@@ -3,7 +3,7 @@
  * queries onto one line and use `printable` to keep control characters out of Markdown.
  */
 import type { Finding } from "../../schemas/validate";
-import { printable } from "../text";
+import { printable } from "../text/text";
 
 /**
  * The maintainer checklist every entry pull request carries; CONTRIBUTING.md and the entry pull

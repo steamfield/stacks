@@ -2,7 +2,7 @@ import { stripVTControlCharacters } from "node:util";
 import { it } from "@effect/vitest";
 import { Schema } from "effect";
 import { expect, test } from "vitest";
-import { wrap } from "../src/core/wrap";
+import { wrap } from "../src/core/text/wrap";
 
 // Known fixture glyphs: 界 uses two columns and the combining acute accent uses none.
 const measure = (s: string): number =>

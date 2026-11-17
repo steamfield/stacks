@@ -13,7 +13,7 @@ import {
 } from "../../errors";
 import { type CatalogEntry, type Entry, isFragment, isRejected, isStack } from "../registry/entry";
 import type { Registry } from "../registry/registry";
-import { closest } from "../suggest";
+import { closest } from "../text/suggest";
 import { conflict } from "./conflicts";
 import type { ComposeOptions, ComposeWarning, Via } from "./types";
 

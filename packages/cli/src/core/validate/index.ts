@@ -6,7 +6,8 @@
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
 import { type Entry, isFragment, isRejected, type RejectedEntry } from "../registry/entry";
-import { defaultRoots, Registry, type RegistryRoots } from "../registry/registry";
+import { Registry } from "../registry/registry";
+import { defaultRoots, type RegistryRoots } from "../registry/roots";
 import { addCompositionChecks } from "./add-compositions";
 import { authorChecks } from "./authors";
 import { commandChecks } from "./commands";

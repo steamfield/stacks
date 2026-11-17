@@ -2,8 +2,8 @@
 import type { AgentId, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../../project-layout";
 import { type Audience, plainStyle, type Style } from "../../services/output";
-import { shellArg } from "../shell";
-import { printable } from "../text";
+import { shellArg } from "../text/shell";
+import { printable } from "../text/text";
 import type { HandoffDecision } from "./decide";
 import { LAUNCH_ARGS, LAUNCH_ORDER } from "./launchers";
 

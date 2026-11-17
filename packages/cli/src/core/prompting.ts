@@ -12,13 +12,14 @@ import type { Origin } from "../schemas/origin";
 import { Host } from "../services/host";
 import { type Audience, Output } from "../services/output";
 import { fitsStack } from "./compose/selection";
-import { listResult, projectChoices } from "./list";
+import { listResult, projectChoices } from "./list/index";
 import { MANIFEST_PATH, readManifest } from "./project/manifest";
-import { defaultRoots, Registry } from "./registry/registry";
+import { Registry } from "./registry/registry";
+import { defaultRoots } from "./registry/roots";
 import type { NewOptions } from "./scaffold/new";
-import { shellArg } from "./shell";
-import { slug } from "./slug";
-import { printable } from "./text";
+import { shellArg } from "./text/shell";
+import { slug } from "./text/slug";
+import { printable } from "./text/text";
 
 /**
  * Pickers require the human audience and both terminal streams so a person can answer

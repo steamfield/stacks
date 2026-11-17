@@ -2,7 +2,7 @@
 import type { AddResult } from "../../schemas/add";
 import type { Audience } from "../../services/output";
 import { missingLine, warningLine } from "../scaffold/report";
-import { printable } from "../text";
+import { printable } from "../text/text";
 
 /** The add summary; callers shorten project and untrusted paths with shownPath for agents. */
 export function renderAdd(

@@ -4,7 +4,7 @@ import { Clock, Console, Effect, Layer, Option, Path } from "effect";
 import { SOURCE_BUILD } from "../src/build";
 import { AppConfig } from "../src/config";
 import { Registry } from "../src/core/registry/registry";
-import { printable } from "../src/core/text";
+import { printable } from "../src/core/text/text";
 import { validate } from "../src/core/validate";
 import { stringWidth } from "../src/platform/width";
 import { Host } from "../src/services/host";

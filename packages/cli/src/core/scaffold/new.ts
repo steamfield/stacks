@@ -34,8 +34,8 @@ import { removeProjectState, writeProjectState } from "../project/state";
 import { templateOverrides, templateValues } from "../project/template-values";
 import { openProject, type ProjectWriter } from "../project/writer";
 import { DEFAULT_PAYLOAD, type Payload } from "../registry/entry";
-import { slug } from "../slug";
-import { hasControl } from "../text";
+import { slug } from "../text/slug";
+import { hasControl } from "../text/text";
 import { fillMarkers } from "./fill";
 import { inspectTarget } from "./target";
 

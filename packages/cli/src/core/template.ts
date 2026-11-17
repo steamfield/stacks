@@ -2,7 +2,7 @@
  * Fills project values in shipped templates. Fixed substitutions keep shipped files static
  * apart from project values. Unknown names fail with advice ordered by `TEMPLATE_VARIABLES`.
  */
-import { hasControl } from "./text";
+import { hasControl } from "./text/text";
 
 /** The fixed template variables. No entry can add one. */
 export const TEMPLATE_VARIABLES = [

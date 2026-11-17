@@ -7,7 +7,7 @@ import { BRIEF_PATH } from "../../project-layout";
 import type { AddResult } from "../../schemas/add";
 import { Host } from "../../services/host";
 import { renderBrief } from "../brief/render";
-import { handoffRecord } from "../handoff/decide";
+import { decideHandoff, settleHandoff } from "../handoff/decide";
 import { mergeAddManifest } from "./manifest";
 import { mergeNeeded } from "./plan";
 import { prepareAdd } from "./prepare";
@@ -33,11 +33,15 @@ export const add = (options: AddOptions) =>
     });
     // Composition determines trust for `decideHandoff` (trust point 3). Decide before writing
     // so `applyAdd` commits the handoff record with the manifest.
-    const decision = options.handoff(composition.untrusted.map((entry) => entry.id));
-    const manifest = {
-      ...merged.manifest,
-      handoff: handoffRecord(decision, new Date(yield* Clock.currentTimeMillis).toISOString()),
-    };
+    const decision = decideHandoff({
+      ...options.handoff,
+      untrusted: composition.untrusted.map((entry) => entry.id),
+    });
+    const manifest = settleHandoff(
+      merged.manifest,
+      decision,
+      new Date(yield* Clock.currentTimeMillis).toISOString(),
+    );
     const written = plan.write.map((file) => file.path).sort();
     const incoming = mergeNeeded(plan.incoming);
     const brief = renderBrief(composition, {

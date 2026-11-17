@@ -9,13 +9,14 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import type { Manifest } from "@steamfield/stacks-format";
-import { Deferred, Effect, Fiber, FileSystem, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
 import { AgentMarkers } from "../src/config";
-import { digestStep, digestSteps, MANIFEST_PATH, readManifest } from "../src/core/manifest";
+import { digestStep, digestSteps, MANIFEST_PATH } from "../src/core/manifest";
 import { ProjectState, projectStateFor } from "../src/core/project-state";
-import { acceptChanges, checkTamper } from "../src/core/verify/tamper";
-import { runWith, succeed } from "./helpers/state";
+import { ErrorEnvelope } from "../src/errors";
+import { quiet, runCli } from "./helpers/cli";
+import { commandWithFileSystem } from "./helpers/command-filesystem";
 import {
   decodeResult,
   envelope,
@@ -496,41 +497,51 @@ describe("--accept-changes", () => {
     },
   );
 
-  test("an interrupt while the manifest is being written still leaves both copies agreeing", async () => {
+  test("interrupting verify during acceptance leaves the manifest and state with the accepted digest", async () => {
     const project = recorded(BASE);
-    const file = recordPath(project.home, project.manifest.projectId);
+    const state = recordPath(project.home, project.manifest.projectId);
     const steps = BASE.map((step) =>
       step.name === "lint" ? { ...step, run: "touch linted-again" } : step,
     );
-    // The old digest stays in the manifest, so accepting has to rewrite it after the record.
     const path = writeProject(project.root, steps, { verifyDigest: project.manifest.verifyDigest });
-    const program = Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const reached = yield* Deferred.make<void>();
-      // The real filesystem, with the manifest replacement held long enough to interrupt during it.
-      const held: FileSystem.FileSystem = {
-        ...fs,
-        rename: (source, target) =>
-          target === realpathSync(path)
-            ? Deferred.succeed(reached, undefined).pipe(
-                Effect.andThen(Effect.sleep("100 millis")),
-                Effect.andThen(fs.rename(source, target)),
-              )
-            : fs.rename(source, target),
-      };
-      const manifest = yield* readManifest(path);
-      const tamper = yield* checkTamper(manifest, path);
-      const fiber = yield* acceptChanges(manifest, path, tamper).pipe(
-        Effect.provideService(FileSystem.FileSystem, held),
-        Effect.forkChild,
-      );
-      yield* Deferred.await(reached);
-      yield* Fiber.interrupt(fiber);
+    const target = realpathSync(path);
+    const controller = new AbortController();
+    const args = ["verify", "--accept-changes", "--json"];
+    const program = commandWithFileSystem(args, (fs) => ({
+      rename: (source, destination) =>
+        destination === target
+          ? Effect.sync(() => controller.abort()).pipe(
+              Effect.andThen(fs.rename(source, destination)),
+            )
+          : fs.rename(source, destination),
+    }));
+
+    const run = await runCli(args, {
+      program,
+      home: project.home,
+      env: { ...quiet, ...project.env },
+      host: { ...tty, cwd: project.root },
+      signal: controller.signal,
     });
-    await succeed(runWith(program, project.env));
+
+    expect(run.status).toBe(130);
+    expect(run.stdout).toBe("");
+    expect(
+      Schema.decodeUnknownSync(Schema.fromJsonString(ErrorEnvelope), {
+        onExcessProperty: "error",
+      })(run.stderr),
+    ).toEqual({
+      error: {
+        tag: "Interrupted",
+        message: "Command interrupted.",
+        retryable: false,
+        next: "run the same command again when you're ready.",
+      },
+    });
     const accepted = digestSteps(manifest(steps));
-    expect(readRecord(file).verifyDigest).toBe(accepted);
+    expect(readRecord(state).verifyDigest).toBe(accepted);
     expect(readManifestAt(project.root).verifyDigest).toBe(accepted);
+    expect(has(project.root, "installed")).toBe(false);
   });
 });
 

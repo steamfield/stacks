@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Effect, Schema } from "effect";
 import { expect, test } from "vitest";
 import {
+  type AppError,
   BadInput,
   BrokenPipe,
   ComposeConflict,
@@ -10,7 +11,6 @@ import {
   ErrorEnvelope,
   ErrorTag,
   errorClasses,
-  errorTable,
   exitCode,
   keepsResult,
   NotFound,
@@ -27,37 +27,74 @@ import { ndjson, quiet, runCli, tempDir, terminal, writeError } from "./helpers/
 const reported = errorClasses.map((Class) => new Class()).filter((e) => !(e instanceof BrokenPipe));
 const COMPOSE_NEXT =
   "change --with or --without so these entries fit, or pick another stack; stacks show <id> lists what each entry requires and conflicts with.";
-test("the published error table, written out row by row", () => {
-  expect(errorTable).toEqual({
-    Usage: { exit: 2, retryable: false, keepsResult: false },
-    BadInput: { exit: 2, retryable: false, keepsResult: false },
-    NotFound: { exit: 2, retryable: false, keepsResult: false },
-    NotConfigured: { exit: 3, retryable: false, keepsResult: false },
-    InvalidConfig: { exit: 3, retryable: false, keepsResult: false },
-    UpstreamUnavailable: { exit: 4, retryable: true, keepsResult: false },
-    UpdateFailed: { exit: 6, retryable: false, keepsResult: false },
-    VerifyFailed: { exit: 5, retryable: false, keepsResult: true },
-    VerifyChanged: { exit: 5, retryable: false, keepsResult: true },
-    PermissionDenied: { exit: 6, retryable: false, keepsResult: false },
-    EntryInvalid: { exit: 2, retryable: false, keepsResult: false },
-    ComposeConflict: { exit: 2, retryable: false, keepsResult: false },
-    TargetNotEmpty: { exit: 2, retryable: false, keepsResult: false },
-    ValidationFailed: { exit: 2, retryable: false, keepsResult: true },
-    Interrupted: { exit: 130, retryable: false, keepsResult: false },
-    Defect: { exit: 1, retryable: false, keepsResult: false },
-    BrokenPipe: { exit: 0, retryable: false, keepsResult: false },
+const publishedErrors = {
+  Usage: { exit: 2, retryable: false, keepsResult: false },
+  BadInput: { exit: 2, retryable: false, keepsResult: false },
+  NotFound: { exit: 2, retryable: false, keepsResult: false },
+  NotConfigured: { exit: 3, retryable: false, keepsResult: false },
+  InvalidConfig: { exit: 3, retryable: false, keepsResult: false },
+  UpstreamUnavailable: { exit: 4, retryable: true, keepsResult: false },
+  UpdateFailed: { exit: 6, retryable: false, keepsResult: false },
+  VerifyFailed: { exit: 5, retryable: false, keepsResult: true },
+  VerifyChanged: { exit: 5, retryable: false, keepsResult: true },
+  PermissionDenied: { exit: 6, retryable: false, keepsResult: false },
+  EntryInvalid: { exit: 2, retryable: false, keepsResult: false },
+  ComposeConflict: { exit: 2, retryable: false, keepsResult: false },
+  TargetNotEmpty: { exit: 2, retryable: false, keepsResult: false },
+  ValidationFailed: { exit: 2, retryable: false, keepsResult: true },
+  Interrupted: { exit: 130, retryable: false, keepsResult: false },
+  Defect: { exit: 1, retryable: false, keepsResult: false },
+  BrokenPipe: { exit: 0, retryable: false, keepsResult: false },
+};
+const errorBehavior = (error: AppError) => ({
+  exit: exitCode(error),
+  retryable: retryable(error),
+  keepsResult: keepsResult(error),
+});
+test.each(
+  errorClasses.map((Class) => {
+    const error = new Class();
+    return { tag: error._tag, error };
+  }),
+)("$tag applies its published exit, retry and buffered result policy", async ({ error, tag }) => {
+  const row = publishedErrors[tag];
+  expect(errorBehavior(error)).toEqual(row);
+  const sentinel = { result: "buffered before the failure" };
+  const program = Effect.gen(function* () {
+    yield* (yield* Output).result(sentinel, sentinel.result);
+    return yield* Effect.fail(error);
+  });
+  const run = await runCli(["--json"], { program });
+  expect(run.status).toBe(row.exit);
+  if (row.keepsResult) expect(JSON.parse(run.stdout)).toEqual(sentinel);
+  else expect(run.stdout).toBe("");
+  if (error instanceof BrokenPipe) {
+    expect(run.stderr).toBe("");
+    return;
+  }
+  expect(
+    Schema.decodeUnknownSync(Schema.fromJsonString(ErrorEnvelope), {
+      onExcessProperty: "error",
+    })(run.stderr),
+  ).toEqual({
+    error: {
+      tag,
+      message: error.message,
+      retryable: row.retryable,
+      next: expect.stringMatching(/\S/),
+    },
   });
 });
-test("the class list, the envelope's tag literals and the table's keys are the same set", () => {
+test("the class list and the envelope's tag literals cover the published tags", () => {
   expect(new Set(errorClasses.map((Class) => new Class()._tag))).toEqual(
-    new Set(Object.keys(errorTable)),
+    new Set(Object.keys(publishedErrors)),
   );
-  expect(new Set(ErrorTag.literals)).toEqual(new Set(Object.keys(errorTable)));
+  expect(new Set(ErrorTag.literals)).toEqual(new Set(Object.keys(publishedErrors)));
 });
 test.each(reported.map((error) => [error._tag, error] as const))(
   "a program failing %s exits with its row's code, retryable from its row, no result and a next action",
   async (_tag, error) => {
-    const row = errorTable[error._tag];
+    const row = publishedErrors[error._tag];
     expect(exitCode(error)).toBe(row.exit);
     expect(retryable(error)).toBe(row.retryable);
     const result = await runCli(["--json"], { program: Effect.fail(error) });
@@ -94,7 +131,7 @@ test("an unknown command names the CLI as invoked in its next action", async () 
 });
 test("VerifyFailed and VerifyChanged exit 5 and keep their result", () => {
   for (const error of [new VerifyFailed(), new VerifyChanged()])
-    expect(errorTable[error._tag]).toEqual({ exit: 5, retryable: false, keepsResult: true });
+    expect(errorBehavior(error)).toEqual({ exit: 5, retryable: false, keepsResult: true });
 });
 test("an observed cancellation returns 130 and disposes its scope", async () => {
   let released = false;

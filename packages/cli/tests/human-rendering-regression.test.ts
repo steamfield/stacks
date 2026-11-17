@@ -75,13 +75,13 @@ test("wrap preserves tilde fences and shorter markers inside a longer fence", ()
 
 it.effect("live frames retain elapsed time within a narrow terminal", () => {
   const stderr: string[] = [];
-  const layer = Output.layer(
-    false,
-    async () => {},
-    async (text) => {
+  const layer = Output.layer({
+    jsonFlag: false,
+    stdout: async () => {},
+    stderr: async (text) => {
       stderr.push(text);
     },
-  ).pipe(
+  }).pipe(
     Layer.provide(AppConfig.memory({ NO_COLOR: "" })),
     Layer.provide(Host.memory({ ...terminal, columns: Option.some(20), stringWidth })),
     Layer.provide(NodeServices.layer),

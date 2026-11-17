@@ -204,7 +204,7 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const index = yield* remote.current;
-  const trusted = (yield* remote.status).isDefaultUrl;
+  const { trusted } = remote;
   const originals = new Map(bundled.map((entry) => [entryKey(entry), entry]));
   const locals = new Map(local.map((entry) => [entryKey(entry), entry]));
   for (const ref of Option.isSome(index) ? index.value.entries : []) {

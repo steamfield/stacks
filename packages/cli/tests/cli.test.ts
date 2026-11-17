@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { hasFlag } from "../src/main";
+import { hasFlag } from "../src/argv";
 import { VERSION } from "../src/version";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";
 

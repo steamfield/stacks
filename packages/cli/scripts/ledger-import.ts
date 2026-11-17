@@ -1,6 +1,7 @@
 import { NodeServices } from "@effect/platform-node";
 import { Console, Duration, Effect, FileSystem, Layer, Path, Schema } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES, SOURCE_BUILD } from "../src/config";
+import { SOURCE_BUILD } from "../src/build";
+import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../src/config";
 import { compose } from "../src/core/compose/compose";
 import type { ComposeOptions } from "../src/core/compose/types";
 import { fingerprint, proofFingerprint } from "../src/core/fingerprint";

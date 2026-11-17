@@ -97,7 +97,7 @@ export function workspace() {
 export async function notified(home: string, url: string) {
   const result = await telemetryCli(["show", "go-cli", "--json"], {
     home,
-    env: { STACKS_TELEMETRY_URL: url },
+    build: { officialTelemetryUrl: url },
   });
   ok(result);
   expect(JSON.parse(result.stdout)).toHaveProperty("notice");

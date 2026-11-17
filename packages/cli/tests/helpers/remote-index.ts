@@ -18,6 +18,7 @@ import { Effect, type FileSystem, Layer, type Path } from "effect";
 import { Command } from "effect/cli";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { expect } from "vitest";
+import { SOURCE_BUILD } from "../../src/build";
 import { cli } from "../../src/cli";
 import { AppConfig, type Environment } from "../../src/config";
 import type { RemoteIndex as RemoteIndexService } from "../../src/core/remote-index";
@@ -38,6 +39,7 @@ import { quiet, runCli } from "./cli";
 import { writeLedger } from "./ledger";
 
 export const keys = [{ keyId, publicKey }];
+const officialIndexUrl = "https://index.example.test/v1/index.json";
 export type CommandResult = Awaited<ReturnType<typeof runCli>>;
 export function success(result: CommandResult) {
   expect(result.status, result.stderr).toBe(0);
@@ -130,14 +132,16 @@ export const cacheRoot = (home: string) => join(home, "cache/stacks/index");
 type RemoteDependencies = FileSystem.FileSystem | Path.Path | HttpClient.HttpClient | AppConfig;
 async function indexLayer(): Promise<Layer.Layer<RemoteIndexService, never, RemoteDependencies>> {
   const { RemoteIndex } = await import("../../src/core/remote-index");
-  return RemoteIndex.layer({ keys, officialUrl: "https://index.example.test/v1/index.json" });
+  return RemoteIndex.layer({ keys });
 }
 
 // Dynamic imports let every acceptance test execute and report the missing implementation,
 // while beforeAll independently validates and builds all of the real fixtures.
 export async function remoteLayer(home: string, server: RemoteServer, env: Environment = {}) {
   return (await indexLayer()).pipe(
-    Layer.provide(AppConfig.memory({ ...environment(home), ...env })),
+    Layer.provide(
+      AppConfig.memory({ ...environment(home), ...env }, { ...SOURCE_BUILD, officialIndexUrl }),
+    ),
     Layer.provide(localHttp(server.url)),
     Layer.provide(NodeServices.layer),
   );
@@ -150,6 +154,7 @@ export async function remoteCli(
   const remote = await indexLayer();
   return runCli(args, {
     ...options,
+    build: { ...options.build, officialIndexUrl },
     env: { ...environment(options.home), ...options.env },
     http: localHttp(options.server.url),
     program: Command.runWith(cli, { version: VERSION, renderErrors: false })(args).pipe(

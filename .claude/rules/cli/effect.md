@@ -39,7 +39,7 @@ Time and randomness in Effect code come from `Clock`, `Effect.sleep`, `Effect.ti
 
 ## Commands and parsed input
 
-Read the CLI's inputs from what `effect/cli` parsed: flag values from the handler's config, failures from `CliError` fields (`InvalidValue.option`, `.kind`, `.value`, `.expected`; `UnknownSubcommand.subcommand`, `.parent`; `ShowHelp.commandPath`, `.errors`). Never re-parse argv. The two existing argv reads are the exceptions, and nothing else joins them: `bin.ts` reads `--json` before parsing because Output's audience has to exist when the parser fails, and `main.ts::hasFlag`/`rootHelp` check `--help` and `--version` because those built-in flags print and succeed without returning a command path.
+Read the CLI's inputs from what `effect/cli` parsed: flag values from the handler's config, failures from `CliError` fields (`InvalidValue.option`, `.kind`, `.value`, `.expected`; `UnknownSubcommand.subcommand`, `.parent`; `ShowHelp.commandPath`, `.errors`). Never re-parse argv. The two existing argv reads are the exceptions, and nothing else joins them: `bin.ts` reads `--json` before parsing because Output's audience has to exist when the parser fails, and `main.ts` (through `argv.ts::hasFlag`, and `rootHelp`) checks `--help` and `--version` because those built-in flags print and succeed without returning a command path.
 
 `Command.runWith` runs with `{ version, renderErrors: false }`. Framework help goes through `Console.log`, which `main` captures and discards on failure; Output owns every application write.
 

@@ -157,6 +157,7 @@ const cachedBundle = Effect.fn("remoteIndex.cachedBundle")(function* (
 
 function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): RemoteIndex["Service"] {
   return {
+    trusted: false,
     current: Effect.succeed(Option.none()),
     bundle: () => Effect.succeed(Option.none()),
     status: offline.pipe(Effect.map(offStatus)),
@@ -166,6 +167,8 @@ function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): RemoteInde
 export class RemoteIndex extends Context.Service<
   RemoteIndex,
   {
+    /** Whether the effective URL matches the official URL and requires a valid signature. */
+    readonly trusted: boolean;
     /** The verified index, refreshed when the cached copy is older than 24 hours. */
     readonly current: Effect.Effect<Option.Option<VerifiedIndex>>;
     /** The directory holding the entry's verified files, downloading them if needed. */
@@ -174,13 +177,7 @@ export class RemoteIndex extends Context.Service<
     readonly status: Effect.Effect<RemoteStatus>;
   }
 >()("stacks/RemoteIndex") {
-  static layer = ({
-    keys,
-    officialUrl,
-  }: {
-    keys: typeof INDEX_PUBLIC_KEYS;
-    officialUrl: string | undefined;
-  }) =>
+  static layer = ({ keys }: { keys: typeof INDEX_PUBLIC_KEYS }) =>
     Layer.effect(
       RemoteIndex,
       Effect.gen(function* () {
@@ -189,7 +186,8 @@ export class RemoteIndex extends Context.Service<
         const client = yield* HttpClient.HttpClient;
         const config = yield* AppConfig;
         const scope = yield* Scope.Scope;
-        const url = (yield* config.indexUrl) ?? officialUrl;
+        const officialUrl = config.officialIndexUrl;
+        const url = yield* config.remoteIndexUrl;
         if (url === undefined) return unconfiguredIndex(config.offline);
         const cache = { fs, path, root: path.join((yield* config.paths).cache, "index") };
         // Only the official index can confer trust, so `verifyIndex` requires its signature.
@@ -212,6 +210,7 @@ export class RemoteIndex extends Context.Service<
         );
         const access = { cache, cached, url };
         return {
+          trusted: verification.isDefaultUrl,
           current: cached.current(),
           status: readStatus(access, config.offline, verification.isDefaultUrl),
           bundle: (entry) =>

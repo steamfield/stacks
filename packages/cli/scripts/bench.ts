@@ -1,6 +1,6 @@
 import { NodeServices } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
-import { SOURCE_BUILD } from "../src/config";
+import { SOURCE_BUILD } from "../src/build";
 import { NetLayer } from "../src/platform/net";
 import { installSignalPolicy } from "../src/platform/signals";
 import { AppLayer, runInvocation } from "../src/runtime";
@@ -60,7 +60,7 @@ if (import.meta.main) {
       runBench(process.argv.slice(2)).pipe(
         Effect.tap(() => Effect.flatMap(Output, (out) => out.flush)),
         Effect.orDie,
-        Effect.provide(Layer.provideMerge(AppLayer(output, undefined, SOURCE_BUILD), platform)),
+        Effect.provide(Layer.provideMerge(AppLayer({ output, build: SOURCE_BUILD }), platform)),
         Effect.scoped,
       ),
       controller.signal,

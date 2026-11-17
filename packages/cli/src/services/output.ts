@@ -23,13 +23,18 @@ export type Audience = "json" | "agent" | "human";
 export const stripAnsi = stripVTControlCharacters;
 
 /** `json` wins; `human` needs a terminal on stdout, no detected agent and no CI. */
-export function resolveAudience(
-  json: boolean,
-  stdoutIsTTY: boolean,
-  agent: DetectedAgent,
-  ci = false,
-): Audience {
-  if (json) return "json";
+export function resolveAudience({
+  jsonFlag,
+  stdoutIsTTY,
+  agent,
+  ci,
+}: {
+  jsonFlag: boolean;
+  stdoutIsTTY: boolean;
+  agent: DetectedAgent;
+  ci: boolean;
+}): Audience {
+  if (jsonFlag) return "json";
   return !ci && stdoutIsTTY && agent === "none" ? "human" : "agent";
 }
 
@@ -100,11 +105,15 @@ export class Output extends Context.Service<
     clear: Effect.Effect<void>;
   }
 >()("stacks/Output") {
-  /**
-   * This invocation's Output: the audience comes from `--json` (`json`), `Host.stdoutIsTTY` and
-   * `AppConfig.agent`, resolved once here.
-   */
-  static layer = (json: boolean, stdout: Writer, stderr: Writer) =>
+  static layer = ({
+    jsonFlag,
+    stdout,
+    stderr,
+  }: {
+    jsonFlag: boolean;
+    stdout: Writer;
+    stderr: Writer;
+  }) =>
     Layer.effect(
       Output,
       Effect.gen(function* () {
@@ -112,7 +121,12 @@ export class Output extends Context.Service<
         const config = yield* AppConfig;
         const agent = yield* config.agent;
         const color = yield* config.color;
-        const audience = resolveAudience(json, host.stdoutIsTTY, agent, config.ci);
+        const audience = resolveAudience({
+          jsonFlag,
+          stdoutIsTTY: host.stdoutIsTTY,
+          agent,
+          ci: config.ci,
+        });
         const styled = audience === "human" && !color.noColor;
         return make(audience, stdout, stderr, {
           stdout: styled && (host.stdoutIsTTY || color.forceColor),

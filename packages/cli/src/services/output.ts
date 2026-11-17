@@ -11,10 +11,9 @@ import { printable } from "../core/text/text";
 import {
   type AppError,
   type BrokenPipe,
-  encodeDetails,
   keepsResult,
   type PermissionDenied,
-  retryable,
+  type PreparedFailure,
 } from "../errors";
 import { Host } from "./host";
 import { type LiveLayout, makeLive } from "./output-live";
@@ -60,11 +59,11 @@ export class Output extends Context.Service<
     /** Resolved once when the layer is built; commands pick their text rendering by it. */
     audience: Audience;
     /**
-     * Writes the notice from `showNotice` to stderr in text modes or attaches it to the JSON result.
+     * Writes to stderr in text modes or registers a notice for subsequent JSON object results.
      */
-    notice: (text: string) => Effect.Effect<void>;
-    /** Whether the notice reached its reader: written to stderr, or flushed with a JSON result. */
-    noticeDelivered: Effect.Effect<boolean>;
+    showNotice: (text: string) => Effect.Effect<void>;
+    /** Set after a successful stderr notice write or JSON result flush with a pending notice. */
+    didDeliverNotice: Effect.Effect<boolean>;
     style: Style;
     /** Clears on scope close; the caller renders completion through normal output. */
     live: (label: string) => Effect.Effect<void, never, Scope.Scope>;
@@ -80,12 +79,8 @@ export class Output extends Context.Service<
      * error envelope, written after it, stays the last stderr line.
      */
     event: (value: unknown, agentText?: string) => Effect.Effect<void>;
-    /**
-     * Encodes details and writes the envelope; details with excess properties are a defect.
-     * `failureGuide` uses `Host.invocation` to build runnable hints for every audience.
-     */
     error: (
-      error: AppError,
+      failure: PreparedFailure,
       invocation: string,
       rollback?: ReadonlyArray<string>,
     ) => Effect.Effect<void, BrokenPipe | PermissionDenied>;
@@ -150,25 +145,10 @@ export class Output extends Context.Service<
 
 type ErrorView = {
   error: AppError;
-  details: unknown;
   guide: ReturnType<typeof failureGuide>;
   style: Style;
   rollback: ReadonlyArray<string>;
 };
-
-/** Encodes `ErrorEnvelope` as one line. */
-function renderEnvelope({ error, details, guide, rollback }: ErrorView): string {
-  return `${JSON.stringify({
-    error: {
-      tag: error._tag,
-      message: error.message,
-      retryable: retryable(error),
-      ...(guide.next === undefined ? {} : { next: guide.next }),
-      ...(details === undefined ? {} : { details }),
-      ...(rollback.length === 0 ? {} : { rollback: { incomplete: rollback } }),
-    },
-  })}\n`;
-}
 
 /**
  * The message, then the guide's lines, the unrestored paths and the `Next:` line, each indented.
@@ -205,7 +185,7 @@ function make(
     noticeDelivered = true;
   });
   /** A JSON object result carries the pending notice; any other value is kept as it is. */
-  const withNotice = (value: unknown) =>
+  const attachNotice = (value: unknown) =>
     notice && typeof value === "object" && value !== null ? { ...value, notice } : value;
   // Uninterruptible: results leave the buffer only to be written, so an interrupt waits for the
   // write rather than reporting before it lands. A stalled stdout still yields to a second signal.
@@ -221,7 +201,7 @@ function make(
   );
   return {
     audience,
-    notice: (text) =>
+    showNotice: (text) =>
       Effect.gen(function* () {
         notice = text;
         if (json) return;
@@ -230,12 +210,12 @@ function make(
           Effect.ignoreCause,
         );
       }),
-    noticeDelivered: Effect.sync(() => noticeDelivered),
+    didDeliverNotice: Effect.sync(() => noticeDelivered),
     style,
     live: terminal.live,
     result: (value, text) =>
       Effect.sync(() => {
-        results.push(json ? JSON.stringify(withNotice(value)) : text);
+        results.push(json ? JSON.stringify(attachNotice(value)) : text);
       }),
     note: (text) =>
       terminal.around(
@@ -248,22 +228,15 @@ function make(
         ? terminal.line(agentText)
         : Effect.void;
     },
-    error: (error, invocation, rollback = []) =>
-      encodeDetails(error).pipe(
-        Effect.orDie,
-        Effect.flatMap((details) => {
-          const view = {
-            error,
-            details,
-            guide: failureGuide(error, invocation),
-            style: errorStyle,
-            rollback,
-          };
-          return terminal.around(
-            write(stderr, json ? renderEnvelope(view) : renderErrorText(view)),
-          );
-        }),
-      ),
+    error: (failure, invocation, rollback = []) =>
+      Effect.suspend(() => {
+        const { error } = failure;
+        const guide = failureGuide(error, invocation);
+        const text = json
+          ? failure.renderEnvelope(guide.next, rollback)
+          : renderErrorText({ error, guide, style: errorStyle, rollback });
+        return terminal.around(write(stderr, text));
+      }),
     flush,
     flushNow: json ? Effect.void : flush,
     clear: Effect.sync(() => {

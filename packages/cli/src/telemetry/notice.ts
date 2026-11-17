@@ -61,8 +61,8 @@ const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
     ),
   );
   if (created._tag === "Failure") return undefined;
-  yield* output.notice(text);
-  if (yield* output.noticeDelivered) {
+  yield* output.showNotice(text);
+  if (yield* output.didDeliverNotice) {
     yield* write(store, "notice.json", settledRecord(yield* timestamp));
     return undefined;
   }
@@ -95,8 +95,8 @@ const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
     }),
   );
   if (claimed._tag === "Failure") return NOTICE_WITHOUT_CLAIM;
-  yield* output.notice(text);
-  if (yield* output.noticeDelivered) {
+  yield* output.showNotice(text);
+  if (yield* output.didDeliverNotice) {
     yield* write(store, "notice.json", settledRecord(shown.value.noticeShownAt));
     return NOTICE_WITHOUT_CLAIM;
   }
@@ -146,7 +146,7 @@ export const settleNotice = Effect.fn("telemetry.settleNotice")(function* (
   if (!claimId || output === undefined) return;
   const current = yield* read(store, "notice.json", Notice).pipe(Effect.option);
   if (Option.isNone(current) || current.value.claimId !== claimId) return;
-  if (yield* output.noticeDelivered) {
+  if (yield* output.didDeliverNotice) {
     yield* write(
       store,
       "notice.json",

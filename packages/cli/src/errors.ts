@@ -544,11 +544,57 @@ export const ErrorEnvelope = Schema.Struct({
 });
 export type ErrorEnvelope = typeof ErrorEnvelope.Type;
 
+// ErrorEnvelope keeps the published schema order. On the wire, details precede rollback
+// and have already been encoded by the tag's own schema in encodeDetails.
+const encodeEnvelope = Schema.encodeSync(
+  Schema.Struct({
+    error: ErrorEnvelope.fields.error.mapFields(({ rollback, ...fields }) => ({
+      ...fields,
+      details: Schema.optionalKey(Schema.Unknown),
+      rollback,
+    })),
+  }),
+);
+
+class PreparedFailure {
+  readonly error: AppError;
+  readonly #details: unknown;
+
+  private constructor(error: AppError, details: unknown) {
+    this.error = error;
+    this.#details = details;
+  }
+
+  static prepare = Effect.fn("errors.prepareFailure")(function* (error: AppError) {
+    const details = yield* encodeDetails(error);
+    return new PreparedFailure(error, details);
+  });
+
+  renderEnvelope(next: string | undefined, rollback: ReadonlyArray<string>): string {
+    const { error } = this;
+    const details = this.#details;
+    const envelope = encodeEnvelope({
+      error: {
+        tag: error._tag,
+        message: error.message,
+        retryable: retryable(error),
+        ...(next === undefined ? {} : { next }),
+        ...(details === undefined ? {} : { details }),
+        ...(rollback.length === 0 ? {} : { rollback: { incomplete: rollback } }),
+      },
+    });
+    return `${JSON.stringify(envelope)}\n`;
+  }
+}
+
+export type { PreparedFailure };
+export const prepareFailure = PreparedFailure.prepare;
+
 /**
  * A failure's details, encoded with the tag's details schema. Construction already drops keys
  * the schema doesn't name; this catches a details object mutated afterwards.
  */
-export function encodeDetails(error: AppError): Effect.Effect<unknown, Schema.SchemaError> {
+function encodeDetails(error: AppError): Effect.Effect<unknown, Schema.SchemaError> {
   const schema = errorTable[error._tag].details;
   if (schema === undefined || !("details" in error) || error.details === undefined)
     return Effect.succeed(undefined);

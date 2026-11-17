@@ -1,20 +1,6 @@
 /**
- * Shows the one-time telemetry notice, and makes sure it is shown once across every CLI run on
- * the machine.
- *
- * Before telemetry sends anything, the user is told what is collected and how to turn it off. The
- * run that prints the notice (the "notice run") sends nothing itself; `telemetry/index.ts` only
- * stores a deferred scaffold and the project link on it. There are two notices: the first one for
- * an install that has never seen one, and a second, shorter one about dependency names for an
- * install that saw the original version 1 notice before that data was collected.
- *
- * `notice.json` records the outcome. A run takes the notice by writing it as a pending claim (its
- * own `claimId`) before printing, so a concurrent run neither prints it again nor counts it as
- * seen. The claim is settled when the run ends (`settleNotice`, from the Telemetry layer's
- * finalizer): if the output carrying the notice reached the user, the file becomes a plain record
- * of when it was shown; if not, the claim is withdrawn so a later run shows it again. In `--json`
- * mode the notice rides in the result object, so it counts as delivered only once that result is
- * written.
+ * Owns delivery of the telemetry privacy notices. A claim keeps concurrent invocations from
+ * displaying the same notice.
  */
 import { Clock, Effect, Option } from "effect";
 import type { Consent } from "../schemas/telemetry";
@@ -85,8 +71,8 @@ const owesSecondNotice = (notice: typeof Notice.Type) =>
 
 /**
  * Prints the second notice when the recorded notice is an older version. The claim id carries a
- * `second:` prefix, which `consent.ts` reads to keep counting this install as notified while the
- * claim is pending.
+ * `second:` prefix tells `noticeAcknowledged` the first notice already counts while the update
+ * is pending.
  */
 const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
   store: Storage,

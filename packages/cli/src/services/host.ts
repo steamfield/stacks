@@ -1,12 +1,6 @@
 /**
- * Facts about the machine and the running package that only the process entry point can know:
- * the Node version, the working directory, whether each standard stream is a terminal and how
- * wide it is, and where the bundled registry, skills and authoring guide were installed.
- *
- * `bin.ts` reads them from Node once and provides `Host.layer`; tests use `Host.memory`. Core
- * code reads `Host` instead of `process` or `import.meta.url`, so it runs the same from source,
- * from the packed bundle and under test, and a missing value is a type error rather than a
- * fallback computed somewhere it breaks in the bundle.
+ * Provides process and installed-asset facts. Required inputs keep the bundle and tests from
+ * guessing their locations at runtime.
  */
 import { Context, Layer, Option } from "effect";
 export type HostInfo = {
@@ -15,7 +9,7 @@ export type HostInfo = {
   platform: string;
   executable: string;
   cwd: string;
-  /** Whether stdin and stdout are terminals; bin.ts reads them so core never touches the streams. */
+  /** Terminal facts are captured at the Node boundary so core can stay independent of streams. */
   stdinIsTTY: boolean;
   stdoutIsTTY: boolean;
   stderrIsTTY: boolean;
@@ -24,14 +18,14 @@ export type HostInfo = {
   /** Display width in terminal columns, escape sequences excluded. */
   stringWidth: (text: string) => number;
   /**
-   * The bundled registry root, resolved by bin.ts; core code never computes it.
+   * The bundled registry root.
    */
   registry: string;
-  /** The running package root, resolved by bin.ts. */
+  /** The running package root. */
   packageRoot: string;
-  /** The bundled skills root (one directory per skill), resolved by bin.ts beside the registry. */
+  /** The bundled skills root beside the registry. */
   skill: string;
-  /** The authoring guide, resolved by bin.ts beside the registry and skill. */
+  /** The bundled authoring guide. */
   authoring: string;
   /** How a person runs this CLI, for copy-paste `Next:` lines. */
   invocation: string;

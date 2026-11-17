@@ -1,11 +1,4 @@
-/**
- * The shape of the user's settings file, `config.json` under the stacks config directory.
- *
- * Settings are personal defaults for composing new projects (fragments to always add, the agents
- * to write adapters for, the author name) plus the telemetry choice and a data directory. Every
- * key is optional. `config.ts` decodes the file lazily, inside the commands that need it, so a
- * broken file never stops `doctor` or `--version` from running.
- */
+/** Defines the optional fields of the user's settings file. */
 import { AgentId } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { NewPreset } from "./new";

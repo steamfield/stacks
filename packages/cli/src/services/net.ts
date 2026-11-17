@@ -1,15 +1,13 @@
 /**
- * TCP connections for `stacks verify`'s port checks: a serve step's port must be free before its
- * server starts and closed again after it stops (`core/verify/probe.ts`). This file holds only
- * the interface; `platform/net.ts` supplies the Node implementation.
+ * Defines the TCP service for checking that a serve step can bind its port and that the port is
+ * released afterward.
  */
 import { Context, type Effect, Layer } from "effect";
 import type { Socket } from "effect/socket";
 
 /**
- * Opens plain TCP connections as Effect sockets; the connection is dialed when the socket's
- * `reader` is acquired. `src/platform/net.ts` supplies the real layer, so core code that checks a
- * port never imports a platform module.
+ * Acquiring the socket's `reader` opens the connection. `NetLayer` supplies the transport so
+ * port checks stay independent of Node.
  */
 export class Tcp extends Context.Service<
   Tcp,

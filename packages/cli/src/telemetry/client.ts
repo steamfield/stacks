@@ -1,18 +1,4 @@
-/**
- * Sends queued telemetry events to the server: one flush, posting at most one batch to
- * `<url>/v1/events`.
- *
- * `telemetry/index.ts` calls `deliver` when a command flushes (after its output is written, or
- * from `stacks telemetry flush`), only once consent says `enabled`. A flush runs under a deadline
- * (800 ms after a command, 5 s for an explicit flush) and never fails the command; a slow or
- * failing server just leaves the events in the spool (`spool.ts`) for a later run.
- *
- * Backoff lives in `flush.json` (the "flush state"): `until` is the time before which no run tries
- * again, set after a failed post, a timeout or a `Retry-After` header. The same file holds
- * `projectCursor`, which spreads the cleanup of expired project links (`projects/`) across runs,
- * 50 files at a time. The server answers 202 with the ids it rejected; a rejected event is dropped
- * like a sent one, since sending it again would be rejected again.
- */
+/** Delivers one batch of queued telemetry events and owns delivery backoff. */
 import { TelemetryAccepted, type TelemetryBatch } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
 import { type HttpClient, HttpClientRequest } from "effect/http";
@@ -48,7 +34,7 @@ const enabledFlush = (counts: {
   reason: "enabled",
 });
 
-/** Project link names in the order to check them: those after `cursor` first, then wrapping. */
+/** The cursor spreads link expiry checks across flushes. The order wraps after the last name. */
 const rotateAfter = (all: ReadonlyArray<string>, cursor: string | undefined) =>
   cursor === undefined
     ? all
@@ -156,6 +142,7 @@ const postClaimed = Effect.fn("telemetry.postClaimed")(function* (input: {
     events: batch.events.map(({ event }) => event),
   }).pipe(Effect.result);
   if (attempt._tag === "Success" && attempt.success.accepted) {
+    // An accepted batch may include rejected ids. Retrying those events would fail again.
     const rejected = attempt.success.rejected.size;
     for (const item of batch.events) yield* remove(store, item.file);
     yield* saveState(store, cleared);

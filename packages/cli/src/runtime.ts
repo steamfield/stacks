@@ -1,10 +1,6 @@
 /**
- * Assembles the CLI's application services and runs one invocation to an exit status.
- *
- * `bin.ts` builds `AppLayer` once per process over the platform layer (Node's filesystem, Host
- * and the process registry) and hands `main(...)` to `runInvocation`; `tests/helpers/cli.ts` does
- * the same once per `runCli`. `runInvocation` is the only place the CLI turns an Effect into a
- * promise, which is why the exit status for an interrupted run (130) is decided here.
+ * Assembles application services and runs the invocation at the Effect boundary. `runInvocation`
+ * maps interruption to a process status.
  */
 import { Cause, Effect, Exit, Layer } from "effect";
 import { AppConfig, type Build, type Environment } from "./config";

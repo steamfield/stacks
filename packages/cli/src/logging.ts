@@ -1,17 +1,6 @@
 /**
- * The CLI's logger: every log record a command produces is built, queued and written here.
- *
- * Effect code logs with `Effect.log*`; `main.ts` installs `Logging.logger`, which turns each call
- * into a plain record through `entry` and queues it. Nothing is written while the command runs.
- * `main` calls `flush` once the command finishes: records go to the JSONL file named by
- * `STACKS_LOG_FILE` (when set) and, for the human audience only, to stderr as short lines. `main`
- * also builds the one `command` summary record per invocation with `entry`.
- *
- * Records are a contract: tools and tests read the JSONL file, so field names and shapes don't
- * change. `entry` is the only builder, and it keeps data out of the log. Annotation values must be
- * scalars, keys that look like secrets are redacted, and an error contributes only its tag,
- * message, exit status and stack, never an arbitrary cause object. A log sink failing (an
- * unwritable file, a closed stderr) never fails the command or changes its exit status.
+ * Builds and drains the invocation's sanitized log records. The JSONL fields are a contract with
+ * tools that read the log.
  */
 import { Context, Effect, FileSystem, Layer, Logger, Path, References } from "effect";
 import type { LogSettings } from "./config";

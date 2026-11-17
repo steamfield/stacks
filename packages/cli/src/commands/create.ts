@@ -1,14 +1,6 @@
 /**
- * The `create stack` and `create fragment` commands: start a new entry (a stack or a fragment) in
- * the user's own registry, either as a skeleton to fill in or, with `--from`, as a copy of an
- * existing entry to edit.
- *
- * `core/create.ts::createEntry` does the writing and, for an untrusted copy, shows the full report
- * and asks a person to accept it (trust model point 3). This file reads the flags and renders the
- * entry path, the authoring guide and the next step. When the id is missing, a person at a terminal
- * is asked for it through `core/prompting.ts::pickCreate`, which also prints the equivalent
- * command; anyone else gets a usage error. Plain `stacks create` asks what to create the same way,
- * or shows its help when nobody can answer.
+ * Handles `stacks create` for personal stacks and fragments. `createEntry` owns confirmation for
+ * untrusted copies (trust point 3).
  */
 import { Category, type Kind } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";

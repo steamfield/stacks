@@ -1,16 +1,6 @@
 /**
- * The whole `stacks` command tree: every subcommand a user can type, attached to the root command.
- *
- * `main.ts` runs `cli` once per invocation; each subcommand's flags, help text and handler live in
- * its own file under `commands/`, and this file only assembles them. The order of the subcommand
- * list is the order `stacks --help` prints.
- *
- * Two things wrap every command here. Most subcommands first show the one-time telemetry notice
- * (the line telling a new user what the CLI collects and how to turn it off) and ask `main` to send
- * queued telemetry once the command's output is written; `new`, `add` and `verify` show the notice
- * but send their events themselves, and `schema` and `telemetry` skip the notice entirely. Then the
- * root applies the shared `--offline` and `--no-telemetry` flags to the configuration before any
- * handler reads it.
+ * Assembles the command tree in the order shown by `stacks --help`. The root applies invocation-
+ * wide flags before any handler reads config.
  */
 import { Effect } from "effect";
 import { Command } from "effect/cli";
@@ -82,6 +72,7 @@ export const cli = root.pipe(
     notify(showCommand),
     notify(skillCommand),
     notify(submitCommand),
+    // Reading or changing the telemetry setting bypasses the notice.
     telemetryCommand,
     notify(updateCommand),
     notify(validateCommand),

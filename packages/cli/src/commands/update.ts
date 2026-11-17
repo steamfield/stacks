@@ -1,10 +1,4 @@
-/**
- * The `update` command: checks npm for a newer release of the CLI and, for a global npm install run
- * by a person, installs it.
- *
- * `core/update/update.ts::update` makes the one registry request and decides what to do; with
- * `--check` it only reports. `core/update/report.ts::renderUpdate` writes the text.
- */
+/** Renders the result of checking for or installing a newer CLI release. */
 import { Effect, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { renderUpdate } from "../core/update/report";

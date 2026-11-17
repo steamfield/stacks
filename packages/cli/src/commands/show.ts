@@ -1,12 +1,4 @@
-/**
- * The `show` command: prints everything about one stack or fragment (its guidance, the files it
- * ships, its verify commands and its last recorded run) so a user or agent can review it before
- * building from it. It only reads; nothing is run.
- *
- * `core/show.ts::showReport` builds the report and `core/show-report.ts::renderShow` writes the
- * text. Before that, the signed dependency allowlist is refreshed (a best-effort network read), and
- * afterwards telemetry records which entry was viewed.
- */
+/** Renders the review report for one registry entry. */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";

@@ -1,17 +1,4 @@
-/**
- * Defines `stacks add <fragment...>`: its flags and help text, and the steps from parsed flags to
- * a printed result.
- *
- * A fragment is a reusable addition (CI, git hooks, a database) for an existing project. This
- * handler turns the flags into options, asks a person to pick fragments when none were named and
- * a terminal is there (`core/prompting.ts::pickAdd`), and calls `core/add.ts::add` to do the work.
- * The printing and the handoff (launching or pointing a coding agent at the project) go through
- * `completeHandoff` in `commands/handoff.ts`, the flow `new` shares.
- *
- * The registry (where entries are found) is built for the `--dir` project rather than the current
- * directory, so that project's own entries count in the picker, the add and the telemetry event.
- * Telemetry is recorded once the handoff is settled, so the event says what really happened.
- */
+/** Handles `stacks add` and records telemetry after the handoff settles. */
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { add } from "../core/add";

@@ -1,12 +1,4 @@
-/**
- * The shape of the run ledger, `registry/runs.json`, which ships inside the bundled registry.
- *
- * The ledger is the bundled stacks' evidence: each record is one maintainer run that took a stack
- * from scaffold to verify, with an agent or without one (`mode: "scaffold"`), and how it went.
- * `list` and `show` print a stack's latest record as its `lastRun`, and `validate` compares the
- * recorded fingerprints with the current content to note stacks whose proof is stale.
- * `core/ledger.ts` reads and appends records; the maintainer scripts write them.
- */
+/** Defines the bundled run ledger and its projection into entry reports. */
 import { DetectedAgent, RunRecord } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 

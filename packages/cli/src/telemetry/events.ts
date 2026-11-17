@@ -1,17 +1,6 @@
 /**
- * Turns what a command did into the body of a telemetry event, keeping out anything that could
- * identify a person or a private entry.
- *
- * Each telemetry event is an envelope (event id, install id, CLI version, platform, agent, time)
- * plus a body that depends on its type: `new` and `add` (a project was scaffolded or extended),
- * `show`, `error` and `verify`. The shapes are `TelemetryEventV3` from `@steamfield/stacks-format`,
- * a wire contract with the server, so a field here changes only with that schema. This module
- * builds the bodies as pure functions; `telemetry/index.ts` adds the envelope and validates the
- * whole event against the schema before it is queued.
- *
- * The privacy rule is in `official` and `publicId`: only an entry that is both trusted and from
- * the bundled registry or the signed remote index is reported by id. Every other id becomes
- * `custom`, and verify step names the CLI didn't write itself are reported as `custom` too.
+ * Builds telemetry event bodies against the published wire contract. `official` and `publicId`
+ * govern which entry ids may be included.
  */
 import type {
   EntryRef,

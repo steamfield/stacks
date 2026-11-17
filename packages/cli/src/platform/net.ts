@@ -1,11 +1,6 @@
 /**
- * The CLI's network access, provided once by `bin.ts` (and by `tests/helpers/cli.ts`).
- *
- * Every HTTP request the CLI makes (verify's readiness probes, `update`'s npm lookup, search,
- * stats, the remote index, telemetry) goes through the `HttpClient` built here on Node's
- * `fetch`, with redirects returned rather than followed. That keeps a verify probe, which may only
- * target a local address, from being sent on to another host by a redirect. `Tcp` opens the plain
- * sockets verify's port checks use.
+ * Provides the Node HTTP and TCP transports. HTTP returns redirects as responses so a local
+ * verification probe cannot be redirected to another host.
  */
 import { makeNet } from "@effect/platform-node/NodeSocket";
 import { Layer } from "effect";

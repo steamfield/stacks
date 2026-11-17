@@ -1,17 +1,6 @@
 /**
- * The telemetry directory on disk: where every other telemetry module reads and writes its files.
- *
- * Telemetry keeps its state under `Paths.state` in a `telemetry/` directory (the "store"), outside
- * any project. It holds `install.json` (this install's random id), `notice.json` (whether the
- * one-time notice was shown), `flush.json` (delivery backoff), `spool/` (events waiting to be
- * sent), `claims/` (events a flush has taken from the spool), `projects/` (one link per scaffolded
- * project) and `deferred/` (scaffolds recorded on the notice run, sent later).
- *
- * This module owns the plain file operations over that directory and the schemas of the files it
- * holds. Directories are created owner-only (`0o700`) and files are written owner-only (`0o600`)
- * through `core/replace-file.ts::replaceFile`, so a crash never leaves a half-written file. Every
- * read rejects properties a schema doesn't name. Paths passed to these helpers are relative to the
- * store's root unless a helper says otherwise.
+ * Owns file I/O and schemas for the telemetry store. Owner-only permissions protect local state,
+ * and atomic replacement keeps interrupted writes from leaving partial files.
  */
 import { TelemetryNewEvent } from "@steamfield/stacks-format";
 import { Clock, Effect, FileSystem, Path, Random, Schema, Struct } from "effect";
@@ -59,7 +48,7 @@ export const read = <S extends Schema.Codec<unknown, string>>(
     .readFileString(store.path.join(store.root, file))
     .pipe(Effect.flatMap(Schema.decodeUnknownEffect(schema, { onExcessProperty: "error" })));
 
-/** Replaces a store file with `value` as JSON, creating its directory first. */
+/** Store paths are relative to the root unless a helper says otherwise. */
 export const write = Effect.fn("telemetry.write")(function* (
   store: Storage,
   file: string,
@@ -95,8 +84,7 @@ export const Install = Schema.fromJsonString(
  * `notice.json`: when the notice was shown and which version of it.
  *
  * While a run is showing the notice, the file also holds `pending: true` and that run's
- * `claimId`, so a concurrent run neither shows it again nor counts it as delivered too early
- * (`notice.ts`).
+ * `claimId`. `showNotice` and `settleNotice` own that claim.
  */
 export const Notice = Schema.fromJsonString(
   Schema.Struct({

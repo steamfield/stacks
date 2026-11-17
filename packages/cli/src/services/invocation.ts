@@ -1,11 +1,6 @@
 /**
- * A per-run notepad a command writes and `main.ts` reads after it finishes.
- *
- * Some outcomes don't fit the command's return value: `new` launching a coding agent that exits
- * non-zero (the CLI then exits with the agent's status, with no error envelope), fields to add to
- * the `command` log record, and the paths a failed write's rollback couldn't restore
- * (`scaffold/write.ts::openProject`, `project-state.ts::replaceProjectState`), which `main` puts
- * in the envelope's `error.rollback`. `main` builds a fresh one with `Invocation.make` every run.
+ * Carries per-invocation exit overrides, log fields and incomplete rollback paths to the
+ * runtime.
  */
 import { Context, Effect, Layer } from "effect";
 

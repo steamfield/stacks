@@ -1,18 +1,4 @@
-/**
- * The `list` command: shows the stacks, fragments and apps a user can build from, with where each
- * came from (its origin) and whether it is trusted.
- *
- * Inside a project (a directory holding `.stacks/manifest.json`), the default view changes to the
- * fragments that project can still add. Otherwise it is the whole catalog, optionally narrowed to
- * one group. The `--json` result is the same in both cases, with a `project` field added inside a
- * project.
- *
- * The steps, in order: refresh the signed dependency allowlist (best effort), read the project's
- * manifest if there is one, load every registry root with the project root pointed at `--dir`,
- * read the bundled run ledger and the published stats, then render. `core/list.ts` builds the rows
- * and the addable set; `core/list-report.ts` writes the text. A manifest that can't be read or
- * decoded is a warning, not a failure: the full catalog is still useful.
- */
+/** Renders the registry catalog or the fragments a project can still add. */
 import type { AuthorsFile, Manifest } from "@steamfield/stacks-format";
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";

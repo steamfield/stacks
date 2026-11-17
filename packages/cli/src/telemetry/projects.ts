@@ -1,17 +1,6 @@
 /**
- * Links scaffolded projects to telemetry, so a later `stacks verify` in the project can report
- * time to green and time to the first passing test.
- *
- * When `stacks new` or `stacks add` records a scaffold, `scaffold` writes a project link
- * (`projects/<manifest projectId>.json` in the telemetry directory; the `Project` schema in
- * `storage.ts`). The link holds a random telemetry project id, so the manifest's own id is never
- * sent, and the verify step names the CLI composed. When verify finishes, `verify` finds the
- * nearest manifest from the working directory, reads its link and builds the verify event.
- *
- * After a green run the event may also carry `deps`: the project's dependency names and major
- * versions, filtered through the signed allowlist already cached on this machine
- * (`core/deps.ts::readDependencies`), at most once every 7 days per project. `markDepsSent`
- * records when they were queued. Links expire a year after the scaffold.
+ * Links scaffolds to later verify reports for time-to-green and first-test measurements. The
+ * link supplies a random telemetry project id so the manifest's own id stays local.
  */
 import type { DependencyAllowlist, RunRecord } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";

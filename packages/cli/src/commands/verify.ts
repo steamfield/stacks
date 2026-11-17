@@ -1,17 +1,6 @@
 /**
- * The `verify` command: runs the current project's verify steps (its definition of done) and
- * reports which passed.
- *
- * The steps come from the manifest (`.stacks/manifest.json`, the committed record of what was
- * composed). Before running anything, `core/verify/tamper.ts::checkTamper` compares them with the
- * copy saved in the project's state record (a file outside the project): if someone changed the
- * steps, nothing runs until a person accepts the change with `--accept-changes` (trust model
- * point 5), and that flag is refused under an agent or without a terminal (point 4).
- *
- * The flow, in order: find and read the manifest, plan which steps run (`core/verify/plan.ts`),
- * check for tampering, then either report the change or run the steps (`core/verify/run.ts`).
- * Every run, including an interrupted one, appends a record through `core/verify/record.ts`. A
- * failed step or changed steps fail the command with the report kept on stdout.
+ * Handles verify planning, execution and reporting. `checkTamper` and `requireConfirmation` enforce
+ * trust points 5 and 4 respectively.
  */
 import { Clock, Effect, type FileSystem, type Path, Ref, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
@@ -56,9 +45,8 @@ const requireConfirmation = Effect.gen(function* () {
 });
 
 /**
- * Finds and reads the manifest, plans the steps and checks them against the state record. With
- * `--accept-changes`, the person is confirmed before planning and the current steps are recorded
- * as the new baseline after the check.
+ * When accepting changes, `requireConfirmation` precedes planning. Planning rejects an invalid
+ * `--only` before `checkTamper` or any baseline write.
  */
 const prepareRun = (flags: VerifyFlags) =>
   Effect.gen(function* () {

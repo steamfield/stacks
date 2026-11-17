@@ -1,11 +1,6 @@
 /**
- * Measures how many terminal columns a string takes, so human output can wrap lists and fit the
- * live spinner line to the terminal's width. `bin.ts` hands `stringWidth` to `Host`; commands
- * pass `Host.stringWidth` to `core/wrap.ts`, and `services/output.ts` measures with it too.
- *
- * A character's width isn't its length: an emoji or a CJK character fills two columns, a combining
- * accent fills none, and escape sequences fill none. Text is split into graphemes (what a reader
- * sees as one character) so an emoji built from several code points is counted once.
+ * Measures terminal display width. Counting graphemes keeps a multi-code-point glyph from being
+ * counted once per code point.
  */
 import { stripVTControlCharacters } from "node:util";
 

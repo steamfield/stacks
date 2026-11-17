@@ -1,18 +1,4 @@
-/**
- * Defines `stacks new <stack> [dir]`: its flags and help text, and the steps from parsed flags to
- * a written project handed to a coding agent.
- *
- * A stack is a recipe for a whole new project. This handler resolves the arguments (asking a
- * person at a terminal for any that are missing, through `core/prompting.ts::pickNew`, then
- * printing the equivalent command), refreshes the dependency allowlist, decides the handoff
- * preferences (`commands/handoff.ts::prepareHandoff`) and calls `core/scaffold/new.ts::scaffold`
- * to build the project. `completeHandoff` then prints the result and launches or points an agent
- * at it, the same flow `add` uses.
- *
- * Bad flag combinations and bad template values fail before the picker asks anything, so a person
- * never answers questions for a command that can't run. A dry run (`--dry-run`) records no
- * telemetry. Start at `newCommand`.
- */
+/** Handles `stacks new` and checks template inputs before the picker can ask questions. */
 import { Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";

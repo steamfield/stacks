@@ -1,30 +1,7 @@
 /**
- * Every way a CLI command can fail on purpose, and what the user or agent sees when it does.
- *
- * A tagged error here is a class whose `_tag` (`NotFound`, `PermissionDenied`, ...) names the kind
- * of failure. Code anywhere in the CLI fails with one through Effect's error channel
- * (`return yield* new NotFound({ details })`) rather than throwing. Each tag has a fixed message,
- * so an agent can match on it, and an optional closed `details` struct carrying what is specific
- * to this failure: an id, a path, close suggestions. Details hold only values the CLI produced or
- * the caller passed, never file contents or secrets. Anything thrown instead is a defect (a bug),
- * reported as `Defect` with exit 1.
- *
- * The file has four parts, in order:
- * 1. The error classes and their `details` schemas.
- * 2. `errorTable`, the one place each tag gets its exit code, whether retrying can help, and
- *    whether the command's report stays on stdout (`VerifyFailed` keeps its verify report there).
- *    `main.ts` reads `exitCode` once the command ends and `bin.ts` hands that number to the shell,
- *    so an agent can branch on it: 2 fix the input, 3 fix the config, 4 retry, 5 read the verify
- *    report, 6 ask a person, 130 interrupted.
- * 3. `failureGuide`, the lines printed under the message in `human` and `agent` output, ending in
- *    a `Next:` action that names a real command.
- * 4. The JSON error envelope (`ErrorEnvelope`), the last stderr line under `--json`, and
- *    `encodeDetails`, which writes `details` into it.
- *
- * `services/output.ts::Output.error` is where parts 3 and 4 are printed; the envelope's `next` is
- * the same text as the `Next:` line. Adding a tag means adding its class to `errorClasses`, its row
- * to `errorTable`, and its cases to `failureGuide` and `encodeDetails`; `tests/errors.test.ts`
- * checks that they agree.
+ * Defines CLI error tags, their public details and recovery guidance. Fixed messages let callers
+ * match failures, while closed details hold the specific CLI-produced values or caller
+ * arguments.
  */
 import { FailureKind, Kind } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
@@ -45,7 +22,7 @@ import { VerifyChange, VerifyResult } from "./schemas/verify";
  * - a parser-rejected value: the flag or argument, the value, what was expected, and optionally
  *   the command path and close known values;
  * - an unknown flag: the flag, its command, and close flags or labeled positional arguments;
- * - an unknown subcommand: what was typed and up to three close names (`core/suggest.ts`);
+ * - an unknown subcommand: what was typed and up to three close names (`closest`);
  * - two flags that can't be used together, as typed (`new --launch` with `--no-launch`).
  */
 export const UsageDetails = Schema.Union([
@@ -174,7 +151,7 @@ export class BadInput extends Schema.TaggedError<BadInput>()("BadInput", {
 
 /**
  * Something looked up wasn't there.
- * - `suggestions`: up to three known ids close to the one given (`core/suggest.ts::closest`).
+ * - `suggestions`: up to three known ids close to the one given (`closest`).
  * - `id` and `kind`: the stack or fragment id that wasn't found, so a caller can tell a wrong stack
  *   from a wrong `--with`/`--without` id.
  * - `kind: "project"` (no `id`): `verify` found no `.stacks/manifest.json` walking up from
@@ -449,6 +426,10 @@ export class SpawnFailed extends Schema.TaggedError<SpawnFailed>()("SpawnFailed"
 // ---------------------------------------------------------------------------------------------
 
 /** Every error class main reports; a unit test keeps it equal to `errorTable`'s keys. */
+/**
+ * A new tag belongs here, in `ErrorTag` and `errorTable`, and in `failureGuide` and
+ * `encodeDetails`. For a tag with details, also update the `ErrorEnvelope` details union.
+ */
 export const errorClasses = [
   Usage,
   BadInput,
@@ -536,12 +517,7 @@ export function knownError(value: unknown): AppError | undefined {
 // Failure guides: the lines and `Next:` action printed under the message
 // ---------------------------------------------------------------------------------------------
 
-/**
- * What a failure tells its reader beyond the fixed message: `lines`, one per detail field worth
- * showing, and `next`, the one action to take, without a `Next:` prefix. Text modes print the lines
- * and then `Next: <next>`; the JSON envelope carries `next`. A keeps-result failure's report ends
- * with its own `Next:` line, so text modes don't print `next` for it (`Output.error`).
- */
+/** Details worth displaying and the next action, without the display label. See `Output.error`. */
 export type FailureGuide = { lines: string[]; next?: string };
 
 const guide = (lines: string[], next?: string): FailureGuide =>

@@ -1,14 +1,6 @@
 /**
- * The queue of telemetry events waiting to be sent, kept as files on disk.
- *
- * Recording an event never touches the network: `telemetry/index.ts` writes it to the spool
- * (`spool/<eventId>.json` in the telemetry directory) and a later flush sends it. The spool is
- * bounded: events older than 7 days are dropped and only the newest 500 are kept.
- *
- * A flush (`client.ts::deliver`) takes a batch out of the spool by renaming its files into a fresh
- * `claims/<uuid>/` directory, so two CLI runs flushing at once never send the same event. When the
- * flush ends, whatever is left in the claim goes back to the spool (`restore`). A claim abandoned
- * by a run that crashed is put back by the next flush once it is ten minutes old (`recover`).
+ * Owns the bounded on-disk telemetry queue. Moving events into a claim before sending gives each
+ * batch one owner.
  */
 import { TelemetryEvent, TelemetryEventV2, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";

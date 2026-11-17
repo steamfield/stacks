@@ -34,6 +34,7 @@ import { VerifyResult } from "../schemas/verify";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
+import { splitValues } from "./handoff";
 
 type VerifyFlags = {
   readonly only: ReadonlyArray<string>;
@@ -44,10 +45,6 @@ type VerifyFlags = {
 
 type Plan = Effect.Success<ReturnType<typeof planVerify>>;
 type RecordContext = Parameters<typeof recordRun>[0];
-
-/** Repeated flags, each value also split on commas: `--only a --only b,c`. */
-const names = (values: ReadonlyArray<string>) =>
-  values.flatMap((value) => value.split(",")).filter((value) => value !== "");
 
 /** Fails unless a person at a terminal is running the command (trust model point 4). */
 const requireConfirmation = Effect.gen(function* () {
@@ -68,7 +65,11 @@ const prepareRun = (flags: VerifyFlags) =>
     const located = yield* locateManifest((yield* Host).cwd);
     const read = yield* readManifest(located.path);
     if (flags.acceptChanges) yield* requireConfirmation;
-    const options = { only: names(flags.only), skipTags: names(flags.skipTag), all: flags.all };
+    const options = {
+      only: splitValues(flags.only),
+      skipTags: splitValues(flags.skipTag),
+      all: flags.all,
+    };
     const plan = yield* planVerify(read.verify, options);
     const checked = yield* checkTamper(read, located.path);
     // The report names what was accepted (`result.changed`), in every audience.

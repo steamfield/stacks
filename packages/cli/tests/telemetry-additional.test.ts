@@ -8,7 +8,7 @@ import { ShowReport } from "../src/schemas/show";
 import { TelemetryResult } from "../src/schemas/telemetry";
 import { VerifyResult } from "../src/schemas/verify";
 import { fakeAgent } from "./helpers/agents";
-import { ndjson, scriptedTerminal } from "./helpers/cli";
+import { ndjson, scriptedTerminal, writeError } from "./helpers/cli";
 import {
   configFile,
   notified,
@@ -159,6 +159,37 @@ test("a failed first JSON command cannot count as having delivered the notice", 
   expect(spooled(home)).toEqual([]);
 });
 
+test("a rejected JSON write withdraws the first notice claim so the next run shows it", async () => {
+  const home = space.home;
+  const env = { STACKS_TELEMETRY_URL: server.url };
+  let attempted = "";
+  const failed = await checkedCli(["show", "go-cli", "--json"], {
+    home,
+    env,
+    stdout: async (text) => {
+      attempted = text;
+      throw writeError("EACCES");
+    },
+  });
+  expect(failed.status).toBe(6);
+  expect(failed.stdout).toBe("");
+  expect(ndjson(failed.stderr)).toEqual([
+    {
+      error: {
+        tag: "PermissionDenied",
+        message: "Permission denied.",
+        retryable: false,
+        details: { reason: "write" },
+      },
+    },
+  ]);
+  const report = Schema.decodeUnknownSync(ShowReport)(JSON.parse(attempted));
+  expect(report.notice).toContain("telemetry disable");
+  expect(existsSync(join(telemetryRoot(home), "notice.json"))).toBe(false);
+  await notified(home, server.url);
+  expect(server.requests).toEqual([]);
+});
+
 test("a failed JSON command leaves the second notice pending", async () => {
   const home = space.home;
   const env = { STACKS_TELEMETRY_URL: server.url };
@@ -187,7 +218,8 @@ test("the second notice claim counts as shown while JSON output is pending", asy
   await notified(home, server.url);
   ok(await checkedCli(["new", "go-cli", "project", "--json"], { home, env }));
   const noticeFile = join(telemetryRoot(home), "notice.json");
-  writeJson(noticeFile, { noticeShownAt: new Date().toISOString(), noticeVersion: 1 });
+  const noticeShownAt = new Date().toISOString();
+  writeJson(noticeFile, { noticeShownAt, noticeVersion: 1 });
   let writing = false;
   let release = () => {};
   const held = new Promise<void>((resolve) => {
@@ -203,21 +235,25 @@ test("the second notice claim counts as shown while JSON output is pending", asy
       await held;
     },
   });
+  let delivered: Awaited<typeof first>;
   try {
     await vi.waitFor(() => expect(writing).toBe(true));
     expect(JSON.parse(readFileSync(noticeFile, "utf8"))).toMatchObject({
       noticeVersion: 2,
       pending: true,
-      claimId: expect.stringMatching(/^second:/),
+      claimId: expect.stringMatching(
+        /^second:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ),
     });
     const second = await checkedCli(["verify", "--json"], { home, env, host: { cwd } });
     expect(second.status).toBe(0);
     expect(server.events().filter((event) => event.type === "verify")).toHaveLength(1);
   } finally {
     release();
+    delivered = await first;
   }
-  expect((await first).status).toBe(0);
-  expect(JSON.parse(readFileSync(noticeFile, "utf8"))).toMatchObject({ noticeVersion: 2 });
+  expect(delivered.status).toBe(0);
+  expect(JSON.parse(readFileSync(noticeFile, "utf8"))).toEqual({ noticeShownAt, noticeVersion: 2 });
 });
 
 test("another invocation cannot queue before the first JSON notice is delivered", async () => {

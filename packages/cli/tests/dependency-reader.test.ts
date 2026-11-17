@@ -21,7 +21,7 @@ const allowlist = decodeAllowlist({
     crates: ["rand", "serde", "tokio"],
   },
 });
-const readerModule = join(import.meta.dirname, "../src/core/deps.ts");
+const readerModule = join(import.meta.dirname, "../src/core/deps/index.ts");
 const temps: ReturnType<typeof tempDir>[] = [];
 function project() {
   const temp = tempDir();

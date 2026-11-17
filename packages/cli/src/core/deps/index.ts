@@ -4,8 +4,8 @@
  */
 import type { Dependency, DependencyAllowlist } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
-import { readProjectFile } from "./deps/files";
-import { json, major, names, object, packageMajors, toml } from "./deps/parse";
+import { readProjectFile } from "./files";
+import { json, major, names, object, packageMajors, toml } from "./parse";
 
 /** Reads a project file by root-relative path; `null` when it is absent or refused. */
 type Read = (relative: string) => Effect.Effect<string | null>;

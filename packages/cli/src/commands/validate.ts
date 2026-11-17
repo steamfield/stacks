@@ -15,7 +15,7 @@ import { BadInput, Usage, ValidationFailed } from "../errors";
 import { BriefPreview, type Finding, ValidateReport } from "../schemas/validate";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
-import { splitValues } from "./handoff";
+import { splitValues } from "./project-flags";
 
 type CompositionFlags = {
   with: ReadonlyArray<string>;

@@ -11,8 +11,8 @@ import {
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { MANIFEST_PATH } from "../src/core/manifest";
-import { ProjectState } from "../src/core/project-state";
+import { MANIFEST_PATH } from "../src/core/project/manifest";
+import { ProjectState } from "../src/core/project/state";
 import { ndjson, quiet, runCli } from "./helpers/cli";
 import { newRegistry } from "./helpers/registry";
 import {

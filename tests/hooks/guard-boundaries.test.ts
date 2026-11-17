@@ -48,9 +48,9 @@ describe("CLI platform boundaries", () => {
     ["packages/cli/src/services/processes.ts", 'import { spawnChild } from "../platform/process";'],
     ["packages/cli/src/core/doctor.ts", 'import { Host } from "../services/host";'],
     ["packages/cli/src/core/platform/thing.ts", 'import { x } from "./helper";'],
-    ["packages/cli/src/core/manifest.ts", 'import { createHash } from "node:crypto";'],
+    ["packages/cli/src/core/project/manifest.ts", 'import { createHash } from "node:crypto";'],
     ["packages/cli/src/services/output.ts", 'import { styleText } from "node:util";'],
-    ["packages/cli/src/core/scaffold/write.ts", 'import { rmdir } from "node:fs/promises";'],
+    ["packages/cli/src/core/project/writer.ts", 'import { rmdir } from "node:fs/promises";'],
     ["packages/cli/src/commands/verify.ts", 'import { NetLayer } from "../platform/net";'],
   ])("allows %s: %s", async (path, content) =>
     expect(denyReason(await check(path, content))).toBeUndefined(),

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import type { Manifest } from "@steamfield/stacks-format";
 import { RunRecord } from "@steamfield/stacks-format";
 import { Schema } from "effect";
-import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import { VerifyResult } from "../src/schemas/verify";
 
 import { binary, node, npmCli, scratchPath, tarball } from "./package";

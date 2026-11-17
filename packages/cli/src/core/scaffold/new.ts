@@ -27,17 +27,17 @@ import { composeFilesWithNeutral, type RenderedFile } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
 import type { Composition } from "../compose/types";
 import { fingerprintFromFiles } from "../fingerprint";
-import { type HandoffDecision, handoffRecord } from "../handoff";
-import { buildManifest, encodeManifest, MANIFEST_PATH } from "../manifest";
-import { removeProjectState, writeProjectState } from "../project-state";
+import { type HandoffDecision, handoffRecord } from "../handoff/decide";
+import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
+import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
+import { removeProjectState, writeProjectState } from "../project/state";
+import { templateOverrides, templateValues } from "../project/template-values";
+import { openProject, type ProjectWriter } from "../project/writer";
 import { DEFAULT_PAYLOAD, type Payload } from "../registry/entry";
 import { slug } from "../slug";
 import { hasControl } from "../text";
 import { fillMarkers } from "./fill";
-import { type GitProbe, gitInit, gitInstalled, probeGit } from "./git";
 import { inspectTarget } from "./target";
-import { templateOverrides, templateValues } from "./values";
-import { openProject, type ProjectWriter } from "./write";
 
 export type NewOptions = {
   stack: string;

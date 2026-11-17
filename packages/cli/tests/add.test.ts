@@ -17,8 +17,8 @@ import { Effect, Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
 import * as T from "../src/core/brief/text";
 import { countWords } from "../src/core/brief/words";
-import { decideHandoff } from "../src/core/handoff";
-import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { decideHandoff } from "../src/core/handoff/decide";
+import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import { VerifyResult } from "../src/schemas/verify";
 import {
   addCli,

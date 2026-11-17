@@ -7,7 +7,7 @@ import { Effect, Path } from "effect";
 import { AppConfig } from "../../config";
 import { BadInput, VerifyChanged } from "../../errors";
 import type { AddResult } from "../../schemas/add";
-import { MANIFEST_PATH, readManifest } from "../manifest";
+import { MANIFEST_PATH, readManifest } from "../project/manifest";
 import { Registry } from "../registry/registry";
 import { checkTamper } from "../verify/tamper";
 import { checkAddRoot } from "./plan";

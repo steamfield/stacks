@@ -6,7 +6,7 @@ import { Allowlist } from "../core/allowlist";
 import { readLedger } from "../core/ledger";
 import { type Group, groups, listResult, projectChoices, toRow, withStats } from "../core/list";
 import { renderAddable, renderList } from "../core/list-report";
-import { MANIFEST_PATH, readManifest } from "../core/manifest";
+import { MANIFEST_PATH, readManifest } from "../core/project/manifest";
 import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
 import { Registry, remoteRoots } from "../core/registry/registry";
 import { shellArg } from "../core/shell";

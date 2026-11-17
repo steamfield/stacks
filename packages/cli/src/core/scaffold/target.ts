@@ -5,8 +5,8 @@
 import { Effect, FileSystem, Option, Path } from "effect";
 import { PermissionDenied, TargetNotEmpty } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
-import { MANIFEST_PATH, readManifest } from "../manifest";
-import { readProjectState } from "../project-state";
+import { MANIFEST_PATH, readManifest } from "../project/manifest";
+import { readProjectState } from "../project/state";
 
 /** Files an OS drops into any directory a person opened: treated as absent, left alone. */
 const isLitter = (name: string) =>

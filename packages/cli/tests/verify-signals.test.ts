@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { Effect } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
-import { locateManifest, readManifest } from "../src/core/manifest";
+import { locateManifest, readManifest } from "../src/core/project/manifest";
 import { type RunResult, runVerify } from "../src/core/verify/run";
 import { alive, quiet, runCli } from "./helpers/cli";
 import { envelope, readPid, verify, workspace, writeProject } from "./helpers/verify";

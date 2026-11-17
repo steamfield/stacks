@@ -10,7 +10,7 @@ import { METADATA_DIR, RUNS_PATH, STATE_DIR } from "../../project-layout";
 import type { VerifyResult } from "../../schemas/verify";
 import { Telemetry } from "../../telemetry";
 import { VERSION } from "../../version";
-import { findProjectState, reasonOf, saveProjectState, warnUnwritten } from "../project-state";
+import { findProjectState, reasonOf, saveProjectState, warnUnwritten } from "../project/state";
 import { printable } from "../text";
 import type { RunResult } from "./run";
 import type { Tamper } from "./tamper";

@@ -23,7 +23,7 @@ import { countWords } from "./brief/words";
 import { targetAgents } from "./compose/agents";
 import { fitsStack } from "./compose/selection";
 import type { Composition } from "./compose/types";
-import { goAllowlistKey } from "./deps";
+import { goAllowlistKey } from "./deps/index";
 import { readLedger } from "./ledger";
 import { toRow } from "./list";
 import { type CatalogEntry, type Entry, isFragment } from "./registry/entry";

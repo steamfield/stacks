@@ -13,7 +13,7 @@ import { Host } from "../services/host";
 import { type Audience, Output } from "../services/output";
 import { fitsStack } from "./compose/selection";
 import { listResult, projectChoices } from "./list";
-import { MANIFEST_PATH, readManifest } from "./manifest";
+import { MANIFEST_PATH, readManifest } from "./project/manifest";
 import { defaultRoots, Registry } from "./registry/registry";
 import type { NewOptions } from "./scaffold/new";
 import { shellArg } from "./shell";

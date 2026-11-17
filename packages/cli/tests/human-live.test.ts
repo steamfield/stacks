@@ -7,7 +7,8 @@ import { TestClock } from "effect/testing";
 import { afterEach, expect, test } from "vitest";
 import { AppConfig } from "../src/config";
 import { Host } from "../src/services/host";
-import { Output, type Writer } from "../src/services/output";
+import { Output } from "../src/services/output";
+import type { Writer } from "../src/services/output-write";
 import { quiet, runCli, terminal, writeError } from "./helpers/cli";
 import { workspace, writeProject } from "./helpers/verify";
 

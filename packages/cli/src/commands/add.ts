@@ -1,7 +1,7 @@
 /** Handles `stacks add` and records telemetry after the handoff settles. */
 import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { add } from "../core/add/index";
+import { type Added, add } from "../core/add/index";
 import { renderAdd } from "../core/add/report";
 import type { AddOptions } from "../core/add/types";
 import { type SettledHandoff, settleHandoff } from "../core/handoff/decide";
@@ -23,6 +23,7 @@ import { AddResult } from "../schemas/add";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
+import type { TelemetrySource } from "../telemetry/events";
 import { type ExactProjectOptions, projectFlags, replayProjectFlags } from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
@@ -52,8 +53,6 @@ const addReplayNames = {
   launch: "launch",
   noLaunch: "no-launch",
 } satisfies Record<keyof AddFlags, string | null>;
-
-type Added = Effect.Success<ReturnType<typeof add>>;
 
 /**
  * Builds the registry `add` uses for the picker, the add and its telemetry, so all three see the
@@ -86,7 +85,7 @@ const recordAdd = Effect.fn("add.recordTelemetry")(function* (input: {
   registry: Registry["Service"];
   added: Added;
   decision: SettledHandoff;
-  source: Effect.Success<ReturnType<typeof sourceValue>>;
+  source: TelemetrySource;
 }) {
   const { manifest, composition } = input.added;
   yield* input.telemetry.recordScaffold(

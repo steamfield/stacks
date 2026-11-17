@@ -47,7 +47,7 @@ export type View = {
   /** A preview's selection and original options, for recomposing each shipped adapter. */
   composition?: Composition & { options: ComposeOptions };
   root: string;
-  bundled: boolean;
+  asBundled: boolean;
   only?: { kind: Kind; id: string };
   entries: ReadonlyArray<Entry>;
   rejected: ReadonlyArray<RejectedEntry>;

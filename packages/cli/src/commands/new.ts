@@ -18,13 +18,14 @@ import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
 import { Registry } from "../core/registry/registry";
 import { remoteRoots } from "../core/registry/roots";
-import { type NewOptions, scaffold } from "../core/scaffold/new";
+import { type NewOptions, type Scaffolded, scaffold } from "../core/scaffold/new";
 import { renderNew } from "../core/scaffold/report";
 import { Usage } from "../errors";
 import { BRIEF_PATH } from "../project-layout";
 import { NewPreset, NewResult } from "../schemas/new";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
+import type { TelemetrySource } from "../telemetry/events";
 import {
   type ExactProjectOptions,
   projectFlags,
@@ -155,8 +156,6 @@ const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: New
   return resolved;
 });
 
-type Scaffolded = Effect.Success<ReturnType<typeof scaffold>>;
-
 /** The fragment ids telemetry reports as left out: `--without`, plus the stack's defaults under lean. */
 function leftOutFragments(composition: Composition, without: ReadonlyArray<string>) {
   const dropped =
@@ -174,7 +173,7 @@ const recordNew = Effect.fn("new.recordTelemetry")(function* (input: {
   scaffolded: Scaffolded;
   decision: SettledHandoff;
   without: ReadonlyArray<string>;
-  source: Effect.Success<ReturnType<typeof sourceValue>>;
+  source: TelemetrySource;
 }) {
   const { telemetry, registry } = input;
   const { result, manifest, composition } = input.scaffolded;

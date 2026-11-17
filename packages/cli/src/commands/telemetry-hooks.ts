@@ -10,7 +10,7 @@ import type { Entry } from "../core/registry/entry";
 import { Registry } from "../core/registry/registry";
 import { BadInput } from "../errors";
 import { Telemetry } from "../telemetry";
-import { official } from "../telemetry/events";
+import { official, type TelemetrySource } from "../telemetry/events";
 
 export const sourceFlag = Flag.String("source").pipe(
   Flag.withDescription(
@@ -20,7 +20,9 @@ export const sourceFlag = Flag.String("source").pipe(
 );
 
 /** Decodes `--source` against the telemetry event's allowed values. */
-export const sourceValue = (value: Option.Option<string>) =>
+export const sourceValue = (
+  value: Option.Option<string>,
+): Effect.Effect<TelemetrySource, BadInput> =>
   Option.isNone(value)
     ? Effect.succeed(undefined)
     : Schema.decodeUnknownEffect(TelemetryNewEvent.fields.source.schema)(value.value).pipe(

@@ -30,7 +30,7 @@ export const consent = Effect.fn("telemetry.consent")(function* (input: {
   if (yield* config.offline) return "offline";
   if (config.telemetry.doNotTrack) return "do_not_track";
   if (config.telemetry.disabled) return "environment";
-  const settings = yield* Effect.result(config.settings);
+  const settings = yield* Effect.result(config.readSettingsFile);
   if (settings._tag === "Failure") return "config_invalid";
   if (settings.success.telemetry === false) return "config";
   if (config.ci) return "ci";

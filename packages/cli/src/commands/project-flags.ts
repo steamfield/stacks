@@ -2,7 +2,7 @@
 import { AgentId, Harness } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { CliError, Flag } from "effect/cli";
-import { replayFlags } from "../core/prompting";
+import { type ReplayValue, replayFlags } from "../core/prompting";
 
 /** Splits repeatable, comma-separated flag values into trimmed, nonempty items. */
 export const splitValues = (values: ReadonlyArray<string>) =>
@@ -79,8 +79,6 @@ export const projectFlags = (command: "new" | "add") => ({
 /** Extra and missing parsed keys fail typecheck, including optional core options. */
 export type ExactProjectOptions<Parsed, Options> = Options &
   Record<Exclude<keyof Parsed, keyof Options> | Exclude<keyof Options, keyof Parsed>, never>;
-
-type ReplayValue = Parameters<typeof replayFlags>[0][string];
 
 /** Uses the table's insertion order for replay. A null name omits the parameter. */
 export function replayProjectFlags<Key extends string>(

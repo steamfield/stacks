@@ -211,7 +211,7 @@ const pickPreset = Effect.fn("prompting.pickPreset")(function* (
 ) {
   if (input.preset !== undefined || input.sandbox) return newPreset(input);
   // Settings are read even for a preview, so an invalid config file still fails here.
-  const settings = yield* (yield* AppConfig).get;
+  const settings = yield* (yield* AppConfig).settings;
   // Keep the picker's historical Enter choice for dry runs while RFC Q1 is open.
   // Named-stack previews use the setting through `newPreset`.
   const preset = newPreset(input, input.dryRun ? undefined : settings.preset);
@@ -286,13 +286,13 @@ const pickCopySource = (prompt: PromptSession) =>
     return yield* prompt.one({ title: "Copy source", choices });
   });
 
+export type ReplayValue = string | boolean | ReadonlyArray<string> | undefined;
+
 /**
  * The flags of the command a picker settled on, for the `Running:` line. Built from parsed
  * values, never argv; `runningCommand` shell-quotes them, which also protects picked paths.
  */
-export function replayFlags(
-  flags: Readonly<Record<string, string | boolean | ReadonlyArray<string> | undefined>>,
-) {
+export function replayFlags(flags: Readonly<Record<string, ReplayValue>>) {
   return Object.entries(flags).flatMap(([name, value]) => {
     if (value === undefined || value === false) return [];
     if (value === true) return [`--${name}`];

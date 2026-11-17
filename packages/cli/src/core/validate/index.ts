@@ -72,7 +72,7 @@ export const checks: ReadonlyArray<Check> = [
  */
 export const validationRoots = (target: Target) =>
   Effect.gen(function* () {
-    if (target.bundled) return [{ origin: "bundled", path: target.root }] satisfies RegistryRoots;
+    if (target.asBundled) return [{ origin: "bundled", path: target.root }] satisfies RegistryRoots;
     const others = yield* defaultRoots;
     // The root keeps the origin it already has for this invocation; any other directory is
     // treated like the user directory, the place an author's own entries live.
@@ -138,7 +138,7 @@ const buildView = (target: Target, all: ReadonlyArray<RegistryEntry>) =>
     const validated = all.filter((item) => inRoot(item) && wanted(item));
     const sourceView: SourceView = {
       root: target.root,
-      bundled: target.bundled,
+      asBundled: target.asBundled,
       ...(target.only === undefined ? {} : { only: target.only }),
       entries: validated.filter((item): item is Entry => !isRejected(item)),
       rejected: validated.filter(isRejected),
@@ -176,7 +176,7 @@ function buildReport(
     validated.filter((item) => item.kind === kind).length;
   return {
     root: view.root,
-    bundled: view.bundled,
+    bundled: view.asBundled,
     entries: { stacks: count("stack"), fragments: count("fragment") },
     findings: findings.sort(compareFindings),
     // Stable sort: within a kind, rows stay in the order the checks produced them.

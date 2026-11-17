@@ -21,7 +21,13 @@ import {
   settleHandoff,
 } from "./decide";
 import { LAUNCH_ARGS } from "./launchers";
-import { agentPrompt, pickerQuestion, pickerText, renderHandoff } from "./render";
+import {
+  agentPrompt,
+  type HandoffRenderContext,
+  pickerQuestion,
+  pickerText,
+  renderHandoff,
+} from "./render";
 
 /** The handoff preferences a command parsed; only `new` has `--dry-run`. */
 type HandoffFlags = { launch: Option.Option<Harness>; noLaunch: boolean; dryRun?: boolean };
@@ -38,7 +44,7 @@ export const prepareHandoff = Effect.fn("handoff.prepareHandoff")(function* (
   const host = yield* Host;
   const config = yield* AppConfig;
   const detected = yield* config.agent;
-  const configured = (yield* config.get).agents ?? [];
+  const configured = (yield* config.settings).agents ?? [];
   const launch = !flags.noLaunch && !flags.dryRun;
   // Searching PATH is only worth it when a launch is possible at all.
   const found =
@@ -236,7 +242,7 @@ const recordAppFallback = Effect.fn("handoff.recordAppFallback")(function* (
 /** Opens the Codex app on the project; if it doesn't open, records that and prints the prompt. */
 const launchApp = Effect.fn("handoff.launchApp")(function* (
   project: string,
-  context: Parameters<typeof renderHandoff>[1],
+  context: HandoffRenderContext,
 ) {
   const config = yield* AppConfig;
   const processes = yield* Processes;
@@ -313,7 +319,7 @@ export const printLaunch = Effect.fn("handoff.printLaunch")(function* (
 export const launchHandoff = Effect.fn("handoff.launch")(function* (
   decision: LaunchDecision,
   project: string,
-  context: Parameters<typeof renderHandoff>[1],
+  context: HandoffRenderContext,
 ) {
   if (decision.via === "app") yield* launchApp(project, context);
   else yield* launchTerminal(decision, project);

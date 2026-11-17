@@ -66,8 +66,8 @@ const readProjectManifest = (manifestFile: string) =>
 
 /** The bundled run ledger, read from the bundled root; absent when there is no bundled root. */
 const bundledLedger = (roots: RegistryRoots) => {
-  const bundled = roots.find((root) => root.origin === "bundled");
-  return bundled ? readLedger(bundled.path) : Effect.succeed(undefined);
+  const registryRoot = roots.find((root) => root.origin === "bundled");
+  return registryRoot ? readLedger(registryRoot.path) : Effect.succeed(undefined);
 };
 
 /** Every entry, rejected ones included, and the bundled `authors.json`, from these roots. */

@@ -151,7 +151,7 @@ function kindSizeProblems(card: SearchMetadata): string[] {
 
 /** A note when a root other than the bundled one carries a vocabulary file search never reads. */
 const ignoredVocabulary = Effect.fn("validate.searchVocabularyIgnored")(function* (view: View) {
-  if (view.bundled) return [];
+  if (view.asBundled) return [];
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const exists = yield* fs

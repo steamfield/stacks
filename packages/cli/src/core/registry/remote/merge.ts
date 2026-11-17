@@ -69,11 +69,11 @@ const pinnedReference = (id: string, digest: string): IndexEntry => ({
 const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
   remote: ConfiguredIndex,
   ref: IndexEntry,
-  bundled: ReadonlyArray<Entry>,
+  bundledEntries: ReadonlyArray<Entry>,
 ) {
   const fragments: Entry[] = [];
   for (const [id, digest] of Object.entries(ref.composition ?? {})) {
-    const original = bundled.find((entry) => entry.kind === "fragment" && entry.id === id);
+    const original = bundledEntries.find((entry) => entry.kind === "fragment" && entry.id === id);
     if (
       original &&
       (yield* directoryMatches({ id, kind: "fragment", digest, dir: original.dir }))
@@ -92,10 +92,10 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
  * Rebuild pins from the bundled stack's requirements and defaults if the index composition
  * cannot be used. Bundled fragments pass through.
  */
-function bundledComposition(original: Entry | undefined, bundled: ReadonlyArray<Entry>) {
+function bundledComposition(original: Entry | undefined, bundledEntries: ReadonlyArray<Entry>) {
   if (original?.meta.kind !== "stack") return original;
   const fragments = new Map(
-    bundled.filter((entry) => entry.kind === "fragment").map((entry) => [entry.id, entry]),
+    bundledEntries.filter((entry) => entry.kind === "fragment").map((entry) => [entry.id, entry]),
   );
   const selected = new Map<string, Entry>();
   // Depth first from the last id; the visiting order becomes the composition order.
@@ -118,17 +118,18 @@ const resolveReference = Effect.fn("registry.resolveReference")(function* (
   options: {
     remote: ConfiguredIndex;
     original: Entry | undefined;
-    bundled: ReadonlyArray<Entry>;
+    bundledEntries: ReadonlyArray<Entry>;
   },
 ) {
-  const { remote, original, bundled } = options;
+  const { remote, original, bundledEntries } = options;
   const same = original && (yield* directoryMatches({ ...ref, dir: original.dir }));
   const entry = same ? original : yield* readEntry(remote, ref);
-  if (!entry) return ref.kind === "stack" ? bundledComposition(original, bundled) : undefined;
+  if (!entry)
+    return ref.kind === "stack" ? bundledComposition(original, bundledEntries) : undefined;
   const shadows: Entry["shadows"] = original ? ["bundled"] : [];
   if (ref.kind === "fragment") return same ? original : { ...entry, shadows };
-  const pinned = yield* pinnedFragments(remote, ref, bundled);
-  if (pinned === undefined) return bundledComposition(original, bundled);
+  const pinned = yield* pinnedFragments(remote, ref, bundledEntries);
+  if (pinned === undefined) return bundledComposition(original, bundledEntries);
   return { ...entry, composition: pinned, ...(same ? {} : { shadows }) };
 });
 
@@ -162,16 +163,16 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   remote: ConfiguredIndex,
   options: {
     local: ReadonlyMap<string, RegistryEntry>;
-    bundled: ReadonlyArray<Entry>;
+    bundledEntries: ReadonlyArray<Entry>;
     catalog: Map<string, CatalogEntry>;
     resolutions: Map<string, Resolution>;
   },
 ) {
-  const { local, bundled, catalog, resolutions } = options;
+  const { local, bundledEntries, catalog, resolutions } = options;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const index = yield* remote.current;
-  const originals = new Map(bundled.map((entry) => [entryKey(entry.kind, entry.id), entry]));
+  const originals = new Map(bundledEntries.map((entry) => [entryKey(entry.kind, entry.id), entry]));
   for (const ref of Option.isSome(index) ? index.value.entries : []) {
     if (ref.schemaVersion > 1 || !Schema.is(IndexEntrySchema)(ref)) continue;
     const key = entryKey(ref.kind, ref.id);
@@ -182,7 +183,7 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
     }
     catalog.set(key, indexCatalogRow(ref));
     const resolve = yield* Effect.cached(
-      resolveReference(ref, { remote, original: originals.get(key), bundled }).pipe(
+      resolveReference(ref, { remote, original: originals.get(key), bundledEntries }).pipe(
         Effect.map((entry) => entry ?? existing),
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, path),
@@ -195,13 +196,13 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
 export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
   remote: ConfiguredIndex,
   local: ReadonlyMap<string, RegistryEntry>,
-  bundled: ReadonlyArray<Entry>,
+  bundledEntries: ReadonlyArray<Entry>,
 ) {
   const catalog = new Map(Array.from(local, ([key, entry]) => [key, catalogRow(entry)]));
   const resolutions = new Map<string, Resolution>(
     Array.from(local, ([key, entry]) => [key, Effect.succeed(entry)]),
   );
-  yield* mergeIndex(remote, { local, bundled, catalog, resolutions });
+  yield* mergeIndex(remote, { local, bundledEntries, catalog, resolutions });
   return {
     catalog: Effect.succeed([...catalog.values()].sort(compareEntries)),
     all: Effect.forEach([...resolutions.values()], (effect) => effect).pipe(

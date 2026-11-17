@@ -25,7 +25,7 @@ import { targetAgents } from "../compose/agents";
 import { compose, dropFlags } from "../compose/compose";
 import { composeFilesWithNeutral, type RenderedFile } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
-import type { Composition } from "../compose/types";
+import type { Composition, MissingTool } from "../compose/types";
 import { fingerprintFromFiles } from "../fingerprint";
 import {
   decideHandoff,
@@ -64,7 +64,7 @@ export type NewOptions = {
   handoff: HandoffPreferences;
 };
 
-type Scaffolded = {
+export type Scaffolded = {
   result: Omit<NewResult, "handoff">;
   decision: HandoffDecision;
   manifest: Manifest;
@@ -74,6 +74,52 @@ type Scaffolded = {
 type PlannedFile = Pick<RenderedFile, "path" | "bytes" | "executable">;
 
 type GitInitFailure = { exitCode: number; brief: Brief };
+
+type NewResultInput = Pick<
+  Scaffolded["result"],
+  "project" | "dryRun" | "fingerprint" | "preset" | "payload" | "written" | "stateRecord"
+> & {
+  composition: Composition;
+  brief: Brief;
+  git: GitProbe;
+  gitFailure: GitInitFailure | undefined;
+  missing: ReadonlyArray<MissingTool>;
+};
+
+function newResult(input: NewResultInput): Scaffolded["result"] {
+  const { composition, git, gitFailure } = input;
+  const brief = gitFailure?.brief ?? input.brief;
+  const warnings: Array<NewResult["warnings"][number]> = [
+    ...composition.warnings,
+    ...(git.warning ? [git.warning] : []),
+  ];
+  if (gitFailure)
+    warnings.push({ code: "git_init_failed", id: "git", exitCode: gitFailure.exitCode });
+
+  return {
+    project: input.project,
+    dryRun: input.dryRun,
+    fingerprint: input.fingerprint,
+    stack: composition.stack.id,
+    fragments: composition.fragments.map((fragment) => fragment.id),
+    preset: input.preset,
+    payload: input.payload,
+    agents: [...composition.agents],
+    written: input.written,
+    brief: BRIEF_PATH,
+    briefWords: brief.briefWords,
+    fixedWords: brief.fixedWords,
+    missingTools: input.missing.map(({ tool, owners, drop }) => ({
+      tool,
+      owners: [...owners],
+      drop,
+    })),
+    untrusted: [...composition.untrusted],
+    warnings,
+    git: gitFailure ? "none" : git.state.kind,
+    stateRecord: input.stateRecord,
+  };
+}
 
 const encoder = new TextEncoder();
 
@@ -256,7 +302,7 @@ const writeProject = (input: {
 export const scaffold = (options: NewOptions) =>
   Effect.gen(function* () {
     const host = yield* Host;
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
 
     const overrides = yield* templateOverrides(options);
     const { dir, name } = yield* projectLocation(options, host.cwd);
@@ -318,37 +364,18 @@ export const scaffold = (options: NewOptions) =>
           initGit: git.init,
           briefWithoutGit: () => renderFor({ kind: "none" }),
         });
-    const { gitFailure } = outcome;
-    const finalBrief = gitFailure?.brief ?? brief;
-    const warnings: Array<NewResult["warnings"][number]> = [
-      ...composition.warnings,
-      ...(git.warning ? [git.warning] : []),
-    ];
-    if (gitFailure)
-      warnings.push({ code: "git_init_failed", id: "git", exitCode: gitFailure.exitCode });
-
-    const result = {
+    const result = newResult({
       project: dir,
       dryRun: options.dryRun,
       fingerprint: contentFingerprint,
-      stack: composition.stack.id,
-      fragments: composition.fragments.map((fragment) => fragment.id),
       preset,
       payload,
-      agents: [...composition.agents],
       written,
-      brief: BRIEF_PATH,
-      briefWords: finalBrief.briefWords,
-      fixedWords: finalBrief.fixedWords,
-      missingTools: missing.map((item) => ({
-        tool: item.tool,
-        owners: [...item.owners],
-        drop: [...item.drop],
-      })),
-      untrusted: [...composition.untrusted],
-      warnings,
-      git: gitFailure ? "none" : git.state.kind,
-      stateRecord: outcome.stateRecord,
-    } satisfies Scaffolded["result"];
+      composition,
+      brief,
+      missing,
+      git,
+      ...outcome,
+    });
     return { result, decision, manifest, composition } satisfies Scaffolded;
   });

@@ -15,6 +15,8 @@ import type {
 import type { Entry } from "../core/registry/entry";
 import type { Project } from "./storage";
 
+export type TelemetrySource = TelemetryNewEvent["source"];
+
 /**
  * What `new` or `add` hands to telemetry: the manifest it wrote, the default fragments left out,
  * the `--source` flag and the names of the verify steps the CLI composed.
@@ -23,7 +25,7 @@ export type ScaffoldFacts = {
   type: "new" | "add";
   manifest: Manifest;
   without: readonly EntryRef[];
-  source?: TelemetryNewEvent["source"];
+  source?: TelemetrySource;
   steps: readonly string[];
 };
 export type ShowFacts = Pick<Entry, "kind" | "id" | "origin" | "trusted">;

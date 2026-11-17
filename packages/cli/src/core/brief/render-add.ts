@@ -19,15 +19,13 @@ import {
 } from "./blocks";
 import { nest } from "./headings";
 import * as T from "./text";
-import type { Brief, BriefContext } from "./types";
+import type { AddBriefContext, Brief, BriefContext } from "./types";
 import { type BriefWriter, briefWriter } from "./writer";
-
-type AddContext = NonNullable<BriefContext["add"]>;
 
 export function renderAddBrief(
   composition: Composition<Entry | null>,
   context: BriefContext,
-  add: AddContext,
+  add: AddBriefContext,
 ): Brief {
   const out = briefWriter();
   const cli = context.invocation;
@@ -67,7 +65,7 @@ export function renderAddBrief(
 function writeUntrusted(
   out: BriefWriter,
   composition: Composition<Entry | null>,
-  add: AddContext,
+  add: AddBriefContext,
   cli: string,
 ): void {
   if (composition.untrusted.length === 0) return;
@@ -82,7 +80,7 @@ function writeFacts(
   out: BriefWriter,
   composition: Composition<Entry | null>,
   context: BriefContext,
-  add: AddContext,
+  add: AddBriefContext,
 ): void {
   out.fixed(
     T.add.stack(add.stack),
@@ -105,7 +103,7 @@ function writeFacts(
 function writeJobAndGroundRules(
   out: BriefWriter,
   context: BriefContext,
-  add: AddContext,
+  add: AddBriefContext,
   cli: string,
 ): void {
   out.fixed(
@@ -128,7 +126,7 @@ function writeJobAndGroundRules(
   if (add.createAgentsMd) out.fixed(T.add.createAgentsMd);
 }
 
-function writePendingWork(out: BriefWriter, add: AddContext): void {
+function writePendingWork(out: BriefWriter, add: AddBriefContext): void {
   if (add.mergeNeeded.length) {
     out.fixed("", T.add.merge, "", T.add.mergeTask, "");
     out.data(
@@ -172,7 +170,7 @@ function writeGuidance(out: BriefWriter, composition: Composition<Entry | null>)
 /** The whole manifest's steps, commands and environment, as verify will run them. */
 function writeDefinitionOfDone(
   out: BriefWriter,
-  manifest: AddContext["manifest"],
+  manifest: AddBriefContext["manifest"],
   cli: string,
 ): void {
   const steps: ComposedStep[] = manifest.verify.map((step) => ({

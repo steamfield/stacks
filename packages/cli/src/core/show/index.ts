@@ -43,7 +43,7 @@ import { composeNew, reportLastRun } from "./last-run";
 export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: RegistryRoots) =>
   Effect.gen(function* () {
     const roots = reviewRoots ?? (yield* remoteRoots);
-    const settings = yield* (yield* AppConfig).get;
+    const settings = yield* (yield* AppConfig).settings;
     const records = yield* bundledRecords(roots);
     // The brief is measured for the first agent the user targets by default.
     const agents = targetAgents(undefined, settings).slice(0, 1);
@@ -59,9 +59,9 @@ export const showReport = (id: string, kind: Kind | undefined, reviewRoots?: Reg
 const bundledRecords = (roots: RegistryRoots) =>
   Effect.gen(function* () {
     const output = yield* Output;
-    const bundled = roots.find((root) => root.origin === "bundled");
-    if (!bundled) return [];
-    const ledger = yield* readLedger(bundled.path);
+    const registryRoot = roots.find((root) => root.origin === "bundled");
+    if (!registryRoot) return [];
+    const ledger = yield* readLedger(registryRoot.path);
     if (!ledger.fileValid || ledger.skipped.invalid || ledger.skipped.newer)
       yield* output.note(
         "Warning: the bundled ledger runs.json is unreadable or contains unsupported records.",

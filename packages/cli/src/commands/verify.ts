@@ -6,12 +6,12 @@ import { Clock, Effect, type FileSystem, type Path, Ref, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { AppConfig } from "../config";
 import { locateManifest, readManifest } from "../core/project/manifest";
-import { planVerify, type VerifyPlan } from "../core/verify/plan";
-import { type RecordFacts, recordRun } from "../core/verify/record";
+import { planVerify, type VerifyOptions, type VerifyPlan } from "../core/verify/plan";
+import { type RecordContext, type RecordFacts, recordRun } from "../core/verify/record";
 import { renderVerify } from "../core/verify/report";
 import { changedResult } from "../core/verify/result";
-import { runVerify } from "../core/verify/run";
-import { acceptChanges, checkTamper, createdAtOf, type Tamper } from "../core/verify/tamper";
+import { runVerify, type VerifyProject } from "../core/verify/run";
+import { acceptChanges, type ChangedTamper, checkTamper, createdAtOf } from "../core/verify/tamper";
 import { PermissionDenied, VerifyChanged, VerifyFailed } from "../errors";
 import { MANIFEST_PATH, RUNS_PATH } from "../project-layout";
 import { VerifyResult } from "../schemas/verify";
@@ -26,8 +26,6 @@ type VerifyFlags = {
   readonly all: boolean;
   readonly acceptChanges: boolean;
 };
-
-type RecordContext = Parameters<typeof recordRun>[0];
 
 /** Fails unless a person at a terminal is running the command (trust model point 4). */
 const requireConfirmation = Effect.gen(function* () {
@@ -47,7 +45,7 @@ const prepareRun = (flags: VerifyFlags) =>
     const located = yield* locateManifest((yield* Host).cwd);
     const read = yield* readManifest(located.path);
     if (flags.acceptChanges) yield* requireConfirmation;
-    const options = {
+    const options: VerifyOptions = {
       only: splitValues(flags.only),
       skipTags: splitValues(flags.skipTag),
       all: flags.all,
@@ -80,7 +78,7 @@ const writeResult = (result: VerifyResult) =>
 const reportChanged = (input: {
   context: RecordContext;
   plan: VerifyPlan;
-  tamper: Tamper & { changed: NonNullable<Tamper["changed"]> };
+  tamper: ChangedTamper;
   started: number;
 }) =>
   Effect.gen(function* () {
@@ -97,11 +95,7 @@ const reportChanged = (input: {
  * written). The record is written in the runner's finalizer so interrupted runs are recorded too;
  * the finalizer runs outside this context, so its services are captured here first.
  */
-const runAndRecord = (
-  context: RecordContext,
-  project: Parameters<typeof runVerify>[0],
-  plan: VerifyPlan,
-) =>
+const runAndRecord = (context: RecordContext, project: VerifyProject, plan: VerifyPlan) =>
   Effect.gen(function* () {
     const services = yield* Effect.context<
       FileSystem.FileSystem | Path.Path | AppConfig | Telemetry

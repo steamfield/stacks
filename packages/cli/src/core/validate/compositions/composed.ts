@@ -24,7 +24,7 @@ import { entryFile, finding } from "../view";
 import { compositionPlans, describe, replacementDefaults } from "./compositions";
 
 /** A compose failure only the per-adapter render reports. */
-type ComposeFailure = ComposeConflict | EntryInvalid;
+type AdapterComposeFailure = ComposeConflict | EntryInvalid;
 type CompositionRun = {
   stack: Entry;
   preset: ComposeOptions["preset"];
@@ -160,8 +160,8 @@ const renderAdapter = (view: SourceView, run: AdapterRun, state: RenderState) =>
  * adapter files and merge templates that don't fit. Other failures belong to other checks.
  */
 function isAdapterFailure(
-  error: ComposeFailure | NotFound | BadInput | PermissionDenied,
-): error is ComposeFailure {
+  error: AdapterComposeFailure | NotFound | BadInput | PermissionDenied,
+): error is AdapterComposeFailure {
   return (
     error._tag === "ComposeConflict" ||
     (error._tag === "EntryInvalid" && error.details?.reason === "merge_template")
@@ -175,22 +175,24 @@ function isAdapterFailure(
 function recordComposeFailure(
   view: SourceView,
   run: AdapterRun,
-  error: ComposeFailure,
+  error: AdapterComposeFailure,
   state: RenderState,
 ) {
   const {
     stack,
     options: { agents: targets },
   } = run;
-  const source = failingSources(view, run, error).find(({ entry }) => isValidated(view, entry));
-  const owner = source?.entry ?? stack;
+  const contributor = failingSources(view, run, error).find(({ entry }) =>
+    isValidated(view, entry),
+  );
+  const owner = contributor?.entry ?? stack;
   if (!isValidated(view, owner)) return;
   const description = describe(error);
   state.findings.push(
     finding(owner, {
       ...description,
       severity: "error",
-      file: source ? view.file(owner, source.source.source) : entryFile(view, owner),
+      file: contributor ? view.file(owner, contributor.file.source) : entryFile(view, owner),
       message: `${stack.id} (${targets.join(", ")}): ${description.message}`,
     }),
   );
@@ -202,7 +204,7 @@ function recordComposeFailure(
  * The composed entries' source files the failure names: by source path for an invalid entry, by
  * project path (without `.tmpl`) for a conflict, among files this adapter and stack receive.
  */
-function failingSources(view: SourceView, run: AdapterRun, error: ComposeFailure) {
+function failingSources(view: SourceView, run: AdapterRun, error: AdapterComposeFailure) {
   const named = (source: Source) =>
     error._tag === "EntryInvalid"
       ? source.source === error.details?.path
@@ -213,7 +215,7 @@ function failingSources(view: SourceView, run: AdapterRun, error: ComposeFailure
         (source) =>
           named(source) && selectedSource(source.source, run.options.agents, run.stack.id),
       )
-      .map((source) => ({ entry, source })),
+      .map((file) => ({ entry, file })),
   );
 }
 
@@ -270,19 +272,19 @@ export function sourceOf(
 ) {
   const planned = snapshot.composition.files.find((planned) => planned.path === file.path);
   const contributors = contributingSources(view, snapshot, file);
-  const matching = contributors.filter(({ source }) =>
-    matches ? matches(source) : needleIndex(source, needle) >= 0,
+  const matching = contributors.filter(({ file }) =>
+    matches ? matches(file) : needleIndex(file, needle) >= 0,
   );
   const found =
     matching.find(({ entry }) => isValidated(view, entry)) ??
     matching[0] ??
-    contributors.find(({ source }) => source.source === planned?.source?.file) ??
+    contributors.find(({ file }) => file.source === planned?.source?.file) ??
     contributors[0];
   if (!found) return undefined;
-  const index = needleIndex(found.source, needle);
+  const index = needleIndex(found.file, needle);
   return {
     ...found,
-    line: index < 0 ? undefined : found.source.text.slice(0, index).split("\n").length,
+    line: index < 0 ? undefined : found.file.text.slice(0, index).split("\n").length,
   };
 }
 
@@ -298,7 +300,7 @@ function contributingSources(view: View, snapshot: Composed, file: RenderedFile)
           source.path.replace(/\.tmpl$/, "") === file.path &&
           selectedSource(source.source, composition.agents, composition.stack.id),
       )
-      .map((source) => ({ entry, source }));
+      .map((file) => ({ entry, file }));
   });
 }
 

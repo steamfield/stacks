@@ -29,7 +29,7 @@ const skillInstalled = (skillRoot: string) =>
 const configState = (defaultData: string) =>
   Effect.gen(function* () {
     const config = yield* AppConfig;
-    const read = yield* Effect.result(config.get);
+    const read = yield* Effect.result(config.settings);
     if (read._tag === "Failure") return { configErrors: [read.failure.message], data: defaultData };
     return { configErrors: [], data: read.success.dataDir ?? defaultData };
   });

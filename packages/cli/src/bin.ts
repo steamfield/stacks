@@ -63,7 +63,7 @@ const packagedFiles = Layer.effect(
         ? original
         : name;
     };
-    return {
+    const adapted: FileSystem.FileSystem = {
       ...fs,
       exists: (file: string) => Effect.flatMap(resolve(file), fs.exists),
       lstat: (file: string) => Effect.flatMap(resolve(file), fs.lstat),
@@ -72,11 +72,12 @@ const packagedFiles = Layer.effect(
       readFile: (file: string) => Effect.flatMap(resolve(file), fs.readFile),
       readFileString: (file: string, encoding?: string) =>
         Effect.flatMap(resolve(file), (at) => fs.readFileString(at, encoding)),
-      readDirectory: (...args: Parameters<typeof fs.readDirectory>) =>
+      readDirectory: (...args) =>
         fs
           .readDirectory(...args)
           .pipe(Effect.map((names) => names.map((name) => originalName(args[0], name)))),
     };
+    return adapted;
   }),
 ).pipe(Layer.provide(NodeServices.layer));
 const platform = Layer.mergeAll(

@@ -1,6 +1,5 @@
 /**
- * Renders the new-project brief and delegates add briefs to `renderAddBrief`. Section and list
- * order are part of the brief's contract because digest tests pin its exact bytes.
+ * Renders the new-project brief. Section and list order matter because digests pin its bytes.
  */
 import { APP_TAG } from "@steamfield/stacks-format";
 import { METADATA_DIR } from "../../project-layout";
@@ -22,7 +21,6 @@ import {
 } from "./blocks";
 import { nest } from "./headings";
 import { collapsePaths } from "./paths";
-import { renderAddBrief } from "./render-add";
 import * as T from "./text";
 import type { Brief, BriefContext } from "./types";
 import { type BriefWriter, briefWriter } from "./writer";
@@ -42,7 +40,6 @@ type NewBrief = {
  * `runApp` requires a green base.
  */
 export function renderBrief(composition: Composition<Entry | null>, context: BriefContext): Brief {
-  if (context.add) return renderAddBrief(composition, context, context.add);
   if (!composition.stack) throw new Error("A new-project brief requires a stack");
   const { stack, app } = composition;
   const brief: NewBrief = {

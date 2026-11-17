@@ -32,7 +32,7 @@ const root = fileURLToPath(new URL("../registry", import.meta.url));
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const validateRegistry = Effect.fn("index.validateRegistry")(function* () {
-  const report = yield* validate({ root, bundled: true });
+  const report = yield* validate({ root, asBundled: true });
   const failures = report.findings.filter((finding) => finding.severity !== "note");
   if (failures.length > 0)
     return yield* Effect.fail(

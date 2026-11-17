@@ -3,7 +3,7 @@
  * (trust point 4). The state record is outside the project so editing the manifest cannot
  * rewrite both digests.
  */
-import type { Manifest, TamperCheck } from "@steamfield/stacks-format";
+import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
 import type { AppConfig } from "../../config";
 import { type InvalidConfig, PermissionDenied } from "../../errors";
@@ -21,14 +21,14 @@ import {
 } from "../project/state";
 import { openProject } from "../project/writer";
 
-/** Update only the state record found by id. A record found by path under another id is `stale`. */
-export type Tamper = {
-  tamperCheck: TamperCheck;
-  changed?: VerifyChange;
-  record?: FoundState;
-  stale?: FoundState;
-  manifestPath: string;
-};
+/** Only an id match supplies the current record. A path match under an old id proves a change. */
+export type Tamper = { manifestPath: string } & (
+  | { tamperCheck: "full"; record: FoundState; stale?: never; changed?: VerifyChange }
+  | { tamperCheck: "full"; record?: never; stale: FoundState; changed: VerifyChange }
+  | { tamperCheck: "manifest-only"; record?: never; stale?: never; changed?: VerifyChange }
+);
+
+export type ChangedTamper = Tamper & { changed: VerifyChange };
 
 const sorted = (names: Iterable<string>) => [...names].sort();
 

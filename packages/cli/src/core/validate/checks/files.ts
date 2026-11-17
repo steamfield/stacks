@@ -27,7 +27,7 @@ export const fileChecks: Check = (view) =>
   });
 
 export function unreadable(
-  view: Parameters<Check>[0],
+  view: View,
   entry: Entry,
   error: { _tag: string; details?: { path?: string } | undefined },
 ): Finding {

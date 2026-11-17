@@ -6,12 +6,16 @@ import type { FailureKind, Outcome } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../../project-layout";
 import type { VerifyResult } from "../../schemas/verify";
 
-/** Use the brief's wording for the shared next action. Green and interrupted runs have none. */
-export function verifyNext(
+export type VerifyNextArgs = [
   outcome: Outcome | "changed",
   invocation: string,
-  kinds: ReadonlyArray<FailureKind> = [],
+  kinds?: ReadonlyArray<FailureKind>,
   stages?: VerifyResult["stages"],
+];
+
+/** Use the brief's wording for the shared next action. Green and interrupted runs have none. */
+export function verifyNext(
+  ...[outcome, invocation, kinds = [], stages]: VerifyNextArgs
 ): string | undefined {
   switch (outcome) {
     case "failed":
@@ -47,7 +51,7 @@ function failedNext(
     : `fix the code or config these steps exercise, not the steps, then run ${invocation} verify again.`;
 }
 
-export function nextLine(...args: Parameters<typeof verifyNext>): string | undefined {
+export function nextLine(...args: VerifyNextArgs): string | undefined {
   const next = verifyNext(...args);
   return next === undefined ? undefined : `Next: ${next}`;
 }

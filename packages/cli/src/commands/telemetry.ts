@@ -30,7 +30,7 @@ const requirePerson = Effect.gen(function* () {
 /** Writes `config.json` with its `telemetry` setting replaced, keeping every other setting. */
 const saveSetting = Effect.fn("telemetry.saveSetting")(function* (enabled: boolean) {
   const config = yield* AppConfig;
-  const settings = yield* config.settings;
+  const settings = yield* config.readSettingsFile;
   const paths = yield* config.paths;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;

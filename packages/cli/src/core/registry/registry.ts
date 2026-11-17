@@ -124,7 +124,7 @@ export class Registry extends Context.Service<
       id: string,
     ) => Effect.Effect<Entry, NotFound | EntryInvalid | PermissionDenied>;
     /** Bundled-only names and lookup for comparing bundled run evidence. */
-    readonly bundled: Effect.Effect<
+    readonly bundledLookup: Effect.Effect<
       {
         readonly catalog: Effect.Effect<ReadonlyArray<CatalogEntry>, PermissionDenied>;
         readonly metadata: ReadonlyMap<string, Entry["meta"]>;
@@ -185,7 +185,7 @@ export class Registry extends Context.Service<
           for (const root of localRoots) yield* loadRoot(root, state, found);
           return {
             winners: registryWinners(found),
-            bundled: registryWinners(bundledOnly(found)),
+            bundledWinners: registryWinners(bundledOnly(found)),
             winnerShadows: winnerShadowsByDir(found),
           };
         });
@@ -196,13 +196,13 @@ export class Registry extends Context.Service<
           : Option.none();
         const view = yield* Effect.cached(
           Effect.gen(function* () {
-            const { winners, bundled } = yield* local;
+            const { winners, bundledWinners } = yield* local;
             if (Option.isNone(index) || index.value.root === undefined)
               return localRegistry(winners);
             return yield* remoteRegistry(
               index.value,
               winners,
-              [...bundled.values()].filter((item) => !isRejected(item)),
+              [...bundledWinners.values()].filter((item) => !isRejected(item)),
             ).pipe(
               Effect.provideService(FileSystem.FileSystem, fs),
               Effect.provideService(Path.Path, path),
@@ -281,14 +281,16 @@ export class Registry extends Context.Service<
             Effect.flatMap((items) => Effect.forEach(items, checkedItem)),
           ),
           catalog: yield* Effect.cached(view.pipe(Effect.flatMap((registry) => registry.catalog))),
-          bundled: local.pipe(
-            Effect.map(({ bundled }) => ({
+          bundledLookup: local.pipe(
+            Effect.map(({ bundledWinners }) => ({
               metadata: new Map(
-                [...bundled].flatMap(([key, item]) => (isRejected(item) ? [] : [[key, item.meta]])),
+                [...bundledWinners].flatMap(([key, item]) =>
+                  isRejected(item) ? [] : [[key, item.meta]],
+                ),
               ),
-              catalog: Effect.sync(() => Array.from(bundled.values(), catalogRow)),
+              catalog: Effect.sync(() => Array.from(bundledWinners.values(), catalogRow)),
               get: (kind: Kind, id: string) =>
-                checkedGet(bundled.get(entryKey(kind, id)), kind, id),
+                checkedGet(bundledWinners.get(entryKey(kind, id)), kind, id),
             })),
           ),
           skipped: local.pipe(Effect.map(() => [...state.skipped])),

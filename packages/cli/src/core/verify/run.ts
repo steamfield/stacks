@@ -21,7 +21,7 @@ import {
 import { runStep } from "./step";
 
 /** Use `createdAtOf` because the manifest timestamp is editable and outside the digest. */
-type VerifyProject = { root: string; manifest: Manifest; createdAt: string };
+export type VerifyProject = { root: string; manifest: Manifest; createdAt: string };
 
 const SETUP_FAILED = "an earlier setup step failed";
 const BASE_PARTIAL = "the base did not fully run; the app stage waits for a full verify";

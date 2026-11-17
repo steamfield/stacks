@@ -60,8 +60,8 @@ export const searchInput = Effect.fn("search.input")(function* (
 ) {
   const registry = yield* Registry;
   const roots = yield* defaultRoots;
-  const bundled = roots.find((root) => root.origin === "bundled");
-  const ledger = bundled ? yield* readLedger(bundled.path) : undefined;
+  const registryRoot = roots.find((root) => root.origin === "bundled");
+  const ledger = registryRoot ? yield* readLedger(registryRoot.path) : undefined;
   const stats = yield* readStatsCache();
   const vocabulary = yield* readVocabulary(registry);
   const visible = yield* registry.all;

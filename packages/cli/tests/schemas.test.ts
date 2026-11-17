@@ -2,7 +2,8 @@ import { it } from "@effect/vitest";
 import { Effect, Fiber, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { expect, test } from "vitest";
-import { DoctorReport, Settings } from "../src/schemas";
+import { Settings } from "../src/schemas/config";
+import { DoctorReport } from "../src/schemas/doctor";
 
 it.prop("doctor reports round trip generated schema values", [DoctorReport], ([report]) => {
   expect(Schema.encodeSync(DoctorReport)(Schema.decodeUnknownSync(DoctorReport)(report))).toEqual(

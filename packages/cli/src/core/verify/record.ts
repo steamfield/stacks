@@ -20,7 +20,7 @@ export { RUNS_PATH } from "../../project-layout";
 
 export type RecordFacts = Pick<VerifyResult, "firstGreen" | "stateRecord">;
 
-type RecordContext = {
+export type RecordContext = {
   root: string;
   manifest: Manifest;
   tamper: Tamper;

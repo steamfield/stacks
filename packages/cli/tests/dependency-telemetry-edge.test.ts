@@ -3,14 +3,8 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { DependencyAllowlist, TelemetryBatch } from "@steamfield/stacks-format";
-import { Effect, Layer, Schema } from "effect";
-import { Command } from "effect/cli";
+import { Schema } from "effect";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { cli } from "../src/cli";
-import { AppConfig } from "../src/config";
-import { Allowlist } from "../src/core/allowlist";
-import { Telemetry } from "../src/telemetry";
-import { VERSION } from "../src/version";
 import { keyId, privateKey, publicKey } from "./fixtures/index/harness";
 import { runCli, tempDir } from "./helpers/cli";
 import { registry, telemetryRoot, writeJson } from "./helpers/telemetry";
@@ -65,21 +59,11 @@ afterEach(async () => {
 });
 
 async function invoke(args: string[], cwd?: string, human = false, debug = false) {
-  const config = Layer.effect(
-    AppConfig,
-    Effect.map(AppConfig, (base) => ({ ...base, apiUrl: Effect.succeed(url) })),
-  );
-  const telemetry = Telemetry.layer().pipe(
-    Layer.provideMerge(Allowlist.layer({ keys: [{ keyId, publicKey }] })),
-    Layer.provide(config),
-  );
-  const program = Command.runWith(cli, { version: VERSION, renderErrors: false })(args).pipe(
-    Effect.provide(telemetry),
-    Effect.provide(config),
-  );
   return runCli(args, {
     home,
     releaseBuild: true,
+    apiUrl: url,
+    allowlistKeys: [{ keyId, publicKey }],
     host: {
       registry,
       platform: "darwin",
@@ -87,7 +71,6 @@ async function invoke(args: string[], cwd?: string, human = false, debug = false
       ...(human ? { stdoutIsTTY: true } : {}),
     },
     env: {
-      STACKS_DEV_API_URL: url,
       STACKS_TELEMETRY_URL: url,
       XDG_CACHE_HOME: join(home, "cache"),
       XDG_STATE_HOME: join(home, "state"),
@@ -95,7 +78,6 @@ async function invoke(args: string[], cwd?: string, human = false, debug = false
       LOG_LEVEL: "none",
       ...(debug ? { STACKS_TELEMETRY_DEBUG: "1" } : {}),
     },
-    program,
   });
 }
 async function project() {

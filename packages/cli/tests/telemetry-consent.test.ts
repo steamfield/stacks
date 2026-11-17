@@ -17,7 +17,6 @@ import {
   statusValue,
   type TelemetryServer,
   telemetryCli,
-  telemetryModule,
   telemetryRoot,
   telemetryServer,
   workspace,
@@ -120,7 +119,6 @@ describe("consent precedence", () => {
 });
 
 test("source invocations never create telemetry state or contact an endpoint [4.1a#2]", async () => {
-  await import(telemetryModule);
   // Deliberately use runCli without releaseBuild, even with a configured endpoint.
   const options = {
     home,

@@ -15,6 +15,7 @@ import { missingToolsOnPath } from "../compose/tools";
 import type { Composition, MissingTool } from "../compose/types";
 import { gitInstalled } from "../project/git";
 import { buildManifest } from "../project/manifest";
+import { addPreset } from "../project/preset";
 import { templateOverrides, templateValues } from "../project/template-values";
 import type { Entry } from "../registry/entry";
 import type { TemplateValues } from "../template";
@@ -81,7 +82,7 @@ const composeDelta = (options: AddOptions, project: AddProject) =>
       stack: stack?.id ?? null,
       with: options.fragments,
       without: [],
-      preset: previous?.preset ?? (options.sandbox ? "sandbox" : "default"),
+      preset: addPreset(previous?.preset, options.sandbox),
       agents: previous?.agents ?? targetAgents(options.agents, settings),
       always: [],
       mode: "add",

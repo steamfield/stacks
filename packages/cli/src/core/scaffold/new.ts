@@ -30,6 +30,7 @@ import { fingerprintFromFiles } from "../fingerprint";
 import { type HandoffDecision, handoffRecord } from "../handoff/decide";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
+import { newPreset } from "../project/preset";
 import { removeProjectState, writeProjectState } from "../project/state";
 import { templateOverrides, templateValues } from "../project/template-values";
 import { openProject, type ProjectWriter } from "../project/writer";
@@ -76,14 +77,6 @@ type GitInitFailure = { exitCode: number; brief: Brief };
 const encoder = new TextEncoder();
 
 /**
- * Explicit flags (including `--sandbox`), then the setting, then default. Lean composes and
- * records as default, minus the default fragments.
- */
-function scaffoldPreset(options: NewOptions, setting: NewOptions["preset"]): NewPreset {
-  return options.preset ?? (options.sandbox ? "sandbox" : (setting ?? "default"));
-}
-
-/**
  * `--own-repo` inside another work tree: the target becomes its own fresh repository. The target
  * is empty but for `.git` and OS files, so the enclosing repository tracks nothing in it.
  */
@@ -126,18 +119,21 @@ const composeProject = (input: {
   preset: NewPreset;
   payload: Payload;
   settings: Settings;
-}) =>
-  compose({
+}) => {
+  const { preset } = input;
+  const lean = preset === "lean";
+  return compose({
     stack: input.options.stack,
     with: input.options.with,
     without: input.options.without,
-    preset: input.preset === "lean" ? "default" : input.preset,
-    lean: input.preset === "lean",
+    preset: lean ? "default" : preset,
+    lean,
     payload: input.payload,
     agents: targetAgents(input.options.agents, input.settings),
     always: input.settings.always ?? [],
     mode: "new",
   });
+};
 
 /**
  * Refuses fragments that need their own repository when the target sits inside another one. A
@@ -265,7 +261,7 @@ export const scaffold = (options: NewOptions) =>
 
     const overrides = yield* templateOverrides(options);
     const { dir, name } = yield* projectLocation(options, host.cwd);
-    const preset = scaffoldPreset(options, settings.preset);
+    const preset = newPreset(options, settings.preset);
     const payload = options.payload ?? DEFAULT_PAYLOAD;
     const composition = yield* composeProject({ options, preset, payload, settings });
 

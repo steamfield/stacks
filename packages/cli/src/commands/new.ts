@@ -6,7 +6,7 @@ import type { Composition } from "../core/compose/types";
 import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
 import { completeHandoff, prepareHandoff } from "../core/handoff/run";
 import { templateOverrides } from "../core/project/template-values";
-import { pickNew, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
+import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
 import { Registry } from "../core/registry/registry";
 import { remoteRoots } from "../core/registry/roots";
@@ -17,7 +17,12 @@ import { BRIEF_PATH } from "../project-layout";
 import { NewPreset, NewResult } from "../schemas/new";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
-import { projectFlags, splitValues } from "./project-flags";
+import {
+  type ExactProjectOptions,
+  projectFlags,
+  replayProjectFlags,
+  splitValues,
+} from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
 
@@ -31,22 +36,26 @@ const newFlags = {
   stack: Argument.String("stack").pipe(
     Argument.withDescription("The stack to start from (see `list stacks`)."),
     Argument.optional,
+    Argument.map(Option.getOrUndefined),
   ),
   dir: Argument.String("dir").pipe(
     Argument.withDescription(
       "The project directory: missing, empty, or holding only .git and OS files such as .DS_Store. Defaults to the slug of --name, else ./<stack>; `.` is the current directory.",
     ),
     Argument.optional,
+    Argument.map(Option.getOrUndefined),
   ),
   name: Flag.String("name").pipe(
     Flag.withDescription("Project name for templates. Default: the directory's base name."),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   author: Flag.String("author").pipe(
     Flag.withDescription(
       "Author for templates. Default: the author setting, then git user.name, else empty. An empty value suppresses the fallback.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   dryRun: Flag.Boolean("dry-run").pipe(
     Flag.withDescription(
@@ -59,12 +68,14 @@ const newFlags = {
       "Composition preset. Default: the preset setting, else default. Sandbox implies --yes. Lean leaves out every default fragment (git hooks, CI, the long-lived harness docs) for timed work; add them later with stacks add.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   payload: Flag.Literals("payload", PAYLOADS).pipe(
     Flag.withDescription(
       "The stack's payload: example (default) ships its example code; none starts with an empty public API, for stacks that offer it.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   ownRepo: Flag.Boolean("own-repo").pipe(
     Flag.withDescription(
@@ -80,6 +91,7 @@ const newFlags = {
       "npm scope for the package_scope template variable, with or without @. Default: the package_scope setting, else none.",
     ),
     Flag.optional,
+    Flag.map(Option.getOrUndefined),
   ),
   launch,
   noLaunch,
@@ -87,72 +99,53 @@ const newFlags = {
 
 type NewFlags = Command.Command.Config.Infer<typeof newFlags>;
 
-/** The scaffold options the parsed flags give, apart from the stack and the handoff. */
-function flagOptions(flags: NewFlags) {
-  return {
-    dir: Option.getOrUndefined(flags.dir),
-    name: Option.getOrUndefined(flags.name),
-    author: Option.getOrUndefined(flags.author),
-    dryRun: flags.dryRun,
-    with: flags.with,
-    without: flags.without,
-    sandbox: flags.sandbox,
-    preset: Option.getOrUndefined(flags.preset),
-    payload: Option.getOrUndefined(flags.payload),
-    ownRepo: flags.ownRepo,
-    yes: flags.yes,
-    agents: flags.agents.length ? flags.agents : undefined,
-    scope: Option.getOrUndefined(flags.scope),
-  };
-}
+const newReplayNames = {
+  source: null,
+  stack: null,
+  dir: null,
+  name: "name",
+  author: "author",
+  dryRun: "dry-run",
+  preset: "preset",
+  payload: "payload",
+  ownRepo: "own-repo",
+  with: "with",
+  without: "without",
+  sandbox: "sandbox",
+  yes: "yes",
+  agents: "agents",
+  scope: "scope",
+  launch: "launch",
+  noLaunch: "no-launch",
+} satisfies Record<keyof NewFlags, string | null>;
 
 /**
  * The scaffold options from the flags, with the stack and directory a person picks when no stack
  * was named. After a pick, prints the equivalent command so it can be rerun without the picker.
  */
 const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: NewFlags) {
-  const stack = Option.getOrUndefined(flags.stack);
+  const { source: _source, stack, launch: _launch, noLaunch: _noLaunch, ...parsed } = flags;
   if (stack === undefined && !(yield* promptingAllowed)) return yield* new Usage();
-  const options = flagOptions(flags);
-  if (flags.sandbox && options.preset !== undefined && options.preset !== "sandbox")
+  const options = parsed satisfies ExactProjectOptions<
+    typeof parsed,
+    Omit<NewOptions, "stack" | "handoff">
+  >;
+  if (options.sandbox && options.preset !== undefined && options.preset !== "sandbox")
     return yield* new Usage({ details: { flags: ["--sandbox", `--preset ${options.preset}`] } });
   if (stack !== undefined) return { ...options, stack };
   // Checks --name, --author and --scope before the picker, so a bad value fails before any question.
   yield* templateOverrides(options);
   const picked = yield* pickNew(options);
   const resolved = { ...options, ...picked };
-  yield* runningCommand(newReplay(resolved, flags));
+  yield* runningCommand([
+    "new",
+    picked.stack,
+    ...replayProjectFlags(newReplayNames, { ...flags, ...picked }),
+    "--",
+    picked.dir,
+  ]);
   return resolved;
 });
-
-/** The `new` command line that reproduces a picked run. */
-function newReplay(
-  options: Omit<NewOptions, "handoff">,
-  flags: Pick<NewFlags, "launch" | "noLaunch">,
-) {
-  return [
-    "new",
-    options.stack,
-    ...replayFlags({
-      name: options.name,
-      author: options.author,
-      "dry-run": options.dryRun,
-      preset: options.preset,
-      payload: options.payload,
-      "own-repo": options.ownRepo,
-      with: options.with,
-      without: options.without,
-      sandbox: options.sandbox,
-      yes: options.yes,
-      agents: options.agents,
-      scope: options.scope,
-      launch: Option.getOrUndefined(flags.launch),
-      "no-launch": flags.noLaunch,
-    }),
-    "--",
-    ...(options.dir === undefined ? [] : [options.dir]),
-  ];
-}
 
 type Scaffolded = Effect.Success<ReturnType<typeof scaffold>>;
 
@@ -228,7 +221,7 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
       encode: (handoff) => Schema.encodeSync(NewResult)({ ...result, handoff }),
     });
   }).pipe(
-    recordCommandError("new", Option.getOrUndefined(flags.stack)),
+    recordCommandError("new", flags.stack),
     Effect.provide(Layer.unwrap(Effect.map(remoteRoots, Registry.layer))),
   ),
 ).pipe(

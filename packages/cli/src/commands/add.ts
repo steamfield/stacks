@@ -3,9 +3,10 @@ import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { add } from "../core/add/index";
 import { renderAdd } from "../core/add/report";
+import type { AddOptions } from "../core/add/types";
 import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
 import { completeHandoff, prepareHandoff } from "../core/handoff/run";
-import { pickAdd, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
+import { pickAdd, promptingAllowed, runningCommand } from "../core/prompting";
 import { Registry } from "../core/registry/registry";
 import { remoteRoots } from "../core/registry/roots";
 import { Usage } from "../errors";
@@ -13,7 +14,7 @@ import { INCOMING, METADATA_DIR } from "../project-layout";
 import { AddResult } from "../schemas/add";
 import { Host } from "../services/host";
 import { Telemetry } from "../telemetry";
-import { projectFlags } from "./project-flags";
+import { type ExactProjectOptions, projectFlags, replayProjectFlags } from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
 
@@ -31,6 +32,17 @@ const addFlags = {
 };
 
 type AddFlags = Command.Command.Config.Infer<typeof addFlags>;
+
+const addReplayNames = {
+  source: null,
+  fragments: null,
+  dir: "dir",
+  sandbox: "sandbox",
+  yes: "yes",
+  agents: "agents",
+  launch: "launch",
+  noLaunch: "no-launch",
+} satisfies Record<keyof AddFlags, string | null>;
 
 type Added = Effect.Success<ReturnType<typeof add>>;
 
@@ -57,20 +69,10 @@ const chooseFragments = Effect.fn("add.chooseFragments")(function* (
 ) {
   if (flags.fragments.length) return flags.fragments;
   const picked = yield* pickAdd(project).pipe(Effect.provideService(Registry, registry));
-  if (picked.length) yield* runningCommand(["add", ...picked, ...replayAddFlags(flags)]);
+  if (picked.length)
+    yield* runningCommand(["add", ...picked, ...replayProjectFlags(addReplayNames, flags)]);
   return picked;
 });
-
-function replayAddFlags(flags: AddFlags) {
-  return replayFlags({
-    dir: Option.getOrUndefined(flags.dir),
-    sandbox: flags.sandbox,
-    yes: flags.yes,
-    agents: flags.agents,
-    launch: Option.getOrUndefined(flags.launch),
-    "no-launch": flags.noLaunch,
-  });
-}
 
 /** Records the `add` telemetry event with the settled handoff, then flushes the spool. */
 const recordAdd =
@@ -101,24 +103,26 @@ export const addCommand = Command.make("add", addFlags, (flags) =>
     const host = yield* Host;
     const path = yield* Path.Path;
     const { json } = yield* root;
-    const source = yield* sourceValue(flags.source);
-    if (!flags.fragments.length && !(yield* promptingAllowed)) return yield* new Usage();
-    const handoff = yield* prepareHandoff(flags, json);
+    const { source: sourceInput, dir, launch, noLaunch, fragments: requested, ...parsed } = flags;
+    const source = yield* sourceValue(sourceInput);
+    if (!requested.length && !(yield* promptingAllowed)) return yield* new Usage();
+    const handoff = yield* prepareHandoff({ launch, noLaunch }, json);
     const project = path.resolve(
       host.cwd,
-      Option.getOrElse(flags.dir, () => "."),
+      Option.getOrElse(dir, () => "."),
     );
     const registry = yield* projectRegistry(project);
     const fragments = yield* chooseFragments(flags, project, registry);
     if (!fragments.length) return;
-    const added = yield* add({
+    const options = {
+      ...parsed,
       root: project,
       fragments,
-      sandbox: flags.sandbox,
-      yes: flags.yes,
-      agents: flags.agents.length ? flags.agents : undefined,
       handoff,
-    }).pipe(Effect.provideService(Registry, registry));
+    };
+    const added = yield* add(
+      options satisfies ExactProjectOptions<typeof options, AddOptions>,
+    ).pipe(Effect.provideService(Registry, registry));
     const { result, decision, manifest } = added;
     const telemetry = yield* Telemetry;
     yield* completeHandoff({

@@ -3,7 +3,8 @@
  * for path containment and rollback.
  */
 import { Duration, Effect, FileSystem, Option, Path, type PlatformError } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../config";
+import { AppConfig } from "../config";
+import { GIT_REPOSITORY_VARIABLES } from "../env-names";
 import { NotFound, PermissionDenied, TargetNotEmpty } from "../errors";
 import type { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";

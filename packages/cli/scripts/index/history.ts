@@ -1,6 +1,7 @@
 import { Duration, Effect, FileSystem, Path } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../src/config";
+import { AppConfig } from "../../src/config";
 import { Registry } from "../../src/core/registry/registry";
+import { GIT_REPOSITORY_VARIABLES } from "../../src/env-names";
 import { Processes } from "../../src/services/processes";
 
 /** Every history read uses the checkout explicitly and drops inherited git selectors. */

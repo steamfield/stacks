@@ -9,12 +9,13 @@
 import { NodeServices } from "@effect/platform-node";
 import { Console, Duration, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { SOURCE_BUILD } from "../src/build";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../src/config";
+import { AppConfig } from "../src/config";
 import { compose } from "../src/core/compose/compose";
 import { fingerprint, proofFingerprint } from "../src/core/fingerprint";
 import { ledgerAdapterSets } from "../src/core/ledger";
 import { Registry } from "../src/core/registry/registry";
 import { replaceFile } from "../src/core/replace-file";
+import { GIT_REPOSITORY_VARIABLES } from "../src/env-names";
 import { LedgerRecord } from "../src/schemas/ledger";
 import { Foreground, Processes } from "../src/services/processes";
 

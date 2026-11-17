@@ -1,13 +1,14 @@
 import { NodeServices } from "@effect/platform-node";
 import { Console, Duration, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import { SOURCE_BUILD } from "../src/build";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../src/config";
+import { AppConfig } from "../src/config";
 import { compose } from "../src/core/compose/compose";
 import type { ComposeOptions } from "../src/core/compose/types";
 import { fingerprint, proofFingerprint } from "../src/core/fingerprint";
 import { appendRecord, readLedger } from "../src/core/ledger";
 import { Registry } from "../src/core/registry/registry";
 import { printable } from "../src/core/text";
+import { GIT_REPOSITORY_VARIABLES } from "../src/env-names";
 import type { InvalidConfig } from "../src/errors";
 import { Ledger, LedgerRecord } from "../src/schemas/ledger";
 import { Foreground, Processes } from "../src/services/processes";

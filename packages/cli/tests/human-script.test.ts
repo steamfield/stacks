@@ -3,7 +3,7 @@ import { closeSync, openSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { humanPlan } from "../scripts/human";
-import { AGENT_MARKER_NAMES } from "../src/config";
+import { AGENT_MARKER_NAMES } from "../src/env-names";
 import { tempDir } from "./helpers/cli";
 
 const launchError =

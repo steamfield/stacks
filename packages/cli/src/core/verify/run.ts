@@ -4,7 +4,8 @@
  */
 import type { Manifest, Outcome } from "@steamfield/stacks-format";
 import { Cause, Clock, Effect, Exit, FileSystem } from "effect";
-import { AGENT_MARKER_NAMES, AppConfig, CLI_SETTING_NAMES } from "../../config";
+import { AppConfig } from "../../config";
+import { AGENT_MARKER_NAMES, CLI_SETTING_NAMES } from "../../env-names";
 import { stepFinished, stepStarted } from "./events";
 import { isAppStep, type PlannedStep, planVerify } from "./plan";
 import {

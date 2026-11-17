@@ -5,7 +5,8 @@
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Option, Path, Result } from "effect";
-import { AppConfig, GIT_REPOSITORY_VARIABLES } from "../../../config";
+import { AppConfig } from "../../../config";
+import { GIT_REPOSITORY_VARIABLES } from "../../../env-names";
 import type { SpawnFailed } from "../../../errors";
 import type { Finding } from "../../../schemas/validate";
 import { type Captured, Processes } from "../../../services/processes";

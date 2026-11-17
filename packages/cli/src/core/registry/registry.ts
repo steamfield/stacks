@@ -3,20 +3,32 @@
  * Per-invocation caching keeps catalog reads cheap and deep checks lazy and per-entry.
  */
 import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
-import { Context, Effect, FileSystem, Layer, Path } from "effect";
+import { Context, Effect, FileSystem, Layer, Option, Path } from "effect";
 import { EntryInvalid, NotFound, PermissionDenied } from "../../errors";
 import { decodeAuthors, readSearchFile, sidecarPath } from "../search/sidecar";
-import type { CatalogEntry, Entry, EntryFile, Origin, RejectedEntry } from "./entry";
+import {
+  type CatalogEntry,
+  catalogRow,
+  compareEntries,
+  type Entry,
+  type EntryFile,
+  entryKey,
+  isRejected,
+  type Origin,
+  type RegistryEntry,
+  type RejectedEntry,
+} from "./entry";
 import { type LoadState, loadRoot } from "./load";
 import { remoteRegistry } from "./remote/merge";
+import { RemoteIndex } from "./remote/service";
 import { localRoot, type RegistryRoots } from "./roots";
 import { entryTree, readEntryFile, shippedFiles } from "./tree";
-import type { FileAccess, Rejection, RootCandidate, Skipped } from "./types";
+import type { FileAccess, Skipped } from "./types";
 
 export type { Skipped } from "./types";
 
 /** Candidates per `kind/id`, in root order: the first is the winner, the rest it hides. */
-type FoundCandidates = ReadonlyMap<string, ReadonlyArray<RootCandidate>>;
+type FoundCandidates = ReadonlyMap<string, ReadonlyArray<RegistryEntry>>;
 
 function hidesText(shadows: ReadonlyArray<Origin>): string {
   if (!shadows.length) return "";
@@ -24,35 +36,24 @@ function hidesText(shadows: ReadonlyArray<Origin>): string {
 }
 
 /** Keep shadow origins in root order so rejection messages reflect precedence. */
-const hiddenOrigins = (hidden: ReadonlyArray<RootCandidate>) => [
-  ...new Set(hidden.map(({ root }) => root.origin)),
+const hiddenOrigins = (hidden: ReadonlyArray<RegistryEntry>) => [
+  ...new Set(hidden.map(({ origin }) => origin)),
 ];
 
 /** Sort stacks before fragments, then by id. A rejected winner still hides lower-priority copies. */
 function registryWinners(found: FoundCandidates) {
-  const results: Array<Entry | Rejection> = [];
-  for (const [winner, ...hidden] of found.values()) {
+  const results: Array<[string, RegistryEntry]> = [];
+  for (const [key, [winner, ...hidden]] of found) {
     if (!winner) continue;
     const shadows = hiddenOrigins(hidden);
-    const { candidate } = winner;
-    if (candidate._tag === "Entry") {
-      const entry = { ...candidate.entry, shadows };
-      results.push({ ...entry, trusted: winner.root.trusted });
-    } else {
-      const { rejected } = candidate.rejection;
-      results.push({
-        ...candidate.rejection,
-        rejected: { ...rejected, error: `${rejected.error}${hidesText(shadows)}` },
-      });
-    }
+    results.push([
+      key,
+      isRejected(winner)
+        ? { ...winner, error: `${winner.error}${hidesText(shadows)}` }
+        : { ...winner, shadows },
+    ]);
   }
-  const sortKey = (value: Entry | Rejection) => ("rejected" in value ? value.rejected : value);
-  return results.sort((a, b) => {
-    const x = sortKey(a);
-    const y = sortKey(b);
-    if (x.kind !== y.kind) return x.kind === "stack" ? -1 : 1;
-    return x.id < y.id ? -1 : 1;
-  });
+  return new Map(results.sort(([, a], [, b]) => compareEntries(a, b)));
 }
 
 /** Each winner's directory and the origins it hides, for messages about a later deep-check failure. */
@@ -60,9 +61,7 @@ function winnerShadowsByDir(found: FoundCandidates): ReadonlyMap<string, Readonl
   const byDir = new Map<string, ReadonlyArray<Origin>>();
   for (const [winner, ...hidden] of found.values()) {
     if (!winner) continue;
-    const { candidate } = winner;
-    const dir = candidate._tag === "Entry" ? candidate.entry.dir : candidate.rejection.rejected.dir;
-    byDir.set(dir, hiddenOrigins(hidden));
+    byDir.set(winner.dir, hiddenOrigins(hidden));
   }
   return byDir;
 }
@@ -71,59 +70,44 @@ function bundledOnly(found: FoundCandidates): FoundCandidates {
   return new Map(
     [...found].map(([key, candidates]) => [
       key,
-      candidates.filter(({ root }) => root.origin === "bundled"),
+      candidates.filter(({ origin }) => origin === "bundled"),
     ]),
   );
 }
 
 function rejectedWithShadows(
-  problem: Rejection,
-  item: Entry | RejectedEntry,
+  problem: RejectedEntry,
+  item: RegistryEntry,
   winnerShadows: ReadonlyMap<string, ReadonlyArray<Origin>>,
 ): RejectedEntry {
-  const shadows = "shadows" in item ? item.shadows : (winnerShadows.get(item.dir) ?? []);
-  return { ...problem.rejected, error: `${problem.rejected.error}${hidesText(shadows)}` };
+  const shadows = isRejected(item) ? (winnerShadows.get(item.dir) ?? []) : item.shadows;
+  return { ...problem, error: `${problem.error}${hidesText(shadows)}` };
 }
 
-const findRejection = (items: ReadonlyArray<Entry | Rejection>, kind: Kind, id: string) =>
-  items.find(
-    (candidate): candidate is Rejection =>
-      "rejected" in candidate && candidate.rejected.id === id && candidate.rejected.kind === kind,
-  );
-
 /** The typed failure for asking for a rejected entry: unreadable is `PermissionDenied`. */
-function rejectionError(item: Rejection, id: string, path: Path.Path) {
-  const { rejected, reason } = item;
+function rejectionError(item: RejectedEntry, id: string, path: Path.Path) {
+  const { reason } = item;
   if (reason === "unreadable")
     return new PermissionDenied({
-      details: { reason: "read", path: path.join(rejected.dir, item.path ?? ".") },
+      details: { reason: "read", path: path.join(item.dir, item.path ?? ".") },
     });
   return new EntryInvalid({
     details: {
       id,
-      origin: rejected.origin,
+      origin: item.origin,
       reason,
       ...(item.path === undefined ? {} : { path: item.path }),
     },
   });
 }
 
-/** The bundled root's catalog rows, with a rejected entry's id and kind and no tags. */
-const bundledCatalog = (bundled: ReadonlyArray<Entry | Rejection>): Array<CatalogEntry> =>
-  bundled.map((item) => ({
-    id: "rejected" in item ? item.rejected.id : item.id,
-    kind: "rejected" in item ? item.rejected.kind : item.kind,
-    origin: "bundled" as const,
-    tags: "rejected" in item ? [] : item.meta.tags,
-    rejected: "rejected" in item,
-  }));
-
-const findBundled = (bundled: ReadonlyArray<Entry | Rejection>, kind: Kind, id: string) =>
-  bundled.find((candidate) =>
-    "rejected" in candidate
-      ? candidate.rejected.kind === kind && candidate.rejected.id === id
-      : candidate.kind === kind && candidate.id === id,
-  );
+function localRegistry(winners: ReadonlyMap<string, RegistryEntry>) {
+  return {
+    catalog: Effect.sync(() => Array.from(winners.values(), catalogRow)),
+    all: Effect.sync(() => [...winners.values()]),
+    get: (kind: Kind, id: string) => Effect.succeed(winners.get(entryKey(kind, id))),
+  };
+}
 
 export class Registry extends Context.Service<
   Registry,
@@ -131,7 +115,7 @@ export class Registry extends Context.Service<
     /** Preliminary names and tags; use `get` or `all` before reporting an entry as usable. */
     readonly catalog: Effect.Effect<ReadonlyArray<CatalogEntry>, PermissionDenied>;
     /** Every winning entry and every rejected one: stacks first, then fragments, each by id. */
-    readonly all: Effect.Effect<ReadonlyArray<Entry | RejectedEntry>, PermissionDenied>;
+    readonly all: Effect.Effect<ReadonlyArray<RegistryEntry>, PermissionDenied>;
     /** What loading skipped, in load order; `validate` reports it. */
     readonly skipped: Effect.Effect<ReadonlyArray<Skipped>, PermissionDenied>;
     /** An unreadable entry is `PermissionDenied`; any other rejected one is `EntryInvalid`. */
@@ -193,11 +177,11 @@ export class Registry extends Context.Service<
         const path = yield* Path.Path;
         const io: FileAccess = { fs, path };
         // Filled while `load` runs; read only after it has.
-        const state: LoadState = { io, skipped: [], checks: new Map() };
+        const state: LoadState = { io, skipped: [], treeChecks: new Map() };
 
         const localRoots = roots.map(localRoot);
         const load = Effect.gen(function* () {
-          const found = new Map<string, RootCandidate[]>();
+          const found = new Map<string, RegistryEntry[]>();
           for (const root of localRoots) yield* loadRoot(root, state, found);
           return {
             winners: registryWinners(found),
@@ -207,13 +191,18 @@ export class Registry extends Context.Service<
         });
         const local = yield* Effect.cached(load);
 
+        const index = roots.some((root) => root.remote)
+          ? yield* Effect.serviceOption(RemoteIndex)
+          : Option.none();
         const view = yield* Effect.cached(
           Effect.gen(function* () {
             const { winners, bundled } = yield* local;
+            if (Option.isNone(index) || index.value.root === undefined)
+              return localRegistry(winners);
             return yield* remoteRegistry(
-              winners.map((item) => ("rejected" in item ? item.rejected : item)),
-              bundled.filter((item): item is Entry => !("rejected" in item)),
-              roots.some((root) => root.remote),
+              index.value,
+              winners,
+              [...bundled.values()].filter((item) => !isRejected(item)),
             ).pipe(
               Effect.provideService(FileSystem.FileSystem, fs),
               Effect.provideService(Path.Path, path),
@@ -221,50 +210,34 @@ export class Registry extends Context.Service<
           }),
         );
 
-        const deepCheck = (dir: string) => state.checks.get(dir) ?? Effect.succeed(undefined);
+        const treeRejection = (dir: string) =>
+          state.treeChecks.get(dir) ?? Effect.succeed(undefined);
 
         // Keep hidden origins in the rejection if a preliminary winner's deep check fails.
-        const checkedItem = (item: Entry | RejectedEntry) =>
-          Effect.gen(function* () {
-            const problem = yield* deepCheck(item.dir);
-            if (!problem) return item;
-            return rejectedWithShadows(problem, item, (yield* local).winnerShadows);
-          });
+        const checkedItem = Effect.fnUntraced(function* (item: RegistryEntry) {
+          const problem = yield* treeRejection(item.dir);
+          if (!problem) return item;
+          return rejectedWithShadows(problem, item, (yield* local).winnerShadows);
+        });
 
-        const loadedRejection = (item: RejectedEntry, kind: Kind, id: string) =>
-          Effect.gen(function* () {
-            const rejected = findRejection((yield* local).winners, kind, id);
-            if (rejected) return yield* rejectionError(rejected, id, path);
-            return yield* new EntryInvalid({
-              details: { id, origin: item.origin, reason: "decode" },
-            });
-          });
-
-        const checkedGet = (item: Entry | RejectedEntry | undefined, kind: Kind, id: string) =>
-          Effect.gen(function* () {
-            if (!item) return yield* new NotFound({ details: { suggestions: [], id, kind } });
-            const problem = yield* deepCheck(item.dir);
-            if (problem) return yield* rejectionError(problem, id, path);
-            if (!("error" in item)) return item;
-            return yield* loadedRejection(item, kind, id);
-          });
+        const checkedGet = Effect.fnUntraced(function* (
+          item: RegistryEntry | undefined,
+          kind: Kind,
+          id: string,
+        ) {
+          if (!item) return yield* new NotFound({ details: { suggestions: [], id, kind } });
+          const problem = yield* treeRejection(item.dir);
+          if (problem) return yield* rejectionError(problem, id, path);
+          if (isRejected(item)) return yield* rejectionError(item, id, path);
+          return item;
+        });
 
         /** Surface cached deep-check failures before a caller reads an entry it already holds. */
         const checkEntry = (entry: Entry) =>
           Effect.gen(function* () {
-            const problem = yield* deepCheck(entry.dir);
+            const problem = yield* treeRejection(entry.dir);
             if (problem) return yield* rejectionError(problem, entry.id, path);
           });
-
-        const bundledGet = (bundled: ReadonlyArray<Entry | Rejection>, kind: Kind, id: string) => {
-          const item = findBundled(bundled, kind, id);
-          if (item && "rejected" in item)
-            return Effect.gen(function* () {
-              const problem = yield* deepCheck(item.rejected.dir);
-              return yield* rejectionError(problem ?? item, id, path);
-            });
-          return checkedGet(item, kind, id);
-        };
 
         const readSearch = (root: string, rel: string) =>
           readSearchFile(root, rel).pipe(
@@ -307,16 +280,15 @@ export class Registry extends Context.Service<
             Effect.flatMap((registry) => registry.all),
             Effect.flatMap((items) => Effect.forEach(items, checkedItem)),
           ),
-          catalog: view.pipe(Effect.map((registry) => registry.catalog)),
+          catalog: yield* Effect.cached(view.pipe(Effect.flatMap((registry) => registry.catalog))),
           bundled: local.pipe(
             Effect.map(({ bundled }) => ({
               metadata: new Map(
-                bundled
-                  .filter((item): item is Entry => !("rejected" in item))
-                  .map((item) => [`${item.kind}/${item.id}`, item.meta]),
+                [...bundled].flatMap(([key, item]) => (isRejected(item) ? [] : [[key, item.meta]])),
               ),
-              catalog: Effect.succeed(bundledCatalog(bundled)),
-              get: (kind: Kind, id: string) => bundledGet(bundled, kind, id),
+              catalog: Effect.sync(() => Array.from(bundled.values(), catalogRow)),
+              get: (kind: Kind, id: string) =>
+                checkedGet(bundled.get(entryKey(kind, id)), kind, id),
             })),
           ),
           skipped: local.pipe(Effect.map(() => [...state.skipped])),

@@ -2,7 +2,7 @@
  * Selects and orders fragments. Each fragment's selection source determines which drop and fit
  * rules apply.
  */
-import type { Category, FragmentMeta, Kind, StackMeta } from "@steamfield/stacks-format";
+import type { Category, Kind } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import {
   BadInput,
@@ -11,7 +11,14 @@ import {
   NotFound,
   type PermissionDenied,
 } from "../../errors";
-import { type CatalogEntry, type Entry, isFragment, isRejected, isStack } from "../registry/entry";
+import {
+  type CatalogEntry,
+  type Fragment,
+  isFragment,
+  isRejected,
+  isStack,
+  type Stack,
+} from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import { closest } from "../text/suggest";
 import { conflict } from "./conflicts";
@@ -19,8 +26,6 @@ import type { ComposeOptions, ComposeWarning, Via } from "./types";
 
 /** Categories `--sandbox` leaves out unless named with `--with` or required by another fragment. */
 const SANDBOX_DROPS: ReadonlyArray<Category> = ["deploy", "release", "app"];
-type Fragment = Entry & { meta: FragmentMeta };
-type Stack = Entry & { meta: StackMeta };
 type SelectError = NotFound | EntryInvalid | ComposeConflict | PermissionDenied;
 
 const isApp = (fragment: Fragment) => fragment.meta.category === "app";

@@ -6,20 +6,22 @@ import { type IndexEntry, IndexEntry as IndexEntrySchema } from "@steamfield/sta
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import {
   type CatalogEntry,
+  catalogRow,
+  compareEntries,
   decodeEntry,
   type Entry,
+  entryKey,
+  isRejected,
   markdownFile,
   type Origin,
-  type RejectedEntry,
+  type RegistryEntry,
 } from "../entry";
 import { directoryMatches } from "./files";
-import { type ConfiguredIndex, RemoteIndex } from "./service";
+import type { ConfiguredIndex } from "./service";
 
-type Resolution = Effect.Effect<Entry | RejectedEntry | undefined>;
+type Resolution = Effect.Effect<RegistryEntry | undefined>;
 
-const entryKey = (entry: Pick<Entry, "kind" | "id">) => `${entry.kind}/${entry.id}`;
-
-const aboveIndex = (entry: Entry | RejectedEntry | undefined) =>
+const aboveIndex = (entry: RegistryEntry | undefined) =>
   entry?.origin === "project" || entry?.origin === "user";
 
 /** A missing, unreadable or invalid bundle has no entry, so resolution can fall back. */
@@ -133,24 +135,14 @@ const resolveReference = Effect.fn("registry.resolveReference")(function* (
 const ORIGIN_ORDER: ReadonlyArray<Origin> = ["project", "user", "index", "bundled"];
 
 /** A project or user entry that also hides an index copy: `index` joins its shadows, in order. */
-function withIndexShadow(entry: Entry | RejectedEntry | undefined) {
-  if (!entry || !("meta" in entry)) return entry;
+function withIndexShadow(entry: RegistryEntry | undefined) {
+  if (!entry || isRejected(entry)) return entry;
   const shadows: Origin[] = [...entry.shadows, "index"];
   return {
     ...entry,
     shadows: [...new Set(shadows)].sort(
       (a, b) => ORIGIN_ORDER.indexOf(a) - ORIGIN_ORDER.indexOf(b),
     ),
-  };
-}
-
-function catalogRow(entry: Entry | RejectedEntry): CatalogEntry {
-  return {
-    id: entry.id,
-    kind: entry.kind,
-    origin: entry.origin,
-    tags: "meta" in entry ? entry.meta.tags : [],
-    rejected: !("meta" in entry),
   };
 }
 
@@ -169,7 +161,7 @@ const indexCatalogRow = (ref: IndexEntry): CatalogEntry => ({
 const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   remote: ConfiguredIndex,
   options: {
-    local: ReadonlyArray<Entry | RejectedEntry>;
+    local: ReadonlyMap<string, RegistryEntry>;
     bundled: ReadonlyArray<Entry>;
     catalog: Map<string, CatalogEntry>;
     resolutions: Map<string, Resolution>;
@@ -179,12 +171,11 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const index = yield* remote.current;
-  const originals = new Map(bundled.map((entry) => [entryKey(entry), entry]));
-  const locals = new Map(local.map((entry) => [entryKey(entry), entry]));
+  const originals = new Map(bundled.map((entry) => [entryKey(entry.kind, entry.id), entry]));
   for (const ref of Option.isSome(index) ? index.value.entries : []) {
     if (ref.schemaVersion > 1 || !Schema.is(IndexEntrySchema)(ref)) continue;
-    const key = entryKey(ref);
-    const existing = locals.get(key);
+    const key = entryKey(ref.kind, ref.id);
+    const existing = local.get(key);
     if (aboveIndex(existing)) {
       resolutions.set(key, Effect.succeed(withIndexShadow(existing)));
       continue;
@@ -202,28 +193,21 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
 });
 
 export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
-  local: ReadonlyArray<Entry | RejectedEntry>,
+  remote: ConfiguredIndex,
+  local: ReadonlyMap<string, RegistryEntry>,
   bundled: ReadonlyArray<Entry>,
-  enabled: boolean,
 ) {
-  const catalog = new Map(local.map((entry) => [entryKey(entry), catalogRow(entry)]));
+  const catalog = new Map(Array.from(local, ([key, entry]) => [key, catalogRow(entry)]));
   const resolutions = new Map<string, Resolution>(
-    local.map((entry) => [entryKey(entry), Effect.succeed(entry)]),
+    Array.from(local, ([key, entry]) => [key, Effect.succeed(entry)]),
   );
-  const service = enabled ? yield* Effect.serviceOption(RemoteIndex) : Option.none();
-  if (Option.isSome(service) && service.value.root !== undefined)
-    yield* mergeIndex(service.value, { local, bundled, catalog, resolutions });
+  yield* mergeIndex(remote, { local, bundled, catalog, resolutions });
   return {
-    catalog: [...catalog.values()].sort(compareEntries),
+    catalog: Effect.succeed([...catalog.values()].sort(compareEntries)),
     all: Effect.forEach([...resolutions.values()], (effect) => effect).pipe(
       Effect.map((entries) => entries.filter((entry) => entry !== undefined).sort(compareEntries)),
     ),
     get: (kind: Entry["kind"], id: string) =>
-      resolutions.get(entryKey({ kind, id })) ?? Effect.succeed(undefined),
+      resolutions.get(entryKey(kind, id)) ?? Effect.succeed(undefined),
   };
 });
-
-function compareEntries(a: Pick<Entry, "id" | "kind">, b: Pick<Entry, "id" | "kind">): number {
-  if (a.kind !== b.kind) return a.kind === "stack" ? -1 : 1;
-  return a.id < b.id ? -1 : 1;
-}

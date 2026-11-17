@@ -14,7 +14,7 @@ import { LedgerLastRun, type LedgerRecord } from "../../schemas/ledger";
 import type { ListResult, ListRow } from "../../schemas/list";
 import { fitsStack } from "../compose/selection";
 import { lastRun } from "../ledger";
-import { type Entry, isRejected, type RejectedEntry } from "../registry/entry";
+import { type Entry, isRejected, type RegistryEntry } from "../registry/entry";
 import { statsFields } from "../stats/text";
 
 export const groups = ["stacks", "fragments", "apps"] as const;
@@ -85,7 +85,7 @@ export function withStats(
 
 /** The `list` result: entries in `group` (all when absent), and rejected entries of its kind. */
 export function listResult(
-  items: ReadonlyArray<Entry | RejectedEntry>,
+  items: ReadonlyArray<RegistryEntry>,
   group: Group | undefined,
   records: ReadonlyArray<LedgerRecord> = [],
   authors: AuthorsFile = {},

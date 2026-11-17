@@ -2,21 +2,19 @@
  * Checks a fragment with each eligible host so authors see conflicts before users do. It skips
  * plans covered by `compositionChecks` and conflicts already in `RenderState.failures`.
  */
-import { AgentId, type FragmentMeta, type StackMeta } from "@steamfield/stacks-format";
+import { AgentId } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import type { ComposeConflict } from "../../../errors";
 import type { Finding } from "../../../schemas/validate";
 import { compose } from "../../compose/compose";
 import { fitsStack } from "../../compose/selection";
 import type { ComposeOptions } from "../../compose/types";
-import { type Entry, isStack, shippedOnlyFor } from "../../registry/entry";
+import { type Fragment, isStack, type Stack, shippedOnlyFor } from "../../registry/entry";
 import type { Check, View } from "../types";
 import { entryFile, finding } from "../view";
 import { uniqueFindings } from "./composed";
 import { compositionSingles, describe, replacementDefaults } from "./compositions";
 
-type Stack = Entry & { meta: StackMeta };
-type Fragment = Entry & { meta: FragmentMeta };
 /** How one fragment composes onto one stack; `covered` when the stack's own plans include it. */
 type FragmentPlan = {
   covered: boolean;

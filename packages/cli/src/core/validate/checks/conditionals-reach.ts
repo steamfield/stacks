@@ -3,12 +3,11 @@
  * keeps an otherwise unused block reachable, so that case gets a note and a disallowed stack gets
  * a warning.
  */
-import type { FragmentMeta } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import type { Finding } from "../../../schemas/validate";
 import { scanConditionals } from "../../compose/conditionals";
 import { fitsStack } from "../../compose/selection";
-import { type Entry, isFragment, isStack } from "../../registry/entry";
+import { type Entry, type Fragment, isFragment, isStack } from "../../registry/entry";
 import type { Check, View } from "../types";
 import { entryFile, finding } from "../view";
 
@@ -27,12 +26,7 @@ function entryReachFindings(view: View, entry: Entry): Finding[] {
   );
 }
 
-function reachFinding(
-  view: View,
-  entry: Entry & { meta: FragmentMeta },
-  id: string,
-  start: number,
-): Finding | undefined {
+function reachFinding(view: View, entry: Fragment, id: string, start: number): Finding | undefined {
   const stack = view.all.filter(isStack).find((item) => item.id === id);
   // `conditionalChecks` reports unknown stacks. A stack listing the fragment keeps the block.
   if (!stack || Object.values(stack.meta.fragments).some((ids) => ids.includes(entry.id)))

@@ -73,7 +73,6 @@ function composedStacks(view: SourceView) {
 function overlayPlans(view: SourceView, stack: Entry) {
   if (!isStack(stack)) return [];
   return view.all
-    .filter((entry): entry is Entry => "meta" in entry)
     .filter(isFragment)
     .filter((entry) => shipsOnlyFor(view, entry, { kind: "stack", id: stack.id }))
     .map((entry) => ({ with: [entry.id], without: replacementDefaults(view, stack, entry.id) }));

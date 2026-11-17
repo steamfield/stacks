@@ -4,14 +4,14 @@
  */
 import { Effect } from "effect";
 import type { Finding } from "../../../schemas/validate";
-import { type Entry, isStack, type RejectedEntry } from "../../registry/entry";
+import { type Entry, isStack, type RegistryEntry } from "../../registry/entry";
 import { closest } from "../../text/suggest";
 import type { Check, View } from "../types";
 import { entryFile, finding } from "../view";
 
 type Targets = {
-  fragments: ReadonlyArray<Entry | RejectedEntry>;
-  stacks: ReadonlyArray<Entry | RejectedEntry>;
+  fragments: ReadonlyArray<RegistryEntry>;
+  stacks: ReadonlyArray<RegistryEntry>;
   /** Every tag some loaded stack declares, which `applies_to` may name instead of a stack id. */
   tags: ReadonlySet<string>;
 };

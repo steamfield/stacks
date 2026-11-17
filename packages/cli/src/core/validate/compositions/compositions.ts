@@ -18,8 +18,8 @@ import { targetAgents } from "../../compose/agents";
 import { compose } from "../../compose/compose";
 import { fitsStack } from "../../compose/selection";
 import type { Composition } from "../../compose/types";
-import { type Entry, isFragment, isRejected, type RejectedEntry } from "../../registry/entry";
-import { type Check, type PlanShape, PRESETS, type Preset, type Stack, type View } from "../types";
+import { type Fragment, isFragment, type RegistryEntry, type Stack } from "../../registry/entry";
+import { type Check, type PlanShape, PRESETS, type Preset, type View } from "../types";
 import { entryFile, finding } from "../view";
 import { bodyLimit } from "./budget";
 import {
@@ -33,7 +33,6 @@ import {
 } from "./composition-findings";
 
 type ComposeFailure = NotFound | BadInput | EntryInvalid | ComposeConflict | PermissionDenied;
-type Fragment = Entry & { meta: FragmentMeta };
 
 /** Each entry's own body against its limit (stack, fragment or app), every branch counted. */
 export const bodyChecks: Check = (view) =>
@@ -58,14 +57,12 @@ export const bodyChecks: Check = (view) =>
   });
 
 /** A fragment that loaded, found by its directory kind as well as its metadata. */
-function isLoadedFragment(item: Entry | RejectedEntry): item is Fragment {
-  return item.kind === "fragment" && !isRejected(item) && isFragment(item);
+function isLoadedFragment(item: RegistryEntry): item is Fragment {
+  return item.kind === "fragment" && isFragment(item);
 }
 
 function findFragment(view: Omit<View, "composed">, id: string): Fragment | undefined {
-  return view.all.find(
-    (entry): entry is Fragment => !isRejected(entry) && isFragment(entry) && entry.id === id,
-  );
+  return view.all.find((entry): entry is Fragment => isFragment(entry) && entry.id === id);
 }
 
 /** Defaults an explicit addition replaces; required fragments can never be dropped. */

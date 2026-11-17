@@ -16,6 +16,8 @@ import type { Origin } from "../../schemas/origin";
 export type { Origin } from "../../schemas/origin";
 
 export type Entry = {
+  /** A loaded entry carries only its data. */
+  _tag?: undefined;
   id: string;
   kind: Kind;
   origin: Origin;
@@ -39,12 +41,40 @@ export type CatalogEntry = Pick<Entry, "id" | "kind" | "origin"> & {
 export const entryRef = (entry: Entry) => ({ kind: entry.kind, id: entry.id });
 
 export type RejectedEntry = {
+  _tag: "Rejected";
   id: string;
   kind: Kind;
   origin: Origin;
   dir: string;
   error: string;
+  reason: "decode" | "symlink" | "id_mismatch" | "missing" | "unreadable";
+  path?: string;
 };
+export type RegistryEntry = Entry | RejectedEntry;
+export type Stack = Entry & { meta: StackMeta };
+export type Fragment = Entry & { meta: FragmentMeta };
+
+export const entryKey = (kind: Kind, id: string) => `${kind}/${id}`;
+
+export function compareEntries(
+  a: Pick<Entry, "id" | "kind">,
+  b: Pick<Entry, "id" | "kind">,
+): number {
+  if (a.kind !== b.kind) return a.kind === "stack" ? -1 : 1;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+export function catalogRow(entry: RegistryEntry): CatalogEntry {
+  const rejected = isRejected(entry);
+  return {
+    id: entry.id,
+    kind: entry.kind,
+    origin: entry.origin,
+    tags: rejected ? [] : entry.meta.tags,
+    rejected,
+  };
+}
 /**
  * A file an entry ships. `source` is the entry-relative path on disk; `path` is where it goes in
  * the project: `source` without its files, agent adapter or stack overlay prefix. Names are literal.
@@ -78,14 +108,14 @@ export function shipsFor(
   return condition.id === stack;
 }
 
-export function isRejected(value: Entry | RejectedEntry): value is RejectedEntry {
-  return "error" in value;
+export function isRejected(value: RegistryEntry): value is RejectedEntry {
+  return value._tag === "Rejected";
 }
-export function isStack(value: Entry | RejectedEntry): value is Entry & { meta: StackMeta } {
-  return "meta" in value && value.meta.kind === "stack";
+export function isStack(value: RegistryEntry): value is Stack {
+  return !isRejected(value) && value.meta.kind === "stack";
 }
-export function isFragment(value: Entry): value is Entry & { meta: FragmentMeta } {
-  return value.meta.kind === "fragment";
+export function isFragment(value: RegistryEntry): value is Fragment {
+  return !isRejected(value) && value.meta.kind === "fragment";
 }
 export const markdownFile = (kind: Kind) => (kind === "stack" ? "STACK.md" : "FRAGMENT.md");
 

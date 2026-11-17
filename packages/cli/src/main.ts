@@ -19,6 +19,7 @@ import {
   Interrupted,
   keepsResult,
   knownError,
+  prepareFailure,
 } from "./errors";
 import { defectTrace, Logging } from "./logging";
 import { Host } from "./services/host";
@@ -201,28 +202,42 @@ const flushKeptResult: Effect.Effect<
   return { unwritten: knownError(failure.error)?._tag ?? "Defect" };
 });
 
-const writeFailure = (
+const writeDefect = Effect.fn("main.writeDefect")(function* (
+  cause: Cause.Cause<unknown>,
+  invocation: string,
+  rollback: ReadonlyArray<string>,
+) {
+  const output = yield* Output;
+  const error = new Defect();
+  yield* prepareFailure(error).pipe(
+    Effect.flatMap((failure) => output.error(failure, invocation, rollback)),
+    Effect.ignoreCause,
+  );
+  return { error, defect: defectTrace(Cause.squash(cause)) };
+});
+
+const writeFailure = Effect.fn("main.writeFailure")(function* (
   error: AppError,
   invocation: string,
   rollback: ReadonlyArray<string>,
-): Effect.Effect<WriteOutcome, never, Output> =>
-  Effect.gen(function* () {
-    const output = yield* Output;
-    const keep = keepsResult(error);
-    const result = keep ? yield* flushKeptResult : {};
-    if (!keep) yield* output.clear;
-    const written = yield* Effect.exit(output.error(error, invocation, rollback));
-    if (Exit.isSuccess(written)) return { ...result, error };
-    const closed = written.cause.reasons.some(
-      (reason) => Cause.isFailReason(reason) && reason.error instanceof BrokenPipe,
-    );
-    const outcome = { ...result, error, closed: result.closed || closed };
-    if (quietBrokenPipe(outcome) || !written.cause.reasons.some(Cause.isDieReason)) return outcome;
-    // The details didn't encode against their closed schema: report a defect instead.
-    const defect = new Defect();
-    yield* output.error(defect, invocation, rollback).pipe(Effect.ignoreCause);
-    return { ...outcome, error: defect, defect: defectTrace(Cause.squash(written.cause)) };
-  });
+): Effect.fn.Return<WriteOutcome, never, Output> {
+  const output = yield* Output;
+  const keep = keepsResult(error);
+  const result = keep ? yield* flushKeptResult : {};
+  if (!keep) yield* output.clear;
+  const prepared = yield* Effect.exit(prepareFailure(error));
+  if (Exit.isFailure(prepared))
+    return { ...result, ...(yield* writeDefect(prepared.cause, invocation, rollback)) };
+
+  const written = yield* Effect.exit(output.error(prepared.value, invocation, rollback));
+  if (Exit.isSuccess(written)) return { ...result, error };
+  const closed = written.cause.reasons.some(
+    (reason) => Cause.isFailReason(reason) && reason.error instanceof BrokenPipe,
+  );
+  const outcome = { ...result, error, closed: result.closed || closed };
+  if (quietBrokenPipe(outcome) || !written.cause.reasons.some(Cause.isDieReason)) return outcome;
+  return { ...outcome, ...(yield* writeDefect(written.cause, invocation, rollback)) };
+});
 
 /** Flushes a successful result; a write failure other than a closed stream becomes the error. */
 const flushSuccess = (invocation: string): Effect.Effect<WriteOutcome, never, Output> =>
@@ -234,7 +249,10 @@ const flushSuccess = (invocation: string): Effect.Effect<WriteOutcome, never, Ou
     if (failure?.error instanceof BrokenPipe) return { closed: true };
     const error = failure ? (knownError(failure.error) ?? new Defect()) : new Defect();
     const defect = error instanceof Defect ? defectTrace(Cause.squash(flushed.cause)) : undefined;
-    yield* output.error(error, invocation).pipe(Effect.ignoreCause);
+    yield* prepareFailure(error).pipe(
+      Effect.flatMap((failure) => output.error(failure, invocation)),
+      Effect.ignoreCause,
+    );
     return { error, defect };
   });
 

@@ -1,11 +1,6 @@
 /**
- * Finds the "did you mean" suggestions for a mistyped command, flag, id or name.
- *
- * Every suggestion the CLI prints comes from `closest`: `main.ts` for unknown subcommands and
- * flags, and `list`, `show`, `create`, `guide`, `skill`, `schema`, `submit`, `validate` and
- * composition for unknown ids and names (`.claude/rules/cli/cli.md` forbids a second edit-distance function). The result
- * appears in error `details` and text output, so the threshold, the limit of three and the
- * tie-breaking order below are all user-visible.
+ * Ranks typo suggestions for the CLI. Text output and error details both expose the threshold,
+ * three-result cap and tie-breaking order.
  */
 
 /** Optimal string alignment distance: Levenshtein plus adjacent transpositions as one edit. */
@@ -38,8 +33,7 @@ function byCodeUnits(a: string, b: string): number {
 
 /**
  * Up to three known names within an edit distance of 2 of `name`, nearest first, ties broken
- * alphabetically ignoring case, then by raw spelling. Case is ignored when measuring. The one
- * "did you mean" helper for the CLI.
+ * alphabetically ignoring case, then by raw spelling. Distance ignores case.
  */
 export function closest(name: string, known: readonly string[]): string[] {
   const target = name.toLowerCase();

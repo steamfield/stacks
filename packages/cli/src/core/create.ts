@@ -1,18 +1,7 @@
 /**
- * When someone runs `stacks create stack|fragment <id>`, this module writes a new entry for them
- * to edit into their user registry.
- *
- * An entry is a stack (a recipe for a whole project) or a fragment (a reusable addition). The user
- * registry is the personal folder of entries the CLI reads after a project's own and before the
- * bundled ones; entries there are trusted. `commands/create.ts` calls `createEntry`, which either
- * writes a fixed skeleton (`create-text.ts`) or copies an existing entry exactly with `--from`.
- * Every file is read before the first write, and the write goes through
- * `scaffold/write.ts::openProject` in exclusive mode, so an existing target is refused and a
- * failure leaves nothing behind.
- *
- * Copying turns an entry into a trusted one, so an untrusted source (a project entry, say) needs a
- * person at a terminal to read its full report and say yes (Trust model points 3 and 4); under an
- * agent or without a terminal the copy is refused. Nothing in an entry runs (point 1).
+ * Creates editable entries in the user registry through `openProject`. Copying elevates an
+ * untrusted source to a trusted destination, so it requires `confirmUntrustedCopy` (trust points
+ * 3 and 4). `readSnapshot` gathers the full file tree as data before writes (trust point 1).
  */
 import type { Category, Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Option, Path, Schema, Terminal } from "effect";
@@ -49,10 +38,7 @@ type Snapshot = {
   files: ReadonlyArray<{ source: string; bytes: Uint8Array; permissions: boolean | number }>;
 };
 
-/**
- * Creates a skeleton or an exact working copy. The target must not exist yet, a skeleton may not
- * shadow an existing entry of the same id, and an untrusted source needs a person's yes.
- */
+/** A skeleton cannot shadow an existing entry of the same id, as enforced by `refuseShadow`. */
 export const createEntry = (options: CreateOptions) =>
   Effect.gen(function* () {
     const { kind, id, from, category, yes } = options;
@@ -73,7 +59,6 @@ export const createEntry = (options: CreateOptions) =>
     return { kind, id, path: target, guide: host.authoring } satisfies CreateResult;
   });
 
-/** The failure for a target that already holds something. */
 const occupied = (target: string) =>
   new BadInput({ details: { id: target, flag: "create_target" } });
 
@@ -158,10 +143,7 @@ function skeletonSnapshot(kind: Kind, id: string, category: Category): Snapshot 
 
 type CopySource = { kind: Kind; id: string; from: Origin; yes: boolean };
 
-/**
- * The complete tree of `id` from one origin, read before anything is written. An untrusted entry
- * needs a person at a terminal: its full report, then a yes (or `--yes`) to copy it.
- */
+/** Reads the tree from the requested origin, with `confirmUntrustedCopy` for untrusted entries. */
 const copySnapshot = (source: CopySource) =>
   Effect.gen(function* () {
     const roots = yield* defaultRoots;
@@ -218,7 +200,6 @@ const confirmUntrustedCopy = (input: CopySource & { entry: Entry; reportRoots: R
     if (!input.yes) yield* askTrust(input.id);
   });
 
-/** Asks the trust question and fails unless the answer is y or yes. */
 const askTrust = (id: string) =>
   Effect.gen(function* () {
     yield* (yield* Output).note(trustQuestion);

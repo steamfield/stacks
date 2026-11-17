@@ -1,15 +1,6 @@
 /**
- * Collects what `stacks doctor` reports: the facts someone needs to tell why the CLI misbehaves on
- * their machine.
- *
- * The report holds the version and platform, the directories the CLI uses, whether the bundled
- * registry (the stacks and fragments shipped in the package) and the bundled agent skill were
- * found, the remote index's cache status and any error reading `config.json`. Doctor has to work
- * when everything else is broken, so a bad config file is reported in `configErrors` instead of
- * failing, and the remote index is described from config alone when its service isn't provided.
- * Nothing here refreshes the index or reaches the network.
- *
- * `commands/doctor.ts` runs `doctor` and renders the encoded `DoctorReport` (`schemas/doctor.ts`).
+ * Collects installation and configuration diagnostics, including cached `RemoteIndex.status`.
+ * Reporting settings errors as data lets diagnosis work on a broken installation.
  */
 import { Effect, FileSystem, Option, Path, Schema } from "effect";
 import { AppConfig } from "../config";

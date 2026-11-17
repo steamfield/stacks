@@ -1,11 +1,6 @@
 /**
- * Keeps text from entries and other untrusted sources from taking over the terminal.
- *
- * Entry names, descriptions, search cards and API responses are written by someone else, and a
- * control character in them (an escape sequence, a carriage return) would let that text move the
- * cursor, recolor the screen or fake a line of output. `printable` escapes those characters before
- * text output or a log message shows them; `hasControl` lets a caller reject such a value outright,
- * as `template.ts::authorValue` does. Report renderers across `core/` and `commands/` use both.
+ * Escapes or detects control characters in untrusted text so it cannot move the cursor, restyle
+ * the terminal or forge a line of output.
  */
 
 /** C0 and C1 control characters and DEL: what a terminal acts on instead of printing. */
@@ -18,8 +13,7 @@ export function hasControl(text: string): boolean {
 }
 
 /**
- * `text` with every control character escaped (`\u001b`), for human output and log messages
- * built from entry content, so a file can't move the cursor, color the terminal or start a line.
+ * Escape controls as literal sequences such as `\u001b` so entry text cannot forge a log line.
  */
 export function printable(text: string): string {
   let out = "";

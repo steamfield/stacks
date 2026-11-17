@@ -1,20 +1,7 @@
 /**
- * Checks the files an entry ships, one entry at a time, during `stacks validate`.
- *
- * An entry (a stack or a fragment) ships files to the project from `files/`, from
- * `adapters/<agent>/` (only for that coding agent) and, for a fragment, from `stacks/<stack>/`
- * (a stack overlay: files written only when the fragment is composed onto that stack). A stack
- * may also hold `payloads/<variant>/`, the example code `new --payload` picks. This module checks
- * that those directories sit where they belong, that each overlay names a stack the fragment's
- * `applies_to` admits and doesn't repeat a `files/` path, that every path listed under `merge`
- * (files deep-merged as JSON with other entries' copies) is shipped and parses as JSON, and that no
- * shipped file holds a `stacks:when` marker, which only resolves in entry bodies. It also counts
- * the words of shipped Markdown as a `shipped` size row with no limit, so guidance moved out of
- * the body stays visible.
- *
- * `validate/index.ts` runs `fileChecks`. These checks run per entry, not per composition, so a
- * fragment no composition includes is still checked. A file that can't be read becomes a finding
- * through `unreadable` (also used by `submission.ts`), so one bad file doesn't hide the rest.
+ * Checks shipped files per entry so fragments absent from all compositions still get checked.
+ * Shipped Markdown gets a size row without a limit so guidance moved out of the body stays
+ * visible. `unreadable` reports a bad file without hiding the rest.
  */
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -39,7 +26,6 @@ export const fileChecks: Check = (view) =>
     return { findings, sizes };
   });
 
-/** An entry file that couldn't be read while checking: a finding, so the rest still reports. */
 export function unreadable(
   view: Parameters<Check>[0],
   entry: Entry,
@@ -162,7 +148,6 @@ const checkMergeCopy = (view: View, entry: Entry, copy: EntryFile) =>
     ];
   });
 
-/** Reads every shipped file once: counts Markdown words and finds conditional markers. */
 const checkShippedText = Effect.fn("validate.shippedText")(function* (
   view: View,
   entry: Entry,
@@ -184,8 +169,8 @@ const checkShippedText = Effect.fn("validate.shippedText")(function* (
 });
 
 /**
- * A `stacks:when` or `stacks:end` marker in a shipped file, including one sharing its line with
- * other text. Binary files (any NUL byte) are skipped.
+ * Conditional markers resolve only in entry bodies, so a marker in a shipped file would
+ * reach the project unresolved. Flag even shared-line markers in text files.
  */
 function shippedConditionals(view: View, entry: Entry, file: EntryFile, text: string): Finding[] {
   if (text.includes("\0")) return [];

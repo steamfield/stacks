@@ -1,21 +1,7 @@
 /**
- * Builds the report `stacks show <id>` prints: everything a user or agent needs to judge one entry
- * (a stack or a fragment) before building from it. Nothing the entry ships is run.
- *
- * `commands/show.ts` calls `showReport` and hands the result to `show-report.ts::renderShow` for
- * text, or encodes it as is for `--json`. The report starts from the entry's `list` row
- * (`list.ts::toRow`) and adds what only a close look needs: the guidance body, the shipped files,
- * verify steps, word counts against the budgets in `validate/budget.ts`, plain-language copy from
- * the entry's search sidecar (a JSON card kept beside the entry, written for people rather than
- * for ranking), dependency cards (a short explanation of each dependency, bundled with the CLI)
- * and the last recorded run, which `show-last-run.ts` picks and checks.
- *
- * For a stack, the report composes its default fragments, the composition a plain
- * `stacks new <id>` would build, to measure the brief and to roll up the dependencies every
- * fragment brings. Published stats are read only for bundled and index entries, the only ones the
- * hosted stats count. A sidecar or dependency card that can't be read or decoded just leaves its
- * field out, but a fragment the CLI isn't allowed to read fails the command, since showing less
- * would hide that it couldn't look. Start at `showReport`.
+ * Builds the report for reviewing an entry before use. It composes a stack's defaults to measure
+ * the actual brief and dependencies. A broken default composition fails the review because
+ * partial measurements would hide missing material, while optional display copy can be omitted.
  */
 import {
   type AgentId,
@@ -82,7 +68,6 @@ const bundledRecords = (roots: RegistryRoots) =>
     return ledger.records;
   });
 
-/** The report for one entry, read through the `Registry` built over the review roots. */
 const reviewEntry = Effect.fn("show.review")(function* (request: {
   id: string;
   kind: Kind | undefined;

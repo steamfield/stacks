@@ -1,20 +1,6 @@
 /**
- * Renders the files of every composition `stacks validate` checks, once per coding-agent adapter,
- * so the checks that read shipped files see exactly what a project would receive.
- *
- * Entries (stacks and fragments) ship files, and some ship only for one coding agent (a Claude
- * adapter, a Codex config) or only on top of one host stack (an overlay). A defect in such a file
- * appears only when that agent or stack is part of the composition, so `composedFiles` composes
- * each plan from `compositions.ts::compositionPlans` plus every overlay, in both presets,
- * then renders it through `compose/files.ts::composeFiles` with `NEUTRAL_VARS` (fixed template
- * values) separately for each adapter the composition's entries ship for. A `validate --brief`
- * preview renders only its one composition.
- *
- * The result is a `RenderState`: the rendered snapshots, compose and template findings, and the
- * conflicts already reported (`compose-each.ts` skips those). `index.ts` and `preview.ts` cache it
- * as `View.composed`; `shipped-refs.ts`, `imports.ts` and `commands.ts` read the snapshots and use
- * `sourceOf` to point a finding at the source file that produced a rendered line. Only problems in
- * a validated entry are reported, never in other origins' entries it was composed with.
+ * Renders validation snapshots per adapter and overlay host so defects in conditional files
+ * surface. `sourceOf` locates contributors even when a composition includes other origins.
  */
 import { AgentId, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -50,7 +36,7 @@ type AdapterRun = {
   options: ComposeOptions;
 };
 
-/** The preview selection or registry matrix, rendered independently for every shipped adapter. */
+/** Use `composeFiles` so validation and scaffolding apply the same file rendering rules. */
 export const composedFiles = (view: SourceView): View["composed"] =>
   Effect.gen(function* () {
     const state: RenderState = { snapshots: [], findings: [], failures: new Set() };
@@ -58,7 +44,6 @@ export const composedFiles = (view: SourceView): View["composed"] =>
     return { ...state, findings: uniqueFindings(state.findings) };
   });
 
-/** A preview renders its one selection; registry validation renders every plan. */
 function compositionRuns(view: SourceView): CompositionRun[] {
   if (view.composition) {
     const { stack, preset, options } = view.composition;
@@ -118,7 +103,7 @@ function selectedSource(source: string, agents: ReadonlyArray<string>, stack: st
 /**
  * Compose one plan with the default agents to learn its entries, then render it once per agent
  * the entries ship agent-only files for (or once with the defaults when none do). A plan that
- * fails here is `compositions.ts`'s to report.
+ * fails here is `compositionChecks`'s to report.
  */
 const renderRun = (view: SourceView, { stack, preset, plan }: CompositionRun, state: RenderState) =>
   Effect.gen(function* () {
@@ -186,7 +171,7 @@ function isAdapterFailure(
 
 /**
  * Report an adapter compose failure on the validated entry whose file caused it, or on the stack
- * when no validated file matches. Conflicts are remembered so `compose-each.ts` skips them.
+ * when no validated file matches. Records conflicts for `reportedWhileRendering`.
  */
 function recordComposeFailure(
   view: SourceView,
@@ -275,7 +260,8 @@ type SourceQuery = {
  *
  * A source matches when `matches` accepts it or, without one, when it contains `needle`. A
  * validated entry's matching source wins, then any matching one, then the planned file's own
- * source, then any contributor. `line` is where the needle sits in the chosen source.
+ * source, then any contributor. Callers check that the contributor is in scope before reporting
+ * findings. `line` is where the needle sits in the chosen source.
  */
 export function sourceOf(
   view: View,
@@ -329,6 +315,5 @@ export function uniqueFindings(values: ReadonlyArray<Finding>): Finding[] {
   return [...new Map(values.map((value) => [JSON.stringify(value), value])).values()];
 }
 
-/** Report the findings `composedFiles` gathered while rendering. */
 export const renderedFileChecks: Check = (view) =>
   Effect.map(view.composed, ({ findings }) => ({ findings }));

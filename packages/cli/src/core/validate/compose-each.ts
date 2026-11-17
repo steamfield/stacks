@@ -1,18 +1,6 @@
 /**
- * Composes each validated fragment with every stack it could land on, so a fragment author learns
- * about a conflict before a user does.
- *
- * A fragment (a reusable addition such as CI or a database) declares which stacks it fits
- * (`appliesTo`), and a stack (a recipe for a whole project) may list it as required, default or
- * optional. When `stacks validate` checks a fragment, `composeEachChecks` composes it onto every
- * stack that lists it, ships an overlay for it (a file meant only for that host stack) or fits it,
- * in both presets and for each coding-agent adapter the registry ships agent-only files for.
- *
- * Where a stack is itself being validated and lists the fragment, `compositions.ts` already checks
- * those compositions, so this file skips them. A conflict `composed.ts` already reported for the
- * same stack is skipped too (`RenderState.failures`). Findings use the compose
- * check's own name when the composition is one of the stack's plans, and `compose-each`
- * otherwise. `index.ts` runs this check over a registry; `preview.ts` leaves it out.
+ * Checks a fragment with each eligible host so authors see conflicts before users do. It skips
+ * plans covered by `compositionChecks` and conflicts already in `RenderState.failures`.
  */
 import { AgentId, type FragmentMeta, type StackMeta } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -56,7 +44,6 @@ export const composeEachChecks: Check = (view) =>
     return { findings: uniqueFindings(findings) };
   });
 
-/** Agents any loaded entry ships agent-only files for. */
 function agentsWithOwnFiles(view: View): AgentId[] {
   return AgentId.literals.filter((agent) =>
     [...view.sources.values()].some((sources) =>
@@ -102,7 +89,6 @@ function fitsByAppliesTo(stack: Stack, fragment: Fragment): boolean {
   );
 }
 
-/** Every adapter and preset of one fragment and stack pair. */
 const composeFragmentPair = (
   view: View,
   { fragment, stack, agents }: { fragment: Fragment; stack: Stack; agents: ReadonlyArray<AgentId> },
@@ -143,6 +129,7 @@ const checkFragmentComposition = Effect.fn("validate.fragmentComposition")(funct
   if (error._tag !== "ComposeConflict") return [];
   if (yield* reportedWhileRendering(view, check.stack, error)) return [];
   const described = describe(error);
+  // Keep the regular compose check id for cases covered by the stack's own plans.
   return [
     fragmentFinding(view, check, {
       check: check.covered ? described.check : "compose-each",
@@ -151,7 +138,6 @@ const checkFragmentComposition = Effect.fn("validate.fragmentComposition")(funct
   ];
 });
 
-/** Whether `composed.ts` already reported this conflict for the stack. */
 const reportedWhileRendering = (view: View, stack: Stack, error: ComposeConflict) =>
   Effect.map(view.composed, ({ failures }) =>
     failures.has(JSON.stringify([stack.id, error.details])),

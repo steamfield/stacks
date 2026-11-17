@@ -1,19 +1,7 @@
 /**
- * Runs every check `stacks validate` makes over one registry root and collects the report.
- *
- * `commands/validate.ts` calls `validate` with the `Target` that `target.ts::resolveTarget` found
- * (a registry root, or one entry under it). This module builds a `View`, the one read-only picture
- * of the registry every check works from: the validated entries (those under the root), the
- * resolution set (every entry of every origin, with the root's entries winning), their source
- * text and a lazily rendered set of compositions. It then runs the check groups in `checks`, one
- * module each, and sorts what they find.
- *
- * A problem in an entry is a finding (an error, warning or note), never a failure, so one bad
- * entry can't hide the rest; the command fails `ValidationFailed` on any error finding. The order
- * of `checks` and the sort in `compareFindings` decide the order a report lists findings in.
- * `preview.ts` reuses `checks`, `compareFindings` and `validationRoots` for `validate --brief`.
- *
- * Start at `validate`.
+ * Runs registry checks against one read-only view whose target root takes precedence when
+ * resolving references. Checks collect findings so one bad entry cannot hide the rest.
+ * `compareFindings` orders the findings.
  */
 import { Effect, Path } from "effect";
 import type { Finding, SizeRow, ValidateReport } from "../../schemas/validate";
@@ -48,7 +36,7 @@ import { verifyNotes } from "./verify-notes";
 import { versionSensitiveChecks } from "./version-sensitive";
 import { rootPaths } from "./view";
 
-/** Every check group, run in this order; each module owns one class of findings over the view. */
+/** Check order also breaks ties between size rows of the same kind. */
 export const checks: ReadonlyArray<Check> = [
   loadChecks,
   searchChecks,
@@ -141,7 +129,6 @@ function sourceEntries(
   return entries.filter((item) => validated.includes(item) || isFragment(item));
 }
 
-/** The view every check reads, over the resolution set `all`. */
 const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
   Effect.gen(function* () {
     const path = yield* Path.Path;
@@ -167,7 +154,6 @@ const buildView = (target: Target, all: ReadonlyArray<Entry | RejectedEntry>) =>
     } satisfies View;
   });
 
-/** Runs each check in order, one after another, and concatenates what they return. */
 const runChecks = (view: View, list: ReadonlyArray<Check>) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
@@ -180,7 +166,6 @@ const runChecks = (view: View, list: ReadonlyArray<Check>) =>
     return { findings, sizes };
   });
 
-/** The report: entry counts of the validated set, sorted findings and sorted size rows. */
 function buildReport(
   view: View,
   { findings, sizes }: { findings: Finding[]; sizes: SizeRow[] },
@@ -199,9 +184,8 @@ function buildReport(
 }
 
 /**
- * Validates the entries under `target.root` (or the one entry `target.only` names). Never stops
- * at the first bad entry: every problem is a finding. Fails only when a root can't be read.
- * `submission` adds the readiness checks for the public registry (`validate --submission`).
+ * An unreadable root fails validation itself. For an error finding, the command uses
+ * `ValidationFailed` and leaves result retention to `keepsResult`.
  */
 export const validate = (target: Target, options: { submission?: boolean } = {}) =>
   Effect.gen(function* () {

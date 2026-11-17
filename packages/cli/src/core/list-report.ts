@@ -1,16 +1,6 @@
 /**
- * Writes the text `stacks list` prints, in its two views.
- *
- * `renderList` is the catalog: one section each for stacks, fragments and apps, a block of rejected
- * entries (ones that failed to load, with the reason), then `Next:` lines suggesting a command to
- * try. `renderAddable` is the view inside a project: the fragments it can still add, each with the
- * `stacks add` command that applies it. `commands/list.ts` picks the view and builds the rows with
- * `list.ts`; `--json` prints the result itself and never comes here.
- *
- * Descriptions and stats wrap to `width`. `commands/list.ts` passes the terminal's width (at most
- * 80 columns) for a person and an unlimited one for an agent, so an agent gets each description on one line. Every
- * field that comes from an entry goes through `printable` (`text.ts`), so a crafted name or
- * description can't steer the terminal with escape codes.
+ * Renders the catalog and addable-fragment views. `printable` keeps entry text from issuing
+ * terminal control sequences.
  */
 import type { ListResult, ListRow } from "../schemas/list";
 import { plainStyle, type Style } from "../services/output";
@@ -37,8 +27,7 @@ function indentedLines(text: string, width: number, measure: Measure): string[] 
 }
 
 /**
- * A row's description under it. Whitespace (newlines included) folds to single spaces before
- * escaping, as wrapping would; an empty description prints nothing.
+ * Fold whitespace before escaping so agent descriptions stay on one line even at unlimited width.
  */
 function descriptionLines(
   description: string,
@@ -79,7 +68,6 @@ function ledgerFields(row: ListRow, ledgerPresent: boolean | undefined, style: S
   ];
 }
 
-/** How every row in one rendering lays out its columns. */
 type RowLayout = {
   idWidth: number;
   /** Set only when the rows come from more than one origin; otherwise the column is left out. */
@@ -103,11 +91,7 @@ function rowLine(row: ListRow, layout: RowLayout): string {
     .trimEnd();
 }
 
-/**
- * The human view: one section per group with rows, a Rejected block, then `Next:` lines. `all`
- * is every row in the registry (not only this group), which picks the stack `Next:` names. Every
- * field from an entry goes through `printable`, so no file can steer the terminal.
- */
+/** Hints use `all` so they can name a stack outside the displayed group. */
 export function renderList(
   result: ListResult,
   all: ReadonlyArray<ListRow>,
@@ -206,7 +190,6 @@ type AddableContext = {
   style?: Style;
 };
 
-/** The in-project view: each fragment the project can add, with the command that adds it. */
 export function renderAddable({
   addable,
   rejected,
@@ -230,7 +213,6 @@ export function renderAddable({
   ].join("\n");
 }
 
-/** Entries that failed to load, each with its reason and directory. */
 function rejectedLines(rejected: ListResult["rejected"]): string[] {
   if (!rejected.length) return [];
   return [

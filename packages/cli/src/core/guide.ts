@@ -1,20 +1,6 @@
 /**
- * The text that teaches a coding agent how to use stacks, and the authoring guide for people
- * writing their own entries.
- *
- * The agent guide (`guideText`) is the loop an agent follows: search for a stack, review it with
- * `show`, scaffold with `new`, then run `verify` until the project is green. It is reached three
- * ways: `stacks` with no arguments, `stacks guide`, and a short version (`helpFooter`) at the end
- * of the root `--help`. `--json` callers also get the loop as data (`guideCommands`). Every string
- * is fixed text the agent reads; `cli` is `Host.invocation`, the command name to print (`stacks`,
- * or the npx form).
- *
- * The authoring guide (`authorGuide`) prints the bundled `stacks-author` skill or one of its
- * reference topics. The skill links to its own files, which an agent reading it through the CLI
- * doesn't have, so `rewriteAuthorLinks` turns each link into the `guide author <topic>` command
- * that prints it. `core/skill.ts` reuses that rewrite for `skill install --print`.
- *
- * `commands/guide.ts` and `main.ts` render these; nothing here reads a project or a registry.
+ * Owns the CLI quick start and authoring guide. `rewriteAuthorLinks` makes the bundled skill
+ * navigable from a terminal when readers lack its files.
  */
 import { Effect, FileSystem, Path } from "effect";
 import { NotFound, PermissionDenied, Usage } from "../errors";
@@ -62,9 +48,8 @@ function rewriteLink(cli: string, link: string, label: string, target: string): 
 }
 
 /**
- * The authoring skill's links to its own files, rewritten to the command that prints each one, so
- * an agent reading through `guide author` can follow them without the files. Markdown links are
- * rewritten first (`rewriteLink`), then any bare `references/x.md` left in the prose.
+ * Rewrite Markdown links first with `rewriteLink` so link labels survive, then handle bare
+ * references.
  */
 export function rewriteAuthorLinks(text: string, cli: string): string {
   const linked = text.replace(
@@ -103,7 +88,6 @@ const readAuthorFile = (file: string) =>
       );
   });
 
-/** The `Usage` failure for a topic `guide author` doesn't have, with the closest topics. */
 const unknownTopic = (topic: string) =>
   new Usage({
     details: {
@@ -135,11 +119,7 @@ export const authorGuide = (topic: string | undefined) =>
     } satisfies GuideAuthorResult;
   });
 
-/**
- * The agent guide: what `stacks` with no arguments and `stacks guide` print, and the
- * footer on the root's `--help`. One text, reached three ways; it reads neither a project nor a
- * registry, so it works anywhere. `cli` is `Host.invocation`.
- */
+/** Fixed guidance works before a project or registry is available. `cli` is `Host.invocation`. */
 export const guideText = (cli: string) =>
   [
     `stacks starts projects for coding agents. It writes starter files and ${BRIEF_PATH}; verify runs the manifest's checks.`,

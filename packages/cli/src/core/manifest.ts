@@ -1,18 +1,6 @@
 /**
- * Builds, reads and finds a project's manifest, and computes the digests that let `stacks verify`
- * notice when its steps were edited.
- *
- * The manifest is `.stacks/manifest.json`, the committed record of what a project was composed
- * from (its stack and fragments, origins and trust) and of its verify steps, the commands that
- * define done. `stacks new` and `stacks add` build one with `buildManifest` and write it with
- * `encodeManifest`. `verify`, `runs` and telemetry find the nearest one with `locateManifest`, and
- * every reader (`add` and `list` too) decodes it with `readManifest`.
- *
- * Because the manifest lives inside the project, anyone (an agent included) can edit its steps.
- * So `verifyDigest` is a sha256 over the steps, `env` and `preset`, and a second copy is kept in
- * the state record outside the project (`project-state.ts`). `verify/tamper.ts` compares the two
- * before running anything (Trust model, point 5). The digests hash `canonical-json.ts` output and
- * are pinned by `tests/digest-golden.test.ts`, so their input must not change shape.
+ * Builds, reads and locates project manifests. Anyone who can write to the project, including an
+ * agent, can edit its steps, so `checkTamper` uses a separate `ProjectState` baseline (trust point 5).
  */
 import { createHash } from "node:crypto";
 import { Manifest, type ManifestStep, withStepDefaults } from "@steamfield/stacks-format";
@@ -25,16 +13,16 @@ import { canonicalJson } from "./canonical-json";
 import type { Composition } from "./compose/types";
 import type { Entry } from "./registry/entry";
 
-/** Where a project's manifest lives, relative to its root. */
 export { MANIFEST_PATH } from "../project-layout";
 
 /** What the digest reads from a manifest; a later optional field can't reach it by accident. */
 export type DigestInput = Pick<Manifest, "verify" | "env" | "preset">;
 
+/** Golden tests pin the hashed shape so a format change cannot look like an edited manifest. */
 const sha256 = (value: unknown) =>
   `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
 
-/** Every field verify reads from a step, defaults applied; `owner` is left out. */
+/** Include every execution field with defaults applied. `owner` is attribution only. */
 function digestable(step: ManifestStep) {
   const { owner: _owner, skipByDefault, ...fields } = step;
   return { ...withStepDefaults(fields), skipByDefault };
@@ -49,8 +37,8 @@ export function digestSettings(input: Pick<Manifest, "env" | "preset">): string 
   return sha256({ env: input.env, preset: input.preset });
 }
 /**
- * The tamper digest (Trust model, point 5): the steps in order, each with every field verify reads
- * and defaults applied, plus `env` and `preset`. `owner` and every other manifest field are out.
+ * Hashes the ordered execution fields with defaults applied, plus `env` and `preset`.
+ * `checkTamper` uses this digest (trust point 5).
  */
 export function digestSteps(input: DigestInput): string {
   return sha256({ verify: input.verify.map(digestable), env: input.env, preset: input.preset });
@@ -77,11 +65,7 @@ const projectId = Effect.gen(function* () {
   return formatUuid(bytes);
 });
 
-/**
- * The manifest `new` writes for a composition: a fresh project id and creation time, the entries
- * in composition order, the composed steps with their owner's id, and the digest over them.
- * `briefWords` is `renderBrief`'s count for the brief written beside it.
- */
+/** Keeps fragments and verify steps in composition order. `briefWords` comes from `renderBrief`. */
 export const buildManifest = (
   composition: Composition<Entry | null>,
   facts: { briefWords: number; mode?: "new" | "add" },

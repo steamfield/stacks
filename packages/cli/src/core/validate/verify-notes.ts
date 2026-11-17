@@ -1,15 +1,6 @@
 /**
- * Notes gaps and repetition in what an entry's verify steps check, when `stacks validate` runs.
- *
- * Verify steps are the commands `stacks verify` runs in a project, its definition of done. Two
- * things are worth an author's attention without being wrong: a fragment with no verify step, so
- * nothing would catch its deliverable breaking (`fragment-no-verify`), and two steps of one
- * composed manifest running the same command (`verify-run-duplicate`). Both are notes, because a
- * fragment may have nothing checkable and a repeated command may be intended.
- *
- * `core/validate/index.ts` runs `verifyNotes`, which reads the compositions `composed.ts` already
- * rendered (`view.composed`). `add-compositions.ts` reuses `duplicateRuns` for the manifests that
- * `stacks add` would produce.
+ * Notes missing fragment checks and duplicate verify commands. These are notes because some
+ * fragments have nothing checkable and a repeat can be intentional.
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -19,7 +10,6 @@ import { uniqueFindings } from "./composed";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
 
-/** Verification gaps are authoring notes, never warnings or composition failures. */
 export const verifyNotes: Check = (view) =>
   Effect.gen(function* () {
     const { snapshots } = yield* view.composed;
@@ -30,6 +20,7 @@ export const verifyNotes: Check = (view) =>
     return { findings: uniqueFindings(findings) };
   });
 
+/** Without a verify step, the fragment supplies no check that its deliverable still works. */
 function missingVerifyNotes(view: View): Finding[] {
   return view.entries
     .filter(isFragment)

@@ -1,20 +1,7 @@
 /**
- * Downloads and caches the signed remote index, the optional third registry root.
- *
- * Besides the project, user and bundled roots, the registry can read entries from an index
- * published at a URL: the official one (bin passes `officialUrl` once a host exists) or one a user
- * sets with `STACKS_INDEX_URL`. With neither, the origin is off and `status` reports `url: null`.
- * `core/registry/remote.ts` merges what `RemoteIndex.current` returns below project and user
- * entries and above bundled ones, and calls `RemoteIndex.bundle` to fetch an entry's files only
- * when a command needs that entry. `core/doctor.ts` prints `status`.
- *
- * The index is fetched through `core/cached-fetch.ts` (24-hour cache, 1,500 ms deadline, persisted
- * backoff) and checked by `remote-index/verification.ts`. Only the official URL's signature is
- * required, since only its entries are trusted (`.claude/rules/architecture.md`, "Trust model",
- * point 2). A bundle is accepted only when its id, kind and digest match the verified index, and it
- * is extracted by `remote-index/files.ts` into `<cache>/index/entries/<digest>/`. When that cache
- * can't be written, the bundle goes into a temporary directory that lives as long as the
- * invocation, so the command still works.
+ * Fetches and verifies the optional remote index through `makeCachedFetch` and `verifyIndex`
+ * (trust point 2). Bundles fall back to invocation-scoped temporary storage so an unwritable
+ * cache does not make them unusable.
  */
 import {
   bundleDigest,
@@ -33,7 +20,6 @@ import { type RemoteFailure, verifyIndex } from "./remote-index/verification";
 
 export { RemoteStatus } from "../schemas/remote-index";
 
-/** An index that passed `verifyIndex`. */
 type VerifiedIndex = RegistryIndex;
 type Access = {
   cache: Cache;
@@ -131,7 +117,7 @@ const storeBundle = Effect.fn("remoteIndex.storeBundle")(function* (
   return target;
 });
 
-/** Decodes a downloaded bundle, checks it against its index entry, and stores it. */
+/** A bundle must match the index entry's id, kind and digest before extraction. */
 const acceptBundle = Effect.fn("remoteIndex.acceptBundle")(function* (
   options: Pick<BundleAccess, "cache" | "temporary">,
   entry: IndexEntry,
@@ -177,7 +163,6 @@ function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): RemoteInde
   };
 }
 
-/** The signed remote index: its verified entries, their files and its cache status. */
 export class RemoteIndex extends Context.Service<
   RemoteIndex,
   {
@@ -207,6 +192,7 @@ export class RemoteIndex extends Context.Service<
         const url = (yield* config.indexUrl) ?? officialUrl;
         if (url === undefined) return unconfiguredIndex(config.offline);
         const cache = { fs, path, root: path.join((yield* config.paths).cache, "index") };
+        // Only the official index can confer trust, so `verifyIndex` requires its signature.
         const verification = { isDefaultUrl: url === officialUrl, keys };
         const cached = yield* makeCachedFetch({
           cache,

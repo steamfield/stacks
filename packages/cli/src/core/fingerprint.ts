@@ -1,23 +1,7 @@
 /**
- * Computes the two digests that identify what a composition is made of.
- *
- * A composition is a stack combined with fragments: its files, verify steps, env and notes.
- * `fingerprint` hashes all of it, the entries' frontmatter and bodies plus every file it would
- * write, rendered with fixed neutral template values (`compose/files.ts::NEUTRAL_VARS`) so the
- * project's name or author never changes the result. `stacks new --json` and the manifest carry
- * it, and telemetry and the ledger compare compositions by it. `scaffold/new.ts` already holds the
- * neutral-rendered files, so it calls `fingerprintFromFiles` directly instead of rendering twice.
- *
- * `proofFingerprint` is narrower: what a ledger proof (a recorded green run in
- * `registry/runs.json`) vouches for. It covers the stack's own content and verify steps but not
- * shared fragment content, which the canaries in `registry/canaries.json` prove instead, so a
- * change to a shared fragment doesn't make every stack's proof stale. `validate` and `show` use it
- * to tell whether a stack's last proof still applies.
- *
- * Both hash a sequence of framed fields: each field is its decimal byte length, `:`, then its raw
- * bytes (strings as UTF-8), and lists are preceded by their count, so no two different inputs can
- * produce the same byte stream. The byte order is persisted in manifests and ledgers and pinned by
- * `tests/fingerprint-snapshot.test.ts` and `tests/digest-golden.test.ts`; never reorder a field.
+ * Computes composition and proof fingerprints. Neutral template values keep project names and
+ * authors out of the composition digest. See `proofFingerprint` for how stack proofs stay current
+ * when shared content changes.
  */
 import { createHash } from "node:crypto";
 import { Effect } from "effect";
@@ -27,7 +11,10 @@ import type { Composition } from "./compose/types";
 import { Registry } from "./registry/registry";
 import { HYGIENE_TAG } from "./verify/plan";
 
-/** A sha256 fed one framed field at a time: decimal byte length, `:`, then the raw bytes. */
+/**
+ * Length-prefixed fields and list counts keep different inputs distinct. The persisted digest
+ * depends on field order and exact framing: decimal byte length, colon, then bytes (UTF-8 for text).
+ */
 function framedHash() {
   const hash = createHash("sha256");
   const encoder = new TextEncoder();
@@ -89,8 +76,8 @@ const addedFragments = (composition: Composition) =>
 /**
  * What a ledger proof covers: the stack's own directory (STACK.md, and the files, adapters and
  * payload this composition writes from it), the composed verify steps, the preset, payload and
- * added fragments. Shared fragment content is left out; the canaries in `registry/canaries.json`
- * prove it. `fingerprint` still identifies the whole composition for manifests and telemetry.
+ * added fragments. Canaries cover shared fragment content so a shared change need not stale
+ * every stack proof.
  */
 export const proofFingerprint = (composition: Composition) =>
   Effect.gen(function* () {

@@ -1,15 +1,6 @@
 /**
- * Works out what `stacks validate [path]` was pointed at: the bundled registry, a registry root, or
- * one entry inside a root.
- *
- * A registry root is a directory holding `stacks/` or `fragments/` (or `search/`); an entry is a
- * directory under one of those two, such as `<root>/stacks/go-cli`. `commands/validate.ts` calls
- * `resolveTarget` first and passes the `Target` to `index.ts::validate` or
- * `preview.ts::previewBrief`. Whether the target is the bundled registry matters later: the
- * bundled registry ships to every user, so it must resolve every reference inside itself.
- *
- * Start at `resolveTarget`; `resolveGiven` holds the rules for a given path, in the order they
- * apply.
+ * Resolves validation to a registry root or single entry and identifies the bundled target for
+ * `validationRoots`.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
@@ -19,9 +10,8 @@ import { markdownFile } from "../registry/entry";
 import { bundledRoot } from "../registry/registry";
 
 /**
- * What `validate` checks: a registry root, and with `only` one entry under it. `bundled` is true
- * for the bundled registry (the shipped one, or STACKS_REGISTRY_DIR), which must be
- * self-contained.
+ * What `validate` checks: a registry root, and with `only` one entry under it. `bundled`
+ * identifies the bundled registry, including a `STACKS_REGISTRY_DIR` override.
  */
 export type Target = {
   root: string;
@@ -34,7 +24,6 @@ const kinds = [
   { kind: "fragment", dir: "fragments" },
 ] as const;
 
-/** The services and the bundled root's real path every probe below reads. */
 type Probe = { fs: FileSystem.FileSystem; path: Path.Path; bundledReal: string };
 
 const missing = (looked: string) => new NotFound({ details: { suggestions: [], looked } });
@@ -89,7 +78,6 @@ const entryDirectory = (probe: Probe, at: string) =>
     return undefined;
   });
 
-/** Whether `at` holds a `STACK.md` or `FRAGMENT.md`. */
 const hasEntryFile = (probe: Probe, at: string) =>
   Effect.gen(function* () {
     for (const { kind } of kinds)
@@ -109,7 +97,6 @@ const entryOrRegistry = (probe: Probe, at: string) =>
     return (yield* registryDirectory(probe, at)) ?? entry;
   });
 
-/** The target for an existing absolute path `at`, or `NotFound` naming it. */
 const resolveGiven = (probe: Probe, at: string) =>
   Effect.gen(function* () {
     if (!(yield* isDirectory(probe.fs, at))) return yield* missing(at);

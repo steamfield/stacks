@@ -1,16 +1,6 @@
 /**
- * Builds the rows `stacks list` reports: one per usable entry, with the facts someone picks an
- * entry by (name, description, tags, origin, whether it is trusted, its author and last recorded
- * run).
- *
- * `commands/list.ts` reads the registry, the bundled ledger (`registry/runs.json`, the record of
- * bench runs) and published stats, then calls `listResult` for the `--json` result, `withStats` to
- * attach stats and `projectChoices` to find the fragments a project can still add.
- * `list-report.ts` writes the text. `show.ts` reuses `toRow` as the start of its fuller report.
- *
- * Entries split into three groups: stacks, fragments, and apps (fragments with category `app`).
- * Last runs, authors and stats are only attached to bundled and index entries, since only those
- * were proven or counted by the stacks maintainers. Start at `listResult`.
+ * Builds catalog rows and identifies addable project fragments. Published evidence applies only to
+ * bundled and index entries because only those were proven or counted by maintainers.
  */
 import {
   type AuthorsFile,
@@ -56,7 +46,6 @@ export function toRow(
   };
 }
 
-/** The index entry's author, else the bundled `authors.json` entry for a bundled entry. */
 function rowAuthor(entry: Entry, authors: AuthorsFile): string | undefined {
   if (entry.indexEntry?.author !== undefined) return entry.indexEntry.author;
   const key = authorKey(entry.kind, entry.id);
@@ -70,7 +59,6 @@ function rowLastRun(entry: Entry, records: ReadonlyArray<LedgerRecord>) {
   return entry.kind === "stack" && entry.origin === "bundled" ? lastRun(records, entry.id) : null;
 }
 
-/** Whether `row` belongs to `group`; every row does when no group is given. */
 export const inGroup = (row: ListRow, group: Group | undefined) =>
   group === undefined ||
   (group === "stacks" && row.kind === "stack") ||

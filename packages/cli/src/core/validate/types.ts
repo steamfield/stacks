@@ -1,10 +1,6 @@
 /**
- * The shapes every `stacks validate` check shares: the `View` a check reads, the `Check`
- * signature itself, and the composition plans `compositions.ts` checks each stack in.
- *
- * `index.ts::validate` (and `preview.ts::previewBrief` for `validate --brief`) builds one `View`
- * and hands it to every check module in this folder. The types live here, apart from `index.ts`,
- * so check modules can import them without importing the module that imports them.
+ * Defines shared validation contracts separately from check orchestration so checks can use them
+ * without depending on their runner.
  */
 import type { Kind, StackMeta } from "@steamfield/stacks-format";
 import type { Effect, FileSystem, Path } from "effect";
@@ -18,7 +14,6 @@ import type { Entry, RejectedEntry } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import type { EntrySources } from "./sources";
 
-/** The presets every stack's compositions are checked in. */
 export const PRESETS = ["default", "sandbox"] as const;
 export type Preset = (typeof PRESETS)[number];
 export type Stack = Entry & { meta: StackMeta };
@@ -30,16 +25,13 @@ export type PlanShape = {
   without: ReadonlyArray<string>;
 };
 
-/** One composition and the files it renders to, as the rendered-file checks read them. */
 export type Composed = { composition: Composition; files: ReadonlyArray<RenderedFile> };
 
 /** A `View` before its compositions are rendered, which is what rendering them reads. */
 export type SourceView = Omit<View, "composed">;
 
 /**
- * What rendering every composition under check produced (`composed.ts::composedFiles`): the
- * rendered snapshots, the findings rendering raised, and a key for each composition that failed
- * on a conflict, so `compose-each.ts` doesn't report the same conflict again.
+ * `composedFiles` records conflict keys so `reportedWhileRendering` can avoid duplicate findings.
  */
 export type RenderState = {
   snapshots: Composed[];

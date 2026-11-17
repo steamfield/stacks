@@ -1,24 +1,14 @@
 /**
- * Wraps long lines of text output to fit a person's terminal, for the human audience only.
- *
- * Commands such as `stacks show`, `list`, `search` and `guide` print entry descriptions and
- * guidance that can run hundreds of characters on one line. `textWidth` picks the width once per
- * command (a terminal-sized width for a person, no limit for an agent or a pipe, since an agent
- * reads lines whole), and the report renderers (`show-report.ts`, `list-report.ts`,
- * `search/report.ts`, `commands/guide.ts`) call `wrap` or `wrapWords` with it.
- *
- * Width is measured with an injected function, `Host.stringWidth` from `platform/width.ts`,
- * because a wide character such as a CJK ideograph or an emoji takes two terminal columns, and
- * this module stays pure. Markdown that has its own layout is left exactly as written: fenced
- * code blocks, indented lines and `-` list items pass through byte for byte, and blank lines
- * still separate paragraphs.
+ * Wraps human-facing text while preserving Markdown blocks with their own layout. Width
+ * measurement comes from `Host.stringWidth` so wide characters count correctly without introducing
+ * platform dependencies.
  */
 import { Option } from "effect";
 
 /** The opening line of a fenced code block, capturing its run of backticks or tildes. */
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
 
-/** Human text wraps at the terminal, between 20 and 80 columns; agent text never wraps. */
+/** Human text wraps at the terminal, between 20 and 80 columns. Agents read whole lines. */
 export function textWidth(human: boolean, columns: Option.Option<number>): number {
   if (!human) return Number.POSITIVE_INFINITY;
   return Option.match(columns, {

@@ -1,20 +1,6 @@
 /**
- * Checks the search cards of a registry when someone runs `stacks validate`.
- *
- * A search card is a small JSON file under the registry's `search/stacks/` or `search/fragments/`
- * directory that describes one entry (a stack or a fragment) for `stacks search`: a summary,
- * example requests, synonyms and labels such as platforms or languages. The labels must come from
- * the search vocabulary, the bundled `search/vocabulary.json` that maps each label to its aliases.
- *
- * `core/validate/index.ts` runs `searchChecks` over every validated entry and every card file in
- * the root, so a card whose entry is gone shows up as `search-orphan`. Each card is read and
- * decoded through `core/search/sidecar.ts`, its labels and size limits are checked here, its
- * `projectExamples` go to `search-examples.ts`, and its `source.digest` is compared with
- * `core/search/digest.ts::searchSourceDigest` to catch a card written against older entry text
- * (`search-stale`). Broken cards are errors; cards that are only unreviewed, too long or stale are
- * warnings, because search still works with them.
- *
- * Start at `searchChecks`.
+ * Validates registry search cards against the bundled vocabulary and uses `searchSourceDigest`
+ * to detect copy written against older entry text.
  */
 import type { Kind, SearchMetadata, SearchVocabulary } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Result } from "effect";
@@ -83,7 +69,6 @@ function sizeProblems(card: SearchMetadata): string[] {
   ];
 }
 
-/** Item-count limits on the list fields every card has. */
 function countProblems(card: SearchMetadata): string[] {
   const problems: string[] = [];
   if ((card.caveats?.length ?? 0) > 3) problems.push("caveats: at most 3 items");
@@ -100,7 +85,6 @@ function countProblems(card: SearchMetadata): string[] {
   return problems;
 }
 
-/** Word limits on the summary and on each request and caveat. */
 function wordProblems(card: SearchMetadata): string[] {
   const problems: string[] = [];
   if (countWords(card.summary) > 25) problems.push("summary: at most 25 words");
@@ -111,7 +95,6 @@ function wordProblems(card: SearchMetadata): string[] {
   return problems;
 }
 
-/** The word limit on the card's searchable text taken together. */
 function cardWordProblems(card: SearchMetadata): string[] {
   const text = [
     card.summary,
@@ -184,7 +167,6 @@ const ignoredVocabulary = Effect.fn("validate.searchVocabularyIgnored")(function
   return [note];
 });
 
-/** The bundled vocabulary, decoded, or the reason it can't be used. */
 const loadVocabulary = Effect.fn("validate.searchVocabularyLoad")(function* () {
   const registry = yield* Registry;
   const loaded = yield* Effect.result(registry.vocabulary);
@@ -278,7 +260,8 @@ const staleFindings = (card: SearchMetadata, entry: Entry, issue: CardIssue): Fi
 
 /**
  * A card stamped against other entry text. An unreviewed author draft has no reviewed baseline to
- * go stale against (submission restamps it), so for one this is only a note.
+ * go stale against (submission restamps it), so for one this is only a note. A stale reviewed
+ * card still works in search and gets a warning.
  */
 function staleFinding(card: SearchMetadata, issue: CardIssue): Finding {
   const draft = card.source.by === "author" && card.source.reviewedAt === null;
@@ -289,7 +272,7 @@ function staleFinding(card: SearchMetadata, issue: CardIssue): Finding {
   );
 }
 
-/** Check id and message pairs for a card that works but isn't ready to publish. */
+/** Copy review and length problems are warnings because the card still works in search. */
 function cardWarnings(card: SearchMetadata): Array<[string, string]> {
   const warnings: Array<[string, string]> = [];
   if (card.source.reviewedAt === null)
@@ -306,9 +289,7 @@ function cardWarnings(card: SearchMetadata): Array<[string, string]> {
 }
 
 /**
- * Whether reader-facing copy names a version such as `3.2`, `v18.1.0` or `5.x`. Plain copy
- * outlives releases, so it stays version-neutral; `deps.ts` applies the same rule to dependency
- * cards.
+ * Reader-facing copy outlives releases, so flag version claims such as `3.2`, `v18.1.0` and `5.x`.
  */
 export const versionedPlain = (text: string): boolean =>
   /\bv?\d+(?:\.\d+)+\b|\bv?\d+\.x\b/i.test(text);

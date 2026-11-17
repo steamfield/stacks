@@ -1,12 +1,6 @@
 /**
- * Turns a project name into the safe identifiers templates and the brief use.
- *
- * `stacks new --name "My App"` needs a directory name, a package name and an environment variable
- * prefix that every tool accepts. `slug` gives `my-app` and `envPrefix` gives `MY_APP`.
- * `scaffold/values.ts` fills the `project_slug` and `env_prefix` template values from them,
- * `brief/render.ts` prints them in the brief, and `add/name.ts`, `prompting.ts` and
- * `scaffold/new.ts` derive names and default directories with `slug`. Keeping one rule here means
- * the directory, the files and the brief always agree.
+ * Derives safe project slugs and environment prefixes. Shared normalization keeps directory names,
+ * templates and briefs in agreement.
  */
 
 /**

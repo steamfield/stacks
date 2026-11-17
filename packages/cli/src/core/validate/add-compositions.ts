@@ -1,19 +1,6 @@
 /**
- * Checks each validated fragment the way `stacks add` would apply it to an existing project.
- *
- * `stacks add` composes fragments (reusable additions such as CI or a database) onto a project
- * that already exists, and the brief it writes (the task text for the coding agent) has its own
- * add-mode sections and its own word budget. For every validated fragment, this check builds the
- * project each fitting stack's `new` would have produced (`canonicalHost`), then composes the
- * fragment onto it in add mode, in both presets, and once more onto a repository with no stack at
- * all. It reports a `compose-add` error when the fragment conflicts with that host, a `budget-add`
- * error when the merged add brief is over budget, and a `verify-run-duplicate` note when the
- * merged manifest (`.stacks/manifest.json`, the record of the project's verify steps) would run
- * one command twice.
- *
- * `index.ts` runs it during registry validation; the merge goes through the same
- * `add/manifest.ts::mergeAddManifest` and `brief/render.ts::renderBrief` that `stacks add` uses,
- * with the canonical render context from `budget.ts`. Start at `addCompositionChecks`.
+ * Checks fragment additions against canonical hosts and a repository without a stack. It
+ * exercises the production `mergeAddManifest` and `renderBrief` with canonical inputs.
  */
 import type { Manifest } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -57,7 +44,6 @@ export const addCompositionChecks: Check = (view) =>
 const hostLabel = (fragment: Entry, stack: Entry | null) =>
   `${fragment.id} ${stack ? `with ${stack.id}` : "without a stack"}`;
 
-/** Compose the fragment onto one host in add mode and check the merged manifest and brief. */
 const checkAddComposition = Effect.fn("validate.addComposition")(function* (
   view: View,
   fragment: Entry,
@@ -139,7 +125,6 @@ function duplicateRunNotes(
     );
 }
 
-/** The add brief's word count, rendered as `stacks add` would for a clean merge. */
 function addBriefWords(
   composition: Composition<Entry | null>,
   { applied, stack, manifest }: { applied: string[]; stack: Entry | null; manifest: Manifest },

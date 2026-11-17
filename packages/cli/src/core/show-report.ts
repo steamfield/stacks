@@ -1,16 +1,6 @@
 /**
- * Turns a `ShowReport` into the text `stacks show` prints for a person or an agent.
- *
- * `commands/show.ts` builds the report with `show.ts::showReport` and calls `renderShow`; `--json`
- * prints the report itself and never comes here. The text leads with the entry's plain-language
- * copy, then its metadata and dependencies, verify steps and shipped files, its size against the
- * word budgets, the last recorded run and published stats, and finally the entry's whole guidance
- * body. Nothing is filtered by agent or condition, so a reviewer reads every branch.
- *
- * Every line goes through `printable` (`text.ts`), because names, paths and the body come from
- * entry files and an untrusted entry must not be able to steer the terminal with escape codes.
- * A `layout`, passed only for the human audience, wraps prose to the terminal's width; agents get
- * each line whole. Start at `renderShow`.
+ * Renders entry reviews for people and agents. It shows every guidance branch so reviewers can
+ * inspect the full entry and uses `printable` to keep untrusted text from steering the terminal.
  */
 import type { RolledDependency, StackStatsDetail } from "@steamfield/stacks-format";
 import type { ShowReport } from "../schemas/show";
@@ -34,7 +24,6 @@ const listOrNone = (values: ReadonlyArray<string>) => (values.length ? values.jo
 
 const count = (value: number) => value.toLocaleString("en-US");
 
-/** Complete text review, including commands and every unfiltered guidance branch. */
 export function renderShow(
   report: ShowReport,
   invocation: string,
@@ -88,7 +77,6 @@ function plainLines(plain: ShowReport["plain"]): string[] {
   ];
 }
 
-/** Description, author, path, tags, dependencies, tools, decisions, env and commands. */
 function metadataLines(report: ShowReport, human: boolean): string[] {
   return [
     report.description,
@@ -293,7 +281,6 @@ function latestContentChange(stats: StackStatsDetail): string | undefined {
     .at(-1);
 }
 
-/** The guidance body, wrapped for a terminal when there is a layout. */
 function guidanceLines(body: string, layout: Layout | undefined): string[] {
   const text = body.trimEnd();
   if (!layout) return text.split("\n");

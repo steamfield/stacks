@@ -1,11 +1,6 @@
 /**
- * Warns, during `stacks validate`, about underlined (setext) headings in an entry's body.
- *
- * Markdown has two heading styles: `## Title` (ATX) and a line of text underlined with `===` or
- * `---` (setext). When the CLI writes the brief it nests each entry's ATX headings under its own
- * sections (`core/brief/headings.ts`), but it can't shift a setext heading's level, so one would
- * stand out of place in the brief. `index.ts` runs `headingChecks`; fenced code examples are
- * skipped because `proseLines` leaves them out.
+ * Flags setext headings in entry prose because `nest` cannot shift them under brief sections.
+ * `proseLines` skips fenced examples.
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";

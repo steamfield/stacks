@@ -1,11 +1,6 @@
 /**
- * Turns published stats into the flat fields and the one `Stats:` line `list` and `show` print.
- *
- * `core/stats.ts` fetches stats as cells (a value plus its bounds, or a suppressed marker when too
- * few projects reported). `core/list.ts` flattens them with `statsFields` into the shape a
- * `list --json` row carries, and `core/show-report.ts` does the same for one entry's detail;
- * `core/list-report.ts` and `core/show-report.ts` print `statsLine`. A suppressed cell becomes `null` and prints as
- * "unavailable" or is left out. Seeded development data says so next to its sample size.
+ * Flattens published stats cells and formats the shared stats line. A suppressed cell stays
+ * unavailable when too few projects reported, and `greenField` labels seeded data.
  */
 import type { CountCell, RateCell, ShareCell, ValueCell } from "@steamfield/stacks-format";
 import type { ListRow } from "../schemas/list";
@@ -49,7 +44,6 @@ function medianField(minutes: number): string {
   return `median to green ${minutes.toLocaleString("en-US", { maximumFractionDigits: 1 })} min`;
 }
 
-/** The one `Stats:` line `list` and `show` print; seeded data says so beside its sample. */
 export function statsLine(stats: StatsFields): string {
   const seeded = stats.population === "seeded development data";
   const fields = [

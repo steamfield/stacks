@@ -1,13 +1,6 @@
 /**
- * The first checks `stacks validate` runs on each entry: did it load at all, and does its
- * frontmatter (the YAML block at the top of `STACK.md` or `FRAGMENT.md`) follow the rules the
- * schema can't express.
- *
- * `index.ts` runs `loadChecks` first and `metadataChecks` a few groups later. The registry
- * (`core/registry/`) already decoded every entry and kept the ones it couldn't use as rejected
- * entries, or skipped them; `loadChecks` turns each of those into a finding with a check id that
- * says what went wrong. `metadataChecks` then reads the decoded metadata of the entries that did
- * load.
+ * Turns registry rejections and skips into findings and checks metadata constraints that the entry
+ * schema cannot express.
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
@@ -17,7 +10,6 @@ import { Registry, type Skipped } from "../registry/registry";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
 
-/** What a rejected entry's error means, as a check id. */
 function rejectedCheck(reason: string | undefined, error: string) {
   switch (reason) {
     case "symlink":
@@ -70,7 +62,6 @@ function symlinkFinding(path: Path.Path, root: string, dir: string): Finding | u
   };
 }
 
-/** An entry skipped because its `schema_version` is newer than this CLI reads. */
 const newerSchemaFinding = (view: View, skipped: { kind: Kind; id: string; dir: string }) =>
   finding(skipped, {
     check: "schema",
@@ -86,11 +77,6 @@ function skippedFinding(path: Path.Path, view: View, skipped: Skipped): Finding 
   return newerSchemaFinding(view, skipped);
 }
 
-/**
- * Entries that didn't load: a frontmatter that fails the schema (or isn't YAML, or is missing or
- * unreadable), an id that differs from the directory, a kind that differs from the file, a
- * symlink, and an entry skipped because its `schema_version` is newer than this CLI reads.
- */
 export const loadChecks: Check = (view) =>
   Effect.gen(function* () {
     const registry = yield* Registry;
@@ -180,7 +166,6 @@ function stackProblems(entry: Entry): Problem[] {
   return problems;
 }
 
-/** Frontmatter rules the schema can't express. */
 export const metadataChecks: Check = (view) =>
   Effect.sync(() => ({
     findings: view.entries.flatMap((entry) => {

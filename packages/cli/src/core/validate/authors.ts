@@ -1,10 +1,6 @@
 /**
- * Checks the author credits file of a registry when `stacks validate` runs on a whole root.
- *
- * `authors.json` maps an entry key (`stack/<id>` or `fragment/<id>`) to the GitHub login of the
- * person who owns it, the one who may update it. `stacks submit` records the login for each
- * submitted entry (`core/submit/assemble.ts`). `core/validate/index.ts` runs `authorChecks`, which
- * errors when the file doesn't decode or when a key names no entry in that root.
+ * Validates registry author credits against entries in the same root. The credited GitHub login
+ * identifies who can update an entry.
  */
 import { authorKey } from "@steamfield/stacks-format";
 import { Effect } from "effect";
@@ -19,11 +15,7 @@ const issue = (check: string, message: string): Finding => ({
   message,
 });
 
-/**
- * A registry root's `authors.json` (the bundled one holds it): it decodes, and every key names an
- * entry in that root, so a removed or renamed entry can't leave a credit behind. Checked only
- * when the whole root is validated.
- */
+/** Whole-root validation catches orphan credits after an entry is removed or renamed. */
 export const authorChecks: Check = Effect.fn("validate.authors")(function* (view) {
   if (view.only !== undefined) return { findings: [] };
   const bytes = yield* readSearchFile(view.root, "authors.json");

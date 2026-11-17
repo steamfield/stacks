@@ -1,16 +1,6 @@
 /**
- * Checks, during `stacks validate`, that verify steps and an entry's commands table agree.
- *
- * Every entry (a stack or a fragment) declares a commands table: the project commands such as
- * `test` or `lint` that its files provide. A verify step (one command the project's definition of
- * done runs) that calls `bun run <name>`, `make <name>` and the like should name a command the
- * composition declares, and every command a fragment declares should be run by some verify step,
- * or nothing ever proves it works. Both are warnings, reported against the entry that owns the
- * step or command.
- *
- * `validate/index.ts` runs `commandChecks` over each composed snapshot from `validate/composed.ts`.
- * `runnerTarget` is also how `shipped-refs.ts` and `native-refs.ts` read the command a config runs.
- * Commands are only tokenized here, never run (trust point 1).
+ * Checks that verify steps name declared commands and that fragments exercise the commands they
+ * ship. It uses `shellTokens` for static analysis (trust point 1).
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -35,7 +25,6 @@ function runnerWordTarget(words: readonly string[]): string | undefined {
   return target.replace(/:\*$/, "");
 }
 
-/** The word a package runner or `make` treats as the command name. */
 function runnerOperand(words: readonly string[]): string | undefined {
   const [runner, second] = words;
   if (runner === "make") return second;
@@ -72,7 +61,6 @@ export const commandChecks: Check = (view) =>
 /** Whether the entry at `dir` is in the validated set, so findings about it are reported. */
 const isValidated = (view: View, dir: string) => view.entries.some((entry) => entry.dir === dir);
 
-/** Verify steps that run a project command the composed commands table doesn't declare. */
 function undeclaredStepCommands(view: View, composition: Composition): Finding[] {
   const entries = [composition.stack, ...composition.fragments];
   const findings: Finding[] = [];
@@ -96,8 +84,8 @@ function undeclaredStepCommands(view: View, composition: Composition): Finding[]
 }
 
 /**
- * Commands a fragment declares that no verify step runs. A command the stack also declares is the
- * stack's to prove, so it is left out.
+ * Fragment commands need a verify step so there is evidence they work. The stack is responsible
+ * for proving commands it also declares.
  */
 function unrunFragmentCommands(view: View, composition: Composition): Finding[] {
   const ran = new Set(composition.verify.flatMap((step) => runnerTargets(step.run)));

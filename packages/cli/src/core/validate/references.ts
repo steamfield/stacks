@@ -1,12 +1,6 @@
 /**
- * Checks, for `stacks validate`, that every id an entry's frontmatter names points at a real entry.
- *
- * A stack lists the fragments it composes with (`fragments.required`, `default`, `optional`); a
- * fragment lists the fragments it `requires` or `conflicts` with and the stacks it `applies_to`. A
- * typo there would only surface when someone runs `stacks new`, so `index.ts` runs
- * `referenceChecks` over the `View`'s resolution set (every entry of every origin, the validated
- * root's entries winning). An id that resolves only to an entry outside the validated root is a
- * note naming that entry's origin, since the result then depends on what this machine holds.
+ * Checks frontmatter references against the resolution set. A reference resolved only outside the
+ * validated root gets a note because it depends on the machine’s other registries.
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -15,7 +9,6 @@ import { closest } from "../suggest";
 import type { Check, View } from "./types";
 import { entryFile, finding } from "./view";
 
-/** The resolution set split the way references read it. */
 type Targets = {
   fragments: ReadonlyArray<Entry | RejectedEntry>;
   stacks: ReadonlyArray<Entry | RejectedEntry>;
@@ -94,7 +87,6 @@ function appliesToReference(
   });
 }
 
-/** Every reference one entry makes, in field order. */
 function entryReferences(view: View, targets: Targets, entry: Entry): Array<Finding | undefined> {
   const named = namedFragments(entry).flatMap(([field, ids]) =>
     ids.map((id) => fragmentReference(view, targets, entry, { field, id })),
@@ -107,11 +99,8 @@ function entryReferences(view: View, targets: Targets, entry: Entry): Array<Find
 }
 
 /**
- * Every id an entry names resolves in the resolution set: a stack's `fragments.*`, a fragment's
- * `requires` and `conflicts`, and `applies_to` values, which may be a stack id or a tag some
- * stack declares. A reference that resolves only outside the root is a note naming the origin,
- * since the result then depends on this machine; the bundled registry resolves only inside
- * itself, so there it is simply unknown.
+ * Catch mistyped references before scaffolding tries to resolve them. `validationRoots` owns
+ * the bundled registry's self-contained resolution rules.
  */
 export const referenceChecks: Check = (view) =>
   Effect.sync(() => {

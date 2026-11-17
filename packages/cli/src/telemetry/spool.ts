@@ -4,7 +4,16 @@
  */
 import { TelemetryEvent, TelemetryEventV2, TelemetryEventV3 } from "@steamfield/stacks-format";
 import { Clock, Effect, Option, Schema } from "effect";
-import { DAY, directory, names, read, remove, type Storage, uuid, write } from "./storage";
+import {
+  DAY,
+  directory,
+  names,
+  read,
+  remove,
+  type Storage,
+  uuid,
+  write as writeFile,
+} from "./storage";
 
 /** Events older than this are dropped from the spool. */
 const MAX_EVENT_AGE = 7 * DAY;
@@ -52,11 +61,11 @@ export const trim = Effect.fn("telemetry.trim")(function* (store: Storage) {
 });
 
 /** Adds an event to the spool, then trims it. */
-export const enqueue = Effect.fn("telemetry.enqueue")(function* (
+export const write = Effect.fn("telemetry.spool.write")(function* (
   store: Storage,
   event: typeof Event.Type,
 ) {
-  yield* write(store, store.path.join("spool", `${event.eventId}.json`), event);
+  yield* writeFile(store, store.path.join("spool", `${event.eventId}.json`), event);
   yield* trim(store);
 });
 

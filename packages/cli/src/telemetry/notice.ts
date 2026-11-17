@@ -13,19 +13,23 @@ const NOTICE_VERSION = 2;
 const STALE_CLAIM_MS = 600_000;
 
 /**
- * What `showNotice` found. `shown` marks a notice run, which sends nothing. `claimId` is set when
+ * `isNoticeRun` covers a due notice even without an `Output`. `claimId` is set when
  * this run holds a pending claim it must settle, with `previous` the record the claim replaced.
  */
 export type NoticeOutcome = {
-  shown: boolean;
+  isNoticeRun: boolean;
   claimId: string | undefined;
   previous: typeof Notice.Type | undefined;
 };
 
 /** No notice is due on this run. */
-export const NO_NOTICE: NoticeOutcome = { shown: false, claimId: undefined, previous: undefined };
-const SHOWN_WITHOUT_CLAIM: NoticeOutcome = {
-  shown: true,
+export const NO_NOTICE: NoticeOutcome = {
+  isNoticeRun: false,
+  claimId: undefined,
+  previous: undefined,
+};
+const NOTICE_WITHOUT_CLAIM: NoticeOutcome = {
+  isNoticeRun: true,
   claimId: undefined,
   previous: undefined,
 };
@@ -90,13 +94,13 @@ const notifySecond = Effect.fn("telemetry.notifySecond")(function* (
       claimId,
     }),
   );
-  if (claimed._tag === "Failure") return SHOWN_WITHOUT_CLAIM;
+  if (claimed._tag === "Failure") return NOTICE_WITHOUT_CLAIM;
   yield* output.notice(text);
   if (yield* output.noticeDelivered) {
     yield* write(store, "notice.json", settledRecord(shown.value.noticeShownAt));
-    return SHOWN_WITHOUT_CLAIM;
+    return NOTICE_WITHOUT_CLAIM;
   }
-  return { shown: true, claimId, previous: shown.value };
+  return { isNoticeRun: true, claimId, previous: shown.value };
 });
 
 /**
@@ -116,13 +120,13 @@ export const showNotice = Effect.fn("telemetry.showNotice")(function* (input: {
     if (output !== undefined) return yield* notifySecond(store, output, input.secondText);
     const previous = yield* read(store, "notice.json", Notice).pipe(Effect.option);
     return Option.isSome(previous) && owesSecondNotice(previous.value)
-      ? SHOWN_WITHOUT_CLAIM
+      ? NOTICE_WITHOUT_CLAIM
       : NO_NOTICE;
   }
   if (reason !== "not_notified") return NO_NOTICE;
-  if (output === undefined) return SHOWN_WITHOUT_CLAIM;
+  if (output === undefined) return NOTICE_WITHOUT_CLAIM;
   return {
-    shown: true,
+    isNoticeRun: true,
     claimId: yield* claimNotice(store, output, input.firstText),
     previous: undefined,
   };

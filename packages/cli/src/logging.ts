@@ -2,7 +2,7 @@
  * Builds and drains the invocation's sanitized log records. The JSONL fields are a contract with
  * tools that read the log.
  */
-import { Context, Effect, FileSystem, Layer, Logger, Path, References } from "effect";
+import { Context, Effect, FileSystem, Layer, Logger, LogLevel, Path, References } from "effect";
 import type { LogSettings } from "./config";
 import { type AppError, exitCode } from "./errors";
 import { Output } from "./services/output";
@@ -65,6 +65,17 @@ export function entry(input: {
     };
   return record;
 }
+type CommandLog = {
+  finished: number;
+  started: number;
+  invocationId: string;
+  error: AppError | undefined;
+  defect: string | undefined;
+  unwritten: string | undefined;
+  status: number;
+  fields: Readonly<Record<string, string | number | boolean | null>>;
+};
+
 /**
  * The invocation's logger and its queue of records. `flush` writes and empties the queue; with
  * `quiet` it skips stderr (the JSON and agent audiences) and still appends to the file.
@@ -73,7 +84,7 @@ export class Logging extends Context.Service<
   Logging,
   {
     logger: Logger.Logger<unknown, void>;
-    records: LogEntry[];
+    command: (minimum: LogSettings["level"], summary: CommandLog) => void;
     flush: (settings: LogSettings, quiet?: boolean) => Effect.Effect<void>;
   }
 >()("stacks/Logging") {
@@ -112,7 +123,30 @@ export class Logging extends Context.Service<
         );
       return {
         logger,
-        records,
+        command: (
+          minimum,
+          { finished, started, invocationId, error, defect, unwritten, status, fields },
+        ) => {
+          const level = error ? "Error" : "Info";
+          if (LogLevel.isGreaterThan(minimum, level)) return;
+          records.push(
+            entry({
+              date: new Date(finished),
+              level,
+              message: "command",
+              annotations: {
+                invocationId,
+                duration: finished - started,
+                outcome: error ? "failure" : "success",
+                status,
+                ...fields,
+                ...(defect ? { defect } : {}),
+                ...(unwritten ? { result: "unwritten", resultError: unwritten } : {}),
+              },
+              error,
+            }),
+          );
+        },
         flush: (settings, quiet = false) =>
           Effect.gen(function* () {
             for (const record of records.splice(0)) {

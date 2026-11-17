@@ -7,7 +7,7 @@ import { CliError, CliOutput, Command, type HelpDoc } from "effect/cli";
 import { beforeSeparator, hasFlag } from "./argv";
 import { cli } from "./cli";
 import { captureUnknownFlagHelp, helpRecorder, subcommandNames, usage } from "./cli-usage";
-import { AppConfig, type LogSettings } from "./config";
+import { AppConfig } from "./config";
 import { helpFooter } from "./core/guide";
 import { Stats } from "./core/stats/index";
 import {
@@ -20,7 +20,7 @@ import {
   keepsResult,
   knownError,
 } from "./errors";
-import { defectTrace, entry, Logging } from "./logging";
+import { defectTrace, Logging } from "./logging";
 import { Host } from "./services/host";
 import { Invocation } from "./services/invocation";
 import { Output } from "./services/output";
@@ -85,9 +85,7 @@ export function main({
       const defect = written.defect ?? observed.defect;
       const status = exitStatus({ ...written, agentStatus: reported.state.status });
       const finished = yield* Clock.currentTimeMillis;
-      recordCommand({
-        settings,
-        logging,
+      logging.command(settings.level, {
         finished,
         started,
         invocationId,
@@ -252,64 +250,6 @@ const settleOutput = (
  */
 const expectedFailure = (error: AppError | undefined, defect: string | undefined) =>
   error !== undefined && defect === undefined;
-
-const LEVEL_RANK: Readonly<Record<LogSettings["level"], number>> = {
-  Trace: 0,
-  Debug: 1,
-  Info: 2,
-  Warn: 3,
-  Error: 4,
-  Fatal: 5,
-  None: 6,
-};
-
-type CommandLog = {
-  settings: LogSettings;
-  logging: { records: ReturnType<typeof entry>[] };
-  finished: number;
-  started: number;
-  invocationId: string;
-  error: AppError | undefined;
-  defect: string | undefined;
-  unwritten: string | undefined;
-  status: number;
-  fields: Readonly<Record<string, string | number | boolean | null>>;
-};
-/**
- * Queues the invocation's one `command` summary record: Error level on failure, Info on success,
- * and only when the configured level lets that level through.
- */
-function recordCommand({
-  settings,
-  logging,
-  finished,
-  started,
-  invocationId,
-  error,
-  defect,
-  unwritten,
-  status,
-  fields,
-}: CommandLog) {
-  if (LEVEL_RANK[settings.level] > LEVEL_RANK[error ? "Error" : "Info"]) return;
-  logging.records.push(
-    entry({
-      date: new Date(finished),
-      level: error ? "Error" : "Info",
-      message: "command",
-      annotations: {
-        invocationId,
-        duration: finished - started,
-        outcome: error ? "failure" : "success",
-        status,
-        ...fields,
-        ...(defect ? { defect } : {}),
-        ...(unwritten ? { result: "unwritten", resultError: unwritten } : {}),
-      },
-      error,
-    }),
-  );
-}
 
 /** Framework text is printed only on success: a help request or anything the framework logged. */
 function hasFrameworkOutput(observed: ObservedExit, framework: string[]): boolean {

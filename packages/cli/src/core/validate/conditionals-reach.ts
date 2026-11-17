@@ -1,15 +1,7 @@
 /**
- * Finds conditional blocks in a fragment's body that no real composition can ever keep.
- *
- * A fragment's guidance can hold `<!-- stacks:when stack=<id> -->` blocks: prose kept in the brief
- * (the task text the CLI writes for the coding agent) only when the fragment is composed onto that
- * stack. Such a block is dead when the named stack never brings the fragment in. If the
- * fragment's `applies_to` still admits the stack, the user can select it by hand (`--with` or
- * `stacks add`), so the finding is a note; if `applies_to` rules the stack out, the block can
- * never be kept and the finding is a warning.
- *
- * `validate/index.ts` runs `conditionalReachChecks`; `conditionals.ts` has already reported
- * malformed markers and unknown ids, so a body that doesn't scan is skipped here.
+ * Checks whether a fragment’s conditional blocks can reach their named stacks. Manual selection
+ * keeps an otherwise unused block reachable, so that case gets a note and a disallowed stack gets
+ * a warning.
  */
 import type { FragmentMeta } from "@steamfield/stacks-format";
 import { Effect } from "effect";
@@ -28,13 +20,13 @@ export const conditionalReachChecks: Check = (view) =>
 function entryReachFindings(view: View, entry: Entry): Finding[] {
   if (!isFragment(entry)) return [];
   const scanned = scanConditionals(entry.body);
+  // `conditionalChecks` reports malformed markers.
   if (!("blocks" in scanned)) return [];
   return scanned.blocks.flatMap((block) =>
     (block.condition.stack ?? []).flatMap((id) => reachFinding(view, entry, id, block.start) ?? []),
   );
 }
 
-/** The finding for a block naming stack `id` that starts on body line `start`, if it is dead. */
 function reachFinding(
   view: View,
   entry: Entry & { meta: FragmentMeta },
@@ -42,7 +34,7 @@ function reachFinding(
   start: number,
 ): Finding | undefined {
   const stack = view.all.filter(isStack).find((item) => item.id === id);
-  // An unknown stack is `conditional-ids`' error; a stack listing the fragment keeps the block.
+  // `conditionalChecks` reports unknown stacks. A stack listing the fragment keeps the block.
   if (!stack || Object.values(stack.meta.fragments).some((ids) => ids.includes(entry.id)))
     return undefined;
   const allowed = fitsStack(entry.meta.appliesTo, { id: stack.id, tags: stack.meta.tags });

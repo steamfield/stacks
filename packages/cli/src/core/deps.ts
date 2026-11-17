@@ -1,22 +1,6 @@
 /**
- * Lists which well-known libraries a project depends on, and at which major version, by reading
- * its manifest and lock files as plain data.
- *
- * After a green `stacks verify`, telemetry may report the project's dependencies so published
- * stats can say which libraries stacks projects use (`telemetry/projects.ts` calls
- * `readDependencies`). Four ecosystems are read from the project root: npm (`package.json`, with
- * installed versions from `node_modules/<name>/package.json`), PyPI (`pyproject.toml` with
- * `uv.lock` or `poetry.lock`), Go (`go.mod`) and crates (`Cargo.toml` with `Cargo.lock`). Only
- * names on the signed dependency allowlist (`DependencyAllowlist`, fetched by
- * `core/allowlist.ts`) are kept, so a private package name never leaves the machine.
- *
- * The CLI executes nothing it reads (`.claude/rules/architecture.md`, "Trust model", point 1), so
- * nothing here asks `npm`, `pip`, `go` or `cargo`: files are parsed as data by `deps/parse.ts`
- * and read through `deps/files.ts`, which keeps every read inside the project and small. A file
- * that is missing, unreadable or malformed adds nothing. The result is sorted and capped at 100
- * entries so it stays the same between runs. `goAllowlistKey` is shared with `show` and
- * `validate`, which match Go modules against the allowlist the same way. Start at
- * `readDependencies`.
+ * Reports allowlisted dependencies and their major versions from bounded project file reads (trust
+ * point 1). The allowlist keeps private package names out of reports.
  */
 import type { Dependency, DependencyAllowlist } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path } from "effect";
@@ -154,7 +138,6 @@ const installedNpm = (read: Read, name: string) =>
     }),
   );
 
-/** Allowed npm names, each with its installed major. */
 const readNpm = Effect.fn("deps.readNpm")(function* (read: Read, allowlist: DependencyAllowlist) {
   const manifest = yield* readParsed(read, "package.json", json);
   if (manifest === null) return [];
@@ -173,7 +156,6 @@ const readPythonLock = (read: Read) =>
     return uv ?? (yield* readParsed(read, "poetry.lock", toml));
   });
 
-/** Allowed PyPI names, with majors from the lockfile. */
 const readPython = Effect.fn("deps.readPython")(function* (
   read: Read,
   allowlist: DependencyAllowlist,
@@ -191,7 +173,6 @@ const readPython = Effect.fn("deps.readPython")(function* (
   );
 });
 
-/** Allowed Go modules, with majors from the versions `go.mod` requires. */
 const readGo = Effect.fn("deps.readGo")(function* (read: Read, allowlist: DependencyAllowlist) {
   const text = yield* read("go.mod");
   if (text === null) return [];
@@ -203,7 +184,6 @@ const readGo = Effect.fn("deps.readGo")(function* (read: Read, allowlist: Depend
     .map(({ name, version }): Dependency => ({ ecosystem: "go", name, major: major(version) }));
 });
 
-/** Allowed crates, with majors from `Cargo.lock`. */
 const readCargo = Effect.fn("deps.readCargo")(function* (
   read: Read,
   allowlist: DependencyAllowlist,
@@ -243,7 +223,6 @@ function byEcosystemThenName(a: Dependency, b: Dependency): number {
   return 0;
 }
 
-/** Read root manifest names and installed majors without running project code. */
 export const readDependencies = Effect.fn("deps.readDependencies")(function* (
   root: string,
   allowlist: DependencyAllowlist,
@@ -252,6 +231,7 @@ export const readDependencies = Effect.fn("deps.readDependencies")(function* (
   const path = yield* Path.Path;
   const realRoot = yield* fs.realPath(root).pipe(Effect.orElseSucceed(() => null));
   if (realRoot === null) return [];
+  // Bound and contain project reads. Missing, unreadable or malformed inputs contribute no facts.
   const read: Read = (relative) => readProjectFile(fs, path, realRoot, relative);
   const found = [
     ...(yield* readNpm(read, allowlist)),
@@ -259,5 +239,6 @@ export const readDependencies = Effect.fn("deps.readDependencies")(function* (
     ...(yield* readGo(read, allowlist)),
     ...(yield* readCargo(read, allowlist)),
   ];
+  // Sort before capping so the same dependencies survive regardless of manifest order.
   return mergeDuplicates(found).sort(byEcosystemThenName).slice(0, MAX_DEPENDENCIES);
 });

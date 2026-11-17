@@ -1,18 +1,7 @@
 /**
- * Builds `stacks validate --brief <stack>`: the brief `stacks new` would write for one
- * composition, its word count against the budget, and the findings that apply to it.
- *
- * A brief is the task text the CLI writes to `.stacks/BRIEF.md` for the coding agent, and a
- * composition is a stack (a recipe for a whole project) combined with fragments (reusable
- * additions). Authors use the preview to see exactly what an agent would read, without writing a
- * project. `commands/validate.ts` calls `previewBrief` and prints the result; the brief and its
- * fingerprint are compared by digest in tests, so the render must stay byte-identical.
- *
- * The preview composes through the same registry roots `validate` uses for the target and renders
- * with `budget.ts::canonicalContext`, so its numbers are the ones the budget checks see. It then
- * runs the registry checks from `index.ts::checks` over just the composed entries, leaving out the
- * ones that describe the whole registry rather than this composition (see `previewChecks`).
- * Compose failures (an unknown id, a conflict) fail the command instead of becoming findings.
+ * Lets authors inspect a composition's brief, fingerprint and findings before writing a project.
+ * It uses `canonicalContext` so budget counts agree with validation. Golden tests pin the brief
+ * and fingerprint bytes.
  */
 import { Effect, Path } from "effect";
 import { AppConfig } from "../../config";
@@ -44,9 +33,8 @@ type PreviewOptions = {
 };
 
 /**
- * The brief `new` would render for a composition, without writing anything: composed through the
- * same roots `validate` uses for `target`, and rendered with the canonical context, so its counts
- * are the ones the budget checks. Compose failures (an unknown id, a conflict) are the command's.
+ * Preview shares `validationRoots` with registry validation. A compose failure fails the
+ * command because there is no brief to show.
  */
 export const previewBrief = (target: Target, options: PreviewOptions) =>
   Effect.gen(function* () {
@@ -149,7 +137,6 @@ function previewChecks() {
   );
 }
 
-/** Run the preview's checks one after another and sort their findings as `validate` does. */
 const previewFindings = (view: View) =>
   Effect.map(
     Effect.forEach(previewChecks(), (check) => check(view)),

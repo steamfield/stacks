@@ -1,17 +1,7 @@
 /**
- * Checks the commands in one composed agent config file (Codex, Cursor or OpenCode) during
- * `stacks validate`.
- *
- * A hook or formatter command that calls a project command (`bun run lint`) should name one the
- * composition declares in its commands table, and one that runs a script (`.codex/hooks/x.sh`,
- * `bash scripts/fmt.sh`) should name a file the composition ships; otherwise the agent's hook
- * breaks in the new project (`ref-command`, `ref-hook`). A file that doesn't parse gets one
- * `ref-toml` or `ref-json` error and a file whose structure doesn't decode one `ref-config` error,
- * and its references are skipped. Commands are only read, never run (trust point 1).
- *
- * `shipped-refs.ts` calls `nativeReferences` for each rendered config file; `native-config.ts`
- * parses the formats. Each issue carries `matches`, which `shipped-refs.ts` uses to find which
- * entry's copy of a merged file holds the command.
+ * Checks command and script references in native agent configs through `parseNativeConfig`
+ * (trust point 1). A parse or schema failure ends the check with one issue. Command and script
+ * issues carry predicates to identify their contributors in a merged file.
  */
 import { Result } from "effect";
 import { runnerTarget } from "./commands";
@@ -23,7 +13,6 @@ import {
 } from "./native-config";
 import type { ReferenceIssue } from "./reference-issue";
 
-/** What the composition provides: the paths it ships and whether it declares a command. */
 type Provided = { paths: ReadonlySet<string>; declared: (target: string) => boolean };
 
 const SCRIPT_RUNTIMES = ["sh", "bash", "zsh", "node", "python", "python3", "bun"];
@@ -46,7 +35,7 @@ function invalid(check: string, kind: string): ReferenceIssue {
   };
 }
 
-/** An undeclared project command, then a missing script, for one command of the config. */
+/** A missing project command or shipped script can break a hook after scaffolding. */
 function commandReferences(
   path: string,
   command: NativeCommand,

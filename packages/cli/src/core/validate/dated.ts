@@ -1,17 +1,7 @@
 /**
- * Flags prose that will stop being true when a tool ships a new release, when `stacks validate`
- * runs.
- *
- * Entries are written once and read for years, while the tools they describe keep releasing. So
- * the product rule is that stacks hold no version literals and no dated claims: an agent picks
- * current versions when it builds the project. This check reads an entry's prose (its markdown
- * body, its `decisions` strings and every Markdown file it ships, including adapters for agents
- * not selected) and warns on two kinds of line: a dated phrase such as "as of March 2025", "rc" or
- * "nightly" (`dated-phrase`), and a pinned `x.y.z` version (`pinned-version`). Fenced code blocks
- * are skipped (`core/brief/headings.ts::proseLines`), since examples there are code, not claims.
- *
- * `core/validate/index.ts` runs `datedChecks`. `version-sensitive.ts` reuses `PINNED` to look for
- * versions in shipped config files.
+ * Flags release-sensitive claims because entry prose outlives tool releases and the agent picks
+ * current versions. This includes shipped Markdown for unselected adapters. `proseLines` skips
+ * fenced examples because their contents are code.
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -46,7 +36,6 @@ export const PINNED = /(?<![\d.])\d+\.\d+\.\d+(?![\d.])/;
  */
 type ProseSource = { text: string; offset: number; file: string };
 
-/** Prose only: bodies, decision strings and shipped Markdown, including unselected adapters. */
 export const datedChecks: Check = (view) =>
   Effect.sync(() => ({
     findings: view.entries.flatMap((entry) =>
@@ -87,7 +76,6 @@ function checkSource(entry: Entry, source: ProseSource): Finding[] {
   return proseLines(source.text).flatMap((line) => lineFindings(entry, source, line));
 }
 
-/** One finding per pattern that matches the line, quoting the matched phrase. */
 function lineFindings(
   entry: Entry,
   source: ProseSource,

@@ -1,13 +1,7 @@
 /**
- * Shortens a path for text output: a file inside the directory the user ran the command from is
- * printed relative to it, so a project made in the current directory prints as `my-app` rather
- * than its full absolute path.
- *
- * Commands that print a path in their human or agent text (`commands/list.ts`, `show.ts`,
- * `create.ts`, `skill.ts`, `validate.ts` and the handoff in `handoff.ts`) pass it through
- * `shownPath`. `--json` output and error details keep absolute paths, since a program reading
- * them has no working directory to resolve against (`.claude/rules/cli/cli.md`, "Three
- * audiences").
+ * Makes paths inside the working directory relative for text output. Structured output keeps
+ * absolute paths so readers can resolve them independently of their own working directory.
+ * Error details also stay absolute because `failureGuide` has no working directory.
  */
 import { Effect, FileSystem, Path } from "effect";
 

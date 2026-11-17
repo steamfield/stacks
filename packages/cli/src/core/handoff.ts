@@ -1,20 +1,6 @@
 /**
- * Decides who works on a project once `stacks new` or `stacks add` has written it, and writes the
- * text that tells them how to start.
- *
- * The handoff is the step that launches a coding agent on the project or points one at it. There
- * are four outcomes: `inside-agent` (the CLI is already running under an agent, so it tells that
- * agent to read the brief), `launch` (start an agent CLI, or the Codex app, with the prompt),
- * `choose` (several agents are installed, so ask a person) and `print` (show the prompt for the
- * user to paste). `decideHandoff` is pure: it takes facts as values and the first matching rule
- * wins, so rule order is behavior.
- *
- * `commands/handoff.ts` gathers those facts, calls `decideHandoff`, and carries out the result;
- * `core/add.ts` and `scaffold/new.ts` store `handoffRecord` in the manifest. The rules enforce
- * Trust model point 3 (an untrusted entry never reaches `launch` or `choose`) and point 4
- * (nothing launches or asks without a person at a terminal). The CLI starts only the fixed
- * launchers in `LAUNCH_ARGS`, never a program named by an entry (point 1). Start at
- * `decideHandoff`.
+ * Decides agent handoff and renders its prompt. `decideHandoff` owns launch eligibility (trust
+ * points 3 and 4), and `LAUNCH_ARGS` owns the fixed launchers (trust point 1).
  */
 import type { AgentId, DetectedAgent, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../project-layout";
@@ -32,10 +18,6 @@ type PrintReason =
   | "agent-not-found"
   | "not-chosen";
 
-/**
- * What `new` does once the project is written: tell the agent that called it what to do next,
- * launch an agent CLI with the prompt, or print the prompt for the user.
- */
 export type HandoffDecision =
   | {
       kind: "inside-agent";
@@ -67,8 +49,9 @@ type Launcher =
     };
 
 /**
- * How each agent CLI starts an interactive session with a first prompt. `checked` is the date
- * the row was last checked against the agent's documentation; unset until someone has.
+ * Fixed agent launchers keep entries from choosing an executable (trust point 1). `checked`
+ * records when the launcher was last verified against the agent's documentation and stays unset
+ * until that check happens.
  */
 export const LAUNCH_ARGS = {
   claude: {
@@ -135,7 +118,6 @@ export function launchDecision(agent: Harness, bin: string, prompt: string): Lau
 /** The picker's question after `pickerText`'s numbered list of `count` agents. */
 export const pickerQuestion = (count: number) => `Hand the project to [1-${count}, Enter for 1]: `;
 
-/** The picker's numbered list of the agents found, in the order given. */
 export const pickerText = (options: ReadonlyArray<Harness>) => {
   const rows = options.map((agent, index) => `  ${index + 1}) ${LAUNCH_ARGS[agent].label}`);
   return `Agents found:\n${rows.join("\n")}\n`;
@@ -173,7 +155,7 @@ export const candidates = (preferred: Harness | undefined, configured: ReadonlyA
  * The handoff, decided by the first rule that matches. The order is the behavior: each rule
  * outranks every rule below it. An untrusted entry stops at rule 5 at the latest, so it never
  * reaches `launch` or `choose` (trust point 3), and nothing launches or asks without a person at
- * a terminal (trust point 4).
+ * a terminal on both stdin and stdout (trust point 4).
  */
 export function decideHandoff(input: HandoffInput): HandoffDecision {
   const { untrusted } = input;
@@ -183,9 +165,9 @@ export function decideHandoff(input: HandoffInput): HandoffDecision {
   if (input.json) return printDecision("json", untrusted);
   // 3. `--no-launch` asks for the prompt only.
   if (!input.launch) return printDecision("no-launch", untrusted);
-  // 4. A launch or the picker needs a person at a terminal on both stdin and stdout.
+  // 4. Terminal eligibility.
   if (!input.stdinIsTTY || !input.stdoutIsTTY) return printDecision("not-a-terminal", untrusted);
-  // 5. An untrusted entry needs a person to read it before any agent acts on it.
+  // 5. Require review of untrusted entries.
   if (untrusted.length > 0) return printDecision("untrusted", untrusted);
   // 6. Everything is trusted and a person is at the terminal: pick an installed agent.
   return pickInstalledAgent(input);
@@ -267,9 +249,8 @@ type RenderContext = {
 };
 
 /**
- * The text after `new`'s summary for an outcome other than `launch`. `shown` is how the summary
- * showed the project (`core/shown-path.ts::shownPath`: relative when under the cwd). A human also
- * gets a ready-to-run example command; an agent has the prompt on the line above it already.
+ * Use `shownPath` for the same project path as the summary. Agents already have the prompt,
+ * so the ready-to-run example is for people at a terminal.
  */
 export function renderHandoff(
   decision: Exclude<HandoffDecision, { kind: "launch" | "choose" }>,

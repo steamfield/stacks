@@ -1,18 +1,7 @@
 /**
- * Reads and appends the run ledger, `registry/runs.json`: the record of maintainer runs that
- * scaffolded a bundled stack, let an agent (or no agent) build it, and verified the result.
- *
- * Each ledger record says which stack, added fragments, preset and agent were run, the result,
- * and a fingerprint of the stack's content at the time. `list` and `show` print a stack's latest
- * run as evidence (`lastRun`, `lastDefaultRecord`), and `validate` notes stacks whose content
- * changed since their last pass (`validate/ledger-notes.ts` with `latestRecord` and
- * `readCanaries`). Records are written only by maintainer scripts (`scripts/prove.ts`,
- * `scripts/bench/`, `scripts/ledger-import.ts`) through `appendRecord`; the CLI itself only reads.
- *
- * Records are decoded one by one, so a record written by a newer stacks, or one that doesn't
- * decode, is skipped and counted rather than failing the whole file. `appendRecord` keeps those
- * skipped records: it rewrites the file from the raw envelope, not from what a reader decoded. Two appends running at once take turns on the `runs.json.lock` directory
- * (creating a directory is atomic), and the new file replaces the old one with a single rename.
+ * Reads and appends the maintainer run ledger. Records decode independently so one bad or newer
+ * record leaves the others readable. Appends keep skipped records and serialize through
+ * `ledgerLock` before atomic replacement.
  */
 import { AgentId } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Path, Result, Schedule, Schema } from "effect";
@@ -186,12 +175,11 @@ const ledgerLock = (target: string, invalid: () => InvalidConfig) =>
     );
   });
 
-/** The ledger file's text: the raw records, then the new one, as two-space JSON. */
 function encodeLedger(records: ReadonlyArray<unknown>): string {
   return `${JSON.stringify({ schemaVersion: 1, records }, null, 2)}\n`;
 }
 
-/** Atomically replace the envelope, preserving unknown records and cleaning up on failure. */
+/** Maintainer scripts append through this entry point. The CLI only reads the ledger. */
 export const appendRecord = (
   registryDir: string,
   record: LedgerRecord,

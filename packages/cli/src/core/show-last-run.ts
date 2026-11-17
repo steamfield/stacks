@@ -1,20 +1,7 @@
 /**
- * Picks the recorded run `stacks show` reports for an entry, and checks whether that run still
- * proves what the entry would produce today.
- *
- * A recorded run is a bench pass kept in a ledger: the bundled `registry/runs.json` for bundled
- * entries, or the `lastRun` a signed index entry carries. Each record names the composition it ran
- * (stack, added fragments, preset and agent) and a fingerprint, a hash of what was composed. To
- * fill in `sameContent`, this module composes the same input again and compares fingerprints, so
- * the answer is true only when the run tested what a user would get now. A stack compares its own
- * proof fingerprint (`fingerprint.ts::proofFingerprint`, which leaves shared fragments out); a
- * fragment compares the whole composition's, because a fragment is only ever proven as part of a
- * stack.
- *
- * `show.ts::showReport` calls `reportLastRun`. Only index and bundled entries have a run; user and
- * project entries report none. A bundled run is recomposed against the bundled registry alone, so a
- * local entry shadowing one of its fragments can't make an old run look current. Start at
- * `reportLastRun`.
+ * Selects a recorded run for entry review and checks whether its proof still applies. Stacks use
+ * `proofFingerprint`, while fragments need a composition fingerprint because they are proven with
+ * a host. Bundled proofs use bundled inputs so local shadows cannot make an old run look current.
  */
 import type { AgentId } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -55,8 +42,8 @@ const isComparablePreset = (preset: string): preset is Preset =>
 
 /**
  * Whether composing `run` today hashes to `recorded` under any adapter set its agent label stands
- * for: one set for a single agent, every combination otherwise. A composition that fails counts as
- * no match.
+ * for: one set for a single agent, every combination otherwise. Recompose to check that the
+ * content covered by the proof still matches. A failed composition counts as no match.
  */
 const composesTo = <E, R>(
   run: RecordedComposition,
@@ -74,7 +61,6 @@ const composesTo = <E, R>(
     return currents.some((current) => Result.isSuccess(current) && current.success === recorded);
   });
 
-/** Whether the proof a signed index entry carries still matches the stack's content. */
 const indexSameContent = Effect.fn("show.indexSameContent")(function* (entry: Entry) {
   const proof = entry.indexEntry?.lastRun;
   if (!proof || !isComparablePreset(proof.preset)) return false;
@@ -118,7 +104,6 @@ const recordConcerns = (entry: Entry, record: LedgerRecord, metadata: Metadata) 
   );
 };
 
-/** Whether composing the record's input today selects the fragment `entry`. */
 const recordIncludes = (entry: Entry, record: LedgerRecord) =>
   Effect.gen(function* () {
     const current = yield* Effect.result(
@@ -204,7 +189,6 @@ export const reportLastRun = Effect.fn("show.lastRun")(function* (options: {
   if (entry.indexEntry?.lastRun && indexRun)
     return { ...indexRun, sameContent: yield* indexSameContent(entry) };
   if (entry.origin !== "bundled") return null;
-  // A bundled run is compared only to bundled inputs, never a local shadow of a fragment.
   const bundled = yield* registry.bundled;
   return yield* bundledLastRun(entry, records, bundled.metadata).pipe(
     Effect.provideService(Registry, { ...registry, ...bundled }),

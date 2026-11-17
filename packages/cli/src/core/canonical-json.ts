@@ -1,12 +1,6 @@
 /**
- * Turns a value into one exact JSON string, so the same data always hashes to the same digest.
- *
- * Plain `JSON.stringify` writes object keys in insertion order, so two equal objects built in a
- * different order would hash differently. Every persisted digest goes through this function: the
- * manifest's tamper digests (`manifest.ts::digestSteps`), composition fingerprints
- * (`fingerprint.ts`) and search digests (`search/digest.ts`). Its output is pinned by
- * `tests/digest-golden.test.ts`; changing a single byte would make every existing project's
- * manifest look tampered with.
+ * Canonicalizes JSON for persisted digests. Sorting keys makes the bytes independent of insertion
+ * order, and changing those bytes invalidates existing digests.
  */
 
 /** Orders keys by UTF-16 code units, the same order `Array.prototype.sort` gives strings. */

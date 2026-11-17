@@ -1,10 +1,6 @@
 /**
- * Lets `stacks search` show published stats beside a hit without making a request.
- *
- * `core/stats.ts` caches the published summary at `<cache>/stats/summary.json` when `list` runs.
- * `core/search/input.ts` reads that file with `readStatsCache` and picks one entry's numbers with
- * `cachedStats`. Search never refreshes the summary or writes the cache, and a missing, unreadable
- * or invalid file means no stats.
+ * Reads cached published stats for search, which leaves cache updates to `Stats.summary`. Missing,
+ * unreadable or invalid summaries yield no stats.
  */
 import type { SearchEvidence } from "@steamfield/stacks-format";
 import { type Kind, StatsSummary } from "@steamfield/stacks-format";

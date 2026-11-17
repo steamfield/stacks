@@ -1,17 +1,12 @@
 /**
- * The fixed text `stacks create` writes for a new skeleton entry (the stack or fragment Markdown
- * file and a stack's starter files), and the question it asks before copying an untrusted entry.
- *
- * `core/create.ts` uses these after it has checked the id, so the id is safe to place in the
- * frontmatter. The skeleton leaves `stacks:fill` markers for the author to replace; the submission
- * checks in `validate/submission.ts` flag any left before an entry is submitted. The text lives
- * apart from `create.ts` so the long templates don't bury the logic.
+ * Keeps the skeleton templates and copy confirmation text separate from `createEntry` so long
+ * templates leave creation logic readable.
  */
 import type { Category, Kind } from "@steamfield/stacks-format";
 
 /**
- * Fixed entry-format-v1 scaffolding; rendered only after the id has been validated. `category`
- * applies to fragments only.
+ * `createEntry` validates the id so it can be interpolated safely into YAML frontmatter.
+ * `category` applies to fragments only. `submissionChecks` checks for unfilled markers.
  */
 export function skeleton(kind: Kind, id: string, category: Category): string {
   return kind === "stack" ? stackSkeleton(id) : fragmentSkeleton(id, category);

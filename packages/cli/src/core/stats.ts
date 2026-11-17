@@ -1,18 +1,7 @@
 /**
- * Fetches the published usage stats that `stacks list` and `stacks show` print beside an entry.
- *
- * The hosted API publishes how often projects made from each stack or fragment reach a green
- * verify. `commands/list.ts` reads `Stats.summary` (every entry, from `<api>/v1/stats`) and
- * `core/show.ts` reads `Stats.detail` (one entry, from `<api>/v1/<kind>s/<id>/stats`);
- * `core/stats-text.ts` turns either into the printed `Stats:` line. Each resource is its own
- * cached fetch (`core/cached-fetch.ts`) with its own body and state file under `<cache>/stats/`:
- * `summary.json` and `<kind>-<id>.json`, each beside a `.state.json`.
- *
- * Stats are optional, so every failure means "no stats" and never a warning or a different exit.
- * No request is made under `--offline`, and offline returns no stats even when a cached copy
- * exists. A configured `STACKS_INDEX_URL` turns stats off, because the published numbers describe
- * the official registry, not that one. The summary can arrive in pages joined by a cursor; the
- * pages are fetched within one deadline and must agree on their header (window, date, population).
+ * Provides published usage stats through `makeCachedFetch`. Offline invocations omit even cached
+ * stats, and an alternate index URL disables stats because the counts describe the official
+ * registry. Listing and review can still succeed when a fetch fails and no stats are available.
  */
 import { type Kind, StatsDetail, StatsSummary } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Option, Path, Schema, type Scope } from "effect";
@@ -75,8 +64,8 @@ const appendPage = (joined: StatsSummary, page: StatsSummary) =>
   }).pipe(Effect.mapError((): CacheFailure => "invalid"));
 
 /**
- * Fetches every summary page and joins them. A page whose header differs from the first, or a
- * cursor seen before (a loop), fails as `invalid`.
+ * Join pages only when they describe the same snapshot. A repeated cursor fails to prevent a
+ * loop, and `makeCachedFetch` gives all pages one deadline.
  */
 const summaryPages = Effect.fn("stats.summaryPages")(function* (url: string, request: Request) {
   const fetchPage = (at: string) => request(at).pipe(Effect.flatMap(decodeWireSummary));
@@ -112,7 +101,6 @@ type StatsAccess = {
   offline: Effect.Effect<boolean>;
 };
 
-/** One entry's detail, through its own cached fetch. */
 const fetchDetail = Effect.fn("stats.detail")(function* (
   access: StatsAccess,
   kind: Kind,
@@ -143,7 +131,6 @@ const noStats = {
   detail: () => Effect.succeed(Option.none<StatsDetail>()),
 };
 
-/** Published stats for the official registry's entries. */
 export class Stats extends Context.Service<
   Stats,
   {

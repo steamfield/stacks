@@ -1,20 +1,6 @@
 /**
- * Keeps each project's state record: a small JSON file outside the project that `stacks verify`
- * trusts more than anything inside it.
- *
- * The manifest (`.stacks/manifest.json`) sits in the project, where an agent can edit it. So when
- * `stacks new` writes a manifest, `writeProjectState` also writes a second copy of its verify
- * digest to `<state dir>/projects/<projectId>.json` (the state directory is `Paths.state`, under
- * `XDG_STATE_HOME`). Before running any step, `verify/tamper.ts` looks the record up, by project
- * id with `findProjectState` and then by manifest path with `findProjectStateByPath`, and refuses
- * to run steps whose digest no longer matches (Trust model, point 5). The record also stores when
- * the project first went green, which `verify/record.ts` fills in and `runs.ts` reports.
- *
- * Writes go through `replace-file.ts::replaceFile`, so a symlink planted at the record is replaced
- * rather than followed. Callers decide whether a failed write matters: `new` and verify's timing
- * fields only warn, since some agent sandboxes allow writes only inside the project, while
- * `verify --accept-changes` and `add` use `replaceProjectState`, which puts the old bytes back if
- * the rest of their work fails.
+ * Stores project state outside the project as a separate baseline for `checkTamper`
+ * (trust point 5).
  */
 import { type Manifest, ProjectId } from "@steamfield/stacks-format";
 import { Effect, Exit, FileSystem, Option, Path, type PlatformError, Schema } from "effect";
@@ -41,9 +27,9 @@ export const ProjectState = Schema.Struct({
   /** `digestSettings` over the manifest's `env` and `preset`. */
   settingsDigest: Schema.String,
   createdAt: Schema.String,
-  /** When verify first finished green; filled by `verify/record.ts`. */
+  /** When `recordRun` first observed a full green verify. */
   firstGreenAt: Schema.NullOr(Schema.String),
-  /** When a test step first passed; filled by `verify/record.ts`. */
+  /** When `recordRun` first observed a passing test step. */
   firstTestPassAt: Schema.NullOr(Schema.String),
 });
 export type ProjectState = typeof ProjectState.Type;
@@ -78,18 +64,12 @@ export const projectStatePath = (projectId: string) =>
     return path.join(paths.state, "projects", `${projectId}.json`);
   });
 
-/** The filesystem reason a write failed, for warning text. */
 export const reasonOf = (error: PlatformError.PlatformError) => error.reason._tag;
 
 /**
- * Writes the state record for a manifest that is already on disk at `manifestPath`. The record
- * holds that file's real path. A manifest that can't be resolved is `PermissionDenied` (`read`).
- * The state directory being unwritable is not an error: the result is `{ written: false }` and a
- * warning is logged, since some agent sandboxes allow writes only inside the project.
- *
- * The record is written through `replaceFile` (an exclusive create in a fresh temporary
- * directory, renamed over `<projectId>.json`), which replaces a link rather than writing through
- * it. `removeProjectState` undoes it.
+ * Records the real path of an existing manifest. Failure to resolve the manifest is
+ * `PermissionDenied`. State write failures during scaffolding are warnings because some agent
+ * sandboxes permit writes only inside the project. `removeProjectState` undoes a successful write.
  */
 export const writeProjectState = (
   manifest: Manifest,
@@ -119,10 +99,9 @@ export const warnUnwritten = (error: PlatformError.PlatformError, target: string
   Effect.logWarning(`Project state record not written (${reasonOf(error)}): ${printable(target)}`);
 
 /**
- * Writes `state` to `target` (a `projectStatePath`), creating its directory, through
- * `replaceFile`: nothing planted there is followed, and a link at the record is replaced rather
- * than written through. Fails with the platform error; callers decide
- * whether that is a warning (`new`, verify's timing fields) or a refusal (`--accept-changes`).
+ * `replaceFile` replaces a symlink at the record path itself, so the write cannot follow it
+ * into another file. `recordRun` warns on timing write failures for the same sandbox reason as
+ * `writeProjectState`.
  */
 export const saveProjectState = (
   state: ProjectState,
@@ -169,9 +148,9 @@ const restoreOldBytes = (options: {
   });
 
 /**
- * Replace a record within the caller's transaction. Acquisition finishes the save before it can
- * be interrupted; failure or interruption of the scope restores the exact old bytes, or removes
- * a newly created record. The caller decides whether an unavailable state directory is fatal.
+ * `acceptChanges` and `applyAdd` keep the record update in their transaction so a later failure
+ * or interrupt restores the exact old bytes or removes a newly created record. Acquisition
+ * finishes the save before it can be interrupted. The caller decides whether a write failure is fatal.
  */
 export const replaceProjectState = (state: ProjectState, target: string) =>
   Effect.gen(function* () {
@@ -214,7 +193,7 @@ const readStateFile = (file: string) =>
   });
 
 /**
- * The tamper check's lookup by id: the record for `projectId` and its path, or `undefined` when
+ * `checkTamper`'s lookup by id: the record for `projectId` and its path, or `undefined` when
  * there is none or it is unreadable. A record a newer stacks wrote is `InvalidConfig` with its
  * path and version, never a silent fall back to checking the manifest alone.
  */
@@ -236,7 +215,7 @@ export const findProjectState = (
   });
 
 /**
- * The tamper check's lookup by path, for a manifest whose project id was edited: the first
+ * `checkTamper`'s lookup by path, for a manifest whose project id was edited: the first
  * record, by file name, whose `manifestPath` is `realManifestPath`. Records that can't be read,
  * decoded or are newer are passed over. Linear in the number of records.
  */

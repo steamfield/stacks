@@ -1,30 +1,15 @@
 /**
- * Reads the commands that coding agents' own config files would run, so `stacks validate` can
- * check them without running anything (trust point 1).
- *
- * Entries (stacks and fragments) may ship agent config in each agent's native format: Codex hooks
- * (`.codex/hooks.json`, or `hooks` in `.codex/config.toml`), Cursor hooks (`.cursor/hooks.json`)
- * and OpenCode settings (`opencode.json` or `.jsonc`, whose formatters and `bash` permission rules
- * name commands). This module parses each format and decodes only the part that names commands,
- * returning each as shell words (a `sh -c` or `bash -c` wrapper unwrapped to its script) and
- * whether it is a permission rule rather than something the agent runs.
- *
- * The schemas stay open: unknown keys and hook events the CLI doesn't know yet pass, so agents can
- * add settings without breaking validation. What fails is a known key or event spelled in the
- * wrong case (`Hooks`, `pretooluse`), because the agent would silently ignore it.
- *
- * `native-refs.ts` turns the commands into findings; `shipped-refs.ts` also uses
- * `parseNativeConfig` to locate the source file a finding came from. A merged file is decoded
- * whole, while one entry's copy may be a partial contribution (`decodedNativeSourceCommands`).
+ * Decodes command-bearing fields in native agent configs for static inspection (trust point 1).
+ * Open schemas allow future settings and events, while case errors in known keys would make agents
+ * silently ignore them. Source contributions can be partial because the merged file is decoded
+ * separately.
  */
 import { Result, Schema } from "effect";
 import { parse as parseToml } from "smol-toml";
 import { shellWords } from "../shell";
 
-/** One command a config names: its shell words, and whether it is a permission rule. */
 export type NativeCommand = { words: readonly string[]; permission: boolean };
 
-/** Whether `key` is one of `known` spelled in a different case. */
 const isMiscased = (known: readonly string[], key: string) =>
   known.some((expected) => expected !== key && expected.toLowerCase() === key.toLowerCase());
 
@@ -158,7 +143,6 @@ const NATIVE_CONFIGS = [
   "opencode.jsonc",
 ];
 
-/** Whether a project path is an agent config this module reads. */
 export function isNativeConfig(path: string): boolean {
   return NATIVE_CONFIGS.includes(path);
 }
@@ -182,7 +166,6 @@ function parseJsonc(text: string): unknown {
   );
 }
 
-/** The commands in a parsed, whole config, or a failure when its structure doesn't decode. */
 export function decodedNativeCommands(path: string, value: unknown) {
   return Result.try(() => nativeCommands(path, value));
 }

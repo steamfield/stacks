@@ -1,19 +1,10 @@
 /**
- * Replaces a file's contents all at once, so a reader never sees a half-written file.
- *
- * The new bytes go to a fresh temporary directory beside the target, then a single rename moves
- * them into place. A rename is atomic only within one filesystem, which is why the temporary
- * directory sits under the target's own parent. Renaming over the target also replaces a symlink
- * planted there instead of writing through it. The temporary directory is scoped, so it is removed
- * whether the write succeeds or not.
- *
- * Every rewrite of a file the CLI keeps between runs goes through here: the state record
- * (`project-state.ts`), the run ledger (`ledger.ts`), cached downloads (`cached-fetch.ts`), the
- * search backoff (`search/remote.ts`) and telemetry's state (`telemetry/storage.ts`).
+ * Replaces a file atomically so readers always get complete contents. A scoped temporary
+ * directory beside the target keeps the rename on one filesystem and ensures cleanup. The
+ * rename replaces a target symlink itself.
  */
 import { Effect, FileSystem, Path, type PlatformError } from "effect";
 
-/** Writes `text` to `target` through a temporary file and one rename; `mode` sets permissions. */
 export const replaceFile = (
   target: string,
   text: string | Uint8Array,

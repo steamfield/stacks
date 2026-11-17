@@ -1,17 +1,6 @@
 /**
- * Checks the conditional blocks in each entry's markdown body during `stacks validate`.
- *
- * An entry (a stack or a fragment) can wrap prose in `<!-- stacks:when ... -->` and
- * `<!-- stacks:end -->` markers so it reaches the brief (the task text the CLI writes for the
- * coding agent) only in some compositions; `compose/conditionals.ts` owns the syntax. This check
- * reports the first malformed marker in a body as an error (the scan stops there, so that entry
- * gets no other conditional findings). In a well-formed body it checks each block's values:
- * a `stack=` or `with=` id must name a known entry, and a `tag=` or `tag!=` value should be a tag
- * some stack declares, or the block is never kept.
- *
- * `validate/index.ts` runs `conditionalChecks`; `conditionals-reach.ts` then looks for blocks
- * whose stack exists but never brings the fragment in. Findings carry lines in the entry's file,
- * not its body, so an author can jump straight to them.
+ * Checks the markers parsed by `scanConditionals` and validates their ids and tags. Findings
+ * use file line numbers so authors can jump to the marker.
  */
 import { Effect } from "effect";
 import type { ConditionalProblem } from "../../errors";
@@ -51,6 +40,7 @@ const entryConditionalFindings = (view: View, entry: Entry, tags: ReadonlySet<st
     const offset = yield* bodyLineOffset(entry);
     const file = entryFile(view, entry);
     const scanned = scanConditionals(entry.body);
+    // The scanner stops at the first malformed marker, so there are no blocks to check.
     if (!("blocks" in scanned))
       return [
         finding(entry, {
@@ -114,6 +104,7 @@ function resolveId(
   };
 }
 
+/** An unknown tag cannot match any stack, which can leave a `tag=` branch permanently hidden. */
 function tagFindings(tags: ReadonlySet<string>, condition: Condition): ConditionalFinding[] {
   const undeclared = (key: string, values: ReadonlyArray<string>) =>
     values

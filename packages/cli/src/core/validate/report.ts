@@ -1,22 +1,14 @@
 /**
- * Turns `stacks validate` results into the text a person or an agent reads; `--json` output skips
- * this file and prints the report object as is.
- *
- * `commands/validate.ts` calls `renderReport` for a registry check, and the three `renderPreview*`
- * functions for `validate --brief`. Text differs by audience (`human` or `agent`, see
- * `services/output.ts`) only in which size rows it shows; every finding is printed either way.
- * Every value that came from an entry goes through `printable`, so a name or message holding
- * terminal escape sequences can't restyle or rewrite the terminal.
+ * Renders validation and brief-preview text. `printable` prevents entry values from altering
+ * terminal output.
  */
 import type { BriefPreview, Finding, SizeRow, ValidateReport } from "../../schemas/validate";
 import type { Audience } from "../../services/output";
 import { printable } from "../text";
 
-/** A number with thousands separators, as every count in the report prints. */
 const n = (value: number) => value.toLocaleString("en-US");
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
-/** A path or id as one shell word: as is when it is plain, single-quoted otherwise. */
 function shellWord(text: string): string {
   return /^[\w@%+=:,./-]+$/.test(text) ? text : `'${text.replaceAll("'", `'\\''`)}'`;
 }
@@ -33,7 +25,6 @@ function sizeLabel(row: SizeRow, shared: ReadonlySet<string>): string {
   return `${printable(row.entry)} (${row.preset})`;
 }
 
-/** One finding as an indented row, with the check ids padded to line up. */
 function findingLine(finding: Finding, checkWidth: number): string {
   const where = finding.file
     ? `${printable(finding.file)}${finding.line === undefined ? "" : `:${finding.line}`}: `
@@ -108,10 +99,8 @@ function nextLine(errors: number, options: ReportOptions): string | undefined {
 }
 
 /**
- * The text report: a header, findings grouped by entry, the size table, a total line, and a
- * `Next:` line. A human gets every size; an agent only the rows over their limit, and the root as
- * `root` (the command passes it relative to the working directory when it can be). Every value
- * from an entry goes through `printable`.
+ * Both audiences see every finding. Agents get only over-limit size rows and a root label from
+ * `shownPath`.
  */
 export function renderReport(report: ValidateReport, options: ReportOptions): string {
   const { stacks, fragments } = report.entries;

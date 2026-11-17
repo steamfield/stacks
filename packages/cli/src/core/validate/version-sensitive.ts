@@ -1,19 +1,7 @@
 /**
- * Warns when a config file an entry ships pins a tool version, when `stacks validate` runs.
- *
- * Stacks ship files such as `package.json`, `tsconfig.json`, a Dockerfile or a CI workflow, but
- * never the versions inside them: versions age, and the agent building the project picks current
- * ones (`.claude/rules/architecture.md`, "Humans own what lasts and agents own what ages"). This
- * check looks only at files whose format is tied to a tool's version (`VERSION_SENSITIVE`) and
- * reports the first version literal in each (`version-sensitive-file`). A literal is a pinned
- * `x.y.z` (`dated.ts::PINNED`), a semver range such as `^5` or `>=18`, a GitHub Action pinned by
- * tag or commit, a Go toolchain line, or a `"packageManager"` or `"engines"` key, which only ever
- * holds versions.
- *
- * Two places hold the project's own version rather than a tool's and are exempt: the leading
- * `"version"` of a `package.json` and the `<version>` directly under a Maven pom's `<project>`.
- *
- * `core/validate/index.ts` runs `versionSensitiveChecks`.
+ * Warns about tool versions in version-sensitive shipped configs because pins age and the agent
+ * picks current versions when building. The package and Maven project version fields are exempt
+ * because they identify the project itself.
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -35,7 +23,6 @@ const VERSION_SENSITIVE = [
   /(?:^|\/)(?:\.mvn\/wrapper\/maven-wrapper|gradle\/wrapper\/gradle-wrapper)\.properties$/,
 ];
 
-/** Any version literal: pinned, a range, an Action ref, or a Go toolchain directive. */
 const VERSION_LITERAL = new RegExp(
   [
     PINNED.source,
@@ -83,7 +70,6 @@ function firstPomVersion(text: string): string | undefined {
 /** The package's own `version`, like a pom's, is exempt: it versions the project, not a tool. */
 const OWN_VERSION = /^\{\s*(?:"[^"]*"\s*:\s*"[^"]*"\s*,\s*)*?"version"\s*:\s*"[^"]*"/;
 
-/** The version literal to report for a file, by its project path, or undefined when it has none. */
 function fileVersion(output: string, text: string): string | undefined {
   if (/(?:^|\/)pom\.xml$/.test(output)) return firstPomVersion(text);
   if (/(?:^|\/)package\.json$/.test(output))

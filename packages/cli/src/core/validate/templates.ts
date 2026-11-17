@@ -1,12 +1,7 @@
 /**
- * Warns, during `stacks validate`, about a GitHub Actions expression such as `${{ github.ref }}`
- * in a shipped `.tmpl` file.
- *
- * A file whose name ends in `.tmpl` is rendered when `stacks new` or `stacks add` writes it: each
- * `{{ name }}` token is replaced with a value such as the project name, and an unknown name fails
- * the render (`core/template.ts`). An Actions expression holds the same braces, so in a template
- * it is read as a template variable. The fix is to ship such a file without `.tmpl`. `index.ts`
- * runs `templateChecks` over the shipped files `sources.ts` read; a known variable is let through.
+ * Flags GitHub Actions expressions in shipped templates because `renderTemplate` interprets the
+ * braces as substitution tokens. Shipping the file without the template suffix leaves the
+ * expression intact.
  */
 import { Effect } from "effect";
 import type { Finding } from "../../schemas/validate";

@@ -1,17 +1,6 @@
 /**
- * Collects what `compositions.ts::compositionChecks` learns about one stack and turns it into
- * findings.
- *
- * `stacks validate` composes each stack (a recipe for a whole project) in many compositions: the
- * stack with its default fragments, with each extra fragment, with each compatible pair, each in
- * the `default` and `sandbox` presets. The same problem often shows up in several of them, so this
- * file groups results in a `StackResults` record while the compositions run (one failure per
- * message, one warning per code and id, one missing layer per name, each remembering the presets
- * it came up in) and writes one finding per group at the end with `stackFindings`.
- *
- * A layer is the kind of check a verify step performs (`install`, `lint`, `typecheck`, `test`).
- * Every stack's default composition must verify all four, plus a `serve` step with an `expect`
- * probe when the stack is tagged `web` or `api`. Finding messages here are user-visible text.
+ * Groups recurring problems across a stack’s compositions so each problem gets one finding.
+ * `missingLayers` defines the required checks, including an expect probe for web and API stacks.
  */
 import { APP_TAG } from "@steamfield/stacks-format";
 import type { Finding, SizeRow } from "../../schemas/validate";
@@ -35,7 +24,6 @@ type FailureGroup = {
 };
 type WarningGroup = ComposeWarning & { added: string | undefined; presets: Preset[] };
 
-/** Everything learned about one stack's compositions, grouped so each problem is reported once. */
 export type StackResults = {
   /** Over-budget findings, written as each composition is checked. */
   findings: Finding[];
@@ -65,7 +53,6 @@ export function emptyResults(): StackResults {
 const subject = (stack: string, preset: string, added?: string) =>
   `${stack} (${preset})${added === undefined ? "" : ` + ${added}`}`;
 
-/** Count a compose failure, merging it with the same failure from another preset. */
 export function recordFailure(
   state: StackResults,
   failure: { check: string; message: string },
@@ -140,7 +127,6 @@ export function recordMissingLayers(
 const baseSteps = (composition: Composition) =>
   composition.verify.filter((step) => !step.tags.includes(APP_TAG) && !step.skipByDefault);
 
-/** Layers the stack's own default composition doesn't cover; app steps don't count. */
 function missingLayers(stack: Stack, composition: Composition): string[] {
   const steps = baseSteps(composition);
   const layers = new Set(steps.map((step) => step.layer));
@@ -150,7 +136,7 @@ function missingLayers(stack: Stack, composition: Composition): string[] {
   return missing;
 }
 
-/** Every finding for the stack: budgets first, then failures, warnings and missing layers. */
+/** Returns user-facing messages, with budgets first, then failures, warnings and missing layers. */
 export function stackFindings(view: View, stack: Stack, state: StackResults): Finding[] {
   const file = entryFile(view, stack);
   const error = (fields: { check: string; message: string }) =>

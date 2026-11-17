@@ -1,17 +1,7 @@
 /**
- * Warns, during `stacks validate`, when the registry sits in a git checkout whose ignore rules
- * would keep one of an entry's own files out of every commit.
- *
- * An entry often ships a `.gitignore` for the projects it creates (`files/.gitignore`). That file
- * also applies to the registry's own checkout, so a pattern like `.env.*` silently ignores the
- * entry's `files/.env.example.tmpl` there: local runs pass, but the file is never committed or
- * published. `index.ts` runs `gitChecks`, which asks git (`git check-ignore`) which of the entries'
- * files are ignored and by which rule, and reports only rules from a `.gitignore` inside the
- * entry's own directory.
- *
- * git is a fixed program run with fixed arguments on paths the CLI listed itself, through
- * `Processes.exec` (argv, no shell). Nothing from an entry is executed (Trust model point 1), and
- * the hardening flags stop git running hooks or a filesystem monitor from its configuration.
+ * Finds files excluded by an entry's own Git ignore rules. A shipped `.gitignore` also affects
+ * the registry checkout and can keep a file out of the published registry even when a local
+ * scaffold can see it. `HARDENING` constrains the fixed `Processes.exec` call (trust point 1).
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Duration, Effect, FileSystem, Option, Path, Result } from "effect";
@@ -27,9 +17,9 @@ import { finding } from "./view";
 /** Paths per `git check-ignore` call, well under any argv limit. */
 const BATCH = 200;
 /**
- * git runs no program it finds in configuration (no hooks, no fsmonitor), and prints paths as
- * given rather than quoting non-ASCII. (`-z` needs `--stdin`, which `exec` doesn't offer; a
- * path git still quotes, one holding a newline or a quote, isn't matched back and goes unreported.)
+ * Disable hooks and filesystem monitors, and keep non-ASCII paths unquoted. NUL-delimited
+ * output requires stdin, which `Processes.exec` closes. Git still quotes paths with quotes or
+ * newlines, so those paths go unmatched.
  */
 const HARDENING = [
   "-c",
@@ -72,7 +62,6 @@ const ownedFiles = (registry: Registry["Service"], view: View) =>
     return owners;
   });
 
-/** Records the rule behind each ignored path in one `check-ignore -v` output. */
 function collectRules(checkout: Checkout, stdout: string, rules: Map<string, Rule>) {
   const { path, toplevel, rootReal } = checkout;
   for (const line of stdout.split("\n")) {
@@ -144,7 +133,6 @@ const findCheckout = (
     } satisfies Checkout;
   });
 
-/** The warnings for every ignored path, in path order. */
 const ignoredFindings = (
   fs: FileSystem.FileSystem,
   checkout: Checkout,

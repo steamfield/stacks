@@ -1,19 +1,6 @@
 /**
- * The extra checks an entry must pass before it goes to the public registry, run by
- * `stacks validate --submission` and by `stacks submit` before it opens a pull request.
- *
- * Normal validation asks whether an entry works. Submission also asks whether it is safe and
- * finished enough to publish, so this check group reads every file in the entry directory, author
- * notes included, since they travel with a submission even though they never ship into a project.
- * Each text file is scanned line by line for a `stacks:fill` marker the author left (a placeholder
- * the CLI or an agent is meant to replace), a string shaped like a credential, and an absolute
- * path from the author's machine. A `.env` file and a missing search card are reported too.
- *
- * A fill marker in a shipped file is allowed when a verify step checks the project for markers in
- * that file, because then the project's own agent must fill it before verify passes.
- *
- * `core/validate/index.ts::validate` appends `submissionChecks` to the normal checks when asked.
- * Credential and path patterns live in `patterns.ts`. Start at `submissionChecks`.
+ * Checks whether an entry is ready to publish. It scans author-only files too because
+ * submissions include them.
  */
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -33,12 +20,7 @@ import { finding } from "./view";
  */
 type Area = "markdown" | "shipped" | "card" | "other";
 
-/**
- * `validate --submission`: what keeps an entry out of the public registry beyond the normal
- * checks. Left `stacks:fill` markers, credential-shaped strings and `.env` files are errors;
- * absolute home paths and a missing search card are warnings. Every finding names the file, and
- * the line where there is one. A finding never quotes the text it matched.
- */
+/** Findings identify the file and any available line number without quoting the matched text. */
 export const submissionChecks: Check = (view) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
@@ -52,9 +34,9 @@ function names(run: string, file: string): boolean {
 }
 
 /**
- * A shipped marker is the project's agent's to fill when a verify step checks the project for
- * markers in that file: the step's `run` mentions `stacks:fill` and the file's project path, as
- * shipped or with `.tmpl` dropped.
+ * A shipped marker may remain when a verify step mentions `stacks:fill` and the file's project
+ * path, as shipped or with `.tmpl` dropped. The expectation is that the project agent fills it
+ * before verify passes. This check inspects the step as text.
  */
 function fillChecked(entry: Entry, source: string): boolean {
   // The file's path in the project: without `files/` or `adapters/<agent>/`.

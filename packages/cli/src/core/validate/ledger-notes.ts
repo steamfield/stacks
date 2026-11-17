@@ -1,23 +1,7 @@
 /**
- * Compares each validated stack with its run history when `stacks validate` runs, and notes where
- * the history no longer proves the stack works.
- *
- * The ledger (`runs.json` at the registry root, read by `core/ledger.ts::readLedger`) records
- * proof runs: a stack scaffolded with a preset (`default` or `sandbox`) and an agent, verified,
- * and stamped with a pass, fail or partial result. Each record carries `fingerprint`, a hash of the
- * stack's own content and verify steps (`core/fingerprint.ts::proofFingerprint`). This module
- * recomposes the stack today, hashes it the same way and compares. A mismatch means the stack
- * changed since its last green run (`ledger-changed`).
- *
- * Only default compositions count (records that added no fragments). Records are grouped by
- * preset and agent; a key is current when its latest pass, or a pass of the same preset by another
- * agent or a scaffold proof (an agentless run), matches. Canaries, the stacks listed in
- * `canaries.json`, are held to more: a pass must match `compositionFingerprint`, the hash of the
- * whole composition, so a change to a shared fragment shows up too (`ledger-canary`).
- *
- * Everything here is a note, never a failure, because a stale proof doesn't break a project. The
- * exceptions concern the files themselves: an invalid ledger is an error (and stops the other
- * notes) and a bad `canaries.json` is a warning. Start at `ledgerChecks`.
+ * Checks whether ledger proofs still cover the validated stacks. Canaries use a composition
+ * fingerprint so changes to shared fragments surface. Stale proofs get notes because they do not
+ * break projects.
  */
 import { Effect, Result } from "effect";
 import type { LedgerRecord } from "../../schemas/ledger";
@@ -34,6 +18,7 @@ export const ledgerChecks: Check = (view) =>
   Effect.gen(function* () {
     const ledger = yield* readLedger(view.root);
     if (!ledger.present) return { findings: [] };
+    // A damaged ledger cannot support a comparison with the last passing run.
     if (!ledger.fileValid || ledger.skipped.invalid > 0) return { findings: [invalidLedger] };
     const findings: Finding[] = [];
     const canaries = yield* readCanaries(view.root);
@@ -64,7 +49,6 @@ const invalidLedger: Finding = {
     "runs.json has an invalid ledger envelope or schema-version-1 record; ledger notes were skipped",
 };
 
-/** A note about one stack, before it is placed on the stack's markdown file. */
 type Note = { check: string; message: string };
 
 /** The presets a proof run can use; any other recorded preset can't be recomposed and checked. */
@@ -90,7 +74,6 @@ function canaryFindings(canaries: ReadonlyArray<string> | null, stacks: Readonly
   return [warning];
 }
 
-/** Every note for one stack, given its default-composition records. */
 const stackNotes = (stack: Entry, own: ReadonlyArray<LedgerRecord>, canary: boolean) =>
   Effect.gen(function* () {
     const notes: Note[] = [];
@@ -163,7 +146,6 @@ const canaryStale = (stack: Entry, own: ReadonlyArray<LedgerRecord>) =>
     );
   });
 
-/** Whether a recomposition succeeded with exactly the recorded fingerprint. */
 const matches = (current: Result.Result<string, unknown>, recorded: string | undefined) =>
   Result.isSuccess(current) && current.success === recorded;
 

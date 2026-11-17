@@ -1,23 +1,7 @@
 /**
- * Fetches one remote JSON resource at most once a day, keeping a verified copy on disk.
- *
- * The CLI's optional network data (the signed remote index in `core/remote-index.ts`, the signed
- * dependency allowlist in `core/allowlist.ts`, published stats in `core/stats.ts`) all go through
- * `makeCachedFetch`. Each caller names a body file and a state file under its cache directory and
- * a `decode` that turns response text into a checked value. The body file holds the last response
- * that decoded; the state file records when it was cached, how the last request went and, per
- * request URL, until when that URL is in backoff.
- *
- * The rules a request follows:
- * - A cached body younger than 24 hours is used without a request.
- * - No request is made under `--offline`, when the caller turned fetching off, or while the URL's
- *   backoff hasn't expired. A failure backs the URL off for ten minutes, a 404 for 24 hours.
- * - A request (or a caller's several paged requests) gets 1,500 ms in total.
- * - A failed request, or a response that doesn't decode, keeps whatever was cached before.
- *
- * Network data is a nicety, so nothing here fails: an unreadable or unwritable cache file counts as
- * empty or is skipped, and every outcome comes back as `Option`. A saved state whose `url` differs
- * from the caller's (the user pointed the CLI elsewhere) is ignored along with its body.
+ * Caches an optional remote JSON resource and tracks backoff per URL. Cache and network failures are
+ * tolerated because callers can run without the resource. The cache ignores a previous URL so its data
+ * cannot be attributed to the current one.
  */
 import { Clock, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
@@ -25,7 +9,6 @@ import { RemoteStatus } from "../schemas/remote-index";
 import { replaceFile } from "./replace-file";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** How long a cached body is used before the next request. */
 const CACHE_LIFETIME_MS = DAY_MS;
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000;
 const NOT_FOUND_BACKOFF_MS = DAY_MS;
@@ -54,7 +37,6 @@ type Loader<A, R = never> = (
   request: Request,
 ) => Effect.Effect<Loaded<A>, CacheFailure, R | Scope.Scope>;
 
-/** One cached resource. */
 export type CachedResource<A> = {
   /** The cached body while fresh; otherwise a request, falling back to the cached body. */
   current: () => Effect.Effect<Option.Option<A>>;
@@ -194,7 +176,6 @@ export const makeCachedFetch = Effect.fn("cachedFetch.make")(function* <A>(optio
     return storedTime(state.backoffs[at] ?? null) <= now;
   });
 
-  /** Runs `load` for `at` unless fetching is off or `at` is in backoff; a failure backs it off. */
   const run = Effect.fn("cachedFetch.run")(function* <B, R>(at: string, load: Loader<B, R>) {
     yield* loadSaved;
     const now = yield* Clock.currentTimeMillis;

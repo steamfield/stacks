@@ -1,20 +1,7 @@
 /**
- * The word-budget and composition checks `stacks validate` runs for every stack it validates.
- *
- * A composition is what a stack (a recipe for a whole project) becomes once fragments (reusable
- * additions such as CI or a database) are combined onto it: files, verify steps and a brief, the
- * task text the coding agent reads. An author can only see one composition at a time with
- * `stacks new`, so this file builds the ones a user is likely to get and checks each:
- * `compositionPlans` lists them (the defaults, each extra fragment alone, each compatible pair,
- * in both the `default` and `sandbox` presets), `compositionChecks` composes each through
- * `compose/compose.ts::compose` and records failures, compose warnings, over-budget default briefs and
- * missing verify layers in `composition-findings.ts`. `bodyChecks` holds each entry's own body to
- * its limit from `budget.ts`.
- *
- * `index.ts` runs both checks over a registry; `preview.ts` runs `compositionChecks` over the one
- * composition `validate --brief` previews (`View.composition`). `composed.ts`, `compose-each.ts`
- * and `add-compositions.ts` reuse the plans, and `describe` turns a compose failure into the one
- * line every one of them reports. Start at `compositionChecks`.
+ * Checks stack compositions and entry word budgets. `compositionPlans` covers defaults, single
+ * extras and compatible pairs in both presets so authors can catch failures beyond the one project
+ * they scaffolded.
  */
 import type { FragmentMeta } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
@@ -96,7 +83,6 @@ export function replacementDefaults(view: Omit<View, "composed">, stack: Stack, 
   });
 }
 
-/** Default and single-extra plans, also used by the per-fragment rot check. */
 export function compositionSingles(view: Omit<View, "composed">, stack: Stack) {
   const { required, optional } = stack.meta.fragments;
   const defaults = stack.meta.fragments.default;
@@ -142,7 +128,7 @@ export function compositionPlans(view: Omit<View, "composed">, stack: Stack) {
   return [...singles, ...pairPlans(view, stack, extras)];
 }
 
-/** Every unordered pair of extras that may share a composition, in `extras` order. */
+/** Check each unordered pair once, in extras order, so findings have stable subjects. */
 function pairPlans(view: Omit<View, "composed">, stack: Stack, extras: ReadonlyArray<string>) {
   const fragments = new Map(
     view.all.flatMap((item) => (isLoadedFragment(item) ? [[item.id, item.meta] as const] : [])),
@@ -168,7 +154,6 @@ function pairPlans(view: Omit<View, "composed">, stack: Stack, extras: ReadonlyA
   );
 }
 
-/** Two fragments can share a composition unless both are apps or one conflicts with the other. */
 function canPair(left: FragmentMeta, right: FragmentMeta, [first, second]: [string, string]) {
   if (left.category === "app" && right.category === "app") return false;
   return !left.conflicts.includes(second) && !right.conflicts.includes(first);
@@ -257,12 +242,6 @@ function invalidEntryReported(view: View, error: EntryInvalid): boolean {
   );
 }
 
-/**
- * Each validated stack composed in each plan: a failure is a `compose` (or
- * `step-names`) error, a default brief over its limit is `budget-composed`, and the default composition
- * must verify every layer (`install`, `lint`, `typecheck`, `test`). Briefs are rendered with the
- * canonical context; untrusted entries get no special section.
- */
 export const compositionChecks: Check = (view) =>
   Effect.gen(function* () {
     const findings: Finding[] = [];
@@ -310,7 +289,6 @@ type CompositionCase = {
   agents: Composition["agents"];
 };
 
-/** Compose one plan and record what it shows; false when it didn't compose. */
 const checkComposition = (view: View, check: CompositionCase, state: StackResults) =>
   Effect.gen(function* () {
     const { stack, preset, plan } = check;

@@ -1,21 +1,6 @@
 /**
- * Checks, during `stacks validate`, that the config files a composition ships only point at things
- * the same composition provides.
- *
- * A composition (one stack combined with fragments) writes config that names other parts of the
- * project: `.claude/settings.json` permission rules and hooks, `.vscode/*.json` launch targets, and
- * agent configs for Codex, Cursor and OpenCode. For each composed snapshot (one rendered set of
- * project files) this module reads those files and reports a command no entry declares
- * (`ref-command`), a hook script no entry ships (`ref-hook`), a file that doesn't parse
- * (`ref-json`, `ref-toml`, `ref-config`) and a hardcoded `localhost:<port>` where the composition
- * declares a port variable (`ref-port`, a warning). Commands are only tokenized, never run (trust
- * point 1).
- *
- * `validate/index.ts` runs `shippedReferenceChecks` over the snapshots from `validate/composed.ts`.
- * Agent configs go to `native-refs.ts`. A finding is reported against the entry whose source file
- * holds the reference, found by `composed.ts::sourceOf`; for a file merged from several entries,
- * each issue's `matches` picks the contributor whose parsed copy contains it. Start at
- * `snapshotReferences`.
+ * Checks references in shipped configs using static parsing (trust point 1). `sourceOf`
+ * attributes issues to the files that contributed to the rendered config.
  */
 import { Effect, Predicate, Result } from "effect";
 import type { Finding } from "../../schemas/validate";
@@ -137,7 +122,6 @@ function fileReferences(
   jsonReferences({ snapshot, file }, { paths, declared }, emit);
 }
 
-/** Claude settings or a VS Code JSON file: its permissions, hooks, launch targets and ports. */
 function jsonReferences(
   { snapshot, file }: ReferenceFile,
   { paths, declared }: Provided,
@@ -171,7 +155,6 @@ function strings(value: unknown): string[] {
     : [];
 }
 
-/** Claude `Bash(...)` permission rules that run an undeclared project command. */
 function permissionReferences(json: Record<string, unknown>, declared: Declared, emit: Emit) {
   const permissions = Predicate.isObject(json.permissions) ? json.permissions : {};
   for (const list of ["allow", "deny"])
@@ -232,7 +215,6 @@ function launchTarget(value: unknown): string | undefined {
   return target && !/^[-/.$]/.test(target) && !/[/.$]/.test(target) ? target : undefined;
 }
 
-/** VS Code launch configurations that run an undeclared project command. */
 function launchReferences(json: Record<string, unknown>, declared: Declared, emit: Emit) {
   for (const config of Array.isArray(json.configurations) ? json.configurations : []) {
     if (!Predicate.isObject(config)) continue;
@@ -260,7 +242,7 @@ function hasLaunchTarget(json: unknown, field: string, target: string): boolean 
   );
 }
 
-/** Each distinct `localhost:<n>` or `127.0.0.1:<n>` literal, when the env declares a port. */
+/** A local port literal can bypass the port variable declared by the composition. */
 function portReferences(env: Record<string, string>, text: string, emit: Emit) {
   const portVars = Object.keys(env).filter((name) => /(?:^|_)PORT(?:_|$)/.test(name));
   if (!portVars.length) return;

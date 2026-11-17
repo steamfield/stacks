@@ -1,23 +1,13 @@
 /**
- * Writes values as shell arguments and splits shell commands into words, without running anything.
- *
- * Two directions, both text only. `shellArg` quotes a value so a command the CLI prints (a
- * `Next:` hint, the `Running:` line after a picker, a handoff `cd`) can be pasted into a shell
- * safely. `shellWords` and `shellTokens` read a command an entry declares, such as a verify step or
- * a hook in an agent's config, so `validate` (`core/validate/commands.ts`, `shipped-refs.ts`,
- * `imports.ts`, `native-config.ts`) can check which files and tools it names.
- *
- * The tokenizer understands quotes, backslash escapes, comments, operators and heredocs well enough
- * to find literal words. Expansions such as `$VAR` or `$(...)` stay as plain text: the CLI executes
- * nothing it reads (`.claude/rules/architecture.md`, "Trust model", point 1), so it never evaluates
- * them.
+ * Quotes shell arguments and tokenizes literal shell words for static checks. Expansions remain
+ * text (trust point 1).
  */
 
-/** A value as a shell argument: plain when it is safe, else single-quoted. */
+/** Keeps a value literal when a printed command is pasted into a shell. */
 export const shellArg = (text: string) =>
   /^[A-Za-z0-9._/+-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`;
 
-/** Literal shell words for static references; expansions remain text and nothing is executed. */
+/** `shellTokens` without newlines. Other shell operators remain in the result. */
 export function shellWords(command: string): string[] {
   return shellTokens(command)
     .filter((token) => !token.operator || token.word !== "\n")
@@ -52,10 +42,8 @@ function heredocEnd(command: string, start: number, heredoc: Heredoc): number {
 
 /**
  * Shell words and operators in order, with heredoc bodies skipped; newlines are operators.
- *
- * A single pass over the characters. The helpers below each handle one kind of character and
- * return the index of the last character they consumed, and they share the tokenizer's state: the
- * word being built, the open quote and the heredocs whose bodies start after the next newline.
+ * Scanner helpers return the last character they consumed. Pending heredoc bodies start
+ * after the next newline.
  */
 export function shellTokens(command: string) {
   const words: { word: string; operator: boolean }[] = [];

@@ -1,11 +1,4 @@
-/**
- * The shape of one problem found in a shipped agent or editor config (a command it runs, a file it
- * names) before `validate` knows which entry's source file it came from.
- *
- * `native-refs.ts` and `shipped-refs.ts` produce these while reading a rendered config; then
- * `shipped-refs.ts` locates each in the entry that contributed it (`composed.ts::sourceOf`) and
- * turns it into a finding.
- */
+/** Describes a reference problem in rendered config before `sourceOf` attributes it to an entry. */
 import type { Finding } from "../../schemas/validate";
 
 export type ReferenceIssue = {

@@ -1,21 +1,7 @@
 /**
- * Checks, during `stacks validate`, that a shipped source file imports only files that are sure
- * to be in the project beside it.
- *
- * Entries (stacks and fragments) ship code, and a composition (one stack combined with fragments)
- * writes every entry's files into one project. A file may import from its own entry, or from the
- * fragments its entry requires: a fragment's `requires`, followed transitively, or a stack's
- * `fragments.required`. Importing from a default or optional fragment works only while the user
- * keeps that fragment, so it is an `import-closure` error. A fragment's stack overlay (files under
- * `stacks/<stack>/`, written only onto that stack) may also import the host stack's files.
- *
- * Only static relative imports are read: `import`/`export ... from`, bare `import "..."` and
- * `require("...")` in TypeScript and JavaScript, and `source` or `.` in shell scripts. Comments are
- * blanked out first so a commented-out import isn't counted, and package imports are left to the
- * project's own dependency setup. Nothing is executed (trust point 1).
- *
- * `validate/index.ts` runs `importChecks` over each composed snapshot from `validate/composed.ts`;
- * `composed.ts::sourceOf` maps a rendered file back to the entry file that shipped it.
+ * Checks that shipped code imports files guaranteed to be present. Default and optional fragments
+ * can be removed, while an overlay can rely on its host. The check scans static references (trust
+ * point 1).
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, Path } from "effect";
@@ -28,7 +14,6 @@ import { finding } from "./view";
 
 type ComposedFile = Composed["files"][number];
 
-/** One snapshot's files, indexed for resolving imports. */
 type ImportFiles = {
   byPath: ReadonlyMap<string, ComposedFile>;
   paths: ReadonlySet<string>;
@@ -58,7 +43,6 @@ export const importChecks: Check = (view) =>
     return { findings: uniqueFindings(findings) };
   });
 
-/** Findings for one rendered file whose imports reach outside its entry's allowed owners. */
 function fileImportFindings(
   view: View,
   snapshot: Composed,
@@ -89,7 +73,6 @@ function fileImportFindings(
   return findings;
 }
 
-/** The file's imports, scanned once per distinct text and language across the whole check. */
 function cachedImports(
   file: ComposedFile,
   js: boolean,
@@ -126,8 +109,8 @@ function allowedOwners(view: View, entry: Entry, source: string): Set<string> {
 
 /**
  * The composed path an import specifier points at, or `undefined` when none exists. JavaScript
- * specifiers also try the TypeScript twin of a `.js` path, the usual extensions on an
- * extensionless path, and `index.ts` inside a directory.
+ * specifiers also try the TypeScript counterpart of a `.js` path, extension inference and
+ * `index.ts` inside a shipped directory.
  */
 function resolveImport(from: string, spec: string, files: ImportFiles, js: boolean) {
   const { path, paths } = files;
@@ -173,10 +156,8 @@ function javascriptImports(text: string): ImportRef[] {
   return refs;
 }
 
-/** The 1-based line of the character at `index`. */
 const lineOf = (text: string, index: number) => text.slice(0, index).split("\n").length;
 
-/** The scanner's position: inside a string (and which quote opened it), a comment, or code. */
 type MaskState = {
   chars: string[];
   code: Uint8Array;

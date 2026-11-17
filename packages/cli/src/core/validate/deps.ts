@@ -1,20 +1,6 @@
 /**
- * Checks the dependency allowlist and the dependency cards when `stacks validate` runs on the
- * bundled registry.
- *
- * The allowlist (`allowlist.json` at the registry root) is the reviewed list of package names,
- * per ecosystem (`npm`, `pypi`, `go`, `crates`), that entries may declare in their `deps`
- * frontmatter. A dependency card (`deps/<ecosystem>.json`) is a short plain-language note about one
- * allowlisted package, which `stacks show` prints beside an entry. Both are maintainer files kept
- * in the bundled registry, so the whole check group is skipped on a root without `allowlist.json`.
- *
- * `core/validate/index.ts` runs `dependencyChecks`. It reports a name allowlisted in two
- * ecosystems, a card for a name not on the allowlist, card copy that is too long, names a version
- * (the same rule as search cards, `search.ts::versionedPlain`) or is unreviewed or overdue for
- * review, and an entry dependency that is allowlisted but has no card. Go modules are matched
- * without their major-version suffix (`core/deps.ts::goAllowlistKey`).
- *
- * Start at `dependencyChecks`.
+ * Checks the target registry's dependency allowlist and cards when it has `allowlist.json`.
+ * `goAllowlistKey` and `versionedPlain` keep dependency matching and copy checks consistent.
  */
 import {
   DependencyAllowlist,
@@ -90,7 +76,6 @@ function allowlistFindings(names: DependencyAllowlist["names"]) {
   return { owners, findings };
 }
 
-/** Whether a card's copy breaks a word limit. */
 function tooLong(card: DependencyCard): boolean {
   return (
     countWords(card.whatItIs) > 30 ||
@@ -99,7 +84,6 @@ function tooLong(card: DependencyCard): boolean {
   );
 }
 
-/** All of a card's reader-facing copy, for the version check. */
 function cardProse(card: DependencyCard): string {
   return [
     card.whatItIs,
@@ -200,6 +184,7 @@ function missingFindings(view: View, owners: Owners, present: ReadonlySet<string
 
 export const dependencyChecks: Check = Effect.fn("validate.dependencies")(function* (view) {
   const read = yield* readAllowlist(view.root);
+  // Registries without an allowlist do not participate in maintaining dependency cards.
   if (read.state === "absent") return { findings: [] };
   if (read.state === "invalid")
     return {

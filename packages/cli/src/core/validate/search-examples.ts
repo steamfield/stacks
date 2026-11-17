@@ -1,17 +1,7 @@
 /**
- * Checks the project examples on a search card.
- *
- * A search card may list `projectExamples`: short stories of a project someone could build, each
- * naming a host stack and the fragments added to it. The website and `stacks show` print them, so
- * an example naming a missing stack or a fragment that doesn't fit would send a reader to a dead
- * end. `search.ts` calls `exampleProblems` for each card that otherwise checks out; every problem
- * comes back as text that `search.ts` joins into one `search-invalid` finding. Only the selection
- * is checked (`core/compose/selection.ts::selectFragments`, which resolves the fragments and their
- * dependencies). Rendering every example's files would cost far more and the composition checks
- * already cover rendering.
- *
- * `hedgedExamples` checks the copy instead: an example written as build steps or a disclaimer
- * becomes an `example-hedged` warning through `search.ts::cardWarnings`.
+ * Checks project examples so published cards point readers to stacks and fragments they can
+ * actually compose. `selectFragments` catches invalid selections without the cost of rendering
+ * files already covered by composition checks.
  */
 import type { SearchMetadata } from "@steamfield/stacks-format";
 import { Effect } from "effect";
@@ -94,7 +84,6 @@ const HEDGES = [
 ];
 const HEDGE_PATTERN = new RegExp(`\\b(${HEDGES.join("|")})\\b`, "i");
 
-/** One `example-hedged` warning message per example whose title or description uses a hedge. */
 export function hedgedExamples(card: SearchMetadata): string[] {
   return (card.projectExamples ?? []).flatMap((example, index) => {
     const text = `${example.title}\n${example.description}`.replaceAll("’", "'");

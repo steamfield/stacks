@@ -5,9 +5,9 @@ import { INCOMING, METADATA_DIR } from "../../project-layout";
 import type { AddResult } from "../../schemas/add";
 import { deepMerge } from "../compose/merge";
 import type { Composition, PlannedFile } from "../compose/types";
+import { gitToplevel } from "../project/git";
+import { within } from "../project/writer";
 import type { Entry } from "../registry/entry";
-import { gitToplevel } from "../scaffold/git";
-import { within } from "../scaffold/write";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

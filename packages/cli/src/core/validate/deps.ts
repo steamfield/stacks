@@ -12,7 +12,7 @@ import {
 import { Clock, Effect, FileSystem, Path, Result, Schema } from "effect";
 import type { Finding } from "../../schemas/validate";
 import { countWords } from "../brief/words";
-import { goAllowlistKey } from "../deps";
+import { goAllowlistKey } from "../deps/index";
 import { readSearchFile } from "../search/sidecar";
 import { versionedPlain } from "./search";
 import type { Check, View } from "./types";

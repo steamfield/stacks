@@ -12,14 +12,14 @@ import {
   STATE_DIR,
 } from "../../project-layout";
 import type { Brief } from "../brief/types";
-import { encodeManifest } from "../manifest";
+import { encodeManifest } from "../project/manifest";
 import {
   projectStateFor,
   projectStatePath,
   replaceProjectState,
   warnUnwritten,
-} from "../project-state";
-import { openProject } from "../scaffold/write";
+} from "../project/state";
+import { openProject } from "../project/writer";
 import type { AddPlan } from "./plan";
 import type { AddProject } from "./project";
 

@@ -4,12 +4,12 @@
  */
 import { type Manifest, ProjectId } from "@steamfield/stacks-format";
 import { Effect, Exit, FileSystem, Option, Path, type PlatformError, Schema } from "effect";
-import { AppConfig } from "../config";
-import { InvalidConfig, PermissionDenied } from "../errors";
-import { Invocation } from "../services/invocation";
-import { replaceFile } from "./fs/replace-file";
+import { AppConfig } from "../../config";
+import { InvalidConfig, PermissionDenied } from "../../errors";
+import { Invocation } from "../../services/invocation";
+import { replaceFile } from "../fs/replace-file";
+import { printable } from "../text/text";
 import { digestSettings, digestStep, newerSchemaVersion } from "./manifest";
-import { printable } from "./text/text";
 
 /**
  * The second copy of a project's verify digest, outside the project. `stepDigests` and

@@ -12,7 +12,7 @@ import { AppConfig, type Environment } from "../../src/config";
 import { compose } from "../../src/core/compose/compose";
 import type { ComposeOptions } from "../../src/core/compose/types";
 import { fingerprint, proofFingerprint } from "../../src/core/fingerprint";
-import { readManifest } from "../../src/core/manifest";
+import { readManifest } from "../../src/core/project/manifest";
 import { Registry } from "../../src/core/registry/registry";
 import { NewResult } from "../../src/schemas/new";
 import { Host } from "../../src/services/host";

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import { NewResult } from "../src/schemas/new";
 import type { VerifyResult } from "../src/schemas/verify";
 import { alive, quiet, runCli, terminal } from "./helpers/cli";

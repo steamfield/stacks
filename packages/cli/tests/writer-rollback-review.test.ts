@@ -2,7 +2,7 @@ import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import { Cause, Effect, FileSystem, PlatformError } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { openProject } from "../src/core/scaffold/write";
+import { openProject } from "../src/core/project/writer";
 import { BadInput } from "../src/errors";
 import { Invocation } from "../src/services/invocation";
 import { quiet, runCli, tempDir } from "./helpers/cli";

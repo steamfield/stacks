@@ -5,7 +5,7 @@
 import { Clock, Effect, type FileSystem, type Path, Ref, Schema } from "effect";
 import { Command, Flag } from "effect/cli";
 import { AppConfig } from "../config";
-import { locateManifest, readManifest } from "../core/manifest";
+import { locateManifest, readManifest } from "../core/project/manifest";
 import { planVerify } from "../core/verify/plan";
 import { type RecordFacts, recordRun } from "../core/verify/record";
 import { renderVerify } from "../core/verify/report";
@@ -23,7 +23,7 @@ import { VerifyResult } from "../schemas/verify";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
-import { splitValues } from "./handoff";
+import { splitValues } from "./project-flags";
 
 type VerifyFlags = {
   readonly only: ReadonlyArray<string>;

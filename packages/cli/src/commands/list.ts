@@ -13,7 +13,7 @@ import {
   withStats,
 } from "../core/list/index";
 import { renderAddable, renderList } from "../core/list/report";
-import { MANIFEST_PATH, readManifest } from "../core/manifest";
+import { MANIFEST_PATH, readManifest } from "../core/project/manifest";
 import { type Entry, isRejected, type RejectedEntry } from "../core/registry/entry";
 import { Registry } from "../core/registry/registry";
 import { remoteRoots } from "../core/registry/roots";

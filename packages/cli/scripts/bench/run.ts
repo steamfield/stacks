@@ -1,5 +1,5 @@
 import { Duration, Effect, FileSystem, Path } from "effect";
-import { agentPrompt } from "../../src/core/handoff";
+import { agentPrompt } from "../../src/core/handoff/render";
 import { Processes } from "../../src/services/processes";
 import { effortOf } from "./agents";
 import { shellArg, snapshot } from "./files";

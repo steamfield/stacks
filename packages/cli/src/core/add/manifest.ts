@@ -3,7 +3,7 @@
  * (trust point 5).
  */
 import type { DetectedAgent, Manifest } from "@steamfield/stacks-format";
-import { digestSteps } from "../manifest";
+import { digestSteps } from "../project/manifest";
 
 /**
  * Existing env values and commands win because they belong to the project. Record the new digest

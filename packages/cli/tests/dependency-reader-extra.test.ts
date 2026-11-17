@@ -4,7 +4,7 @@ import { NodeServices } from "@effect/platform-node";
 import { DependencyAllowlist } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { readDependencies } from "../src/core/deps";
+import { readDependencies } from "../src/core/deps/index";
 import { tempDir } from "./helpers/cli";
 
 const allowlist = Schema.decodeUnknownSync(DependencyAllowlist)({

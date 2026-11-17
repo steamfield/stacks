@@ -13,14 +13,14 @@ import { join } from "node:path";
 import type { Manifest } from "@steamfield/stacks-format";
 import { Exit, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import {
   ProjectState,
   projectStateFor,
   readProjectState,
   removeProjectState,
   writeProjectState,
-} from "../src/core/project-state";
+} from "../src/core/project/state";
 import { PermissionDenied } from "../src/errors";
 import { tempDir } from "./helpers/cli";
 import { manifestOf, runWith, succeed } from "./helpers/state";

@@ -11,7 +11,7 @@ import {
   encodeManifest,
   MANIFEST_PATH,
   readManifest,
-} from "../src/core/manifest";
+} from "../src/core/project/manifest";
 import { InvalidConfig, NotFound, PermissionDenied } from "../src/errors";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";
 import { composition, manifestOf, runWith, succeed } from "./helpers/state";

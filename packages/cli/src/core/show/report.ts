@@ -5,7 +5,7 @@
 import type { RolledDependency, StackStatsDetail } from "@steamfield/stacks-format";
 import type { ShowReport } from "../../schemas/show";
 import { plainStyle, type Style } from "../../services/output";
-import { goAllowlistKey } from "../deps";
+import { goAllowlistKey } from "../deps/index";
 import { DEFAULT_PAYLOAD } from "../registry/entry";
 import { statsFields, statsLine } from "../stats/text";
 import { printable } from "../text/text";

@@ -6,12 +6,12 @@ import { stripVTControlCharacters, styleText } from "node:util";
 import type { DetectedAgent } from "@steamfield/stacks-format";
 import { Clock, Context, Effect, Layer, Option, type Scope, Semaphore } from "effect";
 import { AppConfig } from "../config";
+import { failureGuide } from "../core/failure-guide";
 import { printable } from "../core/text";
 import {
   type AppError,
   BrokenPipe,
   encodeDetails,
-  failureGuide,
   keepsResult,
   PermissionDenied,
   retryable,

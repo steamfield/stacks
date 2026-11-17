@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { IndexEntry } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { toRow } from "../src/core/list";
+import { toRow } from "../src/core/list/index";
 import { ListResult } from "../src/schemas/list";
 import { ShowReport } from "../src/schemas/show";
 import { quiet, runCli } from "./helpers/cli";

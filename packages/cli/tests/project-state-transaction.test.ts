@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Cause, Effect, Exit } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { projectStateFor, replaceProjectState } from "../src/core/project-state";
+import { projectStateFor, replaceProjectState } from "../src/core/project/state";
 import { tempDir } from "./helpers/cli";
 import { manifest } from "./helpers/verify";
 

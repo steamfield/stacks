@@ -93,11 +93,11 @@ const BUILTIN =
   /^(?:node:.*|(?:assert|async_hooks|buffer|child_process|cluster|console|constants|crypto|dgram|diagnostics_channel|dns|domain|events|fs|http|http2|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|sea|sqlite|stream|string_decoder|sys|test|timers|tls|trace_events|tty|url|util|v8|vm|wasi|worker_threads|zlib)(?:\/.*)?)$/;
 /** The one builtin each file may import, for deterministic utilities and atomic rmdir. */
 const BUILTIN_ALLOWED: Readonly<Record<string, string>> = {
-  "core/manifest.ts": "node:crypto",
+  "core/project/manifest.ts": "node:crypto",
   "core/fingerprint.ts": "node:crypto",
   "core/search/digest.ts": "node:crypto",
   "services/output.ts": "node:util",
-  "core/scaffold/write.ts": "node:fs/promises",
+  "core/project/writer.ts": "node:fs/promises",
 };
 
 /** A relative import from `file` that lands in platform/ or commands/; Processes' own import is allowed. */

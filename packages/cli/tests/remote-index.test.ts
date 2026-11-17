@@ -15,7 +15,7 @@ import { EntryBundle, type IndexEntry, StatsSummary } from "@steamfield/stacks-f
 import { Effect, Fiber, Option, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
-import type { RemoteIndex } from "../src/core/remote-index";
+import type { RemoteIndex } from "../src/core/registry/remote/service";
 import { DoctorReport } from "../src/schemas/doctor";
 import { LedgerLastRun } from "../src/schemas/ledger";
 import { ListResult } from "../src/schemas/list";
@@ -101,7 +101,9 @@ function listedProof() {
 }
 function readRemote(env: Parameters<typeof remoteLayer>[2] = {}) {
   return Effect.gen(function* () {
-    const { RemoteIndex } = yield* Effect.promise(() => import("../src/core/remote-index"));
+    const { RemoteIndex } = yield* Effect.promise(
+      () => import("../src/core/registry/remote/service"),
+    );
     const layer = yield* Effect.promise(() => remoteLayer(home, server, env));
     const program: Effect.Effect<
       { index: Option.Option<unknown>; status: RemoteStatus },
@@ -116,7 +118,9 @@ function readRemote(env: Parameters<typeof remoteLayer>[2] = {}) {
 }
 function readBundle(entry: IndexEntry) {
   return Effect.gen(function* () {
-    const { RemoteIndex } = yield* Effect.promise(() => import("../src/core/remote-index"));
+    const { RemoteIndex } = yield* Effect.promise(
+      () => import("../src/core/registry/remote/service"),
+    );
     const layer = yield* Effect.promise(() => remoteLayer(home, server));
     const program: Effect.Effect<Option.Option<string>, unknown, RemoteIndex> = Effect.gen(
       function* () {
@@ -282,7 +286,7 @@ test.each([{ formatVersion: 2 }, { minCli: "99.0.0" }])(
 
 it.effect("a stalled HTTP response reaches its deadline and backs off ten minutes [4.0d#4]", () =>
   Effect.gen(function* () {
-    yield* Effect.promise(() => import("../src/core/remote-index"));
+    yield* Effect.promise(() => import("../src/core/registry/remote/service"));
     server.mode("hold");
     const fiber = yield* readRemote().pipe(Effect.forkChild);
     yield* Effect.promise(() => expect.poll(() => server.requests.length).toBe(1));
@@ -718,7 +722,9 @@ it.effect(
   "interrupting a bundle download keeps verified cache and unrelated entries [4.0d#21]",
   () =>
     Effect.gen(function* () {
-      const { RemoteIndex } = yield* Effect.promise(() => import("../src/core/remote-index"));
+      const { RemoteIndex } = yield* Effect.promise(
+        () => import("../src/core/registry/remote/service"),
+      );
       const layer = yield* Effect.promise(() => remoteLayer(home, server));
       const program: Effect.Effect<void, unknown, RemoteIndex> = Effect.gen(function* () {
         const remote = yield* RemoteIndex;

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Cause, Effect, Exit } from "effect";
 import { expect, test } from "vitest";
-import { skeleton } from "../src/core/create-text";
+import { skeleton } from "../src/core/create/text";
 import { assemble } from "../src/core/submit/assemble";
 import { tempDir } from "./helpers/cli";
 

@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { NodeServices } from "@effect/platform-node";
 import { Console, Effect } from "effect";
 import { Registry } from "../src/core/registry/registry";
-import { printable } from "../src/core/text";
+import { printable } from "../src/core/text/text";
 import { argumentsFor } from "./decorate/arguments";
 import { readConfig } from "./decorate/config";
 import { run } from "./decorate/run";

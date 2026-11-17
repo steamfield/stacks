@@ -9,7 +9,7 @@ import type { UpdateResult } from "../../schemas/update";
 import { Output } from "../../services/output";
 import { Processes } from "../../services/processes";
 import { PACKAGE, VERSION } from "../../version";
-import { shellArg } from "../shell";
+import { shellArg } from "../text/shell";
 import { installMethod } from "./install";
 import { latestVersion } from "./latest";
 import { compareVersions, Version } from "./version";

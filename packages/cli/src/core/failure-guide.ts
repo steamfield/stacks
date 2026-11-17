@@ -20,9 +20,9 @@ import type {
 } from "../errors";
 import { BRIEF_PATH, MANIFEST_PATH } from "../project-layout";
 import type { VerifyChange } from "../schemas/verify";
-import { shellArg } from "./shell";
 import { TEMPLATE_VARIABLES } from "./template";
-import { printable } from "./text";
+import { shellArg } from "./text/shell";
+import { printable } from "./text/text";
 import { verifyNext } from "./verify/next";
 
 // ---------------------------------------------------------------------------------------------

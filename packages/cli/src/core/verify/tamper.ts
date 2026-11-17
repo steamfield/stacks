@@ -9,7 +9,7 @@ import type { AppConfig } from "../../config";
 import { type InvalidConfig, PermissionDenied } from "../../errors";
 import { MANIFEST_PATH } from "../../project-layout";
 import type { VerifyChange } from "../../schemas/verify";
-import { digestSettings, digestStep, digestSteps, encodeManifest } from "../manifest";
+import { digestSettings, digestStep, digestSteps, encodeManifest } from "../project/manifest";
 import {
   type FoundState,
   findProjectState,
@@ -18,8 +18,8 @@ import {
   projectStateFor,
   projectStatePath,
   replaceProjectState,
-} from "../project-state";
-import { openProject } from "../scaffold/write";
+} from "../project/state";
+import { openProject } from "../project/writer";
 
 /** Update only the state record found by id. A record found by path under another id is `stale`. */
 export type Tamper = {

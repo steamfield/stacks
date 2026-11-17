@@ -16,7 +16,7 @@ import { Manifest } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { afterAll, test as baseTest, describe, expect, vi } from "vitest";
 import type { AgentAdapter } from "../scripts/bench/agents";
-import { shellArg } from "../src/core/shell";
+import { shellArg } from "../src/core/text/shell";
 import { AgentMarkers } from "../src/env-names";
 import { NewResult } from "../src/schemas/new";
 import { ProjectRuns } from "../src/schemas/runs";

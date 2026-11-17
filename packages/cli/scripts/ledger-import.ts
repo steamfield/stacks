@@ -7,7 +7,7 @@ import type { ComposeOptions } from "../src/core/compose/types";
 import { fingerprint, proofFingerprint } from "../src/core/fingerprint";
 import { appendRecord, readLedger } from "../src/core/ledger";
 import { Registry } from "../src/core/registry/registry";
-import { printable } from "../src/core/text";
+import { printable } from "../src/core/text/text";
 import { GIT_REPOSITORY_VARIABLES } from "../src/env-names";
 import type { InvalidConfig } from "../src/errors";
 import { Ledger, LedgerRecord } from "../src/schemas/ledger";

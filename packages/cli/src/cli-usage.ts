@@ -9,7 +9,7 @@ import {
   type HelpDoc,
 } from "effect/cli";
 import { cli } from "./cli";
-import { closest } from "./core/suggest";
+import { closest } from "./core/text/suggest";
 import { Usage } from "./errors";
 import { VERSION } from "./version";
 

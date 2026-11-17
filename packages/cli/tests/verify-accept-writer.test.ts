@@ -11,7 +11,7 @@ import {
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { digestSteps, encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import { ErrorEnvelope } from "../src/errors";
 import { quiet, runCli } from "./helpers/cli";
 import {

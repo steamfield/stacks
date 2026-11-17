@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
+import { encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
 import { AGENT_MARKER_NAMES } from "../src/env-names";
 import { alive, writeError } from "./helpers/cli";
 import {

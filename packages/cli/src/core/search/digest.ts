@@ -3,7 +3,7 @@
  * is stable because committed cards store it.
  */
 import { createHash } from "node:crypto";
-import { canonicalJson } from "../canonical-json";
+import { canonicalJson } from "../fs/canonical-json";
 import type { Entry } from "../registry/entry";
 
 /** Match `framedHash` fields: decimal byte length, a colon and the UTF-8 bytes. */

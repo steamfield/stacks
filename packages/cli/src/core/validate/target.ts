@@ -7,7 +7,7 @@ import { Effect, FileSystem, Path } from "effect";
 import { NotFound } from "../../errors";
 import { Host } from "../../services/host";
 import { markdownFile } from "../registry/entry";
-import { bundledRoot } from "../registry/registry";
+import { bundledRoot } from "../registry/roots";
 
 /**
  * What `validate` checks: a registry root, and with `only` one entry under it. `bundled`

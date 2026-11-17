@@ -5,7 +5,7 @@
 import type { SearchEvidence } from "@steamfield/stacks-format";
 import { type Kind, StatsSummary } from "@steamfield/stacks-format";
 import { Effect, FileSystem, Path, Schema } from "effect";
-import { AppConfig } from "../config";
+import { AppConfig } from "../../config";
 
 /** The cached published summary at any age, or undefined when it can't be read or decoded. */
 export const readStatsCache = Effect.fn("statsCache.read")(function* () {

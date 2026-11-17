@@ -3,8 +3,8 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { join } from "node:path";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
-import { trustQuestion } from "../src/core/create-text";
-import { shellWords } from "../src/core/shell";
+import { trustQuestion } from "../src/core/create/text";
+import { shellWords } from "../src/core/text/shell";
 import { ListResult } from "../src/schemas/list";
 import { entryPath, entrySnapshot, userRoot } from "./helpers/create";
 import { pickerCli, pickerManifest, pickerNew, pickerWorkspace } from "./helpers/picker";

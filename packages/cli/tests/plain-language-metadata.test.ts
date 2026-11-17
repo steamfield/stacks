@@ -11,7 +11,7 @@ import {
 } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { goAllowlistKey } from "../src/core/deps";
+import { goAllowlistKey } from "../src/core/deps/index";
 import { ShowReport } from "../src/schemas/show";
 import { ValidateReport } from "../src/schemas/validate";
 import { rawBundle } from "./fixtures/index/harness";

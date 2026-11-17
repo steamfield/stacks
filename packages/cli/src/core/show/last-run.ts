@@ -5,15 +5,15 @@
  */
 import type { AgentId } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
-import type { LedgerRecord } from "../schemas/ledger";
-import type { ListRow } from "../schemas/list";
-import { targetAgents } from "./compose/agents";
-import { compose } from "./compose/compose";
-import type { ComposeOptions, Composition } from "./compose/types";
-import { fingerprint, proofFingerprint } from "./fingerprint";
-import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets } from "./ledger";
-import type { Entry } from "./registry/entry";
-import { Registry } from "./registry/registry";
+import type { LedgerRecord } from "../../schemas/ledger";
+import type { ListRow } from "../../schemas/list";
+import { targetAgents } from "../compose/agents";
+import { compose } from "../compose/compose";
+import type { ComposeOptions, Composition } from "../compose/types";
+import { fingerprint, proofFingerprint } from "../fingerprint";
+import { lastDefaultRecord, latestMatchingRecord, ledgerAdapterSets } from "../ledger";
+import type { Entry } from "../registry/entry";
+import { Registry } from "../registry/registry";
 
 type Preset = ComposeOptions["preset"];
 

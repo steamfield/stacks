@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { closest } from "../src/core/suggest";
+import { closest } from "../src/core/text/suggest";
 
 test("a transposition counts as one edit", () => {
   // Plain Levenshtein puts both at 2 and the alphabet would put "abit" first.

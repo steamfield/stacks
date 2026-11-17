@@ -10,12 +10,12 @@ import {
   type StatsSummary,
 } from "@steamfield/stacks-format";
 import { Schema } from "effect";
-import { LedgerLastRun, type LedgerRecord } from "../schemas/ledger";
-import type { ListResult, ListRow } from "../schemas/list";
-import { fitsStack } from "./compose/selection";
-import { lastRun } from "./ledger";
-import { type Entry, isRejected, type RejectedEntry } from "./registry/entry";
-import { statsFields } from "./stats-text";
+import { LedgerLastRun, type LedgerRecord } from "../../schemas/ledger";
+import type { ListResult, ListRow } from "../../schemas/list";
+import { fitsStack } from "../compose/selection";
+import { lastRun } from "../ledger";
+import { type Entry, isRejected, type RejectedEntry } from "../registry/entry";
+import { statsFields } from "../stats/text";
 
 export const groups = ["stacks", "fragments", "apps"] as const;
 export type Group = (typeof groups)[number];

@@ -319,11 +319,11 @@ test.each([
 });
 
 test.each([
-  ["packages/cli/src/core/manifest.ts", "node:crypto"],
+  ["packages/cli/src/core/project/manifest.ts", "node:crypto"],
   ["packages/cli/src/core/fingerprint.ts", "node:crypto"],
   ["packages/cli/src/core/search/digest.ts", "node:crypto"],
   ["packages/cli/src/services/output.ts", "node:util"],
-  ["packages/cli/src/core/scaffold/write.ts", "node:fs/promises"],
+  ["packages/cli/src/core/project/writer.ts", "node:fs/promises"],
 ])("Grit allows %s in %s and rejects its sibling", (owner, builtin) => {
   const allowed = lintWorkspace(owner, `export * from "${builtin}";`);
   expect(allowed.stdout + allowed.stderr).not.toContain(builtinMessage);
@@ -337,13 +337,13 @@ test.each([
 test.each([
   [
     "packages/format/src/check.ts",
-    'import { x } from "../../cli/src/core/manifest"; export { x };',
+    'import { x } from "../../cli/src/core/project/manifest"; export { x };',
   ],
   [
     "packages/cli/tests/check.ts",
     'import type { X } from "../../format/src/index"; export type Y = X;',
   ],
-  ["packages/format/src/check.ts", 'export * from "../../cli/src/core/manifest";'],
+  ["packages/format/src/check.ts", 'export * from "../../cli/src/core/project/manifest";'],
   ["packages/cli/tests/check.ts", 'export { x } from "../../format/src/index";'],
   ["packages/cli/tests/check.ts", 'export * from "../../format/src/index";'],
   ["packages/cli/tests/check.ts", 'export * from "../../format/scripts/pack";'],
@@ -362,7 +362,7 @@ test.each([
     'export * from "../../../../../../format/src/index";',
   ],
   ["packages/cli/tests/check.ts", 'export * from "@steamfield/stacks-format";'],
-  ["packages/cli/src/check.ts", 'export * from "./core/manifest";'],
+  ["packages/cli/src/check.ts", 'export * from "./core/project/manifest";'],
   ["tests/check.ts", 'export { default } from "../packages/cli/package.json";'],
 ])("Grit allows the public, local or registry import in %s", (path, source) => {
   const result = lintWorkspace(path, source);

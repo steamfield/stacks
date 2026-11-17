@@ -10,7 +10,7 @@ import { Context, Effect, FileSystem, Layer, Option, Path, Schema } from "effect
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
 import { type CacheFailure, makeCachedFetch } from "./cached-fetch";
-import { signatureValid } from "./remote-index/verification";
+import { signatureValid } from "./registry/remote/verification";
 
 const verifyAllowlist = Effect.fn("allowlist.verify")(function* (
   text: string,

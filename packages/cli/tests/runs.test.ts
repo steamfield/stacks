@@ -2,8 +2,8 @@ import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { encodeManifest, MANIFEST_PATH } from "../src/core/manifest";
-import { ProjectState } from "../src/core/project-state";
+import { encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
+import { ProjectState } from "../src/core/project/state";
 import { countAsked } from "../src/core/runs";
 import { ProjectRuns } from "../src/schemas/runs";
 import { quiet, runCli, terminal } from "./helpers/cli";

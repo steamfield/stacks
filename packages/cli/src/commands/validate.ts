@@ -1,7 +1,7 @@
 /** Handles registry validation and brief previews. `keepsResult` classifies `ValidationFailed`. */
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { shownPath } from "../core/shown-path";
+import { shownPath } from "../core/text/shown-path";
 import { previewBrief } from "../core/validate/compositions/preview";
 import { validate } from "../core/validate/index";
 import {
@@ -15,7 +15,7 @@ import { BadInput, Usage, ValidationFailed } from "../errors";
 import { BriefPreview, type Finding, ValidateReport } from "../schemas/validate";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
-import { splitValues } from "./handoff";
+import { splitValues } from "./project-flags";
 
 type CompositionFlags = {
   with: ReadonlyArray<string>;

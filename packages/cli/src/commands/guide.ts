@@ -2,7 +2,7 @@
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command } from "effect/cli";
 import { AUTHOR_TOPICS, authorGuide, guideCommands, guideText, humanLead } from "../core/guide";
-import { wrap } from "../core/wrap";
+import { wrap } from "../core/text/wrap";
 import { GuideAuthorResult, GuideResult } from "../schemas/guide";
 import { Host } from "../services/host";
 import { Output } from "../services/output";

@@ -8,8 +8,8 @@ import { DoctorReport } from "../schemas/doctor";
 import type { RemoteStatus } from "../schemas/remote-index";
 import { Host } from "../services/host";
 import { VERSION } from "../version";
-import { bundledRoot } from "./registry/registry";
-import { RemoteIndex } from "./remote-index";
+import { RemoteIndex } from "./registry/remote/service";
+import { bundledRoot } from "./registry/roots";
 
 /** Whether the bundled skills root holds `stacks/SKILL.md`; any failure to look counts as absent. */
 const skillInstalled = (skillRoot: string) =>

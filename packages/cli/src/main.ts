@@ -9,7 +9,7 @@ import { cli } from "./cli";
 import { captureUnknownFlagHelp, helpRecorder, subcommandNames, usage } from "./cli-usage";
 import { AppConfig, type LogSettings } from "./config";
 import { helpFooter } from "./core/guide";
-import { Stats } from "./core/stats";
+import { Stats } from "./core/stats/index";
 import {
   type AppError,
   BrokenPipe,

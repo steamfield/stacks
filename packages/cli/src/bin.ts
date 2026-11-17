@@ -9,7 +9,7 @@ import { Effect, FileSystem, Layer, Option } from "effect";
 import { hasFlag } from "./argv";
 import { CLI_BUILD, packagedEscapes } from "./build";
 import { Allowlist } from "./core/allowlist";
-import { RemoteIndex } from "./core/remote-index";
+import { RemoteIndex } from "./core/registry/remote/service";
 import { NotFound } from "./errors";
 import { invocationFor } from "./invocation";
 import { main } from "./main";

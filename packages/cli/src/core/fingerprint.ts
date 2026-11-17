@@ -5,9 +5,9 @@
  */
 import { createHash } from "node:crypto";
 import { Effect } from "effect";
-import { canonicalJson } from "./canonical-json";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "./compose/files";
 import type { Composition } from "./compose/types";
+import { canonicalJson } from "./fs/canonical-json";
 import { Registry } from "./registry/registry";
 import { HYGIENE_TAG } from "./verify/plan";
 

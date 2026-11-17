@@ -8,7 +8,7 @@ import { BRIEF_PATH, MANIFEST_PATH } from "../project-layout";
 import type { GuideAuthorResult } from "../schemas/guide";
 import { Host } from "../services/host";
 import { splitFrontmatter } from "./registry/entry";
-import { closest } from "./suggest";
+import { closest } from "./text/suggest";
 
 /** The authoring skill's reference files, `references/<topic>.md` under `stacks-author/`. */
 export const AUTHOR_TOPICS = [

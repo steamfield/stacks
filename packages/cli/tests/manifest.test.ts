@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { ManifestStep } from "@steamfield/stacks-format";
 import { Effect, Exit, Random } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { canonicalJson } from "../src/core/canonical-json";
+import { canonicalJson } from "../src/core/fs/canonical-json";
 import {
   buildManifest,
   type DigestInput,
@@ -11,7 +11,7 @@ import {
   encodeManifest,
   MANIFEST_PATH,
   readManifest,
-} from "../src/core/manifest";
+} from "../src/core/project/manifest";
 import { InvalidConfig, NotFound, PermissionDenied } from "../src/errors";
 import { quiet, runCli, tempDir, terminal } from "./helpers/cli";
 import { composition, manifestOf, runWith, succeed } from "./helpers/state";

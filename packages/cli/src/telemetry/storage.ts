@@ -4,7 +4,7 @@
  */
 import { TelemetryNewEvent } from "@steamfield/stacks-format";
 import { Clock, Effect, FileSystem, Path, Random, Schema, Struct } from "effect";
-import { replaceFile } from "../core/replace-file";
+import { replaceFile } from "../core/fs/replace-file";
 
 /** The filesystem services and the absolute telemetry directory every helper works in. */
 export type Storage = { fs: FileSystem.FileSystem; path: Path.Path; root: string };

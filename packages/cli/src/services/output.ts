@@ -7,7 +7,7 @@ import type { DetectedAgent } from "@steamfield/stacks-format";
 import { Context, Effect, Layer, type Scope } from "effect";
 import { AppConfig } from "../config";
 import { failureGuide } from "../core/failure-guide";
-import { printable } from "../core/text";
+import { printable } from "../core/text/text";
 import {
   type AppError,
   type BrokenPipe,

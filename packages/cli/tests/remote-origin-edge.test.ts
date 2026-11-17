@@ -5,7 +5,7 @@ import { it } from "@effect/vitest";
 import { Effect, Option } from "effect";
 import { TestClock } from "effect/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
-import { RemoteIndex } from "../src/core/remote-index";
+import { RemoteIndex } from "../src/core/registry/remote/service";
 import { bundleFile, digestOf, rawBundle } from "./fixtures/index/harness";
 import { tempDir } from "./helpers/cli";
 import {

@@ -11,7 +11,7 @@ import { targetAgents } from "../../compose/agents";
 import { compose, mergeCommands, mergeEnv } from "../../compose/compose";
 import { fitsStack } from "../../compose/selection";
 import type { Composition } from "../../compose/types";
-import { buildManifest } from "../../manifest";
+import { buildManifest } from "../../project/manifest";
 import { type Entry, isFragment, isStack } from "../../registry/entry";
 import { duplicateRuns } from "../checks/verify-notes";
 import type { Check, View } from "../types";

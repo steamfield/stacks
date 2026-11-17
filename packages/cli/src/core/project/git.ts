@@ -5,7 +5,7 @@ import { GIT_REPOSITORY_VARIABLES } from "../../env-names";
 import type { NewResult } from "../../schemas/new";
 import { type Finished, Processes } from "../../services/processes";
 import type { GitState } from "../brief/types";
-import type { Target } from "./target";
+import type { Target } from "../scaffold/target";
 
 const TIMEOUT = Duration.seconds(10);
 const TOPLEVEL = "git rev-parse --show-toplevel 2>&1";

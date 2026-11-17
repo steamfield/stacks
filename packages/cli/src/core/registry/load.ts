@@ -4,8 +4,8 @@
  */
 import type { Kind } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
-import { PermissionDenied } from "../../errors";
 import { isAbsent } from "../fs/absent";
+import { denied } from "../fs/denied";
 import { printable } from "../text/text";
 import {
   decodeEntry,
@@ -89,7 +89,7 @@ const decodeCandidate = Effect.fnUntraced(function* (
 });
 
 /** Reads the entry's `STACK.md` or `FRAGMENT.md`, refusing a symlink or anything but a file. */
-const readCandidate = (input: CandidateInput, io: FileAccess) =>
+const readCandidate = (io: FileAccess, input: CandidateInput) =>
   Effect.gen(function* () {
     const file = markdownFile(input.kind);
     const at = io.path.join(input.dir, file);
@@ -108,7 +108,7 @@ const readCandidate = (input: CandidateInput, io: FileAccess) =>
     return yield* decodeCandidate(input, text.success);
   });
 
-const checkCandidateTree = Effect.fnUntraced(function* (input: CandidateInput, io: FileAccess) {
+const checkCandidateTree = Effect.fnUntraced(function* (io: FileAccess, input: CandidateInput) {
   const walked = yield* Effect.result(walkEntry(io, input.dir));
   if (walked._tag === "Failure")
     return rejectCandidate(input, "unreadable", "the entry directory is unreadable", ".");
@@ -122,9 +122,9 @@ const checkCandidateTree = Effect.fnUntraced(function* (input: CandidateInput, i
  * sound newer entry lets a compatible lower-priority copy win.
  */
 const loadedCandidate = Effect.fnUntraced(function* (input: CandidateInput, state: LoadState) {
-  const check = yield* Effect.cached(checkCandidateTree(input, state.io));
+  const check = yield* Effect.cached(checkCandidateTree(state.io, input));
   state.treeChecks.set(input.dir, check);
-  const loaded = yield* readCandidate(input, state.io);
+  const loaded = yield* readCandidate(state.io, input);
   if (loaded._tag !== "Newer") return loaded;
   const problem = yield* check;
   if (problem) return problem;
@@ -153,9 +153,7 @@ const sortedNames = ({ fs }: FileAccess, dir: string) =>
   fs.readDirectory(dir).pipe(
     Effect.map((found) => [...found].sort()),
     Effect.catch((error) =>
-      isAbsent(error)
-        ? Effect.succeed<Array<string>>([])
-        : Effect.fail(new PermissionDenied({ details: { reason: "read", path: dir } })),
+      isAbsent(error) ? Effect.succeed<Array<string>>([]) : Effect.fail(denied("read", dir)),
     ),
   );
 

@@ -5,12 +5,20 @@
 import { Clock, Effect, Option } from "effect";
 import type { Consent } from "../schemas/telemetry";
 import type { Output } from "../services/output";
-import { directory, Notice, read, remove, type Storage, timestamp, uuid, write } from "./storage";
+import {
+  claimStaleness,
+  directory,
+  Notice,
+  read,
+  remove,
+  type Storage,
+  timestamp,
+  uuid,
+  write,
+} from "./storage";
 
 /** The notice version this CLI shows; an older recorded version owes the second notice. */
 const NOTICE_VERSION = 2;
-/** A pending claim untouched this long belongs to a run that never settled it. */
-const STALE_CLAIM_MS = 600_000;
 
 /**
  * `isNoticeRun` covers a due notice even without an `Output`. `claimId` is set when
@@ -45,7 +53,7 @@ const claimNotice = Effect.fn("telemetry.claimNotice")(function* (
   output: Output["Service"],
   text: string,
 ) {
-  yield* directory(store, store.root);
+  yield* directory(store, ".");
   yield* recoverNotice(store);
   const claimId = yield* uuid;
   const created = yield* Effect.result(
@@ -178,8 +186,7 @@ const recoverNotice = Effect.fn("telemetry.recoverNotice")(function* (store: Sto
   const stat = yield* store.fs.stat(target).pipe(Effect.option);
   if (Option.isNone(stat)) return;
   const now = yield* Clock.currentTimeMillis;
-  const modified = Option.getOrElse(stat.value.mtime, () => new Date(now)).getTime();
-  if (now - modified <= STALE_CLAIM_MS) return;
+  if (claimStaleness(now, stat.value.mtime) === "fresh") return;
   const observed = yield* read(store, "notice.json", Notice).pipe(Effect.option);
   if (Option.isSome(observed) && !observed.value.pending) return;
   // Move the marker aside atomically, then check that what moved is the marker that was read.

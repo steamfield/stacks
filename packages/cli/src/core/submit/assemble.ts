@@ -176,9 +176,10 @@ const copyCard = Effect.fn("submit.copyCard")(function* (registry: string, entry
   const path = yield* Path.Path;
   const card = sidecarPath(entry);
   const target = path.join(registry, card);
-  const own = yield* readSearchFile(entry.root, card);
+  const io = { fs, path };
+  const own = yield* readSearchFile(io, entry.root, card);
   const bytes =
-    own ?? (yield* readSearchFile(registry, card).pipe(Effect.orElseSucceed(() => undefined)));
+    own ?? (yield* readSearchFile(io, registry, card).pipe(Effect.orElseSucceed(() => undefined)));
   if (bytes === undefined) return;
   yield* writePermission(
     fs.makeDirectory(path.dirname(target), { recursive: true }),

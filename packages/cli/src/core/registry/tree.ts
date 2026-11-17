@@ -4,8 +4,9 @@
  */
 import { shippedPath } from "@steamfield/stacks-format";
 import { Effect, type PlatformError } from "effect";
-import { EntryInvalid, PermissionDenied } from "../../errors";
+import { EntryInvalid } from "../../errors";
 import { isAbsent } from "../fs/absent";
+import { denied } from "../fs/denied";
 import type { Entry, EntryFile } from "./entry";
 import type { FileAccess, Walked } from "./types";
 
@@ -56,7 +57,7 @@ export const walkEntry = (
 export const entryTree = (io: FileAccess, entry: Entry) =>
   Effect.gen(function* () {
     const walked = yield* walkEntry(io, entry.dir).pipe(
-      Effect.mapError(() => new PermissionDenied({ details: { reason: "read", path: entry.dir } })),
+      Effect.mapError(() => denied("read", entry.dir)),
     );
     if (walked._tag === "Link")
       return yield* new EntryInvalid({
@@ -98,7 +99,6 @@ export const readEntryFile = <A>(
   Effect.gen(function* () {
     const invalid = (reason: "symlink" | "missing", at: string) =>
       new EntryInvalid({ details: { id: entry.id, origin: entry.origin, reason, path: at } });
-    const denied = (at: string) => new PermissionDenied({ details: { reason: "read", path: at } });
     const segments = source.split("/");
     if (segments.some((segment) => segment === "" || segment === "." || segment === ".."))
       return yield* invalid("missing", source);
@@ -108,12 +108,16 @@ export const readEntryFile = <A>(
       const info = yield* io.fs
         .lstat(at)
         .pipe(
-          Effect.mapError((error) => (isAbsent(error) ? invalid("missing", source) : denied(at))),
+          Effect.mapError((error) =>
+            isAbsent(error) ? invalid("missing", source) : denied("read", at),
+          ),
         );
       if (info.type === "SymbolicLink") return yield* invalid("symlink", rel);
     }
     const file = io.path.join(entry.dir, source);
     return yield* read(file).pipe(
-      Effect.mapError((error) => (isAbsent(error) ? invalid("missing", source) : denied(file))),
+      Effect.mapError((error) =>
+        isAbsent(error) ? invalid("missing", source) : denied("read", file),
+      ),
     );
   });

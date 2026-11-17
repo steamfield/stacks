@@ -93,7 +93,7 @@ const persistBundle = Effect.fn("remoteIndex.persistBundle")(function* (
         fs.makeTempDirectory({ directory: parent, prefix: ".extract-" }),
         (at) => Effect.ignore(fs.remove(at, { recursive: true, force: true })),
       );
-      yield* extractBundle(bundle, staging);
+      yield* extractBundle(cache, bundle, staging);
       const target = path.join(parent, digest);
       yield* fs.rename(staging, target);
       return target;
@@ -112,10 +112,17 @@ const storeBundle = Effect.fn("remoteIndex.storeBundle")(function* (
   if (persisted._tag === "Success") return persisted.success;
   const target = path.join(yield* options.temporary, digest);
   // An earlier call in this invocation may already have extracted it here.
-  if (yield* directoryMatches({ id: bundle.id, kind: bundle.kind, digest, dir: target }))
+  if (
+    yield* directoryMatches(options.cache, {
+      id: bundle.id,
+      kind: bundle.kind,
+      digest,
+      dir: target,
+    })
+  )
     return target;
   yield* fs.makeDirectory(target, { recursive: true });
-  yield* extractBundle(bundle, target);
+  yield* extractBundle(options.cache, bundle, target);
   return target;
 });
 
@@ -150,7 +157,7 @@ const cachedBundle = Effect.fn("remoteIndex.cachedBundle")(function* (
   if (!isFetchableUrl(options.url) || !Schema.is(RegistryIndex.fields.entries.value)(entry))
     return Option.none<string>();
   const dir = options.cache.path.join(options.cache.root, "entries", entry.digest);
-  if (yield* directoryMatches({ ...entry, dir })) return Option.some(dir);
+  if (yield* directoryMatches(options.cache, { ...entry, dir })) return Option.some(dir);
   const fetched = yield* options.cached.get(bundleUrl(options.url, entry), (text) =>
     acceptBundle(options, entry, text),
   );
@@ -217,11 +224,7 @@ export class RemoteIndex extends Context.Service<
           root,
           current: cached.current(),
           status: readStatus(access, config.offline, verification.isDefaultUrl),
-          bundle: (entry) =>
-            cachedBundle({ ...access, temporary }, entry).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
-            ),
+          bundle: (entry) => cachedBundle({ ...access, temporary }, entry),
         };
       }),
     );

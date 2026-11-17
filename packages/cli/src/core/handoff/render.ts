@@ -3,6 +3,7 @@ import type { AgentId, Harness } from "@steamfield/stacks-format";
 import { BRIEF_PATH } from "../../project-layout";
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
+import { numberedRows } from "../text/numbered-rows";
 import { shellArg } from "../text/shell";
 import { printable } from "../text/text";
 import type { HandoffDecision, SettledHandoff } from "./decide";
@@ -18,7 +19,7 @@ const TERMINAL_BINS = LAUNCH_ORDER.flatMap((agent) => {
 export const pickerQuestion = (count: number) => `Hand the project to [1-${count}, Enter for 1]: `;
 
 export const pickerText = (options: ReadonlyArray<Harness>) => {
-  const rows = options.map((agent, index) => `  ${index + 1}) ${LAUNCH_ARGS[agent].label}`);
+  const rows = numberedRows(options.map((agent) => LAUNCH_ARGS[agent].label));
   return `Agents found:\n${rows.join("\n")}\n`;
 };
 

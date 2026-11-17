@@ -1,14 +1,19 @@
 import { sign } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { DependencyAllowlist, TelemetryBatch } from "@steamfield/stacks-format";
-import { Schema } from "effect";
+import { Effect, FileSystem, Layer, Schema } from "effect";
+import { Command } from "effect/cli";
 import { afterEach, beforeEach, expect, test } from "vitest";
+import { cli } from "../src/cli";
+import { MANIFEST_PATH } from "../src/project-layout";
+import { Telemetry } from "../src/telemetry";
+import { VERSION } from "../src/version";
 import { keyId, privateKey, publicKey } from "./fixtures/index/harness";
 import { runCli, tempDir } from "./helpers/cli";
 import { registry, telemetryRoot, writeJson } from "./helpers/telemetry";
-import { readManifestAt } from "./helpers/verify";
+import { decodeResult, readManifestAt, splitEvents } from "./helpers/verify";
 
 const allowlist = Schema.decodeUnknownSync(DependencyAllowlist)({
   formatVersion: 1,
@@ -58,8 +63,8 @@ afterEach(async () => {
   temporary.cleanup();
 });
 
-async function invoke(args: string[], cwd?: string, human = false, debug = false) {
-  return runCli(args, {
+function cliOptions(cwd?: string, human = false, debug = false) {
+  return {
     home,
     releaseBuild: true,
     apiUrl: url,
@@ -78,16 +83,21 @@ async function invoke(args: string[], cwd?: string, human = false, debug = false
       LOG_LEVEL: "none",
       ...(debug ? { STACKS_TELEMETRY_DEBUG: "1" } : {}),
     },
-  });
+  };
 }
-async function project() {
+
+async function invoke(args: string[], cwd?: string, human = false, debug = false) {
+  return runCli(args, cliOptions(cwd, human, debug));
+}
+
+async function project(dir = "project") {
   writeJson(join(telemetryRoot(home), "notice.json"), {
     noticeShownAt: new Date().toISOString(),
     noticeVersion: 2,
   });
-  const created = await invoke(["new", "go-cli", "project", "--json"]);
+  const created = await invoke(["new", "go-cli", dir, "--json"]);
   expect(created.status).toBe(0);
-  const root = join(home, "project");
+  const root = join(home, dir);
   writeFileSync(
     join(root, "go.mod"),
     "module example.com/project\nrequire github.com/a/b/v2 v2.3.1\n",
@@ -97,6 +107,63 @@ async function project() {
 function projectFile(root: string) {
   return join(telemetryRoot(home), "projects", `${readManifestAt(root).projectId}.json`);
 }
+
+function removeManifestAfterSpool(args: readonly string[], root: string) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const spool = join(telemetryRoot(home), "spool");
+    const fault = FileSystem.make({
+      ...fs,
+      rename: (from, to) =>
+        fs
+          .rename(from, to)
+          .pipe(
+            Effect.tap(() =>
+              dirname(to) === spool ? fs.remove(join(root, MANIFEST_PATH)) : Effect.void,
+            ),
+          ),
+    });
+    const telemetry = Telemetry.layer().pipe(
+      Layer.provide(Layer.succeed(FileSystem.FileSystem, fault)),
+    );
+    yield* Command.runWith(cli, { version: VERSION, renderErrors: false })(args).pipe(
+      Effect.provide(telemetry),
+    );
+  });
+}
+
+test.each(["with a parent manifest", "without a parent manifest"])(
+  "verify stays green when its manifest disappears after spooling dependencies, %s",
+  async (scenario) => {
+    const parent = scenario === "with a parent manifest" ? await project("parent") : undefined;
+    const root = await project(parent ? "parent/project" : "project");
+    const projectLink = projectFile(root);
+    const log = join(home, "command.jsonl");
+    const args = ["verify", "--json"];
+    const options = cliOptions(root);
+    const verified = await runCli(args, {
+      ...options,
+      env: { ...options.env, LOG_LEVEL: "debug", STACKS_LOG_FILE: log },
+      program: removeManifestAfterSpool(args, root),
+    });
+    expect(verified.status).toBe(0);
+    expect(decodeResult(verified.stdout).outcome).toBe("green");
+    expect(splitEvents(verified.stderr).rest).toBe("");
+    expect(existsSync(join(root, MANIFEST_PATH))).toBe(false);
+    const reported = events.filter((event) => event.type === "verify");
+    expect(reported).toMatchObject([
+      { deps: [{ ecosystem: "go", name: "github.com/a/b", major: "2" }] },
+    ]);
+    expect(readFileSync(projectLink, "utf8")).not.toContain("depsSentAt");
+    if (parent !== undefined) {
+      expect(JSON.parse(readFileSync(projectFile(parent), "utf8"))).toHaveProperty(
+        "depsSentAt",
+        reported[0]?.sentAt,
+      );
+    }
+    expect(readFileSync(log, "utf8")).not.toContain("Telemetry unavailable");
+  },
+);
 
 test("a failed spool write does not advance the dependency report interval", async () => {
   const root = await project();

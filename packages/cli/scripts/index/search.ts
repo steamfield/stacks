@@ -1,6 +1,7 @@
 import type { IndexEntry, SearchIndex } from "@steamfield/stacks-format";
-import { Effect } from "effect";
+import { Effect, FileSystem, Path } from "effect";
 import { decodeEntry, markdownFile } from "../../src/core/registry/entry";
+import type { FileAccess } from "../../src/core/registry/types";
 import { searchSourceDigest } from "../../src/core/search/digest";
 import {
   decodeSidecar,
@@ -15,8 +16,8 @@ const vocabularyError = () =>
   new Error(`${VOCABULARY_FILE}: missing or invalid search vocabulary.`);
 
 /** The bundled vocabulary `rank` needs; the build fails without a valid one. */
-const readVocabulary = (root: string) =>
-  readSearchFile(root, VOCABULARY_FILE).pipe(
+const readVocabulary = (io: FileAccess, root: string) =>
+  readSearchFile(io, root, VOCABULARY_FILE).pipe(
     Effect.flatMap((bytes) =>
       bytes === undefined ? Effect.fail(vocabularyError()) : decodeVocabulary(bytes),
     ),
@@ -29,10 +30,11 @@ export const indexSearch = Effect.fn("index.search")(function* (options: {
   bundles: ReadonlyMap<string, Uint8Array>;
   previous: SearchIndex | null;
 }) {
-  const vocabulary = yield* readVocabulary(options.root);
+  const io = { fs: yield* FileSystem.FileSystem, path: yield* Path.Path };
+  const vocabulary = yield* readVocabulary(io, options.root);
   const entries: SearchIndex["entries"][number][] = [];
   for (const ref of options.entries) {
-    const bytes = yield* readSearchFile(options.root, sidecarPath(ref));
+    const bytes = yield* readSearchFile(io, options.root, sidecarPath(ref));
     const card =
       bytes === undefined
         ? options.previous?.entries.find((card) => card.kind === ref.kind && card.id === ref.id)

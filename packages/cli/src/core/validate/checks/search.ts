@@ -227,7 +227,13 @@ const inspectCard = Effect.fn("validate.searchCard")(function* (options: {
     finding(ref, { check, severity, file, message });
   const registry = yield* Registry;
   const loaded = yield* Effect.result(
-    entry === undefined ? readSearchFile(view.root, file) : registry.search(entry),
+    entry === undefined
+      ? readSearchFile(
+          { fs: yield* FileSystem.FileSystem, path: yield* Path.Path },
+          view.root,
+          file,
+        )
+      : registry.search(entry),
   );
   if (Result.isFailure(loaded))
     return [issue("search-invalid", "error", "Cannot read sidecar (symlinks are not allowed).")];

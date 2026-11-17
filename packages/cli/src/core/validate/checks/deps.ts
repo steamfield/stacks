@@ -13,6 +13,7 @@ import { Clock, Effect, FileSystem, Path, Result, Schema } from "effect";
 import type { Finding } from "../../../schemas/validate";
 import { countWords } from "../../brief/words";
 import { goAllowlistKey } from "../../deps/index";
+import type { FileAccess } from "../../registry/types";
 import { readSearchFile } from "../../search/sidecar";
 import type { Check, View } from "../types";
 import { finding } from "../view";
@@ -120,17 +121,17 @@ function cardFindings(
  * and doesn't count as present.
  */
 const inspectFile = Effect.fn("validate.dependencyFile")(function* (
-  view: View,
+  io: FileAccess,
   ecosystem: EcosystemType,
   allowed: ReadonlyArray<string>,
-  now: number,
+  { root, now }: { root: string; now: number },
 ) {
   const file = `deps/${ecosystem}.json`;
   const failed = (message: string) => ({
     present: [],
     findings: [issue("deps-invalid", "error", file, message)],
   });
-  const loaded = yield* Effect.result(readSearchFile(view.root, file));
+  const loaded = yield* Effect.result(readSearchFile(io, root, file));
   if (Result.isFailure(loaded)) return failed("Cannot read dependency cards.");
   if (loaded.success === undefined) return { present: [], findings: [] };
   const decoded = yield* Effect.result(decode(DependencyCardFile, loaded.success));
@@ -196,8 +197,12 @@ export const dependencyChecks: Check = Effect.fn("validate.dependencies")(functi
   const { owners, findings } = allowlistFindings(names);
   const present = new Set<string>();
   const now = yield* Clock.currentTimeMillis;
+  const io = { fs: yield* FileSystem.FileSystem, path: yield* Path.Path };
   for (const ecosystem of Ecosystem.literals) {
-    const checked = yield* inspectFile(view, ecosystem, names[ecosystem] ?? [], now);
+    const checked = yield* inspectFile(io, ecosystem, names[ecosystem] ?? [], {
+      root: view.root,
+      now,
+    });
     for (const key of checked.present) present.add(key);
     findings.push(...checked.findings);
   }

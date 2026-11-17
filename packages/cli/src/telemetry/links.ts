@@ -50,7 +50,7 @@ export const linkScaffold = Effect.fn("telemetry.linkScaffold")(function* (
   return { ...event, projectId: project.telemetryProjectId };
 });
 
-const locate = (cwd: string) => locateManifest(cwd).pipe(Effect.option);
+export const locateProject = (cwd: string) => locateManifest(cwd).pipe(Effect.option);
 
 /** The link for the project at `location`, if one exists and hasn't expired (expired ones go). */
 const linkedProject = Effect.fn("telemetry.linkedProject")(function* (
@@ -102,15 +102,15 @@ const depsSpooledRecently = (project: Project, now: number) => {
   return Number.isFinite(previous) && now - previous < DEPS_INTERVAL;
 };
 
-/** Builds the verify event for the project in `cwd`, updating its link along the way. */
+/** Updates the project's link before building its verify event. */
 export const verifyEventFor = Effect.fn("telemetry.verifyEventFor")(function* (input: {
   store: Storage;
-  cwd: string;
+  location: Effect.Effect<Option.Option<ManifestLocation>>;
   record: RunRecord;
   cachedAllowlist: Effect.Effect<Option.Option<DependencyAllowlist>>;
 }) {
   const { store, record } = input;
-  const location = yield* locate(input.cwd);
+  const location = yield* input.location;
   const found = yield* linkedProject(store, location);
   const now = yield* Clock.currentTimeMillis;
   const link = found && (yield* noteFirstTestPass(store, found, { record, now }));
@@ -125,9 +125,14 @@ export const verifyEventFor = Effect.fn("telemetry.verifyEventFor")(function* (i
 
 export const markDepsSpooled = Effect.fn("telemetry.markDepsSpooled")(function* (
   store: Storage,
-  cwd: string,
+  project: { cwd: string; location: Option.Option<ManifestLocation> },
   eventTime: string,
 ) {
-  const link = yield* linkedProject(store, yield* locate(cwd));
+  // Read the latest link because another invocation may have updated it while spooling.
+  const link = yield* linkedProject(store, project.location).pipe(
+    Effect.catchTag("NotFound", () =>
+      locateProject(project.cwd).pipe(Effect.flatMap((location) => linkedProject(store, location))),
+    ),
+  );
   if (link) yield* write(store, link.file, { ...link.project, depsSentAt: eventTime });
 });

@@ -9,6 +9,7 @@ import { NotFound, PermissionDenied, TargetNotEmpty } from "../errors";
 import type { SkillName, SkillResult } from "../schemas/skill";
 import { Host } from "../services/host";
 import { type Captured, Processes } from "../services/processes";
+import { denied } from "./fs/denied";
 import { rewriteAuthorLinks } from "./guide";
 import { openProject, type ProjectWriter } from "./project/writer";
 
@@ -143,8 +144,6 @@ const installedFiles = (options: {
     new TargetNotEmpty({
       details: { path: dir, entries: [...entries], ...(blocker ? { blocker } : {}) },
     });
-  const denied = (rel: string) =>
-    new PermissionDenied({ details: { reason: "unwritable", path: shown(rel) } });
   const escaped = (rel: string) =>
     new PermissionDenied({ details: { reason: "escape", path: shown(rel) } });
 
@@ -158,13 +157,15 @@ const installedFiles = (options: {
           Effect.catch((error) =>
             error.reason._tag === "NotFound"
               ? Effect.succeed(undefined)
-              : Effect.fail(denied(file.rel)),
+              : Effect.fail(denied("unwritable", shown(file.rel))),
           ),
         );
       if (info?.type === "SymbolicLink") return yield* escaped(file.rel);
       if (info && info.type !== "File") return yield* occupied([file.rel], "non-file");
       if (!info) return "absent" satisfies FileState;
-      const current = yield* fs.readFile(at).pipe(Effect.mapError(() => denied(file.rel)));
+      const current = yield* fs
+        .readFile(at)
+        .pipe(Effect.mapError(() => denied("unwritable", shown(file.rel))));
       return (sameBytes(current, file.bytes) ? "same" : "differs") satisfies FileState;
     });
 

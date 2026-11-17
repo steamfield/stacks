@@ -4,7 +4,8 @@
  */
 import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
 import { Context, Effect, FileSystem, Layer, Option, Path } from "effect";
-import { EntryInvalid, NotFound, PermissionDenied } from "../../errors";
+import { EntryInvalid, NotFound, type PermissionDenied } from "../../errors";
+import { denied } from "../fs/denied";
 import { decodeAuthors, readSearchFile, sidecarPath } from "../search/sidecar";
 import {
   type CatalogEntry,
@@ -85,12 +86,9 @@ function rejectedWithShadows(
 }
 
 /** The typed failure for asking for a rejected entry: unreadable is `PermissionDenied`. */
-function rejectionError(item: RejectedEntry, id: string, path: Path.Path) {
+function rejectionError({ path }: FileAccess, item: RejectedEntry, id: string) {
   const { reason } = item;
-  if (reason === "unreadable")
-    return new PermissionDenied({
-      details: { reason: "read", path: path.join(item.dir, item.path ?? ".") },
-    });
+  if (reason === "unreadable") return denied("read", path.join(item.dir, item.path ?? "."));
   return new EntryInvalid({
     details: {
       id,
@@ -200,12 +198,10 @@ export class Registry extends Context.Service<
             if (Option.isNone(index) || index.value.root === undefined)
               return localRegistry(winners);
             return yield* remoteRegistry(
+              io,
               index.value,
               winners,
               [...bundled.values()].filter((item) => !isRejected(item)),
-            ).pipe(
-              Effect.provideService(FileSystem.FileSystem, fs),
-              Effect.provideService(Path.Path, path),
             );
           }),
         );
@@ -227,8 +223,8 @@ export class Registry extends Context.Service<
         ) {
           if (!item) return yield* new NotFound({ details: { suggestions: [], id, kind } });
           const problem = yield* treeRejection(item.dir);
-          if (problem) return yield* rejectionError(problem, id, path);
-          if (isRejected(item)) return yield* rejectionError(item, id, path);
+          if (problem) return yield* rejectionError(io, problem, id);
+          if (isRejected(item)) return yield* rejectionError(io, item, id);
           return item;
         });
 
@@ -236,27 +232,22 @@ export class Registry extends Context.Service<
         const checkEntry = (entry: Entry) =>
           Effect.gen(function* () {
             const problem = yield* treeRejection(entry.dir);
-            if (problem) return yield* rejectionError(problem, entry.id, path);
+            if (problem) return yield* rejectionError(io, problem, entry.id);
           });
 
-        const readSearch = (root: string, rel: string) =>
-          readSearchFile(root, rel).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-          );
         // Vocabulary, dependency cards and authors come from the bundled root only.
         const bundledRootPath = roots.find((root) => root.origin === "bundled")?.path;
         const vocabulary = yield* Effect.cached(
           bundledRootPath === undefined
             ? Effect.succeed(undefined)
-            : readSearch(bundledRootPath, "search/vocabulary.json"),
+            : readSearchFile(io, bundledRootPath, "search/vocabulary.json"),
         );
         const dependencyCards = yield* Effect.cached(
           Effect.gen(function* () {
             const cards = new Map<Ecosystem, Uint8Array>();
             if (bundledRootPath === undefined) return cards;
             for (const ecosystem of Ecosystem.literals) {
-              const bytes = yield* readSearch(bundledRootPath, `deps/${ecosystem}.json`);
+              const bytes = yield* readSearchFile(io, bundledRootPath, `deps/${ecosystem}.json`);
               if (bytes !== undefined) cards.set(ecosystem, bytes);
             }
             return cards;
@@ -265,7 +256,7 @@ export class Registry extends Context.Service<
         const authors = yield* Effect.cached(
           Effect.gen(function* () {
             if (bundledRootPath === undefined) return {};
-            const bytes = yield* readSearch(bundledRootPath, "authors.json");
+            const bytes = yield* readSearchFile(io, bundledRootPath, "authors.json");
             if (bytes === undefined) return {};
             return yield* decodeAuthors(bytes).pipe(Effect.orElseSucceed(() => ({})));
           }),
@@ -275,7 +266,8 @@ export class Registry extends Context.Service<
           vocabulary,
           dependencyCards,
           authors,
-          search: (entry) => readSearch(path.dirname(path.dirname(entry.dir)), sidecarPath(entry)),
+          search: (entry) =>
+            readSearchFile(io, path.dirname(path.dirname(entry.dir)), sidecarPath(entry)),
           all: view.pipe(
             Effect.flatMap((registry) => registry.all),
             Effect.flatMap((items) => Effect.forEach(items, checkedItem)),

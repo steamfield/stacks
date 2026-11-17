@@ -3,7 +3,7 @@
  * identifies who can update an entry.
  */
 import { authorKey } from "@steamfield/stacks-format";
-import { Effect } from "effect";
+import { Effect, FileSystem, Path } from "effect";
 import type { Finding } from "../../../schemas/validate";
 import { decodeAuthors, readSearchFile } from "../../search/sidecar";
 import type { Check } from "../types";
@@ -18,7 +18,8 @@ const issue = (check: string, message: string): Finding => ({
 /** Whole-root validation catches orphan credits after an entry is removed or renamed. */
 export const authorChecks: Check = Effect.fn("validate.authors")(function* (view) {
   if (view.only !== undefined) return { findings: [] };
-  const bytes = yield* readSearchFile(view.root, "authors.json");
+  const io = { fs: yield* FileSystem.FileSystem, path: yield* Path.Path };
+  const bytes = yield* readSearchFile(io, view.root, "authors.json");
   if (bytes === undefined) return { findings: [] };
   const decoded = yield* Effect.result(decodeAuthors(bytes));
   if (decoded._tag === "Failure")

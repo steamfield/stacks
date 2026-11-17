@@ -1,7 +1,8 @@
 /** Parses the project flags shared by `new` and `add`. */
 import { AgentId, Harness } from "@steamfield/stacks-format";
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { CliError, Flag } from "effect/cli";
+import { replayFlags } from "../core/prompting";
 
 /** Splits repeatable, comma-separated flag values into trimmed, nonempty items. */
 export const splitValues = (values: ReadonlyArray<string>) =>
@@ -58,6 +59,7 @@ export const projectFlags = (command: "new" | "add") => ({
     Flag.mapEffect((values) =>
       Effect.forEach(splitValues(values), (value) => agentValue("agents", value)),
     ),
+    Flag.map((agents) => (agents.length ? agents : undefined)),
   ),
   launch: Flag.String("launch").pipe(
     Flag.withDescription(
@@ -73,3 +75,30 @@ export const projectFlags = (command: "new" | "add") => ({
     Flag.withDefault(false),
   ),
 });
+
+/** Extra and missing parsed keys fail typecheck, including optional core options. */
+export type ExactProjectOptions<Parsed, Options> = Options &
+  Record<Exclude<keyof Parsed, keyof Options> | Exclude<keyof Options, keyof Parsed>, never>;
+
+type ReplayValue = Parameters<typeof replayFlags>[0][string];
+
+/** Uses the table's insertion order for replay. A null name omits the parameter. */
+export function replayProjectFlags<Key extends string>(
+  names: Readonly<Record<Key, string | null>>,
+  flags: Readonly<Record<Key, ReplayValue | Option.Option<ReplayValue>>>,
+) {
+  const selected: Record<string, ReplayValue> = {};
+  for (const key in names) {
+    const name = names[key];
+    if (name === null) continue;
+    const value = flags[key];
+    selected[name] = isReplayOption(value) ? Option.getOrUndefined(value) : value;
+  }
+  return replayFlags(selected);
+}
+
+function isReplayOption(
+  value: ReplayValue | Option.Option<ReplayValue>,
+): value is Option.Option<ReplayValue> {
+  return Option.isOption(value);
+}

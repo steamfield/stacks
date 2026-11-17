@@ -14,6 +14,7 @@ import { type Audience, Output } from "../services/output";
 import { fitsStack } from "./compose/selection";
 import { listResult, projectChoices } from "./list/index";
 import { MANIFEST_PATH, readManifest } from "./project/manifest";
+import { newPreset } from "./project/preset";
 import { Registry } from "./registry/registry";
 import { defaultRoots } from "./registry/roots";
 import type { NewOptions } from "./scaffold/new";
@@ -204,19 +205,16 @@ const PRESET_CHOICES: ReadonlyArray<Choice<NewPreset>> = [
   { label: "Lean (no default fragments)", value: "lean" },
 ];
 
-/**
- * `--preset` or `--sandbox` when given; otherwise a picker whose Enter choice is the `preset`
- * setting, or `default` for a preview, which ignores the setting.
- */
 const pickPreset = Effect.fn("prompting.pickPreset")(function* (
   input: Pick<NewOptions, "preset" | "sandbox" | "dryRun">,
   prompt: PromptSession,
 ) {
-  if (input.preset !== undefined) return input.preset;
-  if (input.sandbox) return "sandbox";
+  if (input.preset !== undefined || input.sandbox) return newPreset(input);
   // Settings are read even for a preview, so an invalid config file still fails here.
   const settings = yield* (yield* AppConfig).get;
-  const preset = input.dryRun ? "default" : (settings.preset ?? "default");
+  // Keep the picker's historical Enter choice for dry runs while RFC Q1 is open.
+  // Named-stack previews use the setting through `newPreset`.
+  const preset = newPreset(input, input.dryRun ? undefined : settings.preset);
   const presetIndex = PRESET_CHOICES.findIndex((choice) => choice.value === preset);
   return yield* prompt.one<NewPreset>({
     title: "Composition preset",

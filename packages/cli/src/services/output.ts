@@ -62,7 +62,7 @@ export class Output extends Context.Service<
      * Writes to stderr in text modes or registers a notice for subsequent JSON object results.
      */
     showNotice: (text: string) => Effect.Effect<void>;
-    /** Set after a successful stderr notice write or JSON result flush with a pending notice. */
+    /** Set after a successful stderr notice write or a flush of JSON containing the notice. */
     didDeliverNotice: Effect.Effect<boolean>;
     style: Style;
     /** Clears on scope close; the caller renders completion through normal output. */
@@ -168,6 +168,27 @@ function renderErrorText({ error, guide, style, rollback }: ErrorView): string {
 type Display = { stdout: boolean; stderr: boolean; live: boolean; layout?: LiveLayout };
 const PLAIN_DISPLAY: Display = { stdout: false, stderr: false, live: false };
 
+type BufferedResult = { text: string | undefined; noticeAttached: boolean };
+
+function hasSerializedNotice(text: string | undefined, notice: string): boolean {
+  const value: unknown = text === undefined ? undefined : JSON.parse(text);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.getOwnPropertyDescriptor(value, "notice")?.value === notice
+  );
+}
+
+function renderJsonResult(value: unknown, notice: string | undefined): BufferedResult {
+  if (notice && typeof value === "object" && value !== null) {
+    const result = { ...value, notice };
+    const hasCustomSerializer = "toJSON" in result && typeof result.toJSON === "function";
+    const text = JSON.stringify(result);
+    return { text, noticeAttached: !hasCustomSerializer || hasSerializedNotice(text, notice) };
+  }
+  return { text: JSON.stringify(value), noticeAttached: false };
+}
+
 function make(
   audience: Audience,
   stdout: Writer,
@@ -175,7 +196,7 @@ function make(
   display: Display = PLAIN_DISPLAY,
 ): Output["Service"] {
   const json = audience === "json";
-  const results: string[] = [];
+  const results: BufferedResult[] = [];
   let notice: string | undefined;
   let noticeDelivered = false;
   const terminal = makeLive(stderr, display.live, display.layout);
@@ -184,19 +205,17 @@ function make(
   const markNoticeDelivered = Effect.sync(() => {
     noticeDelivered = true;
   });
-  /** A JSON object result carries the pending notice; any other value is kept as it is. */
-  const attachNotice = (value: unknown) =>
-    notice && typeof value === "object" && value !== null ? { ...value, notice } : value;
   // Uninterruptible: results leave the buffer only to be written, so an interrupt waits for the
   // write rather than reporting before it lands. A stalled stdout still yields to a second signal.
   const flush = Effect.uninterruptible(
     Effect.suspend(() => {
       if (!results.length) return Effect.void;
-      const text = `${results.join("\n")}\n`;
+      const text = `${results.map((result) => result.text).join("\n")}\n`;
+      const noticeAttached = results.some((result) => result.noticeAttached);
       results.length = 0;
       return terminal
         .around(write(stdout, text))
-        .pipe(Effect.tap(() => (json && notice !== undefined ? markNoticeDelivered : Effect.void)));
+        .pipe(Effect.tap(() => (noticeAttached ? markNoticeDelivered : Effect.void)));
     }),
   );
   return {
@@ -215,7 +234,7 @@ function make(
     live: terminal.live,
     result: (value, text) =>
       Effect.sync(() => {
-        results.push(json ? JSON.stringify(attachNotice(value)) : text);
+        results.push(json ? renderJsonResult(value, notice) : { text, noticeAttached: false });
       }),
     note: (text) =>
       terminal.around(

@@ -3,7 +3,8 @@ import { Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import type { Composition } from "../core/compose/types";
-import { type HandoffDecision, handoffRecord } from "../core/handoff";
+import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
+import { completeHandoff, prepareHandoff } from "../core/handoff/run";
 import { templateOverrides } from "../core/project/template-values";
 import { pickNew, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
@@ -15,7 +16,7 @@ import { BRIEF_PATH } from "../project-layout";
 import { NewPreset, NewResult } from "../schemas/new";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
-import { completeHandoff, prepareHandoff, projectFlags, splitValues } from "./handoff";
+import { projectFlags, splitValues } from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
 

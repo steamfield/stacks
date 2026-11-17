@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 
 import { join } from "node:path";
 import { Effect, Schema } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
-import { decideHandoff } from "../src/core/handoff";
+import { decideHandoff } from "../src/core/handoff/decide";
 import { NewResult } from "../src/schemas/new";
 import { fakeAgent } from "./helpers/agents";
 import { scriptedTerminal } from "./helpers/cli";

@@ -2,13 +2,9 @@ import { it } from "@effect/vitest";
 import { AgentId, DetectedAgent, Harness } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { describe, expect, test } from "vitest";
-import {
-  agentPrompt,
-  decideHandoff,
-  type HandoffInput,
-  LAUNCH_ARGS,
-  renderHandoff,
-} from "../src/core/handoff";
+import { decideHandoff, type HandoffInput } from "../src/core/handoff/decide";
+import { LAUNCH_ARGS } from "../src/core/handoff/launchers";
+import { agentPrompt, renderHandoff } from "../src/core/handoff/render";
 
 const prompt = agentPrompt("stacks");
 const base: HandoffInput = {

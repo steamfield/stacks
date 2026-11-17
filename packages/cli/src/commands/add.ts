@@ -3,7 +3,8 @@ import { Effect, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { add } from "../core/add";
 import { renderAdd } from "../core/add/report";
-import { type HandoffDecision, handoffRecord } from "../core/handoff";
+import { type HandoffDecision, handoffRecord } from "../core/handoff/decide";
+import { completeHandoff, prepareHandoff } from "../core/handoff/run";
 import { pickAdd, promptingAllowed, replayFlags, runningCommand } from "../core/prompting";
 import { Registry, remoteRoots } from "../core/registry/registry";
 import { Usage } from "../errors";
@@ -11,7 +12,7 @@ import { INCOMING, METADATA_DIR } from "../project-layout";
 import { AddResult } from "../schemas/add";
 import { Host } from "../services/host";
 import { Telemetry } from "../telemetry";
-import { completeHandoff, prepareHandoff, projectFlags } from "./handoff";
+import { projectFlags } from "./project-flags";
 import { root } from "./root";
 import { officialSteps, recordCommandError, sourceFlag, sourceValue } from "./telemetry-hooks";
 

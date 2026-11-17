@@ -23,7 +23,7 @@ import { VerifyResult } from "../schemas/verify";
 import { Host } from "../services/host";
 import { Output } from "../services/output";
 import { Telemetry } from "../telemetry";
-import { splitValues } from "./handoff";
+import { splitValues } from "./project-flags";
 
 type VerifyFlags = {
   readonly only: ReadonlyArray<string>;

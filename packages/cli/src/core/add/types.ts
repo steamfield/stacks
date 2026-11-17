@@ -1,6 +1,6 @@
 /** Owns the shared add options so the add modules can depend on them without a cycle. */
 import type { AgentId } from "@steamfield/stacks-format";
-import type { HandoffDecision } from "../handoff";
+import type { HandoffDecision } from "../handoff/decide";
 
 /** What the `add` command asks for; `handoff` decides the handoff once untrusted ids are known. */
 export type AddOptions = {

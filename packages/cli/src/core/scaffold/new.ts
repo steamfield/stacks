@@ -27,7 +27,7 @@ import { composeFilesWithNeutral, type RenderedFile } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
 import type { Composition } from "../compose/types";
 import { fingerprintFromFiles } from "../fingerprint";
-import { type HandoffDecision, handoffRecord } from "../handoff";
+import { type HandoffDecision, handoffRecord } from "../handoff/decide";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
 import { removeProjectState, writeProjectState } from "../project/state";

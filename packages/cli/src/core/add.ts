@@ -13,7 +13,7 @@ import { readAddProject } from "./add/project";
 import type { AddOptions } from "./add/types";
 import { applyAdd } from "./add/write";
 import { renderBrief } from "./brief/render";
-import { handoffRecord } from "./handoff";
+import { handoffRecord } from "./handoff/decide";
 
 export { type AddPlan, checkAddRoot, planAdd } from "./add/plan";
 

@@ -89,8 +89,14 @@ const ROOT_CI = "## Fragment: Root CI (`root-ci`)";
 /** The clause every part, link and placed line ends with, for the default target agent (claude). */
 const HARNESS_ROOT =
   " The agent harness paths `.claude/settings.json`, `.claude/hooks/`, `.claude/agents/` and `.claude/commands/` are at the project root, not in a part.";
+const PART_LINE_START = (dir: string) =>
+  `This part lives in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines.`;
+/**
+ * The fixture's part line: each part ships `README.md` and `AGENTS.md`, only the workspace ships
+ * `.env.example`, and no entry ships `CLAUDE.md`, so that name isn't mentioned.
+ */
 const partLine = (dir: string) =>
-  `This part lives in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines. \`README.md\`, \`.env.example\`, \`AGENTS.md\` and \`CLAUDE.md\` named here are this part's copies in \`${dir}/\`, not the root's.${HARNESS_ROOT}`;
+  `${PART_LINE_START(dir)} \`README.md\` and \`AGENTS.md\` named here are this part's copies in \`${dir}/\`, not the root's. \`.env.example\` named here is the project root's; no copy is written in \`${dir}/\`.${HARNESS_ROOT}`;
 const LINK_LINE = `In this section the API part is \`backend/\` and the client part is \`frontend/\`. Paths and commands are relative to \`frontend/\` and run there.${HARNESS_ROOT}`;
 const placedLine = (dir: string) =>
   `This fragment is placed on the part in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there.${HARNESS_ROOT}`;
@@ -141,6 +147,23 @@ describe("the fixed opening lines", () => {
     expect(firstLine(text, ROOT_CI)).toBe("CI runs from the project root.");
     // The workspace's own section has no fixed line either.
     expect(firstLine(text, STACK)).toBe("### How the parts connect");
+  });
+
+  test("a part line names each file by where the composition writes it, and skips unwritten ones", async () => {
+    // Without the part's own AGENTS.md, only the workspace's copy at the root exists; a CLAUDE.md
+    // the workspace ships joins it at the root, and a part's own .env.example is its copy.
+    const root = variant((root) => {
+      rmSync(join(root, "stacks", "api-part", "files", "AGENTS.md"));
+      writeFileSync(join(root, "stacks", "pair", "files", "CLAUDE.md"), "@AGENTS.md\n");
+      writeFileSync(join(root, "stacks", "api-part", "files", ".env.example"), "PORT_API=3100\n");
+    });
+    const { text } = await brief({}, root);
+    expect(firstLine(text, BACKEND)).toBe(
+      `${PART_LINE_START("backend")} \`README.md\` and \`.env.example\` named here are this part's copies in \`backend/\`, not the root's. \`AGENTS.md\` and \`CLAUDE.md\` named here are the project root's; no copy is written in \`backend/\`.${HARNESS_ROOT}`,
+    );
+    expect(firstLine(text, FRONTEND)).toBe(
+      `${PART_LINE_START("frontend")} \`README.md\` and \`AGENTS.md\` named here are this part's copies in \`frontend/\`, not the root's. \`.env.example\` and \`CLAUDE.md\` named here are the project root's; no copy is written in \`frontend/\`.${HARNESS_ROOT}`,
+    );
   });
 
   test("the harness clause names the session-root paths of every target agent", async () => {

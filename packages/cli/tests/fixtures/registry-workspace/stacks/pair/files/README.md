@@ -1,0 +1,3 @@
+# Pair
+
+The workspace root.

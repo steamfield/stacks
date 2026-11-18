@@ -9,8 +9,8 @@ import { mergeAddManifest } from "../../add/manifest";
 import { renderAddBrief } from "../../brief/render-add";
 import { targetAgents } from "../../compose/agents";
 import { compose, mergeCommands, mergeEnv } from "../../compose/compose";
-import { fitsStack } from "../../compose/selection";
-import type { Composition } from "../../compose/types";
+import { manifestMounts, stackEntries } from "../../compose/part-entries";
+import type { ComposeOptions, Composition } from "../../compose/types";
 import { buildManifest } from "../../project/manifest";
 import { type Entry, isFragment, isStack } from "../../registry/entry";
 import { duplicateRuns } from "../checks/verify-notes";
@@ -18,7 +18,7 @@ import type { Check, View } from "../types";
 import { entryFile, finding } from "../view";
 import { canonicalContext, composedLimit } from "./budget";
 import { uniqueFindings } from "./composed";
-import { describe, replacementDefaults } from "./compositions";
+import { describe, fitsHost, replacementDefaults } from "./compositions";
 
 type Preset = "default" | "sandbox";
 type Agents = ReturnType<typeof targetAgents>;
@@ -29,9 +29,7 @@ export const addCompositionChecks: Check = (view) =>
     const findings: Finding[] = [];
     const stacks = view.all.filter(isStack);
     for (const fragment of view.entries.filter(isFragment)) {
-      const hosts = stacks.filter((stack) =>
-        fitsStack(fragment.meta.appliesTo, { id: stack.id, tags: stack.meta.tags }),
-      );
+      const hosts = stacks.filter((stack) => fitsHost(view, stack, fragment.meta.appliesTo));
       for (const stack of [...hosts, null])
         for (const preset of ["default", "sandbox"] as const) {
           findings.push(...(yield* checkAddComposition(view, fragment, stack, preset)));
@@ -52,6 +50,10 @@ const checkAddComposition = Effect.fn("validate.addComposition")(function* (
 ) {
   const agents = targetAgents(undefined, {});
   const previous = yield* canonicalHost(view, { fragment, stack, preset, agents });
+  // A workspace project's parts come from its manifest. Without one, the workspace's own
+  // composition failed, which its composition and workspace checks report, so there is no
+  // project to add to.
+  if (!previous && stack && isStack(stack) && stack.meta.parts) return [];
   const applied = previous?.fragments.map((entry) => entry.id) ?? [];
   const result = yield* Effect.result(
     compose({
@@ -64,6 +66,7 @@ const checkAddComposition = Effect.fn("validate.addComposition")(function* (
       mode: "add",
       existing: applied,
       ...(!stack ? { inferredTags: [] } : {}),
+      ...projectParts(previous),
     }),
   );
   const subject = `${hostLabel(fragment, stack)} (${preset}, add)`;
@@ -101,6 +104,11 @@ const checkAddComposition = Effect.fn("validate.addComposition")(function* (
     );
   return findings;
 });
+
+/** A workspace project's parts, as `add` reads them from its manifest; none for any other host. */
+function projectParts(previous: Manifest | undefined): Pick<ComposeOptions<"add">, "parts"> {
+  return previous?.parts ? { parts: manifestMounts(previous.parts) } : {};
+}
 
 /** A note for each group of merged steps running one command, when the fragment added one. */
 function duplicateRunNotes(
@@ -169,7 +177,7 @@ const canonicalHost = Effect.fn("validate.addHost")(function* (
   if (Result.isFailure(result)) return undefined;
   const base = result.success;
   const fragments = base.fragments.filter((entry) => entry.id !== fragment.id);
-  const entries = [base.stack, ...fragments];
+  const entries = [...stackEntries(base.stack, base.parts), ...fragments];
   // A subset of a composition that merged cleanly can't conflict.
   const env = yield* Effect.orDie(mergeEnv(entries));
   return yield* buildManifest(

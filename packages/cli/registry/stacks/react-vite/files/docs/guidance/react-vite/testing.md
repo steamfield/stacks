@@ -16,11 +16,11 @@ Three layers test the app against its real code, with the external API as the on
 - Every new query covers success, the empty case where it has one, an HTTP error with its request id, and a body in the wrong shape.
 - Query by role and accessible name (`getByRole("heading", { name })`), and wait with `findBy*`, never a sleep.
 - A bug fix starts with a test that fails for the bug's reason.
-- happy-dom prints each non-2xx response (`GET http://localhost:3000/api/items 500`) and network failure the way a browser console does. In the error-path tests those lines are expected; a failing test still reports its own assertion.
+- happy-dom prints each non-2xx response (`GET http://localhost:3000/api/v1/notes 500`) and network failure the way a browser console does. In the error-path tests those lines are expected; a failing test still reports its own assertion.
 
 ## Browser tests
 
-`bun run e2e` builds, then serves `dist/` with `vite preview` on `PORT_E2E` (default 4180) and runs Chromium with one worker. `e2e/items.spec.ts` routes the API with `page.route`, using the base URL `loadEnv` reads, so it works whatever `VITE_API_URL` is set to. Add a browser test only for what happy-dom can't show: the built bundle, deep-link reloads, real navigation. On failure read `test-results/<test>/error-context.md` first.
+`bun run e2e` builds, then serves `dist/` with `vite preview` on `PORT_E2E` (default 4180) and runs Chromium with one worker. `e2e/notes.spec.ts` routes the API with `page.route`, using the base URL `loadEnv` reads, so it works whatever `VITE_API_URL` is set to. Add a browser test only for what happy-dom can't show: the built bundle, deep-link reloads, real navigation. On failure read `test-results/<test>/error-context.md` first.
 
 ## Running
 

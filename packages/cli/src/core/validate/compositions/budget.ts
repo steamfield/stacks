@@ -19,6 +19,8 @@ export const BUDGET = {
   appBody: 3_000,
   composed: 6_000,
   composedWithApp: 9_000,
+  /** A workspace brief carries every part's full body, the links and the fixed part lines. */
+  composedWorkspace: 7_500,
 } as const;
 
 export function bodyLimit(entry: Entry): number {
@@ -26,9 +28,12 @@ export function bodyLimit(entry: Entry): number {
   return entry.meta.category === "app" ? BUDGET.appBody : BUDGET.fragmentBody;
 }
 
-/** The composed limit: higher when the composition holds an app. */
+/** The composed limit: higher when the composition holds an app or parts, the larger when both. */
 export const composedLimit = (composition: Composition<Entry | null>) =>
-  composition.app ? BUDGET.composedWithApp : BUDGET.composed;
+  Math.max(
+    composition.app ? BUDGET.composedWithApp : BUDGET.composed,
+    composition.parts?.length ? BUDGET.composedWorkspace : BUDGET.composed,
+  );
 
 /**
  * The one render context every budgeted size uses, so a registry passes or fails the same way

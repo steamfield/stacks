@@ -88,7 +88,7 @@ Describe the local-only setup.
 <!-- stacks:end -->
 ```
 
-Other condition keys are `stack`, `tag`, `tag!=`, `mode`, `with` and `payload`
+Other condition keys are `stack`, `tag`, `tag!=`, `mode`, `with`, `payload` and `part` (`part=web` holds in a workspace that has a part with that role)
 (`example` or `none`).
 
 In add mode, matching `with=<added-fragment>` blocks from the recorded host stack
@@ -120,6 +120,193 @@ Use `<!-- stacks:when payload=none -->` for body prose about one variant.
 Verify steps check; they never generate source (no generator, and no write or fix
 mode of a tool, in a verify step). Validation notes fragments without verify steps and repeated
 commands in a composition, and budgets add briefs with each admitted stack and none.
+
+## Workspace stacks
+
+A workspace stack mounts an API stack and a client stack into subdirectories of one
+project and adds the files that belong to the whole at the root. It is a `kind: stack`
+entry with a `parts` list:
+
+```yaml
+id: hono-react
+kind: stack
+parts:
+  - { name: backend, role: api, stack: hono-api }
+  - { name: frontend, role: web, stack: react-vite }
+fragments:
+  required: [openapi-client]
+  default: [agent-ops, git-hooks, ci-github]
+```
+
+Each part has three fields. `name` is kebab-case and unique in the workspace: it is the
+part's directory and the prefix on its steps, commands and dependency roles
+(`backend-lint`). `role` is `api` or `web`. `stack` is the id of the stack to mount. A
+workspace has exactly one `api` part and one client part, and a part cannot itself have
+parts. `validate` reports, and `new` refuses, an unknown part stack, an unknown role, two
+parts with one name, a part that has parts, and any other count of roles.
+
+The workspace's `fragments` tiers are the project's; a part's own tiers are not selected.
+Restate in the workspace's `required` tier every fragment a part requires (`validate`
+fails a workspace that omits one), and choose which of the parts' defaults to restate.
+`--with` still reaches the others.
+
+### What a part must meet
+
+A stack named as a part meets the rules of its role. Declared rules are read from the
+entry and checked by `validate` on every workspace's parts. Proven rules are behavior:
+the workspace's verify steps exercise them, and they hold once the workspace goes green.
+
+An `api` part:
+
+- Declared: `PORT_API` is in its `env`, and it has a `serve` step whose `expect.http`
+  contains `${PORT_API}` and ends in `/healthz`.
+- Declared, for a link to read: it writes its OpenAPI document to `openapi.json` in its
+  own directory and has a verify step named `openapi-drift` that fails when the file is
+  stale. The document is generated and committed during Setup, never shipped in `files/`,
+  since its bytes depend on the installed framework release.
+- Proven: resources sit under `/v1`, and the example resource is `notes`, with
+  operation ids `listNotes`, `getNote` and `createNote` and list rows under `items`.
+
+Any client part:
+
+- Proven: it reaches the API through one base URL read from its own configuration,
+  never a host written into source.
+- Proven: every call goes through a single API client module at a path its body names,
+  which exposes one request function taking a method, a path and a body.
+- Proven: it calls the example resource, with a test that fails if it does not.
+- Proven: from a failed response it reads only the status and the `x-request-id`
+  header, since the error body differs by API stack.
+
+A `web` part, on top of the client rules:
+
+- Declared: `PORT_WEB` is in its `env`.
+- Proven: a dev proxy forwards `/api` to `PORT_API` and strips only the `/api` segment,
+  so the base URL is `/api` and calls name `/v1/...` themselves. A preview server of the
+  build uses the same proxy.
+- Proven: the proxy has no fallback port. It is configured only when `PORT_API` is set,
+  so the stack still runs standalone.
+
+A part's hooks run at the workspace root for files in both parts. A hook finds its tools
+by walking up from the edited file, never by joining a path to the project root; a
+stack's own hook file names carry the stack id; and a guard has to be safe for the whole
+workspace.
+
+### Layout and placement
+
+`new` writes each part's files unchanged under its name and the workspace's own files
+at the root. Each part's verify steps get the part directory as `cwd` and the part name
+as a prefix. A part keeps its own Makefile or `package.json`, `.gitignore`, `biome.json`,
+`README.md` and `.env.example`, and the brief tells the agent which copy a section means.
+`AGENTS.md` and `CLAUDE.md` usually come from `agent-ops`, which has an empty
+`applies_to` and so lands once at the root: a part then has no copy of its own, and what
+its body asks of `AGENTS.md` goes in the root one.
+
+A fragment is placed by stack id in `applies_to`, never by tag:
+
+- `applies_to` names exactly one part's stack: the fragment is written under that part,
+  its steps get the part's `cwd` and prefix, and its `stacks/<part stack id>/` overlay
+  applies. Its `merge:` list is mounted with its files.
+- `applies_to` is empty, matches only by tag, or names the workspace: it is written once
+  at the root, and a `stacks/<workspace id>/` overlay applies.
+- `applies_to` names more than one part's stack: it is written once at the root.
+
+Agent adapters follow one more rule. The paths each harness reads only at the session
+root are written at the project root, whichever entry ships them; everything else stays
+in its part, including `.claude/rules/**` and `.claude/skills/**`.
+
+| Harness | Written at the project root |
+| --- | --- |
+| Claude Code | `.claude/settings.json`, `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**` |
+| Codex | `.codex/**`, `.agents/skills/**` |
+| Cursor | `.cursor/hooks.json`, `.cursor/hooks/**` |
+| OpenCode | `opencode.json`, `.opencode/**` |
+
+Identical files from two parts become one file at the root, and both parts'
+`.claude/settings.json` are deep-merged.
+
+### What the workspace ships
+
+At the root, and nothing a part already owns:
+
+- A Makefile that delegates to each part (`make -C backend`, `cd frontend && bun run`)
+  and owns the cross-part targets: regenerating the client, the check that runs both
+  parts, and the full check. Its lint and format targets run Biome inside each part,
+  since a Biome run from the root fails on the parts' root configs. A port exported in
+  the shell wins over one in an included `.env`. When the workspace is tagged `make`,
+  `new` fills the root `AGENTS.md` commands table with `make <part>-<command>` rows for
+  every part command, so the Makefile needs targets of that form (a `<part>-%` pattern
+  rule that runs the part's script covers them).
+- `README.md` and `.env.example` for the whole project.
+- What the root `AGENTS.md` must hold: the cross-part commands, the change workflow,
+  where each part's commands run, and links to the contract document and each part's
+  guidance. It is the one instruction file every harness reads in a session started at
+  the root. When `agent-ops` writes `AGENTS.md` and `CLAUDE.md` (any composition with
+  `claude-harness`), the workspace can't ship them; its Setup says what to fill in, and a
+  verify step checks the root `AGENTS.md` for it.
+- A short contract document such as `docs/CONTRACT.md`: the request path, the
+  contract's owner and the change workflow. A verify step checks it names each part
+  directory and holds no fill marker.
+- A verify step that runs both parts and sends one request through the client's proxy
+  to the API.
+
+### Who writes what
+
+| Knowledge | Where it goes |
+| --- | --- |
+| How one half works alone: layout, conventions, tests, gotchas | The part's stack body |
+| How the generated client works: where the document is read from, the regenerate command, read-only output, what a failed drift check means | The link's body |
+| What is true of this pair: setup order, the request path, root commands and what each wraps, cross-part tests, CI and hooks per part, settings | The workspace body |
+| What a fragment on one part needs from the other part | That fragment's body, in a `stacks:when part=<role>` block, which holds only in a workspace with a part of that role |
+
+### The workspace body
+
+A workspace body has three required headings, which `validate` checks:
+
+- `## How the parts connect`: the request path from client to API (base URL, proxy,
+  prefix), which part owns the contract, and what crosses the boundary (the example
+  resource, the error fields the client reads, any header both sides rely on).
+- `## Setup`: one ordered sequence across the parts, ending in `stacks verify`. It names
+  the step that first produces each link's generated output and the checks that fail
+  before it; a client's typecheck and tests usually need the generated client. It refers
+  to a part's setup by what each step does, never by its number.
+- `## Changing the API`: the cross-part workflow for the commonest task. Change a route,
+  regenerate the document and the client, update the client code, commit the generated
+  output with the change, run both parts' tests.
+
+The body names every part's directory at least once. `## Commands` and `## Testing`
+list the root targets with what each delegates to and the tests that need both parts
+running. Two more things live only here: each part's CI toolchain and check commands
+inside a `with=ci-github` block, and each part's hook jobs inside a `with=git-hooks`
+block, because the parts' own blocks for those fragments drop when mounted; and where
+settings come from, meaning the root `.env` and how its values reach each part.
+
+Keep the body near 400 words. A composed workspace brief carries both part bodies and
+the link, so its composed limit is 7,500 words (9,000 with an app). Anything about one
+half goes in that half's stack.
+
+### Links
+
+A link is a fragment with `category: link`. It belongs to the client part and takes one
+input from the API part: the OpenAPI document. Its `applies_to` names the client stack,
+so its files land in the client part's directory and its steps run there.
+
+- It ships only its own new files, written relative to the client part. Its generator
+  config reads `./openapi.json`, which a root target the workspace ships copies from the
+  API part. It ships no generated client: that is Setup output.
+- It cannot change a file another entry writes or a template. Package scripts the link
+  needs are added by the agent from its body, and a verify step fails when they are
+  missing. Settings a client stack needs for the link, such as lint excludes for the
+  generated directory, ship in the client stack, where they are inert without it.
+- Its drift step regenerates into a temporary directory and compares with the committed
+  output, never with git, so it passes on correct output that isn't committed yet.
+- Its body is written in roles, "the API part" and "the client part", never directory
+  names. The brief opens the link's section with which part is which.
+
+The workspace lists its link in the `required` tier.
+
+A fragment placed on one part that affects the other (a new route the client has to
+regenerate for) says so in its own body, inside a `stacks:when` block that holds only
+in a workspace, written in the same roles.
 
 ## Add a search card
 
@@ -210,7 +397,7 @@ with verify. Repair shipped hook/editor command references and stale run fingerp
 Review warnings as well as errors.
 
 Keep stack bodies below 2,000 words, fragments below 1,000 and apps below 3,000;
-the default composed brief limit is 6,000 (9,000 with an app). Move optional shared material into
+the default composed brief limit is 6,000 (7,500 for a workspace, 9,000 with an app). Move optional shared material into
 a fragment, reference material into a shipped doc linked from the body, and cut what
 the agent would do anyway. Validation budgets only the default composition in both presets;
 optional fragments, fitting apps and compatible pairs still get the other composition checks.

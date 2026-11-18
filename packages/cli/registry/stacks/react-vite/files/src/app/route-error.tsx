@@ -27,7 +27,7 @@ export function RouteError() {
           ? "There's no page at this address."
           : "This page failed to load. Reload to try again."}
       </p>
-      <Link to="/">Back to items</Link>
+      <Link to="/">Back to notes</Link>
     </main>
   );
 }

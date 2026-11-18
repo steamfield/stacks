@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
+  cpSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -159,6 +160,62 @@ test("lint caps diagnostics at 60 lines and labels truncation", async () => {
   expect(context).toContain("issue 59");
   expect(context).not.toContain("issue 60");
   expect(context.split("\n").at(-1)).toContain("truncated");
+});
+/**
+ * A project holding claude-harness's hook files and a TypeScript package in `pkg` ("" is the
+ * root) with a file that fails to type-check. With `tsc`, the package gets a fake compiler that
+ * records where it ran and prints one error the way tsc does, relative to its working directory.
+ */
+function typecheckProject(name: string, pkg: string, tsc: boolean) {
+  const root = join(space.path, `typecheck-${name}`);
+  const harness = join(registry, "fragments/claude-harness");
+  for (const from of ["files/.claude", "adapters/claude/.claude"])
+    cpSync(join(harness, from), join(root, ".claude"), { recursive: true });
+  mkdirSync(join(root, "tmp"));
+  const dir = join(root, pkg);
+  write(dir, "tsconfig.json", "{}\n");
+  write(dir, "src/x.ts", "export const x: number = 'one';\n");
+  if (tsc)
+    write(
+      dir,
+      "node_modules/.bin/tsc",
+      `#!/bin/sh\npwd -P > "${root}/tsc-cwd"\necho "src/x.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'."\nexit 2\n`,
+      0o755,
+    );
+  return root;
+}
+async function typecheck(root: string, file: string) {
+  return await run(root, hookCommand(root, "typecheck-on-write.ts"), {
+    ...writePayload(root, file, ""),
+    hook_event_name: "PostToolUse",
+  });
+}
+test.concurrent.each([
+  [
+    "a nested package",
+    "nested",
+    "frontend",
+    "tsc in frontend/ found 1 type error(s), 1 in src/x.ts",
+  ],
+  ["a package at the project root", "root", "", "tsc found 1 type error(s), 1 in src/x.ts"],
+])(
+  "typecheck-on-write reports a type error in %s with that package's tsc",
+  async (_name, name, pkg, summary) => {
+    const root = typecheckProject(name, pkg, true);
+    const result = await typecheck(root, join(pkg, "src/x.ts"));
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const context = Schema.decodeUnknownSync(
+      Schema.Struct({ hookSpecificOutput: Schema.Struct({ additionalContext: Schema.String }) }),
+    )(JSON.parse(result.stdout)).hookSpecificOutput.additionalContext;
+    expect(context.split("\n")[0]).toContain(summary);
+    expect(context).toContain("src/x.ts(1,14): error TS2322");
+    expect(readFileSync(join(root, "tsc-cwd"), "utf8").trim()).toBe(realpathSync(join(root, pkg)));
+  },
+);
+test("typecheck-on-write stays quiet when no tsc is installed", async () => {
+  const root = typecheckProject("missing", "frontend", false);
+  allowed(await typecheck(root, "frontend/src/x.ts"));
 });
 test("formatter failures exit silently after actually attempting the formatter", async () => {
   const root = space.copy(project);

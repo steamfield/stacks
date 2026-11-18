@@ -6,7 +6,7 @@ This is a browser-only app. Everything in `src/` ships to the user as JavaScript
 
 `biome-plugins/boundaries.grit` enforces the first three; `bun run lint` reports a break.
 
-- **Network**: only `src/api/` calls `fetch`. A new endpoint is a zod schema and a `queryOptions` factory beside `src/api/items.ts`, calling `api.get(path, schema)`. Pages never see a raw `Response`.
+- **Network**: only `src/api/` calls `fetch`, and every call goes through `src/api/client.ts`: `api.request(path, schema, { method, body, headers, signal })`, or `api.get(path, schema)` for a read. A new endpoint is a zod schema and a `queryOptions` factory beside `src/api/notes.ts`. Paths carry the API version (`/v1/notes`); the base URL (`/api` by default) goes in front. A 204 decodes as `undefined`, so pass `z.undefined()` for an endpoint with no body. A body needs a method other than GET or HEAD, and a header the caller passes replaces the default of the same name. Pages never see a raw `Response`. A generated API client, if the project adds one, goes under `src/api/generated/` with its spec at `openapi.json`; `biome.json` already excludes both from lint and formatting.
 - **Config**: only `src/config.ts` reads `import.meta.env`. A new setting gets a schema field with a default, a line in `.env.example`, a test in `src/config.test.ts` and a README row. `main.tsx` passes the parsed config down; components don't read it.
 - **Logging**: only `src/logging.ts` touches `console`. Components get the logger from `useServices()`. Records carry an event name and flat fields: path, status, request id, counts. Never a request or response body, a token or what the user typed.
 - **Secrets**: none. Vite inlines every `VITE_*` value into the bundle, so an API key there is public. Calls that need a secret go through a backend the app talks to.
@@ -25,4 +25,8 @@ Server rendering, file-based routes and `@react-router/dev` belong to a differen
 
 ## Deploying
 
-`bun run build` writes `dist/`. The host must answer unknown paths with `index.html` (a SPA fallback or rewrite), or a reload on `/items/1` returns the host's 404. `vite preview` does this, which is why the browser test's reload passes locally; configure the production host to match.
+`bun run build` writes `dist/`. The host must answer unknown paths with `index.html` (a SPA fallback or rewrite), or a reload on `/notes/1` returns the host's 404. `vite preview` does this, which is why the browser test's reload passes locally; configure the production host to match.
+
+## Local API
+
+With `PORT_API` set in the shell, `bun run dev` and `bun run preview` forward `/api/<path>` to `http://localhost:${PORT_API}/<path>`, so `/api/v1/notes` reaches the API as `/v1/notes`. Without it nothing is proxied. `vite.config.ts` reads the variable from the shell, not from `.env`. `tests/proxy.test.ts` runs the dev server from that config against a stand-in API and checks the rewrite, so change both together.

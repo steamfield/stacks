@@ -3,7 +3,9 @@
  */
 import { APP_TAG } from "@steamfield/stacks-format";
 import { METADATA_DIR } from "../../project-layout";
-import type { Composition } from "../compose/types";
+import { sessionRootNames } from "../compose/mount";
+import { isClientRole } from "../compose/roles";
+import type { ComposedPart, Composition, MountedEntry, PartMount } from "../compose/types";
 import type { Entry } from "../registry/entry";
 import { envPrefix, slug } from "../text/slug";
 import {
@@ -31,7 +33,7 @@ type NewBrief = {
   context: BriefContext;
   stack: Entry;
   app: Entry | null;
-  base: ReadonlyArray<Entry>;
+  base: ReadonlyArray<MountedEntry>;
   cli: string;
 };
 
@@ -61,8 +63,16 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
   writeDecisions(out, composition.decisions, context.yes);
   writeDependencies(out, composition, context);
   writeGuidance(out, T.sections.stack(oneLine(stack.meta.name), stack.id), stack);
-  for (const fragment of brief.base)
-    writeGuidance(out, T.sections.fragment(oneLine(fragment.meta.name), fragment.id), fragment);
+  if (composition.parts)
+    writeWorkspaceSections(out, {
+      parts: composition.parts,
+      base: brief.base,
+      harness: sessionRootNames(composition.agents),
+      written: new Set(composition.files.map((file) => file.path)),
+    });
+  else
+    for (const fragment of brief.base)
+      writeGuidance(out, T.sections.fragment(oneLine(fragment.meta.name), fragment.id), fragment);
   writeDefinitionOfDone(out, brief);
   writeApplication(out, brief);
   writeAfterGreen(out, brief);
@@ -94,10 +104,14 @@ function writeStartHere(
   if (install.length) {
     out.fixed(T.start.install, "");
     out.data("   ```sh", ...install.map((line) => `   ${line}`), "   ```", "");
-  } else out.fixed(T.start.installListed(listed(composition)));
+  } else out.fixed(installListed(composition));
   out.fixed(
     T.start.verify(cli),
-    T.start.build(composition.decisions.length > 0, composition.app !== null),
+    T.start.build(
+      composition.decisions.length > 0,
+      composition.app !== null,
+      composition.parts !== undefined,
+    ),
     T.start.done(cli),
     "",
     T.start.reference,
@@ -105,6 +119,14 @@ function writeStartHere(
     T.start.facts,
     "",
   );
+}
+
+/** Step 1 when stacks can't spell the install command: the list, read per part in a workspace. */
+function installListed(composition: Composition<Entry | null>): string {
+  const what = listed(composition);
+  return composition.parts && what === "packages"
+    ? T.start.installParts
+    : T.start.installListed(what);
 }
 
 /** What step 1 points at when stacks can't spell the install command. */
@@ -115,15 +137,17 @@ function listed(composition: Composition<Entry | null>): "packages" | "tools" | 
 
 function writeFacts(out: BriefWriter, brief: NewBrief): void {
   const { composition, context, stack, app, cli } = brief;
+  const parts = composition.parts;
   out.fixed(
     T.facts.stack(oneLine(stack.meta.name), stack.id),
+    ...(parts ?? []).map(({ mount }) => T.facts.part(mount.name, mount.role, mount.stack)),
     T.facts.project(slug(context.project), envPrefix(slug(context.project))),
     T.facts.fragments(brief.base.map((fragment) => fragment.id)),
     ...(app ? [T.facts.app(oneLine(app.meta.name), app.id)] : []),
     T.facts.preset(composition.lean ? "lean" : composition.preset),
     ...(composition.payload ? [T.facts.payload(composition.payload)] : []),
     T.facts.agents(composition.agents),
-    T.facts.root,
+    parts ? T.facts.workspaceRoot : T.facts.root,
   );
   writeWrittenPaths(out, context.written);
   if (cli !== "stacks") out.fixed(T.facts.invocation(cli));
@@ -173,11 +197,77 @@ function writeDependencies(
   }
 }
 
-function writeGuidance(out: BriefWriter, heading: string, entry: Entry): void {
+/** One entry's section: its heading, then the fixed line saying where it runs, if any, then its body. */
+function writeGuidance(out: BriefWriter, heading: string, entry: Entry, opening?: string): void {
   out.gap();
-  out.fixed(heading);
+  out.fixed(heading, ...(opening === undefined ? [] : ["", opening]));
   out.data(...bodyLines(entry));
 }
+
+/**
+ * A workspace's sections after its own: each part in `parts` order, then each link, then every
+ * other base fragment, so the halves are described before the connection between them.
+ */
+function writeWorkspaceSections(
+  out: BriefWriter,
+  {
+    parts,
+    base,
+    harness,
+    written,
+  }: {
+    parts: ReadonlyArray<ComposedPart>;
+    base: ReadonlyArray<MountedEntry>;
+    harness: ReadonlyArray<string>;
+    written: ReadonlySet<string>;
+  },
+): void {
+  for (const { mount, entry } of parts)
+    if (entry)
+      writeGuidance(
+        out,
+        T.sections.part(oneLine(entry.meta.name), entry.id, mount.name),
+        entry,
+        T.sections.partLine(mount.name, partNamedFiles(written, mount.name), harness),
+      );
+  // Compose refuses a workspace without exactly one api part (`part_roles`), so `api` is set.
+  const api = parts.find((part) => !isClientRole(part.mount.role))?.mount.name;
+  const links = api === undefined ? [] : base.filter(isLink);
+  if (api !== undefined)
+    for (const link of links)
+      writeGuidance(
+        out,
+        T.sections.link(oneLine(link.meta.name), link.id),
+        link,
+        T.sections.linkLine(api, link.mount.name, harness),
+      );
+  for (const fragment of base.filter((entry) => !links.some((link) => link === entry)))
+    writeGuidance(
+      out,
+      T.sections.fragment(oneLine(fragment.meta.name), fragment.id),
+      fragment,
+      fragment.mount && T.sections.placed(fragment.mount.name, harness),
+    );
+}
+
+/**
+ * Which of `PART_NAMED_FILES` the composition writes in the part's directory, and which only at
+ * the project root; a name written in neither is in neither list.
+ */
+function partNamedFiles(written: ReadonlySet<string>, dir: string): T.PartNamedFiles {
+  const part = T.PART_NAMED_FILES.filter((name) => written.has(`${dir}/${name}`));
+  const root = T.PART_NAMED_FILES.filter(
+    (name) => !written.has(`${dir}/${name}`) && written.has(name),
+  );
+  return { part, root };
+}
+
+/** A link: a `link` fragment placed on a client part, which connects it to the api part. */
+const isLink = (entry: MountedEntry): entry is MountedEntry & { mount: PartMount } =>
+  entry.meta.kind === "fragment" &&
+  entry.meta.category === "link" &&
+  entry.mount !== undefined &&
+  isClientRole(entry.mount.role);
 
 function bodyLines(entry: Entry): string[] {
   const body = nest(entry.body).replace(/^\n+|\n+$/g, "");
@@ -285,9 +375,11 @@ const DEV_ROLE = /^(dev|test|.+-dev|.+-test)$/;
 /**
  * The package manager step 1 can drive for a single-package stack: Bun for a Bun scripts stack,
  * uv for a uv Python stack. Go needs `go mod init <module path>` first and Rust crates need
- * features the deps list doesn't carry, so those stacks, and monorepos, get none.
+ * features the deps list doesn't carry, so those stacks, monorepos and workspaces (each part has
+ * its own package manager) get none.
  */
 function installer(composition: Composition<Entry | null>) {
+  if (composition.parts) return null;
   const tags = composition.stack?.meta.tags ?? [];
   if (tags.includes("monorepo")) return null;
   if (tags.includes("bun") && tags.includes("scripts"))

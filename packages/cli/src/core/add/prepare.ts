@@ -12,7 +12,8 @@ import { targetAgents } from "../compose/agents";
 import { compose } from "../compose/compose";
 import { composeFiles } from "../compose/files";
 import { missingToolsOnPath } from "../compose/tools";
-import type { Composition, MissingTool } from "../compose/types";
+import type { ComposeOptions, Composition, MissingTool } from "../compose/types";
+import { defined } from "../object";
 import { gitInstalled } from "../project/git";
 import { buildManifest } from "../project/manifest";
 import { addPreset } from "../project/preset";
@@ -87,9 +88,22 @@ const composeDelta = (options: AddOptions, project: AddProject) =>
       always: [],
       mode: "add",
       existing,
+      ...workspaceParts(project),
       ...(!stack ? { inferredTags: yield* inferTags(options.root) } : {}),
     });
   });
+
+/**
+ * A workspace project's parts and its stack id, which mount the parts even when no registry has
+ * the stack. An empty list would compose as a single stack, so only a workspace passes it.
+ */
+function workspaceParts({
+  parts,
+  previous,
+}: AddProject): Partial<Pick<ComposeOptions<"add">, "parts" | "workspace">> {
+  if (!parts.length) return {};
+  return defined({ parts, workspace: previous?.stack?.id });
+}
 
 const warnMissingTools = (missing: ReadonlyArray<MissingTool>) =>
   Effect.gen(function* () {

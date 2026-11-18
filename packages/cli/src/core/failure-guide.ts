@@ -4,6 +4,7 @@ import type {
   ComposeConflict,
   ComposeConflictDetails,
   EntryInvalid,
+  EntryInvalidDetails,
   InvalidConfig,
   NotFound,
   NotFoundDetails,
@@ -370,11 +371,19 @@ function entryGuide(error: EntryInvalid, invocation: string): FailureGuide {
       `Entry: ${printable(details.id)} (${details.origin}, ${details.reason})`,
       ...(details.path ? [`Path: ${printable(details.path)}${line}`] : []),
       ...(details.problem ? [`Problem: ${details.problem}`] : []),
+      ...(details.part ? [`Part: ${printable(details.part)}`] : []),
+      ...(details.step ? [`Step: ${printable(details.step)}`] : []),
     ],
-    details.reason === "template"
-      ? `use only ${TEMPLATE_VARIABLES.join(", ")} in that file's {{ }} tokens, or drop its .tmpl suffix to copy it as is.`
-      : `fix that entry or leave it out; ${invocation} validate lists every problem in a registry.`,
+    entryNext(details, invocation),
   );
+}
+
+function entryNext(details: typeof EntryInvalidDetails.Type, invocation: string): string {
+  if (details.reason === "template")
+    return `use only ${TEMPLATE_VARIABLES.join(", ")} in that file's {{ }} tokens, or drop its .tmpl suffix to copy it as is.`;
+  if (details.reason.startsWith("part_"))
+    return `fix the workspace's parts list or that part's step; ${invocation} validate lists every problem in a registry.`;
+  return `fix that entry or leave it out; ${invocation} validate lists every problem in a registry.`;
 }
 
 function composeGuide(error: ComposeConflict, invocation: string): FailureGuide {
@@ -385,6 +394,7 @@ function composeGuide(error: ComposeConflict, invocation: string): FailureGuide 
     [
       `Reason: ${details.reason}`,
       ...(details.stack ? [`Stack: ${printable(details.stack)}`] : []),
+      ...(details.parts?.length ? [`Parts: ${details.parts.map(printable).join(", ")}`] : []),
       ...(details.ids.length ? [`Fragments: ${details.ids.map(printable).join(", ")}`] : []),
       ...(details.path
         ? [
@@ -457,8 +467,20 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
       `run ${invocation} search with --limit from 1 to 20.`,
     );
   if (details.flag === "offline") return offlineGuide(details.command, invocation);
+  if (details.flag === "part_dir") return partDirGuide(details, invocation);
   if (isSubmitDetails(details)) return submitGuide(details, invocation);
   return idInputGuide(details, invocation);
+}
+
+/** `add` in a part's directory: the fragments go on from the workspace root, which places them. */
+function partDirGuide(details: { part: string; root: string }, invocation: string): FailureGuide {
+  return guide(
+    [
+      `This directory is the ${printable(details.part)} part of a workspace project.`,
+      `Workspace root: ${printable(details.root)}`,
+    ],
+    `run ${invocation} add <fragment> --dir ${shellArg(details.root)}; add places each fragment on the part it fits.`,
+  );
 }
 
 function offlineGuide(command: "submit" | undefined, invocation: string): FailureGuide {
@@ -476,7 +498,7 @@ function offlineGuide(command: "submit" | undefined, invocation: string): Failur
 /** The BadInput shapes that carry an `id`, apart from submit's `collision`. */
 type IdInputDetails = Exclude<
   typeof BadInputDetails.Type,
-  SubmitDetails | { flag: "request" | "limit" | "offline" }
+  SubmitDetails | { flag: "request" | "limit" | "offline" | "part_dir" }
 >;
 
 function idInputGuide(details: IdInputDetails, invocation: string): FailureGuide {

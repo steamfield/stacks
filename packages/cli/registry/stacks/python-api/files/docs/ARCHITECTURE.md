@@ -18,6 +18,8 @@ and cache headers, then writes one request log. Defect records include class and
 stack frames, never exception messages, bodies, raw paths, query values or locals.
 The middleware resets context even when a request fails.
 
-The generated OpenAPI document is the public contract. Operation ids derive
-from router tags and function names. Tests exercise real routing and lifespan;
+The generated OpenAPI document is the public contract. Resource routes set
+`operation_id` in camelCase verb-noun form (`listNotes`, `getNote`, `createNote`)
+because typed clients name their functions after it. Routes without one, such as
+`/healthz`, fall back to `<tag>_<function>` from the factory. Tests exercise real routing and lifespan;
 new features extend that boundary suite rather than replacing it with route mocks.

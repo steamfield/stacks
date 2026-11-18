@@ -7,13 +7,18 @@ import { Effect, Result } from "effect";
 import type { ComposeConflict } from "../../../errors";
 import type { Finding } from "../../../schemas/validate";
 import { compose } from "../../compose/compose";
-import { fitsStack } from "../../compose/selection";
 import type { ComposeOptions } from "../../compose/types";
 import { type Fragment, isStack, type Stack, shippedOnlyFor } from "../../registry/entry";
 import type { Check, View } from "../types";
 import { entryFile, finding } from "../view";
 import { uniqueFindings } from "./composed";
-import { compositionSingles, describe, replacementDefaults } from "./compositions";
+import {
+  compositionSingles,
+  describe,
+  fitsHost,
+  replacementDefaults,
+  stackHosts,
+} from "./compositions";
 
 /** How one fragment composes onto one stack; `covered` when the stack's own plans include it. */
 type FragmentPlan = {
@@ -57,7 +62,7 @@ function agentsWithOwnFiles(view: View): AgentId[] {
  */
 function fragmentPlan(view: View, stack: Stack, fragment: Fragment): FragmentPlan | undefined {
   const listed = Object.values(stack.meta.fragments).some((ids) => ids.includes(fragment.id));
-  if (!listed && !hostsOverlay(view, stack, fragment) && !fitsByAppliesTo(stack, fragment))
+  if (!listed && !hostsOverlay(view, stack, fragment) && !fitsByAppliesTo(view, stack, fragment))
     return undefined;
   const inBase = [...stack.meta.fragments.required, ...stack.meta.fragments.default].includes(
     fragment.id,
@@ -71,20 +76,22 @@ function fragmentPlan(view: View, stack: Stack, fragment: Fragment): FragmentPla
   return { covered, with: plan?.with ?? [fragment.id], without };
 }
 
+/** Whether the fragment ships an overlay for the stack or, for a workspace, one of its parts. */
 function hostsOverlay(view: View, stack: Stack, fragment: Fragment): boolean {
+  const hosts = stackHosts(view, stack).map((host) => host.id);
   return (
     view.sources
       .get(fragment.dir)
-      ?.files.some((file) => shippedOnlyFor(file.source, "stack", stack.id)) ?? false
+      ?.files.some((file) => hosts.some((id) => shippedOnlyFor(file.source, "stack", id))) ?? false
   );
 }
 
-/** An empty `appliesTo` fits nothing here: only a listing or overlay brings such a fragment in. */
-function fitsByAppliesTo(stack: Stack, fragment: Fragment): boolean {
-  return (
-    fragment.meta.appliesTo.length > 0 &&
-    fitsStack(fragment.meta.appliesTo, { id: stack.id, tags: stack.meta.tags })
-  );
+/**
+ * Fits the stack or, for a workspace, one of its parts. An empty `appliesTo` fits nothing here:
+ * only a listing or overlay brings such a fragment in.
+ */
+function fitsByAppliesTo(view: View, stack: Stack, fragment: Fragment): boolean {
+  return fragment.meta.appliesTo.length > 0 && fitsHost(view, stack, fragment.meta.appliesTo);
 }
 
 const composeFragmentPair = (

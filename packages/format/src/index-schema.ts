@@ -32,6 +32,18 @@ export const IndexEntry = Schema.Struct({
       ),
     ),
   ),
+  /**
+   * A workspace stack's part name to the stack it mounts and that stack's bundle digest. Keyed by
+   * part, not stack id, so two parts of one stack keep separate pins; the stack id is here so a
+   * reader can build the bundle's path from the index alone.
+   */
+  parts: Schema.optionalKey(
+    Schema.Record(Schema.String, Schema.Struct({ stack: Kebab, digest: Digest })).check(
+      Schema.makeFilter(
+        (value) => Object.keys(value).every(Schema.is(Kebab)) || "invalid part name",
+      ),
+    ),
+  ),
   lastRun: Schema.optionalKey(LastRun),
   /** The creator's GitHub login, from the registry's `authors.json`. */
   author: Schema.optionalKey(GitHubLogin),
@@ -39,7 +51,9 @@ export const IndexEntry = Schema.Struct({
   Schema.makeFilter((entry) =>
     entry.kind === "stack"
       ? entry.composition !== undefined || "stacks require a composition"
-      : (entry.composition === undefined && entry.lastRun === undefined) ||
+      : (entry.composition === undefined &&
+          entry.parts === undefined &&
+          entry.lastRun === undefined) ||
         "fragments cannot carry stack proof fields",
   ),
 );

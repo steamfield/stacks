@@ -435,7 +435,9 @@ describe("every bundled stack scaffolds through new", () => {
       expect(status).toBe(0);
       const result = Schema.decodeUnknownSync(NewResult)(JSON.parse(stdout));
       expect(result.preset).toBe(preset);
-      expect(result.briefWords).toBeLessThanOrEqual(BUDGET.composed);
+      expect(result.briefWords).toBeLessThanOrEqual(
+        result.parts ? BUDGET.composedWorkspace : BUDGET.composed,
+      );
       // Nothing but the shim's git ran, and only the commands `new` itself issues.
       expect(calls.every((call) => ["rev-parse", "init", "config"].includes(call))).toBe(true);
       const manifest = Schema.decodeUnknownSync(Manifest)(

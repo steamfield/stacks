@@ -23,10 +23,13 @@ export const start = {
       tools: "1. Install any tool under Dependencies and tools that isn't on PATH.",
       none: "1. Nothing to install.",
     })[what],
+  /** A workspace's step 1 when it has packages: each part installs its own, in its directory. */
+  installParts:
+    "1. Install the packages under Dependencies and tools at their latest versions with each part's own package manager, in that part's directory: a role named `<part>-<role>` belongs to the part in `<part>/`.",
   verify: (cli: string) =>
     `2. Run ${verify(cli)} (the code checks); fix the code, never the steps, until it is ${code("green")}.`,
-  build: (decisions: boolean, app: boolean) =>
-    `3. Do what the Stack and Fragment sections ask${decisions ? ", taking the Decisions" : ""}${app ? ", then the application" : ""}, and replace every \`stacks:fill\` marker.`,
+  build: (decisions: boolean, app: boolean, workspace = false) =>
+    `3. Do what the ${workspace ? "Stack, Part, Link" : "Stack"} and Fragment sections ask${decisions ? ", taking the Decisions" : ""}${app ? ", then the application" : ""}, and replace every \`stacks:fill\` marker.`,
   done: (cli: string) =>
     `4. Done: ${verify(cli, " --all")}, which adds the hygiene checks, exits 0 with outcome ${code("green")}. Then follow After green.`,
   reference: "Everything below is reference.",
@@ -35,6 +38,8 @@ export const start = {
 
 export const facts = {
   stack: (name: string, id: string) => `- Stack: ${name} (${code(id)})`,
+  part: (dir: string, role: string, stack: string) =>
+    `- Part ${code(`${dir}/`)}: role ${code(role)}, stack ${code(stack)}`,
   project: (slug: string, prefix: string) =>
     `- Project slug: ${code(slug)}; env prefix: ${code(prefix)}`,
   fragments: (ids: ReadonlyArray<string>) =>
@@ -45,6 +50,8 @@ export const facts = {
   payload: (payload: string) => `- Payload: ${code(payload)}`,
   agents: (ids: ReadonlyArray<string>) => `- Target agents: ${ids.join(", ")}`,
   root: `- Project root: the directory containing \`${METADATA_DIR}/\`. Run every command from there.`,
+  /** In place of `root` in a workspace, whose part sections run their commands elsewhere. */
+  workspaceRoot: `- Project root: the directory containing \`${METADATA_DIR}/\`. Run root commands there; a Part, Link or placed Fragment section says where its own commands run.`,
   written: "- Files stacks wrote:",
   invocation: (cli: string) =>
     `- Wherever this brief says ${code("stacks <command>")}, run ${code(`${cli} <command>`)}.`,
@@ -157,7 +164,56 @@ export const installHint = (tool: string) => {
 export const sections = {
   stack: (name: string, id: string) => `## Stack: ${name} (${code(id)})`,
   fragment: (name: string, id: string) => `## Fragment: ${name} (${code(id)})`,
+  part: (name: string, id: string, dir: string) =>
+    `## Part: ${name} (${code(id)}) in ${code(`${dir}/`)}`,
+  /**
+   * Entry prose is carried, never rewritten, so this line tells the reader where a mounted body's
+   * root is. `named` sorts the `PART_NAMED_FILES` the composition writes into the part's copies
+   * and the root's only ones. `harness` is `sessionRootNames` for the target agents, written at
+   * the project root.
+   */
+  partLine: (dir: string, named: PartNamedFiles, harness: ReadonlyArray<string>) =>
+    `This part lives in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines.${partCopies(dir, named.part)}${rootCopies(dir, named.root)}${harnessRoot(harness)}`,
+  link: (name: string, id: string) => `## Link: ${name} (${code(id)})`,
+  /** A link body is written in roles; this line names each role's directory for this project. */
+  linkLine: (api: string, client: string, harness: ReadonlyArray<string>) =>
+    `In this section the API part is ${code(`${api}/`)} and the client part is ${code(`${client}/`)}. Paths and commands are relative to ${code(`${client}/`)} and run there.${harnessRoot(harness)}`,
+  placed: (dir: string, harness: ReadonlyArray<string>) =>
+    `This fragment is placed on the part in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there.${harnessRoot(harness)}`,
 };
+
+/** Project files a part's prose commonly names, which a workspace may write in the part, at the root or both. */
+export const PART_NAMED_FILES = ["README.md", ".env.example", "AGENTS.md", "CLAUDE.md"] as const;
+/** Of `PART_NAMED_FILES`, those written in the part's directory and those written only at the root. */
+export type PartNamedFiles = {
+  readonly part: ReadonlyArray<string>;
+  readonly root: ReadonlyArray<string>;
+};
+
+/** `a`, `a and b`, `a, b and c`, each as inline code. */
+function codeList(items: ReadonlyArray<string>): string {
+  const named = items.map(code);
+  const last = named.pop();
+  return named.length ? `${named.join(", ")} and ${last}` : `${last}`;
+}
+
+function partCopies(dir: string, names: ReadonlyArray<string>): string {
+  if (!names.length) return "";
+  const verb = names.length === 1 ? "is this part's copy" : "are this part's copies";
+  return ` ${codeList(names)} named here ${verb} in ${code(`${dir}/`)}, not the root's.`;
+}
+
+function rootCopies(dir: string, names: ReadonlyArray<string>): string {
+  if (!names.length) return "";
+  const verb = names.length === 1 ? "is" : "are";
+  return ` ${codeList(names)} named here ${verb} the project root's; no copy is written in ${code(`${dir}/`)}.`;
+}
+
+/** The clause ending a mounted section's line: the agent harness paths stay at the project root. */
+function harnessRoot(paths: ReadonlyArray<string>): string {
+  if (!paths.length) return "";
+  return ` The agent harness paths ${codeList(paths)} are at the project root, not in a part.`;
+}
 
 export const done = {
   heading: "## Definition of done",
@@ -255,7 +311,12 @@ export const sandbox = [
 export const add = {
   inferredTags: (tags: ReadonlyArray<string>) =>
     `- Inferred tags: ${tags.length ? tags.join(", ") : "none"}`,
-  recipeNote: (id: string) => `### From the ${code(id)} recipe (current version)`,
+  /**
+   * `rooted` says where the note's paths are when its source sits elsewhere than the added
+   * fragment: a part directory, or `null` for the project root; absent when they agree.
+   */
+  recipeNote: (id: string, rooted?: string | null) =>
+    `### From the ${code(id)} recipe (current version)${rooted === undefined ? "" : `, paths relative to ${rooted === null ? "the project root" : code(`${rooted}/`)}`}`,
   createAgentsMd:
     "Create `AGENTS.md` at the project root before adding the sections requested below.",
   title: (ids: ReadonlyArray<string>, project: string) => `# Add ${ids.join(", ")} to ${project}`,

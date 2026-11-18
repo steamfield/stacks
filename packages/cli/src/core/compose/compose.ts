@@ -14,22 +14,29 @@ import {
 import {
   DEFAULT_PAYLOAD,
   type Entry,
+  entryKey,
   entryRef,
   isFragment,
   markdownFile,
   type Payload,
+  type Stack,
 } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type ConditionContext, resolveConditionals } from "./conditionals";
 import { conflict, parties } from "./conflicts";
+import { contextFor, mountComposition } from "./mount";
+import { stackEntries } from "./part-entries";
 import { planFiles } from "./plan-files";
 import { selectFragments } from "./selection";
 import type {
+  ComposedPart,
   ComposedStep,
   ComposeOptions,
   Composition,
   CompositionEntryRef,
   MissingTool,
+  MountedEntry,
+  MountRoot,
 } from "./types";
 
 /** The step tag `--sandbox` skips by default (`verify --all` still runs it). */
@@ -48,29 +55,43 @@ export function compose(
 ): Effect.Effect<Composition<Entry | null>, ComposeError, Registry> {
   return Effect.gen(function* () {
     const registry = yield* Registry;
-    const { stack, ordered, via, warnings, existing, appliedEntries } = yield* selectFragments(
-      registry,
-      options,
-    );
-    const payload = options.payload ?? DEFAULT_PAYLOAD;
-    yield* checkPayload(registry, stack, payload);
-    const context = conditionContext(options, {
-      stack,
-      payload,
-      ids: [...existing, ...ordered.map((fragment) => fragment.id)],
+    const selected = yield* selectFragments(registry, options);
+    const { stack, via, warnings, existing } = selected;
+    const mounted = yield* mountComposition({
+      workspace: mountRoot(stack, options),
+      parts: selected.parts,
+      fragments: selected.ordered,
+      applied: selected.appliedEntries,
     });
-    const resolve = resolver(registry, context);
+    const payload = options.payload ?? DEFAULT_PAYLOAD;
+    const payloads = yield* checkPayload(registry, stackEntries(stack, mounted.parts), payload);
+    const root = conditionContext(options, {
+      stack,
+      // The workspace and root fragments see the workspace's own payload, the one its files use.
+      payload: (stack ? payloads.get(entryKey(stack.kind, stack.id)) : undefined) ?? payload,
+      ids: [...existing, ...mounted.fragments.map((fragment) => fragment.id)],
+      roles: mounted.parts.map((part) => part.mount.role),
+    });
+    const placed = { parts: mounted.parts, placed: [...mounted.fragments, ...mounted.applied] };
+    const contextOf = (entry: MountedEntry) => contextFor(entry, root, { ...placed, payloads });
+    const resolve = resolver(registry, contextOf);
     const resolvedStack = stack ? yield* resolve(stack) : null;
-    const fragments = yield* Effect.forEach(ordered, resolve);
-    // In add mode the project already has the stack, so only the new fragments emit anything.
-    const entries: ReadonlyArray<Entry> = [
-      ...(options.mode === "new" && resolvedStack ? [resolvedStack] : []),
+    const parts = yield* Effect.forEach(mounted.parts, (part) => resolvePart(part, resolve));
+    const fragments = yield* Effect.forEach(mounted.fragments, resolve);
+    // In add mode the project already has the stack and its parts, so only the new fragments
+    // emit anything.
+    const entries: ReadonlyArray<MountedEntry> = [
+      ...(options.mode === "new" ? stackEntries(resolvedStack, parts) : []),
       ...fragments,
     ];
-    const addNotes = yield* recipeNotes(registry, context, ordered, {
-      stack,
-      applied: appliedEntries,
-    });
+    const addNotes = yield* recipeNotes(
+      registry,
+      { mode: options.mode, contextOf },
+      {
+        fragments: mounted.fragments,
+        sources: [...stackEntries(stack, mounted.parts), ...mounted.applied],
+      },
+    );
     const inferred =
       !stack && options.inferredTags !== undefined ? { inferredTags: options.inferredTags } : {};
     const app = fragments.find((fragment) => fragment.meta.category === "app") ?? null;
@@ -78,6 +99,7 @@ export function compose(
     return {
       stack: resolvedStack,
       fragments,
+      ...(parts.length ? { parts } : {}),
       app,
       addNotes,
       ...inferred,
@@ -92,6 +114,7 @@ export function compose(
         agents: options.agents,
         stack: stack?.id ?? null,
         payload,
+        payloads,
       }),
       verify: yield* steps(entries, app, options.preset === "sandbox"),
       commands: mergeCommands(entries),
@@ -112,9 +135,14 @@ export function compose(
  */
 function conditionContext(
   options: ComposeOptions<"new" | "add">,
-  composed: { stack: Entry | null; payload: Payload; ids: ReadonlyArray<string> },
+  composed: {
+    stack: Entry | null;
+    payload: Payload;
+    ids: ReadonlyArray<string>;
+    roles: ReadonlyArray<string>;
+  },
 ): ConditionContext {
-  const { stack, payload, ids } = composed;
+  const { stack, payload, ids, roles } = composed;
   return {
     stack: stack?.id ?? "",
     tags: stack?.meta.tags ?? options.inferredTags ?? [],
@@ -122,8 +150,28 @@ function conditionContext(
     preset: options.preset,
     with: ids,
     payload,
+    ...(roles.length ? { partRoles: roles } : {}),
   };
 }
+
+/**
+ * What the parts mount under: the stack, or in add mode the manifest's workspace id when no
+ * registry has that stack, so the project's parts still place what is added.
+ */
+function mountRoot(stack: Stack | null, options: ComposeOptions<"new" | "add">): MountRoot | null {
+  if (stack) return { id: stack.id, entry: stack };
+  if (options.mode === "add" && options.workspace !== undefined)
+    return { id: options.workspace, entry: null };
+  return null;
+}
+
+const resolvePart = (
+  part: ComposedPart,
+  resolve: (entry: MountedEntry) => Effect.Effect<MountedEntry, EntryInvalid | PermissionDenied>,
+): Effect.Effect<ComposedPart, EntryInvalid | PermissionDenied> =>
+  part.entry
+    ? Effect.map(resolve(part.entry), (entry) => ({ mount: part.mount, entry }))
+    : Effect.succeed(part);
 
 /** Lean and a non-default payload are recorded only when chosen, so other compositions are unchanged. */
 const variant = (lean: boolean | undefined, payload: Payload) => ({
@@ -131,47 +179,70 @@ const variant = (lean: boolean | undefined, payload: Payload) => ({
   ...(payload === DEFAULT_PAYLOAD ? {} : { payload }),
 });
 
-/** A payload other than the example must be one the stack ships under `payloads/<variant>/`. */
-const checkPayload = Effect.fn("compose.checkPayload")(function* (
-  registry: Registry["Service"],
-  stack: Entry | null,
-  payload: Payload,
-) {
-  if (!stack || payload === DEFAULT_PAYLOAD) return;
-  const files = yield* registry.files(stack);
-  const shipped = files.some((file) => {
-    const condition = shippedPath(file.source)?.condition;
-    return condition?.kind === "payload" && condition.id === payload;
-  });
-  if (!shipped) return yield* new BadInput({ details: { id: payload, flag: "payload" } });
-});
+const shipsPayload = (registry: Registry["Service"], stack: Entry, payload: Payload) =>
+  Effect.map(registry.files(stack), (files) =>
+    files.some((file) => {
+      const condition = shippedPath(file.source)?.condition;
+      return condition?.kind === "payload" && condition.id === payload;
+    }),
+  );
 
 /**
- * Add mode only: for each added fragment, the blocks of the stack and the already applied
- * fragments that name it with `with=`, so the brief can tell the agent how the existing recipe
- * expects the new fragment to fit. An entry with no such block contributes nothing.
+ * A payload other than the example must be one some stack-kind entry ships under
+ * `payloads/<variant>/`. In a workspace each part that lacks it uses the example; the result maps
+ * those entries (by `entryKey`) to the payload they get instead.
+ */
+const checkPayload = Effect.fn("compose.checkPayload")(function* (
+  registry: Registry["Service"],
+  stacks: ReadonlyArray<Entry>,
+  payload: Payload,
+) {
+  const fallback = new Map<string, Payload>();
+  if (!stacks.length || payload === DEFAULT_PAYLOAD) return fallback;
+  for (const stack of stacks)
+    if (!(yield* shipsPayload(registry, stack, payload)))
+      fallback.set(entryKey(stack.kind, stack.id), DEFAULT_PAYLOAD);
+  // Keyed by entry, so one stack mounted as two parts counts once.
+  const keys = new Set(stacks.map((stack) => entryKey(stack.kind, stack.id)));
+  if (fallback.size === keys.size)
+    return yield* new BadInput({ details: { id: payload, flag: "payload" } });
+  return fallback;
+});
+
+type Contexts = {
+  mode: "new" | "add";
+  contextOf: (entry: MountedEntry) => ConditionContext;
+};
+
+/**
+ * Add mode only: for each added fragment, the blocks of the stack, its parts and the already
+ * applied fragments that name it with `with=`, so the brief can tell the agent how the existing
+ * recipe expects the new fragment to fit. An entry with no such block contributes nothing.
  */
 const recipeNotes = Effect.fn("compose.recipeNotes")(function* (
   registry: Registry["Service"],
-  context: ConditionContext,
-  fragments: ReadonlyArray<Entry>,
-  { stack, applied }: { stack: Entry | null; applied: ReadonlyArray<Entry> },
+  contexts: Contexts,
+  { fragments, sources }: { fragments: ReadonlyArray<Entry>; sources: ReadonlyArray<MountedEntry> },
 ) {
   const notes: Array<{ fragment: string; entry: Entry }> = [];
-  if (context.mode !== "add") return notes;
-  const sources = [...(stack ? [stack] : []), ...applied];
+  if (contexts.mode !== "add") return notes;
   for (const fragment of fragments)
     for (const source of sources) {
-      const entry = yield* resolver(registry, context, fragment.id)(source);
+      const entry = yield* resolver(registry, contexts.contextOf, fragment.id)(source);
       if (entry.body.trim()) notes.push({ fragment: fragment.id, entry });
     }
   return notes;
 });
 
-function resolver(registry: Registry["Service"], context: ConditionContext, withFragment?: string) {
-  return <E extends Entry>(entry: E) =>
+/** Resolves an entry's body against its own condition context (`contextFor`). */
+function resolver(
+  registry: Registry["Service"],
+  contextOf: (entry: MountedEntry) => ConditionContext,
+  withFragment?: string,
+) {
+  return <E extends MountedEntry>(entry: E) =>
     Effect.gen(function* () {
-      const resolved = resolveConditionals(entry.body, context, withFragment);
+      const resolved = resolveConditionals(entry.body, contextOf(entry), withFragment);
       if ("text" in resolved) return { ...entry, body: resolved.text };
       // The body is the file's tail, so the lines before it are the difference in line counts.
       const file = markdownFile(entry.kind);

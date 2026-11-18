@@ -38,6 +38,22 @@ describe("CLI mirrors", () => {
     );
   }
 
+  it.effect("a new result with parts decodes with them, and one without has none", () =>
+    Effect.gen(function* () {
+      const parts = [
+        { name: "backend", role: "api", stack: "api-part" },
+        { name: "frontend", role: "web", stack: "web-part" },
+      ];
+      const without = yield* Schema.decodeUnknownEffect(NewSuccess)(jsonFixture("new"));
+      expect("parts" in without).toBe(false);
+      const withParts = { ...without, parts };
+      expect(yield* Schema.decodeUnknownEffect(NewSuccess)(withParts)).toEqual(withParts);
+      const malformed = { ...without, parts: [{ name: "backend" }] };
+      const exit = yield* Effect.exit(Schema.decodeUnknownEffect(NewSuccess)(malformed));
+      expect(exit._tag).toBe("Failure");
+    }),
+  );
+
   it.effect("every captured verify event decodes without losing fields", () =>
     Effect.gen(function* () {
       for (const line of fixture("verify-events.jsonl").trim().split("\n")) {

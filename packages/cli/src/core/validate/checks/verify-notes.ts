@@ -56,11 +56,17 @@ function duplicateRunNotes(view: View, composition: Composition): Finding[] {
   );
 }
 
-/** The names of steps that share a `run` command, one group per command run more than once. */
+/**
+ * The names of steps that run one command in one directory, a group per pair run more than once.
+ * Two parts each running `bun run test` in their own directory are no repeat.
+ */
 export function duplicateRuns(
-  steps: ReadonlyArray<Pick<Composition["verify"][number], "run" | "name">>,
+  steps: ReadonlyArray<Pick<Composition["verify"][number], "run" | "name" | "cwd">>,
 ): string[][] {
   const commands = new Map<string, string[]>();
-  for (const step of steps) commands.set(step.run, [...(commands.get(step.run) ?? []), step.name]);
+  for (const step of steps) {
+    const key = JSON.stringify([step.cwd ?? ".", step.run]);
+    commands.set(key, [...(commands.get(key) ?? []), step.name]);
+  }
   return [...commands.values()].filter((names) => names.length > 1);
 }

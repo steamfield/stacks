@@ -3,137 +3,84 @@ schema_version: 1
 id: python-react
 kind: stack
 name: Python API + React SPA
-description: FastAPI backend (uv, ruff, mypy strict, pytest) plus a React single-page app (Vite, React Router in SPA mode, TanStack Query, Tailwind, shadcn/ui) that talks to the API through a typed client generated from its OpenAPI spec.
+description: A workspace of two stacks in one repository, the FastAPI service from python-api in backend/ and the React single-page app on Vite from react-vite in frontend/, joined by an Orval client generated from the API's OpenAPI document, a Vite proxy and a root Makefile.
 tags: [python, typescript, react, web, api, fullstack, monorepo, make, bun, node]
-deps:
-  backend: [fastapi, uvicorn, pydantic, pydantic-settings, structlog]
-  backend-dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx]
-  frontend: [react, react-dom, react-router, "@tanstack/react-query", zod, tailwindcss, "@tailwindcss/vite", class-variance-authority, lucide-react]
-  frontend-dev: ["@react-router/dev", vite, "@vitejs/plugin-react", typescript, "@biomejs/biome", vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/jest-dom", "@testing-library/user-event", msw, "@faker-js/faker", orval, "@playwright/test"]
-tools: [uv, bun, make, git, jq]
-merge: [.claude/settings.json]
-decisions:
-  - "Python version: the newest stable CPython that FastAPI, ruff, and mypy support (default). Setup writes it to .python-version and requires-python."
-  - "Frontend package manager: bun (default), or npm/pnpm; swap every command consistently."
-  - "Database: the postgres fragment when it was selected, otherwise none (default; notes stay in memory, and `stacks add postgres` adds Postgres + SQLAlchemy + Alembic later)."
-  - "Auth: none (default); leave a current-user dependency as the seam."
-  - "Production SPA serving: static host on the API's origin behind a reverse proxy (default), or FastAPI serving the build."
-  - "Commit the generated API client and openapi.json (default: yes)."
-env:
-  PORT_API: "8000"
-  PORT_WEB: "5173"
+parts:
+  - { name: backend, role: api, stack: python-api }
+  - { name: frontend, role: web, stack: react-vite }
+tools: [uv, bun, node, make, git, curl]
 fragments:
-  default: [agent-ops, git-hooks, ci-github, posthog]
-  optional: [postgres, docker-deploy, rr, ce-plugin]
+  required: [openapi-client, claude-harness]
+  default: [agent-ops, ci-github, git-hooks]
+  optional: [postgres, rest-api, claude-harness-docs, code-docs, rr, ce-plugin]
 verify:
-  - { name: install, phase: setup, layer: install, run: make install }
-  - { name: lint, layer: lint, run: make lint }
-  - { name: typecheck, layer: typecheck, run: make typecheck }
-  - { name: test, layer: test, run: make test }
-  - { name: home-route-test, layer: test, run: cd frontend && bun run test app/routes/home.test.tsx }
-  - { name: api-contract, layer: check, run: make check-api }
-  - { name: build, layer: build, run: make build }
-  - { name: e2e, layer: test, run: make e2e }
-  - name: api
-    phase: serve
-    layer: serve
-    run: make dev-api
-    expect: { http: "http://localhost:${PORT_API}/health", within: 90s }
-  - name: web
-    phase: serve
-    layer: serve
-    run: make dev-web
-    expect: { http: "http://localhost:${PORT_WEB}/", within: 90s }
-  - name: readme-filled
-    layer: check
-    tags: [hygiene]
-    run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
+  - { name: api-copy, layer: check, run: make check-api-copy }
+  - { name: both-parts, layer: test, run: make check-pair }
+  - { name: workspace-docs, layer: check, tags: [hygiene], run: make check-docs }
 commands:
-  install: Install backend and frontend dependencies
-  lint: Lint and format-check both halves
-  format: Auto-format and auto-fix both halves
-  typecheck: mypy strict + tsc
-  test: Backend and frontend tests
-  coverage: Tests with coverage thresholds enforced
-  build: Production frontend build
-  dev: Run API and web dev servers together
-  dev-api: API dev server with reload on PORT_API
-  dev-web: Web dev server on PORT_WEB (proxies /api to PORT_API)
-  backend-install: uv sync (--locked when CI is set)
-  backend-lint: ruff check + ruff format --check
-  backend-format: ruff format + ruff check --fix
-  backend-typecheck: mypy strict
-  backend-test: pytest (parallel)
-  backend-coverage: pytest with the coverage floor
-  frontend-install: bun install (frozen lockfile when CI is set)
-  frontend-lint: Biome lint and format check
-  frontend-format: Biome formatting and safe fixes
-  frontend-typecheck: React Router typegen + tsc
-  frontend-test: vitest run
-  frontend-coverage: vitest with coverage thresholds
-  frontend-build: Static SPA build into frontend/build/client
-  generate-api: Dump OpenAPI from the backend and regenerate the typed client
-  check-api: Fail if frontend/openapi.json no longer matches the backend's spec (run generate-api)
-  e2e: Playwright end-to-end tests (installs the browser on first run)
-  clean: Remove caches and build output
+  install: Install both parts, then git hooks outside CI
+  lint: Lint both parts
+  format: Format both parts
+  typecheck: Typecheck both parts
+  test: Test both parts
+  coverage: Test both parts with coverage
+  build: Build the frontend
+  e2e: The frontend's Playwright tests
+  dev: Both dev servers
+  openapi: Write backend/openapi.json
+  check-openapi: Fail when backend/openapi.json is stale
+  api-client: Copy the backend's OpenAPI document to the frontend and regenerate the client
+  check-api-copy: Fail when frontend/openapi.json differs from backend/openapi.json
+  check-pair: Run both parts and send each path in PATHS through the proxy
+  check-docs: Fail on unfilled root docs or a root AGENTS.md missing its links
+  check: Every check of both parts plus the cross-part checks
 ---
+
+# Python API + React SPA
 
 ## What stacks wrote
 
-`backend/` contains the FastAPI app factory, settings, request logging, error handlers, health route, in-memory notes payload and tests reused from the Python API slice. `frontend/` contains a React Router SPA, a QueryClient provider, the health screen, its MSW tests, a typed fetch boundary validated with generated zod schemas, and Playwright tests against both real servers. The Makefile, tool configs and reference docs are shipped too; read the code before extending it.
+Each part is its stack, complete alone; the link adds Orval to `frontend/`. `docs/ARCHITECTURE.md` is the contract. This section governs where a part's section differs.
 
-## Layout
+## How the parts connect
 
-Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep business logic in `app/services/` and wire models in `app/schemas.py`. Feature components belong in `frontend/app/components/<feature>/`; owned shadcn-style primitives live in `components/ui/`. See `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md`.
+The browser calls `/api/v1/...` on its own origin. Vite's proxy, on while `PORT_API` is set in the shell, strips `/api` and forwards to the API. `backend/` owns the contract: `make api-client` dumps `backend/openapi.json`, copies it to `frontend/openapi.json` and regenerates the client. The frontend reads only a failure's status and `x-request-id`.
+
+The root `.env` reaches a part only through the root Makefile's export, and a value exported in the shell wins. A command run inside a part sees only that part's `.env`.
 
 ## Setup
 
-1. No project generator. In `backend/`, select the newest stable CPython supported by the declared packages with `uv python pin`, set matching `requires-python` and ruff's target-version in the shipped `pyproject.toml`, then `uv add` every backend dependency and `uv add --dev` every backend-dev dependency from deps. In `frontend/`, `bun add` every frontend dependency and `bun add --dev` every frontend-dev dependency. Install required peers too, including React's types, Node's types and Testing Library's DOM peer if the package manager leaves them out.
-2. Run `make generate-api`: this writes `frontend/openapi.json`, orval's client/hooks/MSW handlers and zod schemas in `frontend/app/api/generated/`. These outputs depend on installed releases and are intentionally generated during Setup. Commit them with both lockfiles.
-3. Apply the selected fragments, including their edits to shipped entry points, then run `make format` (a newer ruff target can rewrite syntax) and `make install lint typecheck test build e2e check-api coverage`. Update shipped code or config the installed releases reject without dropping a rule, reducing coverage or weakening a check. The home test must use the real query provider and fetch boundary; Playwright must call the real backend.
-4. Record Python in `backend/.python-version` and `requires-python`, Bun in `frontend/package.json`'s `packageManager`, and Node in `.node-version`. Copy `.env.example` to `.env` only when changing defaults.
-5. Fill the README's `stacks:fill` marker, then `stacks verify` until green. Fill the agent-ops instructions from the project as built.
+1. In `backend/`, pin Python and add its declared dependencies as its section says. In `frontend/`, add its and the link's dependencies and the link's two package scripts.
+2. From the root, `make install`, then `make api-client`. The frontend's typecheck and tests fail until this generates the client.
+3. Move the notes list page to the generated hook, as the link's section says.
+4. `make format`, then `make check`, fixing what installed releases reject without loosening a check.
+5. Create `backend/AGENTS.md` and `frontend/AGENTS.md` for what each part's section puts in AGENTS.md. Fill the root `AGENTS.md` with the root commands, the change workflow and links to both part files and `docs/ARCHITECTURE.md`. Fill all three READMEs.
+6. Commit both `openapi.json` files, the generated client and both lockfiles, then run `stacks verify` until green.
 
-## Conventions
+## Changing the API
 
-- `backend/app/main.py` owns startup and lifespan resources. Keep imports free of network connections and file writes. `Settings` reads the root `.env` even when commands run in `backend/`; env overrides it.
-- Routers use `ApiModel` and a `response_model`. Python uses snake_case, wire fields use camelCase. Keep stable tag/function operation ids; renaming a route function renames its client.
-- Raise `AppError` through the error table. `app/error_handlers.py` owns the public code/message/details/requestId envelope and the same OpenAPI response model for 404, 422 and 500. Never expose exception text or request bodies. Extend the HTTP tests with each new failure.
-- `app/middleware.py` validates or generates request ids, echoes them and logs one sanitized request record with the route pattern. `/health` stays dependency-free. The notes store is ephemeral; accounts and persistence remain application work.
-- React Router stays in SPA mode, with no server loaders or actions. `app/lib/api.ts` owns transport/errors and the public `VITE_API_BASE_URL`; `app/lib/health.ts` demonstrates decoding generated results before UI use. Use generated query keys for invalidation.
-- The Vite config reads the root env and proxies `/api` and `/health` to PORT_API. A separate API origin must explicitly allow the web origin in CORS settings.
-- Generated files are read-only; run `make generate-api` after backend changes. Biome skips their lint and import sorting; orval's post-generation hook formats them. `make check-api` compares the committed spec as parsed JSON with a fresh backend dump, without rewriting it.
-- Keep the configured lint rules, strict mypy/TypeScript and coverage floors when adapting releases. `frontend/biome.json` preserves React and accessibility checks, type imports/exports, const enforcement and organized imports. It excludes build and test output, `.stacks/`, `.claude/` and the Python-formatted spec; generated TypeScript stays format-checked.
-- Extend the owned UI primitives in place, use theme tokens and cva variants, and give interactive elements accessible names. Adding a shadcn component may require its current utility dependencies; keep the `~` aliases from tsconfig.
-
-## Testing
-
-Backend service and config tests sit next to code; `backend/tests/test_http.py` exercises the real ASGI app with httpx inside its native lifespan context. It checks notes, error bodies, request ids, logs and OpenAPI. Mock external boundaries, never your own modules.
-
-Frontend tests render the real home route with a fresh QueryClient and generated MSW handlers. `tests/setup.ts` rejects unhandled requests and resets handlers between tests. Add success, failure and malformed-response cases with each client boundary. Cross-origin handlers need CORS headers and OPTIONS if the test DOM preflights. Playwright owns two servers on separate test ports and shuts them down; never reuse a user's server. `make coverage` enforces both halves' floors.
+Change the route, schema and tests in `backend/`. Run `make api-client` from the root, use the generated hook in `frontend/` with its handler, fixture and tests, and add the list path to `PATHS` in `scripts/check-pair.sh`. Commit the regenerated files with the change, then `make check`.
 
 ## Commands
 
-`make help` lists combined install, lint, format, typecheck, test, coverage, build, dev, e2e, generate-api, check-api and clean targets, plus the backend/frontend sub-targets. Mirror those and a single-test command in AGENTS.md. `frontend/package.json` owns the frontend scripts.
-<!-- stacks:when with=git-hooks -->
+Root targets run each part's command in its directory (`make -C backend lint`, `cd frontend && bun run lint`); never run Biome from the root. Run one test inside its part.
 
-If the install target already runs `lefthook install`, don't add another. Staged frontend lint uses `biome check --no-errors-on-unmatched`; run it from `frontend/` so it reads that config.
-<!-- stacks:end -->
+## Testing
+
+Only `make check-pair` runs both parts: it sends each `PATHS` entry through the proxy and checks `x-request-id` crossed it.
 <!-- stacks:when with=ci-github -->
 
-CI has filtered backend/frontend jobs. Backend runs `make backend-install backend-lint backend-typecheck backend-coverage`; frontend sets up both runtimes, then `make backend-install frontend-install frontend-lint frontend-typecheck frontend-coverage frontend-build check-api`. A required Playwright job runs `make e2e`. Bun setup reads `frontend/package.json`'s packageManager; Python setup reads `backend/.python-version`. Generated-code CI regenerates and checks the diff.
+## CI
+
+Jobs: `backend` (uv's setup action, Python from `backend/.python-version`, `make -C backend install lint typecheck coverage check-openapi`), `frontend` (Bun from `frontend/package.json`, Node from `frontend/.node-version`; in `frontend/` lint, typecheck, coverage, `check:api` and e2e with Chromium) and `contract` (both toolchains, `make install check-api-copy check-pair`).
+<!-- stacks:end -->
+<!-- stacks:when with=git-hooks -->
+
+## Git hooks
+
+`lefthook.yml` stays at the root with one job per part using `root:`; Biome runs from `frontend/` with `--no-errors-on-unmatched`. The root `make install` runs `lefthook install`.
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
 
-The postgres fragment ships SqlNotes under `backend/`, the notes migration and readiness at `/health/ready`; the lifespan uses SqlNotes when a database URL is configured and keeps MemoryNotes for the Docker-free suite. Keep the HTTP contract and keep `/health` DB-free.
+`postgres` is placed in `backend/`; run its targets with `make -C backend`.
 <!-- stacks:end -->
-
-## Gotchas
-
-- Bare `vitest` watches in a TTY; scripts use `vitest run`.
-- React Router typegen must precede tsc; `.react-router/` is generated.
-- Ruff TC can move annotations FastAPI evaluates at runtime. Keep runtime-evaluated bases and API/test exceptions; dependencies elsewhere need the same care.
-- If orval fails under Bun with `Cannot find module 'ajv/dist/core'`, install the current ajv as a frontend dev dependency and record it under Build workarounds.
-- Keep fetch clients returning the success body rather than an HTTP wrapper; confirm the installed orval's options in `orval.config.ts` before adapting them.
-- Warnings are errors in pytest. Fix deprecations or document targeted ignores; keep the rule. Ruff sometimes renames rule prefixes.
-- A static SPA host must fall back to `index.html` for deep links.

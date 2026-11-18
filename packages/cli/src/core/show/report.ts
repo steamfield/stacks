@@ -8,6 +8,7 @@ import { plainStyle, type Style } from "../../services/output";
 import { goAllowlistKey } from "../deps/index";
 import { DEFAULT_PAYLOAD } from "../registry/entry";
 import { statsFields, statsLine } from "../stats/text";
+import { partsLine } from "../text/parts-line";
 import { printable } from "../text/text";
 import { wrap, wrapWords } from "../text/wrap";
 import { BUDGET } from "../validate/compositions/budget";
@@ -175,6 +176,7 @@ function selectionLines(report: ShowReport): string[] {
     lines.push(
       `Fragments: required ${listOrNone(report.fragments.required)}; default ${listOrNone(report.fragments.default)}; optional ${listOrNone(report.fragments.optional)}`,
     );
+  if (report.parts) lines.push(partsLine(report.parts));
   if (report.category)
     lines.push(
       `Category: ${report.category}`,

@@ -3,14 +3,14 @@
   "kind": "stack",
   "id": "hono-api",
   "source": {
-    "digest": "sha256:d3d14cdc4297f4f7fc48cbd50a36416a80fc5a8a57380dbc72ff104cc09f7b3f",
+    "digest": "sha256:52be0ad60af79c5734cc068a7ffd5ce1588132e34b8958872af7fb5b8402f12a",
     "by": "drafted",
-    "model": "codex/gpt-6.1-sol",
+    "model": "claude/claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-18"
   },
   "summary": "A plain TypeScript JSON API on Hono, served by Node, with zod-checked routes that publish an OpenAPI document.",
-  "description": "Start a JSON API in plain TypeScript with Hono running on Node. Each route is declared once with zod schemas, which both validate requests and generate the OpenAPI document. The starter covers validated settings, one error envelope with request ids, pino JSON logs that leave out bodies and secrets, a body size limit, clean shutdown, and an in-memory notes resource that shows list, get and create. Vitest calls the app in process and over a real port. Storage, accounts and deployment are left for you to add.",
+  "description": "Start a JSON API in plain TypeScript with Hono running on Node. Each route is declared once with zod schemas, which both validate requests and generate the OpenAPI document. The document is also committed as openapi.json for generating clients, and verify fails when it no longer matches the routes. The starter covers validated settings, one error envelope with request ids, pino JSON logs that leave out bodies and secrets, a body size limit, clean shutdown, and an in-memory notes resource that shows list, get and create. Vitest calls the app in process and over a real port. Storage, accounts and deployment are left for you to add.",
   "seoDescription": "A Hono JSON API on Node with zod validation, generated OpenAPI, pino logs and Vitest contract tests.",
   "projectExamples": [
     {

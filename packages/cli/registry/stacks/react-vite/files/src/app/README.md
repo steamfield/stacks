@@ -1,7 +1,7 @@
 # App shell and routing
 
 Start with [routes.tsx](routes.tsx), the route tree used by browser startup and
-component tests. It mounts the items pages under [layout.tsx](layout.tsx) and
+component tests. It mounts the notes pages under [layout.tsx](layout.tsx) and
 uses [route-error.tsx](route-error.tsx) for unmatched URLs and rendering failures.
 
 [services.tsx](services.tsx) supplies the API client and logger through React

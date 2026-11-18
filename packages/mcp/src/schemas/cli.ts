@@ -88,6 +88,9 @@ export const NewResult = Schema.Struct({
   dryRun: Schema.Boolean,
   fingerprint: Schema.String,
   stack: Schema.String,
+  parts: Schema.optionalKey(
+    Schema.Array(Schema.Struct({ name: Schema.String, role: Schema.String, stack: Schema.String })),
+  ),
   fragments: Schema.Array(Schema.String),
   preset: Schema.Literals(["default", "sandbox", "lean"]),
   payload: Schema.Literals(["example", "none"]),
@@ -267,6 +270,7 @@ const BadInputDetails = Schema.Union([
   }),
   Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
   Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
+  Schema.Struct({ flag: Schema.Literal("part_dir"), part: Schema.String, root: Schema.String }),
   Schema.Struct({
     id: Schema.String,
     flag: Schema.Literals([
@@ -378,10 +382,18 @@ const EntryInvalidDetails = Schema.Struct({
     "merge_json",
     "merge_template",
     "template",
+    "part_stack",
+    "part_role",
+    "part_name_duplicate",
+    "part_nested",
+    "part_roles",
+    "part_cwd",
   ]),
   path: Schema.optionalKey(Schema.String),
   line: Schema.optionalKey(Schema.Number),
   problem: Schema.optionalKey(ConditionalProblem),
+  part: Schema.optionalKey(Schema.String),
+  step: Schema.optionalKey(Schema.String),
 });
 
 const ComposeConflictDetails = Schema.Struct({
@@ -405,6 +417,7 @@ const ComposeConflictDetails = Schema.Struct({
   step: Schema.optionalKey(Schema.String),
   key: Schema.optionalKey(Schema.String),
   fix: Schema.optionalKey(Schema.Array(Schema.String)),
+  parts: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 const TargetNotEmptyDetails = Schema.Struct({

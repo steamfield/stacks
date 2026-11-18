@@ -2,12 +2,12 @@
  * Selects and orders fragments. Each fragment's selection source determines which drop and fit
  * rules apply.
  */
-import type { Category, Kind } from "@steamfield/stacks-format";
+import type { Category, Kind, StackPart } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import {
   BadInput,
   type ComposeConflict,
-  type EntryInvalid,
+  EntryInvalid,
   NotFound,
   type PermissionDenied,
 } from "../../errors";
@@ -22,7 +22,8 @@ import {
 import type { Registry } from "../registry/registry";
 import { closest } from "../text/suggest";
 import { conflict } from "./conflicts";
-import type { ComposeOptions, ComposeWarning, Via } from "./types";
+import { partProblems } from "./parts";
+import type { ComposeOptions, ComposeWarning, PartMount, SelectedPart, Via } from "./types";
 
 /** Categories `--sandbox` leaves out unless named with `--with` or required by another fragment. */
 const SANDBOX_DROPS: ReadonlyArray<Category> = ["deploy", "release", "app"];
@@ -47,8 +48,10 @@ export function fitsStack(
     stack.tags.some((tag) => appliesTo.includes(tag))
   );
 }
-const fits = (fragment: Fragment, stack: Stack) =>
-  fitsStack(fragment.meta.appliesTo, { id: stack.id, tags: stack.meta.tags });
+/** Where a fragment may fit: the stack and, in a workspace, every part (by id alone when lost). */
+type Host = { id: string; tags: ReadonlyArray<string> };
+const fits = (fragment: Fragment, run: Pick<SelectionRun, "hosts">) =>
+  run.hosts.some((host) => fitsStack(fragment.meta.appliesTo, host));
 
 type Lookup = {
   readonly registry: Registry["Service"];
@@ -63,6 +66,7 @@ type Lookup = {
 type SelectionRun = Lookup & {
   readonly options: ComposeOptions<"new" | "add">;
   readonly stack: Stack | null;
+  readonly hosts: ReadonlyArray<Host>;
   readonly without: ReadonlySet<string>;
   readonly withIds: ReadonlyArray<string>;
   readonly existing: ReadonlySet<string>;
@@ -92,6 +96,7 @@ export function selectFragments(
     const pins = (stack?.composition ?? []).map((pinned) => pinned.id);
     const fragmentIds = new Set([...knownIds(catalog, "fragment"), ...pins]);
     const lookup: Lookup = { registry, catalog, fragmentIds };
+    const parts = yield* loadParts(lookup, stack, options);
     const { without, withIds } = yield* checkRequested(lookup, options);
     const existing = new Set(options.existing ?? []);
     yield* refuseAlreadyApplied(withIds, existing);
@@ -99,6 +104,8 @@ export function selectFragments(
       ...lookup,
       options,
       stack,
+      // An add whose workspace no registry has still has the manifest's parts to fit.
+      hosts: [...(stack ? [stackHost(stack)] : []), ...parts.map(partHost)],
       without,
       withIds,
       existing,
@@ -125,6 +132,7 @@ export function selectFragments(
 
     return {
       stack,
+      parts,
       ordered: order(selected),
       via: run.via,
       warnings: run.warnings,
@@ -161,6 +169,69 @@ const loadStack = (
     const entry = yield* registry.get("stack", id);
     if (!isStack(entry)) return yield* Effect.die(new Error("Registry returned a non-stack"));
     return entry;
+  });
+
+const stackHost = (stack: Stack): Host => ({ id: stack.id, tags: stack.meta.tags });
+const partHost = ({ mount, entry }: SelectedPart): Host => ({
+  id: mount.stack,
+  tags: entry?.meta.tags ?? [],
+});
+
+/**
+ * The stack entry for one part. The workspace's pin (`partEntries`) wins unless the user
+ * overrode that stack with a project or user copy, as `compositionFragment` does for fragments;
+ * a pin for another stack id (an edited manifest) is ignored. A part the workspace declares but
+ * its pin set lacks is `null` too: the catalog's current copy is one it wasn't proven with. A
+ * stack the catalog lacks, or rejected there, is `null`, for the caller to refuse or carry.
+ */
+const partEntry = (lookup: Lookup, workspace: Stack | null, mount: PartMount) =>
+  Effect.gen(function* () {
+    const current = lookup.catalog.find((item) => item.kind === "stack" && item.id === mount.stack);
+    const pinned = workspace?.partEntries?.[mount.name];
+    const local = current?.origin === "project" || current?.origin === "user";
+    if (!local && pinned?.id === mount.stack && isStack(pinned)) return pinned;
+    if (!local && workspace?.partEntries && !pinned && declares(workspace, mount)) return null;
+    if (!current || current.rejected) return null;
+    const entry = yield* lookup.registry.get("stack", mount.stack);
+    if (!isStack(entry)) return yield* Effect.die(new Error("Registry returned a non-stack"));
+    return entry;
+  });
+
+/** Whether the workspace's own `parts` declares this mount: same name, same stack. */
+const declares = (workspace: Stack, mount: PartMount) =>
+  (workspace.meta.parts ?? []).some(
+    (part) => part.name === mount.name && part.stack === mount.stack,
+  );
+
+/**
+ * The parts to mount. In add mode they are the project's (`options.parts`, from its manifest),
+ * never the registry entry's, and a lost part stack is carried as `null`. In new mode they are
+ * the workspace's own, and the first `partProblems` result is refused before anything composes.
+ */
+const loadParts = (
+  lookup: Lookup,
+  stack: Stack | null,
+  options: ComposeOptions<"new" | "add">,
+): Effect.Effect<ReadonlyArray<SelectedPart>, SelectError> =>
+  Effect.gen(function* () {
+    const declared: ReadonlyArray<PartMount> =
+      options.mode === "add" ? (options.parts ?? []) : (stack?.meta.parts ?? []);
+    const parts = yield* Effect.forEach(declared, (mount) =>
+      Effect.map(partEntry(lookup, stack, mount), (entry) => ({ mount, entry })),
+    );
+    if (options.mode === "new" && stack?.meta.parts) yield* refusePartProblems(stack, parts);
+    return parts;
+  });
+
+const refusePartProblems = (workspace: Stack, parts: ReadonlyArray<SelectedPart>) =>
+  Effect.gen(function* () {
+    const metas = new Map(parts.flatMap(({ entry }) => (entry ? [[entry.id, entry.meta]] : [])));
+    const declared: ReadonlyArray<StackPart> = workspace.meta.parts ?? [];
+    const [problem] = partProblems(declared, (id) => metas.get(id));
+    if (problem)
+      return yield* new EntryInvalid({
+        details: { id: workspace.id, origin: workspace.origin, ...problem },
+      });
   });
 
 /**
@@ -316,7 +387,7 @@ const selectAlwaysFragment = (run: SelectionRun, id: string) =>
       return;
     }
     const fragment = yield* loadFragment(run, id, null);
-    if (run.stack && !fits(fragment, run.stack)) {
+    if (run.stack && !fits(fragment, run)) {
       run.warnings.push({ code: "always_not_applicable", id: fragment.id });
       return;
     }
@@ -333,9 +404,9 @@ const selectWith = (run: SelectionRun) =>
     const { stack } = run;
     for (const id of run.withIds) {
       const fragment = yield* loadFragment(run, id, null);
-      if (run.options.mode === "add" && stack && !fits(fragment, stack))
+      if (run.options.mode === "add" && stack && !fits(fragment, run))
         return yield* conflict({ reason: "applies_to", ids: [id] });
-      if (stack && !fits(fragment, stack)) run.warnings.push({ code: "with_not_applicable", id });
+      if (stack && !fits(fragment, run)) run.warnings.push({ code: "with_not_applicable", id });
       if (run.via.get(id) !== "required") run.via.set(id, "with");
     }
   });
@@ -388,16 +459,17 @@ const checkConflicts = (
 
 /**
  * Fit, for what the stack author or a requirement chose: such a fragment must fit the stack.
- * Without a stack, a fragment that limits where it applies only warns.
+ * Without a stack, a fragment that limits where it applies only warns, unless it fits one of the
+ * project's parts.
  */
 const checkFit = (run: SelectionRun, selected: ReadonlyArray<Fragment>) =>
   Effect.gen(function* () {
     const { stack } = run;
     for (const fragment of selected) {
-      if (!stack && fragment.meta.appliesTo.length)
+      if (!stack && fragment.meta.appliesTo.length && !fits(fragment, run))
         run.warnings.push({ code: "with_not_applicable", id: fragment.id });
       const how = run.via.get(fragment.id);
-      if (how !== "with" && how !== "always" && stack && !fits(fragment, stack))
+      if (how !== "with" && how !== "always" && stack && !fits(fragment, run))
         return yield* conflict({ reason: "applies_to", ids: [fragment.id] });
     }
   });

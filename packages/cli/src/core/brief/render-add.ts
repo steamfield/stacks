@@ -4,7 +4,8 @@
  * The definition of done covers the whole manifest because verify runs the project as a whole.
  */
 import { APP_TAG, withStepDefaults } from "@steamfield/stacks-format";
-import type { ComposedStep, Composition } from "../compose/types";
+import { sessionRootNames } from "../compose/mount";
+import type { ComposedStep, Composition, MountedEntry } from "../compose/types";
 import type { Entry } from "../registry/entry";
 import {
   dependencyLines,
@@ -91,7 +92,7 @@ function writeFacts(
     T.facts.fragments(composition.fragments.map((entry) => entry.id)),
     T.facts.preset(composition.preset),
     T.facts.agents(composition.agents),
-    T.facts.root,
+    composition.parts ? T.facts.workspaceRoot : T.facts.root,
   );
   if (context.written.length) {
     out.fixed(T.facts.written);
@@ -155,16 +156,28 @@ function writeDependencies(
 
 /** Keep each added fragment's recipe notes next to its guidance so their context is clear. */
 function writeGuidance(out: BriefWriter, composition: Composition<Entry | null>): void {
+  const harness = sessionRootNames(composition.agents);
   for (const entry of composition.fragments) {
     out.fixed("", T.sections.fragment(oneLine(entry.meta.name), entry.id));
+    if (entry.mount) out.fixed("", T.sections.placed(entry.mount.name, harness));
     // Retain a fragment's title: in add mode it may carry guidance beyond its registry name.
     out.data("", nest(entry.body.replace(/^(\s*)#(?=[ \t])/, "$1##")).trim());
     for (const note of composition.addNotes ?? [])
       if (note.fragment === entry.id) {
-        out.fixed("", T.add.recipeNote(note.entry.id), "");
+        out.fixed("", T.add.recipeNote(note.entry.id, noteRoot(note.entry, entry)), "");
         out.data(nest(note.entry.body, 4).trim());
       }
   }
+}
+
+/**
+ * Where a recipe note's paths are rooted, for `recipeNote`: the source's part directory, or `null`
+ * for the project root, when that differs from the added fragment's placement; else `undefined`,
+ * since the fragment's own section already says where its paths are.
+ */
+function noteRoot(source: MountedEntry, fragment: MountedEntry): string | null | undefined {
+  const at = source.mount?.name ?? null;
+  return at === (fragment.mount?.name ?? null) ? undefined : at;
 }
 
 /** The whole manifest's steps, commands and environment, as verify will run them. */

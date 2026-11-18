@@ -3,7 +3,21 @@
  * the implementation.
  */
 import type { AgentId, Kind, ResolvedStep } from "@steamfield/stacks-format";
-import type { Entry, Origin, Payload } from "../registry/entry";
+import type { Entry, Origin, Payload, Stack } from "../registry/entry";
+
+/** Where a mounted entry lives: its part's directory and step prefix, role, and the part's stack id (which picks overlays). */
+export type PartMount = { readonly name: string; readonly role: string; readonly stack: string };
+/** An entry as composed; `mount` is set on a part and on a fragment placed on one. */
+export type MountedEntry = Entry & { readonly mount?: PartMount };
+/** A part as selection loads it, before mounting; `entry` is null as in `ComposedPart`. */
+export type SelectedPart = { readonly mount: PartMount; readonly entry: Stack | null };
+/** One part of a workspace composition. `entry` is null only in add mode, for a part stack the registry no longer has. */
+export type ComposedPart = { readonly mount: PartMount; readonly entry: MountedEntry | null };
+/**
+ * The workspace parts are mounted under. `entry` is null only in add mode, for a workspace stack
+ * the registry no longer has: placement needs only the id.
+ */
+export type MountRoot = { readonly id: string; readonly entry: Stack | null };
 
 export type ComposeOptions<M extends "new" | "add" = "new"> = {
   stack: M extends "new" ? string : string | null;
@@ -22,6 +36,10 @@ export type ComposeOptions<M extends "new" | "add" = "new"> = {
   lean?: boolean;
   /** `new --payload`: the stack's payload variant; absent is the example. */
   payload?: Payload;
+  /** Add mode only: the project's parts from `Manifest.parts` (`stack` is the ref's id). */
+  parts?: ReadonlyArray<PartMount>;
+  /** Add mode only, with `parts`: the manifest's workspace stack id, which mounts the parts when no registry has that stack. */
+  workspace?: string;
 };
 
 /** Which entry: a stack and a fragment may share an id, so an id alone is ambiguous. */
@@ -58,11 +76,13 @@ export type Composition<S extends Entry | null = Entry> = {
   /** The stack, its body with conditionals resolved. */
   stack: S;
   /** Composition order (requirements first, ties by id, the app last), bodies resolved. */
-  fragments: ReadonlyArray<Entry>;
+  fragments: ReadonlyArray<MountedEntry>;
+  /** The workspace's parts in `parts` order, each mounted; absent for a composition without parts. */
+  parts?: ReadonlyArray<ComposedPart>;
   /** The one fragment with category "app", also in `fragments`. */
   app: Entry | null;
-  /** Current recipe blocks that specifically name an added fragment. */
-  addNotes?: ReadonlyArray<{ fragment: string; entry: Entry }>;
+  /** Current recipe blocks that specifically name an added fragment; `entry.mount` is its source's. */
+  addNotes?: ReadonlyArray<{ fragment: string; entry: MountedEntry }>;
   inferredTags?: ReadonlyArray<string>;
   selection: ReadonlyArray<{ id: string; via: Via }>;
   preset: ComposeOptions["preset"];

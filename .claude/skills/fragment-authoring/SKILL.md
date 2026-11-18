@@ -21,6 +21,25 @@ For a new fragment or a broad change, ask the person the questions in `reference
 
 When you target stacks by tag, compose each admitted stack's brief with the fragment (`bun run dev validate --brief <stack> --with <id> --sandbox` from `packages/cli`) and add `<!-- stacks:when stack=<stack> -->` branches where needed.
 
+## Fragments in a workspace
+
+A workspace stack places each fragment by stack id in `applies_to` (`packages/cli/docs/authoring.md`, "Layout and placement"): naming exactly one part's stack puts the fragment in that part, with its `stacks/<part stack id>/` overlay and prefixed steps; anything else puts it once at the root. A tag match never chooses a part. Before naming a second stack in `applies_to`, check whether the two are ever parts of one workspace: the fragment then moves to the root there.
+
+When a fragment on one part changes what the other part needs, its own body says so in a `stacks:when part=<role>` block (`part=web` holds only in a workspace with a web part), written in roles ("the API part", "the client part"). `postgres` on the API part adds a readiness route, so the client is regenerated. Keep the block to that effect; the workspace body cannot list every fragment.
+
+## Writing a link
+
+A link is the fragment that connects a workspace's parts, such as `openapi-client`. Check each:
+
+- [ ] `category: link`, and `applies_to` names the client stack, so the link lands in the client part.
+- [ ] The body is written in roles, never directory names: "the API part", "the client part". It covers where the document is read from, the regenerate command inside the client part, that the output is read-only, what a failed drift check means and what a renamed operation does.
+- [ ] It ships only its own new files (a generator config, an adapter onto the client module's request function), relative to the client part. The config reads `./openapi.json`, which the workspace's root target copies from the API part.
+- [ ] It changes no file another entry writes and no template (`package.json.tmpl`, `biome.json.tmpl`). Package scripts are added by the agent from the body; settings the client needs for the link, such as Biome excludes for the generated directory, go into the client stack, where they are inert without the link.
+- [ ] It ships no generated client and no `openapi.json`: both are Setup output that depends on installed releases.
+- [ ] Its drift step regenerates into a temporary directory and compares with the committed output. Never compare with git: that fails straight after every correct regeneration until it's committed.
+- [ ] It relies only on the role rules: the `/v1` prefix, the `notes` operation ids, the status and `x-request-id` of a failure. Anything per backend (schema names, the error envelope) makes the link per backend.
+- [ ] Every workspace that uses it lists it in `required`, and its brief composes and proves with each.
+
 ## Ids in a release
 
 An id is permanent once a release ships it. A rename needs a `removed.json` row with `replacedBy`, restarts the fragment's published stats, updates every stack `fragments` list and fragment `requires` that names it, and stales golden judgments. Fragments that something requires are the worst case: older projects keep the old id in their manifest, so `add` asks for the new id again and parks duplicate files under `.stacks/incoming/`. When revising a fragment, keep its id; if you think it's wrong, say so and name these costs.

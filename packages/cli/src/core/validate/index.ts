@@ -21,6 +21,7 @@ import { gitChecks } from "./checks/git";
 import { headingChecks } from "./checks/headings";
 import { importChecks } from "./checks/imports";
 import { ledgerChecks } from "./checks/ledger-notes";
+import { partStepChecks } from "./checks/part-steps";
 import { referenceChecks } from "./checks/references";
 import { searchChecks } from "./checks/search";
 import { shippedReferenceChecks } from "./checks/shipped-refs";
@@ -28,6 +29,7 @@ import { submissionChecks } from "./checks/submission";
 import { templateChecks } from "./checks/templates";
 import { verifyNotes } from "./checks/verify-notes";
 import { versionSensitiveChecks } from "./checks/version-sensitive";
+import { workspaceChecks } from "./checks/workspace";
 import { addCompositionChecks } from "./compositions/add-compositions";
 import { composeEachChecks } from "./compositions/compose-each";
 import { composedFiles, renderedFileChecks } from "./compositions/composed";
@@ -45,6 +47,8 @@ export const checks: ReadonlyArray<Check> = [
   dependencyChecks,
   authorChecks,
   metadataChecks,
+  workspaceChecks,
+  partStepChecks,
   referenceChecks,
   conditionalChecks,
   fileChecks,
@@ -119,8 +123,9 @@ const wantedBy =
 /**
  * The entries whose sources a check can read: the validated ones and every entry they compose
  * with. A validated fragment composes with any stack and its fragments, so that reads them all;
- * otherwise the validated stacks compose only with fragments, and reading every other origin's
- * stacks would cost time that grows with the bundled registry for nothing.
+ * otherwise the validated stacks compose only with fragments and the stacks a workspace mounts
+ * as parts, and reading every other origin's stacks would cost time that grows with the bundled
+ * registry for nothing.
  */
 function sourceEntries(
   all: ReadonlyArray<RegistryEntry>,
@@ -128,7 +133,17 @@ function sourceEntries(
 ): ReadonlyArray<Entry> {
   const entries = all.filter((item): item is Entry => !isRejected(item));
   if (entries.some((item) => validated.includes(item) && isFragment(item))) return entries;
-  return entries.filter((item) => validated.includes(item) || isFragment(item));
+  const parts = new Set(
+    validated.flatMap((item) =>
+      !isRejected(item) && item.meta.kind === "stack"
+        ? (item.meta.parts ?? []).map((part) => part.stack)
+        : [],
+    ),
+  );
+  return entries.filter(
+    (item) =>
+      validated.includes(item) || isFragment(item) || (item.kind === "stack" && parts.has(item.id)),
+  );
 }
 
 const buildView = (target: Target, all: ReadonlyArray<RegistryEntry>) =>

@@ -4,6 +4,7 @@ import { Schema } from "effect";
 import { BRIEF_PATH } from "../project-layout";
 import { NoticeFields } from "./notice";
 import { Origin } from "./origin";
+import { ResultPart } from "./part";
 
 /** An entry named by kind and id, as `missingTools` lists the entries that need a tool. */
 const EntryRef = Schema.Struct({ kind: Kind, id: Schema.String });
@@ -25,6 +26,8 @@ export const NewResult = Schema.Struct({
   /** The composition rendered with neutral template values, hashed as sha256. */
   fingerprint: Schema.String,
   stack: Schema.String,
+  /** A workspace stack's parts in `parts` order; absent for a stack without parts. */
+  parts: Schema.optionalKey(Schema.Array(ResultPart)),
   /** Composition order. */
   fragments: Schema.Array(Schema.String),
   preset: NewPreset,

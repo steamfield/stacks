@@ -33,8 +33,8 @@ function pluginMessages(path: string, source: string): string[] {
 }
 
 test.each([
-  ["src/features/x.ts", 'export const r = fetch("/api/items");', "src/api/client.ts"],
-  ["src/features/x.ts", 'export const r = window.fetch("/api/items");', "src/api/client.ts"],
+  ["src/features/x.ts", 'export const r = fetch("/api/v1/notes");', "src/api/client.ts"],
+  ["src/features/x.ts", 'export const r = window.fetch("/api/v1/notes");', "src/api/client.ts"],
   ["src/features/x.ts", "export const url = import.meta.env.VITE_API_URL;", "src/config.ts"],
   ["src/app/x.ts", 'console.log("hello");', "src/logging.ts"],
 ])("%s: %s is rejected", (path, source, pointer) => {
@@ -44,7 +44,7 @@ test.each([
 });
 
 test.each([
-  ["src/api/client.ts", 'export const r = fetch("/api/items");'],
+  ["src/api/client.ts", 'export const r = fetch("/api/v1/notes");'],
   ["src/config.ts", "export const env = import.meta.env;"],
   ["src/logging.ts", 'console.info("record");'],
   ["e2e/x.ts", 'console.log("outside src");'],

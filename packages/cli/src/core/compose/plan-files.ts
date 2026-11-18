@@ -6,11 +6,12 @@ import { type AgentId, outputPath } from "@steamfield/stacks-format";
 import { Effect, Result } from "effect";
 import { EntryInvalid } from "../../errors";
 import { METADATA_DIR } from "../../project-layout";
-import { type Entry, type EntryFile, entryRef, type Payload, shipsFor } from "../registry/entry";
+import { type EntryFile, entryKey, entryRef, type Payload, shipsFor } from "../registry/entry";
 import type { Registry } from "../registry/registry";
 import { conflict, parties } from "./conflicts";
 import { deepMerge } from "./merge";
-import type { PlannedFile } from "./types";
+import { atSessionRoot, placedPath } from "./mount";
+import type { MountedEntry, PlannedFile } from "./types";
 
 /** Code points HFS+ ignores in names (git's `is_hfs_dotgit`): `.git` with one inside opens `.git`. */
 const HFS_IGNORABLE = /[\u{200c}-\u{200f}\u{202a}-\u{202e}\u{206a}-\u{206f}\u{feff}]/gu;
@@ -34,17 +35,28 @@ const checkPlannedPath = (path: string) =>
       return yield* Effect.die(new Error("A planned path is empty or escapes the project root"));
   });
 
-type Writer = { entry: Entry; source: string; template: boolean; mode: number };
+type Writer = { entry: MountedEntry; source: string; template: boolean; mode: number };
 export type FileSelection = {
   agents: ReadonlyArray<AgentId>;
   stack: string | null;
   payload: Payload;
+  /** A stack-kind entry's effective payload by `entryKey`, when it differs from `payload`. */
+  payloads?: ReadonlyMap<string, Payload>;
 };
+
+/** A mounted entry's overlays follow its part's stack id and its own effective payload. */
+const shipsFrom = (entry: MountedEntry, file: EntryFile, selection: FileSelection) =>
+  shipsFor(
+    file.source,
+    selection.agents,
+    entry.mount?.stack ?? selection.stack,
+    selection.payloads?.get(entryKey(entry.kind, entry.id)) ?? selection.payload,
+  );
 
 /** Writers retain composition order. */
 function fileWriters(
   registry: Registry["Service"],
-  entries: ReadonlyArray<Entry>,
+  entries: ReadonlyArray<MountedEntry>,
   selection: FileSelection,
 ) {
   return Effect.gen(function* () {
@@ -58,13 +70,14 @@ function fileWriters(
   });
 }
 
-const writerFor = (entry: Entry, file: EntryFile, selection: FileSelection) =>
+const writerFor = (entry: MountedEntry, file: EntryFile, selection: FileSelection) =>
   Effect.gen(function* () {
-    const { agents, stack, payload } = selection;
-    if (!shipsFor(file.source, agents, stack, payload)) return undefined;
+    if (!shipsFrom(entry, file, selection)) return undefined;
     // A template needs a name before the suffix: a file called just `.tmpl` is copied as is.
-    const path = outputPath(file.path);
-    const template = path !== file.path;
+    const own = outputPath(file.path);
+    const template = own !== file.path;
+    // Mounting already placed `merge`, so the placed path is the one to compare with it.
+    const path = placedPath(own, entry.mount);
     yield* checkPlannedPath(path);
     if (path.split("/").some(reservedSegment))
       return yield* conflict({ reason: "reserved_path", ...parties([entry]), path });
@@ -90,7 +103,7 @@ type ClaimedPaths = { files: Map<string, string>; dirs: Map<string, string> };
 /** A shared path is valid only when every writer declares it in `merge`. */
 export function planFiles(
   registry: Registry["Service"],
-  entries: ReadonlyArray<Entry>,
+  entries: ReadonlyArray<MountedEntry>,
   selection: FileSelection,
 ) {
   return Effect.gen(function* () {
@@ -142,22 +155,15 @@ function planOutput(
 ) {
   const { path, writers, first } = input;
   return Effect.gen(function* () {
-    if (writers.length === 1) {
-      return {
-        path,
-        owner: entryRef(first.entry),
-        owners: [entryRef(first.entry)],
-        kind: first.template ? "template" : "copy",
-        source: { entry: entryRef(first.entry), file: first.source },
-        mode: first.mode,
-      } satisfies PlannedFile;
-    }
-    if (!writers.every((writer) => writer.entry.meta.merge.includes(path)))
+    if (writers.length === 1) return copied(path, writers, first);
+    if (!writers.every((writer) => writer.entry.meta.merge.includes(path))) {
+      if (yield* identicalHoisted(registry, path, writers)) return copied(path, writers, first);
       return yield* conflict({
         reason: "file_owner",
         ...parties(writers.map((writer) => writer.entry)),
         path,
       });
+    }
     const merged = yield* mergeJson(registry, writers);
     return {
       path,
@@ -169,6 +175,44 @@ function planOutput(
     } satisfies PlannedFile;
   });
 }
+
+/** A copy or template written from the first writer's source; `owners` names every writer. */
+const copied = (path: string, writers: ReadonlyArray<Writer>, first: Writer): PlannedFile => ({
+  path,
+  owner: entryRef(first.entry),
+  owners: writers.map((writer) => entryRef(writer.entry)),
+  kind: first.template ? "template" : "copy",
+  source: { entry: entryRef(first.entry), file: first.source },
+  mode: first.mode,
+});
+
+const executable = (mode: number) => (mode & 0o111) !== 0;
+
+const sameBytes = (a: Uint8Array, b: Uint8Array) =>
+  a.length === b.length && a.every((byte, i) => byte === b[i]);
+
+/**
+ * Two parts' adapters for one hoisted path are one file when every writer is mounted and all are
+ * copies or all templates with the same bytes and executable bit. A workspace or root fragment
+ * writing the same path is the ordinary merge-or-`file_owner` rule.
+ */
+const identicalHoisted = (
+  registry: Registry["Service"],
+  path: string,
+  writers: ReadonlyArray<Writer>,
+) =>
+  Effect.gen(function* () {
+    const [first, ...rest] = writers;
+    if (!first || !atSessionRoot(path) || !writers.every((writer) => writer.entry.mount))
+      return false;
+    const alike = (writer: Writer) =>
+      writer.template === first.template && executable(writer.mode) === executable(first.mode);
+    if (!rest.every(alike)) return false;
+    const bytes = yield* registry.bytes(first.entry, first.source);
+    for (const writer of rest)
+      if (!sameBytes(bytes, yield* registry.bytes(writer.entry, writer.source))) return false;
+    return true;
+  });
 
 /** Every writer's JSON deep-merged in order; a file that isn't JSON is `EntryInvalid`. */
 const mergeJson = (registry: Registry["Service"], writers: ReadonlyArray<Writer>) =>

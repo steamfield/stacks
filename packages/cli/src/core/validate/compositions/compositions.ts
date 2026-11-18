@@ -18,7 +18,13 @@ import { targetAgents } from "../../compose/agents";
 import { compose } from "../../compose/compose";
 import { fitsStack } from "../../compose/selection";
 import type { Composition } from "../../compose/types";
-import { type Fragment, isFragment, type RegistryEntry, type Stack } from "../../registry/entry";
+import {
+  type Fragment,
+  isFragment,
+  isStack,
+  type RegistryEntry,
+  type Stack,
+} from "../../registry/entry";
 import { type Check, type PlanShape, PRESETS, type Preset, type View } from "../types";
 import { entryFile, finding } from "../view";
 import { bodyLimit } from "./budget";
@@ -99,10 +105,33 @@ export function compositionSingles(view: Omit<View, "composed">, stack: Stack) {
   ];
 }
 
+/**
+ * Where a fragment can fit a stack, as compose's selection sees it: the stack and, for a
+ * workspace, each part's stack (by id alone when the part's stack isn't in the resolution set).
+ */
+export function stackHosts(
+  view: Omit<View, "composed">,
+  stack: Stack,
+): ReadonlyArray<{ id: string; tags: ReadonlyArray<string> }> {
+  const parts = (stack.meta.parts ?? []).map((part) => {
+    const entry = view.all.find((item): item is Stack => isStack(item) && item.id === part.stack);
+    return { id: part.stack, tags: entry?.meta.tags ?? [] };
+  });
+  return [{ id: stack.id, tags: stack.meta.tags }, ...parts];
+}
+
+/** Whether `appliesTo` fits the stack or, for a workspace, any of its parts. */
+export function fitsHost(
+  view: Omit<View, "composed">,
+  stack: Stack,
+  appliesTo: ReadonlyArray<string>,
+): boolean {
+  return stackHosts(view, stack).some((host) => fitsStack(appliesTo, host));
+}
+
 /** Apps under the validated root that fit the stack, so plans don't depend on this machine. */
 function fittingApps(view: Omit<View, "composed">, stack: Stack): string[] {
-  const fits = (meta: FragmentMeta) =>
-    fitsStack(meta.appliesTo, { id: stack.id, tags: stack.meta.tags });
+  const fits = (meta: FragmentMeta) => fitsHost(view, stack, meta.appliesTo);
   return view.all.flatMap((item) =>
     isLoadedFragment(item) && item.meta.category === "app" && fits(item.meta) && view.inRoot(item)
       ? [item.id]
@@ -225,7 +254,10 @@ function unknownRequirementReported(view: View, error: ComposeConflict): boolean
   );
 }
 
-/** A rejected fragment, or a validated entry's conditional or merged-JSON defect. */
+/**
+ * A rejected fragment, a validated entry's conditional or merged-JSON defect, or a validated
+ * workspace's `part_*` problem, which `workspaceChecks` reports.
+ */
 function invalidEntryReported(view: View, error: EntryInvalid): boolean {
   if (!error.details) return false;
   const { id, origin, reason } = error.details;
@@ -234,7 +266,7 @@ function invalidEntryReported(view: View, error: EntryInvalid): boolean {
   );
   if (rejected) return true;
   return (
-    (reason === "conditional" || reason === "merge_json") &&
+    (reason === "conditional" || reason === "merge_json" || reason.startsWith("part_")) &&
     view.entries.some((entry) => entry.id === id && entry.origin === origin)
   );
 }

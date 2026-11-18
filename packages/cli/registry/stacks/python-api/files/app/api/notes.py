@@ -44,6 +44,7 @@ Store = Annotated[NoteStore, Depends(get_note_store)]
     response_model=Note,
     status_code=201,
     summary="Create a note",
+    operation_id="createNote",
 )
 async def create(
     payload: NoteInput, response: Response, store: Store, _query: Annotated[EmptyQuery, Query()]
@@ -53,12 +54,18 @@ async def create(
     return note
 
 
-@router.get("/{noteId}", response_model=Note, summary="Read a note")
+@router.get("/{noteId}", response_model=Note, summary="Read a note", operation_id="getNote")
 async def get(noteId: str, store: Store, _query: Annotated[EmptyQuery, Query()]) -> Note:
     return Note.model_validate(await store.get(noteId))
 
 
-@router.get("", response_model=Page, response_model_exclude_none=True, summary="List notes")
+@router.get(
+    "",
+    response_model=Page,
+    response_model_exclude_none=True,
+    summary="List notes",
+    operation_id="listNotes",
+)
 async def list_notes(query: Annotated[ListQuery, Query()], store: Store) -> Page:
     notes, cursor = await store.list(query.limit, query.cursor)
     return Page(items=[Note.model_validate(note) for note in notes], next_cursor=cursor)

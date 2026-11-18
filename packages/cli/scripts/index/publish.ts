@@ -75,12 +75,27 @@ const includePinnedFragments = Effect.fn("index.includePinnedFragments")(functio
     }
 });
 
+/**
+ * A carried-forward workspace's part stacks keep an entry: the previous one when the current
+ * registry no longer publishes that stack. Their pinned bundles are served through `bundleRefs`
+ * whatever the current part's digest is.
+ */
+function includePinnedParts(entries: Map<string, IndexEntry>, previous: RegistryIndex | null) {
+  const pins = [...entries.values()].flatMap((entry) => Object.values(entry.parts ?? {}));
+  for (const { stack: id } of pins) {
+    const old = previous?.entries.find((entry) => entry.kind === "stack" && entry.id === id);
+    if (old !== undefined && !entries.has(`stack/${id}`)) entries.set(`stack/${id}`, old);
+  }
+}
+
 export const carryForward = Effect.fn("index.carryForward")(function* (
   current: Effect.Success<ReturnType<typeof currentIndex>>,
   previous: RegistryIndex | null,
   base: string,
 ) {
   const { entries, lines } = selectStacks(current, previous);
+  // Parts first, so a carried part's own pinned fragments are included below.
+  includePinnedParts(entries, previous);
   yield* includePinnedFragments(entries, { previous, base, bundles: current.bundles });
   // A fragment no current composition pins stays at its previous entry rather than disappearing.
   for (const id of current.fragments) {

@@ -11,6 +11,7 @@ import { Schema } from "effect";
 import { LedgerLastRun } from "./ledger";
 import { ListRow } from "./list";
 import { NoticeFields } from "./notice";
+import { ResultPart } from "./part";
 
 /** An entry's complete review surface, with canonical sizes and bundled run evidence. */
 export const ShowReport = Schema.Struct({
@@ -43,6 +44,8 @@ export const ShowReport = Schema.Struct({
       optional: Schema.Array(Schema.String),
     }),
   ),
+  /** A workspace stack's parts in `parts` order; absent for a stack without parts and for a fragment. */
+  parts: Schema.optionalKey(Schema.Array(ResultPart)),
   category: Schema.optionalKey(Category),
   requires: Schema.optionalKey(Schema.Array(Schema.String)),
   conflicts: Schema.optionalKey(Schema.Array(Schema.String)),

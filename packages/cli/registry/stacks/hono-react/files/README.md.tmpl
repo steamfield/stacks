@@ -1,0 +1,34 @@
+# {{project_name}}
+
+<!-- stacks:fill: one or two sentences on what this project does and who it's for -->
+
+A JSON API on Hono in `backend/` and a React single-page app on Vite in `frontend/`. The frontend calls the API through a TanStack Query client generated from the API's OpenAPI document. Each part has its own README with its own commands.
+
+## Getting started
+
+Requires Bun, Node and make.
+
+```sh
+make install
+make api-client   # backend/openapi.json, its copy in frontend/, the generated client
+make dev          # the API on :3000, the app on :4173 proxying /api to the API
+```
+
+Open http://localhost:4173. To change ports, copy `.env.example` to `.env`, or export `PORT_API` and `PORT_WEB` in the shell, which wins.
+
+## Commands
+
+<!-- stacks:fill: the root make targets as built (install, dev, lint, typecheck, test, api-client, check, smoke), what each runs in which part, and the make backend-<script> and make frontend-<script> forms -->
+
+## Layout
+
+```
+backend/    Hono API: src/, tests/, openapi.json (generated, committed)
+frontend/   React app: src/, tests/, e2e/, openapi.json (a copy), src/api/generated/ (generated, committed)
+docs/       CONTRACT.md: how the parts connect and how to change the API
+scripts/    smoke.sh: both parts running, requests through the frontend's proxy
+```
+
+## License
+
+Copyright (c) {{year}} {{author}}

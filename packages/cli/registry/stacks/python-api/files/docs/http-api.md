@@ -24,4 +24,6 @@ Logs contain route patterns and duration_ms.
 
 `make openapi` creates sorted openapi.json. Commit it after Setup and whenever
 routes or schemas change. `make check-openapi` compares parsed JSON with the app.
-FastAPI's built-in documentation remains at /docs and /openapi.json.
+FastAPI's built-in documentation remains at /docs and /openapi.json. The notes
+operations are `listNotes`, `getNote` and `createNote`; a generated client takes
+its function names from these ids, so they stay fixed once published.

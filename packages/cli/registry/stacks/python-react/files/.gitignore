@@ -1,40 +1,11 @@
-# Environment
+# The root .env feeds both parts through the Makefile. Each part keeps its own .gitignore.
 .env
 .env.*
 !.env.example
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml
-
-# Node / frontend
-node_modules/
-frontend/build/
-frontend/.react-router/
-frontend/coverage/
-frontend/playwright-report/
-frontend/test-results/
-frontend/blob-report/
-*.tsbuildinfo
-
-# Logs
-*.log
-logs/
-
 # Editors and OS
 .idea/
-.vscode/
 *.swp
 .DS_Store
-Thumbs.db
 
 .claude/worktrees/

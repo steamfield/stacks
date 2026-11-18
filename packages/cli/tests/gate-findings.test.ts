@@ -51,12 +51,14 @@ test("astro-blog keeps Prettier off .stacks/ and .claude/", async () => {
   expect(ignored).toContain(".claude/");
 });
 
-test("python-react keeps Biome off .stacks/ and .claude/", async () => {
-  const config = JSON.parse(
-    readFileSync(join(await scaffold("python-react"), "frontend/biome.json"), "utf8"),
-  );
+// The workspace's .stacks/ and .claude/ sit at the root, outside frontend/, where Biome runs.
+test("python-react runs Biome inside frontend/, which keeps it off .stacks/", async () => {
+  const project = await scaffold("python-react");
+  const config = JSON.parse(readFileSync(join(project, "frontend/biome.json"), "utf8"));
   expect(config.files.includes).toContain("!.stacks");
-  expect(config.files.includes).toContain("!.claude");
+  const makefile = readFileSync(join(project, "Makefile"), "utf8");
+  expect(makefile).toContain("FRONTEND := cd frontend &&");
+  expect(makefile).toContain("$(FRONTEND) bun run lint");
 });
 
 test("the sandbox CI workflow pins a release tag when an action publishes no major tag", async () => {
@@ -93,23 +95,26 @@ test("go-cli's main passes the version variables to cli.Execute itself", () => {
   expect(main).toContain("cli.Execute(version, commit, date)");
 });
 
-test("python-react's error envelope follows the wire casing", async () => {
-  const handlers = readFileSync(
-    join(await scaffold("python-react"), "backend/app/error_handlers.py"),
-    "utf8",
-  );
-  expect(handlers).toContain('request_id: str = Field(serialization_alias="requestId")');
-  expect(handlers).toContain(".model_dump(by_alias=True)");
+// The frontend reads only a failure's status and x-request-id, so the id travels as a header.
+test("python-react's backend sends the request id as a header beside a fixed envelope", async () => {
+  const project = await scaffold("python-react");
+  const handlers = readFileSync(join(project, "backend/app/error_handlers.py"), "utf8");
+  expect(handlers).toContain("class PublicError(BaseModel):");
+  const tests = readFileSync(join(project, "backend/tests/test_http.py"), "utf8");
+  expect(tests).toContain('assert response.headers["x-request-id"]');
 });
 
 test("python-react runs dump_openapi.py as a module so it can import app", async () => {
-  const makefile = readFileSync(join(await scaffold("python-react"), "Makefile"), "utf8");
-  expect(makefile).toContain("cd backend && uv run python -m scripts.dump_openapi");
+  const project = await scaffold("python-react");
+  expect(readFileSync(join(project, "Makefile"), "utf8")).toContain("$(MAKE) -C backend openapi");
+  expect(readFileSync(join(project, "backend/Makefile"), "utf8")).toContain(
+    "uv run python -m scripts.dump_openapi openapi.json",
+  );
 });
 
-test("git-hooks keeps a staged-file linter quiet about files its config ignores", async () => {
-  const guide = readFileSync(join(await scaffold("python-react"), "docs/DEVELOPMENT.md"), "utf8");
-  expect(guide).toContain("`biome check --no-errors-on-unmatched`");
+test("git-hooks keeps a staged-file linter quiet about files its config ignores", () => {
+  const body = readFileSync(join(bundled, "stacks/python-react/STACK.md"), "utf8");
+  expect(body).toContain("`--no-errors-on-unmatched`");
 });
 
 /** `new <stack> app --sandbox` from the bundled registry, with a git shim on PATH. */
@@ -180,7 +185,7 @@ test.each(["astro-blog", "go-cli", "python-react"])(
 );
 
 test("python-react's Makefile runs dump_openapi as the module the brief names", async () => {
-  const makefile = readFileSync(join(await scaffold("python-react"), "Makefile"), "utf8");
+  const makefile = readFileSync(join(await scaffold("python-react"), "backend/Makefile"), "utf8");
   expect(makefile).not.toContain("python scripts/dump_openapi.py");
   expect(makefile).toContain("uv run python -m scripts.dump_openapi");
 });
@@ -234,6 +239,6 @@ test("astro-blog's analytics keeps one pre-init buffer, in the module islands im
 });
 
 test("python-react's Makefile type-checks the backend scripts too", async () => {
-  const makefile = readFileSync(join(await scaffold("python-react"), "Makefile"), "utf8");
+  const makefile = readFileSync(join(await scaffold("python-react"), "backend/Makefile"), "utf8");
   expect(makefile).toContain("uv run mypy app tests scripts");
 });

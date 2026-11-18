@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "hono-react",
+  "source": {
+    "digest": "sha256:1afeebe6dd9016fef7ca2a30a1ce297a79a3a84f3241362717bdecee3815b24f",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-18"
+  },
+  "summary": "A TypeScript JSON API on Hono and a React single-page app on Vite in one repository, joined by a generated typed client.",
+  "description": "Run a Hono API on Node in backend/ and a React single-page app on Vite in frontend/, each with its own scripts, tests and lint rules. The API's OpenAPI document generates TanStack Query hooks for the frontend, drift checks keep the copy and the client current, and a root check starts both parts and requests the API through the Vite proxy. Notes stay in memory and there is no authentication, so storage and accounts are still yours to add.",
+  "seoDescription": "A Hono JSON API and a React SPA on Vite with an OpenAPI-generated TanStack Query client and root make targets for both parts.",
+  "projectExamples": [
+    {
+      "title": "Team notes board",
+      "description": "A browser board where a small team writes, lists and opens shared notes, served by a TypeScript JSON API on the same origin."
+    },
+    {
+      "title": "Product usage dashboard",
+      "description": "A single-page dashboard that lists records from a TypeScript API and reports page views and clicks to PostHog.",
+      "withFragments": [
+        "posthog"
+      ]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter web app in two halves, both in TypeScript: a server that answers data requests, and a browser interface built with React, a toolkit for web screens.",
+    "goodAt": [
+      "A TypeScript server and browser interface kept in one repository",
+      "Generating the browser's data code from the server's description",
+      "One set of commands that checks both halves together"
+    ],
+    "notGoodAt": [
+      "Pages the server builds before sending them; use the React Router or Next.js stacks.",
+      "A Python server; use the Python API + React SPA stack."
+    ]
+  },
+  "platforms": [
+    "web",
+    "server"
+  ],
+  "productKinds": [
+    "web-app",
+    "fullstack",
+    "api"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "a Hono API with a React single-page frontend",
+    "Vite React app and its own TypeScript server in one repo",
+    "react query hooks generated from my own API's route definitions",
+    "fullstack TypeScript monorepo with separate server and spa folders"
+  ],
+  "useCases": [
+    "single-page apps with a separate API",
+    "client and server contract checks",
+    "same-origin API behind a dev proxy"
+  ],
+  "synonyms": [
+    "Hono",
+    "React SPA",
+    "Vite",
+    "OpenAPI",
+    "orval",
+    "TanStack Query",
+    "full-stack TypeScript"
+  ],
+  "goodFor": [
+    "one language across server and browser",
+    "generated API hooks"
+  ],
+  "notFor": [
+    "server-side rendering",
+    "server rendered"
+  ]
+}

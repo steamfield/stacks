@@ -7,6 +7,7 @@ import { EntryInvalid, type PermissionDenied } from "../../errors";
 import type { Entry } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { renderTemplate, type TemplateValues } from "../template";
+import { stackEntries } from "./part-entries";
 import type { Composition, PlannedFile } from "./types";
 
 export type RenderedFile = {
@@ -49,7 +50,10 @@ const readFiles = (
 > =>
   Effect.gen(function* () {
     const reader = yield* fileReader(registry);
-    const entries = [...(composition.stack ? [composition.stack] : []), ...composition.fragments];
+    const entries = [
+      ...stackEntries(composition.stack, composition.parts),
+      ...composition.fragments,
+    ];
     const files: SourceFile[] = [];
     for (const planned of composition.files)
       files.push(yield* readSource(reader, entries, planned));

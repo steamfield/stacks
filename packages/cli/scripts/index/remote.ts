@@ -18,6 +18,7 @@ export type BundleRef = Pick<IndexEntry, "kind" | "id" | "digest">;
 export const bundlePath = (entry: BundleRef) =>
   `v1/entries/${entry.kind}/${entry.id}/${entry.digest}.json`;
 
+/** Every bundle the entries name: their own, their pinned fragments' and their pinned parts'. */
 export function bundleRefs(entries: ReadonlyArray<IndexEntry>): BundleRef[] {
   const refs = new Map<string, BundleRef>();
   const add = (ref: BundleRef) => refs.set(bundlePath(ref), ref);
@@ -25,6 +26,8 @@ export function bundleRefs(entries: ReadonlyArray<IndexEntry>): BundleRef[] {
     add(entry);
     for (const [id, digest] of Object.entries(entry.composition ?? {}))
       add({ kind: "fragment", id, digest });
+    for (const { stack, digest } of Object.values(entry.parts ?? {}))
+      add({ kind: "stack", id: stack, digest });
   }
   return [...refs.values()].sort((a, b) => bundlePath(a).localeCompare(bundlePath(b), "en"));
 }

@@ -12,9 +12,11 @@ import {
   type Entry,
   entryKey,
   isRejected,
+  isStack,
   markdownFile,
   type Origin,
   type RegistryEntry,
+  type Stack,
 } from "../entry";
 import type { FileAccess } from "../types";
 import { directoryMatches } from "./files";
@@ -51,15 +53,30 @@ const readEntry = Effect.fn("registry.remoteEntry")(function* (
   } satisfies Entry;
 });
 
-/** The index reference for a pinned fragment, which the stack's index entry names only by digest. */
-const pinnedReference = (id: string, digest: string): IndexEntry => ({
+type Pin = Pick<IndexEntry, "kind" | "id" | "digest">;
+
+/** The index reference for a pinned fragment or part stack, which the index names only by digest. */
+const pinnedReference = ({ kind, id, digest }: Pin): IndexEntry => ({
   id,
   digest,
-  kind: "fragment",
+  kind,
   schemaVersion: 1,
   name: "",
   description: "",
   tags: [],
+  ...(kind === "stack" ? { composition: {} } : {}),
+});
+
+/** A pinned entry: the bundled copy when its directory matches the digest, else the download. */
+const pinnedEntry = Effect.fn("registry.pinnedEntry")(function* (
+  io: FileAccess,
+  remote: ConfiguredIndex,
+  pin: Pin,
+  bundledEntries: ReadonlyArray<Entry>,
+) {
+  const original = bundledEntries.find((entry) => entry.kind === pin.kind && entry.id === pin.id);
+  if (original && (yield* directoryMatches(io, { ...pin, dir: original.dir }))) return original;
+  return yield* readEntry(io, remote, pinnedReference(pin));
 });
 
 /**
@@ -74,15 +91,12 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
 ) {
   const fragments: Entry[] = [];
   for (const [id, digest] of Object.entries(ref.composition ?? {})) {
-    const original = bundledEntries.find((entry) => entry.kind === "fragment" && entry.id === id);
-    if (
-      original &&
-      (yield* directoryMatches(io, { id, kind: "fragment", digest, dir: original.dir }))
-    ) {
-      fragments.push(original);
-      continue;
-    }
-    const fragment = yield* readEntry(io, remote, pinnedReference(id, digest));
+    const fragment = yield* pinnedEntry(
+      io,
+      remote,
+      { kind: "fragment", id, digest },
+      bundledEntries,
+    );
     if (!fragment) return undefined;
     fragments.push(fragment);
   }
@@ -90,11 +104,63 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
 });
 
 /**
+ * The part stacks a workspace was proven with, by part name, read the way `pinnedFragments`
+ * reads fragments; `undefined` when any one is unavailable, so the caller drops the whole pin set.
+ */
+const pinnedParts = Effect.fn("registry.pinnedParts")(function* (
+  io: FileAccess,
+  remote: ConfiguredIndex,
+  ref: IndexEntry,
+  bundledEntries: ReadonlyArray<Entry>,
+) {
+  const parts: Record<string, Entry> = {};
+  for (const [name, { stack, digest }] of Object.entries(ref.parts ?? {})) {
+    const part = yield* pinnedEntry(
+      io,
+      remote,
+      { kind: "stack", id: stack, digest },
+      bundledEntries,
+    );
+    if (!part) return undefined;
+    parts[name] = part;
+  }
+  return parts;
+});
+
+/**
+ * Everything the index workspace or stack pins: its fragments, and its parts when it has any.
+ * `undefined` when one pin is unavailable.
+ */
+const pinnedSnapshot = Effect.fn("registry.pinnedSnapshot")(function* (
+  io: FileAccess,
+  remote: ConfiguredIndex,
+  ref: IndexEntry,
+  bundledEntries: ReadonlyArray<Entry>,
+) {
+  const composition = yield* pinnedFragments(io, remote, ref, bundledEntries);
+  if (composition === undefined) return undefined;
+  if (ref.parts === undefined) return { composition };
+  const partEntries = yield* pinnedParts(io, remote, ref, bundledEntries);
+  return partEntries === undefined ? undefined : { composition, partEntries };
+});
+
+/** A bundled workspace's part stacks from the same bundled root, by part name. */
+function bundledParts(stack: Stack, bundledEntries: ReadonlyArray<Entry>) {
+  const parts: Record<string, Entry> = {};
+  for (const part of stack.meta.parts ?? []) {
+    const entry = bundledEntries.find((item) => item.kind === "stack" && item.id === part.stack);
+    if (entry) parts[part.name] = entry;
+  }
+  return parts;
+}
+
+/**
  * Rebuild pins from the bundled stack's requirements and defaults if the index composition
- * cannot be used. Bundled fragments pass through.
+ * cannot be used. Bundled fragments pass through. A bundled workspace keeps its bundled parts,
+ * so no index part is composed with a workspace it wasn't proven with.
  */
 function bundledComposition(original: Entry | undefined, bundledEntries: ReadonlyArray<Entry>) {
-  if (original?.meta.kind !== "stack") return original;
+  if (!original || !isStack(original)) return original;
   const fragments = new Map(
     bundledEntries.filter((entry) => entry.kind === "fragment").map((entry) => [entry.id, entry]),
   );
@@ -107,12 +173,30 @@ function bundledComposition(original: Entry | undefined, bundledEntries: Readonl
     selected.set(id, fragment);
     pending.push(...fragment.meta.requires);
   }
-  return { ...original, composition: [...selected.values()] };
+  const parts = original.meta.parts ? { partEntries: bundledParts(original, bundledEntries) } : {};
+  return { ...original, composition: [...selected.values()], ...parts };
+}
+
+/**
+ * Whether the index entry pins exactly the workspace's parts: every part name, to the stack id its
+ * decoded meta names, and nothing else. A stack without parts needs no part pin. Anything less
+ * would compose some part from the catalog's current copy, which the workspace wasn't proven with.
+ */
+function pinCoversParts(entry: Entry, ref: IndexEntry): boolean {
+  if (!isStack(entry) || !entry.meta.parts) return true;
+  const pins = ref.parts;
+  if (pins === undefined) return false;
+  const parts = entry.meta.parts;
+  return (
+    Object.keys(pins).length === parts.length &&
+    parts.every((part) => Object.hasOwn(pins, part.name) && pins[part.name]?.stack === part.stack)
+  );
 }
 
 /**
  * Reuse a bundled digest match to avoid a download and keep its run evidence applicable. Fall
- * back to `bundledComposition` when the index stack or a pinned fragment is unavailable.
+ * back to `bundledComposition` when the index stack, a pinned fragment or a pinned part is
+ * unavailable, or when the part pin doesn't cover the workspace's parts (`pinCoversParts`).
  */
 const resolveReference = Effect.fn("registry.resolveReference")(function* (
   io: FileAccess,
@@ -130,9 +214,10 @@ const resolveReference = Effect.fn("registry.resolveReference")(function* (
     return ref.kind === "stack" ? bundledComposition(original, bundledEntries) : undefined;
   const shadows: Entry["shadows"] = original ? ["bundled"] : [];
   if (ref.kind === "fragment") return same ? original : { ...entry, shadows };
-  const pinned = yield* pinnedFragments(io, remote, ref, bundledEntries);
+  if (!pinCoversParts(entry, ref)) return bundledComposition(original, bundledEntries);
+  const pinned = yield* pinnedSnapshot(io, remote, ref, bundledEntries);
   if (pinned === undefined) return bundledComposition(original, bundledEntries);
-  return { ...entry, composition: pinned, ...(same ? {} : { shadows }) };
+  return { ...entry, ...pinned, ...(same ? {} : { shadows }) };
 });
 
 const ORIGIN_ORDER: ReadonlyArray<Origin> = ["project", "user", "index", "bundled"];

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "openapi-client",
+  "source": {
+    "digest": "sha256:c1a2d182a90c36c268d3c1c15d20bcbe80d6bfe4bade8212ccad9431806b434c",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-18"
+  },
+  "summary": "Generate typed TanStack Query hooks for a React app from an API's OpenAPI document, sent through the app's own fetch client.",
+  "description": "Add Orval to a React single-page app so its API calls come from the backend's OpenAPI document as typed TanStack Query hooks. Generated calls go through the app's existing API client, so they keep its base URL, request ids, logging and error type. A drift check regenerates into a temporary directory and fails when the committed client is stale, and a second check fails until a page uses a generated hook. The API's document has to be copied into the app; generated calls rely on the document's types rather than runtime validation.",
+  "seoDescription": "Generate typed TanStack Query hooks from an OpenAPI document with Orval for a React app, with a drift check that catches a stale client.",
+  "projectExamples": [
+    {
+      "title": "Team notes dashboard",
+      "description": "A browser dashboard where a team lists, opens and writes notes, its screens reading from typed hooks generated from the notes API's published OpenAPI document.",
+      "stack": "react-vite"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Writes the code a React website uses to call its server, from the server's own description of its requests, and checks that code stays up to date.",
+    "goodAt": [
+      "Keeping a website's calls in step with what the server accepts",
+      "Catching a forgotten update before it ships"
+    ],
+    "notGoodAt": [
+      "Writing the server or its description; the API project does that.",
+      "Checking responses at runtime; it trusts the description's types."
+    ]
+  },
+  "capabilities": [],
+  "requests": [
+    "generate typed react query hooks from an openapi spec",
+    "keep my react frontend in sync with the openapi document",
+    "an orval client for my vite react app",
+    "fail checks when the generated openapi client is out of date",
+    "swagger codegen for a react single-page app"
+  ],
+  "useCases": [
+    "typed API calls from a React app",
+    "frontend and backend contract drift"
+  ],
+  "synonyms": [
+    "Orval",
+    "OpenAPI codegen",
+    "Swagger client",
+    "generated API client",
+    "TanStack Query hooks",
+    "typed fetch client",
+    "client generation"
+  ],
+  "goodFor": [
+    "React apps calling an API that publishes an OpenAPI document",
+    "catching a stale generated client before merge"
+  ],
+  "notFor": [
+    "GraphQL",
+    "OpenAPI documentation"
+  ],
+  "caveats": [
+    "The API's openapi.json must be copied into the app; generated calls skip runtime response validation."
+  ]
+}

@@ -70,6 +70,8 @@ export const SubmissionBlocker = Schema.Struct({
  *   `git_identity`, a commit git refused because no author name or email is configured;
  *   `branch_taken`, a fork `branch` holding commits `submit` didn't make (found before the push
  *   or by the push's lease), so it isn't replaced.
+ * - `part_dir`: `add` run in a workspace `part`'s directory, refused before anything is written;
+ *   `root` is the workspace project's root, where `add` places fragments on their parts.
  *
  * Every other `flag` comes with `id`, the argument the input was wrong about:
  * - `scope`: a `--scope` value that isn't an npm scope.
@@ -110,6 +112,7 @@ export const BadInputDetails = Schema.Union([
   }),
   Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
   Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
+  Schema.Struct({ flag: Schema.Literal("part_dir"), part: Schema.String, root: Schema.String }),
   Schema.Struct({
     id: Schema.String,
     flag: Schema.Literals([
@@ -310,6 +313,15 @@ export type ConditionalProblem = typeof ConditionalProblem.Type;
  * file isn't JSON, a template sits on a merge path, or a template names an unknown variable
  * (`template`). `path` is the file or link involved, relative to the entry; `line` is a 1-based
  * line in that file; `problem` says what is wrong with a `conditional` marker.
+ *
+ * The `part_*` reasons are a workspace stack's parts list, refused at compose time; `part` names
+ * the part and `step` the prefixed step involved:
+ * - `part_stack`: a part names a stack the registry doesn't have.
+ * - `part_role`: a part's role isn't one the CLI knows.
+ * - `part_name_duplicate`: two parts share a name.
+ * - `part_nested`: a part is the workspace itself or another workspace.
+ * - `part_roles`: the parts' roles break the contract (no `api` part, or two of one role).
+ * - `part_cwd`: a step's `cwd` escapes the part's directory.
  */
 export const EntryInvalidDetails = Schema.Struct({
   id: Schema.String,
@@ -323,10 +335,18 @@ export const EntryInvalidDetails = Schema.Struct({
     "merge_json",
     "merge_template",
     "template",
+    "part_stack",
+    "part_role",
+    "part_name_duplicate",
+    "part_nested",
+    "part_roles",
+    "part_cwd",
   ]),
   path: Schema.optionalKey(Schema.String),
   line: Schema.optionalKey(Schema.Number),
   problem: Schema.optionalKey(ConditionalProblem),
+  part: Schema.optionalKey(Schema.String),
+  step: Schema.optionalKey(Schema.String),
 });
 export class EntryInvalid extends Schema.TaggedError<EntryInvalid>()("EntryInvalid", {
   details: Schema.optionalKey(EntryInvalidDetails),
@@ -348,6 +368,7 @@ export class EntryInvalid extends Schema.TaggedError<EntryInvalid>()("EntryInval
  *   path another planned file needs as a directory.
  * - `reserved_path`: an entry file under `.git` or `.stacks` (any segment, any case), which the
  *   CLI owns.
+ * - `parts` names the workspace parts of the mounted parties, in party order.
  */
 export const ComposeConflictDetails = Schema.Struct({
   reason: Schema.Literals([
@@ -370,6 +391,7 @@ export const ComposeConflictDetails = Schema.Struct({
   step: Schema.optionalKey(Schema.String),
   key: Schema.optionalKey(Schema.String),
   fix: Schema.optionalKey(Schema.Array(Schema.String)),
+  parts: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 export class ComposeConflict extends Schema.TaggedError<ComposeConflict>()("ComposeConflict", {
   details: Schema.optionalKey(ComposeConflictDetails),

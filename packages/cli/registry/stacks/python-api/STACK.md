@@ -74,7 +74,7 @@ A working FastAPI app factory, validated settings, lifespan-owned in-memory note
 - Keep wire models in `app/schemas.py`, camelCase aliases, one resource shape for create/read/list, and thin routes. Stores implement the async `NoteStore` seam; a database adapter maps dependency failures to `ServiceUnavailable` with the original cause chained.
 - Raise `AppError` values. The error table owns fixed safe messages, statuses and retryability. Framework validation, unknown paths and wrong methods use the same envelope; unexpected exceptions and response-encoding failures are generic 500s, logged once by class and frames without messages or locals.
 - Use the request middleware on every route. It validates or generates ids, returns `X-Request-ID`, binds log context, logs route patterns without bodies/query values, and restores context afterwards. Uvicorn's access log stays off. Production logs are JSON on stdout; development logs are readable. Health requests log at debug.
-- New endpoints declare models and summaries. Preserve stable `<tag>_<function>` operation ids, no-store defaults, existing cache policies and 304s. Regenerate OpenAPI after changing routes or schemas.
+- New endpoints declare models and summaries. A resource route sets `operation_id` in camelCase verb-noun form, as `listNotes`, `getNote` and `createNote` do, because clients generated from the OpenAPI document name their functions after it; health routes keep the factory's `<tag>_<function>` fallback. Never change an existing id. Preserve no-store defaults, existing cache policies and 304s. Regenerate OpenAPI after changing routes or schemas.
 
 ## Testing
 

@@ -61,6 +61,8 @@
     "registry/stacks/hono-api/files/*.ts",
     "registry/stacks/hono-api/files/src",
     "registry/stacks/hono-api/files/tests",
+    // Imports the app (Hono, zod, pino), installed only in the API scaffold.
+    "registry/stacks/hono-api/files/scripts/openapi.ts",
     // NestJS, class-validator and Swagger are installed only in the API scaffold, and its
     // decorators need the scaffold's experimentalDecorators; keep scripts and hooks checked.
     "registry/stacks/nestjs-api/files/*.ts",
@@ -95,7 +97,6 @@
     "registry/stacks/mobile-expo/files/apps/**",
     "registry/stacks/mobile-expo/files/packages/**",
     // These SPAs import React, browser globals and tools installed only in the scaffold.
-    "registry/stacks/python-react/files/frontend/**",
     "registry/stacks/tauri-react/files/src/**",
     "registry/stacks/tauri-react/files/tests/**",
     "registry/stacks/tauri-react/files/*.config.ts",
@@ -105,6 +106,8 @@
     // Overlays target one stack's layout and dependencies, so all of them are.
     "registry/fragments/*/stacks/**",
     "registry/fragments/clerk/files/apps/**",
-    "registry/fragments/cloudflare-d1/files/drizzle.config.ts"
+    "registry/fragments/cloudflare-d1/files/drizzle.config.ts",
+    // Orval is installed only in the client scaffold; the drift script stays checked here.
+    "registry/fragments/openapi-client/files/orval.config.ts"
   ]
 }

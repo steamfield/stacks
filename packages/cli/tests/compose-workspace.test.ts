@@ -380,6 +380,12 @@ describe("collisions", () => {
   test.each([
     ["a file named for the part", "files/backend", "backend/.claude/rules/api.md"],
     ["a file inside the part directory", "files/backend/README.md", "backend/README.md"],
+    // One directory on a case-insensitive volume (APFS), so the same collision.
+    [
+      "a file inside the part directory in another case",
+      "files/Backend/README.md",
+      "backend/README.md",
+    ],
   ])(
     "the workspace shipping %s is file_owner naming the workspace and the part",
     async (_, shipped, path) => {

@@ -17,6 +17,7 @@ export {
   Phase,
   type ResolvedStep,
   StackMeta,
+  StackPart,
   StepLayer,
   VerifyStep,
   withStepDefaults,
@@ -29,7 +30,7 @@ export {
   type ShippedCondition,
   shippedPath,
 } from "./layout.js";
-export { EntryRef, Manifest, ManifestStep, ProjectId } from "./manifest.js";
+export { EntryRef, Manifest, ManifestPart, ManifestStep, ProjectId } from "./manifest.js";
 export { NamedComposition, OfficialNames } from "./names.js";
 export { FailureKind, Outcome, RunRecord, RunStep, TamperCheck } from "./run-record.js";
 export {

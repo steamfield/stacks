@@ -34,6 +34,7 @@ export const Category = Schema.Literals([
   "service",
   "vendor",
   "tooling",
+  "link",
 ]);
 export type Category = typeof Category.Type;
 
@@ -115,6 +116,17 @@ const shared = {
 };
 
 /**
+ * A stack a workspace stack mounts in the directory `name`. `role` is any kebab-case string: the
+ * roles and their rules belong to the CLI, which refuses one it doesn't know.
+ */
+export const StackPart = Schema.Struct({
+  name: Kebab,
+  role: Kebab,
+  stack: Kebab,
+});
+export type StackPart = typeof StackPart.Type;
+
+/**
  * `STACK.md` frontmatter, entry format v1 (D18). YAML keys are snake_case and decode to
  * camelCase fields; excess keys are checked against the snake_case names.
  */
@@ -126,6 +138,8 @@ export const StackMeta = Schema.Struct({
     default: list(Kebab),
     optional: list(Kebab),
   }).pipe(Schema.withDecodingDefaultKey(Effect.succeed({}))),
+  /** Absent, never `[]`, when a stack has none: fingerprints hash the decoded meta. */
+  parts: Schema.optionalKey(Schema.NonEmptyArray(StackPart)),
 }).pipe(Schema.encodeKeys({ schemaVersion: "schema_version" }));
 export type StackMeta = typeof StackMeta.Type;
 

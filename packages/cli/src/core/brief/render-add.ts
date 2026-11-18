@@ -91,7 +91,7 @@ function writeFacts(
     T.facts.fragments(composition.fragments.map((entry) => entry.id)),
     T.facts.preset(composition.preset),
     T.facts.agents(composition.agents),
-    T.facts.root,
+    composition.parts ? T.facts.workspaceRoot : T.facts.root,
   );
   if (context.written.length) {
     out.fixed(T.facts.written);
@@ -157,6 +157,7 @@ function writeDependencies(
 function writeGuidance(out: BriefWriter, composition: Composition<Entry | null>): void {
   for (const entry of composition.fragments) {
     out.fixed("", T.sections.fragment(oneLine(entry.meta.name), entry.id));
+    if (entry.mount) out.fixed("", T.sections.placed(entry.mount.name));
     // Retain a fragment's title: in add mode it may carry guidance beyond its registry name.
     out.data("", nest(entry.body.replace(/^(\s*)#(?=[ \t])/, "$1##")).trim());
     for (const note of composition.addNotes ?? [])

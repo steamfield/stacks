@@ -4,9 +4,9 @@ Status: DRAFT 2026-11-18, revised after an architect review and a devil's-advoca
 
 Scope: `StackMeta` and `Manifest` in `packages/format`; composition, `new`, `add`, `validate` and the proof fingerprint in `packages/cli`; the bundled registry. `stacks-api` has to take the new format version before entries use it. In `packages/mcp` only the `NewResult` mirror changes. The search contracts do not change. The signed index gains a pin for a workspace stack's parts (see "Proof").
 
-This RFC is not scheduled. It sits behind the two plans `HANDOFF.md` has as step 1, and "Relation to other plans" says why.
+Built on the branch `feat/workspace-stacks` on 2026-11-18, ahead of the two plans `HANDOFF.md` has as step 1, at the maintainer's direction. It is not merged or released; "Build log" at the end says what landed, what was decided on the way and what is still open.
 
-Nothing here is built. Phase 0, a set of four spikes, ran on 2026-11-18 and this document was revised from the results the same day. No spike hit its stop condition. The notes and kept artifacts are in [runs/2026-11-18-stack-pairing-spikes](runs/2026-11-18-stack-pairing-spikes/README.md), and "Phase 0: what the spikes found" below summarizes them. Where a section states something a spike observed, it says so; the rest is still design.
+The sections below are the design as written before the build; where the build went another way, "Build log" says so. Phase 0, a set of four spikes, ran on 2026-11-18 and this document was revised from the results the same day. No spike hit its stop condition. The notes and kept artifacts are in [runs/2026-11-18-stack-pairing-spikes](runs/2026-11-18-stack-pairing-spikes/README.md), and "Phase 0: what the spikes found" below summarizes them. Where a section states something a spike observed, it says so; the rest is still design.
 
 ## Summary
 
@@ -679,3 +679,39 @@ Free pairing, the `--api` and `--web` flags, `add --web`, pair results in search
 - Failure cases are named with reasons. Phase 1 lists the registry changes per stack; Phase 3 carries the 26 assumptions and the mounting shape.
 
 The two questions earlier reviews left unverified are answered: a nested root Biome config fails only a run from the workspace root (the `"root": false` fix the spike proposed was later found to disable a standalone stack's config, and is not taken), and `vite preview` uses the dev proxy. This revision has not been reviewed.
+
+## Build log
+
+2026-11-18. Phases 1 to 6 are on `feat/workspace-stacks`, not merged to `main`, not pushed and not released. The lane plan for Phase 3 is [build-workspace-stacks-phase3.md](build-workspace-stacks-phase3.md).
+
+What landed, by phase:
+
+1. Convention alignment of `python-api`, `hono-api` and `react-vite`, with bench runs for each.
+2. Format contracts: `StackMeta.parts`, the `link` category, `Manifest.parts`, and the index pin on `IndexEntry.parts`.
+3. CLI: mounting in `core/compose/mount.ts`, the workspace brief, `add` in a workspace, the `validate` checks, the fingerprint and index pin, and `parts` in `new --json` and `show`. `packages/mcp` mirrors the new result and error fields.
+4. Authoring guidance: `docs/authoring.md`, `docs/concepts.md`, the `stacks-author` skill and the repo's `stack-authoring` and `fragment-authoring` skills.
+5. Registry: the `openapi-client` link, `hono-react`, and `python-react` rebuilt on `python-api` and `react-vite`.
+6. Bench, on sonnet: `hono-react` green in 4.0 minutes (33 steps), `python-react` green in 2.4 minutes (29 steps), and `hono-api` and `react-vite` green again after their bodies were trimmed. The notes are under `runs/` with this date.
+
+Where the build differs from the text above:
+
+- The index pin maps each part name to `{ stack, digest }`, not to a digest alone, because the index scripts build bundle paths from `IndexEntry` and need the part's stack id.
+- A condition key `stacks:when part=<role>` exists. It is true in a workspace that has a part with that role and false in a single-stack project; it is how `postgres` on the API part addresses the web part.
+- Workspace briefs have their own word limit, `BUDGET.composedWorkspace` at 7,500. The two briefs measure 5,963 words (`hono-react`) and 6,194 (`python-react`) at the bench's sandbox preset.
+- A deps role is always prefixed with the part name. A workspace command key wins over a part's namespaced key of the same name, with a `part-namespace-shadowed` warning. `add` reads parts only from `Manifest.parts` and refuses a missing part directory.
+
+Answers taken on the open questions: `python-react` drops Tailwind and shadcn/ui and uses `react-vite` as it is (1); there is no workspace form of `docker-deploy`, and `posthog` also leaves `python-react` (2); the workspace body carries CI setup per part (8). Questions 3 to 7 are still open.
+
+Not done, and needed before any registry entry with `parts` reaches users: publish the format package, deploy `stacks-api` with a decoder that accepts `parts`, `link` and the pin, release the CLI, then set `minCli`. Proofs for the entries this work edited are stale until proved again.
+
+Known gaps:
+
+- Search ranks `openapi-client` down for queries containing "api", "backend" or "server"; links need their own ranking rule.
+- No budget check covers optional compositions, so `new --with postgres` on a workspace can pass the limit unreported.
+- A workspace has no root `tsconfig`, so the hoisted hooks are not typechecked.
+- `rest-api` on a workspace reads `backend/AGENTS.md`, which the part does not get (question 5).
+- `hono-react`'s Makefile targets `dev`, `lint` and `test` are not declared as commands, and nothing guards `make dev` at the root.
+- The hono OpenAPI schema named `Error` shadows the global in generated hooks.
+- `add postgres` on `python-react` was composed and validated but not run to green, which needs Docker.
+- A bench agent found that `make install` in `hono-react` runs `lefthook install` outside CI only, so the CI contract job needs `CI=true`; the workspace body should say so.
+- The bench agents wrote CI workflows without `actionlint` or `zizmor`, which were not installed on the bench machine.

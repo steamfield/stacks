@@ -475,7 +475,7 @@ Orchestrator, after every lane is merged:
 
 ## What Phase 3 leaves out
 
-`create --from` and `submit` for a workspace, two parts of one stack, roles beyond `api` and `web`, the condition key in "Needs a decision" item 2, and the broken guidance link of a hoisted skill from a fragment placed on one part (`rest-api`, RFC "Still open").
+`create --from` and `submit` for a workspace, two parts of one stack, roles beyond `api` and `web`, and the broken guidance link of a hoisted skill from a fragment placed on one part (`rest-api`, RFC "Still open").
 
 ## RFC claims found wrong or outdated
 

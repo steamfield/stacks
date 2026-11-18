@@ -3,11 +3,14 @@
  * cannot hide an unaccepted change.
  */
 import type { AgentId, Manifest } from "@steamfield/stacks-format";
-import { Effect, Path } from "effect";
+import { Effect, FileSystem, Path } from "effect";
 import { AppConfig } from "../../config";
-import { BadInput, VerifyChanged } from "../../errors";
+import { BadInput, PermissionDenied, VerifyChanged } from "../../errors";
 import type { AddResult } from "../../schemas/add";
 import type { Settings } from "../../schemas/config";
+import type { PartMount } from "../compose/types";
+import { isAbsent } from "../fs/absent";
+import { denied } from "../fs/denied";
 import { MANIFEST_PATH, readManifest } from "../project/manifest";
 import type { Entry } from "../registry/entry";
 import { Registry } from "../registry/registry";
@@ -20,9 +23,13 @@ export type AddProject = {
   tamper: Tamper | undefined;
   settings: Settings;
   stack: Entry | undefined;
+  /** The project's own parts, from `Manifest.parts`; empty for a single-stack project. */
+  parts: ReadonlyArray<PartMount>;
   warnings: AddResult["warnings"];
   existing: AddResult["alreadyApplied"];
 };
+
+type Warning = AddResult["warnings"][number];
 
 export const readAddProject = (options: AddOptions) =>
   Effect.gen(function* () {
@@ -37,15 +44,20 @@ export const readAddProject = (options: AddOptions) =>
       : undefined;
     if (tamper?.changed) return yield* new VerifyChanged({ details: tamper.changed });
     if (previous) yield* checkFlagsMatch(options, previous);
+    const parts = partMounts(previous);
+    yield* checkPartDirectories(options.root, parts);
     const registry = yield* Registry;
     const stack = yield* projectStack(registry, previous?.stack?.id);
-    const warnings: Array<AddResult["warnings"][number]> =
-      previous?.stack && !stack ? [{ code: "stack_unknown", id: previous.stack.id }] : [];
+    const warnings: Array<Warning> = [
+      ...(previous?.stack && !stack ? [{ code: "stack_unknown", id: previous.stack.id }] : []),
+      ...(yield* unknownParts(registry, parts)),
+    ];
     const project: AddProject = {
       previous,
       tamper,
       settings,
       stack,
+      parts,
       warnings,
       existing: previous?.fragments.map((entry) => entry.id) ?? [],
     };
@@ -69,3 +81,41 @@ function projectStack(registry: Registry["Service"], id: string | undefined) {
   if (id === undefined) return Effect.succeed(undefined);
   return registry.get("stack", id).pipe(Effect.orElseSucceed(() => undefined));
 }
+
+/** The parts compose mounts in add mode: the manifest's, never the registry entry's. */
+const partMounts = (previous: Manifest | undefined): ReadonlyArray<PartMount> =>
+  (previous?.parts ?? []).map(({ name, role, stack }) => ({ name, role, stack: stack.id }));
+
+/**
+ * Every part directory must be a real directory before anything is written, so a removed part, a
+ * file or a symlink in its place stops the add rather than receiving a fragment's files.
+ */
+const checkPartDirectories = Effect.fn("add.checkPartDirectories")(function* (
+  root: string,
+  parts: ReadonlyArray<PartMount>,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  for (const part of parts) {
+    const at = path.join(root, part.name);
+    const type = yield* fs.lstat(at).pipe(
+      Effect.map((info) => info.type),
+      Effect.catch((error) =>
+        isAbsent(error) ? Effect.succeed("Missing") : Effect.fail(denied("read", at)),
+      ),
+    );
+    if (type !== "Directory")
+      return yield* new PermissionDenied({ details: { reason: "blocked", path: part.name } });
+  }
+});
+
+/** A `part_unknown` warning for each part stack no registry has; the part still places by id. */
+const unknownParts = (registry: Registry["Service"], parts: ReadonlyArray<PartMount>) =>
+  Effect.forEach(parts, (part) =>
+    projectStack(registry, part.stack).pipe(
+      Effect.map(
+        (entry): ReadonlyArray<Warning> =>
+          entry ? [] : [{ code: "part_unknown", id: part.stack }],
+      ),
+    ),
+  ).pipe(Effect.map((lists) => lists.flat()));

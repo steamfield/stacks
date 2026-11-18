@@ -71,13 +71,20 @@ function nonOfficialCounts(entries: ReadonlyArray<EntryRef>) {
   return { user: count("user"), project: count("project"), source };
 }
 
+/** Every entry a manifest names: the stack, each part's stack and the fragments. */
+export const manifestEntries = (manifest: Manifest): ReadonlyArray<EntryRef> => [
+  ...(manifest.stack ? [manifest.stack] : []),
+  ...(manifest.parts ?? []).map((part) => part.stack),
+  ...manifest.fragments,
+];
+
 /**
  * The body of a `new` or `add` event. Official fragments are listed first, and the manifest's
- * fingerprint is reported only when every entry is official.
+ * fingerprint is reported only when every entry, part stacks included, is official.
  */
 export function scaffoldEvent(input: ScaffoldFacts) {
   const { manifest } = input;
-  const entries = [...(manifest.stack ? [manifest.stack] : []), ...manifest.fragments];
+  const entries = manifestEntries(manifest);
   const origin = officialOrigin(entries);
   return defined({
     type: input.type,

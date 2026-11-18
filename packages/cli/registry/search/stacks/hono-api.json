@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "hono-api",
   "source": {
-    "digest": "sha256:e5c1dd0de77bdcfde96bc3e8862d001b2064358fc8cda21ef6154f73d77ffaa2",
+    "digest": "sha256:52be0ad60af79c5734cc068a7ffd5ce1588132e34b8958872af7fb5b8402f12a",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 4,

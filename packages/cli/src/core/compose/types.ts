@@ -3,12 +3,14 @@
  * the implementation.
  */
 import type { AgentId, Kind, ResolvedStep } from "@steamfield/stacks-format";
-import type { Entry, Origin, Payload } from "../registry/entry";
+import type { Entry, Origin, Payload, Stack } from "../registry/entry";
 
 /** Where a mounted entry lives: its part's directory and step prefix, role, and the part's stack id (which picks overlays). */
 export type PartMount = { readonly name: string; readonly role: string; readonly stack: string };
 /** An entry as composed; `mount` is set on a part and on a fragment placed on one. */
 export type MountedEntry = Entry & { readonly mount?: PartMount };
+/** A part as selection loads it, before mounting; `entry` is null as in `ComposedPart`. */
+export type SelectedPart = { readonly mount: PartMount; readonly entry: Stack | null };
 /** One part of a workspace composition. `entry` is null only in add mode, for a part stack the registry no longer has. */
 export type ComposedPart = { readonly mount: PartMount; readonly entry: MountedEntry | null };
 

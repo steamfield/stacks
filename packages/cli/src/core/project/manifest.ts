@@ -3,7 +3,12 @@
  * agent, can edit its steps, so `checkTamper` uses a separate `ProjectState` baseline (trust point 5).
  */
 import { createHash } from "node:crypto";
-import { Manifest, type ManifestStep, withStepDefaults } from "@steamfield/stacks-format";
+import {
+  Manifest,
+  type ManifestPart,
+  type ManifestStep,
+  withStepDefaults,
+} from "@steamfield/stacks-format";
 import { Clock, Effect, FileSystem, Path, Random, Schema } from "effect";
 import { InvalidConfig, NotFound, PermissionDenied } from "../../errors";
 import { MANIFEST_PATH } from "../../project-layout";
@@ -50,6 +55,20 @@ const manifestEntryRef = (entry: Entry) => ({
   trusted: entry.trusted,
 });
 
+/**
+ * `parts` only for a workspace composition: an older CLI refuses the key, so single-stack
+ * manifests stay without it. A part whose stack the registry lost (add mode only) has no ref to
+ * write and is left out; `add` keeps the project's own `Manifest.parts`.
+ */
+function manifestParts(composition: Composition<Entry | null>): Pick<Manifest, "parts"> {
+  if (!composition.parts) return {};
+  return {
+    parts: composition.parts.flatMap(({ mount, entry }): ManifestPart[] =>
+      entry ? [{ name: mount.name, role: mount.role, stack: manifestEntryRef(entry) }] : [],
+    ),
+  };
+}
+
 /** Formats 16 bytes as a UUID string, after setting the version 4 and variant bits. */
 function formatUuid(bytes: Array<number>): string {
   bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
@@ -87,6 +106,7 @@ export const buildManifest = (
       agents: [...composition.agents],
       stack: composition.stack ? manifestEntryRef(composition.stack) : null,
       fragments: composition.fragments.map(manifestEntryRef),
+      ...manifestParts(composition),
       commands: { ...composition.commands },
       ...body,
       verifyDigest: digestSteps(body),

@@ -4,6 +4,7 @@
  * The definition of done covers the whole manifest because verify runs the project as a whole.
  */
 import { APP_TAG, withStepDefaults } from "@steamfield/stacks-format";
+import { sessionRootNames } from "../compose/mount";
 import type { ComposedStep, Composition } from "../compose/types";
 import type { Entry } from "../registry/entry";
 import {
@@ -155,9 +156,10 @@ function writeDependencies(
 
 /** Keep each added fragment's recipe notes next to its guidance so their context is clear. */
 function writeGuidance(out: BriefWriter, composition: Composition<Entry | null>): void {
+  const harness = sessionRootNames(composition.agents);
   for (const entry of composition.fragments) {
     out.fixed("", T.sections.fragment(oneLine(entry.meta.name), entry.id));
-    if (entry.mount) out.fixed("", T.sections.placed(entry.mount.name));
+    if (entry.mount) out.fixed("", T.sections.placed(entry.mount.name, harness));
     // Retain a fragment's title: in add mode it may carry guidance beyond its registry name.
     out.data("", nest(entry.body.replace(/^(\s*)#(?=[ \t])/, "$1##")).trim());
     for (const note of composition.addNotes ?? [])

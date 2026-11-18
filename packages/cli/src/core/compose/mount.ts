@@ -35,6 +35,15 @@ export function atSessionRoot(path: string): boolean {
   return SESSION_ROOT.some((pattern) => matchesPattern(path, pattern));
 }
 
+/**
+ * The session-root paths for these agents as the brief names them: a `/**` pattern as its
+ * directory (`.claude/hooks/`), in `agents` order, each once.
+ */
+export function sessionRootNames(agents: ReadonlyArray<AgentId>): ReadonlyArray<string> {
+  const names = agents.flatMap((agent) => SESSION_ROOT_PATHS[agent]);
+  return [...new Set(names.map((pattern) => pattern.replace(/\*\*$/, "")))];
+}
+
 /** A mounted entry's output (or merge) path: under `<mount.name>/` unless it is a session-root path. */
 export function placedPath(path: string, mount: PartMount | undefined): string {
   return mount && !atSessionRoot(path) ? `${mount.name}/${path}` : path;

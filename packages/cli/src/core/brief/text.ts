@@ -166,16 +166,28 @@ export const sections = {
   fragment: (name: string, id: string) => `## Fragment: ${name} (${code(id)})`,
   part: (name: string, id: string, dir: string) =>
     `## Part: ${name} (${code(id)}) in ${code(`${dir}/`)}`,
-  /** Entry prose is carried, never rewritten, so this line tells the reader where a mounted body's root is. */
-  partLine: (dir: string) =>
-    `This part lives in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines. \`README.md\`, \`.env.example\`, \`AGENTS.md\` and \`CLAUDE.md\` named here are this part's copies in ${code(`${dir}/`)}, not the root's.`,
+  /**
+   * Entry prose is carried, never rewritten, so this line tells the reader where a mounted body's
+   * root is. `harness` is `sessionRootNames` for the target agents, written at the project root.
+   */
+  partLine: (dir: string, harness: ReadonlyArray<string>) =>
+    `This part lives in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines. \`README.md\`, \`.env.example\`, \`AGENTS.md\` and \`CLAUDE.md\` named here are this part's copies in ${code(`${dir}/`)}, not the root's.${harnessRoot(harness)}`,
   link: (name: string, id: string) => `## Link: ${name} (${code(id)})`,
   /** A link body is written in roles; this line names each role's directory for this project. */
-  linkLine: (api: string, client: string) =>
-    `In this section the API part is ${code(`${api}/`)} and the client part is ${code(`${client}/`)}. Paths and commands are relative to ${code(`${client}/`)} and run there.`,
-  placed: (dir: string) =>
-    `This fragment is placed on the part in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there.`,
+  linkLine: (api: string, client: string, harness: ReadonlyArray<string>) =>
+    `In this section the API part is ${code(`${api}/`)} and the client part is ${code(`${client}/`)}. Paths and commands are relative to ${code(`${client}/`)} and run there.${harnessRoot(harness)}`,
+  placed: (dir: string, harness: ReadonlyArray<string>) =>
+    `This fragment is placed on the part in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there.${harnessRoot(harness)}`,
 };
+
+/** The clause ending a mounted section's line: the agent harness paths stay at the project root. */
+function harnessRoot(paths: ReadonlyArray<string>): string {
+  if (!paths.length) return "";
+  const named = paths.map(code);
+  const last = named.pop();
+  const list = named.length ? `${named.join(", ")} and ${last}` : `${last}`;
+  return ` The agent harness paths ${list} are at the project root, not in a part.`;
+}
 
 export const done = {
   heading: "## Definition of done",

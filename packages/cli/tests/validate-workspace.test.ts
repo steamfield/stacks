@@ -269,6 +269,30 @@ describe("a part step whose cwd leaves the part directory", () => {
   });
 });
 
+describe("a mounted step that names an agent harness path", () => {
+  test("warns once per step, since the path is at the project root and the step runs in the part", async () => {
+    const root = variant((root) => {
+      replace(root, API, 'run: "test -f src/index.ts" }', 'run: "test -s .claude/settings.json" }');
+      replace(root, DB, 'run: "true" }', 'run: "sh ./.claude/hooks/check.sh && test -d .codex" }');
+    });
+    expect(await added(root)).toEqual([
+      onPair(
+        "warning",
+        "part-step-session-root",
+        `part backend: step lint in ${API} names .claude/settings.json, which stacks writes at the project root while the step runs in backend/; reach them as ../<path> or move the step to the workspace`,
+      ),
+      `warning part-step-session-root fragment/db ${DB}: part backend of pair: step up names .claude/hooks/check.sh, .codex, which stacks writes at the project root while the step runs in backend/; reach them as ../<path> or move the step to the workspace`,
+    ]);
+  });
+
+  test("a part's own non-harness path under .claude/ is no finding", async () => {
+    const root = variant((root) =>
+      replace(root, API, 'run: "test -f src/index.ts" }', 'run: "test -f .claude/rules/api.md" }'),
+    );
+    expect(await added(root)).toEqual([]);
+  });
+});
+
 describe("what a workspace must restate and declare", () => {
   test("a workspace that drops a part's required fragment reports it for each part", async () => {
     const root = variant((root) =>

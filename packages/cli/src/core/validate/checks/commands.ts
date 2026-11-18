@@ -4,7 +4,7 @@
  */
 import { Effect } from "effect";
 import type { Finding } from "../../../schemas/validate";
-import type { Composition } from "../../compose/types";
+import type { Composition, MountedEntry } from "../../compose/types";
 import { shellTokens, shellWords } from "../../text/shell";
 import { uniqueFindings } from "../compositions/composed";
 import type { Check, View } from "../types";
@@ -61,16 +61,35 @@ export const commandChecks: Check = (view) =>
 /** Whether the entry at `dir` is in the validated set, so findings about it are reported. */
 const isValidated = (view: View, dir: string) => view.entries.some((entry) => entry.dir === dir);
 
+/** The workspace or stack, each part found, then the fragments: every entry a step can come from. */
+const compositionEntries = (composition: Composition): ReadonlyArray<MountedEntry> => [
+  composition.stack,
+  ...(composition.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : [])),
+  ...composition.fragments,
+];
+
+/**
+ * Whether a target names a command of the composed table. A mounted owner's step runs in its part
+ * directory, where the part's own `test` is `<part>-test` in the table.
+ */
+function declared(composition: Composition, owner: MountedEntry, target: string): boolean {
+  if (Object.hasOwn(composition.commands, target)) return true;
+  return (
+    owner.mount !== undefined &&
+    Object.hasOwn(composition.commands, `${owner.mount.name}-${target}`)
+  );
+}
+
 function undeclaredStepCommands(view: View, composition: Composition): Finding[] {
-  const entries = [composition.stack, ...composition.fragments];
+  const entries = compositionEntries(composition);
   const findings: Finding[] = [];
   for (const step of composition.verify) {
     const target = runnerTarget(step.run);
-    if (!target || Object.hasOwn(composition.commands, target)) continue;
+    if (!target) continue;
     const owner = entries.find(
       (entry) => entry.kind === step.owner.kind && entry.id === step.owner.id,
     );
-    if (!owner || !isValidated(view, owner.dir)) continue;
+    if (!owner || declared(composition, owner, target) || !isValidated(view, owner.dir)) continue;
     findings.push(
       finding(owner, {
         check: "undeclared-command",
@@ -92,8 +111,11 @@ function unrunFragmentCommands(view: View, composition: Composition): Finding[] 
   const findings: Finding[] = [];
   for (const fragment of composition.fragments) {
     if (!isValidated(view, fragment.dir)) continue;
-    for (const command of Object.keys(fragment.meta.commands)) {
-      if (ran.has(command) || Object.hasOwn(composition.stack.meta.commands, command)) continue;
+    for (const key of Object.keys(fragment.meta.commands)) {
+      if (Object.hasOwn(composition.stack.meta.commands, key)) continue;
+      // A fragment placed on a part has its keys prefixed, but its steps run the key it wrote.
+      const command = fragment.mount ? key.slice(fragment.mount.name.length + 1) : key;
+      if (ran.has(command)) continue;
       findings.push(
         finding(fragment, {
           check: "ref-command-coverage",

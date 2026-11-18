@@ -8,6 +8,7 @@ import { outputPath } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "./compose/files";
 import { placedPath } from "./compose/mount";
+import { stackEntries } from "./compose/part-entries";
 import type { ComposedPart, Composition, MountedEntry, PlannedFile } from "./compose/types";
 import { canonicalJson } from "./fs/canonical-json";
 import type { EntryFile } from "./registry/entry";
@@ -65,7 +66,7 @@ const plannedFrom = (planned: PlannedFile, entry: MountedEntry, file: EntryFile)
  * The entry's own source files this composition writes, sorted by source path: its selected
  * agent adapters and payload, not every one it ships, and every file it shares as a writer.
  */
-export const writtenEntryFiles = (
+const writtenEntryFiles = (
   composition: Composition,
   entry: MountedEntry,
   registry: Registry["Service"],
@@ -166,8 +167,7 @@ export const proofFingerprint = (composition: Composition) =>
 
 /** The stack, each part's mounted entry in `parts` order, then the fragments. */
 const fingerprintEntries = (composition: Composition): ReadonlyArray<MountedEntry> => [
-  composition.stack,
-  ...(composition.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : [])),
+  ...stackEntries(composition.stack, composition.parts),
   ...composition.fragments,
 ];
 

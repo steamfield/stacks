@@ -104,7 +104,8 @@ export function selectFragments(
       ...lookup,
       options,
       stack,
-      hosts: stack ? [stackHost(stack), ...parts.map(partHost)] : [],
+      // An add whose workspace no registry has still has the manifest's parts to fit.
+      hosts: [...(stack ? [stackHost(stack)] : []), ...parts.map(partHost)],
       without,
       withIds,
       existing,
@@ -179,20 +180,28 @@ const partHost = ({ mount, entry }: SelectedPart): Host => ({
 /**
  * The stack entry for one part. The workspace's pin (`partEntries`) wins unless the user
  * overrode that stack with a project or user copy, as `compositionFragment` does for fragments;
- * a pin for another stack id (an edited manifest) is ignored. A stack the catalog lacks, or
- * rejected there, is `null`, for the caller to refuse or carry.
+ * a pin for another stack id (an edited manifest) is ignored. A part the workspace declares but
+ * its pin set lacks is `null` too: the catalog's current copy is one it wasn't proven with. A
+ * stack the catalog lacks, or rejected there, is `null`, for the caller to refuse or carry.
  */
 const partEntry = (lookup: Lookup, workspace: Stack | null, mount: PartMount) =>
   Effect.gen(function* () {
     const current = lookup.catalog.find((item) => item.kind === "stack" && item.id === mount.stack);
     const pinned = workspace?.partEntries?.[mount.name];
     const local = current?.origin === "project" || current?.origin === "user";
-    if (pinned && pinned.id === mount.stack && !local && isStack(pinned)) return pinned;
+    if (!local && pinned?.id === mount.stack && isStack(pinned)) return pinned;
+    if (!local && workspace?.partEntries && !pinned && declares(workspace, mount)) return null;
     if (!current || current.rejected) return null;
     const entry = yield* lookup.registry.get("stack", mount.stack);
     if (!isStack(entry)) return yield* Effect.die(new Error("Registry returned a non-stack"));
     return entry;
   });
+
+/** Whether the workspace's own `parts` declares this mount: same name, same stack. */
+const declares = (workspace: Stack, mount: PartMount) =>
+  (workspace.meta.parts ?? []).some(
+    (part) => part.name === mount.name && part.stack === mount.stack,
+  );
 
 /**
  * The parts to mount. In add mode they are the project's (`options.parts`, from its manifest),
@@ -450,13 +459,14 @@ const checkConflicts = (
 
 /**
  * Fit, for what the stack author or a requirement chose: such a fragment must fit the stack.
- * Without a stack, a fragment that limits where it applies only warns.
+ * Without a stack, a fragment that limits where it applies only warns, unless it fits one of the
+ * project's parts.
  */
 const checkFit = (run: SelectionRun, selected: ReadonlyArray<Fragment>) =>
   Effect.gen(function* () {
     const { stack } = run;
     for (const fragment of selected) {
-      if (!stack && fragment.meta.appliesTo.length)
+      if (!stack && fragment.meta.appliesTo.length && !fits(fragment, run))
         run.warnings.push({ code: "with_not_applicable", id: fragment.id });
       const how = run.via.get(fragment.id);
       if (how !== "with" && how !== "always" && stack && !fits(fragment, run))

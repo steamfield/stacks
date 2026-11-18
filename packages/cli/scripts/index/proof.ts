@@ -83,19 +83,31 @@ function fragmentDigests(fragments: Composition["fragments"], raw: Raw) {
 /**
  * A workspace's pin for each part: the part's stack id and the bundle digest of the part stack it
  * was composed with. Absent for a composition without parts, so single-stack entries are unchanged.
+ * A part stack with no bundle fails the build: a pin missing a part would let readers compose that
+ * part from whatever copy is current.
  */
-function partDigests(parts: Composition["parts"], raw: Raw): Pick<IndexEntry, "parts"> {
+const partDigests = Effect.fn("index.partDigests")(function* (
+  parts: Composition["parts"],
+  raw: Raw,
+) {
   if (parts === undefined) return {};
   const pins: Record<string, { stack: string; digest: string }> = {};
   for (const { mount } of parts) {
     const value = raw.get(`stack/${mount.stack}`);
-    if (value !== undefined)
-      pins[mount.name] = { stack: mount.stack, digest: value.metadata.digest };
+    if (value === undefined)
+      return yield* Effect.fail(
+        new Error(`part ${mount.name}: stack/${mount.stack} has no bundle to pin.`),
+      );
+    pins[mount.name] = { stack: mount.stack, digest: value.metadata.digest };
   }
-  return { parts: pins };
-}
+  return { parts: pins } satisfies Pick<IndexEntry, "parts">;
+});
 
-function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): IndexEntry | null {
+const stackEntry = Effect.fn("index.stackEntry")(function* (
+  stack: Entry,
+  proven: ReadonlyArray<Proven>,
+  raw: Raw,
+) {
   const own = proven.filter(({ record }) => record.stack === stack.id && record.with.length === 0);
   // An agent run is preferred: it measures minutesToGreen. A scaffold run proves the same content.
   const records = own.map(({ record }) => record);
@@ -106,10 +118,10 @@ function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): Inde
   const value = raw.get(`stack/${stack.id}`);
   if (proof === undefined || value === undefined) return null;
   const record = proof.record;
-  return {
+  const entry: IndexEntry = {
     ...value.metadata,
     composition: fragmentDigests(proof.composition.fragments, raw),
-    ...partDigests(proof.composition.parts, raw),
+    ...(yield* partDigests(proof.composition.parts, raw)),
     lastRun: {
       date: record.date,
       result: "pass",
@@ -119,7 +131,8 @@ function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): Inde
       fingerprint: record.fingerprint,
     },
   };
-}
+  return entry;
+});
 
 const unprovenStack = Effect.fn("index.unprovenStack")(function* (stack: Entry, raw: Raw) {
   const value = raw.get(`stack/${stack.id}`);
@@ -136,7 +149,7 @@ const unprovenStack = Effect.fn("index.unprovenStack")(function* (stack: Entry, 
   return {
     ...value.metadata,
     composition: fragmentDigests(composition.fragments, raw),
-    ...partDigests(composition.parts, raw),
+    ...(yield* partDigests(composition.parts, raw)),
   };
 });
 
@@ -166,7 +179,7 @@ const addPinnedParts = Effect.fn("index.addPinnedParts")(function* (
     const part = stacks.find((stack) => stack.id === id);
     if (part === undefined || published.has(`stack/${id}`)) continue;
     const metadata =
-      stackEntry(part, input.proven, input.raw) ?? (yield* unprovenStack(part, input.raw));
+      (yield* stackEntry(part, input.proven, input.raw)) ?? (yield* unprovenStack(part, input.raw));
     if (metadata !== null) addStack(metadata, input.raw, published);
   }
 });
@@ -181,7 +194,8 @@ const publicationEntries = Effect.fn("index.publicationEntries")(function* (
   const stacks = entries.filter(isStack);
   for (const stack of stacks) {
     const metadata =
-      stackEntry(stack, proven, raw) ?? (includeUnproven ? yield* unprovenStack(stack, raw) : null);
+      (yield* stackEntry(stack, proven, raw)) ??
+      (includeUnproven ? yield* unprovenStack(stack, raw) : null);
     if (metadata !== null) addStack(metadata, raw, published);
   }
   yield* addPinnedParts(stacks, { proven, raw }, published);

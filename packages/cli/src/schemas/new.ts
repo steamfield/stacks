@@ -4,20 +4,10 @@ import { Schema } from "effect";
 import { BRIEF_PATH } from "../project-layout";
 import { NoticeFields } from "./notice";
 import { Origin } from "./origin";
+import { ResultPart } from "./part";
 
 /** An entry named by kind and id, as `missingTools` lists the entries that need a tool. */
 const EntryRef = Schema.Struct({ kind: Kind, id: Schema.String });
-
-/**
- * One part of a workspace stack: the directory it is mounted in (`name`), its role and the id of
- * the stack that fills it. Shared by `new --json` and `show --json`.
- */
-export const ResultPart = Schema.Struct({
-  name: Schema.String,
-  role: Schema.String,
-  stack: Schema.String,
-});
-export type ResultPart = typeof ResultPart.Type;
 
 /**
  * `new`'s composition presets. `lean` composes like `default` (and records `default` in the

@@ -3,6 +3,7 @@
  */
 import { APP_TAG } from "@steamfield/stacks-format";
 import { METADATA_DIR } from "../../project-layout";
+import { sessionRootNames } from "../compose/mount";
 import { isClientRole } from "../compose/roles";
 import type { ComposedPart, Composition, MountedEntry, PartMount } from "../compose/types";
 import type { Entry } from "../registry/entry";
@@ -62,7 +63,12 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
   writeDecisions(out, composition.decisions, context.yes);
   writeDependencies(out, composition, context);
   writeGuidance(out, T.sections.stack(oneLine(stack.meta.name), stack.id), stack);
-  if (composition.parts) writeWorkspaceSections(out, composition.parts, brief.base);
+  if (composition.parts)
+    writeWorkspaceSections(out, {
+      parts: composition.parts,
+      base: brief.base,
+      harness: sessionRootNames(composition.agents),
+    });
   else
     for (const fragment of brief.base)
       writeGuidance(out, T.sections.fragment(oneLine(fragment.meta.name), fragment.id), fragment);
@@ -203,8 +209,15 @@ function writeGuidance(out: BriefWriter, heading: string, entry: Entry, opening?
  */
 function writeWorkspaceSections(
   out: BriefWriter,
-  parts: ReadonlyArray<ComposedPart>,
-  base: ReadonlyArray<MountedEntry>,
+  {
+    parts,
+    base,
+    harness,
+  }: {
+    parts: ReadonlyArray<ComposedPart>;
+    base: ReadonlyArray<MountedEntry>;
+    harness: ReadonlyArray<string>;
+  },
 ): void {
   for (const { mount, entry } of parts)
     if (entry)
@@ -212,7 +225,7 @@ function writeWorkspaceSections(
         out,
         T.sections.part(oneLine(entry.meta.name), entry.id, mount.name),
         entry,
-        T.sections.partLine(mount.name),
+        T.sections.partLine(mount.name, harness),
       );
   // Compose refuses a workspace without exactly one api part (`part_roles`), so `api` is set.
   const api = parts.find((part) => !isClientRole(part.mount.role))?.mount.name;
@@ -223,14 +236,14 @@ function writeWorkspaceSections(
         out,
         T.sections.link(oneLine(link.meta.name), link.id),
         link,
-        T.sections.linkLine(api, link.mount.name),
+        T.sections.linkLine(api, link.mount.name, harness),
       );
   for (const fragment of base.filter((entry) => !links.some((link) => link === entry)))
     writeGuidance(
       out,
       T.sections.fragment(oneLine(fragment.meta.name), fragment.id),
       fragment,
-      fragment.mount && T.sections.placed(fragment.mount.name),
+      fragment.mount && T.sections.placed(fragment.mount.name, harness),
     );
 }
 

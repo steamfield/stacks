@@ -270,6 +270,7 @@ const BadInputDetails = Schema.Union([
   }),
   Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
   Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
+  Schema.Struct({ flag: Schema.Literal("part_dir"), part: Schema.String, root: Schema.String }),
   Schema.Struct({
     id: Schema.String,
     flag: Schema.Literals([

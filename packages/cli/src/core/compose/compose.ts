@@ -19,11 +19,13 @@ import {
   isFragment,
   markdownFile,
   type Payload,
+  type Stack,
 } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type ConditionContext, resolveConditionals } from "./conditionals";
 import { conflict, parties } from "./conflicts";
 import { contextFor, mountComposition } from "./mount";
+import { stackEntries } from "./part-entries";
 import { planFiles } from "./plan-files";
 import { selectFragments } from "./selection";
 import type {
@@ -34,6 +36,7 @@ import type {
   CompositionEntryRef,
   MissingTool,
   MountedEntry,
+  MountRoot,
 } from "./types";
 
 /** The step tag `--sandbox` skips by default (`verify --all` still runs it). */
@@ -55,7 +58,7 @@ export function compose(
     const selected = yield* selectFragments(registry, options);
     const { stack, via, warnings, existing } = selected;
     const mounted = yield* mountComposition({
-      workspace: stack,
+      workspace: mountRoot(stack, options),
       parts: selected.parts,
       fragments: selected.ordered,
       applied: selected.appliedEntries,
@@ -64,7 +67,8 @@ export function compose(
     const payloads = yield* checkPayload(registry, stackEntries(stack, mounted.parts), payload);
     const root = conditionContext(options, {
       stack,
-      payload,
+      // The workspace and root fragments see the workspace's own payload, the one its files use.
+      payload: (stack ? payloads.get(entryKey(stack.kind, stack.id)) : undefined) ?? payload,
       ids: [...existing, ...mounted.fragments.map((fragment) => fragment.id)],
       roles: mounted.parts.map((part) => part.mount.role),
     });
@@ -150,13 +154,15 @@ function conditionContext(
   };
 }
 
-/** The stack-kind entries: the stack (the workspace, in a workspace) and each part found. */
-function stackEntries<E extends Entry>(
-  stack: E | null,
-  parts: ReadonlyArray<ComposedPart>,
-): ReadonlyArray<MountedEntry> {
-  if (!stack) return [];
-  return [stack, ...parts.flatMap((part) => (part.entry ? [part.entry] : []))];
+/**
+ * What the parts mount under: the stack, or in add mode the manifest's workspace id when no
+ * registry has that stack, so the project's parts still place what is added.
+ */
+function mountRoot(stack: Stack | null, options: ComposeOptions<"new" | "add">): MountRoot | null {
+  if (stack) return { id: stack.id, entry: stack };
+  if (options.mode === "add" && options.workspace !== undefined)
+    return { id: options.workspace, entry: null };
+  return null;
 }
 
 const resolvePart = (
@@ -196,7 +202,9 @@ const checkPayload = Effect.fn("compose.checkPayload")(function* (
   for (const stack of stacks)
     if (!(yield* shipsPayload(registry, stack, payload)))
       fallback.set(entryKey(stack.kind, stack.id), DEFAULT_PAYLOAD);
-  if (fallback.size === stacks.length)
+  // Keyed by entry, so one stack mounted as two parts counts once.
+  const keys = new Set(stacks.map((stack) => entryKey(stack.kind, stack.id)));
+  if (fallback.size === keys.size)
     return yield* new BadInput({ details: { id: payload, flag: "payload" } });
   return fallback;
 });

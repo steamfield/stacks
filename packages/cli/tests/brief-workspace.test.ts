@@ -86,12 +86,14 @@ const DB = "## Fragment: Database (`db`)";
 const HARNESS = "## Fragment: Harness (`harness`)";
 const ROOT_CI = "## Fragment: Root CI (`root-ci`)";
 
+/** The clause every part, link and placed line ends with, for the default target agent (claude). */
+const HARNESS_ROOT =
+  " The agent harness paths `.claude/settings.json`, `.claude/hooks/`, `.claude/agents/` and `.claude/commands/` are at the project root, not in a part.";
 const partLine = (dir: string) =>
-  `This part lives in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines. \`README.md\`, \`.env.example\`, \`AGENTS.md\` and \`CLAUDE.md\` named here are this part's copies in \`${dir}/\`, not the root's.`;
-const LINK_LINE =
-  "In this section the API part is `backend/` and the client part is `frontend/`. Paths and commands are relative to `frontend/` and run there.";
+  `This part lives in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines. \`README.md\`, \`.env.example\`, \`AGENTS.md\` and \`CLAUDE.md\` named here are this part's copies in \`${dir}/\`, not the root's.${HARNESS_ROOT}`;
+const LINK_LINE = `In this section the API part is \`backend/\` and the client part is \`frontend/\`. Paths and commands are relative to \`frontend/\` and run there.${HARNESS_ROOT}`;
 const placedLine = (dir: string) =>
-  `This fragment is placed on the part in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there.`;
+  `This fragment is placed on the part in \`${dir}/\`. Paths and commands in this section are relative to \`${dir}/\` and run there.${HARNESS_ROOT}`;
 const INSTALL_PARTS =
   "1. Install the packages under Dependencies and tools at their latest versions with each part's own package manager, in that part's directory: a role named `<part>-<role>` belongs to the part in `<part>/`.";
 const WORKSPACE_ROOT =
@@ -139,6 +141,18 @@ describe("the fixed opening lines", () => {
     expect(firstLine(text, ROOT_CI)).toBe("CI runs from the project root.");
     // The workspace's own section has no fixed line either.
     expect(firstLine(text, STACK)).toBe("### How the parts connect");
+  });
+
+  test("the harness clause names the session-root paths of every target agent", async () => {
+    const exit = await composeExit(
+      { stack: "pair", agents: ["claude", "codex"] },
+      { roots: bundledAt(workspaceRegistry) },
+    );
+    if (Exit.isFailure(exit)) throw new Error(`compose failed: ${String(exit.cause)}`);
+    const { text } = renderBrief(exit.value, context());
+    expect(firstLine(text, LINK)).toBe(
+      "In this section the API part is `backend/` and the client part is `frontend/`. Paths and commands are relative to `frontend/` and run there. The agent harness paths `.claude/settings.json`, `.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.codex/` and `.agents/skills/` are at the project root, not in a part.",
+    );
   });
 
   test("a part section holds its line, then the part's own body as mounted", async () => {
@@ -368,6 +382,39 @@ describe("the add brief", () => {
     ]);
     expect(text).toContain(`\n${WORKSPACE_ROOT}\n`);
     expect(text).not.toContain("Run every command from there.");
+  });
+});
+
+describe("recipe notes in the add brief", () => {
+  test("a workspace note on a placed fragment says its paths are at the project root", async () => {
+    const block = (text: string) =>
+      `\n<!-- stacks:when with=db -->\n${text}\n<!-- stacks:end -->\n`;
+    const root = variant((at) => {
+      for (const [file, text] of [
+        ["stacks/pair/STACK.md", "Put the database URL in the root `.env.example`."],
+        ["stacks/web-part/STACK.md", "Read the database URL in `src/main.ts`."],
+      ] as const) {
+        const path = join(at, file);
+        writeFileSync(path, `${readFileSync(path, "utf8")}${block(text)}`);
+      }
+    });
+    const made = await newWorkspace({ root });
+    const home = dirname(made.target);
+    cleanups.push(() => rmSync(home, { recursive: true, force: true }));
+    expect(made.result.status).toBe(0);
+    const run = await runCli(["add", "db", "--json"], {
+      home,
+      env: { ...quiet, PATH: process.env.PATH ?? "" },
+      host: { cwd: made.target, registry: root },
+    });
+    expect(run.status, run.stderr).toBe(0);
+    const text = readFileSync(join(made.target, ".stacks/BRIEF.md"), "utf8");
+    expect(text.split("\n").filter((line) => line.startsWith("### From the "))).toEqual([
+      "### From the `pair` recipe (current version), paths relative to the project root",
+      // api-part's note sits on db's own part, so the placed line already roots it. web-part's
+      // block drops: a part's context lists only the fragments placed on that part.
+      "### From the `api-part` recipe (current version)",
+    ]);
   });
 });
 

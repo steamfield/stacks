@@ -6,7 +6,7 @@ import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { collapsePaths } from "../brief/paths";
 import type { Composition } from "../compose/types";
-import { partsLine } from "../show/report";
+import { partsLine } from "../text/parts-line";
 import { printable } from "../text/text";
 
 /**

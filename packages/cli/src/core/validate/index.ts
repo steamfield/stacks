@@ -21,6 +21,7 @@ import { gitChecks } from "./checks/git";
 import { headingChecks } from "./checks/headings";
 import { importChecks } from "./checks/imports";
 import { ledgerChecks } from "./checks/ledger-notes";
+import { partStepChecks } from "./checks/part-steps";
 import { referenceChecks } from "./checks/references";
 import { searchChecks } from "./checks/search";
 import { shippedReferenceChecks } from "./checks/shipped-refs";
@@ -47,6 +48,7 @@ export const checks: ReadonlyArray<Check> = [
   authorChecks,
   metadataChecks,
   workspaceChecks,
+  partStepChecks,
   referenceChecks,
   conditionalChecks,
   fileChecks,

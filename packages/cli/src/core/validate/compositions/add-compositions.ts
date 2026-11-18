@@ -9,6 +9,7 @@ import { mergeAddManifest } from "../../add/manifest";
 import { renderAddBrief } from "../../brief/render-add";
 import { targetAgents } from "../../compose/agents";
 import { compose, mergeCommands, mergeEnv } from "../../compose/compose";
+import { manifestMounts, stackEntries } from "../../compose/part-entries";
 import type { ComposeOptions, Composition } from "../../compose/types";
 import { buildManifest } from "../../project/manifest";
 import { type Entry, isFragment, isStack } from "../../registry/entry";
@@ -106,10 +107,7 @@ const checkAddComposition = Effect.fn("validate.addComposition")(function* (
 
 /** A workspace project's parts, as `add` reads them from its manifest; none for any other host. */
 function projectParts(previous: Manifest | undefined): Pick<ComposeOptions<"add">, "parts"> {
-  if (!previous?.parts) return {};
-  return {
-    parts: previous.parts.map(({ name, role, stack }) => ({ name, role, stack: stack.id })),
-  };
+  return previous?.parts ? { parts: manifestMounts(previous.parts) } : {};
 }
 
 /** A note for each group of merged steps running one command, when the fragment added one. */
@@ -179,8 +177,7 @@ const canonicalHost = Effect.fn("validate.addHost")(function* (
   if (Result.isFailure(result)) return undefined;
   const base = result.success;
   const fragments = base.fragments.filter((entry) => entry.id !== fragment.id);
-  const parts = (base.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : []));
-  const entries = [base.stack, ...parts, ...fragments];
+  const entries = [...stackEntries(base.stack, base.parts), ...fragments];
   // A subset of a composition that merged cleanly can't conflict.
   const env = yield* Effect.orDie(mergeEnv(entries));
   return yield* buildManifest(

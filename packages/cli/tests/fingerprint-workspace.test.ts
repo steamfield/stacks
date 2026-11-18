@@ -4,8 +4,7 @@ import { NodeServices } from "@effect/platform-node";
 import { Effect, Exit, type FileSystem, type Path } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
 import type { Composition } from "../src/core/compose/types";
-import { fingerprint, proofFingerprint, writtenEntryFiles } from "../src/core/fingerprint";
-import { Registry } from "../src/core/registry/registry";
+import { fingerprint, proofFingerprint } from "../src/core/fingerprint";
 import { bundledAt, composeExit } from "./helpers/compose";
 import { workspaceRegistry, workspaceVariant } from "./helpers/workspace";
 
@@ -109,42 +108,27 @@ describe("a workspace's proof covers each part", () => {
     expect(after.web).toBe(before.web);
   });
 
-  test("the collapsed shared guard and the merged root settings count for both parts", async () => {
-    const composition = await composed(workspaceRegistry, "pair");
-    const written = await run(
-      Effect.gen(function* () {
-        const registry = yield* Registry.pipe(Effect.provide(Registry.layer([])));
-        const sources: Record<string, ReadonlyArray<string>> = {};
-        for (const { mount, entry } of composition.parts ?? []) {
-          if (entry === null) continue;
-          const files = yield* writtenEntryFiles(composition, entry, registry);
-          sources[mount.name] = files.map((file) => file.source);
-        }
-        return sources;
-      }),
-    );
-    expect(written).toEqual({
-      backend: [
-        "adapters/claude/.claude/hooks/shared-guard.sh",
-        "adapters/claude/.claude/rules/api.md",
-        "adapters/claude/.claude/settings.json",
-        "adapters/codex/.agents/skills/api-skill/SKILL.md",
-        "files/AGENTS.md",
-        "files/README.md",
-        "files/config/app.json",
-        "files/package.json.tmpl",
-        "files/src/index.ts",
-        "payloads/example/src/notes.ts",
-      ],
-      frontend: [
-        "adapters/claude/.claude/hooks/shared-guard.sh",
-        "adapters/claude/.claude/settings.json",
-        "files/AGENTS.md",
-        "files/README.md",
-        "files/src/main.ts",
-        "payloads/example/src/notes-page.ts",
-      ],
+  test("the collapsed shared guard and each part's merged root settings count in pair's proof", async () => {
+    const before = await proof(workspaceRegistry, "pair");
+    const GUARD = "adapters/claude/.claude/hooks/shared-guard.sh";
+    // Both copies change together, so they still collapse into one root file.
+    const guard = variant((root) => {
+      for (const part of ["api-part", "web-part"]) {
+        const path = join(root, "stacks", part, GUARD);
+        writeFileSync(path, `${readFileSync(path, "utf8")}# edited\n`);
+      }
     });
+    // Only api-part's copy changes; pair and web-part merge theirs into the same root file.
+    const settings = variant((root) =>
+      replaceIn(
+        root,
+        "stacks/api-part/adapters/claude/.claude/settings.json",
+        "api-hook",
+        "api-hoo",
+      ),
+    );
+    expect(await proof(guard, "pair")).not.toBe(before);
+    expect(await proof(settings, "pair")).not.toBe(before);
   });
 
   test("swapping the parts list changes the composition fingerprint", async () => {

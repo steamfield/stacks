@@ -35,40 +35,45 @@ function errorBlocks(lines: string[], keep: (line: string) => boolean): string[]
   });
 }
 
-async function main(): Promise<void> {
-  const given = text(readPayload()?.tool_input?.file_path);
-  if (!(given.endsWith(".ts") || given.endsWith(".tsx")) || !isFile(given)) return;
+const SKIPPED_DIRS = ["node_modules/", "dist/", "coverage/", "build/", ".react-router/"];
 
+type Target = { root: string; pkg: string; file: string; rel: string };
+
+/** The project root, the written file's package and its path there, or undefined to stay quiet. */
+function resolveTarget(given: string): Target | undefined {
   let root: string;
   let fileDir: string;
   try {
     root = realpathSync(projectRoot());
     fileDir = realpathSync(dirname(given));
   } catch {
-    return;
+    return undefined;
   }
-  if (!`${fileDir}/`.startsWith(`${root}/`)) return;
+  if (!`${fileDir}/`.startsWith(`${root}/`)) return undefined;
   // The package is the nearest directory with its own tsc, walking up from the file and stopping
   // at the root: the root itself in a one-package project, `frontend/` for an app kept there.
   const pkg = findUp(fileDir, "node_modules/.bin/tsc");
-  if (pkg === undefined || !`${pkg}/`.startsWith(`${root}/`)) return;
-  const tsc = join(pkg, "node_modules/.bin/tsc");
-  if (!isExecutable(tsc) || !isFile(join(pkg, "tsconfig.json"))) return;
+  if (pkg === undefined || !`${pkg}/`.startsWith(`${root}/`)) return undefined;
+  if (!isExecutable(join(pkg, "node_modules/.bin/tsc")) || !isFile(join(pkg, "tsconfig.json")))
+    return undefined;
+  const file = join(fileDir, basename(given));
   // tsc prints paths relative to the package it runs in; match that.
-  const rel = relative(pkg, join(fileDir, basename(given)));
-  if (
-    ["node_modules/", "dist/", "coverage/", "build/", ".react-router/"].some((dir) =>
-      rel.startsWith(dir),
-    )
-  )
-    return;
+  const rel = relative(pkg, file);
+  if (SKIPPED_DIRS.some((dir) => rel.startsWith(dir))) return undefined;
+  return { root, pkg, file, rel };
+}
+
+async function main(): Promise<void> {
+  const given = text(readPayload()?.tool_input?.file_path);
+  if (!(given.endsWith(".ts") || given.endsWith(".tsx")) || !isFile(given)) return;
+  const target = resolveTarget(given);
+  if (target === undefined) return;
+  const { root, pkg, file, rel } = target;
+  const tsc = join(pkg, "node_modules/.bin/tsc");
 
   const prepare = join(root, ".claude/hooks/before-typecheck.ts");
   if (isFile(prepare)) {
-    await run("bun", [prepare, relative(root, join(fileDir, basename(given)))], {
-      cwd: root,
-      timeoutSec: 15,
-    });
+    await run("bun", [prepare, relative(root, file)], { cwd: root, timeoutSec: 15 });
   }
 
   const { code, output } = await run(

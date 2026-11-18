@@ -7,9 +7,9 @@
 import type { AgentId, VerifyStep } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { EntryInvalid } from "../../errors";
-import { type Entry, entryKey, type Fragment, type Payload, type Stack } from "../registry/entry";
+import { type Entry, entryKey, type Fragment, type Payload } from "../registry/entry";
 import type { ConditionContext } from "./conditionals";
-import type { ComposedPart, MountedEntry, PartMount, SelectedPart } from "./types";
+import type { ComposedPart, MountedEntry, MountRoot, PartMount, SelectedPart } from "./types";
 
 /**
  * Per harness, the paths it reads only at the session root, so they are written at the project
@@ -75,17 +75,21 @@ function partCwd(dir: string, cwd: string | undefined): string | undefined {
 const prefixed = <V>(record: Readonly<Record<string, V>>, name: string) =>
   Object.entries(record).map(([key, value]): [string, V] => [`${name}-${key}`, value]);
 
-/** Verify steps under the part: prefixed names, `cwd` in the part directory. */
-const mountSteps = (entry: Entry, mount: PartMount, workspace: Stack) =>
+/**
+ * Verify steps under the part: prefixed names, `cwd` in the part directory. A bad `cwd` names the
+ * workspace, or the entry itself when the registry no longer has the workspace.
+ */
+const mountSteps = (entry: Entry, mount: PartMount, workspace: MountRoot) =>
   Effect.forEach(entry.meta.verify, (step) => {
     const name = `${mount.name}-${step.name}`;
     const cwd = partCwd(mount.name, step.cwd);
+    const blamed = workspace.entry ?? entry;
     if (cwd === undefined)
       return Effect.fail(
         new EntryInvalid({
           details: {
-            id: workspace.id,
-            origin: workspace.origin,
+            id: blamed.id,
+            origin: blamed.origin,
             reason: "part_cwd",
             part: mount.name,
             step: name,
@@ -105,8 +109,9 @@ const mountSteps = (entry: Entry, mount: PartMount, workspace: Stack) =>
 export function mountEntry<E extends Entry>(
   entry: E,
   mount: PartMount,
-  workspace: Stack,
+  workspace: MountRoot,
 ): Effect.Effect<E & { mount: PartMount }, EntryInvalid> {
+  const declared = workspace.entry?.meta.commands ?? {};
   return Effect.map(mountSteps(entry, mount, workspace), (verify) => ({
     ...entry,
     mount,
@@ -114,9 +119,7 @@ export function mountEntry<E extends Entry>(
       ...entry.meta,
       verify,
       commands: Object.fromEntries(
-        prefixed(entry.meta.commands, mount.name).filter(
-          ([key]) => !Object.hasOwn(workspace.meta.commands, key),
-        ),
+        prefixed(entry.meta.commands, mount.name).filter(([key]) => !Object.hasOwn(declared, key)),
       ),
       deps: Object.fromEntries(prefixed(entry.meta.deps, mount.name)),
       merge: entry.meta.merge.map((path) => placedPath(path, mount)),
@@ -129,7 +132,7 @@ export function mountEntry<E extends Entry>(
  * project already has. Without a workspace or parts, the entries come back unchanged.
  */
 export const mountComposition = Effect.fn("compose.mountComposition")(function* (input: {
-  workspace: Stack | null;
+  workspace: MountRoot | null;
   parts: ReadonlyArray<SelectedPart>;
   fragments: ReadonlyArray<Fragment>;
   applied: ReadonlyArray<Fragment>;

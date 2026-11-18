@@ -13,6 +13,11 @@ export type MountedEntry = Entry & { readonly mount?: PartMount };
 export type SelectedPart = { readonly mount: PartMount; readonly entry: Stack | null };
 /** One part of a workspace composition. `entry` is null only in add mode, for a part stack the registry no longer has. */
 export type ComposedPart = { readonly mount: PartMount; readonly entry: MountedEntry | null };
+/**
+ * The workspace parts are mounted under. `entry` is null only in add mode, for a workspace stack
+ * the registry no longer has: placement needs only the id.
+ */
+export type MountRoot = { readonly id: string; readonly entry: Stack | null };
 
 export type ComposeOptions<M extends "new" | "add" = "new"> = {
   stack: M extends "new" ? string : string | null;
@@ -33,6 +38,8 @@ export type ComposeOptions<M extends "new" | "add" = "new"> = {
   payload?: Payload;
   /** Add mode only: the project's parts from `Manifest.parts` (`stack` is the ref's id). */
   parts?: ReadonlyArray<PartMount>;
+  /** Add mode only, with `parts`: the manifest's workspace stack id, which mounts the parts when no registry has that stack. */
+  workspace?: string;
 };
 
 /** Which entry: a stack and a fragment may share an id, so an id alone is ambiguous. */

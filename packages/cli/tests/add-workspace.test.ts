@@ -231,6 +231,29 @@ describe("add on a workspace project", () => {
     expect(manifest.parts?.map((part) => part.stack.id)).toEqual(["api-part", "web-part"]);
   });
 
+  test("with the workspace stack gone from the registry, add db warns stack_unknown and still writes under backend/", async () => {
+    const made = await created();
+    const registry = variant((root) => rmSync(join(root, "stacks", "pair"), { recursive: true }));
+    const before = snapshot(made.project);
+    const result = await added(await addIn(made, ["db"], { registry }));
+    expect(result).toMatchObject({
+      added: ["db"],
+      written: ["backend/src/db.ts"],
+      mergeNeeded: [
+        { path: "backend/config/app.json", incoming: [".stacks/incoming/backend/config/app.json"] },
+      ],
+      warnings: [{ code: "stack_unknown", id: "pair" }],
+    });
+    expect(changedPaths(before, snapshot(made.project))).toEqual(dbChanges("backend"));
+    const manifest = manifestAt(made.project);
+    expect(stepsOf(manifest, ["backend-up", "backend-migrate"])).toEqual([
+      { name: "backend-up", cwd: "backend", owner: "db" },
+      { name: "backend-migrate", cwd: "backend", owner: "db" },
+    ]);
+    expect(manifest.commands).toMatchObject({ "backend-db-up": "Start the local database" });
+    expect(Object.hasOwn(manifest.commands, "db-up")).toBe(false);
+  });
+
   test("a project-root api-part shadow with a with=db block is untrusted and keeps the baseline under an agent", async () => {
     const made = await created();
     cpSync(

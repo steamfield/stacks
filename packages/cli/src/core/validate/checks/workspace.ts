@@ -137,19 +137,22 @@ function listedFragments(workspace: Workspace): ReadonlyArray<Fragment> {
 }
 
 const mountedCwdFinding = (workspace: Workspace, entry: Entry, mount: PartMount) =>
-  Effect.map(Effect.result(mountEntry(entry, mount, workspace.stack)), (result): Finding[] => {
-    if (Result.isSuccess(result)) return [];
-    const mounted = result.failure.details?.step ?? "";
-    const name = mounted.slice(mount.name.length + 1);
-    const cwd = entry.meta.verify.find((step) => step.name === name)?.cwd;
-    return [
-      workspace.report(
-        "error",
-        "part-cwd",
-        `part ${mount.name}: step ${name} in ${entryFile(workspace.view, entry)} has cwd "${cwd}", which leaves ${mount.name}/; keep cwd inside the part's directory`,
-      ),
-    ];
-  });
+  Effect.map(
+    Effect.result(mountEntry(entry, mount, { id: workspace.stack.id, entry: workspace.stack })),
+    (result): Finding[] => {
+      if (Result.isSuccess(result)) return [];
+      const mounted = result.failure.details?.step ?? "";
+      const name = mounted.slice(mount.name.length + 1);
+      const cwd = entry.meta.verify.find((step) => step.name === name)?.cwd;
+      return [
+        workspace.report(
+          "error",
+          "part-cwd",
+          `part ${mount.name}: step ${name} in ${entryFile(workspace.view, entry)} has cwd "${cwd}", which leaves ${mount.name}/; keep cwd inside the part's directory`,
+        ),
+      ];
+    },
+  );
 
 /** Each Declared rule a part breaks for its role. */
 function roleRuleFindings(workspace: Workspace): Finding[] {

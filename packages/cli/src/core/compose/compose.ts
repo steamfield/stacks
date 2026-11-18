@@ -19,6 +19,7 @@ import {
   isFragment,
   markdownFile,
   type Payload,
+  type Stack,
 } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type ConditionContext, resolveConditionals } from "./conditionals";
@@ -34,6 +35,7 @@ import type {
   CompositionEntryRef,
   MissingTool,
   MountedEntry,
+  MountRoot,
 } from "./types";
 
 /** The step tag `--sandbox` skips by default (`verify --all` still runs it). */
@@ -55,7 +57,7 @@ export function compose(
     const selected = yield* selectFragments(registry, options);
     const { stack, via, warnings, existing } = selected;
     const mounted = yield* mountComposition({
-      workspace: stack,
+      workspace: mountRoot(stack, options),
       parts: selected.parts,
       fragments: selected.ordered,
       applied: selected.appliedEntries,
@@ -148,6 +150,17 @@ function conditionContext(
     payload,
     ...(roles.length ? { partRoles: roles } : {}),
   };
+}
+
+/**
+ * What the parts mount under: the stack, or in add mode the manifest's workspace id when no
+ * registry has that stack, so the project's parts still place what is added.
+ */
+function mountRoot(stack: Stack | null, options: ComposeOptions<"new" | "add">): MountRoot | null {
+  if (stack) return { id: stack.id, entry: stack };
+  if (options.mode === "add" && options.workspace !== undefined)
+    return { id: options.workspace, entry: null };
+  return null;
 }
 
 /** The stack-kind entries: the stack (the workspace, in a workspace) and each part found. */

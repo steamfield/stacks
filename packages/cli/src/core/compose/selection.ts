@@ -104,7 +104,8 @@ export function selectFragments(
       ...lookup,
       options,
       stack,
-      hosts: stack ? [stackHost(stack), ...parts.map(partHost)] : [],
+      // An add whose workspace no registry has still has the manifest's parts to fit.
+      hosts: [...(stack ? [stackHost(stack)] : []), ...parts.map(partHost)],
       without,
       withIds,
       existing,
@@ -450,13 +451,14 @@ const checkConflicts = (
 
 /**
  * Fit, for what the stack author or a requirement chose: such a fragment must fit the stack.
- * Without a stack, a fragment that limits where it applies only warns.
+ * Without a stack, a fragment that limits where it applies only warns, unless it fits one of the
+ * project's parts.
  */
 const checkFit = (run: SelectionRun, selected: ReadonlyArray<Fragment>) =>
   Effect.gen(function* () {
     const { stack } = run;
     for (const fragment of selected) {
-      if (!stack && fragment.meta.appliesTo.length)
+      if (!stack && fragment.meta.appliesTo.length && !fits(fragment, run))
         run.warnings.push({ code: "with_not_applicable", id: fragment.id });
       const how = run.via.get(fragment.id);
       if (how !== "with" && how !== "always" && stack && !fits(fragment, run))

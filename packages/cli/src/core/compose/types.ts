@@ -81,8 +81,8 @@ export type Composition<S extends Entry | null = Entry> = {
   parts?: ReadonlyArray<ComposedPart>;
   /** The one fragment with category "app", also in `fragments`. */
   app: Entry | null;
-  /** Current recipe blocks that specifically name an added fragment. */
-  addNotes?: ReadonlyArray<{ fragment: string; entry: Entry }>;
+  /** Current recipe blocks that specifically name an added fragment; `entry.mount` is its source's. */
+  addNotes?: ReadonlyArray<{ fragment: string; entry: MountedEntry }>;
   inferredTags?: ReadonlyArray<string>;
   selection: ReadonlyArray<{ id: string; via: Via }>;
   preset: ComposeOptions["preset"];

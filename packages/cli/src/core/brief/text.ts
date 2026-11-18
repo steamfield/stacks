@@ -285,7 +285,12 @@ export const sandbox = [
 export const add = {
   inferredTags: (tags: ReadonlyArray<string>) =>
     `- Inferred tags: ${tags.length ? tags.join(", ") : "none"}`,
-  recipeNote: (id: string) => `### From the ${code(id)} recipe (current version)`,
+  /**
+   * `rooted` says where the note's paths are when its source sits elsewhere than the added
+   * fragment: a part directory, or `null` for the project root; absent when they agree.
+   */
+  recipeNote: (id: string, rooted?: string | null) =>
+    `### From the ${code(id)} recipe (current version)${rooted === undefined ? "" : `, paths relative to ${rooted === null ? "the project root" : code(`${rooted}/`)}`}`,
   createAgentsMd:
     "Create `AGENTS.md` at the project root before adding the sections requested below.",
   title: (ids: ReadonlyArray<string>, project: string) => `# Add ${ids.join(", ")} to ${project}`,

@@ -385,6 +385,39 @@ describe("the add brief", () => {
   });
 });
 
+describe("recipe notes in the add brief", () => {
+  test("a workspace note on a placed fragment says its paths are at the project root", async () => {
+    const block = (text: string) =>
+      `\n<!-- stacks:when with=db -->\n${text}\n<!-- stacks:end -->\n`;
+    const root = variant((at) => {
+      for (const [file, text] of [
+        ["stacks/pair/STACK.md", "Put the database URL in the root `.env.example`."],
+        ["stacks/web-part/STACK.md", "Read the database URL in `src/main.ts`."],
+      ] as const) {
+        const path = join(at, file);
+        writeFileSync(path, `${readFileSync(path, "utf8")}${block(text)}`);
+      }
+    });
+    const made = await newWorkspace({ root });
+    const home = dirname(made.target);
+    cleanups.push(() => rmSync(home, { recursive: true, force: true }));
+    expect(made.result.status).toBe(0);
+    const run = await runCli(["add", "db", "--json"], {
+      home,
+      env: { ...quiet, PATH: process.env.PATH ?? "" },
+      host: { cwd: made.target, registry: root },
+    });
+    expect(run.status, run.stderr).toBe(0);
+    const text = readFileSync(join(made.target, ".stacks/BRIEF.md"), "utf8");
+    expect(text.split("\n").filter((line) => line.startsWith("### From the "))).toEqual([
+      "### From the `pair` recipe (current version), paths relative to the project root",
+      // api-part's note sits on db's own part, so the placed line already roots it. web-part's
+      // block drops: a part's context lists only the fragments placed on that part.
+      "### From the `api-part` recipe (current version)",
+    ]);
+  });
+});
+
 describe("validate --brief and new agree", () => {
   test("the preview and the brief new writes have the same sections and the same guidance", async () => {
     const preview = await runCli(["validate", "--brief", "pair", "--json"], {

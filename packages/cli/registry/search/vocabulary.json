@@ -30,6 +30,7 @@
       "go cli",
       "go api",
       "go service",
+      "go backend",
       "go binary",
       "go binaries",
       "go tool",

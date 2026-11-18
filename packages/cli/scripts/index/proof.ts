@@ -80,6 +80,21 @@ function fragmentDigests(fragments: Composition["fragments"], raw: Raw) {
   return composition;
 }
 
+/**
+ * A workspace's pin for each part: the part's stack id and the bundle digest of the part stack it
+ * was composed with. Absent for a composition without parts, so single-stack entries are unchanged.
+ */
+function partDigests(parts: Composition["parts"], raw: Raw): Pick<IndexEntry, "parts"> {
+  if (parts === undefined) return {};
+  const pins: Record<string, { stack: string; digest: string }> = {};
+  for (const { mount } of parts) {
+    const value = raw.get(`stack/${mount.stack}`);
+    if (value !== undefined)
+      pins[mount.name] = { stack: mount.stack, digest: value.metadata.digest };
+  }
+  return { parts: pins };
+}
+
 function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): IndexEntry | null {
   const own = proven.filter(({ record }) => record.stack === stack.id && record.with.length === 0);
   // An agent run is preferred: it measures minutesToGreen. A scaffold run proves the same content.
@@ -94,6 +109,7 @@ function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): Inde
   return {
     ...value.metadata,
     composition: fragmentDigests(proof.composition.fragments, raw),
+    ...partDigests(proof.composition.parts, raw),
     lastRun: {
       date: record.date,
       result: "pass",
@@ -117,7 +133,11 @@ const unprovenStack = Effect.fn("index.unprovenStack")(function* (stack: Entry, 
     always: [],
     mode: "new",
   });
-  return { ...value.metadata, composition: fragmentDigests(composition.fragments, raw) };
+  return {
+    ...value.metadata,
+    composition: fragmentDigests(composition.fragments, raw),
+    ...partDigests(composition.parts, raw),
+  };
 });
 
 function addFragments(ids: ReadonlyArray<string>, raw: Raw, published: Map<string, IndexEntry>) {
@@ -127,6 +147,30 @@ function addFragments(ids: ReadonlyArray<string>, raw: Raw, published: Map<strin
   }
 }
 
+function addStack(metadata: IndexEntry, raw: Raw, published: Map<string, IndexEntry>) {
+  published.set(`stack/${metadata.id}`, metadata);
+  addFragments(Object.keys(metadata.composition ?? {}), raw, published);
+}
+
+/**
+ * Every part stack a published workspace pins is published too, with its own proof when it has
+ * one and otherwise unproven, since a reader of the workspace downloads its bundle.
+ */
+const addPinnedParts = Effect.fn("index.addPinnedParts")(function* (
+  stacks: ReadonlyArray<Entry>,
+  input: { proven: ReadonlyArray<Proven>; raw: Raw },
+  published: Map<string, IndexEntry>,
+) {
+  const pinned = [...published.values()].flatMap((entry) => Object.values(entry.parts ?? {}));
+  for (const { stack: id } of pinned) {
+    const part = stacks.find((stack) => stack.id === id);
+    if (part === undefined || published.has(`stack/${id}`)) continue;
+    const metadata =
+      stackEntry(part, input.proven, input.raw) ?? (yield* unprovenStack(part, input.raw));
+    if (metadata !== null) addStack(metadata, input.raw, published);
+  }
+});
+
 const publicationEntries = Effect.fn("index.publicationEntries")(function* (
   entries: ReadonlyArray<Entry>,
   proven: ReadonlyArray<Proven>,
@@ -134,13 +178,13 @@ const publicationEntries = Effect.fn("index.publicationEntries")(function* (
   includeUnproven: boolean,
 ) {
   const published = new Map<string, IndexEntry>();
-  for (const stack of entries.filter(isStack)) {
+  const stacks = entries.filter(isStack);
+  for (const stack of stacks) {
     const metadata =
       stackEntry(stack, proven, raw) ?? (includeUnproven ? yield* unprovenStack(stack, raw) : null);
-    if (metadata === null) continue;
-    published.set(`stack/${stack.id}`, metadata);
-    addFragments(Object.keys(metadata.composition ?? {}), raw, published);
+    if (metadata !== null) addStack(metadata, raw, published);
   }
+  yield* addPinnedParts(stacks, { proven, raw }, published);
   for (const proof of proven.filter(({ record }) => record.with.length > 0))
     addFragments(
       proof.composition.fragments.map((fragment) => fragment.id),

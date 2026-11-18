@@ -49,7 +49,12 @@ const readFiles = (
 > =>
   Effect.gen(function* () {
     const reader = yield* fileReader(registry);
-    const entries = [...(composition.stack ? [composition.stack] : []), ...composition.fragments];
+    const parts = (composition.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : []));
+    const entries = [
+      ...(composition.stack ? [composition.stack] : []),
+      ...parts,
+      ...composition.fragments,
+    ];
     const files: SourceFile[] = [];
     for (const planned of composition.files)
       files.push(yield* readSource(reader, entries, planned));

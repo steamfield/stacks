@@ -11,9 +11,14 @@ export type ConditionContext = {
   with: ReadonlyArray<string>;
   /** The stack's payload variant (`new --payload`); absent is the example. */
   payload?: Payload;
+  /**
+   * The roles of a workspace composition's parts, the same for every entry in it wherever it is
+   * placed; absent outside a workspace, where every `part=` is false.
+   */
+  partRoles?: ReadonlyArray<string>;
 };
 
-type Key = "stack" | "tag" | "tag!=" | "mode" | "preset" | "with" | "payload";
+type Key = "stack" | "tag" | "tag!=" | "mode" | "preset" | "with" | "payload" | "part";
 export type Condition = Partial<Record<Key, ReadonlyArray<string>>>;
 /** A malformed marker: its 1-based line in the body and what is wrong with it. */
 type ConditionalError = { line: number; problem: ConditionalProblem };
@@ -21,7 +26,17 @@ type ConditionalError = { line: number; problem: ConditionalProblem };
 const MARKER = /^\s*<!--\s*stacks:(\S+)(.*?)-->\s*$/;
 /** `stacks:fill` markers pass through for the agent or `fillMarkers`. */
 const isFill = (directive: string) => directive === "fill" || directive.startsWith("fill:");
-const KEYS: ReadonlyArray<Key> = ["stack", "tag", "tag!=", "mode", "preset", "with", "payload"];
+/** `part` takes any role, as `with` takes any id: an unknown role is false, not an error. */
+const KEYS: ReadonlyArray<Key> = [
+  "stack",
+  "tag",
+  "tag!=",
+  "mode",
+  "preset",
+  "with",
+  "payload",
+  "part",
+];
 const VALUES: Partial<Record<Key, ReadonlyArray<string>>> = {
   mode: ["new", "add"],
   preset: ["default", "sandbox"],
@@ -67,6 +82,7 @@ function matches(condition: Condition, context: ConditionContext): boolean {
     preset: (value) => value === context.preset,
     with: (value) => context.with.includes(value),
     payload: (value) => value === (context.payload ?? DEFAULT_PAYLOAD),
+    part: (value) => context.partRoles?.includes(value) ?? false,
   };
   return KEYS.every((key) => {
     const values = condition[key];

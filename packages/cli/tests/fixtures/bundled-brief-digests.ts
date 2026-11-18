@@ -46,16 +46,17 @@
  * posthog's Testing line dropped python-react; both await a bench run. python-react changed
  * once more that day when its part lines named README, env, AGENTS and CLAUDE files by where
  * they are written and git-hooks returned to its default tier; it awaits a bench run.
+ * The 0.15.0 version in the brief changed all six again on 2026-11-18.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:86601ab0d397e01d6e520a598f8e15eacecca9aef4ebef8f9f52c6c7d2a77398",
-  "astro-blog:sandbox": "sha256:5269bc807db7b9730fce06969eaf4c2f42eba42133f2cb87878bd41a9d550c1f",
-  "go-cli:default": "sha256:22cd22095f8f6bed17e090418d6db10f06f97d810a3ab88df2eacfb308cd7f37",
-  "go-cli:sandbox": "sha256:512ca98d1ce43a7debada6a38962cc23af0f7f170455c88e7204f9dc6c1a7742",
-  "python-react:default": "sha256:eda3ab2865a3a9612c4a23dfe51e3cb5b75e21e494b52aa2efbc80ed818d668d",
-  "python-react:sandbox": "sha256:418a12b57374684535c0c454023a9f017bf1b0af1dbeee11697a02abb76d0602",
+  "astro-blog:default": "sha256:2220cd50c9f8ed148568c0a6e2d60672f0b8f05a2bcee169ee11fa08b92b3de9",
+  "astro-blog:sandbox": "sha256:8304c7fd38f27689e4f6c64efbba6a65cf4fe1b5e9cf1f688aaa4665c90e7dda",
+  "go-cli:default": "sha256:efb925f5c5b9266a1bf92fc90a0887218dbeeb5b014d990193e2164682b787e4",
+  "go-cli:sandbox": "sha256:53145cba4a702cd840688f48858dd85cc000f8f8ecab35f2de9af70be6006330",
+  "python-react:default": "sha256:86ae633fcc06304455d2437cad0511fc4c403e968117035780b0dbcda669101f",
+  "python-react:sandbox": "sha256:efbfa1ce71dacc426f2de6c8842aee8d5bc9b07fc31a0f4df338958684c9893f",
 };

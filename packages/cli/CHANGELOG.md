@@ -4,6 +4,21 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-18
+
+### Added
+
+- Workspace stacks: a stack can declare `parts`, each naming another stack and a directory, and `new` mounts every part into one project. A part's verify steps run as `<part>-<step>` from the part's directory, its commands and dependency roles carry the part name, and the brief covers the workspace and each part. `show` and `new --json` list the parts.
+- `hono-react`, a workspace of `hono-api` and `react-vite` whose client hooks are generated from the API's OpenAPI document.
+- The `link` fragment category for what joins two parts, and `openapi-client`, which generates a typed client and query hooks in the web part from the API part's contract.
+- `add` in a workspace places a fragment in the part it applies to. The condition `stacks:when part=<role>` holds in a workspace that has a part with that role.
+- `validate` checks a workspace's parts (stack, role, name, step directories, role rules, shadowed command names) and holds its composed brief to 7,500 words.
+
+### Changed
+
+- `python-react` is now a workspace of `python-api` and `react-vite` joined by `openapi-client`. It no longer ships Tailwind, shadcn/ui, its own database tests or PostHog wiring; add `postgres` for the database.
+- `python-api`, `hono-api` and `react-vite` share the conventions a workspace part needs: `PORT_API` and a `/healthz` serve check on the API side, `PORT_WEB` on the client side, and an `openapi-drift` step on each API.
+
 ### Fixed
 
 - If a `--json` result cannot include the telemetry notice, the CLI retries the notice on the next eligible run.

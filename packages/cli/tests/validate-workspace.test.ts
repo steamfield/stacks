@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
-import { type Finding, ValidateReport } from "../src/schemas/validate";
+import { BriefPreview, type Finding, ValidateReport } from "../src/schemas/validate";
 import { quiet, runCli, tempDir } from "./helpers/cli";
 import { emptyRegistry, minimal, writeEntry } from "./helpers/registry";
 import { workspaceRegistry, workspaceVariant } from "./helpers/workspace";
@@ -518,4 +518,43 @@ test("compose-each composes a part-scoped fragment onto the workspace that doesn
   ).toEqual([
     `error compose-each fragment/db ${DB}: db with pair: can't compose (env): pair, db; MODE`,
   ]);
+});
+
+describe("the composed-brief budget of a workspace", () => {
+  /** `validate --brief <stack> [args] --json` over `root`: the preview's word limit. */
+  async function limit(root: string, stack: string, args: string[] = []) {
+    const home = tempDir();
+    cleanups.push(home.cleanup);
+    const result = await runCli(["validate", root, "--brief", stack, ...args, "--json"], {
+      home: home.path,
+      env: quiet,
+      host: { registry: emptyRegistry },
+    });
+    // The fixture has unrelated errors, so the preview is a kept result before one envelope.
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(JSON.parse(result.stderr).error.tag).toBe("ValidationFailed");
+    return Schema.decodeUnknownSync(BriefPreview)(JSON.parse(result.stdout)).limit;
+  }
+
+  test("is the workspace limit, while a single stack keeps the plain one", async () => {
+    expect(await limit(workspaceRegistry, "pair")).toBe(7_500);
+    expect(await limit(workspaceRegistry, "api-part")).toBe(6_000);
+  });
+
+  test("with an app it takes the larger app limit", async () => {
+    const root = variant((root) =>
+      writeEntry({
+        root,
+        kind: "fragment",
+        dir: "big",
+        frontmatter: minimal("fragment", "big", "applies_to: [pair]").replace(
+          "category: tooling",
+          "category: app",
+        ),
+        body: "# Guidance\n",
+      }),
+    );
+    expect(await limit(root, "pair", ["--with", "big"])).toBe(9_000);
+  });
 });

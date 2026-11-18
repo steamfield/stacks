@@ -68,7 +68,8 @@ The composed brief budget applies only to a stack's default composition (its req
 | Fragment body | 1,000 |
 | App body (`category: app`) | 3,000 |
 | Composed brief | 6,000 |
-| Composed brief with an app | 9,000 |
+| Composed brief of a workspace (a stack with `parts`) | 7,500 |
+| Composed brief with an app (a workspace's too) | 9,000 |
 
 ## Severities and exit codes
 

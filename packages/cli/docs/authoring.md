@@ -281,7 +281,7 @@ block, because the parts' own blocks for those fragments drop when mounted; and 
 settings come from, meaning the root `.env` and how its values reach each part.
 
 Keep the body near 400 words. A composed workspace brief carries both part bodies and
-the link, and the 6,000-word composed limit applies as to any stack. Anything about one
+the link, so its composed limit is 7,500 words (9,000 with an app). Anything about one
 half goes in that half's stack.
 
 ### Links
@@ -397,7 +397,7 @@ with verify. Repair shipped hook/editor command references and stale run fingerp
 Review warnings as well as errors.
 
 Keep stack bodies below 2,000 words, fragments below 1,000 and apps below 3,000;
-the default composed brief limit is 6,000 (9,000 with an app). Move optional shared material into
+the default composed brief limit is 6,000 (7,500 for a workspace, 9,000 with an app). Move optional shared material into
 a fragment, reference material into a shipped doc linked from the body, and cut what
 the agent would do anyway. Validation budgets only the default composition in both presets;
 optional fragments, fitting apps and compatible pairs still get the other composition checks.

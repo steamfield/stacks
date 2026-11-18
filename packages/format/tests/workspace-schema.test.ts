@@ -130,9 +130,14 @@ const indexStack = {
   composition: { "openapi-client": digest },
 };
 
+const pin = { stack: "hono-api", digest };
+
 test("an index stack entry decodes with and without part pins", () => {
   expect(decodeIndexEntry(indexStack)).toStrictEqual(indexStack);
-  const pinned = { ...indexStack, parts: { backend: digest, frontend: digest } };
+  const pinned = {
+    ...indexStack,
+    parts: { backend: pin, frontend: { stack: "react-vite", digest } },
+  };
   expect(decodeIndexEntry(pinned)).toStrictEqual(pinned);
 });
 
@@ -141,13 +146,18 @@ const { composition: _composition, ...indexMetadata } = indexStack;
 test.each([
   [
     "a pin keyed by a part name that isn't kebab-case",
-    { ...indexStack, parts: { "../x": digest } },
+    { ...indexStack, parts: { "../x": pin } },
     /invalid part name/,
   ],
-  ["a pin to a malformed digest", { ...indexStack, parts: { backend: "sha256:short" } }, /parts/],
+  [
+    "a pin to a malformed digest",
+    { ...indexStack, parts: { backend: { stack: "hono-api", digest: "sha256:short" } } },
+    /parts/,
+  ],
+  ["a pin without its stack id", { ...indexStack, parts: { backend: { digest } } }, /stack/],
   [
     "part pins on a fragment",
-    { ...indexMetadata, kind: "fragment", parts: { backend: digest } },
+    { ...indexMetadata, kind: "fragment", parts: { backend: pin } },
     /fragments cannot carry/,
   ],
 ])("an index entry with %s fails to decode", (_case, entry, message) => {

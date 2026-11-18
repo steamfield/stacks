@@ -33,11 +33,12 @@ export const IndexEntry = Schema.Struct({
     ),
   ),
   /**
-   * A workspace stack's part name to the bundle digest of the stack it mounts. Keyed by part, not
-   * stack id, so two parts of one stack keep separate pins.
+   * A workspace stack's part name to the stack it mounts and that stack's bundle digest. Keyed by
+   * part, not stack id, so two parts of one stack keep separate pins; the stack id is here so a
+   * reader can build the bundle's path from the index alone.
    */
   parts: Schema.optionalKey(
-    Schema.Record(Schema.String, Digest).check(
+    Schema.Record(Schema.String, Schema.Struct({ stack: Kebab, digest: Digest })).check(
       Schema.makeFilter(
         (value) => Object.keys(value).every(Schema.is(Kebab)) || "invalid part name",
       ),

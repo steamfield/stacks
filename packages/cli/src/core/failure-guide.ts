@@ -4,6 +4,7 @@ import type {
   ComposeConflict,
   ComposeConflictDetails,
   EntryInvalid,
+  EntryInvalidDetails,
   InvalidConfig,
   NotFound,
   NotFoundDetails,
@@ -370,11 +371,19 @@ function entryGuide(error: EntryInvalid, invocation: string): FailureGuide {
       `Entry: ${printable(details.id)} (${details.origin}, ${details.reason})`,
       ...(details.path ? [`Path: ${printable(details.path)}${line}`] : []),
       ...(details.problem ? [`Problem: ${details.problem}`] : []),
+      ...(details.part ? [`Part: ${printable(details.part)}`] : []),
+      ...(details.step ? [`Step: ${printable(details.step)}`] : []),
     ],
-    details.reason === "template"
-      ? `use only ${TEMPLATE_VARIABLES.join(", ")} in that file's {{ }} tokens, or drop its .tmpl suffix to copy it as is.`
-      : `fix that entry or leave it out; ${invocation} validate lists every problem in a registry.`,
+    entryNext(details, invocation),
   );
+}
+
+function entryNext(details: typeof EntryInvalidDetails.Type, invocation: string): string {
+  if (details.reason === "template")
+    return `use only ${TEMPLATE_VARIABLES.join(", ")} in that file's {{ }} tokens, or drop its .tmpl suffix to copy it as is.`;
+  if (details.reason.startsWith("part_"))
+    return `fix the workspace's parts list or that part's step; ${invocation} validate lists every problem in a registry.`;
+  return `fix that entry or leave it out; ${invocation} validate lists every problem in a registry.`;
 }
 
 function composeGuide(error: ComposeConflict, invocation: string): FailureGuide {
@@ -385,6 +394,7 @@ function composeGuide(error: ComposeConflict, invocation: string): FailureGuide 
     [
       `Reason: ${details.reason}`,
       ...(details.stack ? [`Stack: ${printable(details.stack)}`] : []),
+      ...(details.parts?.length ? [`Parts: ${details.parts.map(printable).join(", ")}`] : []),
       ...(details.ids.length ? [`Fragments: ${details.ids.map(printable).join(", ")}`] : []),
       ...(details.path
         ? [

@@ -28,6 +28,7 @@ import { submissionChecks } from "./checks/submission";
 import { templateChecks } from "./checks/templates";
 import { verifyNotes } from "./checks/verify-notes";
 import { versionSensitiveChecks } from "./checks/version-sensitive";
+import { workspaceChecks } from "./checks/workspace";
 import { addCompositionChecks } from "./compositions/add-compositions";
 import { composeEachChecks } from "./compositions/compose-each";
 import { composedFiles, renderedFileChecks } from "./compositions/composed";
@@ -45,6 +46,7 @@ export const checks: ReadonlyArray<Check> = [
   dependencyChecks,
   authorChecks,
   metadataChecks,
+  workspaceChecks,
   referenceChecks,
   conditionalChecks,
   fileChecks,

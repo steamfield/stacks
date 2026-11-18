@@ -143,6 +143,48 @@ describe("new pair", () => {
     expect(Object.hasOwn(raw, "parts")).toBe(false);
   });
 
+  test("the root commands table runs each part's command in its directory with the part's own runner", async () => {
+    const root = variant((root) => {
+      writeFileSync(
+        join(root, "stacks/pair/files/AGENTS.md"),
+        "# Pair agents\n\n| Command | Purpose |\n| --- | --- |\n<!-- stacks:fill:commands -->\n",
+      );
+      // A make part, and a workspace command whose key a part's prefixed one would have taken.
+      replaceIn(
+        root,
+        "stacks/web-part/STACK.md",
+        "tags: [bun, scripts, typescript, web]",
+        "tags: [make, typescript, web]",
+      );
+      replaceIn(
+        root,
+        PAIR,
+        "  check: Run both parts' checks\n",
+        "  check: Run both parts' checks\n  backend-test: Run the API tests from the root\n",
+      );
+    });
+    const { result, target } = await created({ root, args: ["--with", "db"] });
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(target, "AGENTS.md"), "utf8")).toBe(
+      [
+        "# Pair agents",
+        "",
+        "| Command | Purpose |",
+        "| --- | --- |",
+        "| `make check` | Run both parts' checks |",
+        "| `make backend-test` | Run the API tests from the root |",
+        "| `cd backend && bun run lint` | Check the source |",
+        "| `cd backend && bun run dev` | Serve the API |",
+        "| `cd backend && bun run openapi` | Write the OpenAPI document |",
+        "| `make -C frontend lint` | Check the source |",
+        "| `make -C frontend test` | Run the tests |",
+        "| `make -C frontend dev` | Serve the app |",
+        "| `cd backend && bun run db-up` | Start the local database |",
+        "",
+      ].join("\n"),
+    );
+  });
+
   test("verify --only a part step runs it in the part directory the manifest's digested cwd names", async () => {
     const { target, home } = await created();
     const ran = await verifyIn(home, target, ["--only", "backend-lint"]);

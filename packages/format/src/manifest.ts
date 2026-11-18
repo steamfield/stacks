@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { AgentId } from "./agent.js";
-import { VerifyStep } from "./entry.js";
+import { Kebab, VerifyStep } from "./entry.js";
 
 /**
  * An entry the project was composed from. `origin` is any non-empty string, not the `Origin`
@@ -13,6 +13,17 @@ export const EntryRef = Schema.Struct({
   trusted: Schema.Boolean,
 });
 export type EntryRef = typeof EntryRef.Type;
+
+/**
+ * A part a workspace project mounts in the directory `name`. `role` is any non-empty string, like
+ * `EntryRef.origin`, so an older CLI reads a manifest that names a role added later.
+ */
+export const ManifestPart = Schema.Struct({
+  name: Kebab,
+  role: Schema.NonEmptyString,
+  stack: EntryRef,
+});
+export type ManifestPart = typeof ManifestPart.Type;
 
 /**
  * A verify step as `new` recorded it: the entry's step with defaults applied (an app's steps carry
@@ -59,6 +70,8 @@ export const Manifest = Schema.Struct({
   agents: Schema.Array(AgentId),
   stack: Schema.NullOr(EntryRef),
   fragments: Schema.Array(EntryRef),
+  /** Written only in workspace projects; verify takes each step's directory from its `cwd`. */
+  parts: Schema.optionalKey(Schema.Array(ManifestPart)),
   env: Schema.Record(Schema.String, Schema.String),
   commands: Schema.Record(Schema.String, Schema.String),
   /** Names are unique, as `compose` makes them: verify keys results and digests by step name. */

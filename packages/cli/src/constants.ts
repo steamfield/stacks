@@ -1,3 +1,9 @@
+/**
+ * Every CLI default: endpoints, logging, directories, and network and cache timing. Each constant's
+ * comment names the setting or variable that overrides it, or says none does; a new default goes
+ * here with that comment, and `config.ts` applies the overrides.
+ */
+
 /** Hosted API base URL. A valid `STACKS_DEV_API_URL` overrides it in source builds. */
 export const HOSTED_API_URL = "https://stacks.steamfield.io";
 /** Official index URL, unset until a host exists. `STACKS_INDEX_URL` overrides it. */

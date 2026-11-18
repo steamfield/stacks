@@ -1,6 +1,6 @@
 /**
  * Builds the command name users can paste from a hint. The version-pinned npx form works when
- * the invoked binary has no standalone command on PATH.
+ * the invoked binary has no standalone command on PATH. Unrelated to the `Invocation` service.
  */
 import { PACKAGE, VERSION } from "./version";
 

@@ -87,6 +87,8 @@ const composeDelta = (options: AddOptions, project: AddProject) =>
       always: [],
       mode: "add",
       existing,
+      // An empty list would compose as a single stack, so only a workspace passes it.
+      ...(project.parts.length ? { parts: project.parts } : {}),
       ...(!stack ? { inferredTags: yield* inferTags(options.root) } : {}),
     });
   });

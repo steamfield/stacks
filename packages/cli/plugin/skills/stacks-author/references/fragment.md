@@ -78,7 +78,7 @@ An app is a fragment with `category: app` that builds a product on a stack, such
 
 In a workspace stack, a fragment whose `applies_to` names exactly one part's stack is written into that part's directory, its steps run there, and its `stacks/<that stack id>/` overlay applies. A fragment with empty `applies_to`, a tag match only, the workspace's id, or more than one part's stack is written once at the root.
 
-When a fragment on one part changes what the other part needs (a new API route the client must regenerate for), say so in the fragment's body inside a `stacks:when` block that holds only in a workspace, written in roles ("the API part", "the client part").
+When a fragment on one part changes what the other part needs (a new API route the client must regenerate for), say so in the fragment's body inside a `stacks:when part=<role>` block (`part=web` holds only in a workspace with a web part), written in roles ("the API part", "the client part").
 
 ## Links
 

@@ -88,7 +88,7 @@ Describe the local-only setup.
 <!-- stacks:end -->
 ```
 
-Other condition keys are `stack`, `tag`, `tag!=`, `mode`, `with` and `payload`
+Other condition keys are `stack`, `tag`, `tag!=`, `mode`, `with`, `payload` and `part` (`part=web` holds in a workspace that has a part with that role)
 (`example` or `none`).
 
 In add mode, matching `with=<added-fragment>` blocks from the recorded host stack
@@ -248,7 +248,7 @@ At the root, and nothing a part already owns:
 | How one half works alone: layout, conventions, tests, gotchas | The part's stack body |
 | How the generated client works: where the document is read from, the regenerate command, read-only output, what a failed drift check means | The link's body |
 | What is true of this pair: setup order, the request path, root commands and what each wraps, cross-part tests, CI and hooks per part, settings | The workspace body |
-| What a fragment on one part needs from the other part | That fragment's body, in a block that applies only in a workspace |
+| What a fragment on one part needs from the other part | That fragment's body, in a `stacks:when part=<role>` block, which holds only in a workspace with a part of that role |
 
 ### The workspace body
 

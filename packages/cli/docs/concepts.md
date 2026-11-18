@@ -178,7 +178,7 @@ CI uses Bun's packageManager and Node's .node-version ...
 <!-- stacks:end -->
 ```
 
-That paragraph appears in the brief only when `ci-github` is part of the project. The conditions are `with=<fragment>`, `preset=<preset>`, `stack=<id>`, `tag=<tag>`, `tag!=<tag>`, `mode=<new|add>` and `payload=<example|none>`.
+That paragraph appears in the brief only when `ci-github` is part of the project. The conditions are `with=<fragment>`, `preset=<preset>`, `stack=<id>`, `tag=<tag>`, `tag!=<tag>`, `mode=<new|add>`, `payload=<example|none>` and `part=<role>`, which holds in a workspace that has a part with that role.
 
 ### Files and adapters
 

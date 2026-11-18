@@ -25,7 +25,7 @@ When you target stacks by tag, compose each admitted stack's brief with the frag
 
 A workspace stack places each fragment by stack id in `applies_to` (`packages/cli/docs/authoring.md`, "Layout and placement"): naming exactly one part's stack puts the fragment in that part, with its `stacks/<part stack id>/` overlay and prefixed steps; anything else puts it once at the root. A tag match never chooses a part. Before naming a second stack in `applies_to`, check whether the two are ever parts of one workspace: the fragment then moves to the root there.
 
-When a fragment on one part changes what the other part needs, its own body says so in a block that applies only in a workspace, written in roles ("the API part", "the client part"). `postgres` on the API part adds a readiness route, so the client is regenerated. Keep the block to that effect; the workspace body cannot list every fragment.
+When a fragment on one part changes what the other part needs, its own body says so in a `stacks:when part=<role>` block (`part=web` holds only in a workspace with a web part), written in roles ("the API part", "the client part"). `postgres` on the API part adds a readiness route, so the client is regenerated. Keep the block to that effect; the workspace body cannot list every fragment.
 
 ## Writing a link
 

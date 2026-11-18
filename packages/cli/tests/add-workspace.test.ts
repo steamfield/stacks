@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -12,6 +13,7 @@ import { Manifest } from "@steamfield/stacks-format";
 import { Schema } from "effect";
 import { afterEach, describe, expect, test } from "vitest";
 import { encodeManifest, MANIFEST_PATH } from "../src/core/project/manifest";
+import { ErrorEnvelope } from "../src/errors";
 import { added, refused, snapshot } from "./helpers/add";
 import { quiet, runCli } from "./helpers/cli";
 import { minimal, writeEntry } from "./helpers/registry";
@@ -252,6 +254,75 @@ describe("add on a workspace project", () => {
     ]);
     expect(manifest.commands).toMatchObject({ "backend-db-up": "Start the local database" });
     expect(Object.hasOwn(manifest.commands, "db-up")).toBe(false);
+  });
+
+  // The workspace root is reported as the real path found walking up from the real directory.
+  describe("run inside a part's directory", () => {
+    const addFrom = (made: Created, cwd: string, json: boolean) =>
+      runCli(["add", "db", ...(json ? ["--json"] : [])], {
+        home: made.home,
+        env: { ...quiet, PATH: process.env.PATH ?? "", CLAUDECODE: "1" },
+        host: { cwd, registry: workspaceRegistry },
+      });
+
+    test("--json refuses with BadInput part_dir naming the workspace root, nothing written", async () => {
+      const made = await created();
+      const before = snapshot(made.project);
+      const run = await addFrom(made, join(made.project, "backend"), true);
+      expect(run.status).toBe(2);
+      expect(run.stdout).toBe("");
+      expect(run.stderr.trim().split("\n")).toHaveLength(1);
+      const { error } = Schema.decodeUnknownSync(ErrorEnvelope)(JSON.parse(run.stderr));
+      expect(error).toEqual({
+        tag: "BadInput",
+        message: "Invalid input.",
+        retryable: false,
+        details: { flag: "part_dir", part: "backend", root: realpathSync(made.project) },
+        next: `run stacks add <fragment> --dir ${realpathSync(made.project)}; add places each fragment on the part it fits.`,
+      });
+      expect(snapshot(made.project)).toEqual(before);
+    });
+
+    test("an agent sees the part, the workspace root and the Next: line on stderr", async () => {
+      const made = await created();
+      const before = snapshot(made.project);
+      const run = await addFrom(made, join(made.project, "frontend"), false);
+      expect(run.status).toBe(2);
+      expect(run.stdout).toBe("");
+      expect(run.stderr).toBe(
+        [
+          "Invalid input.",
+          "  This directory is the frontend part of a workspace project.",
+          `  Workspace root: ${realpathSync(made.project)}`,
+          `  Next: run stacks add <fragment> --dir ${realpathSync(made.project)}; add places each fragment on the part it fits.`,
+          "",
+        ].join("\n"),
+      );
+      expect(snapshot(made.project)).toEqual(before);
+    });
+
+    test("a symlink to the part directory is the part too", async () => {
+      const made = await created();
+      const link = join(made.home, "backend-link");
+      symlinkSync(join(made.project, "backend"), link);
+      const before = snapshot(made.project);
+      const run = await addFrom(made, link, true);
+      expect(run.status).toBe(2);
+      expect(JSON.parse(run.stderr).error.details).toEqual({
+        flag: "part_dir",
+        part: "backend",
+        root: realpathSync(made.project),
+      });
+      expect(snapshot(made.project)).toEqual(before);
+    });
+
+    test("a directory of the workspace that is no part still gets a project of its own", async () => {
+      const made = await created();
+      mkdirSync(join(made.project, "tools"));
+      const result = await added(await addFrom(made, join(made.project, "tools"), true));
+      expect(result.added).toEqual(["db"]);
+      expect(existsSync(join(made.project, "tools", MANIFEST_PATH))).toBe(true);
+    });
   });
 
   test("a project-root api-part shadow with a with=db block is untrusted and keeps the baseline under an agent", async () => {

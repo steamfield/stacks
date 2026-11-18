@@ -70,6 +70,8 @@ export const SubmissionBlocker = Schema.Struct({
  *   `git_identity`, a commit git refused because no author name or email is configured;
  *   `branch_taken`, a fork `branch` holding commits `submit` didn't make (found before the push
  *   or by the push's lease), so it isn't replaced.
+ * - `part_dir`: `add` run in a workspace `part`'s directory, refused before anything is written;
+ *   `root` is the workspace project's root, where `add` places fragments on their parts.
  *
  * Every other `flag` comes with `id`, the argument the input was wrong about:
  * - `scope`: a `--scope` value that isn't an npm scope.
@@ -110,6 +112,7 @@ export const BadInputDetails = Schema.Union([
   }),
   Schema.Struct({ flag: Schema.Literals(["unchanged", "git_identity"]) }),
   Schema.Struct({ flag: Schema.Literal("branch_taken"), branch: Schema.String }),
+  Schema.Struct({ flag: Schema.Literal("part_dir"), part: Schema.String, root: Schema.String }),
   Schema.Struct({
     id: Schema.String,
     flag: Schema.Literals([

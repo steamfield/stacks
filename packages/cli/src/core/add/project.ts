@@ -15,6 +15,7 @@ import { MANIFEST_PATH, readManifest } from "../project/manifest";
 import type { Entry } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { checkTamper, type Tamper } from "../verify/tamper";
+import { refusePartDirectory } from "./part-dir";
 import { checkAddRoot } from "./plan";
 import type { AddOptions } from "./types";
 
@@ -39,6 +40,7 @@ export const readAddProject = (options: AddOptions) =>
     const previous = yield* readManifest(path.join(options.root, MANIFEST_PATH)).pipe(
       Effect.catchTag("NotFound", () => Effect.succeed(undefined)),
     );
+    if (!previous) yield* refusePartDirectory(options.root);
     const tamper = previous
       ? yield* checkTamper(previous, path.join(options.root, MANIFEST_PATH))
       : undefined;

@@ -467,8 +467,20 @@ function badInputGuide(details: typeof BadInputDetails.Type, invocation: string)
       `run ${invocation} search with --limit from 1 to 20.`,
     );
   if (details.flag === "offline") return offlineGuide(details.command, invocation);
+  if (details.flag === "part_dir") return partDirGuide(details, invocation);
   if (isSubmitDetails(details)) return submitGuide(details, invocation);
   return idInputGuide(details, invocation);
+}
+
+/** `add` in a part's directory: the fragments go on from the workspace root, which places them. */
+function partDirGuide(details: { part: string; root: string }, invocation: string): FailureGuide {
+  return guide(
+    [
+      `This directory is the ${printable(details.part)} part of a workspace project.`,
+      `Workspace root: ${printable(details.root)}`,
+    ],
+    `run ${invocation} add <fragment> --dir ${shellArg(details.root)}; add places each fragment on the part it fits.`,
+  );
 }
 
 function offlineGuide(command: "submit" | undefined, invocation: string): FailureGuide {
@@ -486,7 +498,7 @@ function offlineGuide(command: "submit" | undefined, invocation: string): Failur
 /** The BadInput shapes that carry an `id`, apart from submit's `collision`. */
 type IdInputDetails = Exclude<
   typeof BadInputDetails.Type,
-  SubmitDetails | { flag: "request" | "limit" | "offline" }
+  SubmitDetails | { flag: "request" | "limit" | "offline" | "part_dir" }
 >;
 
 function idInputGuide(details: IdInputDetails, invocation: string): FailureGuide {

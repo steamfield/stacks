@@ -381,10 +381,18 @@ const EntryInvalidDetails = Schema.Struct({
     "merge_json",
     "merge_template",
     "template",
+    "part_stack",
+    "part_role",
+    "part_name_duplicate",
+    "part_nested",
+    "part_roles",
+    "part_cwd",
   ]),
   path: Schema.optionalKey(Schema.String),
   line: Schema.optionalKey(Schema.Number),
   problem: Schema.optionalKey(ConditionalProblem),
+  part: Schema.optionalKey(Schema.String),
+  step: Schema.optionalKey(Schema.String),
 });
 
 const ComposeConflictDetails = Schema.Struct({
@@ -408,6 +416,7 @@ const ComposeConflictDetails = Schema.Struct({
   step: Schema.optionalKey(Schema.String),
   key: Schema.optionalKey(Schema.String),
   fix: Schema.optionalKey(Schema.Array(Schema.String)),
+  parts: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 const TargetNotEmptyDetails = Schema.Struct({

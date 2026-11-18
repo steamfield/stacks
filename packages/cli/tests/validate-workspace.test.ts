@@ -497,6 +497,28 @@ describe("permission rules a part ships into the hoisted .claude/settings.json",
     );
     expect(await added(root)).toEqual([undeclared("stack/pair", PAIR_SETTINGS, "lint")]);
   });
+
+  /** The ref-command findings of `validate [args] --json` over a variant whose part declares its rules. */
+  async function refCommands(args: (root: string) => string[]) {
+    const root = variant((root) => allowInApi(root, ["Bash(bun run lint)"]));
+    const home = tempDir();
+    cleanups.push(home.cleanup);
+    const result = await runCli(["validate", ...args(root), "--json"], {
+      home: home.path,
+      env: quiet,
+      host: { registry: emptyRegistry },
+    });
+    const findings: ReadonlyArray<Finding> = JSON.parse(result.stdout).findings;
+    return findings.filter((finding) => finding.check === "ref-command").map(line);
+  }
+
+  test("resolve the same way when only the workspace is validated", async () => {
+    expect(await refCommands((root) => [join(root, "stacks", "pair")])).toEqual([]);
+  });
+
+  test("resolve the same way in the workspace's brief preview", async () => {
+    expect(await refCommands((root) => [root, "--brief", "pair"])).toEqual([]);
+  });
 });
 
 test("compose-each composes a part-scoped fragment onto the workspace that doesn't list it", async () => {

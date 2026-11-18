@@ -26,7 +26,14 @@ import {
 } from "./fixtures/index/harness";
 import { tempDir } from "./helpers/cli";
 import { writeLedger } from "./helpers/ledger";
-import { named, type RemoteServer, remoteCli, remoteServer, success } from "./helpers/remote-index";
+import {
+  named,
+  publish,
+  type RemoteServer,
+  remoteCli,
+  remoteServer,
+  success,
+} from "./helpers/remote-index";
 import { reviewSearchFixture } from "./helpers/search-fixture";
 import { readManifestAt, workspace } from "./helpers/verify";
 import { workspaceRegistry } from "./helpers/workspace";
@@ -364,6 +371,64 @@ describe("reading pinned parts", () => {
       stack: "bundled",
       origins: { backend: "bundled", frontend: "bundled" },
     });
+  });
+
+  /** Republishes the signed index with pair's `parts` pin replaced by `edit`'s result. */
+  async function repinPair(edit: (parts: NonNullable<IndexEntry["parts"]>) => IndexEntry["parts"]) {
+    const { envelope, index } = await readBuild(published);
+    const entries = index.entries.map((entry) => {
+      if (entry.kind !== "stack" || entry.id !== "pair") return entry;
+      const { parts, ...rest } = entry;
+      const next = edit(parts ?? {});
+      return next === undefined ? rest : { ...rest, parts: next };
+    });
+    publish(published, envelope, { ...index, entries });
+  }
+
+  type Pins = NonNullable<IndexEntry["parts"]>;
+  const edits: ReadonlyArray<[string, (parts: Pins) => Pins | undefined]> = [
+    ["has no parts pin", () => undefined],
+    [
+      "misses a part name",
+      (parts) => Object.fromEntries(Object.entries(parts).filter(([name]) => name !== "frontend")),
+    ],
+    [
+      "pins a part to another stack id",
+      (parts) => (parts.backend ? { ...parts, frontend: parts.backend } : parts),
+    ],
+  ];
+  test.each(edits)(
+    "an index workspace that %s composes the whole bundled pair",
+    async (_, edit) => {
+      driftPair();
+      // The index web-part is still served; a pin that doesn't cover frontend must not reach it.
+      mark(bundled, "bundled copy");
+      await repinPair(edit);
+      const result = await newPair();
+      expect(result).toEqual({
+        main: "// bundled copy\n",
+        stack: "bundled",
+        origins: { backend: "bundled", frontend: "bundled" },
+      });
+    },
+  );
+
+  test("a bundled fallback missing a part refuses rather than take the index's current part", async () => {
+    driftPair();
+    rmSync(entryPath(bundled, "stack", "web-part"), { recursive: true });
+    rmSync(bundleFile(published, named(signed.index, "stack", "web-part")));
+    const target = join(root, "project");
+    const result = await remoteCli(
+      ["new", "pair", target, "--sandbox", "--agents", "claude", "--no-launch", "--json"],
+      { home, server, host: { registry: bundled } },
+    );
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(result.stderr).error).toMatchObject({
+      tag: "EntryInvalid",
+      details: { id: "pair", origin: "bundled", reason: "part_stack", part: "frontend" },
+    });
+    expect(existsSync(target)).toBe(false);
   });
 
   test("a user-root part overrides the pin", async () => {

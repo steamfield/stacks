@@ -8,7 +8,7 @@ tags: [python, typescript, react, web, api, fullstack, monorepo, make, bun, node
 deps:
   backend: [fastapi, uvicorn, pydantic, pydantic-settings, structlog]
   backend-dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx]
-  frontend: [react, react-dom, react-router, "@tanstack/react-query", zod, tailwindcss, "@tailwindcss/vite", class-variance-authority, lucide-react]
+  frontend: [react, react-dom, react-router, "@tanstack/react-query", zod, tailwindcss, "@tailwindcss/vite", class-variance-authority, lucide-react, isbot]
   frontend-dev: ["@react-router/dev", vite, "@vitejs/plugin-react", typescript, "@biomejs/biome", vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/jest-dom", "@testing-library/user-event", msw, "@faker-js/faker", orval, "@playwright/test"]
 tools: [uv, bun, make, git, jq]
 merge: [.claude/settings.json]
@@ -84,7 +84,7 @@ commands:
 
 ## Layout
 
-Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep business logic in `app/services/` and wire models in `app/schemas.py`. Feature components belong in `frontend/app/components/<feature>/`; owned shadcn-style primitives live in `components/ui/`. See `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md`.
+Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep business logic in `app/services/` and wire models in `app/schemas.py`. Notes is the example resource to copy, and its module exports `JsonRoute` for other JSON routers. Add a page as a module under `frontend/app/routes/` registered in `app/routes.ts`; feature components belong in `frontend/app/components/<feature>/`, and owned shadcn-style primitives live in `components/ui/`. `docs/DEVELOPMENT.md` ("Adding a resource") lists every file a new resource touches; see also `docs/ARCHITECTURE.md`.
 
 ## Setup
 
@@ -97,7 +97,7 @@ Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep bu
 ## Conventions
 
 - `backend/app/main.py` owns startup and lifespan resources. Keep imports free of network connections and file writes. `Settings` reads the root `.env` even when commands run in `backend/`; env overrides it.
-- Routers use `ApiModel` and a `response_model`. Python uses snake_case, wire fields use camelCase. Keep stable tag/function operation ids; renaming a route function renames its client.
+- Routers use `ApiModel` and a `response_model`. Python uses snake_case, wire fields use camelCase. Keep stable tag/function operation ids; renaming a route function renames its client. Model class names become OpenAPI schema and generated type names, global across the app. A new resource reuses `ApiModel` and `EmptyQuery` and names its own models after itself (`ProjectInput`, `ProjectPage`); Notes' unprefixed `Page` and `ListQuery` are Notes' own models.
 - Raise `AppError` through the error table. `app/error_handlers.py` owns the public code/message/details/requestId envelope and the same OpenAPI response model for 404, 422 and 500. Never expose exception text or request bodies. Extend the HTTP tests with each new failure.
 - `app/middleware.py` validates or generates request ids, echoes them and logs one sanitized request record with the route pattern. `/health` stays dependency-free. The notes store is ephemeral; accounts and persistence remain application work.
 - React Router stays in SPA mode, with no server loaders or actions. `app/lib/api.ts` owns transport/errors and the public `VITE_API_BASE_URL`; `app/lib/health.ts` demonstrates decoding generated results before UI use. Use generated query keys for invalidation.
@@ -111,6 +111,12 @@ Add routers under `backend/app/api/` and mount them in `app/routers.py`. Keep bu
 Backend service and config tests sit next to code; `backend/tests/test_http.py` exercises the real ASGI app with httpx inside its native lifespan context. It checks notes, error bodies, request ids, logs and OpenAPI. Mock external boundaries, never your own modules.
 
 Frontend tests render the real home route with a fresh QueryClient and generated MSW handlers. `tests/setup.ts` rejects unhandled requests and resets handlers between tests. Add success, failure and malformed-response cases with each client boundary. Cross-origin handlers need CORS headers and OPTIONS if the test DOM preflights. Playwright owns two servers on separate test ports and shuts them down; never reuse a user's server. `make coverage` enforces both halves' floors.
+
+New tests go beside the code (`app/services/test_<name>.py`, `*.test.tsx`), backend HTTP tests in `backend/tests/`, and Playwright specs in `frontend/tests/e2e/`. Spec files run in parallel workers against one Vite server, so keep specs independent and route modules under `app/routes/`: `vite.config.ts` pre-bundles dependencies only from there and `app/root.tsx`, and a late discovery reloads the page mid-test. A passing run prints happy-dom's `GET … 503 (Service Unavailable)` and 502 lines from the error-path tests and the web server's `No route matches URL "/missing"` from the error-page spec; those are expected. Fix any other warning.
+<!-- stacks:when with=posthog -->
+
+Give each Playwright spec a `test.beforeEach` that aborts PostHog requests, so a key in `.env` sends no events from e2e runs: `await page.route(/\.posthog\.com\//, (route) => route.abort())`. The regex matches PostHog cloud's API and asset hosts (`us.i.posthog.com`, `us-assets.i.posthog.com` and their EU twins) and leaves the app's own `posthog-js` modules alone. A self-hosted or reverse-proxied PostHog host needs its own pattern.
+<!-- stacks:end -->
 
 ## Commands
 
@@ -132,6 +138,7 @@ The postgres fragment ships SqlNotes under `backend/`, the notes migration and r
 
 - Bare `vitest` watches in a TTY; scripts use `vitest run`.
 - React Router typegen must precede tsc; `.react-router/` is generated.
+- `isbot` is in deps because React Router's default server entry imports it: with no `app/entry.server.tsx`, typegen, dev and build add it to `package.json` and reinstall if it's missing.
 - Ruff TC can move annotations FastAPI evaluates at runtime. Keep runtime-evaluated bases and API/test exceptions; dependencies elsewhere need the same care.
 - If orval fails under Bun with `Cannot find module 'ajv/dist/core'`, install the current ajv as a frontend dev dependency and record it under Build workarounds.
 - Keep fetch clients returning the success body rather than an HTTP wrapper; confirm the installed orval's options in `orval.config.ts` before adapting them.

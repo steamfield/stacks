@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 test("reads the real API through Vite and refreshes it", async ({ page }) => {
-  await page.route("**/*posthog*", (route) => route.abort());
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "API health" })).toBeVisible();
   await expect(page.getByRole("status")).toHaveText("API status: ok");

@@ -10,7 +10,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     include: ["app/**/*.test.{ts,tsx}"],
-    env: { VITE_PUBLIC_POSTHOG_KEY: "" },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],

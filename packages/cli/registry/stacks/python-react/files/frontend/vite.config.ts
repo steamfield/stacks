@@ -13,6 +13,12 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { "~": fileURLToPath(new URL("./app", import.meta.url)) },
     },
+    // Scan the root and every route module at startup. Otherwise the first page load
+    // finds their dependencies late and Vite reloads mid-load, which breaks pages that
+    // parallel Playwright workers opened against a cold cache.
+    optimizeDeps: {
+      entries: ["app/root.tsx", "app/routes/**/*.{ts,tsx}", "!**/*.test.{ts,tsx}"],
+    },
     server: { proxy: { "/api": api, "/health": api } },
   };
 });

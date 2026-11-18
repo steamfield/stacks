@@ -38,6 +38,9 @@
  * All six changed on 2026-11-16 for After green's review step, and Start here's pointer to it.
  * The 0.14.0 version in the brief changed all six again on 2026-11-16.
  * The 0.14.1 version in the brief changed all six again on 2026-11-16.
+ * python-react changed on 2026-11-18 for its pre-optimized Vite deps, the posthog-free lean
+ * scaffold, `isbot` as a declared dependency and the adding-a-resource guidance (each proven
+ * on fresh lean and default scaffolds); it awaits a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
@@ -48,6 +51,6 @@ export const briefDigests: Readonly<Record<string, string>> = {
   "astro-blog:sandbox": "sha256:fd41a843b1203e995fe6ba10fa8a996d8c2d56627688f2c800463a25a38b1e14",
   "go-cli:default": "sha256:22cd22095f8f6bed17e090418d6db10f06f97d810a3ab88df2eacfb308cd7f37",
   "go-cli:sandbox": "sha256:512ca98d1ce43a7debada6a38962cc23af0f7f170455c88e7204f9dc6c1a7742",
-  "python-react:default": "sha256:4a23d66c8633e9353578285e1ca79be679d898e55d2b9c53aad2db0716a6044d",
-  "python-react:sandbox": "sha256:97b7e2ebb0a4a5710cf7fc7f2cb2d9a9a7614521a48ffe9c43000376279228ad",
+  "python-react:default": "sha256:d082f77546cff972fb23338bbd9ca45632b0ae5c58155694c848fa12d8ece486",
+  "python-react:sandbox": "sha256:dc74cfa3e577ea1eb1d027710c35e22555043f5461d54577e43acc3b3bb0e9b2",
 };

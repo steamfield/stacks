@@ -31,6 +31,8 @@ export type Entry = {
   /** Index proof and the exact default fragment snapshot, including bundled fallback. */
   indexEntry?: IndexEntry;
   composition?: ReadonlyArray<Entry>;
+  /** A workspace's part stacks as its index entry pins them, or its bundled fallback, by part name. */
+  partEntries?: Readonly<Record<string, Entry>>;
 };
 /** Names and tags used for selection without downloading unrelated entry bundles. */
 export type CatalogEntry = Pick<Entry, "id" | "kind" | "origin"> & {

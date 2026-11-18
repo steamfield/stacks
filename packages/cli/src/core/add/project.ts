@@ -8,6 +8,7 @@ import { AppConfig } from "../../config";
 import { BadInput, PermissionDenied, VerifyChanged } from "../../errors";
 import type { AddResult } from "../../schemas/add";
 import type { Settings } from "../../schemas/config";
+import { manifestMounts } from "../compose/part-entries";
 import type { PartMount } from "../compose/types";
 import { isAbsent } from "../fs/absent";
 import { denied } from "../fs/denied";
@@ -46,7 +47,8 @@ export const readAddProject = (options: AddOptions) =>
       : undefined;
     if (tamper?.changed) return yield* new VerifyChanged({ details: tamper.changed });
     if (previous) yield* checkFlagsMatch(options, previous);
-    const parts = partMounts(previous);
+    // The parts compose mounts in add mode: the manifest's, never the registry entry's.
+    const parts = manifestMounts(previous?.parts);
     yield* checkPartDirectories(options.root, parts);
     const registry = yield* Registry;
     const stack = yield* projectStack(registry, previous?.stack?.id);
@@ -83,10 +85,6 @@ function projectStack(registry: Registry["Service"], id: string | undefined) {
   if (id === undefined) return Effect.succeed(undefined);
   return registry.get("stack", id).pipe(Effect.orElseSucceed(() => undefined));
 }
-
-/** The parts compose mounts in add mode: the manifest's, never the registry entry's. */
-const partMounts = (previous: Manifest | undefined): ReadonlyArray<PartMount> =>
-  (previous?.parts ?? []).map(({ name, role, stack }) => ({ name, role, stack: stack.id }));
 
 /**
  * Every part directory must be a real directory before anything is written, so a removed part, a

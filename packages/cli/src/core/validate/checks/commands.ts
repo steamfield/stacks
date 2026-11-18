@@ -4,6 +4,7 @@
  */
 import { Effect } from "effect";
 import type { Finding } from "../../../schemas/validate";
+import { stackEntries } from "../../compose/part-entries";
 import type { Composition, MountedEntry } from "../../compose/types";
 import { shellTokens, shellWords } from "../../text/shell";
 import { uniqueFindings } from "../compositions/composed";
@@ -63,8 +64,7 @@ const isValidated = (view: View, dir: string) => view.entries.some((entry) => en
 
 /** The workspace or stack, each part found, then the fragments: every entry a step can come from. */
 const compositionEntries = (composition: Composition): ReadonlyArray<MountedEntry> => [
-  composition.stack,
-  ...(composition.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : [])),
+  ...stackEntries(composition.stack, composition.parts),
   ...composition.fragments,
 ];
 

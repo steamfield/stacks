@@ -25,6 +25,7 @@ import { Registry } from "../registry/registry";
 import { type ConditionContext, resolveConditionals } from "./conditionals";
 import { conflict, parties } from "./conflicts";
 import { contextFor, mountComposition } from "./mount";
+import { stackEntries } from "./part-entries";
 import { planFiles } from "./plan-files";
 import { selectFragments } from "./selection";
 import type {
@@ -162,15 +163,6 @@ function mountRoot(stack: Stack | null, options: ComposeOptions<"new" | "add">):
   if (options.mode === "add" && options.workspace !== undefined)
     return { id: options.workspace, entry: null };
   return null;
-}
-
-/** The stack-kind entries: the stack (the workspace, in a workspace) and each part found. */
-function stackEntries<E extends Entry>(
-  stack: E | null,
-  parts: ReadonlyArray<ComposedPart>,
-): ReadonlyArray<MountedEntry> {
-  if (!stack) return [];
-  return [stack, ...parts.flatMap((part) => (part.entry ? [part.entry] : []))];
 }
 
 const resolvePart = (

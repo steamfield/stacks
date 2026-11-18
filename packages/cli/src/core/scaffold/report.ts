@@ -5,7 +5,23 @@
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
 import { collapsePaths } from "../brief/paths";
+import type { Composition } from "../compose/types";
+import { partsLine } from "../show/report";
 import { printable } from "../text/text";
+
+/**
+ * The workspace's parts as `new --json` lists them, in `parts` order; `undefined` for a
+ * composition without parts, so `defined` leaves the key out.
+ */
+export const resultParts = (composition: Pick<Composition, "parts">): NewResult["parts"] =>
+  composition.parts?.map(({ mount }) => ({
+    name: mount.name,
+    role: mount.role,
+    stack: mount.stack,
+  }));
+
+/** The `Parts:` summary line for a workspace; no line for a single stack. */
+const partLines = (parts: NewResult["parts"]): string[] => (parts ? [partsLine(parts)] : []);
 
 /** Warnings the Git line already reports, so the Warnings list leaves them out. */
 const GIT_WARNINGS: ReadonlyArray<string> = ["git_init_failed", "git_unusable"];
@@ -72,6 +88,7 @@ export function renderNew(
     `${result.dryRun ? "Planned" : "Created"} ${printable(context.shown)} from ${printable(result.stack)}${result.preset === "default" ? "" : ` (${result.preset})`}.`,
     // `shown` is the absolute path when the project isn't under the current directory.
     ...(human && context.shown !== result.project ? [`Project: ${printable(result.project)}`] : []),
+    ...partLines(result.parts),
     `Fragments: ${result.fragments.length ? result.fragments.map(printable).join(", ") : "none"}`,
     `Agents: ${result.agents.join(", ")}`,
     `Git: ${gitLine(result)}`,

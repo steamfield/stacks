@@ -9,6 +9,17 @@ import { Origin } from "./origin";
 const EntryRef = Schema.Struct({ kind: Kind, id: Schema.String });
 
 /**
+ * One part of a workspace stack: the directory it is mounted in (`name`), its role and the id of
+ * the stack that fills it. Shared by `new --json` and `show --json`.
+ */
+export const ResultPart = Schema.Struct({
+  name: Schema.String,
+  role: Schema.String,
+  stack: Schema.String,
+});
+export type ResultPart = typeof ResultPart.Type;
+
+/**
  * `new`'s composition presets. `lean` composes like `default` (and records `default` in the
  * manifest) but selects none of the stack's default fragments.
  */
@@ -25,6 +36,8 @@ export const NewResult = Schema.Struct({
   /** The composition rendered with neutral template values, hashed as sha256. */
   fingerprint: Schema.String,
   stack: Schema.String,
+  /** A workspace stack's parts in `parts` order; absent for a stack without parts. */
+  parts: Schema.optionalKey(Schema.Array(ResultPart)),
   /** Composition order. */
   fragments: Schema.Array(Schema.String),
   preset: NewPreset,

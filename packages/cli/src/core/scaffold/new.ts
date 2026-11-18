@@ -33,6 +33,7 @@ import {
   type HandoffPreferences,
   settleHandoff,
 } from "../handoff/decide";
+import { defined } from "../object";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
 import { newPreset } from "../project/preset";
@@ -43,6 +44,7 @@ import { DEFAULT_PAYLOAD, type Payload } from "../registry/entry";
 import { slug } from "../text/slug";
 import { hasControl } from "../text/text";
 import { fillMarkers } from "./fill";
+import { resultParts } from "./report";
 import { inspectTarget } from "./target";
 
 export type NewOptions = {
@@ -101,6 +103,7 @@ function newResult(input: NewResultInput): Scaffolded["result"] {
     dryRun: input.dryRun,
     fingerprint: input.fingerprint,
     stack: composition.stack.id,
+    ...defined({ parts: resultParts(composition) }),
     fragments: composition.fragments.map((fragment) => fragment.id),
     preset: input.preset,
     payload: input.payload,

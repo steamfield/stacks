@@ -3,6 +3,7 @@
  * inspect the full entry and uses `printable` to keep untrusted text from steering the terminal.
  */
 import type { RolledDependency, StackStatsDetail } from "@steamfield/stacks-format";
+import type { ResultPart } from "../../schemas/new";
 import type { ShowReport } from "../../schemas/show";
 import { plainStyle, type Style } from "../../services/output";
 import { goAllowlistKey } from "../deps/index";
@@ -175,6 +176,7 @@ function selectionLines(report: ShowReport): string[] {
     lines.push(
       `Fragments: required ${listOrNone(report.fragments.required)}; default ${listOrNone(report.fragments.default)}; optional ${listOrNone(report.fragments.optional)}`,
     );
+  if (report.parts) lines.push(partsLine(report.parts));
   if (report.category)
     lines.push(
       `Category: ${report.category}`,
@@ -187,6 +189,10 @@ function selectionLines(report: ShowReport): string[] {
     );
   return lines;
 }
+
+/** `Parts: backend (api, api-part), frontend (web, web-part)`: directory, role and stack. */
+export const partsLine = (parts: ReadonlyArray<ResultPart>): string =>
+  `Parts: ${parts.map((part) => `${part.name} (${part.role}, ${part.stack})`).join(", ")}`;
 
 /** Each step as `name: run`, with its other fields after it, e.g. `(phase setup, layer install)`. */
 function verifyLines(steps: ShowReport["verify"]): string[] {

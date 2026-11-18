@@ -168,6 +168,7 @@ Each of these changes a repo rule. The plan is written assuming the recommendati
 - The interactive picker (`prompting.ts::pickPreset`) makes `default` its Enter choice for a dry run. So a picked dry run previews something other than the real run.
 - AGENTS.md's "Preview ignores the setting" refers to `validate --brief` (`docs/authoring.md`, pinned by `tests/create-preset.test.ts`), not to `new --dry-run`.
 - If the picker is wrong, fix it as a separate `fix(cli):` with a failing test; otherwise add a comment there saying why it differs.
+- Resolved 2026-11-18: the picker was wrong. Its dry run now pre-selects the `preset` setting like the real run (`fix(cli):` with a regression test in `tests/prompting-new.test.ts`).
 
 ## Stages
 

@@ -168,6 +168,24 @@ test.each([0, 1, 2, 3])(
   },
 );
 
+test("a picked dry run defaults the preset to the preset setting, as the real run does", async () => {
+  const w = workspace();
+  mkdirSync(join(w.home, "config", "stacks"), { recursive: true });
+  writeFileSync(
+    join(w.home, "config", "stacks", "config.json"),
+    JSON.stringify({ preset: "lean" }),
+  );
+  const terminal = terminalScript([choose("picker-stack"), "", "", w.project]);
+  const run = await pickerCli(w, ["new", "--no-launch", "--dry-run"], { terminal });
+  expect(run.status, run.stderr).toBe(0);
+  expect(run.stderr).toBe("");
+  expect(terminal.reads).toBe(4);
+  const echoes = run.stdout.split("\n").filter((line) => line.startsWith("Running: "));
+  expect(echoes).toHaveLength(1);
+  expect(echoes[0]).toContain("--preset lean");
+  expect(existsSync(w.project)).toBe(false);
+});
+
 test("terminal QuitError during a new picker maps to interruption without writes [4.4b#5]", async () => {
   const w = workspace();
   const terminal = terminalScript();

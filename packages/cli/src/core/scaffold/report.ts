@@ -56,6 +56,8 @@ export const warningLine = (warning: { code: string; id: string }) => {
       return `${warning.code}: see the Git line`;
     case "stack_unknown":
       return `the manifest's stack ${id} is in no registry; composed without it`;
+    case "part_unknown":
+      return `the manifest's part stack ${id} is in no registry; fragments are placed by its id`;
     case "name_unreadable":
       return `couldn't read the project name from ${id}`;
     default:

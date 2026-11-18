@@ -2240,6 +2240,22 @@
       "relevant": [{ "kind": "stack", "id": "decks", "grade": 2 }]
     },
     {
+      "id": "stack-hono-react-1",
+      "pool": "combined",
+      "split": "tune",
+      "query": "vite frontend plus hono server sharing a generated client",
+      "first": { "kind": "stack", "id": "hono-react" },
+      "relevant": [{ "kind": "stack", "id": "hono-react", "grade": 2 }]
+    },
+    {
+      "id": "stack-hono-react-2",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "react spa and a node json api in the same repository",
+      "first": { "kind": "stack", "id": "hono-react" },
+      "relevant": [{ "kind": "stack", "id": "hono-react", "grade": 2 }]
+    },
+    {
       "id": "fragment-openapi-client",
       "pool": "fragment",
       "split": "tune",

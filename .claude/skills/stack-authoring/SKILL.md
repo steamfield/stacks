@@ -41,6 +41,8 @@ Before converting an existing stack, or when a framework server, a lagging tool,
 
 Before you write or edit anything under `files/` or `adapters/`, read `references/checkout-checks.md`: this repo's Biome, typecheck, `validate` and tests read shipped files, and it lists what each one requires.
 
+For a workspace stack (one with `parts`), read `references/workspace.md` before writing the body or the root files. It holds the cross-part checklist, the three required headings and the mistakes a hand-built workspace made. A workspace ships only root files; a fix to one half goes in that half's stack.
+
 Before handing back a new or converted stack, or any change to its `files/`, Setup or verify steps, prove it as `references/fresh-scaffold-proof.md` describes: a fresh scaffold, built only by following the brief, reaches a green `verify`.
 
 ## Ids in a release

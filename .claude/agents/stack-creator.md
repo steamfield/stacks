@@ -54,6 +54,8 @@ When the answers come back, build from them. If an answer still leaves a choice 
 8. Write the search card as a draft, then run the search requests and adjust the card until the entry ranks where it should. Don't change another entry's card to make yours win; report the conflict instead.
 9. Run the skill's checks. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.
 
+For a workspace stack (a stack with `parts`) or a link (`category: link`), read "Workspace stacks" in `packages/cli/docs/authoring.md`, then `stack-authoring`'s `references/workspace.md` or `fragment-authoring`'s "Writing a link", and work through their checklists. A workspace ships only root files and a body about the seam; when a part fails a role rule or its body is wrong about itself, fix that part's stack, or report the fix when the brief keeps you to one entry. A change to a part stales every workspace that mounts it; list those proofs under pending actions.
+
 When revising an existing entry, keep its id. If you think the id is wrong, say so in the hand-back with the rename costs from the skill; don't rename it.
 
 ## Hand-back

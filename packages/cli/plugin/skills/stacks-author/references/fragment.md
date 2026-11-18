@@ -22,7 +22,7 @@ Create it with `<cli> create fragment <id> --category <category> --json`.
 
 | Key | What goes in it |
 | --- | --- |
-| `category` | `agent-ops`, `app`, `ci`, `deploy`, `release`, `service`, `vendor` or `tooling` |
+| `category` | `agent-ops`, `app`, `ci`, `deploy`, `link`, `release`, `service`, `vendor` or `tooling` |
 | `applies_to` | Stack ids or tags the fragment fits. Empty means any stack. An app must name at least one |
 | `requires` | Fragments that must come with it |
 | `conflicts` | Fragments it can't be combined with |
@@ -73,6 +73,23 @@ Verify steps check; they never generate source (no generate, `--write` or `--fix
 ## Apps
 
 An app is a fragment with `category: app` that builds a product on a stack, such as a chat app on `react-router`. It names its host stacks in `applies_to` and usually `requires` the fragments it builds on. Its body uses What to build, Features and Acceptance tests, within 3,000 words. Its verify steps prove the app works end to end (an acceptance test, a browser flow against a stub). The CLI runs an app's steps after the stack's own steps pass.
+
+## Fragments in a workspace
+
+In a workspace stack, a fragment whose `applies_to` names exactly one part's stack is written into that part's directory, its steps run there, and its `stacks/<that stack id>/` overlay applies. A fragment with empty `applies_to`, a tag match only, the workspace's id, or more than one part's stack is written once at the root.
+
+When a fragment on one part changes what the other part needs (a new API route the client must regenerate for), say so in the fragment's body inside a `stacks:when` block that holds only in a workspace, written in roles ("the API part", "the client part").
+
+## Links
+
+A link connects the parts of a workspace: `category: link`, with `applies_to` naming the client stack, so it lands in the client part and takes one input from the API part, the `openapi.json` that part writes.
+
+- Ship only the link's own new files, relative to the client part. The generator config reads `./openapi.json`; the workspace's root target copies it there.
+- Don't change files another entry writes or a template. Package scripts are added by the agent from the body, and a verify step fails if they're missing. Settings the client needs for the link, such as lint excludes for generated code, belong in the client stack.
+- Ship no generated client; it is Setup output. Give the link a drift step that regenerates into a temporary directory and compares with the committed output, never with git.
+- Write the body in roles, "the API part" and "the client part", never directory names: how generation works, the regenerate command, that the output is read-only, and what a failed drift check means.
+
+The workspace lists its link in `required`.
 
 ## Id and description
 

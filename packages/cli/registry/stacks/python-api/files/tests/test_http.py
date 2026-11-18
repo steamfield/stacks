@@ -205,8 +205,14 @@ async def test_openapi_documents_responses_and_stable_operation_ids(
     client: AsyncClient,
 ) -> None:
     spec = (await client.get("/openapi.json")).json()
-    create = spec["paths"]["/v1/notes"]["post"]
-    assert create["operationId"] == "notes_create"
+    notes, note = spec["paths"]["/v1/notes"], spec["paths"]["/v1/notes/{noteId}"]
+    # Generated clients name their functions after these ids.
+    assert notes["get"]["operationId"] == "listNotes"
+    assert note["get"]["operationId"] == "getNote"
+    assert notes["post"]["operationId"] == "createNote"
+    page = notes["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+    assert "items" in spec["components"]["schemas"][page.rsplit("/", 1)[1]]["required"]
+    create = notes["post"]
     assert create["responses"]["400"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/ErrorEnvelope"
     )

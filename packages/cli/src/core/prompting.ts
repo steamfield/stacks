@@ -205,15 +205,13 @@ const PRESET_CHOICES: ReadonlyArray<Choice<NewPreset>> = [
 ];
 
 const pickPreset = Effect.fn("prompting.pickPreset")(function* (
-  input: Pick<NewOptions, "preset" | "sandbox" | "dryRun">,
+  input: Pick<NewOptions, "preset" | "sandbox">,
   prompt: PromptSession,
 ) {
   if (input.preset !== undefined || input.sandbox) return newPreset(input);
-  // Settings are read even for a preview, so an invalid config file still fails here.
+  // A dry run defaults to the setting too, so the preview matches what the real run would write.
   const settings = yield* (yield* AppConfig).settings;
-  // Keep the picker's historical Enter choice for dry runs while RFC Q1 is open.
-  // Named-stack previews use the setting through `newPreset`.
-  const preset = newPreset(input, input.dryRun ? undefined : settings.preset);
+  const preset = newPreset(input, settings.preset);
   const presetIndex = PRESET_CHOICES.findIndex((choice) => choice.value === preset);
   return yield* prompt.one<NewPreset>({
     title: "Composition preset",

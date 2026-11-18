@@ -56,7 +56,7 @@ commands:
 
 ## What stacks wrote
 
-A client-side React app with one payload, a notes list and detail page fed by an external API (`GET /v1/notes` and `GET /v1/notes/:id`, notes with `id`, `title`, `body` and `createdAt`, the list's rows under `items` with a `nextCursor`). `src/main.tsx` parses config and mounts the providers; `src/config.ts` validates the `VITE_*` settings with zod; `src/api/client.ts` is the single place every API call goes through, decoding each response with a zod schema and rejecting with a typed `ApiError`; `vite.config.ts` proxies `/api` to a local API when `PORT_API` is set; `src/logging.ts` writes structured console records; `src/app/` holds the routes, layout and error page. Unit and component tests run on Vitest with MSW standing in for the API, and Playwright tests the built site with the API routed in the browser. The configs, package scripts, a Biome boundary plugin and `docs/guidance/react-vite/` ship too. Read the code before extending it.
+A client-side React app with one payload, a notes list and detail page fed by an external API (`GET /v1/notes` and `GET /v1/notes/:id`, rows under `items` with a `nextCursor`). `src/main.tsx` parses config and mounts the providers; `src/config.ts` validates the `VITE_*` settings with zod; `src/api/client.ts` decodes each response with zod and rejects with a typed `ApiError`; `src/logging.ts` writes structured console records. Vitest with MSW and Playwright tests, the configs, package scripts, a Biome boundary plugin and `docs/guidance/react-vite/` ship too. Read the code before extending it.
 
 Link `docs/guidance/react-vite/index.md` from AGENTS.md.
 
@@ -85,7 +85,6 @@ The shipped code keeps these; new code does too. `docs/guidance/react-vite/app.m
 - Failures are `ApiError` with `kind` `http`, `network` or `decode`. `userMessage` and `isRetryable` in `src/api/errors.ts` are the one status table; extend them with a test row.
 - Log events with flat fields (path, status, request id), never bodies, tokens or user input.
 - Routes are data-router objects in `src/app/routes.tsx`. Stay in data mode: React Router's framework mode (`@react-router/dev`, server rendering, file routes) is a different stack.
-- Biome's recommended rules plus the React domain (hook rules, exhaustive dependencies), import types, no non-null assertions and no floating promises. Keep them when adapting the config.
 
 ## Testing
 
@@ -99,7 +98,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/api/client.test.ts`. `preview` serves the last build, so run `build` first. `clean` removes only build, test and coverage output.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/api/client.test.ts`. `preview` serves the last build, so run `build` first.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer. pre-commit runs Biome with fixes on staged files; pre-push runs typecheck and tests.
@@ -107,7 +106,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Gotchas
 
-- A static host must rewrite unknown paths to `index.html`. `vite preview` does, so a deep-link reload passes locally and then 404s on a host left at its defaults. Configure the rewrite where you deploy.
+- A static host must rewrite unknown paths to `index.html`. `vite preview` does, so a deep-link reload passes locally and can 404 once deployed.
 - Vite reads `.env`, `.env.local` and `.env.[mode]` at build time and bakes the values in; changing one needs a rebuild, and `import.meta.env` types come from `vite/client` in `tsconfig.json`.
 - A cross-origin API must send CORS headers and `Access-Control-Expose-Headers: x-request-id`, or the browser hides the request id. A refused CORS request reaches the app as a `network` error.
 - Run Vite, Vitest and Playwright on Node without `--bun`; use `bun run test` for Vitest.

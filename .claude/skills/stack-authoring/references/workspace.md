@@ -34,7 +34,8 @@ Check the body (or the root files it points to) answers each of these:
 
 The workspace's `files/` holds only root files. Check each:
 
-- [ ] Root `AGENTS.md`, with a `CLAUDE.md` that imports it: cross-part commands, the change workflow, where each part's commands run, a link to each part's own `AGENTS.md`. Never tell the agent to fill a root file the stack doesn't ship.
+- [ ] Root `AGENTS.md`, with a `CLAUDE.md` that imports it: cross-part commands, the change workflow, where each part's commands run, links to the contract document and each part's guidance. With `claude-harness` required, `agent-ops` writes both at the root and the parts get none, so the workspace ships neither (it would be a `file_owner` conflict): its Setup says what goes in the root `AGENTS.md`, including what each part section asks of "AGENTS.md", and a hygiene step greps for it (`hono-react`'s `agents-md-workspace`). Never tell the agent to fill a root file nothing writes.
+- [ ] A `make`-tagged workspace gets its root `AGENTS.md` commands table filled with `make <part>-<command>` rows, one per part command, so the Makefile answers to them (`hono-react` uses `backend-%` and `frontend-%` pattern rules).
 - [ ] Root `README.md` with its own `readme-filled` step (a workspace project has three: the root and each part), and a root `.env.example` listing every port and setting the root Makefile exports.
 - [ ] A short contract document (`docs/CONTRACT.md`): request path, contract owner, change workflow. A verify step checks it names each part directory and holds no fill marker.
 - [ ] The root Makefile delegates to each part and runs Biome inside each part; a Biome run from the root fails on the parts' root configs.

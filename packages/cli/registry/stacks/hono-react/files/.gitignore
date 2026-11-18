@@ -1,0 +1,4 @@
+# Root files only: backend/ and frontend/ keep their own .gitignore.
+.env
+.env.local
+.claude/worktrees/

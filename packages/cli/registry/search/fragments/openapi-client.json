@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "openapi-client",
   "source": {
-    "digest": "sha256:a759bea618f72d9734283d881de66c04fa1dcd1a6961bbb8005b35c4df899fe1",
+    "digest": "sha256:c1a2d182a90c36c268d3c1c15d20bcbe80d6bfe4bade8212ccad9431806b434c",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,

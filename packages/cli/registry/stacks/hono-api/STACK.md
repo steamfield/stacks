@@ -56,7 +56,7 @@ commands:
 
 ## What stacks wrote
 
-A JSON API with one payload, an in-memory notes resource (list, get, create). `src/main.ts` reads the environment and signals; `src/server.ts` is the only module that touches Node's HTTP server; `src/app.ts` builds the whole API as a platform-free fetch handler with request ids, the request log, a body limit, `/openapi.json`, and the not-found and error handlers. `src/config.ts` validates settings with zod, `src/errors.ts` holds the one status table and the error envelope, `src/logging.ts` the pino logger and request log, and `src/router.ts` the `createRouter()` every route module uses. Tests run on Vitest: unit tests beside the code, `tests/http-contract.test.ts` through `app.request()`, `tests/server.test.ts` over a real port. `scripts/openapi.ts` writes the document to `openapi.json` without starting a server, and its `--check` mode is the drift check. The configs, package scripts, a Biome boundary plugin and `docs/guidance/hono-api/` ship too. Read the code before extending it.
+A JSON API with one payload, an in-memory notes resource (list, get, create). `src/app.ts` builds the API as a platform-free fetch handler (request ids, request log, body limit, `/openapi.json`, not-found and error handlers); `src/main.ts` reads the environment and signals, and only `src/server.ts` touches Node's HTTP server. `src/config.ts` validates settings with zod, `src/errors.ts` holds the status table and error envelope, `src/logging.ts` the pino logger, and `src/router.ts` the `createRouter()` every route module uses. `scripts/openapi.ts` writes `openapi.json` without starting a server; `--check` is the drift check. The configs, package scripts, tests, a Biome boundary plugin and `docs/guidance/hono-api/` ship too. Read the code before extending it.
 
 Link `docs/guidance/hono-api/index.md` from AGENTS.md.
 
@@ -70,7 +70,7 @@ Link `docs/guidance/hono-api/index.md` from AGENTS.md.
 1. Add every declared app and dev dependency at its current release with `bun add` and `bun add -d`. Check `@hono/zod-openapi`'s peer range for zod and hono before adding them, and match `@types/node` to the chosen Node major.
 2. Write the Node LTS to `.node-version` and the Bun version to `packageManager`.
 3. Run `bun run lint`, `bun run typecheck`, `bun run test` and `bun run build`. Where an installed release rejects shipped code or config (a renamed export, a moved option), update it from that release's declarations, keeping every check, lint rule and assertion.
-4. Run `bun run openapi` and commit `openapi.json`. Setup generates it because its bytes depend on the installed `@hono/zod-openapi`. Regenerate and commit it with every route or schema change; `bun run check:openapi` compares parsed JSON, so formatting never fails it.
+4. Run `bun run openapi` and commit `openapi.json`; its bytes depend on the installed `@hono/zod-openapi`, so it isn't shipped. Regenerate and commit it with every route or schema change.
 5. Fill the README's `stacks:fill` markers and AGENTS.md (commands, a single-file test example, the boundaries, the guidance link), then run `stacks verify` until green.
 
 ## Conventions
@@ -80,12 +80,12 @@ The shipped code keeps these; new code does too. `docs/guidance/hono-api/api.md`
 - Every route is a `createRoute()` registered with `.openapi()` on a router from `createRouter()`, so validation and `/openapi.json` can't drift. Handlers read input only through `c.req.valid(...)`. Keep each `operationId` stable: clients generated from `openapi.json` name their functions after it.
 - Errors: throw an `AppError` subclass; `app.onError` renders `{ "error": { "code", "message", "requestId", "issues"? } }` with the status from `errorTable`. A new failure adds a row there and a contract test.
 - `node:*`, `@hono/node-server` and `process` stay in `src/main.ts` and `src/server.ts`; `console` stays out of `src/`; `z` comes from `@hono/zod-openapi`. The Grit plugin fails lint on a break.
-- Log with the pino logger, flat fields, never bodies, headers, query strings or tokens. The request log records method, route pattern, status, duration and request id.
+- Log with the pino logger, flat fields, never bodies, headers, query strings or tokens.
 - Routes live under `/v1`; `/healthz` and `/openapi.json` stay outside it. A create returns 201 with `Location`; a list takes `limit` and `cursor` and returns `nextCursor`.
 
 ## Testing
 
-Unit tests sit beside the code (`src/**/*.test.ts`). `tests/http-contract.test.ts` drives the real app with `app.request()` and asserts statuses, envelopes, headers and request records; verify runs it on its own. `tests/server.test.ts` serves on port 0 and calls it with `fetch`. A new endpoint adds its success, every error status it returns, and its validation edges to the contract tables. Details in `docs/guidance/hono-api/testing.md`.
+Unit tests sit beside the code (`src/**/*.test.ts`). `tests/http-contract.test.ts` drives the real app with `app.request()` and asserts statuses, envelopes, headers and request records. `tests/server.test.ts` serves on port 0 and calls it with `fetch`. A new endpoint adds its success, every error status it returns, and its validation edges to the contract tables. Details in `docs/guidance/hono-api/testing.md`.
 
 <!-- stacks:when with=ci-github -->
 CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, `check:openapi` and the build. No credentials are needed.
@@ -93,7 +93,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/config.test.ts`. `dev` stays in the foreground: run it in the background, or use `bun run build && bun run start` on a free `PORT_API`, then stop it. `start` serves the last build.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/config.test.ts`. `dev` stays in the foreground: run it in the background, or `bun run build && bun run start` (the last build) on a free `PORT_API`, then stop it.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer.
@@ -104,5 +104,5 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 - The validation hook belongs to each `OpenAPIHono` instance, not to the app a router is mounted on. A router made with `new OpenAPIHono()` answers bad input with Hono's plain-text 400; use `createRouter()`.
 - `c.req.json()` throws on a malformed body and skips the schema; declare the body in `createRoute()` and let the validator parse it.
 - Hono answers a wrong method on a declared path with 404, not 405; the contract tests pin that.
-- Bun runs Hono natively, which tempts a switch of runtime. Run Vitest with `bun run test`, run the server on Node with the declared scripts, and omit `--bun`.
+- Bun can run Hono, but Vitest runs with `bun run test` and the server on Node through the declared scripts, never with `--bun`.
 - Node runs `src/*.ts` by stripping types, so relative imports keep their `.ts` extension and the code uses only erasable syntax (no enums, no parameter properties).

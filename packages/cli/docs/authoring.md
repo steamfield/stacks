@@ -196,8 +196,10 @@ workspace.
 `new` writes each part's files unchanged under its name and the workspace's own files
 at the root. Each part's verify steps get the part directory as `cwd` and the part name
 as a prefix. A part keeps its own Makefile or `package.json`, `.gitignore`, `biome.json`,
-`README.md`, `.env.example`, `AGENTS.md` and `CLAUDE.md`, and the brief tells the agent
-which copy a section means.
+`README.md` and `.env.example`, and the brief tells the agent which copy a section means.
+`AGENTS.md` and `CLAUDE.md` usually come from `agent-ops`, which has an empty
+`applies_to` and so lands once at the root: a part then has no copy of its own, and what
+its body asks of `AGENTS.md` goes in the root one.
 
 A fragment is placed by stack id in `applies_to`, never by tag:
 
@@ -230,11 +232,17 @@ At the root, and nothing a part already owns:
   and owns the cross-part targets: regenerating the client, the check that runs both
   parts, and the full check. Its lint and format targets run Biome inside each part,
   since a Biome run from the root fails on the parts' root configs. A port exported in
-  the shell wins over one in an included `.env`.
+  the shell wins over one in an included `.env`. When the workspace is tagged `make`,
+  `new` fills the root `AGENTS.md` commands table with `make <part>-<command>` rows for
+  every part command, so the Makefile needs targets of that form (a `<part>-%` pattern
+  rule that runs the part's script covers them).
 - `README.md` and `.env.example` for the whole project.
-- `AGENTS.md`, with a `CLAUDE.md` that imports it: the cross-part commands, the change
-  workflow, where each part's commands run, and a link to each part's own `AGENTS.md`.
-  It is the one instruction file every harness reads in a session started at the root.
+- What the root `AGENTS.md` must hold: the cross-part commands, the change workflow,
+  where each part's commands run, and links to the contract document and each part's
+  guidance. It is the one instruction file every harness reads in a session started at
+  the root. When `agent-ops` writes `AGENTS.md` and `CLAUDE.md` (any composition with
+  `claude-harness`), the workspace can't ship them; its Setup says what to fill in, and a
+  verify step checks the root `AGENTS.md` for it.
 - A short contract document such as `docs/CONTRACT.md`: the request path, the
   contract's owner and the change workflow. A verify step checks it names each part
   directory and holds no fill marker.

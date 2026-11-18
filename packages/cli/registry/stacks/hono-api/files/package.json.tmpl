@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run check:openapi && bun run build",
+    "openapi": "node scripts/openapi.ts && biome format --write openapi.json",
+    "check:openapi": "node scripts/openapi.ts --check",
     "clean": "rm -rf dist coverage",
     "prepare": "bun scripts/prepare.ts"
   }

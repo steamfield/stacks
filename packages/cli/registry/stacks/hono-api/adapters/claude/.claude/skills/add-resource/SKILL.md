@@ -15,6 +15,7 @@ Before any code, write down: the plural noun, its fields and types, each endpoin
 4. **Failing tests** in `tests/http-contract.test.ts`: success with status and parsed body (201 and `Location` for a create), each declared error status through `expectEnvelope`, an unknown body field or query key, a malformed path parameter, and the request record. Run them and watch them fail.
 5. **Routes** in `src/routes/<thing>.ts`: one `createRoute()` per operation with `operationId`, request schemas and every response (errors through `errorResponse`), registered with `.openapi()` on `createRouter()`. Read input only with `c.req.valid(...)`; throw `NotFoundError` for a miss.
 6. **Mount** it in `src/app.ts` with `app.route("/", <thing>Routes(store))`, adding the store to `AppDeps`.
-7. `bun run check`, then `stacks verify`. Fetch `/openapi.json` from a running build and check the new paths.
+7. **Document**: `bun run openapi`, then read the `openapi.json` diff for the new paths, statuses and schemas. Commit the file with the change; clients are generated from it.
+8. `bun run check`, then `stacks verify`. Its `openapi-drift` step fails while `openapi.json` is stale.
 
 Keep the slice thin: no endpoints, fields or filters the request didn't ask for.

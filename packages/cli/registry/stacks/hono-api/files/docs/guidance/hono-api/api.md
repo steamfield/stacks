@@ -13,6 +13,7 @@
 2. Each operation is a `createRoute({ method, path, operationId, request, responses })`. Paths use `{param}`, not `:param`. List every status the handler can return; error statuses use `errorResponse(description)`.
 3. Register with `.openapi(route, handler)` and read input only with `c.req.valid("param" | "query" | "json")`. Return `c.json(value, status)` with the status written out.
 4. Mount the router in `src/app.ts` with `app.route("/", router)`.
+5. Run `bun run openapi` and commit `openapi.json` with the change. Clients are generated from that file and name their functions after each `operationId`, so keep existing ids stable.
 
 A body route sets `request.body.required: true`; without it an empty body reaches the handler as `{}`.
 

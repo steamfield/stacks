@@ -61,6 +61,8 @@
     "registry/stacks/hono-api/files/*.ts",
     "registry/stacks/hono-api/files/src",
     "registry/stacks/hono-api/files/tests",
+    // Imports the app (Hono, zod, pino), installed only in the API scaffold.
+    "registry/stacks/hono-api/files/scripts/openapi.ts",
     // NestJS, class-validator and Swagger are installed only in the API scaffold, and its
     // decorators need the scaffold's experimentalDecorators; keep scripts and hooks checked.
     "registry/stacks/nestjs-api/files/*.ts",

@@ -35,7 +35,7 @@ A stack with `parts` gets these findings on its own `STACK.md`, read from the wo
 | `part-name-duplicate` | error | Two parts share a name, which is also their directory. |
 | `part-nested` | error | A part's stack has parts of its own (the workspace itself or another workspace). |
 | `part-roles` | error | The parts don't hold exactly one `api` part and one client (`web`) part. |
-| `part-cwd` | error | A part's verify step, or a step of a listed fragment placed on one part, has a `cwd` that leaves the part's directory. The message names the step and the file it is in. |
+| `part-cwd` | error | A part's verify step, or a step of any fragment placed on one part (listed by the workspace or not, since `add` places every fragment that fits a part), has a `cwd` that leaves the part's directory. Every such step is reported. A validated fragment's finding is on its own `FRAGMENT.md`; the message names the step and the file or workspace it is in. |
 | `part-role-rule` | error | A part breaks a Declared rule of its role: `api-port-env` (`PORT_API` in `env`), `api-healthz-serve` (a `serve` step whose `expect.http` uses `${PORT_API}` and ends in `/healthz`), `web-port-env` (`PORT_WEB` in `env`). Checked only when the parts list itself has no problem. |
 | `part-required-restated` | error | A part's `fragments.required` id is missing from the workspace's `required`, once per part. A part's own tiers are never selected. |
 | `link-openapi-drift` | error | The workspace requires a `category: link` fragment and the `api` part has no verify step named `openapi-drift`. |

@@ -10,7 +10,7 @@ import { Schema } from "effect";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import { type Finding, ValidateReport } from "../src/schemas/validate";
 import { quiet, runCli, tempDir } from "./helpers/cli";
-import { emptyRegistry } from "./helpers/registry";
+import { emptyRegistry, minimal, writeEntry } from "./helpers/registry";
 import { workspaceRegistry, workspaceVariant } from "./helpers/workspace";
 
 const cleanups: Array<() => void> = [];
@@ -223,15 +223,49 @@ describe("a part step whose cwd leaves the part directory", () => {
     ]);
   });
 
-  test("on a step of a fragment placed on the part", async () => {
+  test("on a step of a fragment placed on the part, reported on the fragment", async () => {
     const root = variant((root) => replace(root, DB, "cwd: . }", "cwd: .. }"));
     expect(await added(root)).toEqual([
-      onPair(
-        "error",
-        "part-cwd",
-        `part backend: step migrate in ${DB} has cwd "..", which leaves backend/; keep cwd inside the part's directory`,
-      ),
+      `error part-cwd fragment/db ${DB}: part backend of pair: step migrate has cwd "..", which leaves backend/; keep cwd inside the part's directory`,
     ]);
+  });
+
+  /** A fragment the workspace doesn't list that `add` still places on backend, with two bad steps. */
+  const unlisted = (root: string) =>
+    writeEntry({
+      root,
+      kind: "fragment",
+      dir: "api-extra",
+      frontmatter: minimal(
+        "fragment",
+        "api-extra",
+        [
+          "applies_to: [api-part]",
+          "verify:",
+          '  - { name: up, layer: check, run: "true", cwd: .. }',
+          '  - { name: ok, layer: check, run: "true", cwd: src }',
+          '  - { name: out, layer: check, run: "true", cwd: /tmp }',
+        ].join("\n"),
+      ),
+    });
+  const EXTRA = "fragments/api-extra/FRAGMENT.md";
+  // Findings sort by message, so `out` reads before `up`.
+  const extraFindings = [
+    `error part-cwd fragment/api-extra ${EXTRA}: part backend of pair: step out has cwd "/tmp", which leaves backend/; keep cwd inside the part's directory`,
+    `error part-cwd fragment/api-extra ${EXTRA}: part backend of pair: step up has cwd "..", which leaves backend/; keep cwd inside the part's directory`,
+  ];
+  const partCwd = (findings: ReadonlyArray<Finding>) =>
+    findings.filter((finding) => finding.check === "part-cwd").map(line);
+
+  test("on every step of a fragment the workspace doesn't list but add would place", async () => {
+    const root = variant(unlisted);
+    expect(partCwd((await validate(root)).report.findings)).toEqual(extraFindings);
+  });
+
+  test("when only that fragment is validated", async () => {
+    const root = variant(unlisted);
+    const { report } = await validate(join(root, "fragments", "api-extra"));
+    expect(partCwd(report.findings)).toEqual(extraFindings);
   });
 });
 

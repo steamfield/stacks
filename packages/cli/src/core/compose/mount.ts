@@ -59,7 +59,7 @@ export function placement(
  * The part directory joined with a step's own `cwd`, normalized; `undefined` when the result is
  * not the directory or under it (an absolute path, or `..` climbing past it).
  */
-function partCwd(dir: string, cwd: string | undefined): string | undefined {
+export function partCwd(dir: string, cwd: string | undefined): string | undefined {
   if (cwd === undefined) return dir;
   if (cwd.startsWith("/")) return undefined;
   const segments = [dir];

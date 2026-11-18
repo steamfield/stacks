@@ -1,27 +1,22 @@
 /**
  * Checks for workspace stacks (a stack with `parts`), reported on the workspace's own STACK.md.
  * Each workspace is checked against its parts and the fragments it lists, read from the
- * resolution set without composing: the parts list itself, part step directories, the Declared
- * role rules, required fragments the workspace must restate, the link's `openapi-drift` step,
- * what its body must name, and keys that shadow a part's namespaced ones. Reads metadata and
- * prose only (trust point 1).
+ * resolution set without composing: the parts list itself, the Declared role rules, required
+ * fragments the workspace must restate, the link's `openapi-drift` step, what its body must name,
+ * and keys that shadow a part's namespaced ones; `partStepChecks` checks the mounted steps. Reads
+ * metadata and prose only (trust point 1).
  */
 import type { StackPart } from "@steamfield/stacks-format";
-import { Effect, Result } from "effect";
+import { Effect } from "effect";
 import type { Finding } from "../../../schemas/validate";
-import { mountEntry, placement } from "../../compose/mount";
 import { type PartProblem, partProblems } from "../../compose/parts";
 import { declaredRuleProblems, ROLES } from "../../compose/roles";
-import type { PartMount } from "../../compose/types";
-import { type Entry, type Fragment, isFragment, isStack, type Stack } from "../../registry/entry";
+import { type Fragment, isFragment, isStack, type Stack } from "../../registry/entry";
 import type { Check, View } from "../types";
 import { entryFile, finding } from "../view";
 
 /** A part whose stack resolves to a stack without parts of its own. */
 type MountedPart = { part: StackPart; entry: Stack };
-
-/** An entry compose would mount, and its mount; none for a fragment that stays at the root. */
-type Mountable = { entry: Entry; mount: PartMount | undefined };
 
 /** One workspace under check, with its resolved parts and a finding builder for its file. */
 type Workspace = {
@@ -37,14 +32,13 @@ const HEADINGS = ["How the parts connect", "Changing the API"] as const;
 const OPENAPI_STEP = "openapi-drift";
 
 export const workspaceChecks: Check = (view) =>
-  Effect.gen(function* () {
-    const findings: Finding[] = [];
-    for (const stack of view.entries.filter(isStack))
-      if (stack.meta.parts) findings.push(...(yield* workspaceFindings(view, stack)));
-    return { findings };
+  Effect.succeed({
+    findings: view.entries
+      .filter(isStack)
+      .flatMap((stack) => (stack.meta.parts ? workspaceFindings(view, stack) : [])),
   });
 
-const workspaceFindings = Effect.fn("validate.workspace")(function* (view: View, stack: Stack) {
+function workspaceFindings(view: View, stack: Stack): Finding[] {
   const declared = stack.meta.parts ?? [];
   const lookup = (id: string) =>
     view.all.find((item): item is Stack => isStack(item) && item.id === id);
@@ -61,14 +55,13 @@ const workspaceFindings = Effect.fn("validate.workspace")(function* (view: View,
   };
   return [
     ...problems.map((problem) => partProblemFinding(workspace, problem)),
-    ...(yield* cwdFindings(workspace)),
     // Role rules depend on which part has which role, which a parts problem leaves unsettled.
     ...(problems.length ? [] : [...roleRuleFindings(workspace), ...openapiFindings(workspace)]),
     ...restatedFindings(workspace),
     ...bodyFindings(workspace),
     ...shadowedFindings(workspace),
   ];
-});
+}
 
 /** One `parts.ts::partProblems` result as a finding naming the part. */
 function partProblemFinding(workspace: Workspace, problem: PartProblem): Finding {
@@ -100,59 +93,6 @@ function partProblemMessage(
     }
   }
 }
-
-/**
- * Each part, and each fragment the workspace lists that is placed on one part, mounted as compose
- * mounts it; a step `cwd` that leaves the part directory is one finding per entry, since compose
- * refuses the entry at its first such step.
- */
-const cwdFindings = Effect.fn("validate.workspaceCwd")(function* (workspace: Workspace) {
-  const mounts = (workspace.stack.meta.parts ?? []).map(
-    ({ name, role, stack }): PartMount => ({ name, role, stack }),
-  );
-  const parts = workspace.parts.map(
-    ({ part, entry }): Mountable => ({
-      entry,
-      mount: mounts.find((mount) => mount.name === part.name),
-    }),
-  );
-  const placed = listedFragments(workspace).map(
-    (fragment): Mountable => ({
-      entry: fragment,
-      mount: placement(fragment.meta.appliesTo, workspace.stack.id, mounts),
-    }),
-  );
-  const findings: Finding[] = [];
-  for (const { entry, mount } of [...parts, ...placed])
-    if (mount) findings.push(...(yield* mountedCwdFinding(workspace, entry, mount)));
-  return findings;
-});
-
-/** The fragments the workspace lists in any tier, as the resolution set has them. */
-function listedFragments(workspace: Workspace): ReadonlyArray<Fragment> {
-  const ids = new Set(Object.values(workspace.stack.meta.fragments).flat());
-  return workspace.view.all.filter(
-    (item): item is Fragment => isFragment(item) && ids.has(item.id),
-  );
-}
-
-const mountedCwdFinding = (workspace: Workspace, entry: Entry, mount: PartMount) =>
-  Effect.map(
-    Effect.result(mountEntry(entry, mount, { id: workspace.stack.id, entry: workspace.stack })),
-    (result): Finding[] => {
-      if (Result.isSuccess(result)) return [];
-      const mounted = result.failure.details?.step ?? "";
-      const name = mounted.slice(mount.name.length + 1);
-      const cwd = entry.meta.verify.find((step) => step.name === name)?.cwd;
-      return [
-        workspace.report(
-          "error",
-          "part-cwd",
-          `part ${mount.name}: step ${name} in ${entryFile(workspace.view, entry)} has cwd "${cwd}", which leaves ${mount.name}/; keep cwd inside the part's directory`,
-        ),
-      ];
-    },
-  );
 
 /** Each Declared rule a part breaks for its role. */
 function roleRuleFindings(workspace: Workspace): Finding[] {

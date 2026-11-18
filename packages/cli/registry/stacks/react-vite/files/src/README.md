@@ -5,7 +5,7 @@ creates services and mounts the query cache and browser router.
 [app/](app/README.md) owns the route tree, layout, error boundary and services context.
 
 [api/](api/README.md) is the fetch and decoding boundary.
-[features/items/](features/items/README.md) renders the example resource using
+[features/notes/](features/notes/README.md) renders the example resource using
 its query options. `components/error-state.tsx` shares the safe request-error
 display across pages.
 

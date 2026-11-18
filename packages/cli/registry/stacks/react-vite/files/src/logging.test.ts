@@ -12,12 +12,12 @@ afterEach(() => vi.restoreAllMocks());
 
 test("writes one structured record through the matching console method", () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  createLogger("info", now).warn("api_error", { path: "/items", status: 500 });
+  createLogger("info", now).warn("api_error", { path: "/v1/notes", status: 500 });
   expect(warn).toHaveBeenCalledExactlyOnceWith({
     level: "warn",
     event: "api_error",
     time: "2026-01-02T03:04:05.000Z",
-    path: "/items",
+    path: "/v1/notes",
     status: 500,
   });
 });

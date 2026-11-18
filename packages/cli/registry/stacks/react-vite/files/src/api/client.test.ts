@@ -1,10 +1,10 @@
 /**
- * Exercises the fetch client against MSW responses for success, HTTP, network and decoding
- * failures. It also checks safe logging and cancellation passthrough.
+ * Exercises the fetch client against MSW responses for GET, POST and 204 answers and for HTTP,
+ * network and decoding failures. It also checks safe logging and cancellation passthrough.
  */
 
 import { HttpResponse, http } from "msw";
-import { expect, test, vi } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
 import { z } from "zod";
 import { server, TEST_API_URL } from "../../tests/msw/server";
 import { createLogger } from "../logging";
@@ -24,6 +24,74 @@ const answer = (response: () => Response) => server.use(http.get("*/api/thing", 
 test("decodes a successful body with the schema", async () => {
   answer(() => HttpResponse.json({ name: "ok", extra: true }));
   await expect(client().api.get("/thing", Body)).resolves.toEqual({ name: "ok" });
+});
+
+test("sends a POST with a JSON body and decodes the answer", async () => {
+  server.use(
+    http.post("*/api/thing", async ({ request }) =>
+      HttpResponse.json(
+        {
+          name: `${request.headers.get("content-type")} ${request.headers.get("x-trace")}`,
+          sent: await request.json(),
+        },
+        { status: 201 },
+      ),
+    ),
+  );
+  const Created = z.object({ name: z.string(), sent: z.object({ title: z.string() }) });
+  const created = await client().api.request("/thing", Created, {
+    method: "POST",
+    body: { title: "new" },
+    headers: { "x-trace": "t-1" },
+  });
+  expect(created).toEqual({ name: "application/json t-1", sent: { title: "new" } });
+});
+
+test("lets a caller's headers replace the defaults, whatever their case", async () => {
+  server.use(
+    http.patch("*/api/thing", ({ request }) =>
+      HttpResponse.json({
+        name: `${request.headers.get("accept")} ${request.headers.get("content-type")}`,
+      }),
+    ),
+  );
+  const fetched = vi.spyOn(globalThis, "fetch");
+  onTestFinished(() => fetched.mockRestore());
+  const patched = await client().api.request("/thing", Body, {
+    method: "PATCH",
+    body: { title: "renamed" },
+    headers: { Accept: "application/problem+json", "Content-Type": "application/merge-patch+json" },
+  });
+  expect(patched).toEqual({ name: "application/problem+json application/merge-patch+json" });
+  // happy-dom keeps the last of two names that differ only in case, where browsers and Node
+  // join them, so also check that fetch got each header name once.
+  const headers = fetched.mock.calls[0]?.[1]?.headers;
+  const names = headers instanceof Headers ? [...headers.keys()] : Object.keys(headers ?? {});
+  expect(names.map((name) => name.toLowerCase()).sort()).toEqual(["accept", "content-type"]);
+});
+
+test("refuses a body on GET before sending anything", async () => {
+  const sent = vi.fn(() => HttpResponse.json({ name: "sent" }));
+  answer(sent);
+  const error = await client()
+    .api.request("/thing", Body, { body: { title: "x" } })
+    .catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(TypeError);
+  expect(error).not.toBeInstanceOf(ApiError);
+  expect(sent).not.toHaveBeenCalled();
+});
+
+test("resolves a 204 without reading a body", async () => {
+  server.use(http.delete("*/api/thing", () => new HttpResponse(null, { status: 204 })));
+  await expect(
+    client().api.request("/thing", z.undefined(), { method: "DELETE" }),
+  ).resolves.toBeUndefined();
+});
+
+test("rejects a 204 when the caller's schema expects a body", async () => {
+  server.use(http.delete("*/api/thing", () => new HttpResponse(null, { status: 204 })));
+  const answered = client().api.request("/thing", Body, { method: "DELETE" });
+  await expect(answered).rejects.toMatchObject({ kind: "decode", status: 204 });
 });
 
 test("rejects a non-2xx answer with its status and request id, and logs it", async () => {

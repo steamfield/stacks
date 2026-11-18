@@ -16,24 +16,24 @@ function Broken(): never {
   throw new TypeError("render failed");
 }
 
-test("lists items from the API and opens one", async () => {
+test("lists notes from the API and opens one", async () => {
   renderRoute("/");
-  expect(screen.getByRole("status")).toHaveTextContent("Loading items");
-  await userEvent.click(await screen.findByRole("link", { name: "Second item" }));
-  expect(await screen.findByRole("heading", { name: "Second item" })).toBeVisible();
-  expect(screen.getByText("The second item the API returned.")).toBeVisible();
+  expect(screen.getByRole("status")).toHaveTextContent("Loading notes");
+  await userEvent.click(await screen.findByRole("link", { name: "Second note" }));
+  expect(await screen.findByRole("heading", { name: "Second note" })).toBeVisible();
+  expect(screen.getByText("The second note the API returned.")).toBeVisible();
 });
 
-test("shows the empty state", async () => {
-  server.use(http.get("*/api/items", () => HttpResponse.json({ items: [] })));
+test("reads a last page that leaves out nextCursor", async () => {
+  server.use(http.get("*/api/v1/notes", () => HttpResponse.json({ items: [] })));
   renderRoute("/");
-  expect(await screen.findByText("No items yet.")).toBeVisible();
+  expect(await screen.findByText("No notes yet.")).toBeVisible();
 });
 
 test("shows a failed request with its request id, then recovers on retry", async () => {
   server.use(
     http.get(
-      "*/api/items",
+      "*/api/v1/notes",
       () => HttpResponse.json({}, { status: 500, headers: { "x-request-id": "req-500" } }),
       { once: true },
     ),
@@ -43,23 +43,23 @@ test("shows a failed request with its request id, then recovers on retry", async
   expect(alert).toHaveTextContent("The server had a problem.");
   expect(alert).toHaveTextContent("Request ID: req-500");
   await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByRole("link", { name: "First item" })).toBeVisible();
+  expect(await screen.findByRole("link", { name: "First note" })).toBeVisible();
 });
 
-test("a deep link to a missing item says so", async () => {
-  renderRoute("/items/404");
-  expect(await screen.findByRole("heading", { name: "Item not found" })).toBeVisible();
+test("a deep link to a missing note says so", async () => {
+  renderRoute("/notes/404");
+  expect(await screen.findByRole("heading", { name: "Note not found" })).toBeVisible();
 });
 
 test("an unknown address renders the not-found page", async () => {
   renderRoute("/no/such/page");
   expect(await screen.findByRole("heading", { name: "Page not found" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Back to items" })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: "Back to notes" })).toHaveAttribute("href", "/");
 });
 
-test("an item the API sends in the wrong shape shows the decode error", async () => {
-  server.use(http.get("*/api/items/:id", () => HttpResponse.json({ items: null })));
-  renderRoute("/items/1");
+test("a note the API sends in the wrong shape shows the decode error", async () => {
+  server.use(http.get("*/api/v1/notes/:id", () => HttpResponse.json({ title: null })));
+  renderRoute("/notes/1");
   expect(await screen.findByRole("alert")).toHaveTextContent("can't read");
 });
 

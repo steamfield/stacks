@@ -489,6 +489,39 @@ describe("payloads", () => {
       new BadInput({ details: { id: "none", flag: "payload" } }),
     );
   });
+
+  test("a payload no entry ships is BadInput when one stack is mounted as two parts", async () => {
+    const root = variant((at) => {
+      replaceIn(
+        at,
+        PAIR,
+        "{ name: frontend, role: web, stack: web-part }",
+        "{ name: frontend, role: web, stack: api-part }",
+      );
+      rmSync(join(at, "stacks/api-part/payloads/none"), { recursive: true });
+      // The link has no web-part to sit on any more.
+      replaceIn(at, "fragments/client-link/FRAGMENT.md", "[web-part]", "[api-part]");
+    });
+    expect(await pairExit({}, { root })).toMatchObject({ _tag: "Success" });
+    expect(await failure(pairExit({ payload: "none" }, { root }))).toEqual(
+      new BadInput({ details: { id: "none", flag: "payload" } }),
+    );
+  });
+
+  test("the workspace and root fragments see the workspace's effective payload in their conditions", async () => {
+    const block =
+      "\n<!-- stacks:when payload=example -->\nThe example payload.\n<!-- stacks:end -->\n";
+    const root = variant((at) => {
+      for (const file of [PAIR, "fragments/root-ci/FRAGMENT.md"])
+        writeFileSync(join(at, file), `${readFileSync(join(at, file), "utf8")}${block}`);
+    });
+    // pair ships no payloads/none/, so it and the root around it use the example.
+    const composition = await pair({ payload: "none" }, { root });
+    expect(composition.stack.body).toContain("The example payload.");
+    const rootCi = composition.fragments.find((fragment) => fragment.id === "root-ci");
+    expect(rootCi?.body).toContain("The example payload.");
+    expect(paths(composition)).toContain("backend/src/empty.ts");
+  });
 });
 
 describe("selection", () => {
@@ -589,12 +622,18 @@ describe("trust and pins", () => {
     ]);
   });
 
-  /** `compose` over the fixture with `pair` carrying `partEntries.frontend` read from `pinRoot`. */
+  /**
+   * `compose` over the fixture with `pair` carrying a pin for each part read from `pinRoot`, as
+   * the index merge gives it: a pin set covers every part or isn't used.
+   */
   const pinned = (pinRoot: string, roots: RegistryRoots) =>
     Effect.gen(function* () {
-      const pin = yield* Effect.provide(
+      const [backend, pin] = yield* Effect.provide(
         Effect.gen(function* () {
-          return yield* (yield* Registry).get("stack", "web-part");
+          const registry = yield* Registry;
+          const api = yield* registry.get("stack", "api-part");
+          const web = yield* registry.get("stack", "web-part");
+          return [api, web] as const;
         }),
         Registry.layer(bundledAt(pinRoot)),
       );
@@ -607,7 +646,7 @@ describe("trust and pins", () => {
             get: (kind, id) =>
               Effect.map(live.get(kind, id), (entry) =>
                 isStack(entry) && entry.id === "pair"
-                  ? { ...entry, partEntries: { frontend: pin } }
+                  ? { ...entry, partEntries: { backend, frontend: pin } }
                   : entry,
               ),
           });

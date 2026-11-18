@@ -66,7 +66,8 @@ export function compose(
     const payloads = yield* checkPayload(registry, stackEntries(stack, mounted.parts), payload);
     const root = conditionContext(options, {
       stack,
-      payload,
+      // The workspace and root fragments see the workspace's own payload, the one its files use.
+      payload: (stack ? payloads.get(entryKey(stack.kind, stack.id)) : undefined) ?? payload,
       ids: [...existing, ...mounted.fragments.map((fragment) => fragment.id)],
       roles: mounted.parts.map((part) => part.mount.role),
     });
@@ -209,7 +210,9 @@ const checkPayload = Effect.fn("compose.checkPayload")(function* (
   for (const stack of stacks)
     if (!(yield* shipsPayload(registry, stack, payload)))
       fallback.set(entryKey(stack.kind, stack.id), DEFAULT_PAYLOAD);
-  if (fallback.size === stacks.length)
+  // Keyed by entry, so one stack mounted as two parts counts once.
+  const keys = new Set(stacks.map((stack) => entryKey(stack.kind, stack.id)));
+  if (fallback.size === keys.size)
     return yield* new BadInput({ details: { id: payload, flag: "payload" } });
   return fallback;
 });

@@ -4,7 +4,7 @@ A workspace stack (a stack with `parts`) is the glue between an API stack and a 
 
 ## The rule for every line
 
-Anything about one half goes in that half's stack. The workspace body holds only what is true of this pair and of neither half alone. If a fact would hold for the part in a standalone project, move it to the part's `STACK.md` (and its `files/`), and report the change if that stack isn't yours to edit. Keep the body near 400 words; the composed brief carries both part bodies and the link inside the 6,000-word limit.
+Anything about one half goes in that half's stack. The workspace body holds only what is true of this pair and of neither half alone. If a fact would hold for the part in a standalone project, move it to the part's `STACK.md` (and its `files/`), and report the change if that stack isn't yours to edit. Keep the body near 400 words; the composed brief carries both part bodies and the link, and a workspace's composed brief may reach 7,500 words.
 
 ## Required headings and what each must answer
 

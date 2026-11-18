@@ -233,7 +233,7 @@ Your own stacks and fragments go in the user root. `stacks create stack my-api` 
 5. One section per entry: the stack's guidance, then each fragment's.
 6. "Definition of done": the verify steps and manual QA. After green asks the agent to check the docs, review its diff and rerun `stacks verify --all`, then commit and summarize. With Claude targeted and `claude-harness-docs` composed, it uses the `reviewer` agent; otherwise it reviews its own diff against `AGENTS.md` and the project's guidance.
 
-Briefs are long, often 4,000 words or more, and that's deliberate. The agent reads the whole thing once, and everything it needs is in one place. `validate` holds them to a budget (6,000 words, 9,000 with an app) so they stay readable.
+Briefs are long, often 4,000 words or more, and that's deliberate. The agent reads the whole thing once, and everything it needs is in one place. `validate` holds them to a budget (6,000 words, 7,500 for a workspace, 9,000 with an app) so they stay readable.
 
 ## The project after `new`
 

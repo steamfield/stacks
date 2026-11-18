@@ -15,7 +15,8 @@ import type { Finding } from "../../../schemas/validate";
 import { targetAgents } from "../../compose/agents";
 import { compose } from "../../compose/compose";
 import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "../../compose/files";
-import type { ComposeOptions, Composition } from "../../compose/types";
+import { placedPath } from "../../compose/mount";
+import type { ComposeOptions, Composition, MountedEntry } from "../../compose/types";
 import { defined } from "../../object";
 import { type Entry, isFragment, isStack, shippedOnlyFor, shipsFor } from "../../registry/entry";
 import { Registry } from "../../registry/registry";
@@ -257,7 +258,7 @@ function recordTemplateFailure(
 
 type SourceQuery = {
   needle?: string;
-  matches?: (source: Source) => boolean;
+  matches?: (source: Source, entry: MountedEntry) => boolean;
 };
 
 /**
@@ -276,8 +277,8 @@ export function sourceOf(
 ) {
   const planned = snapshot.composition.files.find((planned) => planned.path === file.path);
   const contributors = contributingSources(view, snapshot, file);
-  const matching = contributors.filter(({ file }) =>
-    matches ? matches(file) : needleIndex(file, needle) >= 0,
+  const matching = contributors.filter(({ entry, file }) =>
+    matches ? matches(file, entry) : needleIndex(file, needle) >= 0,
   );
   const found =
     matching.find(({ entry }) => isValidated(view, entry)) ??
@@ -292,17 +293,27 @@ export function sourceOf(
   };
 }
 
-/** Every source that rendered into the file: one per owner, merged JSON having several. */
-function contributingSources(view: View, snapshot: Composed, file: RenderedFile) {
+/**
+ * Every source that rendered into the file: one per owner, merged JSON having several. A mounted
+ * entry (a part, or a fragment placed on one) contributes through its placed path, and its
+ * overlays are the ones for its part's stack.
+ */
+export function contributingSources(
+  view: View,
+  snapshot: Composed,
+  file: RenderedFile,
+): Array<{ entry: MountedEntry; file: Source }> {
   const { composition } = snapshot;
   const owners = file.owner.split("+");
-  return [composition.stack, ...composition.fragments].flatMap((entry) => {
+  const parts = (composition.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : []));
+  return [composition.stack, ...parts, ...composition.fragments].flatMap((entry: MountedEntry) => {
     if (!owners.includes(`${entry.kind}:${entry.id}`)) return [];
+    const stack = entry.mount?.stack ?? composition.stack.id;
     return (view.sources.get(entry.dir)?.files ?? [])
       .filter(
         (source) =>
-          source.path.replace(/\.tmpl$/, "") === file.path &&
-          selectedSource(source.source, composition.agents, composition.stack.id),
+          placedPath(source.path.replace(/\.tmpl$/, ""), entry.mount) === file.path &&
+          selectedSource(source.source, composition.agents, stack),
       )
       .map((file) => ({ entry, file }));
   });

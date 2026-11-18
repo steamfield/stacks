@@ -15,6 +15,7 @@ import { remoteCli, remoteServer } from "./helpers/remote-index";
 import { put } from "./helpers/search-metadata";
 import { fragment, showReport, stack } from "./helpers/show-preview";
 import { workspace } from "./helpers/verify";
+import { workspaceRegistry } from "./helpers/workspace";
 
 const space = workspace();
 afterEach(() => space.release());
@@ -98,6 +99,32 @@ test("a stack still shows when its optional fragments or their requirements are 
       included: [{ role: "cli", name: "cobra", stack: true, fragments: [] }],
       optional: [{ fragment: "kept", deps: [kept] }],
     },
+  });
+});
+
+test("a workspace's rollup holds its parts' dependencies and every placed fragment's role prefixed, as new composes them", async () => {
+  const home = realpathSync(space.dir());
+  const run = await runCli(["show", "pair", "--json"], {
+    home,
+    env: quiet,
+    host: { registry: workspaceRegistry },
+  });
+  const report = await showReport(run);
+  // The workspace's own deps stay its own; the parts count as the stack it brings.
+  expect(report.deps).toEqual({});
+  expect(report.dependencyRollup).toEqual({
+    included: [
+      { role: "backend-dev", name: "tsx", stack: true, fragments: [] },
+      { role: "backend-runtime", name: "hono", stack: true, fragments: [] },
+      { role: "frontend-dev", name: "vitest", stack: true, fragments: [] },
+    ],
+    // db is optional and placed on backend, so its `backend` role is the part's `backend-backend`.
+    optional: [
+      {
+        fragment: "db",
+        deps: [{ role: "backend-backend", name: "pg", stack: false, fragments: ["db"] }],
+      },
+    ],
   });
 });
 

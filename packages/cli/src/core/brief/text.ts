@@ -168,10 +168,12 @@ export const sections = {
     `## Part: ${name} (${code(id)}) in ${code(`${dir}/`)}`,
   /**
    * Entry prose is carried, never rewritten, so this line tells the reader where a mounted body's
-   * root is. `harness` is `sessionRootNames` for the target agents, written at the project root.
+   * root is. `named` sorts the `PART_NAMED_FILES` the composition writes into the part's copies
+   * and the root's only ones. `harness` is `sessionRootNames` for the target agents, written at
+   * the project root.
    */
-  partLine: (dir: string, harness: ReadonlyArray<string>) =>
-    `This part lives in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines. \`README.md\`, \`.env.example\`, \`AGENTS.md\` and \`CLAUDE.md\` named here are this part's copies in ${code(`${dir}/`)}, not the root's.${harnessRoot(harness)}`,
+  partLine: (dir: string, named: PartNamedFiles, harness: ReadonlyArray<string>) =>
+    `This part lives in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there. The workspace's Setup sets the order of setup and replaces this section's own setup and verify lines.${partCopies(dir, named.part)}${rootCopies(dir, named.root)}${harnessRoot(harness)}`,
   link: (name: string, id: string) => `## Link: ${name} (${code(id)})`,
   /** A link body is written in roles; this line names each role's directory for this project. */
   linkLine: (api: string, client: string, harness: ReadonlyArray<string>) =>
@@ -180,13 +182,37 @@ export const sections = {
     `This fragment is placed on the part in ${code(`${dir}/`)}. Paths and commands in this section are relative to ${code(`${dir}/`)} and run there.${harnessRoot(harness)}`,
 };
 
+/** Project files a part's prose commonly names, which a workspace may write in the part, at the root or both. */
+export const PART_NAMED_FILES = ["README.md", ".env.example", "AGENTS.md", "CLAUDE.md"] as const;
+/** Of `PART_NAMED_FILES`, those written in the part's directory and those written only at the root. */
+export type PartNamedFiles = {
+  readonly part: ReadonlyArray<string>;
+  readonly root: ReadonlyArray<string>;
+};
+
+/** `a`, `a and b`, `a, b and c`, each as inline code. */
+function codeList(items: ReadonlyArray<string>): string {
+  const named = items.map(code);
+  const last = named.pop();
+  return named.length ? `${named.join(", ")} and ${last}` : `${last}`;
+}
+
+function partCopies(dir: string, names: ReadonlyArray<string>): string {
+  if (!names.length) return "";
+  const verb = names.length === 1 ? "is this part's copy" : "are this part's copies";
+  return ` ${codeList(names)} named here ${verb} in ${code(`${dir}/`)}, not the root's.`;
+}
+
+function rootCopies(dir: string, names: ReadonlyArray<string>): string {
+  if (!names.length) return "";
+  const verb = names.length === 1 ? "is" : "are";
+  return ` ${codeList(names)} named here ${verb} the project root's; no copy is written in ${code(`${dir}/`)}.`;
+}
+
 /** The clause ending a mounted section's line: the agent harness paths stay at the project root. */
 function harnessRoot(paths: ReadonlyArray<string>): string {
   if (!paths.length) return "";
-  const named = paths.map(code);
-  const last = named.pop();
-  const list = named.length ? `${named.join(", ")} and ${last}` : `${last}`;
-  return ` The agent harness paths ${list} are at the project root, not in a part.`;
+  return ` The agent harness paths ${codeList(paths)} are at the project root, not in a part.`;
 }
 
 export const done = {

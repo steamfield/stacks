@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
-import { type Finding, ValidateReport } from "../src/schemas/validate";
+import { BriefPreview, type Finding, ValidateReport } from "../src/schemas/validate";
 import { quiet, runCli, tempDir } from "./helpers/cli";
 import { emptyRegistry, minimal, writeEntry } from "./helpers/registry";
 import { workspaceRegistry, workspaceVariant } from "./helpers/workspace";
@@ -461,6 +461,66 @@ describe("verify steps of the parts", () => {
   });
 });
 
+describe("permission rules a part ships into the hoisted .claude/settings.json", () => {
+  const API_SETTINGS = "stacks/api-part/adapters/claude/.claude/settings.json";
+  const PAIR_SETTINGS = "stacks/pair/adapters/claude/.claude/settings.json";
+  /** Gives api-part's settings these allow rules. */
+  const allowInApi = (root: string, rules: ReadonlyArray<string>) =>
+    replace(
+      root,
+      API_SETTINGS,
+      "{\n",
+      `{\n  "permissions": { "allow": ${JSON.stringify(rules)} },\n`,
+    );
+  const undeclared = (entry: string, file: string, target: string) =>
+    `error ref-command ${entry} ${file}: .claude/settings.json: allow rule runs ${target}, which no composed entry declares in commands or inline code`;
+
+  test("resolve against the part's own commands, which the workspace table holds prefixed", async () => {
+    const root = variant((root) =>
+      allowInApi(root, ["Bash(bun run lint)", "Bash(bun run test *)"]),
+    );
+    expect(await added(root)).toEqual([]);
+  });
+
+  test("a rule the part doesn't declare is reported on the part that shipped it", async () => {
+    // `check` is the workspace's own command; in backend/ `bun run check` needs backend-check.
+    const root = variant((root) => allowInApi(root, ["Bash(bun run nope)", "Bash(bun run check)"]));
+    expect(await added(root)).toEqual([
+      undeclared("stack/api-part", API_SETTINGS, "check"),
+      undeclared("stack/api-part", API_SETTINGS, "nope"),
+    ]);
+  });
+
+  test("a workspace's own rule still resolves against the workspace's commands, not a part's", async () => {
+    const root = variant((root) =>
+      replace(root, PAIR_SETTINGS, '"Bash(make check)"', '"Bash(make check)", "Bash(make lint)"'),
+    );
+    expect(await added(root)).toEqual([undeclared("stack/pair", PAIR_SETTINGS, "lint")]);
+  });
+
+  /** The ref-command findings of `validate [args] --json` over a variant whose part declares its rules. */
+  async function refCommands(args: (root: string) => string[]) {
+    const root = variant((root) => allowInApi(root, ["Bash(bun run lint)"]));
+    const home = tempDir();
+    cleanups.push(home.cleanup);
+    const result = await runCli(["validate", ...args(root), "--json"], {
+      home: home.path,
+      env: quiet,
+      host: { registry: emptyRegistry },
+    });
+    const findings: ReadonlyArray<Finding> = JSON.parse(result.stdout).findings;
+    return findings.filter((finding) => finding.check === "ref-command").map(line);
+  }
+
+  test("resolve the same way when only the workspace is validated", async () => {
+    expect(await refCommands((root) => [join(root, "stacks", "pair")])).toEqual([]);
+  });
+
+  test("resolve the same way in the workspace's brief preview", async () => {
+    expect(await refCommands((root) => [root, "--brief", "pair"])).toEqual([]);
+  });
+});
+
 test("compose-each composes a part-scoped fragment onto the workspace that doesn't list it", async () => {
   // db fits pair only through its api part, and its MODE clashes with the workspace's own, so
   // the clash exists only on pair.
@@ -480,4 +540,43 @@ test("compose-each composes a part-scoped fragment onto the workspace that doesn
   ).toEqual([
     `error compose-each fragment/db ${DB}: db with pair: can't compose (env): pair, db; MODE`,
   ]);
+});
+
+describe("the composed-brief budget of a workspace", () => {
+  /** `validate --brief <stack> [args] --json` over `root`: the preview's word limit. */
+  async function limit(root: string, stack: string, args: string[] = []) {
+    const home = tempDir();
+    cleanups.push(home.cleanup);
+    const result = await runCli(["validate", root, "--brief", stack, ...args, "--json"], {
+      home: home.path,
+      env: quiet,
+      host: { registry: emptyRegistry },
+    });
+    // The fixture has unrelated errors, so the preview is a kept result before one envelope.
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(JSON.parse(result.stderr).error.tag).toBe("ValidationFailed");
+    return Schema.decodeUnknownSync(BriefPreview)(JSON.parse(result.stdout)).limit;
+  }
+
+  test("is the workspace limit, while a single stack keeps the plain one", async () => {
+    expect(await limit(workspaceRegistry, "pair")).toBe(7_500);
+    expect(await limit(workspaceRegistry, "api-part")).toBe(6_000);
+  });
+
+  test("with an app it takes the larger app limit", async () => {
+    const root = variant((root) =>
+      writeEntry({
+        root,
+        kind: "fragment",
+        dir: "big",
+        frontmatter: minimal("fragment", "big", "applies_to: [pair]").replace(
+          "category: tooling",
+          "category: app",
+        ),
+        body: "# Guidance\n",
+      }),
+    );
+    expect(await limit(root, "pair", ["--with", "big"])).toBe(9_000);
+  });
 });

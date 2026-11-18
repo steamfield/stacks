@@ -11,8 +11,8 @@ parts:
 tools: [uv, bun, node, make, git, curl]
 fragments:
   required: [openapi-client, claude-harness]
-  default: [agent-ops, ci-github]
-  optional: [git-hooks, postgres, rest-api, claude-harness-docs, code-docs, rr, ce-plugin]
+  default: [agent-ops, ci-github, git-hooks]
+  optional: [postgres, rest-api, claude-harness-docs, code-docs, rr, ce-plugin]
 verify:
   - { name: api-copy, layer: check, run: make check-api-copy }
   - { name: both-parts, layer: test, run: make check-pair }

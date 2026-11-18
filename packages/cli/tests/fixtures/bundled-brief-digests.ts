@@ -43,7 +43,9 @@
  * on fresh lean and default scaffolds); it awaits a bench run.
  * python-react changed again on 2026-11-18 when it became a workspace of python-api and
  * react-vite (proven on fresh default and lean scaffolds), and astro-blog changed that day when
- * posthog's Testing line dropped python-react; both await a bench run.
+ * posthog's Testing line dropped python-react; both await a bench run. python-react changed
+ * once more that day when its part lines named README, env, AGENTS and CLAUDE files by where
+ * they are written and git-hooks returned to its default tier; it awaits a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
@@ -54,6 +56,6 @@ export const briefDigests: Readonly<Record<string, string>> = {
   "astro-blog:sandbox": "sha256:5269bc807db7b9730fce06969eaf4c2f42eba42133f2cb87878bd41a9d550c1f",
   "go-cli:default": "sha256:22cd22095f8f6bed17e090418d6db10f06f97d810a3ab88df2eacfb308cd7f37",
   "go-cli:sandbox": "sha256:512ca98d1ce43a7debada6a38962cc23af0f7f170455c88e7204f9dc6c1a7742",
-  "python-react:default": "sha256:5c2489e3ea62341ae91f891101f59031d5602671133ebbbe0b1da635e51952fc",
-  "python-react:sandbox": "sha256:e1226a89b35eb913cfe3ccebcc2bf644c920f0741ad8f3b3146d263612b4be1e",
+  "python-react:default": "sha256:eda3ab2865a3a9612c4a23dfe51e3cb5b75e21e494b52aa2efbc80ed818d668d",
+  "python-react:sandbox": "sha256:418a12b57374684535c0c454023a9f017bf1b0af1dbeee11697a02abb76d0602",
 };

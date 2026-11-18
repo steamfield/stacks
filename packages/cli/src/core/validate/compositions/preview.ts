@@ -103,13 +103,16 @@ const previewView = (
       selected.some((entry) => entry.kind === item.kind && entry.id === item.id);
     // Keep original bodies, including every conditional branch, for the entry checks.
     const entries = all.filter((entry): entry is Entry => !isRejected(entry) && wanted(entry));
+    // The parts' sources too, so a hoisted file's lines are traced to the part that shipped them;
+    // the parts themselves aren't previewed entries.
+    const parts = (composition.parts ?? []).flatMap((part) => (part.entry ? [part.entry] : []));
     const sourceView: Omit<View, "composed"> = {
       root: target.root,
       asBundled: target.asBundled,
       entries,
       rejected: [],
       all,
-      sources: yield* readSources(entries),
+      sources: yield* readSources([...entries, ...parts]),
       wanted,
       ...rootPaths(path, target.root),
       composition: { ...composition, options },

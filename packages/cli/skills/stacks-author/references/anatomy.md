@@ -131,7 +131,7 @@ Markdown after the frontmatter, copied into the brief under the entry's name. Us
 
 A shipped config needs words only where an agent adapting it to a new release would drop a rule; say which rules to keep.
 
-Spend words on what an agent would get wrong, not on what it does anyway. Budgets: a stack body under 2,000 words, a fragment under 1,000, an app under 3,000, and the composed brief under 6,000 (9,000 with an app). Move reference material into a shipped doc in `files/docs/` and link it from the body.
+Spend words on what an agent would get wrong, not on what it does anyway. Budgets: a stack body under 2,000 words, a fragment under 1,000, an app under 3,000, and the composed brief under 6,000 (9,000 with an app). A workspace's composed brief may reach 7,500 words, and the workspace body itself still aims for about 400. Move reference material into a shipped doc in `files/docs/` and link it from the body.
 
 ### Conditional prose
 

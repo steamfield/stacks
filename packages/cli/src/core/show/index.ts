@@ -7,11 +7,9 @@ import {
   type AgentId,
   type DependencyCard,
   type DependencyRollup,
-  type FragmentMeta,
   type Kind,
   outputPath,
   shippedPath,
-  stackDependencies,
 } from "@steamfield/stacks-format";
 import { Effect, Option, Result } from "effect";
 import { AppConfig } from "../../config";
@@ -22,12 +20,11 @@ import { Output } from "../../services/output";
 import { countWords } from "../brief/words";
 import { targetAgents } from "../compose/agents";
 import { fitsStack } from "../compose/selection";
-import type { Composition } from "../compose/types";
 import { goAllowlistKey } from "../deps/index";
 import { readLedger } from "../ledger";
 import { toRow } from "../list/index";
 import { defined } from "../object";
-import { type CatalogEntry, type Entry, isFragment } from "../registry/entry";
+import { type CatalogEntry, type Entry, type Fragment, isFragment } from "../registry/entry";
 import { Registry } from "../registry/registry";
 import { type RegistryRoots, remoteRoots } from "../registry/roots";
 import { searchSourceDigest } from "../search/digest";
@@ -35,6 +32,7 @@ import { decodeDependencyCards, decodeSidecar } from "../search/sidecar";
 import { Stats } from "../stats/index";
 import { closest } from "../text/suggest";
 import { BUDGET, bodyLimit, canonicalBrief, composedLimit } from "../validate/compositions/budget";
+import { entryDependencyRollup } from "./dependencies";
 import { composeNew, reportLastRun } from "./last-run";
 
 /**
@@ -90,7 +88,7 @@ const reviewEntry = Effect.fn("show.review")(function* (request: {
     ...new Set(files.flatMap((file) => (file.payload ? [file.payload] : []))),
   ].sort();
   const composition = yield* defaultComposition(entry, agents);
-  const dependencyRollup = entryDependencyRollup(entry, fragments, composition);
+  const dependencyRollup = yield* entryDependencyRollup(entry, fragments, composition);
   const copy = yield* entryCopy(entry, registry, dependencyRollup);
   const lastRun = yield* reportLastRun({ entry, indexRun: row.lastRun, records, registry });
   const selection = yield* selectionMetadata(entry, catalog, registry);
@@ -156,7 +154,7 @@ const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
   entry: Entry,
   registry: Registry["Service"],
 ) {
-  const resolved: FragmentMeta[] = [];
+  const resolved: Fragment[] = [];
   if (entry.meta.kind !== "stack") return resolved;
   const { fragments } = entry.meta;
   // Grows as each fragment's `requires` are found, so the loop walks the whole closure.
@@ -172,7 +170,7 @@ const dependencyFragments = Effect.fn("show.dependencyFragments")(function* (
       continue;
     }
     if (!isFragment(loaded.success)) continue;
-    resolved.push(loaded.success.meta);
+    resolved.push(loaded.success);
     pending.push(...loaded.success.meta.requires);
   }
   return resolved;
@@ -198,20 +196,6 @@ const defaultComposition = (entry: Entry, agents: ReadonlyArray<AgentId>) =>
   entry.kind === "stack"
     ? composeNew({ stack: entry.id, with: [], preset: "default", agents })
     : Effect.succeed(null);
-
-/** Every dependency a stack brings, its own and its fragments'; `undefined` for a fragment. */
-function entryDependencyRollup(
-  entry: Entry,
-  fragments: ReadonlyArray<FragmentMeta>,
-  composition: Composition | null,
-) {
-  if (entry.meta.kind !== "stack") return undefined;
-  // Composition already selects pinned snapshots and applies project/user overrides.
-  const included = composition?.fragments.flatMap((fragment) =>
-    fragment.meta.kind === "fragment" ? [fragment.meta] : [],
-  );
-  return stackDependencies(entry.meta, [...fragments, ...(included ?? [])]);
-}
 
 /** The optional people-facing copy: the sidecar's `plain` text and the dependency cards. */
 const entryCopy = Effect.fn("show.copy")(function* (

@@ -68,6 +68,7 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
       parts: composition.parts,
       base: brief.base,
       harness: sessionRootNames(composition.agents),
+      written: new Set(composition.files.map((file) => file.path)),
     });
   else
     for (const fragment of brief.base)
@@ -213,10 +214,12 @@ function writeWorkspaceSections(
     parts,
     base,
     harness,
+    written,
   }: {
     parts: ReadonlyArray<ComposedPart>;
     base: ReadonlyArray<MountedEntry>;
     harness: ReadonlyArray<string>;
+    written: ReadonlySet<string>;
   },
 ): void {
   for (const { mount, entry } of parts)
@@ -225,7 +228,7 @@ function writeWorkspaceSections(
         out,
         T.sections.part(oneLine(entry.meta.name), entry.id, mount.name),
         entry,
-        T.sections.partLine(mount.name, harness),
+        T.sections.partLine(mount.name, partNamedFiles(written, mount.name), harness),
       );
   // Compose refuses a workspace without exactly one api part (`part_roles`), so `api` is set.
   const api = parts.find((part) => !isClientRole(part.mount.role))?.mount.name;
@@ -245,6 +248,18 @@ function writeWorkspaceSections(
       fragment,
       fragment.mount && T.sections.placed(fragment.mount.name, harness),
     );
+}
+
+/**
+ * Which of `PART_NAMED_FILES` the composition writes in the part's directory, and which only at
+ * the project root; a name written in neither is in neither list.
+ */
+function partNamedFiles(written: ReadonlySet<string>, dir: string): T.PartNamedFiles {
+  const part = T.PART_NAMED_FILES.filter((name) => written.has(`${dir}/${name}`));
+  const root = T.PART_NAMED_FILES.filter(
+    (name) => !written.has(`${dir}/${name}`) && written.has(name),
+  );
+  return { part, root };
 }
 
 /** A link: a `link` fragment placed on a client part, which connects it to the api part. */

@@ -88,6 +88,9 @@ export const NewResult = Schema.Struct({
   dryRun: Schema.Boolean,
   fingerprint: Schema.String,
   stack: Schema.String,
+  parts: Schema.optionalKey(
+    Schema.Array(Schema.Struct({ name: Schema.String, role: Schema.String, stack: Schema.String })),
+  ),
   fragments: Schema.Array(Schema.String),
   preset: Schema.Literals(["default", "sandbox", "lean"]),
   payload: Schema.Literals(["example", "none"]),

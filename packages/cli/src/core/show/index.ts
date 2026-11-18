@@ -294,7 +294,11 @@ function selectionMetadata(
   registry: Registry["Service"],
 ) {
   const { meta } = entry;
-  if (meta.kind === "stack") return Effect.succeed({ fragments: meta.fragments });
+  if (meta.kind === "stack")
+    return Effect.succeed({
+      fragments: meta.fragments,
+      parts: meta.parts?.map(({ name, role, stack }) => ({ name, role, stack })),
+    });
   return Effect.gen(function* () {
     const stacks = catalog
       .filter((candidate) => candidate.kind === "stack" && !candidate.rejected)

@@ -1,0 +1,1454 @@
+diff --git a/packages/cli/scripts/build-index.ts b/packages/cli/scripts/build-index.ts
+index 5286804d..c08ce46c 100644
+--- a/packages/cli/scripts/build-index.ts
++++ b/packages/cli/scripts/build-index.ts
+@@ -32,7 +32,12 @@ const packageRoot = fileURLToPath(new URL("..", import.meta.url));
+ 
+ const validateRegistry = Effect.fn("index.validateRegistry")(function* () {
+   const report = yield* validate({ root, bundled: true });
+-  const failures = report.findings.filter((finding) => finding.severity !== "note");
++  // SPIKE 3: the spike entries have no search cards; let them through on request.
++  const skipped = (finding: { check: string }) =>
++    process.env.SPIKE_ALLOW_SEARCH_MISSING === "1" && finding.check.startsWith("search-");
++  const failures = report.findings.filter(
++    (finding) => finding.severity !== "note" && !skipped(finding),
++  );
+   if (failures.length > 0)
+     return yield* Effect.fail(
+       new Error(
+diff --git a/packages/cli/scripts/index/directory-added.ts b/packages/cli/scripts/index/directory-added.ts
+index a4d6fe5e..78cc3275 100644
+--- a/packages/cli/scripts/index/directory-added.ts
++++ b/packages/cli/scripts/index/directory-added.ts
+@@ -23,6 +23,11 @@ export const addedEntries = Effect.fn("index.addedEntries")(function* (options:
+       path.join(options.root, `${entry.kind}s`, entry.id, markdownFile(entry.kind)),
+     );
+     const first = yield* firstAddition(checkout, file);
++    // SPIKE 3: the spike entries are uncommitted on a branch that never commits.
++    if (first === undefined && process.env.SPIKE_ALLOW_SEARCH_MISSING === "1") {
++      rows.push({ id: entry.id, kind: entry.kind, addedAt: "2026-11-18T00:00:00Z" });
++      continue;
++    }
+     if (first === undefined)
+       return yield* Effect.fail(
+         new Error(`${entry.kind}/${entry.id}: added dates need a committed definition file.`),
+diff --git a/packages/cli/scripts/index/proof.ts b/packages/cli/scripts/index/proof.ts
+index 4aef6349..38baa317 100644
+--- a/packages/cli/scripts/index/proof.ts
++++ b/packages/cli/scripts/index/proof.ts
+@@ -80,6 +80,17 @@ function fragmentDigests(fragments: Composition["fragments"], raw: Raw) {
+   return composition;
+ }
+ 
++/** SPIKE 3: each part's stack id to its bundle digest; absent for a stack with no parts. */
++function partPins(composition: Composition, raw: Raw): { parts?: Record<string, string> } {
++  if (!composition.parts) return {};
++  const parts: Record<string, string> = {};
++  for (const part of composition.parts) {
++    const value = raw.get(`stack/${part.id}`);
++    if (value !== undefined) parts[part.id] = value.metadata.digest;
++  }
++  return { parts };
++}
++
+ function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): IndexEntry | null {
+   const own = proven.filter(({ record }) => record.stack === stack.id && record.with.length === 0);
+   // An agent run is preferred: it measures minutesToGreen. A scaffold run proves the same content.
+@@ -94,6 +105,7 @@ function stackEntry(stack: Entry, proven: ReadonlyArray<Proven>, raw: Raw): Inde
+   return {
+     ...value.metadata,
+     composition: fragmentDigests(proof.composition.fragments, raw),
++    ...partPins(proof.composition, raw),
+     lastRun: {
+       date: record.date,
+       result: "pass",
+@@ -117,7 +129,11 @@ const unprovenStack = Effect.fn("index.unprovenStack")(function* (stack: Entry,
+     always: [],
+     mode: "new",
+   });
+-  return { ...value.metadata, composition: fragmentDigests(composition.fragments, raw) };
++  return {
++    ...value.metadata,
++    composition: fragmentDigests(composition.fragments, raw),
++    ...partPins(composition, raw),
++  };
+ });
+ 
+ function addFragments(ids: ReadonlyArray<string>, raw: Raw, published: Map<string, IndexEntry>) {
+@@ -140,6 +156,12 @@ const publicationEntries = Effect.fn("index.publicationEntries")(function* (
+     if (metadata === null) continue;
+     published.set(`stack/${stack.id}`, metadata);
+     addFragments(Object.keys(metadata.composition ?? {}), raw, published);
++    // SPIKE 3: a pinned part's bundle must be served even when the part has no proof of its own.
++    for (const id of Object.keys(metadata.parts ?? {})) {
++      const part = raw.get(`stack/${id}`);
++      if (part !== undefined && !published.has(`stack/${id}`))
++        published.set(`stack/${id}`, { ...part.metadata });
++    }
+   }
+   for (const proof of proven.filter(({ record }) => record.with.length > 0))
+     addFragments(
+diff --git a/packages/cli/src/core/brief/render.ts b/packages/cli/src/core/brief/render.ts
+index 18f1917a..b3b3198f 100644
+--- a/packages/cli/src/core/brief/render.ts
++++ b/packages/cli/src/core/brief/render.ts
+@@ -84,8 +84,10 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
+   writeDecisions(out, composition.decisions, context.yes);
+   writeDependencies(out, composition, context);
+   writeGuidance(out, T.sections.stack(oneLine(stack.meta.name), stack.id), stack);
+-  for (const fragment of brief.base)
+-    writeGuidance(out, T.sections.fragment(oneLine(fragment.meta.name), fragment.id), fragment);
++  if (composition.parts) writeWorkspaceGuidance(out, brief, composition.parts);
++  else
++    for (const fragment of brief.base)
++      writeGuidance(out, T.sections.fragment(oneLine(fragment.meta.name), fragment.id), fragment);
+   writeDefinitionOfDone(out, brief);
+   writeApplication(out, brief);
+   writeAfterGreen(out, brief);
+@@ -141,6 +143,9 @@ function writeFacts(out: BriefWriter, brief: NewBrief): void {
+   const { composition, context, stack, app, cli } = brief;
+   out.fixed(
+     T.facts.stack(oneLine(stack.meta.name), stack.id),
++    ...(composition.parts ?? []).map((part) =>
++      T.facts.part(part.mount?.name ?? "", part.mount?.role ?? "", part.id),
++    ),
+     T.facts.project(slug(context.project), envPrefix(slug(context.project))),
+     T.facts.fragments(brief.base.map((fragment) => fragment.id)),
+     ...(app ? [T.facts.app(oneLine(app.meta.name), app.id)] : []),
+@@ -201,12 +206,57 @@ function writeDependencies(
+ }
+ 
+ /** One entry's section: its heading, then its body with headings nested beneath it. */
+-function writeGuidance(out: BriefWriter, heading: string, entry: Entry): void {
++function writeGuidance(out: BriefWriter, heading: string, entry: Entry, line?: string): void {
+   out.gap();
+   out.fixed(heading);
++  if (line) out.fixed("", line);
+   out.data(...bodyLines(entry));
+ }
+ 
++/**
++ * SPIKE 3: the workspace order after the stack's own section: each part with its fixed line, then
++ * each link (a required fragment placed on a client part), then every other fragment.
++ */
++function writeWorkspaceGuidance(
++  out: BriefWriter,
++  brief: NewBrief,
++  parts: ReadonlyArray<Entry>,
++): void {
++  const required = brief.stack.meta.kind === "stack" ? brief.stack.meta.fragments.required : [];
++  const api = parts.find((part) => part.mount?.role === "api")?.mount?.name ?? "";
++  for (const part of parts) {
++    const mount = part.mount;
++    if (!mount) continue;
++    writeGuidance(
++      out,
++      T.sections.part(mount.name, part.id, mount.role),
++      part,
++      T.sections.partLine(mount.name),
++    );
++  }
++  const isLink = (fragment: Entry) =>
++    fragment.mount !== undefined &&
++    fragment.mount.role !== "api" &&
++    required.includes(fragment.id) &&
++    // Without this, a restated part requirement (claude-harness) also reads as a link.
++    fragment.meta.kind === "fragment" &&
++    fragment.meta.category === "tooling";
++  for (const fragment of brief.base.filter(isLink))
++    writeGuidance(
++      out,
++      T.sections.link(oneLine(fragment.meta.name), fragment.id),
++      fragment,
++      T.sections.linkLine(api, fragment.mount?.name ?? ""),
++    );
++  for (const fragment of brief.base.filter((fragment) => !isLink(fragment)))
++    writeGuidance(
++      out,
++      T.sections.fragment(oneLine(fragment.meta.name), fragment.id),
++      fragment,
++      fragment.mount ? T.sections.placed(fragment.mount.name) : undefined,
++    );
++}
++
+ /** An entry body nested under its section, trimmed of blank lines, after a blank line. */
+ function bodyLines(entry: Entry): string[] {
+   const body = nest(entry.body).replace(/^\n+|\n+$/g, "");
+diff --git a/packages/cli/src/core/brief/text.ts b/packages/cli/src/core/brief/text.ts
+index 726d5ccc..dab0cea5 100644
+--- a/packages/cli/src/core/brief/text.ts
++++ b/packages/cli/src/core/brief/text.ts
+@@ -47,6 +47,9 @@ export const start = {
+ 
+ export const facts = {
+   stack: (name: string, id: string) => `- Stack: ${name} (${code(id)})`,
++  /** SPIKE 3. */
++  part: (name: string, role: string, stack: string) =>
++    `- Part: ${code(`${name}/`)}, role ${role}, stack ${code(stack)}`,
+   project: (slug: string, prefix: string) =>
+     `- Project slug: ${code(slug)}; env prefix: ${code(prefix)}`,
+   fragments: (ids: ReadonlyArray<string>) =>
+@@ -169,6 +172,16 @@ export const installHint = (tool: string) => {
+ export const sections = {
+   stack: (name: string, id: string) => `## Stack: ${name} (${code(id)})`,
+   fragment: (name: string, id: string) => `## Fragment: ${name} (${code(id)})`,
++  /** SPIKE 3: a mounted part's section and its fixed opening line. */
++  part: (name: string, stack: string, role: string) =>
++    `## Part ${code(`${name}/`)}: ${stack} (${role})`,
++  partLine: (name: string) =>
++    `This part lives in ${code(`${name}/`)}. Paths and commands in this section are relative to ${code(`${name}/`)} and run there. Its own setup and "run verify" lines are covered by the workspace's Setup above; README.md and .env.example here are the part's copies, not the root's.`,
++  link: (name: string, id: string) => `## Link: ${name} (${code(id)})`,
++  linkLine: (api: string, client: string) =>
++    `In this section the API part is ${code(`${api}/`)} and the client part is ${code(`${client}/`)}. Paths and commands are relative to the client part.`,
++  placed: (name: string) =>
++    `This fragment is placed on the part in ${code(`${name}/`)}. Paths and commands in this section are relative to ${code(`${name}/`)} and run there.`,
+ };
+ 
+ export const done = {
+diff --git a/packages/cli/src/core/compose/compose.ts b/packages/cli/src/core/compose/compose.ts
+index bbf155b3..aa15221e 100644
+--- a/packages/cli/src/core/compose/compose.ts
++++ b/packages/cli/src/core/compose/compose.ts
+@@ -40,6 +40,7 @@ import {
+ import { Registry } from "../registry/registry";
+ import { type ConditionContext, resolveConditionals } from "./conditionals";
+ import { conflict, parties } from "./conflicts";
++import { contextFor, mountParts, mountStep, placeFragment } from "./mount";
+ import { planFiles } from "./plan-files";
+ import { selectFragments } from "./selection";
+ import type {
+@@ -70,10 +71,11 @@ export function compose(
+ ): Effect.Effect<Composition<Entry | null>, ComposeError, Registry> {
+   return Effect.gen(function* () {
+     const registry = yield* Registry;
+-    const { stack, ordered, via, warnings, existing, appliedEntries } = yield* selectFragments(
+-      registry,
+-      options,
+-    );
++    const selected = yield* selectFragments(registry, options);
++    const { stack, via, warnings, existing, appliedEntries } = selected;
++    // SPIKE 3: mount the parts and place each fragment before anything reads them.
++    const parts = mountParts(stack, selected.parts);
++    const ordered = selected.ordered.map((fragment) => placeFragment(fragment, stack, parts));
+     const payload = options.payload ?? DEFAULT_PAYLOAD;
+     yield* checkPayload(registry, stack, payload);
+     const context = conditionContext(options, {
+@@ -81,17 +83,19 @@ export function compose(
+       payload,
+       ids: [...existing, ...ordered.map((fragment) => fragment.id)],
+     });
+-    const resolve = resolver(registry, context);
++    const resolve = <E extends Entry>(entry: E) =>
++      resolver(registry, contextFor(entry, context, ordered, parts))(entry);
+     const resolvedStack = stack ? yield* resolve(stack) : null;
++    const resolvedParts = yield* Effect.forEach(parts, resolve);
+     const fragments = yield* Effect.forEach(ordered, resolve);
+     // In add mode the project already has the stack, so only the new fragments emit anything.
+     const entries: ReadonlyArray<Entry> = [
+-      ...(options.mode === "new" && resolvedStack ? [resolvedStack] : []),
++      ...(options.mode === "new" && resolvedStack ? [resolvedStack, ...resolvedParts] : []),
+       ...fragments,
+     ];
+     const addNotes = yield* recipeNotes(registry, context, ordered, {
+       stack,
+-      applied: appliedEntries,
++      applied: [...parts, ...appliedEntries],
+     });
+     const inferred =
+       !stack && options.inferredTags !== undefined ? { inferredTags: options.inferredTags } : {};
+@@ -99,6 +103,7 @@ export function compose(
+ 
+     return {
+       stack: resolvedStack,
++      ...(resolvedParts.length ? { parts: resolvedParts } : {}),
+       fragments,
+       app,
+       addNotes,
+@@ -219,7 +224,7 @@ function steps(entries: ReadonlyArray<Entry>, app: Entry | null, sandbox: boolea
+     const owners = new Map<string, Entry>();
+     const out: ComposedStep[] = [];
+     for (const entry of entries)
+-      for (const step of entry.meta.verify) {
++      for (const step of entry.meta.verify.map((own) => mountStep(own, entry.mount))) {
+         const prior = owners.get(step.name);
+         if (prior !== undefined)
+           return yield* conflict({
+@@ -243,7 +248,15 @@ function steps(entries: ReadonlyArray<Entry>, app: Entry | null, sandbox: boolea
+ 
+ /** `commands` in composition order; a later entry's command replaces an earlier one's. */
+ export function mergeCommands(entries: ReadonlyArray<Entry>): Record<string, string> {
+-  return Object.fromEntries(entries.flatMap((entry) => Object.entries(entry.meta.commands)));
++  // SPIKE 3: a mounted entry's commands are namespaced `<part>-<name>`.
++  return Object.fromEntries(
++    entries.flatMap((entry) =>
++      Object.entries(entry.meta.commands).map(([key, value]) => [
++        entry.mount ? `${entry.mount.name}-${key}` : key,
++        value,
++      ]),
++    ),
++  );
+ }
+ 
+ /** `env` in composition order; two different defaults for one key is a conflict. */
+@@ -297,7 +310,9 @@ function grouped(
+ function mergeDeps(entries: ReadonlyArray<Entry>): Composition["deps"] {
+   const roles = new Map<string, { names: string[]; owners: Entry[] }>();
+   for (const entry of entries)
+-    for (const [role, names] of Object.entries(entry.meta.deps)) {
++    for (const [own, names] of Object.entries(entry.meta.deps)) {
++      // SPIKE 3: a mounted entry's roles are namespaced `<part>-<role>`.
++      const role = entry.mount ? `${entry.mount.name}-${own}` : own;
+       const at = roles.get(role) ?? { names: [], owners: [] };
+       at.names = [...new Set([...at.names, ...names])];
+       if (names.length && !at.owners.includes(entry)) at.owners.push(entry);
+diff --git a/packages/cli/src/core/compose/files.ts b/packages/cli/src/core/compose/files.ts
+index 9d208d34..00510804 100644
+--- a/packages/cli/src/core/compose/files.ts
++++ b/packages/cli/src/core/compose/files.ts
+@@ -66,7 +66,11 @@ const readFiles = (
+ > =>
+   Effect.gen(function* () {
+     const reader = yield* fileReader(registry);
+-    const entries = [...(composition.stack ? [composition.stack] : []), ...composition.fragments];
++    const entries = [
++      ...(composition.stack ? [composition.stack] : []),
++      ...(composition.parts ?? []),
++      ...composition.fragments,
++    ];
+     const files: SourceFile[] = [];
+     for (const planned of composition.files)
+       files.push(yield* readSource(reader, entries, planned));
+diff --git a/packages/cli/src/core/compose/plan-files.ts b/packages/cli/src/core/compose/plan-files.ts
+index 4369ee1b..83c0a42b 100644
+--- a/packages/cli/src/core/compose/plan-files.ts
++++ b/packages/cli/src/core/compose/plan-files.ts
+@@ -22,6 +22,7 @@ import { type Entry, type EntryFile, entryRef, type Payload, shipsFor } from "..
+ import type { Registry } from "../registry/registry";
+ import { conflict, parties } from "./conflicts";
+ import { deepMerge } from "./merge";
++import { mountPath } from "./mount";
+ import type { PlannedFile } from "./types";
+ 
+ /** Code points HFS+ ignores in names (git's `is_hfs_dotgit`): `.git` with one inside opens `.git`. */
+@@ -77,14 +78,16 @@ function fileWriters(
+ const writerFor = (entry: Entry, file: EntryFile, selection: FileSelection) =>
+   Effect.gen(function* () {
+     const { agents, stack, payload } = selection;
+-    if (!shipsFor(file.source, agents, stack, payload)) return undefined;
++    // SPIKE 3: a mounted entry's overlays follow its part's stack id, its paths its part directory.
++    if (!shipsFor(file.source, agents, entry.mount?.stack ?? stack, payload)) return undefined;
+     // A template needs a name before the suffix: a file called just `.tmpl` is copied as is.
+-    const path = outputPath(file.path);
+-    const template = path !== file.path;
++    const own = outputPath(file.path);
++    const template = own !== file.path;
++    const path = mountPath(own, entry.mount);
+     yield* checkPlannedPath(path);
+     if (path.split("/").some(reservedSegment))
+       return yield* conflict({ reason: "reserved_path", ...parties([entry]), path });
+-    if (template && entry.meta.merge.includes(path))
++    if (template && entry.meta.merge.includes(own))
+       return yield* new EntryInvalid({
+         details: {
+           id: entry.id,
+@@ -173,7 +176,10 @@ function planOutput(
+         mode: first.mode,
+       } satisfies PlannedFile;
+     }
+-    if (!writers.every((writer) => writer.entry.meta.merge.includes(path)))
++    // SPIKE 3: `merge` lists paths relative to the entry's own root, so mount them first.
++    const merges = (writer: Writer) =>
++      writer.entry.meta.merge.map((own) => mountPath(own, writer.entry.mount)).includes(path);
++    if (!writers.every(merges))
+       return yield* conflict({
+         reason: "file_owner",
+         ...parties(writers.map((writer) => writer.entry)),
+diff --git a/packages/cli/src/core/compose/selection.ts b/packages/cli/src/core/compose/selection.ts
+index 12837400..f4bd9409 100644
+--- a/packages/cli/src/core/compose/selection.ts
++++ b/packages/cli/src/core/compose/selection.ts
+@@ -60,8 +60,11 @@ export function fitsStack(
+     stack.tags.some((tag) => appliesTo.includes(tag))
+   );
+ }
+-const fits = (fragment: Fragment, stack: Stack) =>
+-  fitsStack(fragment.meta.appliesTo, { id: stack.id, tags: stack.meta.tags });
++/** SPIKE 3: in a workspace, a fragment fits when it fits the workspace or any of its parts. */
++const fits = (fragment: Fragment, stack: Stack, parts: ReadonlyArray<Stack> = []) =>
++  [stack, ...parts].some((host) =>
++    fitsStack(fragment.meta.appliesTo, { id: host.id, tags: host.meta.tags }),
++  );
+ 
+ /** What every lookup needs: the registry, its catalog and the ids that count as fragments. */
+ type Lookup = {
+@@ -78,6 +81,8 @@ type Lookup = {
+ type SelectionRun = Lookup & {
+   readonly options: ComposeOptions<"new" | "add">;
+   readonly stack: Stack | null;
++  /** SPIKE 3: the workspace's part stacks, in `parts` order; empty for any other stack. */
++  readonly parts: ReadonlyArray<Stack>;
+   readonly without: ReadonlySet<string>;
+   /** `--with` ids, deduplicated and sorted. */
+   readonly withIds: ReadonlyArray<string>;
+@@ -105,6 +110,7 @@ export function selectFragments(
+   return Effect.gen(function* () {
+     const catalog = yield* registry.catalog;
+     const stack = yield* loadStack(registry, catalog, options.stack);
++    const parts = yield* loadParts(registry, catalog, stack);
+     // Historical pins are valid fragment ids even when the current schema is unsupported.
+     const pins = (stack?.composition ?? []).map((pinned) => pinned.id);
+     const fragmentIds = new Set([...knownIds(catalog, "fragment"), ...pins]);
+@@ -116,6 +122,7 @@ export function selectFragments(
+       ...lookup,
+       options,
+       stack,
++      parts,
+       without,
+       withIds,
+       existing,
+@@ -140,6 +147,7 @@ export function selectFragments(
+ 
+     return {
+       stack,
++      parts,
+       ordered: order(selected),
+       via: run.via,
+       warnings: run.warnings,
+@@ -179,6 +187,33 @@ const loadStack = (
+     return entry;
+   });
+ 
++/**
++ * SPIKE 3: each part's stack, loaded like the workspace. An unknown part stack is `NotFound`
++ * here; a part that itself has parts dies for now (it needs an `EntryInvalid` reason).
++ */
++const loadParts = (
++  registry: Registry["Service"],
++  catalog: ReadonlyArray<CatalogEntry>,
++  stack: Stack | null,
++) =>
++  Effect.forEach(stack?.meta.parts ?? [], (part) =>
++    Effect.gen(function* () {
++      // The index's part pin wins unless a project or user root overrides the part, as for
++      // fragments in `compositionFragment`.
++      const current = catalog.find((item) => item.kind === "stack" && item.id === part.stack);
++      const pinned = stack?.parts?.find((candidate) => candidate.id === part.stack);
++      const local = current?.origin === "project" || current?.origin === "user";
++      const entry =
++        pinned && !local && isStack(pinned)
++          ? pinned
++          : yield* loadStack(registry, catalog, part.stack);
++      if (!entry) return yield* Effect.die(new Error("unreachable"));
++      if (entry.meta.parts)
++        return yield* Effect.die(new Error(`SPIKE: part ${part.name} is itself a workspace`));
++      return entry;
++    }),
++  );
++
+ /**
+  * Every `--with` and `--without` id names a fragment, and no id is in both. In `add` mode a stack
+  * id is reported as a bad argument rather than missing, since the user named the wrong kind.
+@@ -341,7 +376,7 @@ const selectAlwaysFragment = (run: SelectionRun, id: string) =>
+       return;
+     }
+     const fragment = yield* loadFragment(run, id, null);
+-    if (run.stack && !fits(fragment, run.stack)) {
++    if (run.stack && !fits(fragment, run.stack, run.parts)) {
+       run.warnings.push({ code: "always_not_applicable", id: fragment.id });
+       return;
+     }
+@@ -358,9 +393,10 @@ const selectWith = (run: SelectionRun) =>
+     const { stack } = run;
+     for (const id of run.withIds) {
+       const fragment = yield* loadFragment(run, id, null);
+-      if (run.options.mode === "add" && stack && !fits(fragment, stack))
++      if (run.options.mode === "add" && stack && !fits(fragment, stack, run.parts))
+         return yield* conflict({ reason: "applies_to", ids: [id] });
+-      if (stack && !fits(fragment, stack)) run.warnings.push({ code: "with_not_applicable", id });
++      if (stack && !fits(fragment, stack, run.parts))
++        run.warnings.push({ code: "with_not_applicable", id });
+       if (run.via.get(id) !== "required") run.via.set(id, "with");
+     }
+   });
+@@ -423,7 +459,7 @@ const checkFit = (run: SelectionRun, selected: ReadonlyArray<Fragment>) =>
+       if (!stack && fragment.meta.appliesTo.length)
+         run.warnings.push({ code: "with_not_applicable", id: fragment.id });
+       const how = run.via.get(fragment.id);
+-      if (how !== "with" && how !== "always" && stack && !fits(fragment, stack))
++      if (how !== "with" && how !== "always" && stack && !fits(fragment, stack, run.parts))
+         return yield* conflict({ reason: "applies_to", ids: [fragment.id] });
+     }
+   });
+diff --git a/packages/cli/src/core/compose/types.ts b/packages/cli/src/core/compose/types.ts
+index 1a814f45..54a4b0b4 100644
+--- a/packages/cli/src/core/compose/types.ts
++++ b/packages/cli/src/core/compose/types.ts
+@@ -64,6 +64,8 @@ export type Via = "required" | "default" | "always" | "with" | "requires";
+ export type Composition<S extends Entry | null = Entry> = {
+   /** The stack, its body with conditionals resolved. */
+   stack: S;
++  /** SPIKE 3: the workspace's mounted parts (each with `mount`), in `parts` order. */
++  parts?: ReadonlyArray<Entry>;
+   /** Composition order (requirements first, ties by id, the app last), bodies resolved. */
+   fragments: ReadonlyArray<Entry>;
+   /** The one fragment with category "app", also in `fragments`. */
+diff --git a/packages/cli/src/core/fingerprint.ts b/packages/cli/src/core/fingerprint.ts
+index 53ce00eb..247d07cd 100644
+--- a/packages/cli/src/core/fingerprint.ts
++++ b/packages/cli/src/core/fingerprint.ts
+@@ -24,6 +24,7 @@ import { Effect } from "effect";
+ import { canonicalJson } from "./canonical-json";
+ import { composeFiles, NEUTRAL_VARS, type RenderedFile } from "./compose/files";
+ import type { Composition } from "./compose/types";
++import type { Entry } from "./registry/entry";
+ import { Registry } from "./registry/registry";
+ import { HYGIENE_TAG } from "./verify/plan";
+ 
+@@ -60,9 +61,12 @@ const withoutHygiene = <T extends { readonly tags?: ReadonlyArray<string> | unde
+  * The stack's own source files this composition writes, sorted by source path: its selected agent
+  * adapters and payload, not every one the stack ships.
+  */
+-const writtenStackFiles = (composition: Composition, registry: Registry["Service"]) =>
++const writtenStackFiles = (
++  composition: Composition,
++  registry: Registry["Service"],
++  stack: Entry = composition.stack,
++) =>
+   Effect.gen(function* () {
+-    const stack = composition.stack;
+     const written = composition.files.filter((file) =>
+       file.owners.some((owner) => owner.kind === "stack" && owner.id === stack.id),
+     );
+@@ -121,6 +125,19 @@ export const proofFingerprint = (composition: Composition) =>
+       field((file.mode & 0o111) !== 0 ? "1" : "0");
+       field(yield* registry.bytes(stack, file.source));
+     }
++    // SPIKE 3: each part's meta, body and written files, after the stack's; nothing for others.
++    for (const part of composition.parts ?? []) {
++      const partFiles = yield* writtenStackFiles(composition, registry, part);
++      field(`part:${part.mount?.name ?? ""}`);
++      field(canonicalJson({ ...part.meta, verify: part.meta.verify.map(withoutHygiene) }));
++      field(part.body);
++      field(String(partFiles.length));
++      for (const file of partFiles) {
++        field(file.source);
++        field((file.mode & 0o111) !== 0 ? "1" : "0");
++        field(yield* registry.bytes(part, file.source));
++      }
++    }
+     return digest();
+   });
+ 
+@@ -130,7 +147,8 @@ export const fingerprintFromFiles = (
+   files: ReadonlyArray<RenderedFile>,
+ ): string => {
+   const { field, digest } = framedHash();
+-  const entries = [composition.stack, ...composition.fragments];
++  // SPIKE 3: parts hash between the stack and the fragments; absent for every other stack.
++  const entries = [composition.stack, ...(composition.parts ?? []), ...composition.fragments];
+   field(String(entries.length));
+   for (const entry of entries) {
+     field(entry.kind);
+diff --git a/packages/cli/src/core/manifest.ts b/packages/cli/src/core/manifest.ts
+index 13afde6f..90cc18b6 100644
+--- a/packages/cli/src/core/manifest.ts
++++ b/packages/cli/src/core/manifest.ts
+@@ -102,6 +102,16 @@ export const buildManifest = (
+       mode: facts.mode ?? "new",
+       agents: [...composition.agents],
+       stack: composition.stack ? manifestEntryRef(composition.stack) : null,
++      // SPIKE 3: only in workspace projects, so single-stack manifests stay readable everywhere.
++      ...(composition.parts
++        ? {
++            parts: composition.parts.map((part) => ({
++              name: part.mount?.name ?? part.id,
++              role: part.mount?.role ?? "",
++              stack: manifestEntryRef(part),
++            })),
++          }
++        : {}),
+       fragments: composition.fragments.map(manifestEntryRef),
+       commands: { ...composition.commands },
+       ...body,
+diff --git a/packages/cli/src/core/registry/entry.ts b/packages/cli/src/core/registry/entry.ts
+index 81b2c898..78a0e81e 100644
+--- a/packages/cli/src/core/registry/entry.ts
++++ b/packages/cli/src/core/registry/entry.ts
+@@ -40,6 +40,13 @@ export type Entry = {
+   /** Index proof and the exact default fragment snapshot, including bundled fallback. */
+   indexEntry?: IndexEntry;
+   composition?: ReadonlyArray<Entry>;
++  /** SPIKE 3: a workspace's part stacks as pinned by its index entry (or its bundled fallback). */
++  parts?: ReadonlyArray<Entry>;
++  /**
++   * SPIKE 3: set by composition on a workspace's part (and a fragment placed on one): the part's
++   * directory and step prefix, and the part's stack id, which selects overlays.
++   */
++  mount?: { name: string; role: string; stack: string };
+ };
+ /** Names and tags used for selection without downloading unrelated entry bundles. */
+ export type CatalogEntry = Pick<Entry, "id" | "kind" | "origin"> & {
+diff --git a/packages/cli/src/core/registry/remote.ts b/packages/cli/src/core/registry/remote.ts
+index 0df9a9f0..1c0c751e 100644
+--- a/packages/cli/src/core/registry/remote.ts
++++ b/packages/cli/src/core/registry/remote.ts
+@@ -106,6 +106,38 @@ const pinnedFragments = Effect.fn("registry.pinnedFragments")(function* (
+   return fragments;
+ });
+ 
++/**
++ * SPIKE 3: the part stacks a workspace's index entry pins, each the bundled copy when its files
++ * match the pin, otherwise the download. Undefined when any is missing, like `pinnedFragments`.
++ */
++const pinnedParts = Effect.fn("registry.pinnedParts")(function* (
++  remote: RemoteIndex["Service"],
++  ref: IndexEntry,
++  options: { trusted: boolean; bundled: ReadonlyArray<Entry> },
++) {
++  const parts: Entry[] = [];
++  for (const [id, digest] of Object.entries(ref.parts ?? {})) {
++    const original = options.bundled.find((entry) => entry.kind === "stack" && entry.id === id);
++    if (original && (yield* directoryMatches({ id, kind: "stack", digest, dir: original.dir }))) {
++      parts.push(original);
++      continue;
++    }
++    const pinned: IndexEntry = { ...pinnedReference(id, digest), kind: "stack", composition: {} };
++    const part = yield* readEntry(remote, pinned, options.trusted);
++    if (!part) return undefined;
++    parts.push(part);
++  }
++  return parts;
++});
++
++/** SPIKE 3: the bundled copies of a workspace's parts, for the all-bundled fallback. */
++const bundledParts = (original: Entry | undefined, bundled: ReadonlyArray<Entry>) =>
++  original?.meta.kind === "stack" && original.meta.parts
++    ? original.meta.parts.flatMap(
++        (part) => bundled.find((entry) => entry.kind === "stack" && entry.id === part.stack) ?? [],
++      )
++    : undefined;
++
+ /**
+  * The bundled stack with its bundled required and default fragments, and what they require,
+  * pinned as its composition: the fallback when the index copy can't be used. A fragment entry
+@@ -125,7 +157,8 @@ function bundledComposition(original: Entry | undefined, bundled: ReadonlyArray<
+     selected.set(id, fragment);
+     pending.push(...fragment.meta.requires);
+   }
+-  return { ...original, composition: [...selected.values()] };
++  const parts = bundledParts(original, bundled);
++  return { ...original, composition: [...selected.values()], ...(parts ? { parts } : {}) };
+ }
+ 
+ /**
+@@ -151,7 +184,15 @@ const resolveReference = Effect.fn("registry.resolveReference")(function* (
+   if (ref.kind === "fragment") return same ? original : { ...entry, shadows };
+   const pinned = yield* pinnedFragments(remote, ref, { trusted, bundled });
+   if (pinned === undefined) return bundledComposition(original, bundled);
+-  return { ...entry, composition: pinned, ...(same ? {} : { shadows }) };
++  // SPIKE 3: a workspace whose pinned part can't be had falls back whole, as a fragment would.
++  const parts = ref.parts ? yield* pinnedParts(remote, ref, { trusted, bundled }) : undefined;
++  if (ref.parts && parts === undefined) return bundledComposition(original, bundled);
++  return {
++    ...entry,
++    composition: pinned,
++    ...(parts ? { parts } : {}),
++    ...(same ? {} : { shadows }),
++  };
+ });
+ 
+ const ORIGIN_ORDER: ReadonlyArray<Origin> = ["project", "user", "index", "bundled"];
+diff --git a/packages/cli/src/core/validate/commands.ts b/packages/cli/src/core/validate/commands.ts
+index 3f105222..a7e9fefc 100644
+--- a/packages/cli/src/core/validate/commands.ts
++++ b/packages/cli/src/core/validate/commands.ts
+@@ -78,7 +78,12 @@ function undeclaredStepCommands(view: View, composition: Composition): Finding[]
+   const findings: Finding[] = [];
+   for (const step of composition.verify) {
+     const target = runnerTarget(step.run);
+-    if (!target || Object.hasOwn(composition.commands, target)) continue;
++    // SPIKE 3: a mounted step's command is namespaced by its part directory (the first cwd segment).
++    const part = step.cwd?.split("/")[0];
++    const declared =
++      Object.hasOwn(composition.commands, target ?? "") ||
++      (part !== undefined && Object.hasOwn(composition.commands, `${part}-${target}`));
++    if (!target || declared) continue;
+     const owner = entries.find(
+       (entry) => entry.kind === step.owner.kind && entry.id === step.owner.id,
+     );
+diff --git a/packages/cli/src/telemetry/composition.ts b/packages/cli/src/telemetry/composition.ts
+index 01cf7c35..d7111f86 100644
+--- a/packages/cli/src/telemetry/composition.ts
++++ b/packages/cli/src/telemetry/composition.ts
+@@ -43,9 +43,21 @@ export const completeAddFacts = Effect.fn("telemetry.completeAddFacts")(function
+   const fragments = yield* Effect.forEach(input.manifest.fragments, (ref) =>
+     resolve({ registry, kind: "fragment", ref }),
+   );
++  // SPIKE 3: re-resolve each part's stack too, so an edited part ref can't claim official.
++  const parts = yield* Effect.forEach(input.manifest.parts ?? [], (part) =>
++    Effect.map(resolve({ registry, kind: "stack", ref: part.stack }), (ref) => ({
++      ...part,
++      stack: ref,
++    })),
++  );
+   const { fingerprint: _claimed, ...unclaimed } = input.manifest;
+-  const manifest: Manifest = { ...unclaimed, stack, fragments };
+-  const entries = [...(stack ? [stack] : []), ...fragments];
++  const manifest: Manifest = {
++    ...unclaimed,
++    stack,
++    ...(input.manifest.parts ? { parts } : {}),
++    fragments,
++  };
++  const entries = [...(stack ? [stack] : []), ...parts.map((part) => part.stack), ...fragments];
+   if (!stack || !entries.every(official)) return { ...input, manifest };
+   const recomputed = yield* officialFingerprint({ registry, stack, manifest });
+   if (recomputed === undefined) return { ...input, manifest };
+diff --git a/packages/cli/src/telemetry/events.ts b/packages/cli/src/telemetry/events.ts
+index e8aa80d7..aff4bb22 100644
+--- a/packages/cli/src/telemetry/events.ts
++++ b/packages/cli/src/telemetry/events.ts
+@@ -85,7 +85,12 @@ function nonOfficialCounts(entries: ReadonlyArray<EntryRef>) {
+  */
+ export function scaffoldEvent(input: ScaffoldFacts) {
+   const { manifest } = input;
+-  const entries = [...(manifest.stack ? [manifest.stack] : []), ...manifest.fragments];
++  // SPIKE 3: a workspace is official only when every part is too.
++  const entries = [
++    ...(manifest.stack ? [manifest.stack] : []),
++    ...(manifest.parts ?? []).map((part) => part.stack),
++    ...manifest.fragments,
++  ];
+   const origin = officialOrigin(entries);
+   return {
+     type: input.type,
+diff --git a/packages/format/src/entry.ts b/packages/format/src/entry.ts
+index a037a7ab..a8690d1d 100644
+--- a/packages/format/src/entry.ts
++++ b/packages/format/src/entry.ts
+@@ -114,6 +114,13 @@ const shared = {
+   merge: list(Schema.String),
+ };
+ 
++/**
++ * SPIKE 3: one mounted part of a workspace stack. `name` is its directory and step prefix,
++ * `role` a kebab string the CLI checks against its own list, `stack` the mounted stack's id.
++ */
++export const StackPart = Schema.Struct({ name: Kebab, role: Kebab, stack: Kebab });
++export type StackPart = typeof StackPart.Type;
++
+ /**
+  * `STACK.md` frontmatter, entry format v1 (D18). YAML keys are snake_case and decode to
+  * camelCase fields; excess keys are checked against the snake_case names.
+@@ -121,6 +128,8 @@ const shared = {
+ export const StackMeta = Schema.Struct({
+   ...shared,
+   kind: Schema.Literal("stack"),
++  /** SPIKE 3: absent (never `[]`) when the stack has no parts, so fingerprints don't move. */
++  parts: Schema.optionalKey(Schema.Array(StackPart)),
+   fragments: Schema.Struct({
+     required: list(Kebab),
+     default: list(Kebab),
+diff --git a/packages/format/src/index-schema.ts b/packages/format/src/index-schema.ts
+index b08febb2..19184694 100644
+--- a/packages/format/src/index-schema.ts
++++ b/packages/format/src/index-schema.ts
+@@ -32,6 +32,14 @@ export const IndexEntry = Schema.Struct({
+       ),
+     ),
+   ),
++  /** SPIKE 3: part stack id to the bundle digest the proof covered; stacks with parts only. */
++  parts: Schema.optionalKey(
++    Schema.Record(Schema.String, Digest).check(
++      Schema.makeFilter(
++        (value) => Object.keys(value).every(Schema.is(Kebab)) || "invalid stack id",
++      ),
++    ),
++  ),
+   lastRun: Schema.optionalKey(LastRun),
+   /** The creator's GitHub login, from the registry's `authors.json`. */
+   author: Schema.optionalKey(GitHubLogin),
+diff --git a/packages/format/src/index.ts b/packages/format/src/index.ts
+index 7e1cb3f3..6a175839 100644
+--- a/packages/format/src/index.ts
++++ b/packages/format/src/index.ts
+@@ -17,6 +17,7 @@ export {
+   Phase,
+   type ResolvedStep,
+   StackMeta,
++  StackPart,
+   StepLayer,
+   VerifyStep,
+   withStepDefaults,
+diff --git a/packages/format/src/manifest.ts b/packages/format/src/manifest.ts
+index 46f4280e..daa33a5f 100644
+--- a/packages/format/src/manifest.ts
++++ b/packages/format/src/manifest.ts
+@@ -1,6 +1,6 @@
+ import { Schema } from "effect";
+ import { AgentId } from "./agent.js";
+-import { VerifyStep } from "./entry.js";
++import { Kebab, VerifyStep } from "./entry.js";
+ 
+ /**
+  * An entry the project was composed from. `origin` is any non-empty string, not the `Origin`
+@@ -58,6 +58,10 @@ export const Manifest = Schema.Struct({
+   preset: Schema.Literals(["default", "sandbox"]),
+   agents: Schema.Array(AgentId),
+   stack: Schema.NullOr(EntryRef),
++  /** SPIKE 3: written only in workspace projects; outside `DigestInput`. */
++  parts: Schema.optionalKey(
++    Schema.Array(Schema.Struct({ name: Kebab, role: Schema.NonEmptyString, stack: EntryRef })),
++  ),
+   fragments: Schema.Array(EntryRef),
+   env: Schema.Record(Schema.String, Schema.String),
+   commands: Schema.Record(Schema.String, Schema.String),
+diff --git a/packages/cli/registry/fragments/openapi-client/FRAGMENT.md b/packages/cli/registry/fragments/openapi-client/FRAGMENT.md
+new file mode 100644
+index 00000000..586ad596
+--- /dev/null
++++ b/packages/cli/registry/fragments/openapi-client/FRAGMENT.md
+@@ -0,0 +1,30 @@
++---
++schema_version: 1
++id: openapi-client
++kind: fragment
++category: tooling
++name: Generated OpenAPI client (spike)
++description: Spike 3 link. Generates a typed React Query client from the API part's OpenAPI document with Orval, pointed at the client part's own fetch function, and checks the generated output is current.
++tags: [openapi, client, link]
++applies_to: [react-vite]
++deps:
++  dev: [orval]
++verify:
++  - name: openapi-client-config
++    layer: check
++    run: "test -s orval.config.ts && grep -q './openapi.json' orval.config.ts"
++---
++
++# Generated OpenAPI client
++
++The client part reads the API part's OpenAPI document from `./openapi.json` beside this config. The workspace's root command copies the API part's committed `openapi.json` there; this fragment never names another part's directory.
++
++## Setup
++
++1. Add Orval as a dev dependency of the client part.
++2. Run the workspace's root command that copies the API part's document, then `bun run openapi:generate` in the client part.
++3. Point the generated hooks' mutator at the client part's fetch function (`src/api/client.ts`) so generated and hand-written calls share one transport.
++
++## Changing the API
++
++A renamed operation in the API part renames its generated hook here. Regenerate, then fix the call sites the type checker reports.
+diff --git a/packages/cli/registry/fragments/openapi-client/files/orval.config.ts b/packages/cli/registry/fragments/openapi-client/files/orval.config.ts
+new file mode 100644
+index 00000000..d24982df
+--- /dev/null
++++ b/packages/cli/registry/fragments/openapi-client/files/orval.config.ts
+@@ -0,0 +1,12 @@
++import { defineConfig } from "orval";
++
++export default defineConfig({
++  api: {
++    input: "./openapi.json",
++    output: {
++      target: "./src/api/generated/api.ts",
++      client: "react-query",
++      override: { mutator: { path: "./src/api/client.ts", name: "apiFetch" } },
++    },
++  },
++});
+diff --git a/packages/cli/registry/search/fragments/openapi-client.json b/packages/cli/registry/search/fragments/openapi-client.json
+new file mode 100644
+index 00000000..e3f4ae76
+--- /dev/null
++++ b/packages/cli/registry/search/fragments/openapi-client.json
+@@ -0,0 +1,53 @@
++{
++  "schemaVersion": 1,
++  "kind": "fragment",
++  "id": "openapi-client",
++  "source": {
++    "digest": "sha256:7e414bfbc4f1dfd991a38e901965d99e75f57e31744fccff9e00ed0999285166",
++    "by": "drafted",
++    "model": "codex/gpt-6.1-sol",
++    "promptVersion": 4,
++    "reviewedAt": "2026-11-16"
++  },
++  "summary": "Give coding agents consistent HTTP resource conventions for paths, methods, status codes, response shapes, pagination and versioning.",
++  "description": "Give coding agents framework-neutral rules for HTTP resource design. Paths use resource nouns, methods carry the action, response shapes stay consistent and collections use cursor pagination. The project's own error table and framework decide exact statuses and behavior. Document those choices alongside an existing resource to copy. This fragment supplies conventions and agent guidance, not generated endpoints or a running server.",
++  "seoDescription": "Framework-neutral REST guidance for coding agents: resource paths, methods, status codes, response shapes, cursor pagination and versioning.",
++  "projectExamples": [],
++  "plain": {
++    "whatItIs": "Rules that help coding assistants name the web addresses an API answers on, and keep its responses consistent.",
++    "goodAt": [
++      "Naming addresses after things, like orders, rather than after actions",
++      "Giving every list the same page-by-page format",
++      "Writing down the project's own API choices for future work"
++    ],
++    "notGoodAt": [
++      "Writing the server code itself; pick a project base that includes an API."
++    ]
++  },
++  "capabilities": [],
++  "requests": [
++    "keep endpoint names consistent as agents add resources",
++    "use predictable methods and status codes across my API",
++    "paginate collection responses with cursors and stable ordering",
++    "document my API's version prefix and resource conventions for future changes"
++  ],
++  "useCases": [
++    "consistent HTTP resource design",
++    "shared API guidance for coding agents"
++  ],
++  "synonyms": [
++    "REST",
++    "plural resource nouns",
++    "cursor pagination",
++    "API versioning",
++    "CRUD"
++  ],
++  "goodFor": [
++    "framework-neutral conventions",
++    "one response shape per resource"
++  ],
++  "notFor": [
++    "generating a server implementation",
++    "choosing an application framework"
++  ]
++}
+diff --git a/packages/cli/registry/search/stacks/spike-hono-react.json b/packages/cli/registry/search/stacks/spike-hono-react.json
+new file mode 100644
+index 00000000..f8785956
+--- /dev/null
++++ b/packages/cli/registry/search/stacks/spike-hono-react.json
+@@ -0,0 +1,66 @@
++{
++  "schemaVersion": 1,
++  "kind": "stack",
++  "id": "spike-hono-react",
++  "source": {
++    "digest": "sha256:241c872499f74b0d1ec5273ea07e06681d2959c7573f4795864061456dd764c8",
++    "by": "drafted",
++    "model": "codex/gpt-6.1-sol",
++    "promptVersion": 4,
++    "reviewedAt": "2026-11-16"
++  },
++  "summary": "A browser app backed by a Python API, with generated frontend types, query hooks and test mocks.",
++  "description": "Keep Python business logic in FastAPI and build the browser interface as a React single-page app. OpenAPI generates the frontend's types, query hooks and test handlers, with a drift check for the committed API contract. Both halves have their own tests behind one Makefile. The base has no database or authentication; postgres is the compatible persistence add-on, while account handling remains your work.",
++  "seoDescription": "A FastAPI backend and React SPA with an OpenAPI-generated client, query hooks and test handlers, checked through one Makefile.",
++  "projectExamples": [],
++  "plain": {
++    "whatItIs": "A starter web app with its business logic in Python and a separate browser interface built with React, a toolkit for web screens.",
++    "goodAt": [
++      "Python services with a browser interface on top",
++      "Generating the browser's data types from the Python API's description",
++      "One set of commands to check both the Python and browser code"
++    ],
++    "notGoodAt": [
++      "Pages the server builds before sending them; use the React Router stack for those."
++    ]
++  },
++  "platforms": [
++    "web",
++    "server"
++  ],
++  "productKinds": [
++    "web-app",
++    "fullstack",
++    "api"
++  ],
++  "languages": [
++    "python",
++    "typescript"
++  ],
++  "requests": [
++    "build my browser interface around a separate Python backend",
++    "generate frontend data hooks from my backend's API specification",
++    "keep my browser client aligned with backend response types",
++    "run frontend and backend checks through one set of commands"
++  ],
++  "useCases": [
++    "browser apps with a separate API",
++    "frontend and backend contract checks"
++  ],
++  "synonyms": [
++    "FastAPI",
++    "React SPA",
++    "OpenAPI",
++    "orval",
++    "TanStack Query"
++  ],
++  "goodFor": [
++    "Python business logic with a TypeScript interface",
++    "generated API mocks"
++  ],
++  "notFor": [
++    "server-side rendering",
++    "server rendered",
++    "command line interface"
++  ]
++}
+diff --git a/packages/cli/registry/search/stacks/spike-python-react.json b/packages/cli/registry/search/stacks/spike-python-react.json
+new file mode 100644
+index 00000000..6042f056
+--- /dev/null
++++ b/packages/cli/registry/search/stacks/spike-python-react.json
+@@ -0,0 +1,66 @@
++{
++  "schemaVersion": 1,
++  "kind": "stack",
++  "id": "spike-python-react",
++  "source": {
++    "digest": "sha256:241c872499f74b0d1ec5273ea07e06681d2959c7573f4795864061456dd764c8",
++    "by": "drafted",
++    "model": "codex/gpt-6.1-sol",
++    "promptVersion": 4,
++    "reviewedAt": "2026-11-16"
++  },
++  "summary": "A browser app backed by a Python API, with generated frontend types, query hooks and test mocks.",
++  "description": "Keep Python business logic in FastAPI and build the browser interface as a React single-page app. OpenAPI generates the frontend's types, query hooks and test handlers, with a drift check for the committed API contract. Both halves have their own tests behind one Makefile. The base has no database or authentication; postgres is the compatible persistence add-on, while account handling remains your work.",
++  "seoDescription": "A FastAPI backend and React SPA with an OpenAPI-generated client, query hooks and test handlers, checked through one Makefile.",
++  "projectExamples": [],
++  "plain": {
++    "whatItIs": "A starter web app with its business logic in Python and a separate browser interface built with React, a toolkit for web screens.",
++    "goodAt": [
++      "Python services with a browser interface on top",
++      "Generating the browser's data types from the Python API's description",
++      "One set of commands to check both the Python and browser code"
++    ],
++    "notGoodAt": [
++      "Pages the server builds before sending them; use the React Router stack for those."
++    ]
++  },
++  "platforms": [
++    "web",
++    "server"
++  ],
++  "productKinds": [
++    "web-app",
++    "fullstack",
++    "api"
++  ],
++  "languages": [
++    "python",
++    "typescript"
++  ],
++  "requests": [
++    "build my browser interface around a separate Python backend",
++    "generate frontend data hooks from my backend's API specification",
++    "keep my browser client aligned with backend response types",
++    "run frontend and backend checks through one set of commands"
++  ],
++  "useCases": [
++    "browser apps with a separate API",
++    "frontend and backend contract checks"
++  ],
++  "synonyms": [
++    "FastAPI",
++    "React SPA",
++    "OpenAPI",
++    "orval",
++    "TanStack Query"
++  ],
++  "goodFor": [
++    "Python business logic with a TypeScript interface",
++    "generated API mocks"
++  ],
++  "notFor": [
++    "server-side rendering",
++    "server rendered",
++    "command line interface"
++  ]
++}
+diff --git a/packages/cli/registry/stacks/spike-hono-react/STACK.md b/packages/cli/registry/stacks/spike-hono-react/STACK.md
+new file mode 100644
+index 00000000..cb8f3e52
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-hono-react/STACK.md
+@@ -0,0 +1,45 @@
++---
++schema_version: 1
++id: spike-hono-react
++kind: stack
++name: Hono and React workspace (spike)
++description: Spike 3 workspace stack. Mounts hono-api under backend/ and react-vite under frontend/, with a root Makefile, a generated OpenAPI client and a check that runs both parts together.
++tags: [monorepo, make, api, web]
++parts:
++  - { name: backend, role: api, stack: hono-api }
++  - { name: frontend, role: web, stack: react-vite }
++tools: [make]
++fragments:
++  required: [openapi-client, claude-harness]
++  default: [agent-ops, git-hooks, ci-github]
++  optional: [rr]
++verify:
++  - { name: openapi-sync, layer: check, run: make openapi-sync }
++  - name: readme-filled
++    layer: check
++    tags: [hygiene]
++    run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
++  - name: contract-doc
++    layer: check
++    run: "grep -q 'backend/' docs/ARCHITECTURE.md && grep -q 'frontend/' docs/ARCHITECTURE.md && ! grep -n 'stacks:fill' docs/ARCHITECTURE.md"
++commands:
++  openapi-sync: Write backend/openapi.json and copy it to frontend/openapi.json
++---
++
++# Hono and React workspace
++
++The API part lives in `backend/` and the web part in `frontend/`. The sections for each part follow this one; this section is about how they meet.
++
++## How the parts connect
++
++The browser calls `/api/...` on the web part's origin. Vite's dev proxy forwards `/api` to `PORT_API` and rewrites it to `/v1`. The backend owns the contract: `backend/openapi.json` is the source, and `frontend/src/api/generated/` is read-only output.
++
++## Setup
++
++1. Follow the backend section's setup in `backend/`, then the frontend section's in `frontend/`.
++2. `make openapi-sync`, then generate the client in `frontend/`.
++3. Fill the root README, then run `stacks verify` until green.
++
++## Changing the API
++
++Change the route in `backend/`, `make openapi-sync`, regenerate in `frontend/`, fix the call sites, run both suites.
+diff --git a/packages/cli/registry/stacks/spike-hono-react/files/Makefile b/packages/cli/registry/stacks/spike-hono-react/files/Makefile
+new file mode 100644
+index 00000000..1447714e
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-hono-react/files/Makefile
+@@ -0,0 +1,5 @@
++.PHONY: openapi-sync
++
++openapi-sync:
++	bun run --cwd backend openapi
++	cp backend/openapi.json frontend/openapi.json
+diff --git a/packages/cli/registry/stacks/spike-hono-react/files/README.md.tmpl b/packages/cli/registry/stacks/spike-hono-react/files/README.md.tmpl
+new file mode 100644
+index 00000000..63acd194
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-hono-react/files/README.md.tmpl
+@@ -0,0 +1,5 @@
++# {{project_name}}
++
++<!-- stacks:fill: what this project is -->
++
++`backend/` is the API, `frontend/` the web client. See `docs/ARCHITECTURE.md`.
+diff --git a/packages/cli/registry/stacks/spike-hono-react/files/docs/ARCHITECTURE.md b/packages/cli/registry/stacks/spike-hono-react/files/docs/ARCHITECTURE.md
+new file mode 100644
+index 00000000..c9cc60f9
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-hono-react/files/docs/ARCHITECTURE.md
+@@ -0,0 +1,5 @@
++# Architecture
++
++- `backend/` owns the HTTP contract and commits `backend/openapi.json`.
++- `frontend/` reads a copy at `frontend/openapi.json` and generates its client from it.
++- Requests: browser to `/api` on the web origin, proxied to the API's `/v1`.
+diff --git a/packages/cli/registry/stacks/spike-python-react/STACK.md b/packages/cli/registry/stacks/spike-python-react/STACK.md
+new file mode 100644
+index 00000000..91473bb2
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-python-react/STACK.md
+@@ -0,0 +1,49 @@
++---
++schema_version: 1
++id: spike-python-react
++kind: stack
++name: FastAPI and React workspace (spike)
++description: Spike 3 workspace stack. Mounts python-api under backend/ and react-vite under frontend/, with a root Makefile, a generated OpenAPI client and a check that runs both parts together.
++tags: [monorepo, make, api, web]
++parts:
++  - { name: backend, role: api, stack: python-api }
++  - { name: frontend, role: web, stack: react-vite }
++tools: [make]
++fragments:
++  required: [openapi-client, claude-harness]
++  default: [agent-ops, git-hooks, ci-github]
++  optional: [postgres, rr]
++verify:
++  - { name: openapi-sync, layer: check, run: make openapi-sync }
++  - name: readme-filled
++    layer: check
++    tags: [hygiene]
++    run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
++  - name: contract-doc
++    layer: check
++    run: "grep -q 'backend/' docs/ARCHITECTURE.md && grep -q 'frontend/' docs/ARCHITECTURE.md && ! grep -n 'stacks:fill' docs/ARCHITECTURE.md"
++commands:
++  openapi-sync: Dump backend/openapi.json and copy it to frontend/openapi.json
++---
++
++# FastAPI and React workspace
++
++The API part lives in `backend/` and the web part in `frontend/`. The sections for each part follow this one; this section is about how they meet.
++
++## How the parts connect
++
++The browser calls `/api/...` on the web part's origin. Vite's dev proxy forwards `/api` to `PORT_API` and rewrites it to `/v1`. The backend owns the contract: `backend/openapi.json` is the source, and `frontend/src/api/generated/` is read-only output.
++
++## Setup
++
++1. Follow the backend section's setup in `backend/`, then the frontend section's in `frontend/`.
++2. `make openapi-sync`, then generate the client in `frontend/`.
++3. Fill the root README, then run `stacks verify` until green. This is the setup that governs; the parts' own "run verify" lines are covered by it.
++
++## Changing the API
++
++Change the route in `backend/`, `make openapi-sync`, regenerate in `frontend/`, fix the call sites, run both suites.
++
++<!-- stacks:when with=git-hooks -->
++Hooks live at the root and run each part's lint in its own directory.
++<!-- stacks:end -->
+diff --git a/packages/cli/registry/stacks/spike-python-react/files/Makefile b/packages/cli/registry/stacks/spike-python-react/files/Makefile
+new file mode 100644
+index 00000000..a210cb5a
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-python-react/files/Makefile
+@@ -0,0 +1,5 @@
++.PHONY: openapi-sync
++
++openapi-sync:
++	$(MAKE) -C backend openapi
++	cp backend/openapi.json frontend/openapi.json
+diff --git a/packages/cli/registry/stacks/spike-python-react/files/README.md.tmpl b/packages/cli/registry/stacks/spike-python-react/files/README.md.tmpl
+new file mode 100644
+index 00000000..63acd194
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-python-react/files/README.md.tmpl
+@@ -0,0 +1,5 @@
++# {{project_name}}
++
++<!-- stacks:fill: what this project is -->
++
++`backend/` is the API, `frontend/` the web client. See `docs/ARCHITECTURE.md`.
+diff --git a/packages/cli/registry/stacks/spike-python-react/files/docs/ARCHITECTURE.md b/packages/cli/registry/stacks/spike-python-react/files/docs/ARCHITECTURE.md
+new file mode 100644
+index 00000000..c9cc60f9
+--- /dev/null
++++ b/packages/cli/registry/stacks/spike-python-react/files/docs/ARCHITECTURE.md
+@@ -0,0 +1,5 @@
++# Architecture
++
++- `backend/` owns the HTTP contract and commits `backend/openapi.json`.
++- `frontend/` reads a copy at `frontend/openapi.json` and generates its client from it.
++- Requests: browser to `/api` on the web origin, proxied to the API's `/v1`.
+diff --git a/packages/cli/scripts/spike-proof.ts b/packages/cli/scripts/spike-proof.ts
+new file mode 100644
+index 00000000..3de7eaee
+--- /dev/null
++++ b/packages/cli/scripts/spike-proof.ts
+@@ -0,0 +1,32 @@
++// SPIKE 3: prints proofFingerprint for each stack named, for the default and sandbox presets.
++// `bun scripts/spike-proof.ts <stack>...`
++import { join } from "node:path";
++import { NodeServices } from "@effect/platform-node";
++import { Effect } from "effect";
++import { compose } from "../src/core/compose/compose";
++import { proofFingerprint } from "../src/core/fingerprint";
++import { Registry } from "../src/core/registry/registry";
++
++const registry = Registry.layer([
++  { origin: "bundled", path: join(import.meta.dirname, "..", "registry") },
++]);
++
++for (const stack of process.argv.slice(2))
++  for (const preset of ["default", "sandbox"] as const) {
++    const value = await Effect.runPromise(
++      compose({
++        stack,
++        with: [],
++        without: [],
++        preset,
++        agents: ["claude"],
++        always: [],
++        mode: "new",
++      }).pipe(
++        Effect.flatMap(proofFingerprint),
++        Effect.provide(registry),
++        Effect.provide(NodeServices.layer),
++      ),
++    );
++    console.log(`${stack} ${preset} ${value}`);
++  }
+diff --git a/packages/cli/src/core/compose/mount.ts b/packages/cli/src/core/compose/mount.ts
+new file mode 100644
+index 00000000..08f54902
+--- /dev/null
++++ b/packages/cli/src/core/compose/mount.ts
+@@ -0,0 +1,70 @@
++/**
++ * SPIKE 3: mounting a workspace stack's parts. A part is its stack entry with `mount` set; a
++ * fragment whose `applies_to` names exactly one part's stack id (and not the workspace) is placed
++ * on that part. Everything else stays at the root. Thrown away with the spike.
++ */
++import type { StackMeta } from "@steamfield/stacks-format";
++import { type Entry, isFragment } from "../registry/entry";
++import type { ConditionContext } from "./conditionals";
++
++type Stack = Entry & { meta: StackMeta };
++
++/** The parts as mounted entries, in the workspace's `parts` order. */
++export function mountParts(stack: Stack | null, parts: ReadonlyArray<Stack>): Entry[] {
++  return (stack?.meta.parts ?? []).flatMap((part, i) => {
++    const entry = parts[i];
++    return entry
++      ? [{ ...entry, mount: { name: part.name, role: part.role, stack: entry.id } }]
++      : [];
++  });
++}
++
++/** A fragment with `mount` set when its `applies_to` names exactly one part's stack id. */
++export function placeFragment<E extends Entry>(
++  fragment: E,
++  workspace: Entry | null,
++  parts: ReadonlyArray<Entry>,
++): E {
++  if (!parts.length || !isFragment(fragment)) return fragment;
++  const appliesTo = fragment.meta.appliesTo;
++  if (workspace && appliesTo.includes(workspace.id)) return fragment;
++  const named = parts.filter((part) => appliesTo.includes(part.id));
++  const [only] = named;
++  return named.length === 1 && only?.mount ? { ...fragment, mount: only.mount } : fragment;
++}
++
++/** `name-step` and the part directory joined with the step's own `cwd`. */
++export function mountStep<S extends { name: string; cwd?: string }>(
++  step: S,
++  mount: Entry["mount"],
++): S {
++  if (!mount) return step;
++  const cwd = step.cwd ? `${mount.name}/${step.cwd}` : mount.name;
++  return { ...step, name: `${mount.name}-${step.name}`, cwd };
++}
++
++/** The output path of a mounted entry's file. */
++export const mountPath = (path: string, mount: Entry["mount"]) =>
++  mount ? `${mount.name}/${path}` : path;
++
++/**
++ * The condition context for one entry's body. A part, and a fragment placed on one, sees its part's
++ * stack id and tags and only the fragments placed on that part: a root fragment (git-hooks,
++ * ci-github) counts as absent in a part body. The root sees the workspace and every fragment.
++ */
++export function contextFor(
++  entry: Entry,
++  root: ConditionContext,
++  placed: ReadonlyArray<Entry>,
++  parts: ReadonlyArray<Entry>,
++): ConditionContext {
++  const mount = entry.mount;
++  if (!mount) return root;
++  const part = parts.find((candidate) => candidate.mount?.name === mount.name);
++  return {
++    ...root,
++    stack: mount.stack,
++    tags: part?.meta.tags ?? [],
++    with: placed.filter((other) => other.mount?.name === mount.name).map((other) => other.id),
++  };
++}
+diff --git a/packages/cli/tests/spike-part-pin.test.ts b/packages/cli/tests/spike-part-pin.test.ts
+new file mode 100644
+index 00000000..980edf44
+--- /dev/null
++++ b/packages/cli/tests/spike-part-pin.test.ts
+@@ -0,0 +1,100 @@
++// SPIKE 3: what the remote registry does with a workspace whose pinned part bundle is missing.
++// Needs SPIKE_INDEX, an unsigned `build:index --include-unproven` output with the spike entries.
++import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
++import { join } from "node:path";
++import { Manifest, RegistryIndex } from "@steamfield/stacks-format";
++import { Schema } from "effect";
++import { afterEach, beforeEach, expect, test } from "vitest";
++import { bundleFile } from "./fixtures/index/harness";
++import { tempDir } from "./helpers/cli";
++import { named, publish, type RemoteServer, remoteCli, remoteServer } from "./helpers/remote-index";
++
++const source = process.env.SPIKE_INDEX ?? "";
++const registry = join(import.meta.dirname, "../registry");
++let dir: ReturnType<typeof tempDir>;
++let server: RemoteServer;
++let published: string;
++let bundled: string;
++let home: string;
++let index: RegistryIndex;
++
++beforeEach(async () => {
++  dir = tempDir();
++  published = join(dir.path, "published");
++  bundled = join(dir.path, "bundled");
++  home = join(dir.path, "home");
++  cpSync(source, published, { recursive: true });
++  cpSync(registry, bundled, { recursive: true });
++  const envelope = JSON.parse(readFileSync(join(published, "v1/index.json"), "utf8"));
++  index = Schema.decodeUnknownSync(RegistryIndex)(JSON.parse(envelope.payload));
++  publish(published, { keyId: "index-test-only", payload: envelope.payload, signature: "" });
++  server = await remoteServer(published);
++});
++afterEach(async () => {
++  await server.close();
++  dir.cleanup();
++});
++
++const scaffold = async () => {
++  const target = join(dir.path, "project");
++  const result = await remoteCli(
++    ["new", "spike-python-react", target, "--preset", "lean", "--no-launch", "--json"],
++    { home, server, host: { registry: bundled } },
++  );
++  return { result, target };
++};
++
++test.runIf(source !== "")("the index pins each part's bundle digest", () => {
++  const workspace = named(index, "stack", "spike-python-react");
++  expect(Object.keys(workspace.parts ?? {}).sort()).toEqual(["python-api", "react-vite"]);
++  expect(workspace.parts?.["react-vite"]).toBe(named(index, "stack", "react-vite").digest);
++});
++
++test.runIf(source !== "")(
++  "a missing pinned part bundle composes the drifted bundled part, unnoticed",
++  async () => {
++    const css = join(bundled, "stacks/react-vite/files/src/styles.css");
++    writeFileSync(css, `/* drifted bundled copy */\n${readFileSync(css, "utf8")}`);
++    rmSync(bundleFile(published, named(index, "stack", "react-vite")));
++    const { result, target } = await scaffold();
++    console.log("STATUS", result.status, result.stderr.slice(-400));
++    console.log("REQUESTS", JSON.stringify(server.requests));
++    expect(result.status).toBe(0);
++    const manifest = Schema.decodeUnknownSync(Manifest)(
++      JSON.parse(readFileSync(join(target, ".stacks/manifest.json"), "utf8")),
++    );
++    console.log("STACK", JSON.stringify(manifest.stack), "PARTS", JSON.stringify(manifest.parts));
++    console.log(
++      "FRONTEND CSS DRIFTED",
++      readFileSync(join(target, "frontend/src/styles.css"), "utf8").startsWith("/* drifted"),
++    );
++    expect(existsSync(join(target, "frontend/package.json"))).toBe(true);
++  },
++);
++
++test.runIf(source !== "")(
++  "an index workspace with a missing pinned part: which workspace and part compose",
++  async () => {
++    const stack = join(bundled, "stacks/spike-python-react/STACK.md");
++    writeFileSync(stack, `${readFileSync(stack, "utf8")}\nBundled workspace copy.\n`);
++    const css = join(bundled, "stacks/react-vite/files/src/styles.css");
++    writeFileSync(css, `/* drifted bundled copy */\n${readFileSync(css, "utf8")}`);
++    rmSync(bundleFile(published, named(index, "stack", "react-vite")));
++    const { result, target } = await scaffold();
++    expect(result.status).toBe(0);
++    const manifest = Schema.decodeUnknownSync(Manifest)(
++      JSON.parse(readFileSync(join(target, ".stacks/manifest.json"), "utf8")),
++    );
++    console.log("MIXED REQUESTS", JSON.stringify(server.requests));
++    console.log(
++      "MIXED STACK",
++      manifest.stack?.origin,
++      "PARTS",
++      manifest.parts?.map((p) => p.stack.origin).join(","),
++    );
++    console.log(
++      "MIXED FRONTEND CSS DRIFTED",
++      readFileSync(join(target, "frontend/src/styles.css"), "utf8").startsWith("/* drifted"),
++    );
++  },
++);

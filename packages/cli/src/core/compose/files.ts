@@ -119,6 +119,7 @@ export const composeFiles = (
   registry?: Registry["Service"],
 ) => Effect.flatMap(readFiles(composition, registry), (sources) => renderFiles(sources, values));
 
+/** Renders project and neutral values from one read of the sources, so both see the same bytes. */
 export const composeFilesWithNeutral = (
   composition: Composition<Entry | null>,
   values: TemplateValues,

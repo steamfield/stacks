@@ -1,3 +1,4 @@
+/** Search ranking, kept in this package so the CLI and the hosted API rank with the same code. */
 import type { FragmentMeta, Kind, StackMeta } from "../entry.js";
 import { bm25 } from "./bm25.js";
 import {

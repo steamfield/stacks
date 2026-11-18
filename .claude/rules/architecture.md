@@ -2,7 +2,7 @@
 
 Load the `ce:architecting-systems` skill before designing or changing a module, service, package boundary, schema or shared contract, and before executing a design or task across several units. Its Structure, Coupling and Boundaries references matter most here. Load Concurrency as well when touching signal handling or the Processes service, and Observability when touching logging. The skill comes from the `claude-essentials` marketplace (`ce` plugin); an agent without it should read the constraints below and continue.
 
-The skill gives general structure. This rule carries the product constraints it can't know. AGENTS.md "Architecture map" and "Conventions" cover the per-file layout and service style; don't repeat them in a design.
+The skill gives general structure. This rule carries the product constraints it can't know. AGENTS.md "Architecture map" and "Conventions" cover where each concept lives and the service style; don't repeat them in a design.
 
 ## Product constraints
 

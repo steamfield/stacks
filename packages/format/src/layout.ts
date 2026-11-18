@@ -2,7 +2,7 @@
  * Where an entry's bundle files land in a project. A bundle path is entry-relative
  * (`files/README.md.tmpl`, `adapters/claude/.claude/settings.json`); its shipped path drops the
  * `files/`, agent adapter, stack overlay or payload prefix, and its output path also drops a
- * `.tmpl` suffix.
+ * `.tmpl` suffix. The CLI and the website both map files with these functions.
  */
 
 const OVERLAY_KINDS = { adapters: "agent", stacks: "stack", payloads: "payload" } as const;

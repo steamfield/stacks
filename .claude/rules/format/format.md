@@ -6,7 +6,9 @@ paths:
 # Format package
 
 This package owns the wire contracts the CLI and the hosted API share: entry format, manifest,
-run record, canonical bundle, index, search, stats and dependency schemas.
+run record, canonical bundle, index, search, stats and dependency schemas, plus the code both
+sides must run identically (search ranking, bundle digests, file layout). Composition,
+fingerprinting and registry I/O stay in the CLI.
 Keep runtime source portable: no `node:*`, `bun`, `bun:*` or `@effect/platform-*` imports in
 `src/` (`biome-plugins/no-platform-imports.grit` enforces it).
 Use standard Web APIs and Effect core; platform I/O belongs to consumers.

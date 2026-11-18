@@ -33,7 +33,11 @@ const noAllowlist = {
 export class Allowlist extends Context.Service<
   Allowlist,
   {
-    /** `makeCachedFetch` keeps the last verified allowlist when a refresh fails. */
+    /**
+     * Fetches when the cache is stale; `list`, `show` and `new` call it, while `verify` reads
+     * `cached` and never makes a request. `makeCachedFetch` keeps the last verified allowlist
+     * when a refresh fails.
+     */
     readonly refresh: Effect.Effect<Option.Option<DependencyAllowlist>>;
     /** The last verified allowlist at any age, with no request. */
     readonly cached: Effect.Effect<Option.Option<DependencyAllowlist>>;

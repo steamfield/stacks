@@ -70,14 +70,12 @@ const compositionEntries = (composition: Composition): ReadonlyArray<MountedEntr
 
 /**
  * Whether a target names a command of the composed table. A mounted owner's step runs in its part
- * directory, where the part's own `test` is `<part>-test` in the table.
+ * directory, where the part's own `test` is `<part>-test` in the table (the workspace's own
+ * `<part>-test` when it shadows the part's), so a root key of the same name doesn't count.
  */
 function declared(composition: Composition, owner: MountedEntry, target: string): boolean {
-  if (Object.hasOwn(composition.commands, target)) return true;
-  return (
-    owner.mount !== undefined &&
-    Object.hasOwn(composition.commands, `${owner.mount.name}-${target}`)
-  );
+  const key = owner.mount === undefined ? target : `${owner.mount.name}-${target}`;
+  return Object.hasOwn(composition.commands, key);
 }
 
 function undeclaredStepCommands(view: View, composition: Composition): Finding[] {

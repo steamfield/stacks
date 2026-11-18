@@ -429,6 +429,22 @@ describe("verify steps of the parts", () => {
     ]);
   });
 
+  test("a part step running a target only the workspace declares is undeclared in the part", async () => {
+    // pair declares `check` at the root; in backend/ `bun run check` needs backend-check.
+    const root = variant((root) =>
+      replace(
+        root,
+        API,
+        "  - { name: openapi-drift,",
+        "  - { name: checks, layer: check, run: bun run check }\n  - { name: openapi-drift,",
+      ),
+    );
+    expect(await added(root)).toEqual([
+      `warning undeclared-command stack/api-part ${API}: api-part: verify step checks runs check, which is missing from the composed commands table`,
+      `warning undeclared-command stack/api-part ${API}: pair: verify step backend-checks runs check, which is missing from the composed commands table`,
+    ]);
+  });
+
   test("two steps in one part running one command are still a duplicate", async () => {
     const root = variant((root) =>
       replace(

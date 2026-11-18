@@ -3,20 +3,20 @@
   "kind": "fragment",
   "id": "docker-deploy",
   "source": {
-    "digest": "sha256:ab57622f09ddf370511bd423840f4af6437144223bb048731db339aba478a03d",
+    "digest": "sha256:b200aea5c35c95ad120f8e58f982c6106e6797272f03419aaa02909dda6e7115",
     "by": "drafted",
-    "model": "codex/gpt-6.1-sol",
+    "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-18"
   },
   "summary": "Package deployable services as production container images and publish them to GitHub Container Registry after CI passes.",
-  "description": "Package each deployable part as a multi-stage, non-root image with a healthcheck, then publish versioned images to GitHub Container Registry after CI. The instructions adapt to the selected stack, including an API and static site in one image for astro-fullstack. Local verification builds the images and checks that they start healthy. Choosing a host, configuring runtime secrets and rolling out containers remain separate deployment work.",
+  "description": "Package the API or app as a multi-stage, non-root image with a healthcheck, then publish versioned images to GitHub Container Registry after CI. The instructions adapt to the selected stack, including an API and static site in one image for astro-fullstack. Local verification builds the image and checks that it starts healthy. Choosing a host, configuring runtime secrets and rolling out containers remain separate deployment work.",
   "seoDescription": "Build non-root production container images with healthchecks and publish versioned artifacts to GHCR through GitHub Actions.",
   "projectExamples": [
     {
-      "title": "Containerized Python web app",
-      "description": "A Python and React web app packaged as separate API and web images, with nginx serving the frontend and forwarding API requests.",
-      "stack": "python-react"
+      "title": "Containerized Python API",
+      "description": "A Python API shipped as one small image that runs without root and reports its health, published to GitHub Container Registry for each release.",
+      "stack": "python-api"
     },
     {
       "title": "Single-image site and API",
@@ -25,7 +25,7 @@
     }
   ],
   "plain": {
-    "whatItIs": "Packages each deployable part of the app as a container, a sealed bundle with what it needs, and publishes it to GitHub after checks pass.",
+    "whatItIs": "Packages the app or API as a container, a sealed bundle with what it needs, and publishes it to GitHub after checks pass.",
     "goodAt": [
       "Building images that leave out development tools and secrets",
       "Publishing versioned images after the project's checks pass"
@@ -40,7 +40,7 @@
   "requests": [
     "package my API in a small container that runs without root",
     "publish versioned service images when checks pass or I tag a release",
-    "build separate production images for my frontend and backend"
+    "containerize my FastAPI or Go service with a healthcheck"
   ],
   "useCases": [
     "container packaging",

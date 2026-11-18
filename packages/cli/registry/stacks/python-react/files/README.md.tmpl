@@ -2,40 +2,41 @@
 
 <!-- stacks:fill One or two sentences on what this project does and who it's for. -->
 
-FastAPI backend in `backend/`, React single-page app in `frontend/`. The frontend's API types, query hooks, and test mocks are generated from the backend's OpenAPI spec.
+A FastAPI service in `backend/` and a React single-page app in `frontend/`, in one repository. The frontend calls the API through a client generated from the backend's OpenAPI document. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how the two connect.
 
 ## Quickstart
 
-Requires [uv](https://docs.astral.sh/uv/), [bun](https://bun.sh), and make.
+Requires [uv](https://docs.astral.sh/uv/), [Bun](https://bun.sh), Node and make.
 
 ```bash
-cp .env.example .env
 make install
-make dev        # API on :8000, web on :5173
+make dev        # API on :8000, web on :4173
 ```
 
-Open http://localhost:5173. The web dev server proxies `/api` to the backend.
+Open http://localhost:4173. The web dev server forwards `/api` to the API. To change a port or a setting for both parts, copy `.env.example` to `.env` and edit it; a variable exported in your shell still wins.
 
 ## Commands
 
+Run from the repository root. Each target runs the matching command inside `backend/` and `frontend/`.
+
 | Command | What it does |
 |---|---|
-| `make dev` | Run API and web dev servers |
-| `make lint` / `make format` | Check / fix lint and formatting |
-| `make typecheck` | mypy + tsc |
-| `make test` | Backend and frontend tests |
-| `make coverage` | Tests with coverage thresholds |
-| `make build` | Production frontend build |
-| `make generate-api` | Regenerate the typed API client after backend changes |
-| `make e2e` | Playwright end-to-end tests |
+| `make dev` | Both dev servers |
+| `make lint` / `make format` | Check or fix lint and formatting |
+| `make typecheck` | mypy and tsc |
+| `make test` | Both parts' tests |
+| `make api-client` | Regenerate the frontend's API client after a backend change |
+| `make check` | Everything: each part's checks, the contract chain and a request through the proxy |
 
-Run `make help` for the full list.
+Run `make help` for the full list. Each part's own README covers its commands.
 
 ## Layout
 
 ```
-backend/    FastAPI app (app/), tests, pyproject.toml
-frontend/   React Router SPA (app/), tests, generated API client
+backend/    FastAPI service: app/, tests/, its own Makefile and README
+frontend/   React app on Vite: src/, tests/, e2e/, the generated client in src/api/generated/
+docs/       ARCHITECTURE.md, how the parts connect
+scripts/    check-pair.sh, the check that runs both parts together
 ```
 
 ## License

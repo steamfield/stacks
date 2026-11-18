@@ -3,14 +3,14 @@
   "kind": "fragment",
   "id": "postgres",
   "source": {
-    "digest": "sha256:cb804ee5dc4539847fd9557dd8ff51d394c8a625b12a5c85109fae3da87cba22",
+    "digest": "sha256:80d6ce48b6603e906c0ce80ef4dc26ec1ee80c430d28368d63ca841b7eb0b3e6",
     "by": "drafted",
-    "model": "codex/gpt-6.1-sol",
+    "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-18"
   },
   "summary": "Add local PostgreSQL services, explicit schema migrations and a private database for each test file cloned from a migrated template.",
-  "description": "Add local Postgres development and test services, SQLAlchemy/Alembic integration for the FastAPI stacks (python-react and python-api), and explicit migration commands. The test harness clones a migrated template so each test file has a private database. Readiness checks distinguish API health from database availability. Product tables, queries and access rules are your work. Production hosting is separate, and migrations run as a release step rather than at application startup.",
+  "description": "Add local Postgres development and test services, SQLAlchemy/Alembic integration for the FastAPI service (python-api, alone or as the backend of python-react), and explicit migration commands. The test harness clones a migrated template so each test file has a private database. Readiness checks distinguish API health from database availability. Product tables, queries and access rules are your work. Production hosting is separate, and migrations run as a release step rather than at application startup.",
   "seoDescription": "Postgres for FastAPI projects, with Docker Compose, SQLAlchemy, Alembic migrations and isolated databases for integration tests.",
   "projectExamples": [
     {

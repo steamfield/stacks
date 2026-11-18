@@ -1,7 +1,0 @@
-# An allowlist: send only what the build reads.
-*
-!pyproject.toml
-!uv.lock
-!app/
-app/**/test_*.py
-**/__pycache__

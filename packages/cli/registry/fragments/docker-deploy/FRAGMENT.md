@@ -4,9 +4,9 @@ id: docker-deploy
 kind: fragment
 category: deploy
 name: Docker images + GHCR
-description: Production container images (multi-stage, non-root, healthchecked Dockerfiles shipped for each deployable part) that verify builds and starts, plus a GitHub Actions job that publishes them to GitHub Container Registry once the project's checks pass on the default branch.
+description: A production container image (a multi-stage, non-root, healthchecked Dockerfile) that verify builds and starts, plus a GitHub Actions job that publishes it to GitHub Container Registry once the project's checks pass on the default branch.
 tags: [docker, deploy, containers, ghcr]
-applies_to: [python-react, python-api, typescript-api, astro-fullstack, go-api]
+applies_to: [python-api, typescript-api, astro-fullstack, go-api]
 requires_tools: [docker]
 tools: [docker]
 env:
@@ -36,9 +36,6 @@ stacks shipped the Dockerfiles and allowlist `.dockerignore` files (non-root, ca
 <!-- stacks:end -->
 <!-- stacks:when stack=python-api -->
 **Image** `api`, port 8000. Args: `PYTHON_VERSION` from `.python-version`, `UV_VERSION` from `uv --version | cut -d' ' -f2`. `uv sync --locked` needs `requires-python` set.
-<!-- stacks:end -->
-<!-- stacks:when stack=python-react -->
-**Images** `api` (context `backend/`, port 8000) and `web` (context `frontend/`, nginx proxying the API paths), the stack's Production SPA serving default; if the user picks FastAPI serving the build, fold the SPA into the API image. `docker-serve` exports `PORT_IMAGE` and runs `docker compose -f compose.prod.yaml up --abort-on-container-failure`. Args: `PYTHON_VERSION` from `backend/.python-version`, `UV_VERSION` from `uv --version | cut -d' ' -f2`, `BUN_VERSION` from `bun --version`.
 <!-- stacks:end -->
 <!-- stacks:when stack=typescript-api,astro-fullstack -->
 **Image** `app`, port 3000, only the bundle (and, for astro-fullstack, the site as `STATIC_DIR`) on slim Node. Args: `BUN_VERSION` from `bun --version`, `NODE_VERSION` from `.node-version` without a leading `v`.

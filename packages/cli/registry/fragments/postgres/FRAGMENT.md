@@ -4,13 +4,13 @@ id: postgres
 kind: fragment
 category: service
 name: PostgreSQL with SQLAlchemy for Python
-description: "PostgreSQL for the FastAPI stacks (python-react, python-api): Docker Compose dev and test services with healthchecks, a SQLAlchemy async notes store, Alembic migrations with a drift check, a readiness route, and tests on a private database per file cloned from a migrated template."
+description: "PostgreSQL for the FastAPI service (python-api, also as the backend of python-react): Docker Compose dev and test services with healthchecks, a SQLAlchemy async notes store, Alembic migrations with a drift check, a readiness route, and tests on a private database per file cloned from a migrated template."
 tags: [database, postgres, service]
-applies_to: [python-react, python-api]
+applies_to: [python-api]
 requires_tools: [docker]
 tools: [docker]
 deps:
-  backend: [sqlalchemy, asyncpg, alembic]
+  runtime: [sqlalchemy, asyncpg, alembic]
 decisions:
   - "Postgres image (default: the official postgres image, current major, alpine variant). Use an image with the extensions the project needs, such as pgvector, when the person asks for them."
   - "Run migrations on app start (default: no). db-migrate is an explicit development and release step."
@@ -48,12 +48,7 @@ commands:
 
 Migrations are the only schema source; tests run them and never create tables from models.
 
-<!-- stacks:when stack=python-react -->
-These live under `backend/`; `compose.yaml` and `.env.example` stay at the repo root. Readiness is `GET /health/ready`, which the Vite proxy already forwards with `/health`.
-<!-- stacks:end -->
-<!-- stacks:when stack=python-api -->
 Readiness is `GET /readyz`, beside `/healthz` and outside `/v1`.
-<!-- stacks:end -->
 
 ## What to add
 
@@ -64,13 +59,10 @@ Readiness is `GET /readyz`, beside `/healthz` and outside `/v1`.
 5. In `pyproject.toml`: add `--ignore=tests/db` to pytest's `addopts` (`make test` stays Docker-free; an explicit `pytest tests/db` still collects them), and add `"app/db/*"` to coverage's `omit` (test-db covers it). For ruff, add `"sqlalchemy.orm.DeclarativeBase"` to `runtime-evaluated-base-classes` (SQLAlchemy reads `Mapped[...]` at runtime, so TC's unsafe fix breaks the models) and the per-file ignore `"migrations/**/*.py" = ["TC"]`. The root `conftest.py`'s `isolated_environment` also deletes `DATABASE_URL`, beside the variables it already clears.
 6. Makefile targets matching `commands`: `db-up` is `docker compose up -d --wait db db-test`; `db-migrate` `uv run alembic upgrade head`; `db-check` `uv run python -m tests.db.drift`; `test-db` `uv run pytest tests/db -n $(TEST_WORKERS)`; `db-down` `docker compose stop db`. Add `db-new-migration` (`uv run alembic revision --autogenerate -m "$(NAME)"`) and `db-shell` (`docker compose exec db psql -U app app`). The mypy target adds `migrations`.
 7. `.env.example` gets `PORT_DB` and `PORT_DB_TEST`, and commented-out `# DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app` and `# TEST_DATABASE_URL=postgresql://app:app@localhost:5433/postgres`: both default from the ports, and a URL copied into `.env` would beat the port verify passes.
-8. Regenerate the committed OpenAPI spec, since the readiness route is new.
+8. Mount the router in `create_app`, then regenerate the committed OpenAPI spec with `make openapi`, since the readiness route is new.
 
-<!-- stacks:when stack=python-react -->
-In python-react, mount the router in `app/routers.py::register_routers`, run the Alembic and pytest targets inside `backend/` like the other backend targets, and regenerate with `make generate-api`.
-<!-- stacks:end -->
-<!-- stacks:when stack=python-api -->
-In python-api, mount the router in `create_app` and regenerate with `make openapi`.
+<!-- stacks:when part=web -->
+The readiness route changes the API part's OpenAPI document, so the client part's copy and generated client are stale. Regenerate both with the workspace's root command that copies the document into the client part, and commit them with this change; the client part's drift check fails until then.
 <!-- stacks:end -->
 
 A second checkout sets its own `COMPOSE_PROJECT_NAME`, ports and URLs in `.env`, and runs `PORT_DB=... PORT_DB_TEST=... stacks verify` with the same ports, since verify's defaults beat Compose's `.env`.

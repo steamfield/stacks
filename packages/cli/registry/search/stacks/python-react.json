@@ -3,15 +3,15 @@
   "kind": "stack",
   "id": "python-react",
   "source": {
-    "digest": "sha256:6fca14d0c4f10b0247018aca79fe08e43a36866fbe6d044df0144bc08cd8c90b",
+    "digest": "sha256:c89b30c7c681c83145cd1fac9bf5bdc5ae6452e3dcdce075bed54479a1ba7239",
     "by": "drafted",
-    "model": "codex/gpt-6.1-sol",
+    "model": "claude-opus-5-5",
     "promptVersion": 4,
     "reviewedAt": "2026-11-18"
   },
-  "summary": "A browser app backed by a Python API, with generated frontend types, query hooks and test mocks.",
-  "description": "Keep Python business logic in FastAPI and build the browser interface as a React single-page app. OpenAPI generates the frontend's types, query hooks and test handlers, with a drift check for the committed API contract. Both halves have their own tests behind one Makefile. The base has no database or authentication; postgres is the compatible persistence add-on, while account handling remains your work.",
-  "seoDescription": "A FastAPI backend and React SPA with an OpenAPI-generated client, query hooks and test handlers, checked through one Makefile.",
+  "summary": "A FastAPI backend and a React single-page app in one repository, joined by a typed client generated from the API's OpenAPI document.",
+  "description": "Puts a FastAPI service in backend/ and a React single-page app on Vite in frontend/, each complete with its own tests and commands. Orval generates the frontend's typed query hooks from the backend's OpenAPI document, the Vite dev server forwards /api to the API, and a root Makefile runs both parts' checks plus one that sends real requests from the frontend to the API. The base has no database or authentication; postgres adds persistence to the backend, while accounts remain your work.",
+  "seoDescription": "A FastAPI backend and a React SPA on Vite in one repository, with an Orval client generated from OpenAPI and checks that run both parts together.",
   "projectExamples": [
     {
       "title": "Dataset review workbench",
@@ -26,14 +26,15 @@
     }
   ],
   "plain": {
-    "whatItIs": "A starter web app with its business logic in Python and a separate browser interface built with React, a toolkit for web screens.",
+    "whatItIs": "A starter web app with its business logic in a Python service and a separate browser interface built with React, a toolkit for web screens, in one repository.",
     "goodAt": [
       "Python services with a browser interface on top",
       "Generating the browser's data types from the Python API's description",
-      "One set of commands to check both the Python and browser code"
+      "One set of commands that checks both parts and how they connect"
     ],
     "notGoodAt": [
-      "Pages the server builds before sending them; use the React Router stack for those."
+      "Pages the server builds before sending them; use the React Router stack for those.",
+      "A Python API with no browser interface; use the FastAPI service stack."
     ]
   },
   "platforms": [
@@ -50,25 +51,27 @@
     "typescript"
   ],
   "requests": [
+    "fastapi backend with a react frontend in one repo",
     "build my browser interface around a separate Python backend",
-    "generate frontend data hooks from my backend's API specification",
-    "keep my browser client aligned with backend response types",
-    "run frontend and backend checks through one set of commands"
+    "generate typed query hooks from my python api's openapi spec",
+    "check that my frontend still matches the backend api before merging"
   ],
   "useCases": [
-    "browser apps with a separate API",
+    "browser apps with a separate Python API",
     "frontend and backend contract checks"
   ],
   "synonyms": [
     "FastAPI",
     "React SPA",
+    "Vite",
     "OpenAPI",
     "orval",
-    "TanStack Query"
+    "TanStack Query",
+    "monorepo"
   ],
   "goodFor": [
-    "Python business logic with a TypeScript interface",
-    "generated API mocks"
+    "Python domain logic with a TypeScript interface",
+    "an API contract shared by both halves"
   ],
   "notFor": [
     "server-side rendering",

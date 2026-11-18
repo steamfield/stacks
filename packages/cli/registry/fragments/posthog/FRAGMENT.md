@@ -6,7 +6,7 @@ category: vendor
 name: PostHog analytics for web clients
 description: PostHog product analytics in the web client, with a shipped analytics module, typed event catalog and unit test for each supported stack. The SDK never loads while the key is empty, so tests, CI and sandboxes need no account.
 tags: [analytics, vendor, web]
-applies_to: [astro-blog, astro-product-site, astro-fullstack, cloudflare-react-router, python-react, react-router, react-vite]
+applies_to: [astro-blog, astro-product-site, astro-fullstack, cloudflare-react-router, react-router, react-vite]
 deps:
   web: [posthog-js]
   web-dev: [happy-dom]
@@ -38,9 +38,6 @@ Shipped under `apps/web/src/lib/`, plus `config.ts`, the one module the Grit bou
 <!-- stacks:when stack=cloudflare-react-router -->
 Shipped under `app/lib/`, plus `vitest.client.config.ts`, a happy-dom project for browser modules. The Workers pool has no DOM, so add `"./vitest.client.config.ts"` to `projects` in `vitest.config.ts`, add `exclude: ["app/lib/**"]` to the workers project in `vitest.workers.config.ts`, and add `happy-dom` as a dev dependency. Coverage stays on server code. Append `VITE_PUBLIC_POSTHOG_KEY=` and `VITE_PUBLIC_POSTHOG_HOST=` to `.env.example`, empty (the key is public; secrets still never take `VITE_`). The root renders on the server: call `initAnalytics` from a `useEffect` in `App` in `app/root.tsx`, with `import.meta.env.VITE_PUBLIC_POSTHOG_KEY` and `_HOST`.
 <!-- stacks:end -->
-<!-- stacks:when stack=python-react -->
-Shipped under `frontend/app/lib/`. Append `VITE_PUBLIC_POSTHOG_KEY=` and `VITE_PUBLIC_POSTHOG_HOST=`, empty, to the root `.env.example`'s frontend section. Call `initAnalytics` from a `useEffect` in `App` in `frontend/app/root.tsx`, passing `import.meta.env.VITE_PUBLIC_POSTHOG_KEY` and `_HOST`. The `history_change` pageview option covers SPA navigation; write no pageview code.
-<!-- stacks:end -->
 <!-- stacks:when stack=react-router -->
 Shipped under `app/lib/`. Vitest runs in Node here, so the test carries `// @vitest-environment happy-dom`; keep that line. Append `VITE_PUBLIC_POSTHOG_KEY=` and `VITE_PUBLIC_POSTHOG_HOST=` to `.env.example`, empty. The root renders on the server: call `initAnalytics` from a `useEffect` in `App` in `app/root.tsx`, with `import.meta.env.VITE_PUBLIC_POSTHOG_KEY` and `_HOST`. Client navigation doesn't reload the page; the `history_change` pageview option captures it, so write no pageview code.
 <!-- stacks:end -->
@@ -70,7 +67,7 @@ Replace `example_viewed` with real events as they appear; `track()` accepts cata
 
 ## Testing
 
-No verify step of its own, because the test command differs per stack: the stack's test step (`make test` on astro-blog, astro-product-site and python-react, `bun run test` elsewhere) runs the shipped test, including its wiring check.
+No verify step of its own, because the test command differs per stack: the stack's test step (`make test` on astro-blog and astro-product-site, `bun run test` elsewhere) runs the shipped test, including its wiring check.
 
 ## AGENTS.md
 

@@ -24,6 +24,27 @@ Rot checks also try explicitly applicable fragments beside each stack's defaults
 
 Author bodies with ATX headings (`## Heading`). Exact versions and dated release phrases warn outside fenced examples, in bodies, decisions and shipped Markdown. Version-sensitive config files (package manifests, tool configs, workflows, Dockerfiles) warn when they contain a version: a pinned `x.y.z`, a semver range, `packageManager`, `engines`, a `go` or `toolchain` directive, or an Actions ref. Remove the version and let the agent pick current ones. A bare Actions expression such as `${{ github }}` in a `.tmpl` warns; dotted expressions stay literal, and known template variables are intentional substitutions.
 
+### Workspace stacks
+
+A stack with `parts` gets these findings on its own `STACK.md`, read from the workspace, its parts and the fragments it lists, without composing. A parts problem is reported here once; the compositions that fail because of it add no second finding.
+
+| Check | Severity | When |
+| --- | --- | --- |
+| `part-stack` | error | A part names a stack that no registry root has. |
+| `part-role` | error | A part's role isn't one this CLI knows (`api`, `web`). |
+| `part-name-duplicate` | error | Two parts share a name, which is also their directory. |
+| `part-nested` | error | A part's stack has parts of its own (the workspace itself or another workspace). |
+| `part-roles` | error | The parts don't hold exactly one `api` part and one client (`web`) part. |
+| `part-cwd` | error | A part's verify step, or a step of a listed fragment placed on one part, has a `cwd` that leaves the part's directory. The message names the step and the file it is in. |
+| `part-role-rule` | error | A part breaks a Declared rule of its role: `api-port-env` (`PORT_API` in `env`), `api-healthz-serve` (a `serve` step whose `expect.http` uses `${PORT_API}` and ends in `/healthz`), `web-port-env` (`PORT_WEB` in `env`). Checked only when the parts list itself has no problem. |
+| `part-required-restated` | error | A part's `fragments.required` id is missing from the workspace's `required`, once per part. A part's own tiers are never selected. |
+| `link-openapi-drift` | error | The workspace requires a `category: link` fragment and the `api` part has no verify step named `openapi-drift`. |
+| `workspace-heading` | warning | The body has no `## How the parts connect` or no `## Changing the API` heading (`## Setup` stays `stack-setup-section`). |
+| `workspace-part-dirs` | warning | The body never mentions a part's directory as `<name>/`. |
+| `part-namespace-shadowed` | warning | A workspace command key or `deps` role equals `<part>-<key>` of a part's command or role, so it replaces the part's command or merges with its role. |
+
+In a workspace's compositions, a part step's runner target is checked against the part's namespaced command (`backend-test` covers `bun run test` in `backend/`), and `verify-run-duplicate` groups steps by directory and command, so the same command in two parts is no repeat. A fragment that fits one of a workspace's parts fits the workspace in `compose-each` and the add checks, and the add checks place it on that part.
+
 ### Shipped references
 
 Reference checks read the neutral-rendered, merged files for every shipped adapter. Claude settings permissions and VS Code launch arguments must name composed commands or commands named in inline code. Hook paths must exist in the composed files. Literal localhost ports in settings or VS Code JSON warn when an env variable has a `PORT` segment. Invalid reference JSON is one error per file; its reference checks are skipped.

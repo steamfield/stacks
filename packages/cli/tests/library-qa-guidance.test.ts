@@ -87,7 +87,8 @@ test.each(agents)("Effect bootstrap can start without an API reference for %s", 
   expect(services).toContain("installed declarations");
 });
 
-test("Python's error model and acceptance require camelCase wire requestId", async () => {
+// python-react's backend is python-api: a tag/message/retryable envelope, the id in a header.
+test("Python's error model and acceptance pin the envelope and the x-request-id header", async () => {
   const { project } = await scaffoldAdapters({
     home: space.temp(),
     stack: "python-react",
@@ -95,10 +96,11 @@ test("Python's error model and acceptance require camelCase wire requestId", asy
   });
   const handlers = readFileSync(join(project, "backend/app/error_handlers.py"), "utf8");
   const tests = readFileSync(join(project, "backend/tests/test_http.py"), "utf8");
-  expect(handlers).toContain('request_id: str = Field(serialization_alias="requestId")');
-  expect(tests).toContain('"requestId": response.headers["x-request-id"]');
-  expect(tests).toContain('("/missing", 404, "NOT_FOUND")');
-  expect(tests).toContain('422, "VALIDATION_FAILED"');
-  expect(tests).toContain('assert_error(response, 500, "INTERNAL_ERROR")');
-  expect(tests).not.toContain('"request_id": response.headers');
+  expect(handlers).toContain(
+    "error=PublicError(tag=tag, message=row.message, retryable=row.retryable)",
+  );
+  expect(tests).toContain('assert response.headers["x-request-id"]');
+  expect(tests).toContain('("/missing", 404, "NotFound")');
+  expect(tests).toContain('("/v1/notes/missing?surprise=yes", 400, "BadInput")');
+  expect(tests).not.toContain("requestId");
 });

@@ -97,7 +97,6 @@
     "registry/stacks/mobile-expo/files/apps/**",
     "registry/stacks/mobile-expo/files/packages/**",
     // These SPAs import React, browser globals and tools installed only in the scaffold.
-    "registry/stacks/python-react/files/frontend/**",
     "registry/stacks/tauri-react/files/src/**",
     "registry/stacks/tauri-react/files/tests/**",
     "registry/stacks/tauri-react/files/*.config.ts",

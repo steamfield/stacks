@@ -314,14 +314,15 @@ test.each([
   expect(preview.findings.filter((finding) => finding.severity === "error")).toEqual([]);
 });
 
-test.each(["astro-blog", "python-react"])(
-  "%s keeps the build step enabled in sandbox verification",
-  async (stack) => {
-    const result = await scaffold(stack, `build-${stack}-sandbox`, ["--sandbox"]);
-    const build = readManifestAt(result.project).verify.find((step) => step.name === "build");
-    expect(build).toMatchObject({ skipByDefault: false });
-  },
-);
+// python-react's build is its frontend part's, so the mounted step carries the part prefix.
+test.each([
+  ["astro-blog", "build"],
+  ["python-react", "frontend-build"],
+])("%s keeps the build step enabled in sandbox verification", async (stack, name) => {
+  const result = await scaffold(stack, `build-${stack}-sandbox`, ["--sandbox"]);
+  const build = readManifestAt(result.project).verify.find((step) => step.name === name);
+  expect(build).toMatchObject({ skipByDefault: false });
+});
 
 test("a shared fragment branch for another stack leaves gate briefs and fingerprints unchanged [3.3b#4]", async () => {
   const registry = join(home, "conditional-registry");

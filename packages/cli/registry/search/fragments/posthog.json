@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "posthog",
   "source": {
-    "digest": "sha256:754f5a29fb9ac8035f2a06c1d75a4c03c52fd711fd4a810407017996b9b641f5",
+    "digest": "sha256:bdb8e4a78ebeca74a5ea7743bbdf88dab96875bb9bec586f92396fcf6c598076",
     "by": "drafted",
-    "model": "codex/gpt-6.1-sol",
+    "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-18"
   },
   "summary": "Track browser pageviews and typed product events through PostHog, with buffered initialization and analytics disabled when no key is configured.",
   "description": "Collect browser pageviews and explicitly named product events through one typed analytics module. Events can queue while PostHog initializes, and an empty key makes analytics silent in development and tests. Session recording and autocapture are off by default; consent and cookie use are explicit choices. The guidance excludes user-entered text, email addresses and tokens. It does not establish legal compliance or provide server-side analytics.",
@@ -20,8 +20,8 @@
     },
     {
       "title": "Dashboard workflow measurement",
-      "description": "A Python and React dashboard whose team sees which workflow actions people use through named browser events, with form contents kept out of analytics.",
-      "stack": "python-react"
+      "description": "A React dashboard whose team sees which workflow actions people use through named browser events, with form contents kept out of analytics.",
+      "stack": "react-vite"
     }
   ],
   "plain": {

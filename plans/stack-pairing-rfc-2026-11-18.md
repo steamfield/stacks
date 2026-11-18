@@ -139,7 +139,7 @@ A `web` part, on top of the client rules:
 
 - Declared: `PORT_WEB` is in its `env`.
 - Proven: a dev proxy that forwards `/api` to `PORT_API` and strips only the `/api` segment, so its base URL is the same-origin path `/api` and its calls name `/v1/...` themselves. The first draft had the proxy rewrite to `/v1`. That conflicts with a generated client, whose paths already start with `/v1`, and it leaves `/healthz` unreachable through the proxy (Spike 1 saw the 404). The spike builds worked around it in the link; the rule as now written was not itself run.
-- Proven: the proxy has no fallback port. `react-vite`'s fell back to 8000 while `hono-api` defaults to 3000, so a default suits one API stack only; it fails when `PORT_API` is unset.
+- Proven: the proxy has no fallback port. `react-vite`'s fell back to 8000 while `hono-api` defaults to 3000, so a default suits one API stack only. The proxy is configured only when `PORT_API` is set; unset, there is none, and the stack behaves standalone as it does today.
 
 `vite preview`, which `react-vite`'s `web` step runs, uses the same proxy (Vite sets `preview.proxy` from `server.proxy`), so the both-parts step works against a built frontend.
 
@@ -255,7 +255,7 @@ A stack written as a whole project assumes it owns the root. Spike 1 mounted thr
 | `README.md`, `.env.example` | Part copy stays in the part; the workspace stack owns the root ones. Three `readme-filled` steps result. |
 | `AGENTS.md`, `CLAUDE.md` | Part copy stays in the part. The workspace stack ships the root pair, which link to each part's. No root `AGENTS.md` existed in the spike and the setup agent had to invent one. |
 | Agent adapters | The per-harness root list above; the rest stays in the part. |
-| `biome.json` | Each part's gains `"root": false`. Nested root configs never reach across parts, but they make any Biome run from the root fail; with the key a part still lints standalone. |
+| `biome.json` | Stays a root config in each part, unchanged. Nested root configs never reach across parts, but they make any Biome run from the workspace root fail, so root targets, hooks and CI run Biome inside each part. Spike 1 suggested `"root": false` in each part; Phase 1 found that a config with that key and no parent is silently ignored (Biome 2.6.8 lints with its defaults), so a standalone stack would lose its rules. |
 | `lefthook.yml` and its install | Root only, owned by the workspace, with a job per part using lefthook's `root:`. Each part installs hooks only when the file is beside it, so the root install target runs `lefthook install`. |
 | `.env` | The root `.env` reaches a part only through the root Makefile's export. `python-api` reads `backend/.env` and Vite reads the shell. The workspace body says so, and the root Makefile must not let an included `.env` override a port exported in the shell, which the spike's did. |
 | `project_name` | Both parts render the same value into `package.json` and `pyproject.toml`. Harmless in the spike; left as is. |
@@ -551,7 +551,6 @@ Each `EntryInvalid` reason gets its `failureGuide` line and a `runCli` test, and
    - `react-vite`: its example renamed from `items` to `notes` across about 20 files including its documents; the dev proxy stripping `/api`, with no fallback port; a request function on its API client module, with the module's path documented in its body; Biome excludes for `src/api/generated` and `openapi.json`.
    - `python-api`: `operation_id` on the example resource's routes.
    - `hono-api`: the OpenAPI dump script with a check mode, its two package scripts and the `openapi-drift` step.
-   - Every stack with a Biome config: `"root": false`.
    - Every stack that ships hooks: tools found by walking up from the edited file, and hook file names that carry the stack id.
    - `python-react`'s backend adopts `python-api`'s health paths, error codes and OpenAPI command name. Its lean scaffold stops leaving posthog references behind, its rule stops citing an absent analytics module, and its Playwright config survives a second spec file (the baseline run found parallel workers racing Vite's cold dependency optimizer).
    - `go backend` and similar phrases join the search vocabulary.
@@ -679,4 +678,4 @@ Free pairing, the `--api` and `--web` flags, `add --web`, pair results in search
 - The brief: the fixed line names the instruction files; Setup states what fails before generation and never cites step numbers; the workspace body carries CI and hooks per part; the budget section, with the maintainer's decision to trim prose and keep the limit.
 - Failure cases are named with reasons. Phase 1 lists the registry changes per stack; Phase 3 carries the 26 assumptions and the mounting shape.
 
-The two questions earlier reviews left unverified are answered: a nested root Biome config fails only a run from the root and `"root": false` fixes it, and `vite preview` uses the dev proxy. This revision has not been reviewed.
+The two questions earlier reviews left unverified are answered: a nested root Biome config fails only a run from the workspace root (the `"root": false` fix the spike proposed was later found to disable a standalone stack's config, and is not taken), and `vite preview` uses the dev proxy. This revision has not been reviewed.

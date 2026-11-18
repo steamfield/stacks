@@ -9,4 +9,10 @@ export type ReferenceIssue = {
   message: string;
   /** When given, picks the contributor whose parsed source holds the problem instead of `needle`. */
   matches?: (config: unknown) => boolean;
+  /**
+   * The command-table target the config runs. Whether it is declared depends on who shipped the
+   * line (a mounted part resolves it among its own prefixed commands), so the issue is a problem
+   * only for contributors that don't declare it.
+   */
+  target?: string;
 };

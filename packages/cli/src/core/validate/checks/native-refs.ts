@@ -1,7 +1,8 @@
 /**
  * Checks command and script references in native agent configs through `parseNativeConfig`
  * (trust point 1). A parse or schema failure ends the check with one issue. Command and script
- * issues carry predicates to identify their contributors in a merged file.
+ * issues carry predicates to identify their contributors in a merged file; a command issue also
+ * carries its target, which the caller resolves per contributor.
  */
 import { Result } from "effect";
 import { runnerTarget } from "./commands";
@@ -13,7 +14,7 @@ import {
 } from "./native-config";
 import type { ReferenceIssue } from "./reference-issue";
 
-type Provided = { paths: ReadonlySet<string>; declared: (target: string) => boolean };
+type Provided = { paths: ReadonlySet<string> };
 
 const SCRIPT_RUNTIMES = ["sh", "bash", "zsh", "node", "python", "python3", "bun"];
 
@@ -39,19 +40,20 @@ function invalid(check: string, kind: string): ReferenceIssue {
 function commandReferences(
   path: string,
   command: NativeCommand,
-  { paths, declared }: Provided,
+  { paths }: Provided,
 ): ReferenceIssue[] {
   const issues: ReferenceIssue[] = [];
   const matches = (value: unknown) => sourceHasCommand(path, value, command);
   const target = runnerTarget(quoteWords(command.words));
   const script = scriptOperand(command.words);
-  if (target && !script && !/[*?]/.test(target) && !declared(target))
+  if (target && !script && !/[*?]/.test(target))
     issues.push({
       check: "ref-command",
       severity: "error",
       needle: target,
       message: `config runs ${target}, which no composed entry declares in commands`,
       matches,
+      target,
     });
   if (command.permission || !script) return issues;
   const file = projectRelative(script);

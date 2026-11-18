@@ -461,6 +461,44 @@ describe("verify steps of the parts", () => {
   });
 });
 
+describe("permission rules a part ships into the hoisted .claude/settings.json", () => {
+  const API_SETTINGS = "stacks/api-part/adapters/claude/.claude/settings.json";
+  const PAIR_SETTINGS = "stacks/pair/adapters/claude/.claude/settings.json";
+  /** Gives api-part's settings these allow rules. */
+  const allowInApi = (root: string, rules: ReadonlyArray<string>) =>
+    replace(
+      root,
+      API_SETTINGS,
+      "{\n",
+      `{\n  "permissions": { "allow": ${JSON.stringify(rules)} },\n`,
+    );
+  const undeclared = (entry: string, file: string, target: string) =>
+    `error ref-command ${entry} ${file}: .claude/settings.json: allow rule runs ${target}, which no composed entry declares in commands or inline code`;
+
+  test("resolve against the part's own commands, which the workspace table holds prefixed", async () => {
+    const root = variant((root) =>
+      allowInApi(root, ["Bash(bun run lint)", "Bash(bun run test *)"]),
+    );
+    expect(await added(root)).toEqual([]);
+  });
+
+  test("a rule the part doesn't declare is reported on the part that shipped it", async () => {
+    // `check` is the workspace's own command; in backend/ `bun run check` needs backend-check.
+    const root = variant((root) => allowInApi(root, ["Bash(bun run nope)", "Bash(bun run check)"]));
+    expect(await added(root)).toEqual([
+      undeclared("stack/api-part", API_SETTINGS, "check"),
+      undeclared("stack/api-part", API_SETTINGS, "nope"),
+    ]);
+  });
+
+  test("a workspace's own rule still resolves against the workspace's commands, not a part's", async () => {
+    const root = variant((root) =>
+      replace(root, PAIR_SETTINGS, '"Bash(make check)"', '"Bash(make check)", "Bash(make lint)"'),
+    );
+    expect(await added(root)).toEqual([undeclared("stack/pair", PAIR_SETTINGS, "lint")]);
+  });
+});
+
 test("compose-each composes a part-scoped fragment onto the workspace that doesn't list it", async () => {
   // db fits pair only through its api part, and its MODE clashes with the workspace's own, so
   // the clash exists only on pair.

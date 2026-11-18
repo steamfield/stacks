@@ -2238,6 +2238,14 @@
       "query": "a pitch deck my AI assistant can edit",
       "first": { "kind": "stack", "id": "decks" },
       "relevant": [{ "kind": "stack", "id": "decks", "grade": 2 }]
+    },
+    {
+      "id": "fragment-openapi-client",
+      "pool": "fragment",
+      "split": "tune",
+      "query": "generate a typescript client from my swagger file",
+      "first": { "kind": "fragment", "id": "openapi-client" },
+      "relevant": [{ "kind": "fragment", "id": "openapi-client", "grade": 2 }]
     }
   ]
 }

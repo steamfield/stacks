@@ -233,7 +233,7 @@ const permissionReasons = {
   ),
   blocked: guide(
     ["A file or directory in the project is in the way of a planned path. Nothing was changed."],
-    "move or rename the blocking item (or restore a workspace part's directory when that is the path), then run add again.",
+    "move or rename the blocking item, then run add again.",
   ),
   unwritable: guide(
     ["The project directory or a file in it can't be written. Nothing was left behind."],

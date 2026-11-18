@@ -10,8 +10,8 @@ import {
 import { Schema } from "effect";
 import { LedgerLastRun } from "./ledger";
 import { ListRow } from "./list";
-import { ResultPart } from "./new";
 import { NoticeFields } from "./notice";
+import { ResultPart } from "./part";
 
 /** An entry's complete review surface, with canonical sizes and bundled run evidence. */
 export const ShowReport = Schema.Struct({

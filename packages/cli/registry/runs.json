@@ -11999,6 +11999,981 @@
       "interventions": 2,
       "note": "plans/runs/2026-11-18-python-react.md",
       "hooksFired": ["block-destructive.sh", "format-changed.sh", "session-start.sh"]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-18",
+      "stack": "hono-react",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.327",
+      "mode": "headless",
+      "repoCommit": "06c1247202be26ac57c785899409f7f65d31571e",
+      "cli": "0.14.1",
+      "fingerprint": "sha256:dd97676ed4d25c30e4a4509fdf774ef31ec124b37ae52a8d153fa027c0c1b31b",
+      "compositionFingerprint": "sha256:8762de5a8d65e4a657763d1cff0c7ba4e5873533961abeab1896e7a3252fe276",
+      "briefWords": 5963,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-18T17:10:57.993Z",
+        "cli": "0.14.1",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 11547,
+        "secondsSinceCreated": 278,
+        "steps": [
+          {
+            "name": "backend-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 36
+          },
+          {
+            "name": "frontend-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 296
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 53
+          },
+          {
+            "name": "openapi-copy",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 25
+          },
+          {
+            "name": "both-parts",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 972
+          },
+          {
+            "name": "contract-doc",
+            "phase": "check",
+            "layer": "docs",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "agents-md-workspace",
+            "phase": "check",
+            "layer": "docs",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 14
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "backend-lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 138
+          },
+          {
+            "name": "backend-typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 476
+          },
+          {
+            "name": "backend-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1666
+          },
+          {
+            "name": "backend-http-contract",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 325
+          },
+          {
+            "name": "backend-openapi-drift",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 131
+          },
+          {
+            "name": "backend-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 32
+          },
+          {
+            "name": "backend-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "frontend-lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 269
+          },
+          {
+            "name": "frontend-typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 236
+          },
+          {
+            "name": "frontend-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2719
+          },
+          {
+            "name": "frontend-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 198
+          },
+          {
+            "name": "frontend-e2e",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1830
+          },
+          {
+            "name": "frontend-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 292
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 31
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 28
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 146
+          },
+          {
+            "name": "frontend-client-drift",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 434
+          },
+          {
+            "name": "frontend-generated-hook-used",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "backend-api",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 568
+          },
+          {
+            "name": "frontend-web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 547
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 4.048183333333333,
+      "minutesToFirstTest": 4.048183333333333,
+      "agentMinutes": 4.385716666666666,
+      "interventions": 4,
+      "note": "plans/runs/2026-11-18-hono-react.md",
+      "hooksFired": [
+        "block-destructive.sh",
+        "detect-secrets.sh",
+        "format-changed.sh",
+        "guard-hono-api-commands.sh",
+        "lint-on-write.sh",
+        "session-start.sh",
+        "typecheck-on-write.ts"
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-18",
+      "stack": "python-react",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.327",
+      "mode": "headless",
+      "repoCommit": "06c1247202be26ac57c785899409f7f65d31571e",
+      "cli": "0.14.1",
+      "fingerprint": "sha256:144bb9fd621e02acbc454278678c47137beba41393402540b8d450cf0b454c5d",
+      "compositionFingerprint": "sha256:2b8b996839fe6ef691ed64c30b8b7f2db4430eb2fa213fbd90b8178c93ab7061",
+      "briefWords": 6194,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-18T17:13:59.292Z",
+        "cli": "0.14.1",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 11254,
+        "secondsSinceCreated": 176,
+        "steps": [
+          {
+            "name": "backend-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 39
+          },
+          {
+            "name": "frontend-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 275
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 49
+          },
+          {
+            "name": "api-copy",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 25
+          },
+          {
+            "name": "both-parts",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 816
+          },
+          {
+            "name": "workspace-docs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 59
+          },
+          {
+            "name": "backend-lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 90
+          },
+          {
+            "name": "backend-typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 208
+          },
+          {
+            "name": "backend-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2293
+          },
+          {
+            "name": "backend-openapi-drift",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 287
+          },
+          {
+            "name": "backend-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "frontend-lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 322
+          },
+          {
+            "name": "frontend-typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 209
+          },
+          {
+            "name": "frontend-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2637
+          },
+          {
+            "name": "frontend-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 187
+          },
+          {
+            "name": "frontend-e2e",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1507
+          },
+          {
+            "name": "frontend-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 330
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 31
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 29
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 146
+          },
+          {
+            "name": "frontend-client-drift",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 442
+          },
+          {
+            "name": "frontend-generated-hook-used",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "backend-api",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 658
+          },
+          {
+            "name": "frontend-web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 550
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 2.3554666666666666,
+      "minutesToFirstTest": 2.3554666666666666,
+      "agentMinutes": 2.7109,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-18-python-react-2.md",
+      "hooksFired": ["block-destructive.sh", "format-changed.sh", "session-start.sh"]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-18",
+      "stack": "hono-api",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.327",
+      "mode": "headless",
+      "repoCommit": "06c1247202be26ac57c785899409f7f65d31571e",
+      "cli": "0.14.1",
+      "fingerprint": "sha256:a498c33cd9efadf4dcd18f867363800e5844e9bf08444246d5f3de59aa0737b9",
+      "compositionFingerprint": "sha256:6d011263db7f30953f1c826d11b5f53363b155fd2f7376ae17ecacc44b061c1b",
+      "briefWords": 3964,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-18T17:15:24.922Z",
+        "cli": "0.14.1",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 3957,
+        "secondsSinceCreated": 74,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 77
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 47
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 128
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 455
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1562
+          },
+          {
+            "name": "http-contract",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 320
+          },
+          {
+            "name": "openapi-drift",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 122
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 33
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 305
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "file-headers",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 56
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 33
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 30
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 169
+          },
+          {
+            "name": "api-conventions",
+            "phase": "check",
+            "layer": "docs",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "api",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 557
+          }
+        ]
+      },
+      "verifyRuns": 1,
+      "minutesToGreen": 1.02255,
+      "minutesToFirstTest": 1.02255,
+      "agentMinutes": 1.15905,
+      "interventions": 3,
+      "note": "plans/runs/2026-11-18-hono-api-2.md",
+      "hooksFired": [
+        "block-destructive.sh",
+        "format-changed.sh",
+        "guard-hono-api-commands.sh",
+        "session-start.sh"
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-18",
+      "stack": "react-vite",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.327",
+      "mode": "headless",
+      "repoCommit": "06c1247202be26ac57c785899409f7f65d31571e",
+      "cli": "0.14.1",
+      "fingerprint": "sha256:5392fc5d9606318860eba1cda5b2185e3870e096c0fad324c10415bdab7fe748",
+      "compositionFingerprint": "sha256:72f8858a1850360197dc40c8c7a030a8dfee74c6a1f0e97934f16adc954e5f5c",
+      "briefWords": 3957,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-18T17:17:07.046Z",
+        "cli": "0.14.1",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 6410,
+        "secondsSinceCreated": 102,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 309
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 46
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 308
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 214
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2577
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 193
+          },
+          {
+            "name": "e2e",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1555
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 325
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "file-headers",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 60
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 31
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 28
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 142
+          },
+          {
+            "name": "web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 567
+          }
+        ]
+      },
+      "verifyRuns": 1,
+      "minutesToGreen": 1.4536333333333333,
+      "minutesToFirstTest": 1.4536333333333333,
+      "agentMinutes": 1.5684833333333332,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-18-react-vite-2.md",
+      "hooksFired": ["block-destructive.sh", "format-changed.sh", "session-start.sh"]
     }
   ]
 }

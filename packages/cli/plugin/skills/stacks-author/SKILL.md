@@ -22,6 +22,7 @@ search/stacks/<id>.json   the search card, beside the entry directories
 - **Frontmatter**: `id`, `name`, `description`, `tags` (exactly one of `make` or `scripts`), `deps` as package names by role (never versions), `tools`, `commands` (every command verify uses), `verify` steps with a `layer` (install, lint, typecheck, test, and a `serve` probe for `web` or `api`), `decisions` each with `(default: ...)`, and `fragments` (required, default, optional).
 - **Body**: what stacks wrote, Layout, numbered Setup, Conventions, Testing, Commands, Gotchas. It points at the shipped code instead of restating it.
 - **Fragment**: adds `category`, `applies_to`, `requires`, `conflicts`, `requires_tools`, and a body that says what to add plus the `AGENTS.md` section the project gets. An app is a fragment with `category: app`.
+- A workspace stack has a `parts` list that mounts an API stack and a client stack into subdirectories of one project; a link (`category: link`) connects them. See "Workspace stacks" in `references/anatomy.md` and "Links" in `references/fragment.md`.
 
 **Ship working code, never versions.** `files/` holds a small working slice (source, tests, configs, docs) that passes every verify step once dependencies are installed. No versions, ranges, `engines`, toolchain directives or action refs; the building agent installs current releases and updates what they outdate. Ship only what a verify step exercises.
 

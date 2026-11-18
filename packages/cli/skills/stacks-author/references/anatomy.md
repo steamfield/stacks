@@ -165,6 +165,32 @@ Store dotfiles under their real names (`files/.gitignore`). A file ending in `.t
 
 Guidance every agent needs lives in `files/` (a doc under `docs/`), because only Claude loads `.claude/`. A path-scoped Claude rule (`.claude/rules/<id>/<name>.md` with `paths:` frontmatter) states its must-not-break constraints inline, in a few lines, and links to that doc for the reasons and examples: a rule that only says "read the doc" loads nothing an agent acts on. Never `@`-import the doc into a path-scoped rule; Claude Code loads an imported file at session start whatever the rule's `paths` say.
 
+## Workspace stacks
+
+A workspace stack mounts two existing stacks into one project. It is a stack with a `parts` list, each part `{ name, role, stack }`:
+
+```yaml
+parts:
+  - { name: backend, role: api, stack: hono-api }
+  - { name: frontend, role: web, stack: react-vite }
+```
+
+`name` is the part's kebab-case directory and the prefix on its steps, commands and dependency roles. `role` is `api` or `web`. A workspace has exactly one `api` part and one client part, and a part cannot have parts. The workspace's `fragments` tiers are the project's: restate every fragment a part requires in `required` (`validate` fails otherwise) and choose which of the parts' defaults to keep.
+
+A part must meet its role's rules. `validate` checks the declared ones: an `api` part has `PORT_API` in `env` and a `serve` step probing `${PORT_API}` at a path ending `/healthz`, and for a link it writes `openapi.json` in its own directory with an `openapi-drift` step; a `web` part has `PORT_WEB` in `env`. The workspace's verify steps prove the rest: resources under `/v1` with the `notes` example (operation ids `listNotes`, `getNote`, `createNote`); a client that reaches the API through one configured base URL and one client module with a single request function, calls `notes` in a test, and reads only the status and `x-request-id` from a failure; and a web dev proxy that forwards `/api` to `PORT_API`, strips only `/api`, and exists only when `PORT_API` is set. Hooks find their tools by walking up from the edited file, since they run at the workspace root.
+
+A fragment whose `applies_to` names exactly one part's stack is written into that part; any other fragment is written once at the root. Each harness's session-root adapter paths (`.claude/settings.json`, `.claude/hooks/`, `.codex/`, `.cursor/hooks.json`, `opencode.json` and the like) go to the root; the rest stays in the part.
+
+The workspace ships the root Makefile (delegating to each part, running Biome inside each part, letting ports exported in the shell win over `.env`), `README.md`, `.env.example`, `AGENTS.md` with a `CLAUDE.md` that imports it, a short contract document a verify step checks, and a verify step that sends one request through the client to the API.
+
+Its body is the seam only; anything about one half belongs in that half's stack. Keep it near 400 words, name every part directory, and use three required headings:
+
+- `## How the parts connect`: the request path (base URL, proxy, prefix), which part owns the contract, and what crosses the boundary.
+- `## Setup`: one order across both parts ending in `stacks verify`, naming the step that first generates the client and the checks that fail before it. Refer to a part's steps by what they do, never by number.
+- `## Changing the API`: change a route, regenerate, update the client, commit the generated output, run both parts' tests.
+
+Also state each part's CI and hook commands inside `with=ci-github` and `with=git-hooks` blocks (the parts' own blocks drop when mounted) and where settings come from. The full rules are in the authoring guide that `<cli> create` names.
+
 ## Checking your work
 
 ```sh

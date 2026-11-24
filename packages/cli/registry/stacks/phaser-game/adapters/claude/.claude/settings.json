@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint)",
+      "Bash(bun run format)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run test)",
+      "Bash(bun run test *)",
+      "Bash(bunx vitest run)",
+      "Bash(bunx vitest run *)",
+      "Bash(bun run build)",
+      "Bash(bun run e2e)",
+      "Bash(bun run e2e *)",
+      "Bash(bun run see *)",
+      "Bash(bun run check)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.env.local)"]
+  },
+  "hooks": {}
+}

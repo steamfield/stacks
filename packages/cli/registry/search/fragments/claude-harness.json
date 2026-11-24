@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:6e5318b7a6969988b8b6847dc15e0e3b35d7e570bb7cd215ff5b3c82db7f6f33",
+    "digest": "sha256:8537a184faf731e123594c0ed96cd5992813c35572701908a78adf46a43bca92",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-15"
+    "reviewedAt": "2026-11-24"
   },
   "summary": "Add shared Bun TypeScript hook helpers and incremental type checks after each Claude Code edit.",
   "description": "Give a TypeScript project on Bun a shared hook helper for payloads, bounded child processes and hook responses. For Claude Code, the adapter type-checks the project incrementally after each edit and reports the errors back. Destructive-command and secret guards come from agent-ops, and stack guards only stop commands that would hang the session.",

@@ -108,6 +108,13 @@
     "registry/fragments/clerk/files/apps/**",
     "registry/fragments/cloudflare-d1/files/drizzle.config.ts",
     // Orval is installed only in the client scaffold; the drift script stays checked here.
-    "registry/fragments/openapi-client/files/orval.config.ts"
+    "registry/fragments/openapi-client/files/orval.config.ts",
+    // Phaser, Vite, Playwright, idb-keyval, zod and DOM types are installed only in the game
+    // scaffold, and src/game.ts exists only once rendered; keep prepare.ts and hooks checked.
+    "registry/stacks/phaser-game/files/*.ts",
+    "registry/stacks/phaser-game/files/src",
+    "registry/stacks/phaser-game/files/tests",
+    "registry/stacks/phaser-game/files/scenarios",
+    "registry/stacks/phaser-game/files/scripts/see.ts"
   ]
 }

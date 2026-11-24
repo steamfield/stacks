@@ -6,7 +6,7 @@ category: agent-ops
 name: Claude Code TypeScript hooks
 description: Bun TypeScript hook helpers for stack-specific Claude Code hooks on top of agent-ops, and incremental type checking after each edit.
 tags: [bun, agents]
-applies_to: [astro-blog, astro-fullstack, nextjs, react-router, sveltekit, tauri-react, typescript-api, typescript-cli, react-vite, hono-api, typescript-library, typescript-mcp, nuxt, nestjs-api]
+applies_to: [astro-blog, astro-fullstack, nextjs, react-router, sveltekit, tauri-react, typescript-api, typescript-cli, react-vite, hono-api, typescript-library, typescript-mcp, nuxt, nestjs-api, phaser-game]
 requires: [agent-ops]
 tools: [bun]
 merge: [.claude/settings.json]

@@ -1,0 +1,12 @@
+/**
+ * The game's identity. `id` keys the save database, so it never changes once players have saves;
+ * `title` shows on the title screen and the test-mode start gate; `orientation` decides when the
+ * shell asks a phone player to rotate and which way the phone test project holds the device.
+ */
+import type { GameInfo } from "./kit/shell.ts";
+
+export const GAME: GameInfo = {
+  id: "{{project_slug}}",
+  title: "{{project_name}}",
+  orientation: "landscape",
+};

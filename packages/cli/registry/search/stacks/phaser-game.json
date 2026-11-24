@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "phaser-game",
+  "source": {
+    "digest": "sha256:920b3dfe6c4679e778e2497e6d03d1e0dc0a7318c10868fb88e776946e1d7d0b",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-24"
+  },
+  "summary": "A 2D Phaser game for the browser, built by Vite into static files, with logic tests and headless playthroughs in Playwright.",
+  "description": "Start a 2D browser game on Phaser and Vite that builds to static files. Game rules run in fixed ticks in plain TypeScript with no Phaser, DOM or clock access, so Vitest tests them directly and a seeded run always ends in the same state. Phaser scenes only draw that state. Saves go to IndexedDB through a versioned zod schema with migrations. Playwright drives the built game tick by tick in desktop Chromium, a phone viewport and WebKit, and a capture script writes frames and state for a scenario. The sample is one small platformer level; art, audio, hosting and online play are left to the project.",
+  "seoDescription": "A 2D Phaser browser game on Vite with tick-based logic, IndexedDB saves, touch controls, Vitest and headless Playwright playthroughs.",
+  "projectExamples": [
+    {
+      "title": "Pixel-art platformer",
+      "description": "A side-scrolling platformer with coins and a goal per level that plays in a desktop or phone browser and remembers progress between visits."
+    },
+    {
+      "title": "Arcade puzzle game",
+      "description": "A short-session puzzle game with touch and keyboard controls, hosted as static files."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter 2D game that runs in a web browser, using Phaser to draw it and keeping the game rules in code that tests can run without a browser.",
+    "goodAt": [
+      "2D games played in a desktop or phone browser",
+      "Testing game rules and full playthroughs without a person playing",
+      "Saving player progress in the browser"
+    ],
+    "notGoodAt": [
+      "3D games, online multiplayer or games sold through app stores."
+    ]
+  },
+  "platforms": [
+    "web"
+  ],
+  "productKinds": [
+    "web-app"
+  ],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "start a 2d browser game with phaser",
+    "pixel art platformer that runs in the browser",
+    "html5 game I can test headlessly with playwright",
+    "phaser game with save data and touch controls for phones"
+  ],
+  "useCases": [
+    "2D browser games",
+    "game jams",
+    "mobile web games",
+    "pixel-art games"
+  ],
+  "synonyms": [
+    "Phaser.js",
+    "HTML5 game",
+    "canvas game",
+    "WebGL 2D",
+    "game engine",
+    "platformer",
+    "sprites",
+    "deterministic game loop"
+  ],
+  "goodFor": [
+    "deterministic game logic",
+    "headless playtests"
+  ],
+  "notFor": [
+    "3D",
+    "Unity"
+  ],
+  "caveats": [
+    "Phaser is pinned to an exact release; upgrades are a deliberate change checked against its type definitions.",
+    "Playwright needs Chromium and WebKit installed, which bun install does outside CI."
+  ]
+}

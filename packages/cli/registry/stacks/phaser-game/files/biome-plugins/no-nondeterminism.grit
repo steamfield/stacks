@@ -1,0 +1,18 @@
+// Game logic must be deterministic: the same seed and the same input reach the same state.
+// biome.json applies this plugin to src/logic/ and src/kit/core/ only.
+language js
+
+or {
+  `Math.random()` as $call where {
+    register_diagnostic(span=$call, message="Math.random() makes logic non-deterministic. Use the seeded rng from createRng() in src/kit/core/rng.ts.", severity="error")
+  },
+  `Date.now()` as $call where {
+    register_diagnostic(span=$call, message="Logic must not read the clock. Use the dt and tick passed to your step function.", severity="error")
+  },
+  `performance.now()` as $call where {
+    register_diagnostic(span=$call, message="Logic must not read the clock. Use the dt and tick passed to your step function.", severity="error")
+  },
+  `new Date()` as $call where {
+    register_diagnostic(span=$call, message="Logic must not read the clock. Use the dt and tick passed to your step function.", severity="error")
+  }
+}

@@ -2087,6 +2087,54 @@
         "promptVersion": 3,
         "reviewedAt": "2026-11-01"
       }
+    },
+    "phaser": {
+      "whatItIs": "A game engine for 2D games that run in a web browser, drawing sprites, text and tile maps with WebGL or a plain canvas.",
+      "goodAt": [
+        "Drawing and animating 2D sprites, tiles and text in a browser",
+        "Scenes, cameras, sound and asset loading for a small game"
+      ],
+      "notGoodAt": ["3D games; use a 3D library such as three.js for those."],
+      "example": "A platformer where a player runs, jumps and collects coins, playable in a phone's browser.",
+      "homepage": "https://phaser.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": null
+      }
+    },
+    "idb-keyval": {
+      "whatItIs": "A small wrapper that stores and reads values in the browser's built-in database (IndexedDB) as simply as a key and a value.",
+      "goodAt": [
+        "Saving game progress or settings in the browser",
+        "Storing data larger than browser cookies or localStorage allow"
+      ],
+      "notGoodAt": ["Searching or sorting many records; use a fuller IndexedDB library for that."],
+      "example": "A browser game saves the player's collected coins so a reload continues where they left off.",
+      "homepage": "https://github.com/jakearchibald/idb-keyval",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": null
+      }
+    },
+    "fake-indexeddb": {
+      "whatItIs": "An in-memory copy of the browser's built-in database (IndexedDB), so tests that save data can run outside a browser.",
+      "goodAt": [
+        "Testing browser storage code with Vitest or Jest on Node",
+        "Giving each test a fresh, empty database"
+      ],
+      "notGoodAt": ["Storing anything for real; it forgets everything when the process ends."],
+      "example": "A unit test saves a game, loads it back and checks the coins, without starting a browser.",
+      "homepage": "https://github.com/dumbmatter/fakeIndexedDB",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": null
+      }
     }
   }
 }

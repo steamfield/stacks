@@ -1,0 +1,101 @@
+{
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.json",
+      "!dist",
+      "!node_modules",
+      "!playwright-report",
+      "!test-results",
+      "!.runs",
+      "!.stacks"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "useImportType": "error",
+        "useExportType": "error",
+        "useConst": "error"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
+      "suspicious": { "noExplicitAny": "error", "noTsIgnore": "error" },
+      "nursery": { "noFloatingPromises": "error" }
+    }
+  },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.spec.ts", "**/scenarios/**"],
+      "linter": {
+        "rules": { "suspicious": { "noSkippedTests": "error", "noFocusedTests": "error" } }
+      }
+    },
+    {
+      "includes": ["**/src/**", "!**/src/kit/shell.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": {
+              "level": "error",
+              "options": { "allow": [] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/**", "!**/src/kit/save.ts", "!**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "localStorage": "Save through src/kit/save.ts: it versions, migrates and backs up saves.",
+                  "sessionStorage": "Save through src/kit/save.ts: it versions, migrates and backs up saves.",
+                  "indexedDB": "Save through src/kit/save.ts: it versions, migrates and backs up saves."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/logic/**", "**/src/kit/core/**"],
+      "plugins": ["./biome-plugins/no-nondeterminism.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "error",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "phaser": "Logic must be engine-free so Vitest can run it. Rendering goes in src/engine/.",
+                  "idb-keyval": "Logic never touches storage. Save types are in src/kit/core/save-types.ts."
+                },
+                "patterns": [
+                  {
+                    "group": ["**/engine/**", "**/kit/*.ts", "!**/kit/core/**"],
+                    "message": "Logic may import only zod, src/kit/core/ and other logic files. Pass input and engine results in as plain data."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -2262,6 +2262,38 @@
       "query": "generate a typescript client from my swagger file",
       "first": { "kind": "fragment", "id": "openapi-client" },
       "relevant": [{ "kind": "fragment", "id": "openapi-client", "grade": 2 }]
+    },
+    {
+      "id": "stack-phaser-game-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "side-scroller I can play in a phone browser",
+      "first": { "kind": "stack", "id": "phaser-game" },
+      "relevant": [{ "kind": "stack", "id": "phaser-game", "grade": 2 }]
+    },
+    {
+      "id": "stack-phaser-game-2",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "write a canvas arcade game with deterministic tests",
+      "first": { "kind": "stack", "id": "phaser-game" },
+      "relevant": [{ "kind": "stack", "id": "phaser-game", "grade": 2 }]
+    },
+    {
+      "id": "stack-threejs-game-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "set up a 3d game that runs in a web page",
+      "first": { "kind": "stack", "id": "threejs-game" },
+      "relevant": [{ "kind": "stack", "id": "threejs-game", "grade": 2 }]
+    },
+    {
+      "id": "stack-threejs-game-2",
+      "pool": "platform",
+      "split": "tune",
+      "query": "starter for a three js game with rapier",
+      "first": { "kind": "stack", "id": "threejs-game" },
+      "relevant": [{ "kind": "stack", "id": "threejs-game", "grade": 2 }]
     }
   ]
 }

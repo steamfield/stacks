@@ -71,6 +71,7 @@
   ],
   "notFor": [
     "2D games",
+    "side-scroller",
     "multiplayer",
     "Unity"
   ],

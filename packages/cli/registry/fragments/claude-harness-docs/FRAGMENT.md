@@ -6,7 +6,7 @@ category: agent-ops
 name: Claude Code commands and harness guide
 description: For long-lived repos, adds /check, /test and /feature commands, read-only architect and reviewer agents, and a docs/harness.md guide to each guard layer on top of the claude-harness hooks.
 tags: [bun, agents]
-applies_to: [astro-blog, astro-fullstack, nextjs, react-router, sveltekit, tauri-react, typescript-api, typescript-cli, react-vite, hono-api, typescript-library, typescript-mcp, nuxt, nestjs-api, phaser-game]
+applies_to: [astro-blog, astro-fullstack, nextjs, react-router, sveltekit, tauri-react, typescript-api, typescript-cli, react-vite, hono-api, typescript-library, typescript-mcp, nuxt, nestjs-api, phaser-game, threejs-game]
 requires: [claude-harness]
 verify:
   - name: harness-doc-filled

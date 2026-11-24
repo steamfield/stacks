@@ -1,0 +1,11 @@
+/**
+ * Who this game is. The shell shows `title` and holds the screen in `orientation`; `id` names the
+ * IndexedDB database that holds the player's saves, so never change it once players have saves.
+ */
+import type { GameIdentity } from "./kit/shell.ts";
+
+export const game: GameIdentity = {
+  id: "{{project_slug}}",
+  title: "{{project_name}}",
+  orientation: "landscape",
+};

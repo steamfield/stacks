@@ -1,0 +1,10 @@
+{
+  "//": "Game logic compiles with ES only: no DOM, no Node. window, document, localStorage, performance and console are type errors here, which keeps logic engine-free and deterministic.",
+  "extends": "./tsconfig.json",
+  "include": ["src/logic", "src/kit/core"],
+  "exclude": ["**/*.test.ts"],
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": []
+  }
+}

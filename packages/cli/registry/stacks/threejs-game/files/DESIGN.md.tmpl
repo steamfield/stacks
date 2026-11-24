@@ -1,0 +1,39 @@
+# {{project_name}}
+
+The starter game: a small field to walk around. Replace the gameplay and keep this file current as the game changes; agents read it before working on the game.
+
+## Core loop
+
+Walk the field, collect six orbs (one straight ahead of the spawn, five placed by the seed) and shove crates around. Each orb autosaves, and the game resumes where it was on the next visit.
+
+## Controls
+
+| Action | Keyboard | Touch |
+| --- | --- | --- |
+| move | Arrow keys, WASD | d-pad |
+| jump | Space | A button |
+
+## Launch parameters
+
+- `?seed=<n>` changes the orb layout for a new game. A saved game keeps its own seed.
+- `?stage=nearly-cleared` leaves one orb to collect, for scenarios and captures. It works only with `?debug=1` or in test mode, and a staged game is never saved. Add stages in `src/engine/capture-stages.ts`.
+- `?debug=1` allows capture stages. There is no debug overlay yet.
+- `?test=1` starts test mode by hand: the game waits for the start button and only advances through `window.__game.advance(n)`.
+
+## Structure
+
+- `src/logic/world.ts`: player movement on the plane, jumping, seeded orbs, `summarize()`.
+- `src/engine/runtime.ts`: the world, the fixed step, serialized save writes and `worldHash()`, with no three.js or Rapier. Tested in `runtime.test.ts`.
+- `src/engine/game.ts`: the renderer, the real-time loop and the handle the shell drives; steps physics after each tick.
+- `src/engine/world-view.ts`: the three.js scene, drawn from the world.
+- `src/engine/physics.ts`: Rapier, loaded after the first frame. The player is a kinematic body driven by logic; crates are dynamic.
+- `src/engine/camera-rig.ts`: a third-person follow camera, smoothed per tick.
+- `src/engine/capture-stages.ts`: the `?stage=` capture stages.
+
+## Scenarios
+
+`collect-first-orb`, `push-crate`, `restore-save` and `nearly-cleared`. `scenarios/kit.ts` holds the shared input sequences and `savedGame()`.
+
+## Not built yet
+
+Pointer-drag camera look, a debug overlay with collider wireframes, audio.

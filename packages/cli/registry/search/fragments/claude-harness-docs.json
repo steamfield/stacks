@@ -3,9 +3,9 @@
   "kind": "fragment",
   "id": "claude-harness-docs",
   "source": {
-    "digest": "sha256:4bbc96272d575d42caf0db9a0caf996de1ba4c56497632214f68ed14446f6412",
+    "digest": "sha256:4e7d55c223092e5921234c043eab2915b99399f3812d26df34140b9fe436ef0b",
     "by": "author",
-    "reviewedAt": "2026-11-14"
+    "reviewedAt": "2026-11-24"
   },
   "summary": "Add Claude Code /check, /test and /feature commands, read-only architect and reviewer agents, and a harness guide for long-lived repos.",
   "description": "Give Claude Code workflow commands for checking, testing and building features, plus read-only architect and reviewer agents. A docs/harness.md guide explains each guard layer the claude-harness hooks add. Leave it out with the lean preset for short, timed work.",

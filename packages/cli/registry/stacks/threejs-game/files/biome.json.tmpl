@@ -1,0 +1,97 @@
+{
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.json",
+      "!dist",
+      "!node_modules",
+      "!test-results",
+      "!playwright-report",
+      "!.runs",
+      "!.stacks"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": { "useImportType": "error", "useExportType": "error", "useConst": "error" },
+      "correctness": { "noUnusedImports": "error", "noUnusedVariables": "error" },
+      "suspicious": { "noExplicitAny": "error", "noTsIgnore": "error" },
+      "nursery": { "noFloatingPromises": "error" }
+    }
+  },
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.spec.ts", "**/scenarios/**"],
+      "linter": {
+        "rules": { "suspicious": { "noSkippedTests": "error", "noFocusedTests": "error" } }
+      }
+    },
+    {
+      "includes": ["**/src/**", "!**/src/kit/shell.ts"],
+      "linter": {
+        "rules": { "suspicious": { "noConsole": { "level": "error", "options": { "allow": [] } } } }
+      }
+    },
+    {
+      "includes": ["**/src/**", "!**/src/kit/save.ts", "!**/src/kit/save.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "localStorage": "Use src/kit/save.ts: it namespaces saves per game and handles eviction.",
+                  "sessionStorage": "Use src/kit/save.ts: it namespaces saves per game and handles eviction.",
+                  "indexedDB": "Use src/kit/save.ts: it namespaces saves per game and handles eviction."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/src/logic/**"],
+      "plugins": ["./biome-plugins/no-nondeterminism.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "error",
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "three": "Logic must be engine-free so it can be unit tested. Rendering goes in src/engine/.",
+                  "@dimforge/rapier3d-compat": "Physics belongs in src/engine/. Logic gets results passed in.",
+                  "idb-keyval": "Logic may import only src/kit/core and zod. Saving goes through src/kit/save.ts."
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "**/kit/save*",
+                      "**/kit/input*",
+                      "**/kit/shell*",
+                      "**/kit/report-error*"
+                    ],
+                    "message": "Logic may import only src/kit/core and zod. Save types are in src/kit/core; pass input state in as plain data."
+                  },
+                  {
+                    "group": ["**/engine/**", "**/main*", "**/game.ts"],
+                    "message": "Logic must not depend on the engine. The engine imports logic, never the reverse."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

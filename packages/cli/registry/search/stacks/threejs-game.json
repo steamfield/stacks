@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "threejs-game",
+  "source": {
+    "digest": "sha256:3ce14ef41913d9a0352d4d464d1c8f37618e9485a06878e46182427a4c2df81e",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-24"
+  },
+  "summary": "A 3D game that runs in the browser, drawn with three.js, with Rapier physics, keyboard and touch controls, and saves kept in the browser.",
+  "description": "Sets up a small playable 3D game on three.js that Vite builds into static files. Game rules run as pure TypeScript on a fixed 60 Hz tick, kept apart from rendering by lint rules, and Rapier physics loads after the first frame. The starter includes keyboard and touch input, versioned saves in IndexedDB with migrations, and a seeded random generator. Vitest covers the rules, and Playwright replays input scenarios against the built game on desktop and phone Chromium. A capture script plays the game headlessly to an exact tick and writes screenshots and state for an agent to read. The game design, art, sound and hosting are yours to add.",
+  "seoDescription": "A three.js 3D browser game with Rapier physics, a fixed-tick game loop, IndexedDB saves, touch controls and headless Playwright checks.",
+  "projectExamples": [
+    {
+      "title": "Third-person collect-a-thon",
+      "description": "A small 3D world where the player runs, jumps and pushes crates to reach every collectible, playable with a keyboard or on a phone, with progress saved between visits."
+    },
+    {
+      "title": "Physics puzzle rooms",
+      "description": "A set of rooms solved by stacking and shoving boxes into place, each room's best time stored in the browser."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a 3D game that plays in a web browser on computers and phones, using three.js to draw the scene and Rapier to simulate physics.",
+    "goodAt": [
+      "Small 3D games you host as plain files",
+      "Games an AI coding assistant builds and checks with screenshots",
+      "Touch controls and saves that work on phones"
+    ],
+    "notGoodAt": [
+      "2D games; a 2D engine such as Phaser is a better fit.",
+      "Online multiplayer, which needs a game server this starter doesn't have.",
+      "Console or app store releases; use a game engine such as Godot or Unity."
+    ]
+  },
+  "platforms": [
+    "web"
+  ],
+  "productKinds": [],
+  "languages": [
+    "typescript"
+  ],
+  "requests": [
+    "make a 3d browser game with three.js",
+    "start a webgl game with physics that also plays on phones",
+    "three.js and rapier starter with a fixed timestep game loop",
+    "3d game my coding agent can test with headless screenshots"
+  ],
+  "useCases": [
+    "3D browser games",
+    "game jam entries",
+    "physics toys and prototypes"
+  ],
+  "synonyms": [
+    "three.js",
+    "threejs",
+    "WebGL",
+    "3D",
+    "Rapier",
+    "physics engine",
+    "game loop",
+    "HTML5 game",
+    "web game",
+    "Babylon.js alternative"
+  ],
+  "goodFor": [
+    "deterministic game logic with tests",
+    "headless captures an agent can read"
+  ],
+  "notFor": [
+    "2D games",
+    "multiplayer",
+    "Unity"
+  ],
+  "caveats": [
+    "Rapier's compat build inlines its WebAssembly and is the largest download, so it loads after the first frame.",
+    "Physics positions can differ slightly between machines, so scenarios check them with tolerances.",
+    "Uses WebGLRenderer only; WebGPU and TSL node materials aren't set up."
+  ]
+}

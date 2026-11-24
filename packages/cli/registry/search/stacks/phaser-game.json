@@ -36,9 +36,7 @@
   "platforms": [
     "web"
   ],
-  "productKinds": [
-    "web-app"
-  ],
+  "productKinds": [],
   "languages": [
     "typescript"
   ],

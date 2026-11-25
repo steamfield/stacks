@@ -12974,6 +12974,398 @@
       "interventions": 0,
       "note": "plans/runs/2026-11-18-react-vite-2.md",
       "hooksFired": ["block-destructive.sh", "format-changed.sh", "session-start.sh"]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-25",
+      "stack": "phaser-game",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.331",
+      "mode": "headless",
+      "repoCommit": "bc1d06cec7bc164f4a9d9eb1f7dfb371dc688ffb",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:8e8ec939f00d3b60902c068bbefdb443ee13f9ec2cf45112a26e690550214d82",
+      "compositionFingerprint": "sha256:095ddb03952f91486e16622c24fa2e3b322fb1f20fe31a0da5a385df8e955e1f",
+      "briefWords": 4113,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-25T07:33:33.247Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 9881,
+        "secondsSinceCreated": 308,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 356
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 59
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 133
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 212
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1689
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 438
+          },
+          {
+            "name": "e2e",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5523
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 423
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 14
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "file-headers",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 150
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 43
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 38
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 191
+          },
+          {
+            "name": "web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 553
+          }
+        ]
+      },
+      "verifyRuns": 5,
+      "minutesToGreen": 0.8336666666666667,
+      "minutesToFirstTest": 0.8336666666666667,
+      "agentMinutes": 4.958283333333333,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-25-phaser-game.md",
+      "hooksFired": [
+        "block-destructive.sh",
+        "detect-secrets.sh",
+        "format-changed.sh",
+        "lint-on-write.sh",
+        "session-start.sh",
+        "typecheck-on-write.ts"
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-25",
+      "stack": "threejs-game",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "claude",
+      "agentVersion": "2.1.331",
+      "mode": "headless",
+      "repoCommit": "bc1d06cec7bc164f4a9d9eb1f7dfb371dc688ffb",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:9bcf4d81fdcf159c9f8886c3e449974d5f96ceca65db5a85ed28b2fbf84ecac1",
+      "compositionFingerprint": "sha256:8ba520b407d1c045217884b56785bafd53b3552a5c794c452a9b7ad69357befd",
+      "briefWords": 4131,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-25T07:40:42.205Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 9290,
+        "secondsSinceCreated": 421,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 344
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 56
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 192
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 197
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2811
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 285
+          },
+          {
+            "name": "e2e",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 4076
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 348
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 14
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "file-headers",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 134
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 37
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 31
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 154
+          },
+          {
+            "name": "web",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 566
+          }
+        ]
+      },
+      "verifyRuns": 4,
+      "minutesToGreen": 3.2300666666666666,
+      "minutesToFirstTest": 0.94435,
+      "agentMinutes": 6.836916666666666,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-25-threejs-game.md",
+      "hooksFired": [
+        "block-destructive.sh",
+        "detect-secrets.sh",
+        "format-changed.sh",
+        "lint-on-write.sh",
+        "session-start.sh",
+        "typecheck-on-write.ts"
+      ]
     }
   ]
 }

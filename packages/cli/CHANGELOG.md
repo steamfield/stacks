@@ -4,10 +4,11 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
-## [0.15.0] - 2026-11-18
+## [0.15.0] - 2026-11-25
 
 ### Added
 
+- `phaser-game` and `threejs-game`, browser game stacks on Phaser and on three.js with Rapier physics. Each ships a playable slice: game logic kept deterministic and separate from the engine, saves in IndexedDB, keyboard and touch input, scenario tests, Playwright end-to-end checks, and Claude Code and Codex guidance for game work.
 - Workspace stacks: a stack can declare `parts`, each naming another stack and a directory, and `new` mounts every part into one project. A part's verify steps run as `<part>-<step>` from the part's directory, its commands and dependency roles carry the part name, and the brief covers the workspace and each part. `show` and `new --json` list the parts.
 - `hono-react`, a workspace of `hono-api` and `react-vite` whose client hooks are generated from the API's OpenAPI document.
 - The `link` fragment category for what joins two parts, and `openapi-client`, which generates a typed client and query hooks in the web part from the API part's contract.

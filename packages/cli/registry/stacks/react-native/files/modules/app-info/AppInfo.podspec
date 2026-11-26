@@ -18,6 +18,13 @@ Pod::Spec.new do |s|
   s.source_files  = "ios/**/*.{h,m,mm,swift}"
   s.exclude_files = "ios/Tests/**"
 
+  # Strict for this module's Swift only; the generated app target keeps the template's settings.
+  # Set before install_modules_dependencies, which merges its own keys into this hash.
+  s.pod_target_xcconfig = {
+    "SWIFT_STRICT_CONCURRENCY" => "complete",
+    "SWIFT_TREAT_WARNINGS_AS_ERRORS" => "YES",
+  }
+
   install_modules_dependencies(s)
 
   s.test_spec "Tests" do |t|

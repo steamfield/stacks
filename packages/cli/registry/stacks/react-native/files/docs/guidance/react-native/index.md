@@ -4,7 +4,7 @@ Read these before changing the matching code. They apply to every coding agent; 
 
 - [app](app.md): settings, errors, logging, navigation and screens.
 - [native modules](native-modules.md): the local Turbo Module, the native projects and CocoaPods.
-- [testing](testing.md): Jest screen and unit tests, the XCTest bundle and the simulator build.
+- [testing](testing.md): Jest screen and unit tests, the coverage floor, the Swift tests, the simulator build and the Maestro flow.
 
 ## Optional: XcodeBuildMCP
 

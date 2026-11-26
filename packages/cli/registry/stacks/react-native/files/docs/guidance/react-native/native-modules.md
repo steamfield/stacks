@@ -16,7 +16,7 @@ This is a bare React Native project: `ios/` and `android/` are committed and bel
 | `modules/app-info/ios/AppInfoReader.swift` | The logic, in Swift, taking its inputs through the initializer so tests can build one |
 | `modules/app-info/ios/RCTAppInfo.mm` | Objective-C++ glue: conforms to the generated protocol, calls Swift, returns the JSI binding |
 | `modules/app-info/ios/RCTAppInfo.h` | Plain Objective-C header, so Swift and the tests can import the pod's module |
-| `modules/app-info/AppInfo.podspec` | The local pod, with `install_modules_dependencies` and an XCTest test spec |
+| `modules/app-info/AppInfo.podspec` | The local pod, with `install_modules_dependencies`, strict Swift build settings and a test spec |
 | `modules/app-info/package.json` | `codegenConfig`: the spec directory and the `AppInfo` to `RCTAppInfo` mapping |
 | `react-native.config.js` | Points autolinking and codegen at the module |
 
@@ -27,7 +27,7 @@ The Objective-C++ file exists because a Turbo Module's binding is C++. Keep it t
 1. Copy `modules/app-info/` to `modules/<name>/`. Rename the podspec, the pod name, `codegenConfig.name`, the spec file (`Native<Name>.ts`) and the module name in `moduleName` and `TurboModuleRegistry.get`.
 2. Add it to `react-native.config.js` under `dependencies`.
 3. Add `src/native/<name>.ts` with a timeout, a zod schema and `AppError` mapping, plus its tests.
-4. Add the test spec line to `ios/Podfile` if the module has XCTest cases, and a scheme for it in `scripts/ios.sh test`.
+4. Add the test spec line to `ios/Podfile` if the module has Swift tests, and a scheme for it in `scripts/ios.sh test`.
 5. Run `bun run pods`, then `bun run ios:build` and `bun run ios:test`.
 
 ## Android

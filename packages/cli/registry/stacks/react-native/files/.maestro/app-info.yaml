@@ -1,0 +1,13 @@
+# The slice end to end on the simulator: the Release build starts, Home opens the app info
+# screen, and the AppInfo Turbo Module answers from Swift. `bun run ios:e2e` passes APP_ID (the
+# built app's bundle identifier) and runs this flow at two text sizes. Elements are found by the
+# text a screen reader announces, so a button that loses its accessible name fails here too.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn: "Show app info"
+- assertVisible: "App"
+- assertVisible: "Version"
+- assertVisible: "System"
+- assertVisible: "iOS .+"

@@ -29,6 +29,10 @@ coverage/
 *.jsbundle
 .metro-health-check*
 
+# Local env files: the app reads none, and anything in the bundle is public anyway
+.env
+.env.*
+
 # Ruby / CocoaPods
 **/Pods/
 /vendor/bundle/

@@ -1,6 +1,7 @@
 /**
  * Jest on React Native's preset. React Navigation and the native-view libraries ship untranspiled
- * code, so they stay in the Babel transform; the native projects are never scanned.
+ * code, so they stay in the Babel transform; the native projects are never scanned. The coverage
+ * floor is the project's to change; `bun run coverage` (verify's test step) fails below it.
  */
 module.exports = {
   preset: "@react-native/jest-preset",
@@ -11,4 +12,5 @@ module.exports = {
   ],
   modulePathIgnorePatterns: ["<rootDir>/ios/", "<rootDir>/android/", "<rootDir>/build/"],
   collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/*.test.{ts,tsx}"],
+  coverageThreshold: { global: { lines: 80 } },
 };

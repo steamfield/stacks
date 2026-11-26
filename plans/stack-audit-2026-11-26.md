@@ -128,6 +128,7 @@ B4 applies to `make` stacks with a serve step (astro-blog, astro-product-site, d
 Demo: `bun run dev validate` lists no `dx-*` note for these stacks, and every B4 stack's `dev-cycle` step passes in a fresh scaffold.
 Depends on: phase 1
 Scaffold: 6221687c (no new contracts; anatomy's "Developer experience" and go-api's dev-bg.sh are the contracts)
+Tag: stack-audit/phase-2
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -197,3 +198,4 @@ Inline: fix the two pilot brief nits (typescript-api's Setup names `effect-api.m
 - 2/c: Rust stacks also dropped `audit` from `ci` (same B1 reading as 2/b) and gained `lint-fix` (clippy --fix, then fmt). Not done, outside ROI scope: no Rust stack has a coverage floor (B7); rust-cli lacks a single-test example (B6).
 - 2/d: django's `ci` includes `build` (collectstatic; offline, verify runs it, writes only gitignored `staticfiles/`). Python B4 scripts probe health with the project's `.venv/bin/python`, not curl.
 - 2/e: JVM `fmt` renamed `format`; JVM dev-bg launches a copy of the jar from `target/dev-bg/` because a rebuild rewrites `target/app.jar` under the running JVM. Found, not fixed (outside scope): quarkus-api's shipped code doesn't compile on Quarkus 4 (Jackson 3 imports, `target/quarkus.log` no longer written); proofs used the 3.x stream. `make audit` on Quarkus 3.40 reports a real Guava advisory.
+- Phase 2 gate: rr ran cli and bench partitions green; the other five were blocked by another session's stuck lock, so lint, typecheck, root tests (325), MCP tests (112) and both e2e suites ran locally with STACKS_LOCAL_GATE=1, all green.

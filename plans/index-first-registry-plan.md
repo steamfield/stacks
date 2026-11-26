@@ -218,6 +218,7 @@ Depends on: phase 2
 ### Phase 5: the five mobile stacks meet the full dev-setup bar
 
 Scaffold: 015ed55c
+Tag: idx-phase-5
 
 Demo: `bun run dev validate --json` has zero findings, and `bun run dev new <id> /tmp/<id> --no-launch` for each of the five shows the new pieces (Swift Testing in ios-uikit, a Maestro flow in react-native, coverage floors, macOS CI guidance), each run by a verify step. Benching happens after the merge (release step 5).
 Depends on: phase 1

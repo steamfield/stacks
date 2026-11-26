@@ -13366,6 +13366,613 @@
         "session-start.sh",
         "typecheck-on-write.ts"
       ]
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "go-api",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "c2a8261572ae58bdf3c4314154069b850f3233f7",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:91a2e3dbb91b01351c5263e90807e5ece2d355d0af21d853b2a656d763f59430",
+      "compositionFingerprint": "sha256:acb96102e3e48cbfc78e557dc683822749face7a23fd09adcdfcc0cb443ede22",
+      "briefWords": 3792,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:08:03.738Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 4176,
+        "secondsSinceCreated": 209,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 153
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 49
+          },
+          {
+            "name": "fmt-check",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 113
+          },
+          {
+            "name": "vet",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 226
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 818
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 393
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 219
+          },
+          {
+            "name": "test-integration",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 217
+          },
+          {
+            "name": "dev-cycle",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 717
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 15
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 440
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 31
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 28
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 165
+          },
+          {
+            "name": "api-conventions",
+            "phase": "check",
+            "layer": "docs",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "api",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 543
+          }
+        ]
+      },
+      "verifyRuns": 4,
+      "minutesToGreen": 2.8533833333333334,
+      "minutesToFirstTest": 0.8383,
+      "agentMinutes": 3.423016666666667,
+      "interventions": 2,
+      "note": "plans/runs/2026-11-26-go-api.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "typescript-api",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "c2a8261572ae58bdf3c4314154069b850f3233f7",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:628069aff497f4a165a02b92dfd7f5243e59dcbd792344eaa34baf124a720805",
+      "compositionFingerprint": "sha256:7e0a21895debfd6fbda1d4753497028d1809d43d647efa82ed10a87cb50e4b35",
+      "briefWords": 4299,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:11:37.469Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 11026,
+        "secondsSinceCreated": 215,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 92
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 51
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 242
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 309
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5421
+          },
+          {
+            "name": "http-contract",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1066
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 61
+          },
+          {
+            "name": "dev-cycle",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1639
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 4
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 473
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "claude-typecheck-hook",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 16
+          },
+          {
+            "name": "harness-doc-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "schema-conventions",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 384
+          },
+          {
+            "name": "no-standalone-schema",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "effect-testkit",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 385
+          },
+          {
+            "name": "effect-api-reference",
+            "phase": "check",
+            "layer": "docs",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 39
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 33
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 31
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 167
+          },
+          {
+            "name": "api-conventions",
+            "phase": "check",
+            "layer": "docs",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "api",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 551
+          }
+        ]
+      },
+      "verifyRuns": 3,
+      "minutesToGreen": 2.1972,
+      "minutesToFirstTest": 0.8054,
+      "agentMinutes": 3.380516666666667,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-typescript-api.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "python-api",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "c2a8261572ae58bdf3c4314154069b850f3233f7",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:04b131dd07c7bb3499c736e082041668790ab3ba12f8357d7902c843e11645fe",
+      "compositionFingerprint": "sha256:0281131891a6d14b0a00a5805d57b86c56a42cd4a6706789b61dd28da358078a",
+      "briefWords": 3458,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:14:00.167Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 5883,
+        "secondsSinceCreated": 133,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 91
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 164
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 154
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 265
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2683
+          },
+          {
+            "name": "openapi-drift",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 339
+          },
+          {
+            "name": "dev-cycle",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 666
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 12
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 489
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 35
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 38
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 193
+          },
+          {
+            "name": "api",
+            "phase": "serve",
+            "layer": "serve",
+            "status": "passed",
+            "durationMs": 712
+          }
+        ]
+      },
+      "verifyRuns": 3,
+      "minutesToGreen": 0.5718,
+      "minutesToFirstTest": 0.5718,
+      "agentMinutes": 2.1101833333333335,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-python-api.md",
+      "hooksFired": null
     }
   ]
 }

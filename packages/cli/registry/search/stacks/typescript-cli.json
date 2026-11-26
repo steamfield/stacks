@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "typescript-cli",
   "source": {
-    "digest": "sha256:0eb841941c89c898319030a10f1de8332d0a4829945aaf5902228d815885aba2",
+    "digest": "sha256:26e674cabde47e8b00b8f4cb880a2b5b1d5f48a60957ce988a635c700cf36c7d",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A compiled command-line tool with subcommands, JSON results, lazy configuration and structured logs.",
   "description": "Create a TypeScript command-line utility compiled with Bun. Effect owns commands, services, configuration and errors; results stay on stdout while diagnostics use stderr. Help, version and doctor work independently of optional application configuration. Tests exercise the command tree and compiled binary. Add your own commands after the base passes, then select bun-release for distribution or openrouter-chat-cli for the terminal chat application.",

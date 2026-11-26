@@ -44,6 +44,7 @@ commands:
   coverage: Run Vitest with coverage thresholds
   gate: Run lint, typecheck and Vitest once; the quick check after each change
   check: Run lint, typecheck, coverage, the package checks and the consumer check
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build, coverage and tarball output
   prepack: Build before any pack, so a tarball never holds a stale dist/
   prepare: Install git hooks outside CI
@@ -107,12 +108,12 @@ The shipped code keeps these; new code does too. `docs/guidance/typescript-libra
 Unit tests sit beside the code as `test.each` tables of input and exact output, and of input and the `{ code, field }` it raises. `tests/public-api.test.ts` pins the runtime export list, and its `expectTypeOf` test and `@ts-expect-error` negative case pin the public signatures through `bun run typecheck`. `tests/boundaries.test.ts` writes fixture files and checks each Grit rule fires once with its message. `test:consumer` is the only test of what users install: it catches a wrong `exports` map, a file missing from `files`, declarations that don't match the build, and a dev dependency the build needs. A new export adds rows to all of them. Details in `docs/guidance/typescript-library/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, `lint:package` and `test:consumer`. Nothing is published and no credentials are needed; a release workflow is a later decision.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, `lint:package` and `test:consumer`, then `bun run audit` as its own step, which needs the network. Nothing is published and no credentials are needed; a release workflow is a later decision.
 <!-- stacks:end -->
 
 ## Commands
 
-Mirror `package.json`'s commands in AGENTS.md, including `bun run test src/errors.test.ts`, `bun run gate` after each change and `stacks verify --all` for done. Before publishing or handing over, `bun run check` runs coverage and the package checks `gate` skips. `bun pm pack --dry-run` lists what would ship.
+Mirror `package.json`'s commands in AGENTS.md, including `bun run test src/errors.test.ts`, `bun run gate` after each change and `stacks verify --all` for done. Before publishing or handing over, `bun run check` runs coverage and the package checks `gate` skips. `bun pm pack --dry-run` lists what would ship. `bun run audit` checks the dev dependencies against published advisories and needs the network, so neither `check` nor verify runs it.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer.

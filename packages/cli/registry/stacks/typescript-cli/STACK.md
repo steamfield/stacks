@@ -40,6 +40,7 @@ commands:
   coverage: Run unit tests with coverage
   e2e: Build and exercise the compiled binary using Bun
   check: Run lint, typecheck, tests, and compiled-binary checks
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove generated build, test, and log output
   prepare: Install project hooks outside CI
 ---
@@ -71,14 +72,14 @@ Read `docs/guidance/typescript-cli/index.md` before changing the corresponding c
 
 `src/*.test.ts` tests pure contracts; `tests/cli.test.ts` drives the real parser and invocation boundary with temporary files and real Node services. `tests/config-logging.test.ts` asserts emitted and suppressed records, precedence, sink failure and isolation. `e2e/binary.test.ts` starts the compiled artifact with a clean environment and proves file-only logging, env overrides, safe errors and disabled dotenv autoload. A new command extends the argv-level and binary contracts. No mocks of project services.
 
-The shipped package scripts are the command contract: `dev`, `build`, `lint`, `format`, `typecheck`, `test`, `test:unit`, `test:watch`, `coverage`, `e2e`, `check`, `clean`, `prepare`. Vitest runs on Node; Bun runs only scoped compiled-binary tests. `scripts/dev.ts` keeps logs under `logs/` and data under `.dev/data`; it preserves terminal behavior, arguments and status.
+The shipped package scripts are the command contract: `dev`, `build`, `lint`, `format`, `typecheck`, `test`, `test:unit`, `test:watch`, `coverage`, `e2e`, `check`, `audit`, `clean`, `prepare`. `audit` needs the network, so neither `check` nor verify runs it. Vitest runs on Node; Bun runs only scoped compiled-binary tests. `scripts/dev.ts` keeps logs under `logs/` and data under `.dev/data`; it preserves terminal behavior, arguments and status.
 
 <!-- stacks:when with=git-hooks -->
 If `scripts/prepare.ts`, run by the `prepare` script after every `bun install`, already runs `lefthook install`, don't add another install step. pre-push runs `bun run typecheck` alongside `bun run test`, in parallel.
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->
-CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and binary e2e. Upload logs and coverage on failure; keep optional app/release checks separate.
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and binary e2e, then `bun run audit` as its own step, which needs the network. Upload logs and coverage on failure; keep optional app/release checks separate.
 <!-- stacks:end -->
 
 ## Gotchas

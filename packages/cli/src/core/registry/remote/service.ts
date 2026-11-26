@@ -23,7 +23,7 @@ import {
 } from "../../cached-fetch";
 import { defined } from "../../object";
 import { indexRoot } from "../roots";
-import type { IndexRegistryRoot } from "../types";
+import type { FileAccess, IndexRegistryRoot } from "../types";
 import { directoryMatches, extractBundle } from "./files";
 import { type RemoteFailure, verifyIndex } from "./verification";
 
@@ -90,26 +90,30 @@ const readStatus = Effect.fn("remoteIndex.readStatus")(function* (
 });
 
 /**
- * Extracts into a staging directory beside the cache, then renames it to its digest, so a cache
- * directory named for a digest is never half written. Staging is removed whatever happens.
+ * Publish beside the staging directory so readers can only see a complete digest directory.
  */
-const persistBundle = Effect.fn("remoteIndex.persistBundle")(function* (
-  cache: Cache,
+const publishBundle = Effect.fn("remoteIndex.publishBundle")(function* (
+  io: FileAccess,
   bundle: EntryBundle,
   digest: string,
+  parent: string,
 ) {
-  const { fs, path, root } = cache;
+  const { fs, path } = io;
   return yield* Effect.scoped(
     Effect.gen(function* () {
-      const parent = path.join(root, "entries");
-      yield* fs.makeDirectory(parent, { recursive: true });
       const staging = yield* Effect.acquireRelease(
         fs.makeTempDirectory({ directory: parent, prefix: ".extract-" }),
         (at) => Effect.ignore(fs.remove(at, { recursive: true, force: true })),
       );
-      yield* extractBundle(cache, bundle, staging);
+      yield* extractBundle(io, bundle, staging);
       const target = path.join(parent, digest);
-      yield* fs.rename(staging, target);
+      const renamed = yield* Effect.result(fs.rename(staging, target));
+      // A concurrent publisher may have won the rename. Only reuse a verified target.
+      if (
+        renamed._tag === "Failure" &&
+        !(yield* directoryMatches(io, { id: bundle.id, kind: bundle.kind, digest, dir: target }))
+      )
+        return yield* Effect.fail(renamed.failure);
       return target;
     }),
   );
@@ -121,23 +125,19 @@ const storeBundle = Effect.fn("remoteIndex.storeBundle")(function* (
   bundle: EntryBundle,
   digest: string,
 ) {
-  const { fs, path } = options.cache;
-  const persisted = yield* Effect.result(persistBundle(options.cache, bundle, digest));
+  const { cache, temporary } = options;
+  const { fs, path, root } = cache;
+  const parent = path.join(root, "entries");
+  const persisted = yield* fs
+    .makeDirectory(parent, { recursive: true })
+    .pipe(Effect.andThen(publishBundle(cache, bundle, digest, parent)), Effect.result);
   if (persisted._tag === "Success") return persisted.success;
-  const target = path.join(yield* options.temporary, digest);
+  const fallback = yield* temporary;
+  const target = path.join(fallback, digest);
   // An earlier call in this invocation may already have extracted it here.
-  if (
-    yield* directoryMatches(options.cache, {
-      id: bundle.id,
-      kind: bundle.kind,
-      digest,
-      dir: target,
-    })
-  )
+  if (yield* directoryMatches(cache, { id: bundle.id, kind: bundle.kind, digest, dir: target }))
     return target;
-  yield* fs.makeDirectory(target, { recursive: true });
-  yield* extractBundle(options.cache, bundle, target);
-  return target;
+  return yield* publishBundle(cache, bundle, digest, fallback);
 });
 
 /** A bundle must match the index entry's id, kind and digest before extraction. */

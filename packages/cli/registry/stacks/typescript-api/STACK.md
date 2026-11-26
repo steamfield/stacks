@@ -8,7 +8,7 @@ tags: [typescript, api, effect, node, bun, scripts]
 deps:
   app: [effect, "@effect/platform-node"]
   dev: [typescript, "@biomejs/biome", vitest, "@vitest/coverage-v8", "@types/node", "@types/bun"]
-tools: [bun, node, git]
+tools: [bun, node, git, ps, lsof]
 decisions:
   - "Node version: current LTS (default), recorded in .node-version and engines.node; Node runs the server and Vitest, Bun installs and runs scripts."
 merge: [.claude/settings.json, .codex/hooks.json]
@@ -22,7 +22,7 @@ verify:
   - { name: install, phase: setup, layer: install, run: bun install }
   - { name: lint, layer: lint, run: bun run lint }
   - { name: typecheck, layer: typecheck, run: bun run typecheck }
-  - { name: test, layer: test, run: bun run test }
+  - { name: test, layer: test, run: bun run coverage }
   - { name: http-contract, layer: test, run: bun run test tests/http-contract.test.ts }
   - { name: build, layer: build, run: bun run build }
   - name: dev-cycle
@@ -63,7 +63,7 @@ commands:
 
 ## What stacks wrote
 
-A working API that passes every check once dependencies are installed. `src/platform/node.ts` is the only entry and `src/app.ts` the platform-free app with its request middleware. The health resource runs through every layer (`src/api/`, `src/handlers/`, `src/services/`, `src/schemas/`) over `config.ts`, `errors.ts` and `logging.ts`: `GET /healthz`, `POST /v1/health-checks/:checkId` for decode, size and media-type cases, and `/openapi.json`. `tests/http-contract.test.ts` runs the matrix in `docs/acceptance/typescript-api.md` on a Node listener and the web fetch handler; `scripts/` holds the dev server tooling and its tests. `docs/guidance/typescript-api/index.md` links the guidance for Effect, testing, tooling and verification. Read the code before extending it; a new resource copies the health files' shape.
+A working API written against an earlier Effect release; Setup step 2 brings it to the installed one. `src/platform/node.ts` is the only entry and `src/app.ts` the platform-free app with its request middleware. The health resource runs through every layer (`src/api/`, `src/handlers/`, `src/services/`, `src/schemas/`) over `config.ts`, `errors.ts` and `logging.ts`: `GET /healthz`, `POST /v1/health-checks/:checkId` for decode, size and media-type cases, and `/openapi.json`. `tests/http-contract.test.ts` runs the matrix in `docs/acceptance/typescript-api.md` on a Node listener and the web fetch handler; `scripts/` holds the dev server tooling and its tests. `docs/guidance/typescript-api/index.md` links the guidance for Effect, testing, tooling and verification. Read the code before extending it; a new resource copies the health files' shape.
 
 ## Setup
 
@@ -90,7 +90,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-`package.json` wires every declared command. Agents run the server with `bun run dev:bg` (reuses a healthy one, logs to `logs/dev.log`) and `bun run dev:stop`, read `bun run dev:status` and `bun run logs` before restarting, and never kill server processes by name. `bun run check` runs what CI runs. `start` reads `PORT_API`, else `PORT`, else 3000; `build` doesn't inline env, so the bundle reads it at runtime.
+Agents run the server with `bun run dev:bg` (reuses a healthy one, logs to `logs/dev.log`) and `bun run dev:stop`, read `bun run dev:status` and `bun run logs` before restarting, and never kill server processes by name. `build` doesn't inline env (`--env=disable`), so the bundle reads it at runtime; keep the flag.
 
 Document the commands, logs and hook ownership in AGENTS, plus a Debugging section with `jq` queries over `logs/server.jsonl` (one request by `requestId`, errors only, slow requests).
 

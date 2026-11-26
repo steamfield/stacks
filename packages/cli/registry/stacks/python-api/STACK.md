@@ -7,8 +7,8 @@ description: A Python JSON API on FastAPI and Uvicorn with no frontend, managed 
 tags: [python, api, make]
 deps:
   runtime: [fastapi, uvicorn, pydantic, pydantic-settings, structlog]
-  dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx, asgi-lifespan]
-tools: [uv, make, git, jq]
+  dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx, asgi-lifespan, pip-audit]
+tools: [uv, make, git, bash, curl]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that FastAPI, ruff, and mypy support (default). Setup writes it to .python-version and requires-python."
@@ -28,6 +28,7 @@ verify:
   - { name: typecheck, layer: typecheck, run: make typecheck }
   - { name: test, layer: test, run: make coverage }
   - { name: openapi-drift, layer: check, run: make check-openapi }
+  - { name: dev-cycle, layer: check, timeout: 2m, run: make dev-bg && make dev-stop }
   - name: api
     phase: serve
     layer: serve
@@ -44,7 +45,11 @@ commands:
   typecheck: mypy strict over app, tests and scripts
   test: pytest (parallel)
   coverage: pytest with the coverage floor
+  ci: lint, typecheck, coverage and check-openapi, as CI runs them
+  audit: pip-audit over the locked dependencies (needs the network)
   dev: Uvicorn with reload on PORT_API
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
+  dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
   start: Uvicorn without reload on PORT_API, as production runs it
   openapi: Write the app's OpenAPI spec to openapi.json
   check-openapi: Fail if openapi.json no longer matches the app's spec (run make openapi)
@@ -55,43 +60,41 @@ commands:
 
 ## What stacks wrote
 
-A working FastAPI app factory, validated settings, lifespan-owned in-memory notes store, error table and handlers, request-id and logging middleware, wire schemas, and `/healthz`. Create, read and cursor-paginated list routes under `/v1/notes` exercise the boundaries. Unit tests sit beside config and the store; `tests/` calls the real ASGI app with lifespan management. The Makefile, pyproject tool configuration, OpenAPI dumper, env example and reference docs ship too; read the code before extending it.
+A FastAPI app factory with validated settings, a lifespan that owns an in-memory notes store, an error table and its handlers, request-id and logging middleware, wire schemas and `/healthz`. Create, read and cursor-paginated list routes under `/v1/notes` exercise those boundaries. Unit tests sit beside config and the store; `tests/` calls the real ASGI app. The Makefile, pyproject tool config, OpenAPI dumper, background dev-server script (`scripts/dev-bg.sh`) and `docs/` (architecture, HTTP contract, development) ship too; read the code before extending it.
 
 ## Setup
 
-1. No generator. Use the shipped `pyproject.toml`. Pin the chosen Python with `uv python pin`, set `project.requires-python` and ruff's target-version to match it, then `uv add` every runtime dependency (Uvicorn with its standard extra) and `uv add --dev` every dev dependency, resolving current releases.
-2. `make format` (a newer target can rewrite syntax), then `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every linter, strict type checking, test and coverage floor. Do not replace the shipped rule sets with generated defaults.
-3. Record Python and uv versions in AGENTS.md.
-4. `make openapi`, then commit `openapi.json` with future route changes. Setup generates it because it embeds FastAPI's OpenAPI version. `make check-openapi` compares parsed JSON, not formatting.
-5. Fill README's `stacks:fill` marker and the selected fragments' agent guidance. Run `stacks verify` until green.
+1. No generator. Pin the chosen Python with `uv python pin`, which writes the `.python-version` CI reads, and set `project.requires-python` to match; ruff takes its target version from it. Then `uv add` every runtime dependency (Uvicorn with its standard extra) and `uv add --dev` every dev dependency.
+2. `make format` (a newer ruff can rewrite syntax), then `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every rule, strict typing, test and the coverage floor. Don't replace the shipped rule sets with generated defaults.
+3. `make openapi` and commit `openapi.json`. It's generated here because it embeds FastAPI's OpenAPI version.
+4. Record the Python and uv versions in AGENTS.md, fill README's `stacks:fill` marker, then run `stacks verify` until green.
 
-## Layout and conventions
+## Conventions
 
-`docs/ARCHITECTURE.md` maps the boundaries, `docs/http-api.md` describes the HTTP contract, and `docs/DEVELOPMENT.md` covers setup and commands.
-
-- `app/main.py::create_app` wires routers, handlers and middleware. The lifespan validates settings, configures structlog once at startup and owns resources. Imports do no I/O. New routers go in `app/api/`; mount them only in the factory. Services go in `app/services/` and do not import FastAPI.
-- Env settings live in `app/config.py::Settings`. Add validated defaults, tests and `.env.example` entries for new settings; secrets use `SecretStr`. `.env` allows extra Make and Compose keys. Tests pass explicit Settings; `get_settings` caches process settings.
-- Keep wire models in `app/schemas.py`, camelCase aliases, one resource shape for create/read/list, and thin routes. Stores implement the async `NoteStore` seam; a database adapter maps dependency failures to `ServiceUnavailable` with the original cause chained.
-- Raise `AppError` values. The error table owns fixed safe messages, statuses and retryability. Framework validation, unknown paths and wrong methods use the same envelope; unexpected exceptions and response-encoding failures are generic 500s, logged once by class and frames without messages or locals.
-- Use the request middleware on every route. It validates or generates ids, returns `X-Request-ID`, binds log context, logs route patterns without bodies/query values, and restores context afterwards. Uvicorn's access log stays off. Production logs are JSON on stdout; development logs are readable. Health requests log at debug.
-- New endpoints declare models and summaries. A resource route sets `operation_id` in camelCase verb-noun form, as `listNotes`, `getNote` and `createNote` do, because clients generated from the OpenAPI document name their functions after it; health routes keep the factory's `<tag>_<function>` fallback. Never change an existing id. Preserve no-store defaults, existing cache policies and 304s. Regenerate OpenAPI after changing routes or schemas.
+- Mount routers only in `app/main.py::create_app`; new ones go in `app/api/`. Imports do no I/O, and the lifespan owns resources. Services in `app/services/` don't import FastAPI.
+- A new setting gets a validated default in `app/config.py::Settings`, a test and an `.env.example` entry; secrets use `SecretStr`. Tests pass explicit Settings.
+- Wire models live in `app/schemas.py` on the camelCase `ApiModel` base, with one response shape per resource. Routes stay thin. Stores implement the async `NoteStore` seam; a database adapter maps dependency failures to `ServiceUnavailable` with the cause chained.
+- Raise `AppError` subclasses, never `HTTPException`; the error table owns messages, statuses and retryability. Unexpected exceptions become generic 500s, logged by class and frames, never messages or locals.
+- Logs never carry bodies or query values. Uvicorn's access log stays off so the middleware writes the one request record.
+- Every resource route sets `operation_id` in camelCase verb-noun form (`listNotes`, `getNote`, `createNote`). Generated clients name their functions after it, so never change an existing one. Health routes keep the factory's `<tag>_<function>` fallback. Keep the `no-store` default and existing cache policies.
+- After changing a route or schema, run `make openapi` and commit `openapi.json` with the change.
 
 ## Testing
 
-`make test` runs pytest with xdist and random ordering; `make coverage` also enforces an 80% branch-aware floor and is the verify test step. Config and service tests live beside their code. `tests/conftest.py` enters the lifespan through asgi-lifespan, then uses httpx's ASGI transport. Extend `tests/test_http.py` for each new endpoint's success, validation and error cases. Override the store dependency for a dependency-down case, never the route or middleware. Keep strict warnings and markers.
+Extend `tests/test_http.py` with each new endpoint's success, validation and error cases. For a dependency-down case, override the store dependency, never the route or middleware. Run one test with `uv run pytest tests/test_http.py::test_health`, and set `TEST_WORKERS=2` on a shared machine.
 
 ## Commands
 
-The shipped Makefile (`make help`) holds every declared target. Mirror them and a single-file command (`uv run pytest tests/test_http.py`) in AGENTS.md. `TEST_WORKERS` defaults to auto; reduce it on shared machines without changing test behavior.
+Run the API with `make dev-bg` and stop it with `make dev-stop`. Don't `kill` or `pkill` Uvicorn: the reload supervisor and its worker are separate processes, and stopping one leaves the other holding the port.
 
 <!-- stacks:when with=git-hooks -->
 If `make install` already runs `lefthook install`, don't add another install step. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python read from .python-version), then `make install lint typecheck coverage check-openapi` with CI set.
+CI uses uv's setup action (cache on, Python read from `.python-version`), then `make install ci` with CI set.
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
-The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free.
+The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free. The CI job with the Postgres service runs `make install ci`, then the fragment's `make db-migrate db-check test-db`.
 <!-- stacks:end -->
 <!-- stacks:when with=rest-api -->
 The notes slice already follows the REST rule. Record /v1, the tag/message/retryable envelope, cursor limits (20 default, 100 maximum), 400 validation and 405 with Allow in AGENTS.md. Keep those contracts when adding resources.

@@ -1,13 +1,19 @@
 {
   "permissions": {
     "allow": [
+      "Bash(make install)",
       "Bash(make lint)",
       "Bash(make format)",
       "Bash(make typecheck)",
       "Bash(make test)",
       "Bash(make coverage)",
+      "Bash(make ci)",
+      "Bash(make audit)",
       "Bash(make openapi)",
       "Bash(make check-openapi)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make clean)",
       "Bash(uv run pytest *)"
     ]
   }

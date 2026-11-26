@@ -1,8 +1,8 @@
 # {{project_name}} development commands.
 #
 # A starting point: adapt the recipes to the project, but keep the target
-# names. `stacks verify` calls install, lint, typecheck, coverage, check-openapi
-# and start. CI calls install, lint, typecheck, coverage and check-openapi.
+# names. `stacks verify` calls install, lint, typecheck, coverage, check-openapi,
+# dev-bg, dev-stop and start. CI calls install and ci.
 
 PORT_API ?= 8000
 API_HOST ?= 127.0.0.1
@@ -10,7 +10,8 @@ TEST_WORKERS ?= auto
 export PORT_API
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage dev start openapi check-openapi clean
+.PHONY: help install lint format typecheck test coverage ci audit dev dev-bg dev-stop start \
+	openapi check-openapi clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -34,8 +35,21 @@ test: ## pytest (parallel)
 coverage: ## pytest with the coverage floor
 	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
 
+ci: lint typecheck coverage check-openapi ## Every check CI runs after install
+
+audit: ## pip-audit over uv.lock (needs the network)
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
+
 dev: ## Uvicorn with reload on PORT_API
 	uv run uvicorn app.main:app --reload --no-access-log --host $(API_HOST) --port $(PORT_API)
+
+dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one it started
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
 
 start: ## Uvicorn without reload on PORT_API, as production runs it
 	uv run uvicorn app.main:app --no-access-log --host $(API_HOST) --port $(PORT_API)

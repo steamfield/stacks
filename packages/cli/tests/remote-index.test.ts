@@ -249,29 +249,30 @@ it.effect("one changed signed byte is ignored and leaves the good cache intact [
     );
     yield* TestClock.adjust("24 hours");
     const rejected = yield* readRemote();
-    expect(rejected.status.lastOutcome).toBe("invalid");
+    expect(rejected.status.lastOutcome).toBe("signature");
     expect(readFileSync(join(cacheRoot(home), "index.json"), "utf8")).toBe(cached);
     expect(Option.isSome(rejected.index)).toBe(true);
     expect(rejected.index).toEqual(good.index);
   }),
 );
 
-test.each(["signature", "keyId", "json"])(
-  "a bad %s falls back to bundled with invalid status [4.0d#2]",
-  async (kind) => {
-    const envelope = { ...fixture.envelope };
-    if (kind === "signature") envelope.signature = Buffer.alloc(64).toString("base64");
-    if (kind === "keyId") envelope.keyId = "unknown-key";
-    writeFileSync(
-      join(root, "published/v1/index.json"),
-      kind === "json" ? "{broken" : JSON.stringify(envelope),
-    );
-    expect(row(list(await cli(["list", "--json"])))).toMatchObject({ origin: "bundled" });
-    const result = await cli(["doctor", "--json"]);
-    success(result);
-    expect(JSON.parse(result.stdout)).toHaveProperty("remoteIndex.lastOutcome", "invalid");
-  },
-);
+test.each([
+  { kind: "signature", outcome: "signature" },
+  { kind: "keyId", outcome: "signature" },
+  { kind: "json", outcome: "invalid" },
+])("a bad $kind falls back to bundled with $outcome status [4.0d#2]", async ({ kind, outcome }) => {
+  const envelope = { ...fixture.envelope };
+  if (kind === "signature") envelope.signature = Buffer.alloc(64).toString("base64");
+  if (kind === "keyId") envelope.keyId = "unknown-key";
+  writeFileSync(
+    join(root, "published/v1/index.json"),
+    kind === "json" ? "{broken" : JSON.stringify(envelope),
+  );
+  expect(row(list(await cli(["list", "--json"])))).toMatchObject({ origin: "bundled" });
+  const result = await cli(["doctor", "--json"]);
+  success(result);
+  expect(JSON.parse(result.stdout)).toHaveProperty("remoteIndex.lastOutcome", outcome);
+});
 
 test.each([
   { signature: "valid", origin: "index" },

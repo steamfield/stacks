@@ -73,7 +73,7 @@ export const verifyIndex = Effect.fn("remoteIndex.verify")(function* (
     Effect.mapError((): RemoteFailure => "invalid"),
   );
   if (options.isDefaultUrl && !(yield* signatureValid(envelope, options.keys)))
-    return yield* Effect.fail<RemoteFailure>("invalid");
+    return yield* Effect.fail<RemoteFailure>("signature");
   const header = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(IndexHeader))(
     envelope.payload,
   ).pipe(Effect.mapError((): RemoteFailure => "invalid"));

@@ -68,7 +68,7 @@ export async function proof(registry: string, overrides: Partial<LedgerRecord> =
     agentVersion: "fixture",
     mode: "headless",
     repoCommit: "1".repeat(40),
-    cli: "0.15.0",
+    cli: "0.16.0",
     fingerprint: await compositionFingerprint(registry),
     briefWords: 100,
     result: "pass",

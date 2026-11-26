@@ -1,5 +1,5 @@
 /** Handles `stacks new` and checks template inputs before the picker can ask questions. */
-import { Effect, Layer, Option, Schema } from "effect";
+import { Clock, Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import type { Composition } from "../core/compose/types";
@@ -13,7 +13,7 @@ import {
   printLaunch,
   resolveChoice,
 } from "../core/handoff/run";
-import { NO_INDEX_PROVENANCE } from "../core/project/provenance";
+import { indexFallbackWarning, readIndexProvenance } from "../core/project/provenance";
 import { templateOverrides } from "../core/project/template-values";
 import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
@@ -202,19 +202,24 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
     const { json } = yield* root;
     const output = yield* Output;
     const source = yield* sourceValue(flags.source);
+    const provenance = yield* readIndexProvenance;
     const options = yield* resolveArguments(flags);
     yield* (yield* Allowlist).refresh;
     const preferences = yield* prepareHandoff(flags, json);
     const scaffolded = yield* scaffold({
       ...options,
       handoff: preferences,
-      provenance: NO_INDEX_PROVENANCE,
+      provenance,
     });
-    const { result } = scaffolded;
+    const warning = indexFallbackWarning(provenance);
+    const result = warning
+      ? { ...scaffolded.result, warnings: [...scaffolded.result.warnings, warning] }
+      : scaffolded.result;
     const telemetry = yield* Telemetry;
     const registry = yield* Registry;
     const context = yield* handoffContext(result.project, result.agents[0], result.untrusted);
-    const summary = renderNew({ ...result, untrusted: context.untrusted }, context);
+    const now = yield* Clock.currentTimeMillis;
+    const summary = renderNew({ ...result, untrusted: context.untrusted }, { ...context, now });
     const { decision, prefix } = yield* resolveChoice(scaffolded.decision, result.project, summary);
     yield* recordNew({
       telemetry,

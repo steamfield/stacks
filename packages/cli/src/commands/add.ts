@@ -1,5 +1,5 @@
 /** Handles `stacks add` and records telemetry after the handoff settles. */
-import { Context, Effect, Layer, Option, Path, Schema } from "effect";
+import { Clock, Context, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { type Added, add } from "../core/add/index";
 import { renderAdd } from "../core/add/report";
@@ -14,7 +14,7 @@ import {
   printLaunch,
   resolveChoice,
 } from "../core/handoff/run";
-import { NO_INDEX_PROVENANCE } from "../core/project/provenance";
+import { indexFallbackWarning, readIndexProvenance } from "../core/project/provenance";
 import { pickAdd, promptingAllowed, runningCommand } from "../core/prompting";
 import { Registry } from "../core/registry/registry";
 import { projectRoots } from "../core/registry/roots";
@@ -115,6 +115,7 @@ export const addCommand = Command.make("add", addFlags, (flags) =>
       host.cwd,
       Option.getOrElse(dir, () => "."),
     );
+    const provenance = yield* readIndexProvenance;
     const registry = yield* projectRegistry(project);
     const fragments = yield* chooseFragments(flags, project, registry);
     if (!fragments.length) return;
@@ -123,16 +124,21 @@ export const addCommand = Command.make("add", addFlags, (flags) =>
       root: project,
       fragments,
       handoff: preferences,
-      provenance: NO_INDEX_PROVENANCE,
+      provenance,
     };
     const added = yield* add(
       options satisfies ExactProjectOptions<typeof options, AddOptions>,
     ).pipe(Effect.provideService(Registry, registry));
-    const { result, manifest } = added;
+    const { manifest } = added;
+    const warning = indexFallbackWarning(provenance);
+    const result = warning
+      ? { ...added.result, warnings: [...added.result.warnings, warning] }
+      : added.result;
     const telemetry = yield* Telemetry;
     const output = yield* Output;
     const context = yield* handoffContext(result.project, manifest.agents[0], result.untrusted);
-    const summary = renderAdd({ ...result, untrusted: context.untrusted }, context);
+    const now = yield* Clock.currentTimeMillis;
+    const summary = renderAdd({ ...result, untrusted: context.untrusted }, { ...context, now });
     const { decision, prefix } = yield* resolveChoice(added.decision, result.project, summary);
     yield* recordAdd({ telemetry, registry, added, decision, source });
     yield* annotateHandoff(decision);

@@ -48,6 +48,7 @@ commands:
   coverage: Run Vitest with coverage
   e2e: Build, then run the Playwright tests against the production server
   check: Run lint, typecheck, tests and e2e
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove generated, build and test output
   prepare: Run nuxt prepare; outside CI, install git hooks and the Playwright browser
 ---
@@ -103,7 +104,7 @@ Nuxt moved app code under `app/` in its current major, and model memory often wr
 Unit tests cover the schema's messages, the store's isolation, config defaults and rejection without echoing values, and log records. Component tests mount the form and error page with `mountSuspended` and stand in for the route with `registerEndpoint`. `e2e/notes.spec.ts` proves server-rendered seed data, a rejected empty note with its field error and no write, a write that refreshes the list, reload persistence, health with no-store and a request ID, the 400 body with `data.fields`, a JSON 404 for an unknown API path and the error page for an unknown page. New behavior gets tests at the same boundaries; don't mock our own modules.
 
 <!-- stacks:when with=ci-github -->
-CI reads Bun from packageManager and Node from `.node-version`, installs frozen dependencies (which runs `nuxt prepare` through the prepare script), runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure.
+CI reads Bun from packageManager and Node from `.node-version`, installs frozen dependencies (which runs `nuxt prepare` through the prepare script), runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure. `bun run audit` runs as its own step after e2e: the audit needs the network, so it stays out of `check`.
 <!-- stacks:end -->
 
 ## Commands

@@ -12,9 +12,10 @@ tools: [bun, node, git]
 decisions:
   - "Package manager (default: bun)."
   - "Worker name (default: project slug)."
+merge: [.claude/settings.json]
 fragments:
-  default: [agent-ops, ci-github]
-  optional: [cloudflare-d1, git-hooks, ce-plugin, posthog]
+  default: [agent-ops, git-hooks, ci-github]
+  optional: [cloudflare-d1, ce-plugin, posthog]
 env:
   PORT_WEB: "5173"
 verify:
@@ -42,6 +43,7 @@ commands:
   test: Run local Workers integration tests
   coverage: Run Workers tests with Istanbul coverage and the framework HTTP tests
   check: Run lint, typecheck, tests, and production build
+  audit: Check dependencies for published advisories (bun audit; needs the network)
 ---
 
 ## What stacks wrote
@@ -69,7 +71,7 @@ Register new routes in `app/routes.ts`, put their modules in `app/routes/`, and 
 
 ## Testing and commands
 
-The shipped scripts are the command contract: `dev`, `build`, `typecheck`, `lint`, `format`, `test`, `coverage` and `check`. Typecheck generates Worker and route types before strict `tsc`, including unchecked-index checks and no emit. Keep Biome's recommended rules, organized imports, Tailwind parser and generated-output exclusions when adapting it.
+The shipped scripts are the command contract: `dev`, `build`, `typecheck`, `lint`, `format`, `test`, `coverage`, `check` and `audit`. `audit` runs `bun audit`, which needs the network, so `check` leaves it out. Typecheck generates Worker and route types before strict `tsc`, including unchecked-index checks and no emit. Keep Biome's recommended rules, organized imports, Tailwind parser and generated-output exclusions when adapting it.
 
 `test` and `coverage` build first. Vitest runs adjacent binding and scheduled-work tests in the local Workers runtime; its Node project starts local Wrangler against the built Worker and tests the page, resource route, error boundary, CSS and scheduled export over HTTP. Extend both boundaries for new routes and services. Tests need no account or credentials, own their temporary persistence and stop their servers. Coverage instruments the service and scheduled work with Istanbul; HTTP tests prove framework wiring. Never substitute a response stub, `bun test` or `--bun`.
 
@@ -78,7 +80,7 @@ Keep `/healthz` and the `web` probe database-free; the fragment adds `/readyz` f
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->
-CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and build through the shipped scripts. Keep deployment separate per `docs/DEPLOYMENT.md`.
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and build through the shipped scripts, then `bun run audit` as its own step. Keep deployment separate per `docs/DEPLOYMENT.md`.
 <!-- stacks:end -->
 
 ## Gotchas

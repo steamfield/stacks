@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "react-vite",
   "source": {
-    "digest": "sha256:7f4d39675ab828e904390ab5a7097602addfc4d298d23fe5dfd762c1ee71ba32",
+    "digest": "sha256:b8bec58a24370566a501c86f57ac1cb3c895219984280914d09c784bf6f0c462",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-18"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A single-page app that runs entirely in the browser, built by Vite into static files and reading an API it doesn't own.",
   "description": "Build a client-side React app that Vite compiles into static files any file host can serve. Routes use React Router in data mode, and every API call goes through one typed client that decodes responses with zod and feeds TanStack Query. The starter covers validated build-time settings, a typed error with user-facing messages and request ids, console logging, and an error page. Vitest with MSW and a Playwright test of the built site run against a fake API. The app has no server of its own: it needs an existing API, and accounts or storage come from that API.",

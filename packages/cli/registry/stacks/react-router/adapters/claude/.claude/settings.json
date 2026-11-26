@@ -12,6 +12,8 @@
       "Bash(bun run build)",
       "Bash(bun run check)",
       "Bash(bun run e2e)",
+      "Bash(bun run audit)",
+      "Bash(bun run clean)",
       "Bash(curl -s localhost:*)",
       "Bash(curl -s http://localhost:*)",
       "Bash(bun run dev:bg)",

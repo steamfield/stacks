@@ -14,6 +14,7 @@
     "coverage": "vitest run --coverage",
     "e2e": "bun run build && playwright test",
     "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
+    "audit": "bun audit",
     "clean": "rm -rf dist coverage test-results playwright-report",
     "prepare": "bun scripts/prepare.ts"
   }

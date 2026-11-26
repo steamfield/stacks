@@ -37,12 +37,13 @@ commands:
   fmt-check: Fail if rustfmt would change any file
   clippy: clippy on every target with warnings denied
   lint: fmt-check and clippy
+  lint-fix: Apply clippy's machine-applicable fixes, then format
   check: Type-check every target
   test: Unit and integration tests (the integration tests run the binary)
   build: Release binary in target/release/
   smoke: Run the release binary's --help, --version and config show --json
   audit: Advisories, licenses and sources with cargo-deny (needs network)
-  ci: "Everything CI runs (fmt-check, clippy, test, smoke, audit)"
+  ci: "Every offline check CI runs (fmt-check, clippy, test, smoke)"
   clean: Remove build output
 ---
 
@@ -88,10 +89,10 @@ Unit tests sit in each module's `#[cfg(test)] mod tests`: config precedence and 
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, check, test, build, smoke, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md. Checks run with `--locked`, so `Cargo.lock` must match `Cargo.toml`; commit it.
+The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, lint-fix, check, test, build, smoke, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md. `make lint-fix` applies clippy's machine-applicable fixes and formats. Checks run with `--locked`, so `Cargo.lock` must match `Cargo.toml`; commit it.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: `make install`, then `make ci` (fmt-check, clippy, test, smoke, audit), with cargo-deny already installed so `make audit` skips compiling it. The stack has no coverage target (Rust coverage needs cargo-llvm-cov, which it doesn't ship), so CI runs plain tests; record that under Deferred.
+**CI.** One `ubuntu-latest` job: `make install`, then `make ci` (fmt-check, clippy, test, smoke), then `make audit` as its own step, with cargo-deny already installed so it skips compiling it. The audit needs the network, so it stays out of `ci`. The stack has no coverage target (Rust coverage needs cargo-llvm-cov, which it doesn't ship), so CI runs plain tests; record that under Deferred.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

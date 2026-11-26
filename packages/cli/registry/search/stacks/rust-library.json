@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "rust-library",
   "source": {
-    "digest": "sha256:c992eb137092a7d2f52c5aec0cb568f98b84b17af87999ef0a0ac71fb706f597",
+    "digest": "sha256:ed6d05154007b807b67f6d3e435f1edc33c7aaea82a6a7b71e1766723d3dc727",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A Rust library crate for crates.io with a documented public API, one error enum, doctested examples and a packaging check.",
   "description": "Write a reusable Rust crate whose public API is small, documented and stable. Every exported item has a doc example that runs as a doctest, errors come from one thiserror enum callers can match, an optional serde feature shows how features stay additive, and proptest checks properties over generated input. Rustdoc builds with warnings denied, clippy and cargo-deny are strict, and cargo package compiles the .crate before anyone publishes. The shipped slug type is the example to replace with your own API; publishing stays a person's step.",

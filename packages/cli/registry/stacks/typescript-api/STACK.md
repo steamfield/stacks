@@ -3,7 +3,7 @@ schema_version: 1
 id: typescript-api
 kind: stack
 name: TypeScript HTTP API with Effect
-description: A Node HTTP API on Effect's HttpApi, with schema-first REST resources, tagged errors mapped through one status table, structured request logs, a platform-free core that also runs as a web fetch handler, Vitest through real HTTP, and a health-check proving slice.
+description: A Node HTTP API on Effect's HttpApi, with schema-first REST resources, tagged errors mapped through one status table, structured request logs, a platform-free core that also runs as a web fetch handler, Vitest through real HTTP, and a small proving slice.
 tags: [typescript, api, effect, node, bun, scripts]
 deps:
   app: [effect, "@effect/platform-node"]

@@ -27,4 +27,4 @@ A hook you add follows agent-ops' policy (deny only destructive work or a comman
 
 ## Verify
 
-`claude-typecheck-hook` runs `.claude/hooks/typecheck-probe.sh` from the git top level, which feeds `typecheck-on-write.ts` a deliberate type error and fails unless the hook reports it. It passes without running when Claude Code isn't a target. If it fails, fix the hook or the install, never the probe.
+`claude-typecheck-hook` runs `.claude/hooks/typecheck-probe.sh`, which feeds the hook a deliberate type error. When it fails, fix the hook or the install, never the probe.

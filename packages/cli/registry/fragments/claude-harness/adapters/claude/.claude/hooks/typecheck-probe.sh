@@ -5,7 +5,7 @@
 #
 # Run from the directory whose node_modules/.bin/tsc to use (the project root, or a workspace
 # part); the tsc may also sit one directory down. The probe directory is removed on exit and on
-# INT, TERM or HUP, and .claude/.gitignore ignores one a SIGKILL leaves behind.
+# INT, TERM or HUP; one a SIGKILL leaves behind holds a `*` .gitignore, so git never sees it.
 set -u
 
 hooks=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -24,6 +24,7 @@ if [ -z "$tsc" ]; then
 fi
 
 probe=$(mktemp -d "$hooks/.typecheck-probe.XXXXXX") || exit 1
+printf '*\n' >"$probe/.gitignore"
 trap 'rm -rf "$probe"' EXIT
 trap 'rm -rf "$probe"; exit 1' INT TERM HUP
 

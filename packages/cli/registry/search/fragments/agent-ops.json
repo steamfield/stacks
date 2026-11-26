@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "agent-ops",
   "source": {
-    "digest": "sha256:d2ca2f5b70eeb74899265ef0ee2f30de39c4e2ab3745e37741a5c92a2bcff829",
+    "digest": "sha256:c1da7e7c7dd8b94d4c9ab8beaaa7ecc0d643451ce3f67273a29f995cabe55914",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

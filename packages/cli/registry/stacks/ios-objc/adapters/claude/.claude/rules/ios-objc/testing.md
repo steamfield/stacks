@@ -11,5 +11,6 @@ paths:
 - Asynchronous code is awaited with `XCTestExpectation` and `waitForExpectations:timeout:`; never `sleep` or spin the run loop by hand.
 - Config tests use a fresh `NSUserDefaults` suite and remove its domain in `tearDown`; never write to `standardUserDefaults`.
 - Assert on error `domain` and `code`, not on message text, except where the test is about the user-facing mapping.
-- UI tests (`AppUITests`, `make test-ui`) stay a smoke check: launch, find elements by identifier with `waitForExistenceWithTimeout:`, and drive alternate states with launch arguments (`-APPGreetingResource missing`). Behavior belongs in unit tests.
+- `make coverage` fails below the Makefile's `COVERAGE_MIN`. Add tests to meet it; never lower the floor without asking the user.
+- UI tests (`AppUITests`, `make test-ui`) stay a smoke check: launch, find elements by identifier with `waitForExistenceWithTimeout:`, drive alternate states with launch arguments (`-APPGreetingResource missing`), and run `performAccessibilityAuditWithAuditTypes:issueHandler:error:` on each new screen reached. Behavior belongs in unit tests.
 - Simulator choice comes from `scripts/sim-destination.sh` (or `SIM_DESTINATION`); never write a device name or iOS version into a test, the Makefile or CI.

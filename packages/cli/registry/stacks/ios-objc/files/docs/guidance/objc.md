@@ -26,7 +26,11 @@ To add a failure: append a code to the enum (never renumber), add its case to `m
 
 `APPConfig` is the only reader of settings. It registers defaults on `NSUserDefaults`, reads each key, validates it and returns an immutable object, or `nil` with an `APPErrorCodeInvalidConfiguration` error. `NSUserDefaults` already layers registered defaults under saved values under launch arguments, so `-APPGreetingResource missing` on the command line, in an Xcode scheme or in a UI test's `launchArguments` overrides a setting with no extra code.
 
+When validation fails, `APPSceneDelegate` logs a fault and gives the screen `APPFailedGreetingService`, so the user sees the `APPErrorCodeInvalidConfiguration` message instead of an app running on defaults it swapped in.
+
 A new setting gets a key constant, a default in `registeredDefaults`, a validation rule, a property, and tests in `APPConfigTests` for the default, an override and a rejected value.
+
+Secrets never go in user defaults, Info.plist, an xcconfig or source: anything in the app bundle is readable by anyone who downloads it. A key belongs on a server the app calls.
 
 ## Logging
 
@@ -46,11 +50,11 @@ The `App` target compiles one Swift file to show the seam a mixed codebase uses:
 - Objective-C sees Swift through the generated `App-Swift.h`, imported in `.m` files only (never in a header, which would make the header depend on a Swift build). Only `@objc` declarations on `NSObject` subclasses appear in it; `@objc(APPGreetingFormatter)` keeps the Objective-C class name prefixed.
 - The module name is fixed at `App` (`PRODUCT_MODULE_NAME`), so the generated header's name doesn't change with the product name.
 
-`make lint` runs `swift-format lint --strict` over Swift files and Swift warnings are errors too. If the project should stay pure Objective-C, delete `GreetingFormatter.swift`, the bridging header, the `SWIFT_OBJC_BRIDGING_HEADER` setting and the `App-Swift.h` import, and build the headline in Objective-C.
+`make lint` runs `swift-format lint --strict` over Swift files, Swift warnings are errors too, and `SWIFT_STRICT_CONCURRENCY = complete` makes data races compile errors. If the project should stay pure Objective-C, delete `GreetingFormatter.swift`, the bridging header, the `SWIFT_OBJC_BRIDGING_HEADER` setting and the `App-Swift.h` import, and build the headline in Objective-C.
 
 ## Formatting
 
-`clang-format` with the shipped `.clang-format` (LLVM base, 4-space indent, 120 columns). `make format` rewrites, `make format-check` fails on drift. `swift-format` with its defaults formats Swift.
+`clang-format` with the shipped `.clang-format` (LLVM base, 4-space indent, 120 columns). `make format` rewrites, `make format-check` fails on drift. `swift-format` formats Swift with the shipped `.swift-format` (2-space indent, 100 columns), which records the layout so a release that changes its defaults doesn't reformat the code.
 
 ## Tooling
 

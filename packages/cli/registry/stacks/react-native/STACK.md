@@ -63,7 +63,7 @@ Link `docs/guidance/react-native/index.md` from AGENTS.md.
 
 ## Setup
 
-1. Generate the native projects before installing anything. Look up the current React Native release (`npm view react-native version`), read `npx @react-native-community/cli@latest init --help`, then run init non-interactively into a temporary directory outside the project, with that React Native version, the native project name and bundle identifier from the decisions, and install, pods and git skipped.
+1. Generate the native projects before installing anything. Look up the current React Native release (`npm view react-native version`), read `npx @react-native-community/cli@latest init --help` (the generator React Native's own docs name, published by the react-native-community organization on npm), then run init non-interactively into a temporary directory outside the project, with that React Native version, the native project name and bundle identifier from the decisions, and install, pods and git skipped.
 2. Install the declared dependencies with `bun add` and `bun add -d`, taking versions from the generated `package.json` where it lists the package: `react`, `react-native`, the `@react-native/*` and `@react-native-community/cli*` packages at its exact versions, and `@babel/core` and `@babel/runtime` within its ranges, because React Native's Babel preset breaks on a newer Babel major. That rules out the plain `bun add` lines under Start here for those packages. Install `@babel/plugin-transform-export-namespace-from` at the same Babel major; everything else takes its current release within peer ranges. Then copy only the generated `ios/` (including `ios/.xcode.env`) and `android/` into the project and delete the temporary directory. Never copy its `App.tsx`, `index.js`, `app.json`, `package.json`, `Gemfile`, tests, ESLint, Prettier, Babel or Metro files over the shipped ones.
 3. Replace the `stacks:fill` in `app.json`'s `name` with the native project name; `ios:build` fails until they match. In `ios/Podfile`, inside the app target and right after `config = use_native_modules!`, add `pod "AppInfo", :path => "../modules/app-info", :testspecs => ["Tests"]` so CocoaPods builds the module's XCTest bundle.
 4. Run `bun run pods`. Bundler resolves CocoaPods from the shipped Gemfile; if it or CocoaPods rejects the installed Ruby, carry over the matching exclusion from the template's Gemfile and record it under Build workarounds. React Native's notice that calling `pod install` directly is deprecated is informational.
@@ -71,10 +71,14 @@ Link `docs/guidance/react-native/index.md` from AGENTS.md.
 6. Add these cases to `.claude/hooks/smoke.sh` beside the other guards, so `hooks-smoke` covers the stack's hooks:
 
    ```sh
-   denies "a project file edit" '{"tool_input":{"file_path":"ios/App.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-native-project.sh
+   denies "a Podfile.lock edit" '{"tool_input":{"file_path":"ios/Podfile.lock","content":"x"}}' $h/protect-native-project.sh
+   allows "a project file edit" '{"tool_input":{"file_path":"ios/App.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-native-project.sh
    allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/App/Info.plist","content":"x"}}' $h/protect-native-project.sh
+   denies "Metro in the foreground" '{"tool_input":{"command":"bun run start"}}' $h/guard-react-native.sh
+   allows "the Jest run" '{"tool_input":{"command":"bun run test"}}' $h/guard-react-native.sh
    allows "a TypeScript file in the Swift linter" '{"tool_input":{"file_path":"src/config.ts"}}' $h/lint-swift.sh
    wires .claude/settings.json hooks/protect-native-project.sh
+   wires .claude/settings.json hooks/guard-react-native.sh
    ```
 
 7. Record Node in `.node-version`, Bun in `packageManager`, and React Native, Xcode, the iOS deployment target, Swift, Ruby and CocoaPods in the README's Toolchain section. Commit `Gemfile.lock`, `ios/Podfile.lock` and the native projects; `ios/Pods/` and `vendor/bundle/` stay ignored.
@@ -85,7 +89,8 @@ Link `docs/guidance/react-native/index.md` from AGENTS.md.
 The shipped code keeps these; new code does too. `docs/guidance/react-native/` has the reasons.
 
 - Only `src/native/` imports a native spec. It wraps each call in a timeout, decodes the answer with zod and throws `AppError`; screens see typed state, never a raw native promise.
-- Native code lives in a local module under `modules/<name>/`, listed in `react-native.config.js`, with its own podspec. Logic goes in Swift; the Objective-C++ file only conforms to the codegen protocol and forwards. The Xcode project file, the workspace, `ios/Pods/` and `Podfile.lock` change only through Xcode or `pod install`; the Claude hook denies hand edits.
+- Native code lives in a local module under `modules/<name>/`, listed in `react-native.config.js`, with its own podspec. Logic goes in Swift; the Objective-C++ file only conforms to the codegen protocol and forwards. `ios/Pods/`, `Podfile.lock` and the workspace change only through `bun run pods`; the Claude hook denies hand edits to them. Keep edits to the Xcode project file to settings a module can't carry.
+- Metro (`bun run start`) and Jest's watch mode never exit, so an agent runs Metro only in the background and tests through `bun run test`; `guard-react-native.sh` denies them in the foreground.
 - A spec file is named `Native<Name>.ts`, exports `Spec` and uses `TurboModuleRegistry.get`, so a platform without an implementation gets the unavailable state instead of a crash.
 - Failures are `AppError` with a `kind`. `userMessage` and `isRetryable` in `src/errors.ts` are the one table; a new kind adds a row and a test.
 - Settings live in `src/config.ts`: each has a default, a zod rule and a test row. Values arrive as the root component's initial properties, and unknown keys are rejected.
@@ -96,7 +101,7 @@ The shipped code keeps these; new code does too. `docs/guidance/react-native/` h
 
 Jest runs `src/**/*.test.ts(x)` and `tests/**/*.test.tsx` on React Native's preset. Screen tests render the real `App` with React Native Testing Library, await `render` and `fireEvent`, find elements by role and text, and replace only the native spec with `jest.mock`; a new screen gets a test for each state it renders. `src/native/` tests pass a fake source and cover success, unavailable, native rejection, decode failure and timeout.
 
-The native side has two checks. `ios:build` compiles the app, pods and module for the simulator with signing off. `ios:test` runs `modules/app-info/ios/Tests/` through the pod's test spec on an iPhone simulator that `scripts/sim-destination.sh` picks at run time; set `IOS_SIMULATOR_ID` to a UDID to use your own. A new Swift type gets XCTest cases there. Jest can't see native code and XCTest can't see JavaScript, so a spec change needs both. `bundle` proves the release JavaScript builds, which Jest alone doesn't (see Gotchas).
+The native side has two checks. `ios:build` compiles the app, pods and module for the simulator with signing off. `ios:test` runs `modules/app-info/ios/Tests/` through the pod's test spec on an iPhone simulator that `scripts/sim-destination.sh` picks at run time; set `SIMULATOR_UDID` to a UDID to use your own. A new Swift type gets XCTest cases there. Jest can't see native code and XCTest can't see JavaScript, so a spec change needs both. `bundle` proves the release JavaScript builds, which Jest alone doesn't (see Gotchas).
 
 ## Commands
 

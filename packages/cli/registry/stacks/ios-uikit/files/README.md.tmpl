@@ -37,7 +37,7 @@ The `.xcodeproj` is generated from `project.yml` and not committed. Change targe
 | `make ci` | Everything CI runs |
 | `make clean` | Remove build output and the generated project |
 
-Set `SIM_UDID` (or a full `SIM_DESTINATION`) to choose the simulator; otherwise the targets pick an available iPhone.
+Set `SIMULATOR_UDID` to choose the simulator; otherwise the targets pick a booted iPhone, then the first iPhone on the newest iOS runtime.
 
 ## Docs
 

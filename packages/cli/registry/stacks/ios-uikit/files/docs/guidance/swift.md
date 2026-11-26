@@ -32,7 +32,7 @@ The build uses complete concurrency checking and treats warnings as errors, so a
 - Unit tests are hosted in the app, run on the main actor (`@MainActor` on the test class) and use test doubles from `AppTests/Support/`. Await the view model's async method directly; never sleep or poll.
 - A new view model gets tests for each state it can reach and each callback. A new screen in the coordinator gets a test that the right view controller lands on the navigation stack.
 - UI tests launch the real app. Keep them few: one per journey. Find elements by accessibility identifier and wait with `waitForExistence(timeout:)`. To reach an error state, set an `APP_*` key in `launchEnvironment` that `AppConfig` already reads; never add a test-only branch to app code.
-- `scripts/sim-destination.sh` picks the simulator: `SIM_DESTINATION` or `SIM_UDID` when set, otherwise a booted iPhone on the newest iOS runtime, otherwise any iPhone there. Never write a device name or OS version into the Makefile or CI.
+- `scripts/sim-destination.sh` picks the simulator: `SIMULATOR_UDID` when set, otherwise a booted iPhone, otherwise the first iPhone on the newest iOS runtime. Never write a device name or OS version into the Makefile or CI.
 
 ## Lint and format
 

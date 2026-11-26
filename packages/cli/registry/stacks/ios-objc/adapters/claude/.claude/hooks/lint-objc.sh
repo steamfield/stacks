@@ -44,7 +44,7 @@ if command -v xcrun >/dev/null 2>&1 && sdk=$(xcrun --sdk iphonesimulator --show-
   esac
   compile=1
   if grep -q '"App-Swift.h"' "$file"; then
-    generated=$(find build/DerivedData -name App-Swift.h -path '*iphonesimulator*' 2>/dev/null | head -n 1)
+    generated=$(with_timeout 5 find build/DerivedData/Build/Intermediates.noindex -name App-Swift.h -path '*iphonesimulator*/DerivedSources/*' 2>/dev/null | head -n 1 || true)
     if [ -n "$generated" ]; then args+=(-I "$(dirname "$generated")"); else compile=0; fi
   fi
   if [ "$compile" = 1 ]; then

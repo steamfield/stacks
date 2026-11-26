@@ -84,7 +84,7 @@ No generator; the agent runs XcodeGen through `make project`. No dependency mana
 
 `AppUITests` stays a smoke check. Each test launches the app and waits for elements by identifier; alternate states come from launch arguments (`-APPGreetingResource missing` overrides the config). Put behavior in unit tests, since every UI test launches the app and adds seconds.
 
-Every xcodebuild call disables parallel testing, so xcodebuild never clones simulators, and builds unsigned. `make test` and `make test-ui` boot the simulator `scripts/sim-destination.sh` picks; set `SIM_DESTINATION` to use a specific one.
+Every xcodebuild call disables parallel testing, so xcodebuild never clones simulators, and builds unsigned. `make test` and `make test-ui` boot the simulator `scripts/sim-destination.sh` picks; set `SIMULATOR_UDID` to use a specific one.
 
 ## Commands
 
@@ -114,5 +114,5 @@ allows "an edit to the XcodeGen spec" '{"tool_input":{"file_path":"project.yml"}
 - `#import "App-Swift.h"` belongs in `.m` files. In a header it creates a cycle when the Swift code also imports that header through the bridging header.
 - A new source file needs `make project` before Xcode or xcodebuild sees it; every Makefile build target runs it first.
 - The scene manifest is generated (`INFOPLIST_KEY_UIApplicationSceneManifest_Generation`), so the scene delegate class is set in `-application:configurationForConnectingSceneSession:options:`, not in an Info.plist.
-- Several agents or projects on one machine can share a booted simulator. When runs collide (an "Application failed preflight checks" or a busy-device error), create a simulator for this project and set `SIM_DESTINATION`.
+- Several agents or projects on one machine can share a booted simulator. When runs collide (an "Application failed preflight checks" or a busy-device error), create a simulator for this project and set `SIMULATOR_UDID`.
 - Old Objective-C examples online use manual retain and release, `NSLog`, `@synthesize` and nib-based view controllers; ARC, `os_log`, auto-synthesis and code-built views replace all four.

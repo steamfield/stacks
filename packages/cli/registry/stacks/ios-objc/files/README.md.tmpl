@@ -19,7 +19,7 @@ make ci        # lint, build, analyze, unit tests, UI smoke tests
 open *.xcodeproj
 ```
 
-`make help` lists every target. Set `SIM_DESTINATION` (for example `platform=iOS Simulator,id=<udid>`) to choose the simulator; otherwise one is picked from `xcrun simctl list`.
+`make help` lists every target. Set `SIMULATOR_UDID` (from `xcrun simctl list devices available`) to choose the simulator; otherwise a booted iPhone is used, then the first iPhone on the newest iOS runtime.
 
 ## Layout
 

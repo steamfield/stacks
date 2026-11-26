@@ -232,6 +232,7 @@ test("merged search keeps at most two weak stacks alongside a strong match", asy
       officialHit("mobile-expo"),
       officialHit("api-weak-one", { tier: "weak", score: 0.2 }),
       officialHit("api-weak-two", { tier: "weak", score: 0.1 }),
+      officialHit("api-weak-three", { tier: "weak", score: 0.05 }),
     ]),
   );
   const args = ["search", "an iOS health app"];

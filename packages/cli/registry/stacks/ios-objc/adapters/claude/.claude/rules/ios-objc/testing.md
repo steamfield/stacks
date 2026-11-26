@@ -12,4 +12,4 @@ paths:
 - Config tests use a fresh `NSUserDefaults` suite and remove its domain in `tearDown`; never write to `standardUserDefaults`.
 - Assert on error `domain` and `code`, not on message text, except where the test is about the user-facing mapping.
 - UI tests (`AppUITests`, `make test-ui`) stay a smoke check: launch, find elements by identifier with `waitForExistenceWithTimeout:`, and drive alternate states with launch arguments (`-APPGreetingResource missing`). Behavior belongs in unit tests.
-- Simulator choice comes from `scripts/sim-destination.sh` (or `SIM_DESTINATION`); never write a device name or iOS version into a test, the Makefile or CI.
+- Simulator choice comes from `scripts/sim-destination.sh` (or `SIMULATOR_UDID`); never write a device name or iOS version into a test, the Makefile or CI.

@@ -1,6 +1,9 @@
 # Every project task. `make help` lists them; verify and CI call these targets.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
+# macOS ships GNU Make 3.81, which ignores .SHELLFLAGS, so each piped recipe starts with this
+# line itself. Without pipefail a failed simulator lookup piped into tail exits 0.
+STRICT := set -euo pipefail;
 
 FLUTTER ?= flutter
 DART ?= dart
@@ -31,10 +34,10 @@ coverage: ## Unit and widget tests with lcov output in coverage/
 	$(FLUTTER) test --coverage
 
 simulator: ## Print the iPhone simulator the iOS targets use, booting it if needed
-	@$(DART) run tool/ios_simulator.dart | tail -n 1
+	@$(STRICT) $(DART) run tool/ios_simulator.dart | tail -n 1
 
 test-ios: ## Integration tests on an iPhone simulator
-	@device=$$($(DART) run tool/ios_simulator.dart | tail -n 1) && test -n "$$device" && \
+	@$(STRICT) device=$$($(DART) run tool/ios_simulator.dart | tail -n 1) && test -n "$$device" && \
 		echo "flutter test integration_test -d $$device" && \
 		$(FLUTTER) test integration_test -d "$$device"
 

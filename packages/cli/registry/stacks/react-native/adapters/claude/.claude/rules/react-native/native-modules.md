@@ -6,7 +6,7 @@ paths:
   - "src/native/**"
 ---
 
-- Native code goes in a local module under `modules/<name>/` with its own podspec, listed in `react-native.config.js`. Never hand-edit `*.pbxproj`, `*.xcworkspace`, `ios/Pods/` or `Podfile.lock`; a hook denies it. Ask the user for a change only Xcode can make.
+- Native code goes in a local module under `modules/<name>/` with its own podspec, listed in `react-native.config.js`. Never hand-edit `ios/Pods/`, `Podfile.lock` or the workspace, which `bun run pods` regenerates; a hook denies it. Edit `*.pbxproj` only for a setting a module can't carry, keep the edit small, and run `bun run ios:build` after it.
 - Logic lives in Swift. The Objective-C++ file conforms to the codegen protocol and forwards; its header stays free of C++.
 - A spec is `Native<Name>.ts`, exports `Spec` and uses `TurboModuleRegistry.get`. After changing one, run `bun run pods` before `bun run ios:build`.
 - Only `src/native/` imports a spec; it adds the timeout, zod decoding and `AppError` mapping.

@@ -1,6 +1,10 @@
 SHELL := /bin/bash
-.SHELLFLAGS := -eo pipefail -c
 .DEFAULT_GOAL := help
+# macOS ships GNU Make 3.81, which ignores .SHELLFLAGS, so each piped recipe starts with this
+# line itself. Without pipefail a failed xcodebuild piped into xcbeautify exits 0.
+STRICT := set -euo pipefail;
+# XcodeGen needs USER, which stripped-down automation environments leave unset.
+export USER := $(if $(USER),$(USER),$(shell id -un))
 
 PROJECT := {{project_slug}}
 SCHEME := App
@@ -43,7 +47,7 @@ project: env ## Generate the .xcodeproj from project.yml (skipped when nothing c
 	xcodegen generate --spec project.yml --use-cache --quiet
 
 build: project ## Build the app and both test bundles for the simulator; warnings fail the build
-	$(XCODEBUILD) build-for-testing $(QUIET) $(PRETTY)
+	@$(STRICT) $(XCODEBUILD) build-for-testing $(QUIET) $(PRETTY)
 
 lint: ## SwiftLint, warnings as errors
 	swiftlint lint --strict --quiet
@@ -56,10 +60,10 @@ fmt-check: ## Fail if swift-format would change anything or reports a lint findi
 
 # ONLY narrows a run: make test ONLY=AppTests/ItemListViewModelTests/testRetryAfterFailureLoadsItems
 test: project ## Unit tests (AppTests) on the simulator; ONLY=<target/class/test> runs one
-	$(XCODEBUILD) -only-testing:$(or $(ONLY),AppTests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
+	@$(STRICT) $(XCODEBUILD) -only-testing:$(or $(ONLY),AppTests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
 
 test-ui: project ## UI smoke tests (AppUITests); launches the app on the simulator
-	$(XCODEBUILD) -only-testing:$(or $(ONLY),AppUITests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
+	@$(STRICT) $(XCODEBUILD) -only-testing:$(or $(ONLY),AppUITests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
 
 ci: fmt-check lint build test test-ui ## Everything CI runs
 

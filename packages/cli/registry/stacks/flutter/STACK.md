@@ -81,11 +81,14 @@ A working slice that passes every check once Setup has generated the platform fo
 The shipped Makefile (`make help`) has install, fmt, fmt-check, analyze, test, coverage, simulator, test-ios, build-ios, build-android, ci, clean. Adapt recipes, keep the names, and mirror them in AGENTS.md with `flutter test test/ui/home/home_screen_test.dart` as the single-file command. No target starts `flutter run`.
 <!-- stacks:when with=agent-ops -->
 
-**Claude Code.** The stack's `.claude/` adds two hooks and three path-scoped rules under `.claude/rules/flutter/`. `protect-xcode-project.sh` denies Edit and Write on `*.pbxproj` and anything inside `*.xcodeproj/` or `*.xcworkspace/`, because Flutter, Swift Package Manager and CocoaPods rewrite those; `Info.plist` and `AppDelegate.swift` stay editable. `lint-dart.sh` runs `dart analyze` on each `.dart` file written, since agent-ops' `lint-on-write.sh` has no Dart linter; confirm it reports a deliberate error, then revert. List both hooks in `.claude/README.md`, and add these cases to `.claude/hooks/smoke.sh` beside the other guards:
+**Claude Code.** The stack's `.claude/` adds three hooks and three path-scoped rules under `.claude/rules/flutter/`. `guard-flutter.sh` denies foreground `flutter run`, `flutter attach` and `flutter logs`, which never exit; an unavailable guard allows the call with a note. `protect-xcode-project.sh` denies Edit and Write on the iOS files Flutter and CocoaPods regenerate (`ios/Flutter/ephemeral/`, `ios/Flutter/Generated.xcconfig`, `GeneratedPluginRegistrant.*`, `ios/Pods/`, `Podfile.lock`), where a hand edit is lost; the committed `Runner.xcodeproj`, `Info.plist` and `AppDelegate.swift` stay editable. `lint-dart.sh` runs `dart analyze` on each `.dart` file written, since agent-ops' `lint-on-write.sh` has no Dart linter; confirm it reports a deliberate error, then revert. List the hooks in `.claude/README.md`, and add these cases to `.claude/hooks/smoke.sh` beside the other guards:
 
 ```sh
-denies "a project.pbxproj edit" '{"tool_input":{"file_path":"ios/Runner.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-xcode-project.sh
+denies "a Generated.xcconfig edit" '{"tool_input":{"file_path":"ios/Flutter/Generated.xcconfig","content":"x"}}' $h/protect-xcode-project.sh
+allows "a project.pbxproj edit" '{"tool_input":{"file_path":"ios/Runner.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-xcode-project.sh
 allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/Runner/Info.plist","content":"x"}}' $h/protect-xcode-project.sh
+denies "flutter run in the foreground" '{"tool_input":{"command":"flutter run"}}' $h/guard-flutter.sh
+allows "flutter test" '{"tool_input":{"command":"flutter test"}}' $h/guard-flutter.sh
 ```
 
 The settings allow the make targets and read-only flutter, dart and simctl commands. XcodeBuildMCP is optional (docs/DEVELOPMENT.md); don't add a `.mcp.json`.

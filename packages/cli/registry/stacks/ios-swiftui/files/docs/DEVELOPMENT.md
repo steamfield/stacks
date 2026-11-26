@@ -27,7 +27,7 @@ macOS ships GNU Make 3.81, which ignores `.SHELLFLAGS`. Every piped xcodebuild r
 
 ## Simulators
 
-`scripts/sim-destination.sh` prints the `-destination` for xcodebuild: `SIMULATOR_UDID` when set, otherwise a booted iPhone on the newest iOS runtime, otherwise the first available iPhone there. List them with `xcrun simctl list devices available`. When several agents or terminals test at once, give each its own simulator:
+`scripts/sim-destination.sh` prints the `-destination` for xcodebuild: `SIMULATOR_UDID` when set, otherwise a booted iPhone, otherwise the first iPhone on the newest iOS runtime. List them with `xcrun simctl list devices available`. When several agents or terminals test at once, give each its own simulator:
 
 ```sh
 udid=$(xcrun simctl create "<name>" <device type id> <runtime id>)

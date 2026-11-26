@@ -8,7 +8,8 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    SWIFT_VERSION: "6.0"
+    # Setup fills this with the Swift language mode decision; `make project` refuses an empty value.
+    SWIFT_VERSION: ""
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
     GCC_TREAT_WARNINGS_AS_ERRORS: YES

@@ -3,7 +3,7 @@
 # device name or OS version is written down anywhere:
 #
 #   SIMULATOR_UDID=<udid>   use that simulator (xcrun simctl list devices available)
-#   otherwise               a booted iPhone on the newest iOS runtime, else the first available one
+#   otherwise               a booted iPhone, else the first iPhone on the newest iOS runtime
 #
 # Fails with a message when no iPhone simulator exists; create one in Xcode's Devices window or
 # with `xcrun simctl create`.
@@ -24,12 +24,13 @@ def version(runtime):
 
 devices = json.load(sys.stdin)["devices"]
 runtimes = sorted((r for r in devices if version(r)), key=version, reverse=True)
-for runtime in runtimes:
-    phones = [d for d in devices[runtime] if "iPhone" in d.get("deviceTypeIdentifier", "")]
-    booted = [d for d in phones if d.get("state") == "Booted"]
-    for device in booted + phones:
-        print(device["udid"])
-        sys.exit(0)
+phones = [
+    d for r in runtimes for d in devices[r] if "iPhone" in d.get("deviceTypeIdentifier", "")
+]
+booted = [d for d in phones if d.get("state") == "Booted"]
+for device in booted + phones:
+    print(device["udid"])
+    sys.exit(0)
 ')
 
 if [ -z "$udid" ]; then

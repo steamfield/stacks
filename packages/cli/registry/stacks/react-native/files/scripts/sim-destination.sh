@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Prints an xcodebuild -destination for an available iPhone simulator, so no script names a
-# device model or iOS version. IOS_SIMULATOR_ID (a UDID from `xcrun simctl list devices`) wins;
+# device model or iOS version. SIMULATOR_UDID (a UDID from `xcrun simctl list devices`) wins;
 # otherwise a booted iPhone, then an iPhone on the newest installed iOS runtime.
 set -euo pipefail
 
-if [ -n "${IOS_SIMULATOR_ID:-}" ]; then
-  printf 'platform=iOS Simulator,id=%s\n' "$IOS_SIMULATOR_ID"
+if [ -n "${SIMULATOR_UDID:-}" ]; then
+  printf 'platform=iOS Simulator,id=%s\n' "$SIMULATOR_UDID"
   exit 0
 fi
 

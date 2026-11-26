@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "react-native",
   "source": {
-    "digest": "sha256:727e396055011aa6f542d7f162fd8e9b65a4d072a4064ec59d6726b133bf5f10",
+    "digest": "sha256:9f4935483d3e9a0522f3bf77455e67bc568ceb60bb01f059f10755bbf4044b23",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,

@@ -37,6 +37,7 @@ import { defined } from "../object";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
 import { newPreset } from "../project/preset";
+import type { IndexProvenance } from "../project/sources";
 import { removeProjectState, writeProjectState } from "../project/state";
 import { templateOverrides, templateValues } from "../project/template-values";
 import { openProject, type ProjectWriter } from "../project/writer";
@@ -64,6 +65,8 @@ export type NewOptions = {
   agents: ReadonlyArray<AgentId> | undefined;
   scope: string | undefined;
   handoff: HandoffPreferences;
+  /** The index refresh's outcome, recorded in `.stacks/sources.json` and the warnings. */
+  provenance: IndexProvenance;
 };
 
 export type Scaffolded = {

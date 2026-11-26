@@ -7,6 +7,7 @@ import { Schema } from "effect";
 import { BRIEF_PATH } from "../project-layout";
 import { NewResult } from "./new";
 import { NoticeFields } from "./notice";
+import { IndexFallbackReason } from "./remote-index";
 
 /** The files and manifest changes made by `add`, and the agent's next task. */
 export const AddResult = Schema.Struct({
@@ -22,7 +23,15 @@ export const AddResult = Schema.Struct({
   ),
   missingRequired: Schema.Array(Schema.Struct({ id: Schema.String, command: Schema.String })),
   commandsKept: Schema.Array(Schema.String),
-  warnings: Schema.Array(Schema.Struct({ code: Schema.String, id: Schema.String })),
+  /** Composition warnings, and `index_fallback` with the same fields as `new`'s. */
+  warnings: Schema.Array(
+    Schema.Struct({
+      code: Schema.String,
+      id: Schema.String,
+      reason: Schema.optionalKey(IndexFallbackReason),
+      cachedAt: Schema.optionalKey(Schema.String),
+    }),
+  ),
   missingTools: NewResult.fields.missingTools,
   name: Schema.Struct({ value: Schema.String, source: Schema.String }),
   createdManifest: Schema.Boolean,

@@ -17,6 +17,15 @@ import { Schema } from "effect";
 // CLI-only wire shapes; e2e/schema-drift.test.ts compares them with stacks schema.
 const Origin = Schema.Literals(["project", "user", "index", "bundled"]);
 const NoticeFields = { notice: Schema.optionalKey(Schema.String) };
+const IndexFallbackReason = Schema.Literals([
+  "timeout",
+  "network",
+  "not_found",
+  "invalid",
+  "signature",
+  "unsupported",
+  "offline",
+]);
 const LastRun = Schema.Struct({
   date: Schema.String,
   result: Schema.Literals(["pass", "partial", "fail", "infra"]),
@@ -120,9 +129,12 @@ export const NewResult = Schema.Struct({
         "without_not_selected",
         "git_init_failed",
         "git_unusable",
+        "index_fallback",
       ]),
       id: Schema.String,
       exitCode: Schema.optionalKey(Schema.Number),
+      reason: Schema.optionalKey(IndexFallbackReason),
+      cachedAt: Schema.optionalKey(Schema.String),
     }),
   ),
   git: Schema.Literals(["fresh", "parent", "none"]),

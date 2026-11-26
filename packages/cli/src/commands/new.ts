@@ -13,6 +13,7 @@ import {
   printLaunch,
   resolveChoice,
 } from "../core/handoff/run";
+import { NO_INDEX_PROVENANCE } from "../core/project/sources";
 import { templateOverrides } from "../core/project/template-values";
 import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
@@ -137,7 +138,7 @@ const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: New
   if (stack === undefined && !(yield* promptingAllowed)) return yield* new Usage();
   const options = parsed satisfies ExactProjectOptions<
     typeof parsed,
-    Omit<NewOptions, "stack" | "handoff">
+    Omit<NewOptions, "stack" | "handoff" | "provenance">
   >;
   if (options.sandbox && options.preset !== undefined && options.preset !== "sandbox")
     return yield* new Usage({ details: { flags: ["--sandbox", `--preset ${options.preset}`] } });
@@ -204,7 +205,11 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
     const options = yield* resolveArguments(flags);
     yield* (yield* Allowlist).refresh;
     const preferences = yield* prepareHandoff(flags, json);
-    const scaffolded = yield* scaffold({ ...options, handoff: preferences });
+    const scaffolded = yield* scaffold({
+      ...options,
+      handoff: preferences,
+      provenance: NO_INDEX_PROVENANCE,
+    });
     const { result } = scaffolded;
     const telemetry = yield* Telemetry;
     const registry = yield* Registry;

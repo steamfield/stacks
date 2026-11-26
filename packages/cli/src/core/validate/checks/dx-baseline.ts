@@ -9,8 +9,8 @@ import { isStack, type Stack } from "../../registry/entry";
 import type { Check, Composed, View } from "../types";
 import { entryFile, finding } from "../view";
 
-/** Raised to "warning" once every bundled stack meets the baseline. */
-export const DX_SEVERITY: Finding["severity"] = "note";
+/** Every bundled stack meets the baseline, so a regression warns (and fails the registry test). */
+export const DX_SEVERITY: Finding["severity"] = "warning";
 
 const BASELINE_FRAGMENTS = ["agent-ops", "git-hooks", "ci-github"] as const;
 

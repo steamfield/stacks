@@ -9,6 +9,7 @@ parts:
   - { name: backend, role: api, stack: hono-api }
   - { name: frontend, role: web, stack: react-vite }
 tools: [bun, node, make, git, bash, curl]
+merge: [.claude/settings.json]
 fragments:
   required: [openapi-client, claude-harness]
   default: [git-hooks, ci-github]

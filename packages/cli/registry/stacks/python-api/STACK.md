@@ -68,7 +68,7 @@ A FastAPI app factory with validated settings, a lifespan that owns an in-memory
 
 ## Setup
 
-1. No generator. Pin the chosen Python with `uv python pin`, which writes the `.python-version` CI reads, and set `project.requires-python` to match; ruff takes its target version from it. Then `uv add` every runtime dependency (Uvicorn with its standard extra) and `uv add --dev` every dev dependency.
+1. No generator. Pin the chosen Python with `uv python pin`, which writes the `.python-version` CI reads, and set `project.requires-python` to match; ruff takes its target version from it. Then `uv add` every runtime dependency, writing the install line's `uvicorn` as `uvicorn[standard]`, and `uv add --dev` every dev dependency.
 2. `make format` (a newer ruff can rewrite syntax), then `make install lint typecheck coverage`. Update shipped code or config the installed release rejects, keeping every rule, strict typing, test and the coverage floor. Don't replace the shipped rule sets with generated defaults.
 3. `make openapi` and commit `openapi.json`. It's generated here because it embeds FastAPI's OpenAPI version.
 4. Record the Python and uv versions in AGENTS.md, fill README's `stacks:fill` marker, then run `stacks verify` until green.

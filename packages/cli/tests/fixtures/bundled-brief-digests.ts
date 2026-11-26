@@ -52,7 +52,8 @@
  * that day for the phase 1 boundary fixes (audit as its own CI step, dev-status, shared dev-bg).
  * go-cli changed again that day when its ci command stopped running vuln; it awaits a bench run.
  * astro-blog changed that day for its ci, audit and dev-bg commands, and python-react for
- * react-vite's audit command; both await a bench run.
+ * react-vite's audit command and again for python-api's uvicorn[standard] Setup line; both
+ * await a bench run.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
@@ -63,6 +64,6 @@ export const briefDigests: Readonly<Record<string, string>> = {
   "astro-blog:sandbox": "sha256:412b981ec11cf1a1d6d67e8220083d7b643e5b76a00e8c464a767cf703d8d094",
   "go-cli:default": "sha256:37845700f47e2c38a4c50d7d7fff7770cf55e2c4c8f4cef61fca100e147d931f",
   "go-cli:sandbox": "sha256:60c06a99ad834bdc9f53e66a9b0fc504aeb0fbf5cba8a4fbd10fafafc6f9fd13",
-  "python-react:default": "sha256:93c44843ec60992fa0ec88d29f232a8e634ee304afeee25de421230702de99a2",
-  "python-react:sandbox": "sha256:29fadcdf3042b0aa4ef644d6fa323e4cf8f2da64b322f8dbff8a28100edfc01f",
+  "python-react:default": "sha256:9690a52ff08fcad7a16a1f3cfecbdb4429811dfa596eaafc3a9bef4ecec216d1",
+  "python-react:sandbox": "sha256:bc6cbed072ac996e217262b3334134d53a1164e58e286b505658aaec185205a7",
 };

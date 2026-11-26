@@ -9,6 +9,7 @@ parts:
   - { name: backend, role: api, stack: python-api }
   - { name: frontend, role: web, stack: react-vite }
 tools: [uv, bun, node, make, git, curl]
+merge: [.claude/settings.json]
 fragments:
   required: [openapi-client, claude-harness]
   default: [agent-ops, ci-github, git-hooks]

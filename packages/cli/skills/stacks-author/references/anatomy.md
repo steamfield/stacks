@@ -131,7 +131,24 @@ Markdown after the frontmatter, copied into the brief under the entry's name. Us
 
 A shipped config needs words only where an agent adapting it to a new release would drop a rule; say which rules to keep.
 
-Spend words on what an agent would get wrong, not on what it does anyway. Budgets: a stack body under 2,000 words, a fragment under 1,000, an app under 3,000, and the composed brief under 6,000 (9,000 with an app). A workspace's composed brief may reach 7,500 words, and the workspace body itself still aims for about 400. Move reference material into a shipped doc in `files/docs/` and link it from the body.
+Spend words on what an agent would get wrong, not on what it does anyway. The body carries only what the agent can't learn from the shipped files or already knows: decisions, setup order, the rules new code must keep, and gotchas a real run paid for. Cut any sentence that restates the code, a config, the task runner or a shipped doc. Budgets: a stack body under 2,000 words, a fragment under 1,000, an app under 3,000, and the composed brief under 6,000 (9,000 with an app). A workspace's composed brief may reach 7,500 words, and the workspace body itself still aims for about 400. Move reference material into a shipped doc in `files/docs/` and link it from the body.
+
+### Developer experience
+
+A stack sets up a project an agent can work in without friction. Every stack provides:
+
+- An aggregate command that runs everything CI runs: `ci` on a Makefile, `check` in `package.json` scripts. A tool's own check (`astro check`, `cargo check`) on a Makefile keeps its name, and `ci` is added.
+- A fix command: `format` applying the formatter and the linter's safe fixes, or a separate `lint-fix`.
+- A dependency audit, `audit`, with a tool that needs no account or key (govulncheck, cargo-deny, pip-audit, `bun audit` or `npm audit`, osv-scanner). It may use the network, so it isn't a verify step.
+- For a `web` or `api` stack with a serve step, a background start and stop (`dev:bg` and `dev:stop`, or `dev-bg` and `dev-stop` on a Makefile). Start reuses a healthy server already running; otherwise it runs the serve command in its own process group, records `logs/dev.pid`, writes output to `logs/dev.log`, waits for the health URL and stops its group if that fails. Stop signals the recorded process group, never a wrapper's pid. A `dev-cycle` verify step runs start then stop. The body tells agents to use these instead of killing processes.
+- agent-ops, git-hooks and ci-github in the default composition.
+- A concrete single-test command in Commands or Testing.
+- A coverage command with a floor, for any stack with unit tests.
+- Logs an agent can read from a file during development (`logs/dev.log`, or `--log-file` for a CLI or TUI that owns the terminal).
+- A Setup step that records each toolchain version in the file its tools and CI read (`.node-version`, `.python-version`, `.java-version`, `go.mod`, `rust-toolchain.toml`).
+- Agent permissions that allow every declared non-destructive command.
+- `.env.example` and a config doc when the slice reads environment variables.
+- A real code linter with its config shipped, not only a format check.
 
 ### Conditional prose
 

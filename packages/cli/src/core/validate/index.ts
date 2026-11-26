@@ -15,6 +15,7 @@ import { conditionalChecks } from "./checks/conditionals";
 import { conditionalReachChecks } from "./checks/conditionals-reach";
 import { datedChecks } from "./checks/dated";
 import { dependencyChecks } from "./checks/deps";
+import { dxBaselineChecks } from "./checks/dx-baseline";
 import { fileChecks } from "./checks/files";
 import { loadChecks, metadataChecks } from "./checks/format";
 import { gitChecks } from "./checks/git";
@@ -62,6 +63,7 @@ export const checks: ReadonlyArray<Check> = [
   verifyNotes,
   conditionalReachChecks,
   datedChecks,
+  dxBaselineChecks,
   headingChecks,
   importChecks,
   ledgerChecks,

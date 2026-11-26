@@ -13,7 +13,7 @@ import {
   printLaunch,
   resolveChoice,
 } from "../core/handoff/run";
-import { NO_INDEX_PROVENANCE } from "../core/project/sources";
+import { NO_INDEX_PROVENANCE } from "../core/project/provenance";
 import { templateOverrides } from "../core/project/template-values";
 import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";

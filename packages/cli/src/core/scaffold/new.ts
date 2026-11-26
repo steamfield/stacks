@@ -37,7 +37,7 @@ import { defined } from "../object";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
 import { newPreset } from "../project/preset";
-import type { IndexProvenance } from "../project/sources";
+import type { IndexProvenance } from "../project/provenance";
 import { removeProjectState, writeProjectState } from "../project/state";
 import { templateOverrides, templateValues } from "../project/template-values";
 import { openProject, type ProjectWriter } from "../project/writer";

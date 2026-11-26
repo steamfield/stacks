@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
 import { agentPrompt } from "../src/core/handoff/render";
-import { NO_INDEX_PROVENANCE } from "../src/core/project/sources";
+import { NO_INDEX_PROVENANCE } from "../src/core/project/provenance";
 import { Registry } from "../src/core/registry/registry";
 import { scaffold } from "../src/core/scaffold/new";
 import { Output } from "../src/services/output";

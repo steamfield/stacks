@@ -14,7 +14,7 @@ import {
   printLaunch,
   resolveChoice,
 } from "../core/handoff/run";
-import { NO_INDEX_PROVENANCE } from "../core/project/sources";
+import { NO_INDEX_PROVENANCE } from "../core/project/provenance";
 import { pickAdd, promptingAllowed, runningCommand } from "../core/prompting";
 import { Registry } from "../core/registry/registry";
 import { projectRoots } from "../core/registry/roots";

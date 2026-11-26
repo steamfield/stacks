@@ -68,7 +68,7 @@ Phase 1 scaffold (mine):
 - Root `scripts/release.ts`: `--min-cli`, with its test in `tests/scripts/release.test.ts`.
 - `schemas/remote-index.ts`: `RemoteStatus.lastOutcome` gains `"signature"`; optional keys `commit`, `generatedAt`, `minCli`, `etag` (`Schema.optionalKey`).
 - `schemas/registry-meta.ts` (new): `RegistryMeta = { formatVersion: 1, minCli: string }`, strict decode.
-- `core/validate/checks/registry-meta.ts` (new): `registryMetaChecks(root): Effect<ReadonlyArray<Finding>>` stub returning `[]`, registered in `core/validate/index.ts`.
+- `core/validate/checks/registry-meta.ts` (new): `registryMetaChecks: Check`, registered in `core/validate/index.ts`.
 - `.github/workflows/ci.yml`: the `registry-min-cli` job (D-R2), mine.
 - Phase 1 tests (below), written by me and read before commit.
 
@@ -78,6 +78,8 @@ Layout added across the run:
       registry/registry.json            registry-level metadata: formatVersion, minCli
       src/schemas/registry-meta.ts      RegistryMeta schema; decode only
       src/schemas/sources.ts            ProjectSources schema for .stacks/sources.json
+      src/core/registry/meta.ts         reads registry.json and identifies official roots
+      src/core/search/hint.ts           decides when cached index state warrants an update hint
       src/core/validate/checks/registry-meta.ts   validate finding for registry.json
       src/core/project/sources.ts       builds and writes .stacks/sources.json; the only writer of it
       scripts/brief-digests.ts          regenerates tests/registry/fixtures/bundled-brief-digests.ts

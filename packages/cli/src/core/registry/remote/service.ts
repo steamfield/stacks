@@ -181,6 +181,8 @@ const cachedBundle = Effect.fn("remoteIndex.cachedBundle")(function* (
 type IndexAccess = {
   /** The verified index, eligible to refresh when the cached copy reaches `CACHE_FRESHNESS_MS`. */
   readonly current: Effect.Effect<Option.Option<VerifiedIndex>>;
+  /** The verified index from memory or disk at any age, with no request. */
+  readonly cached: Effect.Effect<Option.Option<VerifiedIndex>>;
   /** The directory holding the entry's verified files, downloading them if needed. */
   readonly bundle: (entry: IndexEntry) => Effect.Effect<Option.Option<string>>;
   /** The cache state for `doctor`, with no request. */
@@ -200,6 +202,7 @@ function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): Unconfigur
   return {
     root: undefined,
     current: Effect.succeed(Option.none()),
+    cached: Effect.succeed(Option.none()),
     bundle: () => Effect.succeed(Option.none()),
     status: offline.pipe(Effect.map(offStatus)),
     refresh: Effect.succeed({ source: "none" }),
@@ -262,6 +265,7 @@ export class RemoteIndex extends Context.Service<
           current: Effect.suspend(() =>
             refreshStarted ? refresh.pipe(Effect.andThen(cached.cached)) : cached.current(),
           ),
+          cached: cached.cached,
           status: readStatus(access, config.offline, verification.isDefaultUrl),
           bundle: (entry) => cachedBundle({ ...access, temporary }, entry),
           refresh,

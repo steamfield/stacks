@@ -4,16 +4,11 @@
  */
 import { type INDEX_PUBLIC_KEYS, RegistryIndex, SignedIndex } from "@steamfield/stacks-format";
 import { Effect, Schema } from "effect";
+import { MIN_CLI_PATTERN } from "../../../schemas/registry-meta";
+import type { IndexOutcome } from "../../../schemas/remote-index";
 import { VERSION } from "../../../version";
 
-type RemoteOutcome =
-  | "ok"
-  | "timeout"
-  | "network"
-  | "not_found"
-  | "invalid"
-  | "signature"
-  | "unsupported";
+type RemoteOutcome = typeof IndexOutcome.Type;
 /**
  * The cache records decode failures as `invalid`, a failed signature check (unknown key or bad
  * signature) as `signature` and incompatibility as `unsupported`, so fallback retains the reason.
@@ -28,7 +23,7 @@ const base64Bytes = (text: string) =>
 
 /** True when this CLI's version is at least `minCli`; a malformed `minCli` is never met. */
 export function cliMeetsMinimum(minCli: string): boolean {
-  if (!/^\d+\.\d+\.\d+$/.test(minCli)) return false;
+  if (!MIN_CLI_PATTERN.test(minCli)) return false;
   const minimum = minCli.split(".").map(Number);
   const current = VERSION.split(".").map(Number);
   for (let i = 0; i < 3; i++) {

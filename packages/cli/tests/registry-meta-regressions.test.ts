@@ -81,8 +81,9 @@ test("validate requires registry.json when the allowlist marker is a symlink loo
   expect(result.status, result.stderr).toBe(2);
   const report = Schema.decodeUnknownSync(Schema.fromJsonString(ValidateReport))(result.stdout);
   expect(report.findings).toMatchObject([
+    { check: "deps-invalid", severity: "error", file: "allowlist.json" },
     { check: "registry-meta", severity: "error", file: "registry.json" },
   ]);
   const { error } = Schema.decodeUnknownSync(Schema.fromJsonString(ErrorEnvelope))(result.stderr);
-  expect(error).toMatchObject({ tag: "ValidationFailed", details: { errors: 1, warnings: 0 } });
+  expect(error).toMatchObject({ tag: "ValidationFailed", details: { errors: 2, warnings: 0 } });
 });

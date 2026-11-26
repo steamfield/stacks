@@ -22,7 +22,7 @@ verify:
 
 # GitHub Actions CI
 
-Write `.github/workflows/ci.yml`, looking up each action's latest release first, never from memory.
+Write `.github/workflows/ci.yml`. Look up each action's latest release; never write a ref from memory.
 
 <!-- stacks:when mode=add -->
 If the repo already has workflows, fold the checks they run into `ci.yml` rather than running them twice; leave deploy and release workflows alone.
@@ -30,21 +30,22 @@ If the repo already has workflows, fold the checks they run into `ci.yml` rather
 
 ## What to add
 
-- **Triggers**: `push` to the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/`; with no remote, the current branch), `pull_request`, `workflow_dispatch`; never `pull_request_target`.
-- **Permissions**: top-level `contents: read`, more only at job level. `actions/checkout` gets `persist-credentials: false`.
-- **Jobs call the project's make targets (or package scripts, without a Makefile)**, never re-implemented inline; a CI-only check gets a target or script first. Frozen-lockfile installs.
-- **Runtimes**: official setup actions reading versions from project files (`packageManager`, `.node-version`, `go.mod`, `.python-version`); create a missing one from the installed version.
+- Triggers: `push` to the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/`; with no remote, the current branch), `pull_request` and `workflow_dispatch`. Never `pull_request_target`.
+- Permissions: top-level `contents: read`, more only at job level. `actions/checkout` gets `persist-credentials: false`.
+- Steps call the project's commands after a frozen-lockfile install and never reimplement them inline. A CI-only check becomes a command first.
+- Runtimes come from official setup actions reading the project's version files (`packageManager`, `.node-version`, `go.mod`, `.python-version`, `.java-version`); create a missing one from the installed version.
 - Pass `${{ github.event.* }}` and `${{ github.head_ref }}` to `run:` through `env:`.
-- **Generated-code drift**: if generated code is committed, regenerate and fail on `git diff --exit-code`.
+- If generated code is committed, regenerate it and fail on `git diff --exit-code`.
+- `timeout-minutes` on every job.
 - Pending user actions: require `ci-ok` in the branch ruleset.
 <!-- stacks:when preset=default -->
-- **Concurrency**: group per workflow and ref, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
-- **Pin actions by full commit SHA** with the exact tag in a comment (`# vX.Y.Z`), resolved with `git ls-remote --tags https://github.com/<owner>/<repo>` (annotated tags: the `^{}` line). Never invent one; if you can't resolve it, list it under Pending user actions. `timeout-minutes` on every job.
-- **Dependabot** (if chosen): `.github/dependabot.yml`, one `updates` entry for `github-actions` and one per ecosystem at its manifest's directory, weekly, `cooldown: { default-days: 7 }`, one group with `patterns: ["*"]`.
+- Concurrency: one group per workflow and ref, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`.
+- Pin each action by full commit SHA with its exact tag in a comment (`# vX.Y.Z`), resolved with `git ls-remote --tags https://github.com/<owner>/<repo>` (for an annotated tag, the `^{}` line). If you can't resolve one, list it under Pending user actions; never invent one.
+- Dependabot, if chosen: `.github/dependabot.yml` with one `updates` entry for `github-actions` and one per ecosystem at its manifest's directory, weekly, `cooldown: { default-days: 7 }`, one group with `patterns: ["*"]`.
 <!-- stacks:end -->
 <!-- stacks:when preset=sandbox -->
 
-Sandbox: a minimal workflow with `timeout-minutes` per job. Major-tag action refs are fine (where an action publishes none, its latest release tag; zizmor will flag them); list SHA pinning and Dependabot under Deferred.
+Sandbox: a minimal workflow. Major-tag action refs are fine (where an action publishes none, its latest release tag; zizmor will flag them); list SHA pinning and Dependabot under Deferred.
 <!-- stacks:end -->
 
 <!-- stacks:when tag=monorepo -->
@@ -53,11 +54,12 @@ Sandbox: a minimal workflow with `timeout-minutes` per job. Major-tag action ref
 <!-- stacks:when tag!=monorepo -->
 One sequential `ci-ok` job, unless the stack's CI notes split the work behind a final `ci-ok` (`needs:` all, `if: always()`).
 <!-- stacks:end -->
+Each job first installs what its commands need (browsers with system dependencies, services, linter actions, platform packages). Where the stack's CI notes split jobs or name steps, each job runs what its note names; the note wins. Otherwise CI runs the aggregate below, and with coverage chosen the aggregate runs coverage in place of plain tests; declined, leave it as it is. A declared `audit` (Go: `vuln`) stays out of the aggregate and runs as its own step after it; it needs the network but no secret.
 <!-- stacks:when tag=make -->
-Call the Makefile's existing aggregate target, or its lint, test (coverage when chosen) and build targets; a setup action may install a binary, but the targets stay the contract.
+The aggregate is `make ci` (in a monorepo, each area's). If it's missing, add it running these targets in order: format check, lint, typecheck, coverage (or test), generated-code and drift checks, build. None may write files or need a secret. The targets stay the contract, though a setup action may install a binary they expect.
 <!-- stacks:end -->
 <!-- stacks:when tag=scripts -->
-Call the package scripts: frozen install, lint, typecheck, coverage or test, then the remaining check and build steps.
+The aggregate is a frozen install, then the `check` script (in a monorepo, each area's). If `check` is missing, add it running these scripts in order: format check, lint, typecheck, coverage (or test), generated-code and drift checks, build. None may write files or need a secret.
 <!-- stacks:end -->
 <!-- stacks:when tag=bun -->
 Bun's setup action takes `bun-version-file: package.json`.
@@ -66,10 +68,10 @@ Bun's setup action takes `bun-version-file: package.json`.
 If `make lint` runs golangci-lint, install it with its official action and `version-file: .golangci-lint-version` (create the file from the installed version).
 <!-- stacks:end -->
 <!-- stacks:when tag=rust -->
-Rust: the runner's rustup installs the toolchain, components and targets `rust-toolchain.toml` records, so don't pass a toolchain action input that overrides the file. Cache `~/.cargo` and `target/` with a Cargo cache action keyed on `Cargo.lock`. A cargo subcommand a target needs (cargo-deny, say) comes from a prebuilt-binary installer action, not a `cargo install` that compiles it on every run.
+Rust: rustup on the runner installs the toolchain, components and targets `rust-toolchain.toml` records, so pass no toolchain input that overrides the file. Cache `~/.cargo` and `target/` with a Cargo cache action keyed on `Cargo.lock`. Install a cargo subcommand a target needs (cargo-deny, say) with a prebuilt-binary installer action, not a `cargo install` that compiles it on every run.
 <!-- stacks:end -->
 <!-- stacks:when tag=java -->
-Java: `actions/setup-java` with `distribution: temurin`, `java-version-file: .java-version` and `cache: maven`, which sets `JAVA_HOME`, so the Makefile uses that JDK. Call the make targets, which run the committed `./mvnw`; never install Maven or call `mvn`. Maven runs in batch mode without transfer progress (`-B -ntp`, as the Makefile passes) so the log stays readable.
+Java: `actions/setup-java` with `distribution: temurin`, `java-version-file: .java-version` and `cache: maven`. It sets `JAVA_HOME`, which the Makefile's `./mvnw` uses; never install Maven or call `mvn`. Keep the `-B -ntp` the Makefile passes, so the log has no transfer progress.
 <!-- stacks:end -->
 <!-- stacks:when tag=python -->
 Set up uv with its cache on.
@@ -77,7 +79,7 @@ Set up uv with its cache on.
 
 ## Verify
 
-`ci-workflow` checks `ci.yml` has `jobs:`, a `ci-ok` job and no `stacks:fill`. Also run each command the workflow calls, then `actionlint` and `zizmor --offline .github` if installed.
+Run each command the workflow calls, then `actionlint` and `zizmor --offline .github` if installed.
 
 ## AGENTS.md
 

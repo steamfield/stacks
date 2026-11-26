@@ -30,7 +30,7 @@ verify:
 
 # Git hooks (lefthook)
 
-stacks wrote `lefthook.yml` with a commit-msg job running `.lefthook/commit-msg/conventional-commits.sh` (Conventional Commits). Keep the script; no commitlint. Replace the file's `stacks:fill` comment with the pre-commit and pre-push jobs it describes, as `jobs:` lists (lefthook 2 has no `skip_output`, and `exclude` takes only globs).
+Replace the `stacks:fill` comment in `lefthook.yml` with the pre-commit and pre-push jobs it describes, as `jobs:` lists. lefthook 2 has no `skip_output`, and `exclude` takes only globs. Unless Conventional Commits was declined, keep the commit-msg job and its script; don't add commitlint.
 
 <!-- stacks:when mode=add -->
 `lefthook install` refuses to run while `core.hooksPath` is set. If the repo already uses husky (`.husky/`), the pre-commit framework (`.pre-commit-config.yaml`) or hand-written `.git/hooks`, port those checks into `lefthook.yml`, then ask the user before running `lefthook install --reset-hooks-path` and removing the old manager. If stacks parked `lefthook.yml` under `.stacks/incoming/`, merge its commit-msg job into the existing file.
@@ -38,7 +38,7 @@ stacks wrote `lefthook.yml` with a commit-msg job running `.lefthook/commit-msg/
 
 ## Install
 
-If the install step doesn't already run `lefthook install`, add this line (skipping CI, a missing lefthook or config) to the Makefile's setup target, not a `go install` one (with `$$CI`), or, without a Makefile, a `prepare` script:
+If the install command doesn't already run `lefthook install`, add this line to the Makefile target the `install` verify step runs (writing `$$CI`) or, without a Makefile, to a `prepare` script. It skips CI and a missing lefthook or config:
 
 ```sh
 test -n "$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || lefthook install
@@ -46,8 +46,8 @@ test -n "$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || l
 
 ## Verify
 
-Verify checks that pre-commit and pre-push have jobs and feeds commit-msg a bad and a good subject. It can't see pre-commit work (lefthook skips jobs with nothing tracked): `git add -A`, run `lefthook run pre-commit --all-files` and check each job ran and passed.
+Verify never runs pre-commit, which sees only tracked files: `git add -A`, then run `lefthook run pre-commit --all-files` and check each job ran and passed.
 
 ## AGENTS.md
 
-A **Git hooks** section: what each hook runs, the commit format, how to install lefthook and the hooks, and no `--no-verify`: fix the cause or the hook.
+A **Git hooks** section: what each hook runs, the commit format, how to install lefthook and the hooks, and that a failing hook gets its cause fixed, never `--no-verify`.

@@ -114,6 +114,30 @@
         "message": "tags hold neither make nor scripts; a stack declares exactly one"
       },
       {
+        "check": "dx-fragments",
+        "severity": "note",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "agent-ops is not in the default composition; add it to fragments.default"
+      },
+      {
+        "check": "dx-fragments",
+        "severity": "note",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "ci-github is not in the default composition; add it to fragments.default"
+      },
+      {
+        "check": "dx-fragments",
+        "severity": "note",
+        "kind": "stack",
+        "entry": "base",
+        "file": "stacks/base/STACK.md",
+        "message": "git-hooks is not in the default composition; add it to fragments.default"
+      },
+      {
         "check": "symlink",
         "severity": "error",
         "kind": "fragment",

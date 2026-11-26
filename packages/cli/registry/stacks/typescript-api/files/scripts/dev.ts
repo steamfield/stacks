@@ -9,16 +9,7 @@
 // structured JSON lines to logs/server.jsonl. Each start moves the previous run's files
 // to logs/*.prev.* so a crash before a restart is still there to read.
 import { spawn, spawnSync } from "node:child_process";
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-  writeSync,
-} from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, renameSync, writeSync } from "node:fs";
 import { constants } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -32,35 +23,62 @@ import {
   SERVER_LOG,
   TERMINAL_LOG,
 } from "./dev-logs";
-import { PID_FILE, runningDevServer } from "./dev-pid";
+import {
+  claimPidFile,
+  orphanedGroups,
+  type PidRecord,
+  releasePidFile,
+  runningDevServer,
+  startedAt,
+  updatePidFile,
+} from "./dev-pid";
 
 process.chdir(join(import.meta.dirname, ".."));
 
 const port = process.env.PORT_API || "3000";
 
-// Check before rotating, so a second `bun run dev` (on any port) can't move a running
-// server's logs away. logs/dev.pid holds "<pid> <port>" while a server from this checkout runs.
-const other = runningDevServer();
-if (other) {
-  console.error(
-    `A dev server from this checkout is already running on port ${other.port} (pid ${other.pid}). Its logs are in logs/; stop it with bun run dev:stop.`,
-  );
-  process.exit(1);
-}
-// A missing lsof sets `error`; skip the check then.
-const lsof = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], { stdio: "ignore" });
-if (!lsof.error && lsof.status === 0) {
-  console.error(
-    `Port ${port} is already in use by another process. Pick another with PORT_API=<port>, or run bun run dev:stop if a killed dev session left it running.`,
-  );
+function refuse(message: string): never {
+  console.error(message);
   process.exit(1);
 }
 
+// Check before rotating, so a second `bun run dev` (on any port) can't move a running
+// server's logs away.
+const other = runningDevServer();
+if (other) {
+  refuse(
+    `A dev server from this checkout is already running on port ${other.port} (pid ${other.pid}). Its logs are in logs/; stop it with bun run dev:stop.`,
+  );
+}
+if (orphanedGroups().length > 0) {
+  refuse(
+    "A killed dev session left its server running. Stop it with bun run dev:stop, then start again.",
+  );
+}
+const lsof = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN"], { stdio: "ignore" });
+if (lsof.error) {
+  refuse(`The dev scripts need lsof to check that port ${port} is free: ${lsof.error.message}`);
+}
+if (lsof.status === 0) {
+  refuse(
+    `Port ${port} is already in use by another process. Pick another with PORT_API=<port>, or run bun run dev:stop if a killed dev session left it running.`,
+  );
+}
+
 mkdirSync("logs", { recursive: true });
+const record: PidRecord = {
+  pid: process.pid,
+  port,
+  started: startedAt(process.pid) ?? "",
+  groups: [],
+};
+// Exclusive: of two starts racing past the checks above, only one gets the record.
+if (!claimPidFile(record)) {
+  refuse("Another dev server from this checkout is starting. Check it with bun run dev:status.");
+}
 for (const file of [TERMINAL_LOG, SERVER_LOG, OUTPUT_LOG]) {
   if (existsSync(file)) renameSync(file, previous(file));
 }
-writeFileSync(PID_FILE, `${process.pid} ${port}\n`);
 
 // The server runs detached, leading its own process group, so a signal reaches exactly the server
 // and its children, never the shell or tool that started this script.
@@ -77,9 +95,10 @@ function signalServer(sig: NodeJS.Signals): void {
 
 // On any exit (an uncaught throw included), take the server and its children down too, so a
 // `kill` of this script alone can't leave Node holding the port with no pid file pointing at it.
-// Registered only now, so a refusal above leaves the pid file alone.
+// Registered only now, so a refusal above leaves the pid file alone, and the file is removed only
+// while it still names this process.
 process.on("exit", () => {
-  rmSync(PID_FILE, { force: true });
+  releasePidFile(process.pid);
   signalServer("SIGTERM");
 });
 // Ctrl-C reaches only this script (the server is in its own group), so pass it on. Keep copying
@@ -127,7 +146,10 @@ const server = spawn(process.execPath, ["run", "dev:server"], {
 group = server.pid;
 // Name the server's group too, so bun run dev:stop can still stop it if this script is killed
 // with SIGKILL and its exit handler never runs.
-writeFileSync(PID_FILE, `${process.pid} ${port} ${group ?? ""}\n`);
+const groupStarted = group === undefined ? undefined : startedAt(group);
+if (group !== undefined && groupStarted !== undefined) {
+  updatePidFile({ ...record, groups: [{ pid: group, started: groupStarted }] });
+}
 for (const stream of [server.stdout, server.stderr]) {
   createInterface({ input: stream, crlfDelay: Number.POSITIVE_INFINITY }).on("line", (line) => {
     process.stdout.write(`${line}\n`);

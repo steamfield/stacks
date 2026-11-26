@@ -2,8 +2,9 @@
 #
 # A starting point: adapt the recipes to the project, but keep the target
 # names. `stacks verify` calls install, lint, typecheck, coverage,
-# check-migrations, check-deploy, build and start. CI calls install, lint,
-# typecheck, coverage, check-migrations and check-deploy.
+# check-migrations, check-deploy, build, dev-bg, dev-stop and start
+# (dev-cycle runs scripts/dev-bg.sh status directly). CI calls install, ci,
+# then audit as its own step.
 
 PORT_WEB ?= 8000
 WEB_HOST ?= 127.0.0.1
@@ -16,7 +17,8 @@ MANAGE := uv run python manage.py
 PROD := DJANGO_ENV=production DJANGO_SECRET_KEY="$${DJANGO_SECRET_KEY:-$$(uv run python -c 'import secrets; print(secrets.token_urlsafe(50))')}"
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage makemigrations check-migrations migrate check-deploy build dev start clean
+.PHONY: help install lint format typecheck test coverage makemigrations check-migrations migrate check-deploy build \
+	ci audit dev dev-bg dev-stop dev-status start clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
@@ -55,9 +57,25 @@ check-deploy: ## Django's deployment checklist with production settings; warning
 build: ## collectstatic: hashed, compressed static files into staticfiles/
 	$(PROD) $(MANAGE) collectstatic --noinput --clear
 
+ci: lint typecheck coverage check-migrations check-deploy build ## Every check CI runs after install
+
+audit: ## pip-audit over uv.lock (needs the network)
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
+
 dev: ## runserver with reload and DEBUG on PORT_WEB
 	$(MANAGE) migrate
 	$(MANAGE) runserver $(WEB_HOST):$(PORT_WEB)
+
+dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one it started
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
 
 start: build ## Production settings: migrate, then gunicorn on PORT_WEB over plain HTTP
 	$(PROD) $(MANAGE) migrate --noinput

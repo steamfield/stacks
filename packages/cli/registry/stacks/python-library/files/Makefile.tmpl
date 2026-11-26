@@ -2,7 +2,7 @@
 #
 # A starting point: adapt the recipes to the project, but keep the target
 # names. `stacks verify` calls install, lint, typecheck, coverage, test-min,
-# build and smoke, and CI should call the same targets.
+# build and smoke. CI calls install, ci, then audit as its own step.
 
 DIST := {{project_slug}}
 MODULE := $(subst -,_,$(DIST))
@@ -11,7 +11,7 @@ TEST_WORKERS ?= auto
 MIN_PYTHON = $(shell sed -n 's/^requires-python *= *">= *\([0-9][0-9.]*\).*/\1/p' pyproject.toml)
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage test-min build smoke clean
+.PHONY: help install lint format typecheck test coverage test-min build smoke ci audit clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -52,6 +52,14 @@ smoke: build ## Install the wheel on the oldest Python, import it and type-check
 	(cd "$$tmp" && "$$tmp/venv/bin/python" -I "$(CURDIR)/scripts/smoke.py" $(MODULE) $(DIST)) && \
 	printf 'import %s\n' $(MODULE) > "$$tmp/consumer.py" && \
 	uv run mypy --strict --no-incremental --python-executable "$$tmp/venv/bin/python" "$$tmp/consumer.py"
+
+ci: lint typecheck coverage test-min build smoke ## Every check CI runs after install
+
+# The library has no runtime dependencies, so this audits the locked dev tools.
+audit: ## pip-audit over uv.lock (needs the network)
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
 
 clean: ## Remove caches, build and coverage output
 	rm -rf .pytest_cache .mypy_cache .ruff_cache .hypothesis htmlcov .coverage .coverage.* dist

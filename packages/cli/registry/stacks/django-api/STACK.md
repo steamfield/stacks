@@ -7,8 +7,8 @@ description: A Python JSON API on Django and Django REST Framework with no serve
 tags: [python, api, make]
 deps:
   runtime: [django, djangorestframework, drf-spectacular, gunicorn, whitenoise, structlog, django-stubs-ext]
-  dev: [ruff, mypy, django-stubs, djangorestframework-stubs, pytest, pytest-django, pytest-cov, pytest-randomly, pytest-xdist]
-tools: [uv, make, git, jq]
+  dev: [ruff, mypy, django-stubs, djangorestframework-stubs, pytest, pytest-django, pytest-cov, pytest-randomly, pytest-xdist, pip-audit]
+tools: [uv, make, git, jq, bash]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that Django, DRF, the stubs, ruff and mypy support (default). Setup writes it to .python-version and requires-python."
@@ -32,6 +32,10 @@ verify:
   - { name: openapi-drift, layer: check, run: make check-openapi }
   - { name: deploy-check, layer: check, run: make check-deploy }
   - { name: build, layer: build, run: make build }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: api
     phase: serve
     layer: serve
@@ -55,7 +59,12 @@ commands:
   check-openapi: Fail if openapi.json no longer matches the API (run make openapi)
   check-deploy: Django's deployment checks with production settings; warnings fail
   build: collectstatic for the admin's static files
+  ci: lint, typecheck, coverage, check-migrations, check-openapi, check-deploy and build, as CI runs them
+  audit: pip-audit over the locked dependencies (needs the network)
   dev: Migrate, then the development server with reload on PORT_API
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
+  dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   start: Production settings - build, migrate, then gunicorn on PORT_API
   clean: Remove caches, coverage and collected static files
 ---
@@ -64,7 +73,7 @@ commands:
 
 ## What stacks wrote
 
-A working Django REST Framework API that passes every check once its dependencies are installed and its schema is generated. `config/` holds `env.py` (every deployment setting read from the environment once, validated, failing fast by name; production refuses to start without `DJANGO_SECRET_KEY` or with DEBUG on), `settings.py` (DRF set to JSON only with no sign-in yet and a per-IP throttle, the error handler and drf-spectacular), `logging.py` (structlog, readable in development and JSON on stdout in production, exceptions as class and frames with no message), `urls.py`, `wsgi.py` and `gunicorn.py`. `core/` has the error table and DRF exception handler (`errors.py`), the bases every resource uses (`api.py`: a serializer that refuses unknown fields, `?limit=&cursor=` pages, a viewset that refuses unknown query parameters, the schema class documenting the error body), the request middleware (request ids, one log line per request with the route pattern, `Cache-Control: no-store` by default), `/healthz` and JSON handlers for 400, 403, 404 and 500 outside DRF. `accounts/` is the custom user model. `notes/` is the payload: a model with its migration and admin, a serializer and a viewset with list, create and read under `/v1/notes`. Unit tests sit beside `config/`, `core/` and `notes/`; `tests/` drives the API through DRF's test client on a real database. The Makefile, `pyproject.toml` tool config, `.env.example` and `docs/` ship too. Read the code before extending it.
+A working Django REST Framework API that passes every check once its dependencies are installed and its schema is generated. `config/` holds `env.py` (every deployment setting read from the environment once, validated, failing fast by name; production refuses to start without `DJANGO_SECRET_KEY` or with DEBUG on), `settings.py` (DRF set to JSON only with no sign-in yet and a per-IP throttle, the error handler and drf-spectacular), `logging.py` (structlog, readable in development and JSON on stdout in production, exceptions as class and frames with no message), `urls.py`, `wsgi.py` and `gunicorn.py`. `core/` has the error table and DRF exception handler (`errors.py`), the bases every resource uses (`api.py`: a serializer that refuses unknown fields, `?limit=&cursor=` pages, a viewset that refuses unknown query parameters, the schema class documenting the error body), the request middleware (request ids, one log line per request with the route pattern, `Cache-Control: no-store` by default), `/healthz` and JSON handlers for 400, 403, 404 and 500 outside DRF. `accounts/` is the custom user model. `notes/` is the payload: a model with its migration and admin, a serializer and a viewset with list, create and read under `/v1/notes`. Unit tests sit beside `config/`, `core/` and `notes/`; `tests/` drives the API through DRF's test client on a real database. The Makefile, the background dev-server script (`scripts/dev-bg.sh`), `pyproject.toml` tool config, `.env.example` and `docs/` ship too. Read the code before extending it.
 
 ## Setup
 
@@ -97,11 +106,13 @@ No generator. Use the shipped files; `pyproject.toml` has no `requires-python` b
 
 The shipped Makefile (`make help`) holds every declared target. Mirror them and a single-file command (`uv run pytest tests/test_notes_api.py`) in AGENTS.md. `make start`, `make build` and `make check-deploy` run with production settings and a random throwaway secret key unless `DJANGO_SECRET_KEY` is set.
 
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make dev` or kill runserver by name: its autoreloader and the child that holds the port are separate processes, and dev-stop signals only the process group it recorded. A foreground `make dev` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
+
 <!-- stacks:when with=git-hooks -->
 Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage check-migrations check-openapi check-deploy build` with CI set.
+CI uses uv's setup action (cache on, Python from .python-version), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 <!-- stacks:when with=rest-api -->
 The notes resource already follows the REST rule. Record /v1, the tag/message/retryable envelope (`core/errors.py`), cursor limits (20 default, 100 maximum), 400 for unknown fields and query parameters, 415 for non-JSON bodies and 405 with Allow in AGENTS.md. Keep those contracts when adding resources.

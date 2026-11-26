@@ -7,7 +7,7 @@ description: A Python data pipeline and notebook project on Polars and DuckDB, m
 tags: [python, data, make]
 deps:
   runtime: [polars, duckdb, pyarrow, pydantic, pydantic-settings, structlog]
-  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, marimo, altair]
+  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, marimo, altair, pip-audit]
 tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
@@ -43,6 +43,8 @@ commands:
   pipeline: Run the pipeline on data/raw into data/processed
   pipeline-check: Run the pipeline on the fixture into a temp dir and compare with the expected output
   notebooks: Run every notebook headlessly with marimo export html
+  ci: lint, typecheck, coverage, pipeline-check and notebooks, as CI runs them
+  audit: pip-audit over the locked dependencies (needs the network)
   clean: Remove caches and coverage output
 ---
 
@@ -86,7 +88,7 @@ The shipped Makefile (`make help`) holds every declared target. Mirror them in A
 Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage pipeline-check notebooks` with CI set.
+CI uses uv's setup action (cache on, Python from .python-version), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 
 ## Gotchas

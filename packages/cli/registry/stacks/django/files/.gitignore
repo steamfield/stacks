@@ -21,8 +21,9 @@ var/*
 !var/.gitkeep
 staticfiles/
 
-# Logs
+# Logs, and the background server's pid file (make dev-bg)
 *.log
+logs/
 
 # Editors and OS
 .idea/

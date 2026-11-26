@@ -3,83 +3,205 @@
  * These smoke tests check that the process wrapper manages only this checkout's processes.
  */
 
-import { spawnSync } from "node:child_process";
+import { type SpawnSyncReturns, spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { makeFixture } from "./helpers/dev";
 
-function freePort(): Promise<string> {
-  return new Promise((resolve, reject) => {
+const SCRIPTS = ["dev.ts", "dev-bg.ts", "dev-pid.ts", "dev-logs.ts", "dev-status.ts"];
+
+type Run = SpawnSyncReturns<string>;
+
+/** Whether `port` can be bound on all IPv4 interfaces right now (Bun.serve's default). */
+function bindable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
     const server = createServer();
-    server.on("error", reject);
-    server.listen(0, () => {
-      const address = server.address();
-      if (address === null || typeof address === "string") {
-        server.close();
-        reject(new Error("No TCP port"));
-        return;
-      }
-      server.close(() => resolve(String(address.port)));
-    });
+    server.once("error", () => resolve(false));
+    server.listen(port, "0.0.0.0", () => server.close(() => resolve(true)));
   });
 }
 
-it("starts a background dev server and stops its processes", async () => {
-  const project = makeFixture("dev.ts", "dev-bg.ts", "dev-pid.ts", "dev-logs.ts", "dev-status.ts");
-  const env = { ...process.env, PORT_API: await freePort(), PORT_WEB: await freePort() };
-  const server = (port: string) =>
-    `bun -e 'Bun.serve({port:Number(process.env.${port}),fetch:()=>new Response("ok")})'`;
+// A free port below every OS's ephemeral range (Linux starts at 32768, macOS at 49152), so the
+// port-0 listeners other test files open in parallel can't be handed it between this check and
+// dev.ts binding it.
+async function quietPort(): Promise<string> {
+  for (let tries = 0; tries < 50; tries++) {
+    const port = 20_000 + Math.floor(Math.random() * 10_000);
+    if (await bindable(port)) return String(port);
+  }
+  throw new Error("No free port in 20000-29999");
+}
+
+// A dev:server that serves /healthz on PORT_API.
+const SERVER = `Bun.serve({ port: Number(process.env.PORT_API), fetch: () => new Response("ok") });\n`;
+
+// A dev:server whose listener is a child that doesn't hold dev.ts's pipes and takes a second to
+// exit after SIGINT or SIGTERM, so it outlives dev.ts. stop must wait for it.
+const PARENT = `import { spawn } from "node:child_process";
+spawn(process.execPath, ["slow-server.ts"], { stdio: "ignore" });
+setInterval(() => {}, 1 << 30);
+`;
+const SLOW_CHILD = `const server = Bun.serve({ port: Number(process.env.PORT_API), fetch: () => new Response("ok") });
+// Once the listener and the signal handlers are gone, nothing keeps the process alive.
+const stopSoon = () => setTimeout(() => {
+  server.stop(true);
+  process.removeAllListeners("SIGINT");
+  process.removeAllListeners("SIGTERM");
+}, 1000);
+process.on("SIGINT", stopSoon);
+process.on("SIGTERM", stopSoon);
+`;
+
+function project(files: Record<string, string>) {
+  const fixture = makeFixture(...SCRIPTS);
+  for (const [name, text] of Object.entries(files)) writeFileSync(join(fixture.dir, name), text);
   writeFileSync(
-    join(project.dir, "package.json"),
-    JSON.stringify({ private: true, scripts: { "dev:server": server("PORT_API") } }),
+    join(fixture.dir, "package.json"),
+    JSON.stringify({ private: true, scripts: { "dev:server": "bun server.ts" } }),
   );
-  let groups: number[] = [];
-  let owner: number | undefined;
-  const run = (command: string) =>
-    spawnSync("bun", ["scripts/dev-bg.ts", command], {
-      cwd: project.dir,
-      env,
-      encoding: "utf8",
-      timeout: 20_000,
-    });
-  try {
-    const start = run("start");
-    const pidFile = join(project.dir, "logs/dev.pid");
-    const recorded = existsSync(pidFile)
-      ? readFileSync(pidFile, "utf8").trim().split(/\s+/).map(Number)
-      : [];
-    owner = recorded[0];
-    groups = recorded.slice(2);
-    expect(start.status, start.stdout + start.stderr).toBe(0);
-    expect(start.stderr).toBe("");
-    expect(start.stdout).toContain(`http://localhost:${env.PORT_API}`);
-    expect(groups).toHaveLength(1);
-    const status = run("status");
-    expect(status.status, status.stdout + status.stderr).toBe(0);
-    expect(status.stderr).toBe("");
-    expect(status.stdout).toContain(env.PORT_API);
-  } finally {
+  return fixture;
+}
+
+type Recorded = { owner?: number; groups: number[] };
+
+function recorded(dir: string): Recorded {
+  const file = join(dir, "logs/dev.pid");
+  if (!existsSync(file)) return { groups: [] };
+  const record = JSON.parse(readFileSync(file, "utf8")) as {
+    pid: number;
+    groups: { pid: number }[];
+  };
+  return { owner: record.pid, groups: record.groups.map((group) => group.pid) };
+}
+
+// SIGKILL what a failed test left behind. Only called when stop didn't succeed, so a pid that
+// was already stopped (and may be reused) is never signaled.
+function kill({ owner, groups }: Recorded): void {
+  for (const pid of [...groups.map((group) => -group), ...(owner ? [owner] : [])]) {
     try {
-      const stop = run("stop");
-      expect(stop.status, stop.stdout + stop.stderr).toBe(0);
-      expect(stop.stderr).toBe("");
-      expect(stop.stdout).toContain("Stopped");
-      await vi.waitFor(() => {
-        expect(existsSync(join(project.dir, "logs/dev.pid"))).toBe(false);
-        for (const group of groups) expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
-      });
-    } finally {
-      for (const pid of [...groups.map((group) => -group), ...(owner ? [owner] : [])]) {
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch (error) {
-          if (!(error instanceof Error && "code" in error && error.code === "ESRCH"))
-            console.error("Cannot clean up dev fixture process", pid, error);
-        }
-      }
-      project.cleanup();
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Already gone.
     }
   }
-}, 30_000);
+}
+
+type Cycle = {
+  start: Run;
+  during: Run[];
+  stop?: Run;
+  started: Recorded;
+  pidFileLeft: boolean;
+  portFree: boolean;
+};
+
+/** Starts, runs `during` while the server is up, stops, and reports; asserts nothing. */
+async function cycle(
+  files: Record<string, string>,
+  during: (run: (command: string, env?: NodeJS.ProcessEnv) => Run) => Run[] = () => [],
+): Promise<Cycle & { port: string }> {
+  const fixture = project(files);
+  const port = await quietPort();
+  const env = { ...process.env, PORT_API: port };
+  const run = (command: string, extra: NodeJS.ProcessEnv = {}) =>
+    spawnSync("bun", ["scripts/dev-bg.ts", command], {
+      cwd: fixture.dir,
+      env: { ...env, ...extra },
+      encoding: "utf8",
+      timeout: 110_000,
+    });
+  let result: (Cycle & { port: string }) | undefined;
+  try {
+    const start = run("start");
+    const started = recorded(fixture.dir);
+    const extra = start.status === 0 ? during(run) : [];
+    const stop = run("stop");
+    result = {
+      port,
+      start,
+      during: extra,
+      stop,
+      started,
+      portFree: await bindable(Number(port)),
+      pidFileLeft: existsSync(join(fixture.dir, "logs/dev.pid")),
+    };
+    return result;
+  } finally {
+    if (result?.stop?.status !== 0) kill(recorded(fixture.dir));
+    fixture.cleanup();
+  }
+}
+
+const output = (run: Run | undefined) => `${run?.stdout ?? ""}${run?.stderr ?? ""}`;
+
+it("starts a background dev server, refuses another port, and stops its processes", async () => {
+  const result = await cycle({ "server.ts": SERVER }, (run) => [
+    run("status"),
+    run("start", { PORT_API: "1" }),
+  ]);
+  const [status, otherPort] = result.during;
+  expect(result.start.status, output(result.start)).toBe(0);
+  expect(result.start.stderr).toBe("");
+  expect(result.start.stdout).toContain(`http://localhost:${result.port}`);
+  expect(result.started.groups).toHaveLength(1);
+  expect(status?.status, output(status)).toBe(0);
+  expect(status?.stdout).toContain(result.port);
+  expect(otherPort?.status, output(otherPort)).toBe(1);
+  expect(otherPort?.stderr).toContain(`running on port ${result.port}`);
+  expect(result.stop?.status, output(result.stop)).toBe(0);
+  expect(result.stop?.stderr).toBe("");
+  expect(result.stop?.stdout).toContain("Stopped");
+  expect(result.pidFileLeft).toBe(false);
+  for (const group of result.started.groups) {
+    expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
+  }
+}, 240_000);
+
+it("returns from stop only once a server process that outlives dev.ts has freed the port", async () => {
+  const result = await cycle({ "server.ts": PARENT, "slow-server.ts": SLOW_CHILD });
+  expect(result.start.status, output(result.start)).toBe(0);
+  expect(result.stop?.status, output(result.stop)).toBe(0);
+  expect(result.portFree).toBe(true);
+}, 240_000);
+
+it("stops the server it was starting when interrupted", async () => {
+  const fixture = project({ "server.ts": PARENT, "slow-server.ts": SLOW_CHILD });
+  const port = await quietPort();
+  let started: Recorded = { groups: [] };
+  let exit: number | null | undefined;
+  try {
+    // A health URL that never answers keeps start waiting: the child serves PORT_API, but start
+    // polls PORT_API too, so make the server listen elsewhere.
+    writeFileSync(
+      join(fixture.dir, "slow-server.ts"),
+      SLOW_CHILD.replace("process.env.PORT_API", "process.env.OTHER_PORT"),
+    );
+    const otherPort = await quietPort();
+    const starter = spawn("bun", ["scripts/dev-bg.ts", "start"], {
+      cwd: fixture.dir,
+      env: { ...process.env, PORT_API: port, OTHER_PORT: otherPort },
+      stdio: "ignore",
+    });
+    const exited = new Promise<number | null>((resolve) => starter.on("exit", resolve));
+    await vi.waitFor(
+      () => {
+        started = recorded(fixture.dir);
+        expect(started.groups).toHaveLength(1);
+      },
+      { timeout: 30_000, interval: 100 },
+    );
+    starter.kill("SIGTERM");
+    exit = await exited;
+    expect(exit).toBe(143);
+    expect(existsSync(join(fixture.dir, "logs/dev.pid"))).toBe(false);
+    for (const group of started.groups) {
+      expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
+    }
+    expect(await bindable(Number(otherPort))).toBe(true);
+  } finally {
+    if (exit !== 143) kill(started);
+    fixture.cleanup();
+  }
+}, 120_000);

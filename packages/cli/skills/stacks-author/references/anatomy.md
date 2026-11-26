@@ -137,10 +137,16 @@ Spend words on what an agent would get wrong, not on what it does anyway. The bo
 
 A stack sets up a project an agent can work in without friction. Every stack provides:
 
-- An aggregate command that runs everything CI runs: `ci` on a Makefile, `check` in `package.json` scripts. A tool's own check (`astro check`, `cargo check`) on a Makefile keeps its name, and `ci` is added.
+- An aggregate command that runs every offline check CI runs: `ci` on a Makefile, `check` in `package.json` scripts. A tool's own check (`astro check`, `cargo check`) on a Makefile keeps its name, and `ci` is added. The audit stays out of it.
 - A fix command: `format` applying the formatter and the linter's safe fixes, or a separate `lint-fix`.
-- A dependency audit, `audit`, with a tool that needs no account or key (govulncheck, cargo-deny, pip-audit, `bun audit` or `npm audit`, osv-scanner). It may use the network, so it isn't a verify step.
-- For a `web` or `api` stack with a serve step, a background start and stop (`dev:bg` and `dev:stop`, or `dev-bg` and `dev-stop` on a Makefile). Start reuses a healthy server already running; otherwise it runs the serve command in its own process group, records `logs/dev.pid`, writes output to `logs/dev.log`, waits for the health URL and stops its group if that fails. Stop signals the recorded process group, never a wrapper's pid. A `dev-cycle` verify step runs start then stop. The body tells agents to use these instead of killing processes.
+- A dependency audit, `audit` (Go keeps `vuln`), with a tool that needs no account or key (govulncheck, cargo-deny, pip-audit, `bun audit` or `npm audit`, osv-scanner). It needs the network, so it isn't a verify step or part of the aggregate; CI runs it as its own step.
+- For a `web` or `api` stack with a serve step, a background start, stop and status (`dev:bg`, `dev:stop`, `dev:status`, or `dev-bg`, `dev-stop`, `dev-status` on a Makefile). They behave the same in every stack:
+  - Start runs the serve command in its own process group, writes output to `logs/dev.log`, and records the group and its start time (read with `LC_ALL=C ps -o lstart=`) in `logs/dev.pid`. It waits, on a wall-clock deadline, for the URL the serve step's `expect.http` probes, and stops its group if that never answers or the start is interrupted (exit 130).
+  - Start reuses a recorded server only when it is healthy and on the requested (or default) host and port. A recorded server that is unhealthy or on another port fails at once, naming the stop command. A server it didn't record is never reused or signaled.
+  - A record whose start time doesn't match is stale and is never signaled. Stop signals the recorded process group, never a wrapper's pid, waits for it to exit, and removes the record.
+  - Status exits 0 when a recorded server is running and 1 otherwise.
+  - A `dev-cycle` verify step in the `check` layer, timeout 3m, fails without starting anything when status finds a running server, and otherwise runs start then stop. The body tells agents to use these commands instead of killing processes.
+  - On a Makefile the logic lives in `scripts/dev-bg.sh`. Everything below its `# --- shared body ---` line is byte-identical across stacks; above it, each stack sets its host and port variables, timeouts, `launch` and `healthy`.
 - agent-ops, git-hooks and ci-github in the default composition.
 - A concrete single-test command in Commands or Testing.
 - A coverage command with a floor, for any stack with unit tests.

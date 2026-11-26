@@ -7,18 +7,19 @@
 // `bun run dev:bg` / `bun run dev:stop`: the dev server for agents and scripts, which can't
 // sit in a foreground terminal.
 //
-//   start  Reuse the dev server already running from this checkout (yours or someone
-//          else's) when it serves the requested PORT_API, or start scripts/dev.ts detached.
-//          Returns once /healthz answers, and prints the URL. If the server doesn't come up,
-//          or this script is interrupted while waiting, it stops what it started first.
-//   stop   Stop the dev server running from this checkout, however it was started (the same
-//          as Ctrl-C in its terminal), and return once its process groups are gone.
+//   start   Reuse the dev server already running from this checkout (a foreground `bun run dev`
+//           included) when it answers on the requested PORT_API, or start scripts/dev.ts
+//           detached. Returns once /healthz answers, and prints the URL. If the server doesn't
+//           come up, or this script is interrupted while waiting (exit 130), it stops what it
+//           started first.
+//   stop    Stop the dev server running from this checkout, however it was started, by sending
+//           its process groups SIGINT, and return once they are gone.
+//   status  Report it; exit 0 while a recorded server runs, 1 otherwise.
 //
 // Both find the server through logs/dev.pid, which scripts/dev.ts writes while it runs; a
 // record whose start times no longer match (a reused pid) is ignored.
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync } from "node:fs";
-import { constants } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
@@ -26,6 +27,7 @@ import {
   groupAlive,
   orphanedGroups,
   ownGroups,
+  processGroup,
   readPidFile,
   releasePidFile,
   runningDevServer,
@@ -91,43 +93,42 @@ function ready({ pid, port }: DevServer): void {
   );
 }
 
+// Reuses the recorded server only when it serves the requested (or default) port and answers
+// now. Anything else fails at once: reporting it as success would hand the caller a URL it didn't
+// ask for, or one that doesn't work.
 async function reuse(running: DevServer): Promise<number> {
-  // Reporting the recorded server as success would hand the caller a different URL than the one
-  // it asked for.
-  const requested = process.env.PORT_API;
-  if (requested && requested !== running.port) {
+  const requested = process.env.PORT_API || "3000";
+  if (requested !== running.port) {
     process.stderr.write(
-      `A dev server from this checkout is running on port ${running.port}, not ${requested}; use it, or bun run dev:stop first.\n`,
+      `A dev server from this checkout is running on port ${running.port}, not ${requested}; use it, or stop it with bun run dev:stop.\n`,
     );
     return 1;
   }
-  const failure = await waitHealthy(running, 60);
+  const failure = await unhealthy(running.port, Date.now() + 2000);
   if (!failure) {
     ready(running);
     return 0;
   }
   process.stderr.write(
-    `A dev server is running (pid ${running.pid}, port ${running.port}) but /healthz doesn't answer (${failure}). Last lines of logs/dev.log:\n`,
+    `A dev server from this checkout is running (pid ${running.pid}, port ${running.port}) but /healthz doesn't answer (${failure}); stop it with bun run dev:stop. Last lines of logs/dev.log:\n`,
   );
   process.stderr.write(tail("logs/dev.log", 30));
   return 1;
 }
 
-// Stops the dev.ts this invocation spawned, by its pid (never through a pid file that may name
-// some other session), then the server groups its record names. dev.ts's exit handler sends
-// SIGTERM to its server group; reaping waits for that group and kills it if dev.ts couldn't.
+// Stops what this invocation spawned: the server groups the record names (only when the record
+// is this spawn's, never another session's) and dev.ts's own group. dev.ts was spawned detached,
+// so it leads that group alone.
 async function stopSpawned(pid: number): Promise<void> {
   const record = readPidFile();
   const groups = record?.pid === pid ? ownGroups(record) : [];
-  signal(pid, "SIGTERM");
-  await waitUntil(() => !alive(pid), 5);
-  if (alive(pid)) signal(pid, "SIGKILL");
-  await waitUntil(() => !alive(pid), 2);
   for (const pgid of groups) signal(-pgid, "SIGTERM");
-  await reap(groups);
+  signal(-pid, "SIGTERM");
+  await reap([...groups, pid]);
+  releasePidFile(pid);
 }
 
-// Set when start is interrupted: resolves to the exit status once what it spawned is stopped.
+// Set when start is interrupted: resolves to the exit status (130) once what it spawned is stopped.
 let interrupted: Promise<number> | undefined;
 
 // While start waits, dev.ts and its server run outside the caller's process group, so a Ctrl-C
@@ -135,8 +136,8 @@ let interrupted: Promise<number> | undefined;
 // the server would hold the port with nothing waiting on it. The handlers stay installed once
 // one fires, so a second signal can't cut the stop short. Returns a function that removes them.
 function stopOnInterrupt(pid: number): () => void {
-  const handler = (sig: NodeJS.Signals) => {
-    interrupted ??= stopSpawned(pid).then(() => 128 + constants.signals[sig]);
+  const handler = () => {
+    interrupted ??= stopSpawned(pid).then(() => 130);
   };
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"];
   for (const sig of signals) process.on(sig, handler);
@@ -245,20 +246,12 @@ async function stop(quiet = false): Promise<number> {
   const { pid, port } = running;
   // Read before dev.ts exits and removes the pid file.
   const groups = ownGroups(readPidFile());
-  // SIGINT, like Ctrl-C: dev.ts passes it to the server, lets it shut down and finishes writing
-  // logs/dev.log. Only dev.ts itself is signaled, never the group of whoever started it.
-  signal(pid, "SIGINT");
-  await waitUntil(() => !alive(pid), 10);
-  if (alive(pid)) {
-    signal(pid, "SIGTERM");
-    await waitUntil(() => !alive(pid), 5);
-  }
-  if (alive(pid)) {
-    console.error(`The dev server (pid ${pid}) didn't exit; port ${port} may still be taken.`);
-    return 1;
-  }
-  // dev.ts's exit handler sends the server's group SIGTERM without waiting for it. The port is
-  // free only once every recorded group is gone, so a caller can start a server right after.
+  // SIGINT, like Ctrl-C, to the server's process groups, never to dev.ts's pid or the group of
+  // whoever started it. dev.ts sees the server close, finishes writing logs/dev.log and exits. The
+  // port is free only once every group is gone, so a caller can start a server right after.
+  for (const pgid of groups) signal(-pgid, "SIGINT");
+  await waitUntil(() => !groups.some(groupAlive), 10);
+  for (const pgid of groups.filter(groupAlive)) signal(-pgid, "SIGTERM");
   const left = await reap(groups);
   if (left.length) {
     console.error(
@@ -266,8 +259,27 @@ async function stop(quiet = false): Promise<number> {
     );
     return 1;
   }
+  if (!(await wrapperGone(pid))) {
+    console.error(`The dev wrapper (pid ${pid}) didn't exit after its server stopped.`);
+    return 1;
+  }
+  releasePidFile(pid);
   say(`Stopped the dev server on port ${port} (pid ${pid}).`);
   return 0;
+}
+
+// dev.ts exits once its server closes. If it hasn't (or it hadn't started the server yet), signal
+// its group, but only when dev:bg started it as that group's leader: a foreground `bun run dev`
+// shares its terminal's group. "Runs" means the record still names it with its start time, so a
+// reused pid is never signaled.
+async function wrapperGone(pid: number): Promise<boolean> {
+  const runs = () => runningDevServer()?.pid === pid;
+  await waitUntil(() => !runs(), 5);
+  if (runs() && processGroup(pid) === pid) {
+    signal(-pid, "SIGTERM");
+    await reap([pid]);
+  }
+  return !runs();
 }
 
 const command = process.argv[2];
@@ -278,7 +290,7 @@ if (command === "start") {
 } else if (command === "status") {
   const report = await devStatus();
   for (const line of report.lines) console.log(line);
-  process.exitCode = report.healthy ? 0 : 1;
+  process.exitCode = report.state === "running" ? 0 : 1;
 } else {
   console.error("usage: scripts/dev-bg.ts start|stop|status");
   process.exitCode = 2;

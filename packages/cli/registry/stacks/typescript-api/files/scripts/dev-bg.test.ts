@@ -37,6 +37,14 @@ async function quietPort(): Promise<string> {
 // A dev:server that serves /healthz on PORT_API.
 const SERVER = `Bun.serve({ port: Number(process.env.PORT_API), fetch: () => new Response("ok") });\n`;
 
+// A dev:server that answers 503 while a file named "unhealthy" exists in the project.
+const FLAKY_SERVER = `import { existsSync } from "node:fs";
+Bun.serve({
+  port: Number(process.env.PORT_API),
+  fetch: () => (existsSync("unhealthy") ? new Response("down", { status: 503 }) : new Response("ok")),
+});
+`;
+
 // A dev:server whose listener is a child that doesn't hold dev.ts's pipes and takes a second to
 // exit after SIGINT or SIGTERM, so it outlives dev.ts. stop must wait for it.
 const PARENT = `import { spawn } from "node:child_process";
@@ -100,7 +108,7 @@ type Cycle = {
 /** Starts, runs `during` while the server is up, stops, and reports; asserts nothing. */
 async function cycle(
   files: Record<string, string>,
-  during: (run: (command: string, env?: NodeJS.ProcessEnv) => Run) => Run[] = () => [],
+  during: (run: (command: string, env?: NodeJS.ProcessEnv) => Run, dir: string) => Run[] = () => [],
 ): Promise<Cycle & { port: string }> {
   const fixture = project(files);
   const port = await quietPort();
@@ -116,7 +124,7 @@ async function cycle(
   try {
     const start = run("start");
     const started = recorded(fixture.dir);
-    const extra = start.status === 0 ? during(run) : [];
+    const extra = start.status === 0 ? during(run, fixture.dir) : [];
     const stop = run("stop");
     result = {
       port,
@@ -137,11 +145,13 @@ async function cycle(
 const output = (run: Run | undefined) => `${run?.stdout ?? ""}${run?.stderr ?? ""}`;
 
 it("starts a background dev server, refuses another port, and stops its processes", async () => {
+  // An empty PORT_API asks for the default port, 3000, which the recorded server isn't on.
   const result = await cycle({ "server.ts": SERVER }, (run) => [
     run("status"),
     run("start", { PORT_API: "1" }),
+    run("start", { PORT_API: "" }),
   ]);
-  const [status, otherPort] = result.during;
+  const [status, otherPort, defaultPort] = result.during;
   expect(result.start.status, output(result.start)).toBe(0);
   expect(result.start.stderr).toBe("");
   expect(result.start.stdout).toContain(`http://localhost:${result.port}`);
@@ -150,6 +160,8 @@ it("starts a background dev server, refuses another port, and stops its processe
   expect(status?.stdout).toContain(result.port);
   expect(otherPort?.status, output(otherPort)).toBe(1);
   expect(otherPort?.stderr).toContain(`running on port ${result.port}`);
+  expect(defaultPort?.status, output(defaultPort)).toBe(1);
+  expect(defaultPort?.stderr).toContain(`running on port ${result.port}, not 3000`);
   expect(result.stop?.status, output(result.stop)).toBe(0);
   expect(result.stop?.stderr).toBe("");
   expect(result.stop?.stdout).toContain("Stopped");
@@ -164,6 +176,24 @@ it("returns from stop only once a server process that outlives dev.ts has freed 
   expect(result.start.status, output(result.start)).toBe(0);
   expect(result.stop?.status, output(result.stop)).toBe(0);
   expect(result.portFree).toBe(true);
+}, 240_000);
+
+it("fails at once when the recorded server doesn't answer, naming the stop command", async () => {
+  let elapsed = Number.POSITIVE_INFINITY;
+  const result = await cycle({ "server.ts": FLAKY_SERVER }, (run, dir) => {
+    writeFileSync(join(dir, "unhealthy"), "");
+    const began = Date.now();
+    const again = run("start");
+    elapsed = Date.now() - began;
+    return [again];
+  });
+  const [again] = result.during;
+  expect(result.start.status, output(result.start)).toBe(0);
+  expect(again?.status, output(again)).toBe(1);
+  expect(again?.stderr).toContain("HTTP 503");
+  expect(again?.stderr).toContain("bun run dev:stop");
+  expect(elapsed).toBeLessThan(10_000);
+  expect(result.stop?.status, output(result.stop)).toBe(0);
 }, 240_000);
 
 it("stops the server it was starting when interrupted", async () => {
@@ -194,14 +224,14 @@ it("stops the server it was starting when interrupted", async () => {
     );
     starter.kill("SIGTERM");
     exit = await exited;
-    expect(exit).toBe(143);
+    expect(exit).toBe(130);
     expect(existsSync(join(fixture.dir, "logs/dev.pid"))).toBe(false);
     for (const group of started.groups) {
       expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
     }
     expect(await bindable(Number(otherPort))).toBe(true);
   } finally {
-    if (exit !== 143) kill(started);
+    if (exit !== 130) kill(started);
     fixture.cleanup();
   }
 }, 120_000);

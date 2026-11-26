@@ -18,13 +18,29 @@ type Recorded = { pid: number; started: string };
 
 export type PidRecord = Recorded & { port: string; groups: Recorded[] };
 
-/** When `pid` started, as `ps -o lstart=` prints it, or undefined when no such process runs. */
-export function startedAt(pid: number): string | undefined {
-  const ps = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8" });
+// One `ps` field for `pid`, or undefined when no such process runs. LC_ALL=C pins the date
+// format, so a start time recorded from one shell matches when read from another with a different
+// LANG.
+function psField(field: string, pid: number): string | undefined {
+  const ps = spawnSync("ps", ["-o", `${field}=`, "-p", String(pid)], {
+    encoding: "utf8",
+    env: { ...process.env, LC_ALL: "C" },
+  });
   if (ps.error) {
     throw new Error(`The dev scripts need ps to identify their processes: ${ps.error.message}`);
   }
   return (ps.stdout ?? "").trim() || undefined;
+}
+
+/** When `pid` started, as `ps -o lstart=` prints it, or undefined when no such process runs. */
+export function startedAt(pid: number): string | undefined {
+  return psField("lstart", pid);
+}
+
+/** The process group `pid` belongs to, or undefined when no such process runs. */
+export function processGroup(pid: number): number | undefined {
+  const pgid = Number(psField("pgid", pid));
+  return Number.isInteger(pgid) && pgid > 0 ? pgid : undefined;
 }
 
 /** Whether `pid` is still the process recorded with this start time. */

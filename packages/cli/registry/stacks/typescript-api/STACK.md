@@ -26,9 +26,9 @@ verify:
   - { name: http-contract, layer: test, run: bun run test tests/http-contract.test.ts }
   - { name: build, layer: build, run: bun run build }
   - name: dev-cycle
-    layer: test
+    layer: check
     timeout: 3m
-    run: "if bun run dev:status >/dev/null 2>&1; then echo 'Stop the running dev server first: bun run dev:stop' >&2; exit 1; fi; bun run dev:bg && bun run dev:stop"
+    run: "if bun run dev:status >/dev/null 2>&1; then echo 'A dev server is running; stop it first: bun run dev:stop' >&2; exit 1; fi; bun run dev:bg && bun run dev:stop"
   - name: api
     phase: serve
     layer: serve
@@ -90,7 +90,7 @@ CI sets up Bun from `packageManager` and Node from `.node-version`, installs fro
 
 ## Commands
 
-Agents run the server with `bun run dev:bg` (reuses a healthy one, logs to `logs/dev.log`) and `bun run dev:stop`, read `bun run dev:status` and `bun run logs` before restarting, and never kill server processes by name. `build` doesn't inline env (`--env=disable`), so the bundle reads it at runtime; keep the flag.
+Agents run the server with `bun run dev:bg` (reuses a healthy one, including a foreground `bun run dev`, which `dev:stop` also stops; logs to `logs/dev.log`) and `bun run dev:stop`, read `bun run dev:status` and `bun run logs` before restarting, and never kill server processes by name. `build` doesn't inline env (`--env=disable`), so the bundle reads it at runtime; keep the flag.
 
 Document the commands, logs and hook ownership in AGENTS, plus a Debugging section with `jq` queries over `logs/server.jsonl` (one request by `requestId`, errors only, slow requests).
 

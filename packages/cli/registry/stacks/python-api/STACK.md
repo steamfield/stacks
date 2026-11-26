@@ -28,7 +28,10 @@ verify:
   - { name: typecheck, layer: typecheck, run: make typecheck }
   - { name: test, layer: test, run: make coverage }
   - { name: openapi-drift, layer: check, run: make check-openapi }
-  - { name: dev-cycle, layer: check, timeout: 2m, run: make dev-bg && make dev-stop }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: api
     phase: serve
     layer: serve
@@ -50,6 +53,7 @@ commands:
   dev: Uvicorn with reload on PORT_API
   dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
   dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   start: Uvicorn without reload on PORT_API, as production runs it
   openapi: Write the app's OpenAPI spec to openapi.json
   check-openapi: Fail if openapi.json no longer matches the app's spec (run make openapi)
@@ -85,13 +89,13 @@ Extend `tests/test_http.py` with each new endpoint's success, validation and err
 
 ## Commands
 
-Run the API with `make dev-bg` and stop it with `make dev-stop`. Don't `kill` or `pkill` Uvicorn: the reload supervisor and its worker are separate processes, and stopping one leaves the other holding the port.
+Run the API with `make dev-bg` and stop it with `make dev-stop`. Don't `kill` or `pkill` Uvicorn: the reload supervisor and its worker are separate processes, and stopping one leaves the other holding the port. A foreground `make dev` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 
 <!-- stacks:when with=git-hooks -->
 If `make install` already runs `lefthook install`, don't add another install step. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python read from `.python-version`), then `make install ci` with CI set.
+CI uses uv's setup action (cache on, Python read from `.python-version`), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
 The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free. The CI job with the Postgres service runs `make install ci`, then the fragment's `make db-migrate db-check test-db`.

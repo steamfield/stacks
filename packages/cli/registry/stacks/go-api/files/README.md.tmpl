@@ -35,13 +35,13 @@ Requires Go, make, a C compiler (for the race detector) and [golangci-lint](http
 |---|---|
 | `make build` | Build `bin/server` |
 | `make serve` | Build and run the server in the foreground |
-| `make dev-bg` / `make dev-stop` | Start the server in the background, or reuse a healthy one; stop it |
+| `make dev-bg` / `make dev-stop` / `make dev-status` | Start the server in the background, or reuse a healthy one; stop it; check it |
 | `make test` | Unit and handler tests with the race detector |
 | `make test-integration` | Run the built binary and test it over HTTP, including signal shutdown |
 | `make lint` | golangci-lint |
-| `make vuln` | govulncheck |
+| `make vuln` | govulncheck (needs the network; CI runs it after `make ci`) |
 | `make coverage` | Race-enabled tests with a coverage floor |
-| `make ci` | Everything CI runs |
+| `make ci` | Every offline check CI runs |
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup and scoped tests, and
 [docs/http-api.md](docs/http-api.md) for the shipped HTTP contract.

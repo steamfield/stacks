@@ -158,6 +158,12 @@ test.each([
   await expectDx(root, expected);
 });
 
+test("a stack on Apple's frameworks alone needs no audit command", async () => {
+  const root = commandRegistry();
+  stack(root, `tags: [make]\n${commands(["ci", "format"])}\n${baseline}`, { id: "ios-objc" });
+  await expectDx(root, []);
+});
+
 test.each([
   { tier: "default", expected: [] },
   { tier: "optional", expected: [aggregate("check")] },
@@ -193,12 +199,20 @@ test.each([
     expected: [noBackground("dev-bg or dev-stop or dev-status")],
   },
   {
-    name: "scripts API stacks need all three background scripts",
+    name: "scripts API stacks can serve without background commands",
     runner: "scripts",
     tag: "api",
     step: serve,
     present: [],
-    expected: [noBackground("dev:bg or dev:stop or dev:status")],
+    expected: [],
+  },
+  {
+    name: "scripts web stacks can serve without background commands",
+    runner: "scripts",
+    tag: "web",
+    step: serve,
+    present: [],
+    expected: [],
   },
   {
     name: "when only the start is missing, name the start",
@@ -214,15 +228,15 @@ test.each([
     ],
   },
   {
-    name: "when only the stop is missing, name the stop",
-    runner: "scripts",
+    name: "make web stacks with only start declared need stop and status",
+    runner: "make",
     tag: "web",
     step: serve,
-    present: ["dev:bg", "dev:status"],
+    present: ["dev-bg"],
     expected: [
       note(
         "background",
-        "has a serve step but no dev:stop command; add a stop that signals only its process group",
+        "has a serve step but no dev-stop or dev-status command; add a stop that signals only its process group and a status command that exits 0 while the recorded server runs",
       ),
     ],
   },
@@ -240,11 +254,11 @@ test.each([
     ],
   },
   {
-    name: "all three background commands clear the check",
-    runner: "scripts",
+    name: "all three background commands clear the check for a make web stack",
+    runner: "make",
     tag: "web",
     step: serve,
-    present: ["dev:bg", "dev:stop", "dev:status"],
+    present: ["dev-bg", "dev-stop", "dev-status"],
     expected: [],
   },
   {
@@ -256,8 +270,8 @@ test.each([
     expected: [],
   },
   {
-    name: "a web stack with no serve step of its own skips the background check",
-    runner: "scripts",
+    name: "a make web stack with no serve step of its own skips the background check",
+    runner: "make",
     tag: "web",
     step: "",
     present: [],

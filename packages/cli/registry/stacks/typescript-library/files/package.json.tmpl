@@ -27,6 +27,7 @@
     "coverage": "vitest run --coverage",
     "gate": "bun run lint && bun run typecheck && vitest run",
     "check": "bun run lint && bun run typecheck && bun run coverage && bun run lint:package && bun run test:consumer",
+    "audit": "bun audit",
     "clean": "rm -rf dist coverage *.tgz",
     "prepack": "bun run build",
     "prepare": "bun scripts/prepare.ts"

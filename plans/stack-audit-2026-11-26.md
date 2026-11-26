@@ -117,53 +117,76 @@ Lane a also runs every existing test file that pins full finding lists (`grep -l
 - Out of scope: other stacks, fragments, CLI source, `runs.json`, running the bench.
 - Done when: in `packages/cli`, `bun run dev validate` shows no finding for the stack except ledger notes, `bun run dev validate --brief <id>` and `--sandbox` render, `bun run test:unit tests/bundled-registry.test.ts tests/registry.test.ts tests/search-golden.test.ts tests/search-metadata-holdout.test.ts tests/search-golden-coverage.test.ts` pass, and a fresh scaffold proof per `references/fresh-scaffold-proof.md` reaches green verify. Hand back: files changed, body words before and after, composed brief words before and after, each baseline item with its evidence, reported fragment changes and new deps, and anything you couldn't make work.
 
-### Phase 2: fragments
+### Phases 2-4 scope (after the pilot)
 
-Demo: `bun run dev validate` clean apart from notes; each fragment body and its composed contribution shorter or unchanged, with no stale `stack=` branches.
+The pilot benches showed no setup-speed gain and no net brief saving; the value was in the commands, allow lists and the fixed dev scripts. So the rest of the run lands only those: missing B1 aggregate, B2 format and B3 audit commands, B10 allow lists on every stack (an adapter where a stack has none), B4 only where a wrapper would leave the real server on the port, and the B5 fragment gaps if they hold. No brief or search-card rewrites except to fix a false claim or add a sentence naming a new command; the fragment lanes are dropped.
+
+B4 applies to `make` stacks with a serve step (astro-blog, astro-product-site, django, django-api, go-htmx, quarkus-api, rust-api, spring-boot-api, spring-boot-web, streamlit). `scripts` stacks' dev servers (vite, next, nuxt, wrangler, nest) are single processes a caller can stop, so they don't need it; the check narrows to match (lane 2/a).
+
+### Phase 2: the narrowed check, Go, Rust, Python and JVM stacks
+
+Demo: `bun run dev validate` lists no `dx-*` note for these stacks, and every B4 stack's `dev-cycle` step passes in a fresh scaffold.
 Depends on: phase 1
+Scaffold: 6221687c (no new contracts; anatomy's "Developer experience" and go-api's dev-bg.sh are the contracts)
+Tag: stack-audit/phase-2
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/registry/fragments/claude-harness-docs/, packages/cli/registry/fragments/ce-plugin/, packages/cli/registry/fragments/rr/, packages/cli/registry/fragments/code-docs/, packages/cli/registry/fragments/docker-deploy/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| b | M | packages/cli/registry/fragments/goreleaser/, packages/cli/registry/fragments/npm-release/, packages/cli/registry/fragments/bun-release/, packages/cli/registry/fragments/cloudflare-pages/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| c | M | packages/cli/registry/fragments/rest-api/, packages/cli/registry/fragments/openapi-client/, packages/cli/registry/fragments/postgres/, packages/cli/registry/fragments/drizzle-postgres/, packages/cli/registry/fragments/cloudflare-d1/, packages/cli/registry/fragments/effect/, packages/cli/registry/fragments/effect-otlp/, packages/cli/registry/fragments/effect-schema/, packages/cli/registry/fragments/effect-sql-postgres/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| d | M | packages/cli/registry/fragments/clerk/, packages/cli/registry/fragments/posthog/, packages/cli/registry/fragments/openrouter-ai/, packages/cli/registry/fragments/openrouter-chat/, packages/cli/registry/fragments/openrouter-chat-cli/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
+| a | S | packages/cli/src/core/validate/checks/dx-baseline.ts, packages/cli/tests/validate-dx-baseline.test.ts, packages/cli/skills/stacks-author/references/anatomy.md, packages/cli/plugin/skills/stacks-author/references/anatomy.md | contracts | packages/cli/tests/validate-dx-baseline.test.ts | codex | merged | foreman/stack-audit-b4-make | B4 applies only to make stacks, tests updated, lint and typecheck clean |
+| b | M | packages/cli/registry/stacks/go-cli/, packages/cli/registry/stacks/go-grpc/, packages/cli/registry/stacks/go-htmx/, packages/cli/registry/stacks/go-library/, packages/cli/registry/stacks/go-mcp/, packages/cli/registry/stacks/go-tui/, packages/cli/registry/search/stacks/go-htmx.json | contracts, packages/cli/registry/stacks/go-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | merged | deliver/stack-audit-2b | ROI brief |
+| c | M | packages/cli/registry/stacks/rust-api/, packages/cli/registry/stacks/rust-cli/, packages/cli/registry/stacks/rust-library/, packages/cli/registry/stacks/rust-tui/, packages/cli/registry/stacks/rust-wasm/, packages/cli/registry/search/stacks/rust-api.json | contracts, packages/cli/registry/stacks/go-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | merged | deliver/stack-audit-2c | ROI brief |
+| d | M | packages/cli/registry/stacks/python-cli/, packages/cli/registry/stacks/python-data/, packages/cli/registry/stacks/python-library/, packages/cli/registry/stacks/streamlit/, packages/cli/registry/stacks/django/, packages/cli/registry/stacks/django-api/, packages/cli/registry/search/stacks/streamlit.json, packages/cli/registry/search/stacks/django.json, packages/cli/registry/search/stacks/django-api.json | contracts, packages/cli/registry/stacks/python-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | merged | deliver/stack-audit-2d | ROI brief |
+| e | M | packages/cli/registry/stacks/java-cli/, packages/cli/registry/stacks/java-library/, packages/cli/registry/stacks/quarkus-api/, packages/cli/registry/stacks/spring-boot-api/, packages/cli/registry/stacks/spring-boot-web/, packages/cli/registry/search/stacks/quarkus-api.json, packages/cli/registry/search/stacks/spring-boot-api.json, packages/cli/registry/search/stacks/spring-boot-web.json | contracts, packages/cli/registry/stacks/go-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | merged | deliver/stack-audit-2e | ROI brief |
 
-(Briefs written while phase 1 runs; each lane also owns its fragments' search cards under `packages/cli/registry/search/fragments/`.)
+#### Lane 2/a brief
 
-### Phase 3: Go, Rust, Python and JVM stacks
+- Goal: `backgroundGap` in `dx-baseline.ts` reports `dx-background` only for stacks whose runner is `make` (tag `make`), keeping every other condition (tag `web` or `api`, a serve-phase step). Scripts stacks get no `dx-background` finding.
+- Tests: update the B4 cases in `tests/validate-dx-baseline.test.ts`: a scripts stack with a serve step and no background commands gets no finding; the make cases stay.
+- Docs: in both identical `anatomy.md` copies, "Developer experience", B4 says it applies to `make` stacks with a serve step, because a wrapper (`go run`, `manage.py runserver`, `cargo run`, `mvn spring-boot:run`, `quarkus dev`, `streamlit run`, `astro dev` under make) can leave the real server on the port; a scripts stack may ship the pair (typescript-api, react-router do) but isn't required to.
+- Out of scope: other checks, the severity constant, registry entries.
+- Done when: `bun run test:unit tests/validate-dx-baseline.test.ts tests/bundled-registry.test.ts`, `bun run lint`, `bun run typecheck` pass.
 
+#### Stack lanes ROI brief (phases 2 and 3)
+
+- Goal: close each owned stack's `dx-*` notes and give it a B10 allow list, changing as little as possible.
+- Read first: anatomy's "Developer experience" section (`packages/cli/skills/stacks-author/references/anatomy.md`, it wins over the B-list here), this plan's DX baseline, each owned stack's `STACK.md`, its `files/` runner (Makefile or `package.json`) and adapters, and `bun run dev validate --json` from `packages/cli` filtered to the stack. The references: go-api (Make, `scripts/dev-bg.sh`, Claude adapter allow list at `adapters/claude/.claude/settings.json`), python-api (Make in Python), typescript-api (scripts).
+- Behavior:
+  - B1: add `ci` (make) or `check` (scripts) running every offline check CI runs, never the audit.
+  - B2: add `format` (formatter plus the linter's safe fixes) or `lint-fix`.
+  - B3: add `audit` with a key-free tool (pip-audit, `bun audit`/`npm audit`, cargo-deny or cargo-audit, osv-scanner for JVM; Go keeps `vuln`). Not a verify step, not in the aggregate. A new tool goes in `tools` or `deps` and is reported.
+  - B4 (make stacks with a serve step only): copy go-api's `scripts/dev-bg.sh` byte for byte below `# --- shared body ---`, write only the settings and `launch`/`healthy` above it for this stack, mode 100755 in git (`git update-index --chmod=+x`). Add the `dev-bg`, `dev-stop`, `dev-status` targets and commands, and a `dev-cycle` verify step in go-api's shape (layer `check`, timeout 3m, refuses while a recorded server runs). `logs/` gitignored.
+  - B5: where `dx-fragments` fires, add the fragment to `fragments.default` if it works for the stack; otherwise report why not.
+  - B10: the Claude adapter's `.claude/settings.json` allows the declared non-destructive commands listed in B10 (and their `make <t>` or `bun run <s>` forms), nothing that installs, serves in the foreground, deploys or deletes data. A stack with no Claude adapter gains one with `merge: [.claude/settings.json]`.
+  - Body: add at most one sentence per new command where the Commands section lists commands, and for B4 the go-api Commands line telling agents to use dev-bg/dev-stop/dev-status and never kill servers by name. No other prose changes unless a sentence is false. The search card changes only for a false claim (then restamp with `bun run decorate --restamp <id>`).
+  - CI note: if the stack's ci-github note names steps, keep it true for the new aggregate.
+- Decisions already made: keep ids; don't edit fragments, CLI source, `runs.json`, dep cards or the allowlist (report each new dep); no verify step that needs the network.
+- Done when, in `packages/cli`: `bun run dev validate` shows no `dx-*` note for the owned stacks (`dx-background` on scripts stacks is gone after lane 2/a merges; ignore it), `bun run dev validate --brief <id>` renders for each, `bun run test:unit tests/bundled-registry.test.ts tests/registry.test.ts tests/dev-bg-shared-body.test.ts tests/search-golden.test.ts` pass, and each B4 stack gets a fresh scaffold proof per `references/fresh-scaffold-proof.md` reaching green verify including `dev-cycle`. Hand back: per stack, the commands added and their tool, allow-list entries, B4 settings, fragments added, new deps, and anything that didn't work.
+
+### Phase 3: TypeScript, web, content, apps and games
+
+Demo: `bun run dev validate` lists no `dx-*` note for these stacks; the B4 stacks' `dev-cycle` passes in a fresh scaffold.
 Depends on: phase 2
+Scaffold: stack-audit/phase-2 (no new contracts)
+Tag: stack-audit/phase-3
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/registry/stacks/go-cli/, packages/cli/registry/stacks/go-grpc/, packages/cli/registry/stacks/go-htmx/, packages/cli/registry/stacks/go-library/, packages/cli/registry/stacks/go-mcp/, packages/cli/registry/stacks/go-tui/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| b | M | packages/cli/registry/stacks/rust-api/, packages/cli/registry/stacks/rust-cli/, packages/cli/registry/stacks/rust-library/, packages/cli/registry/stacks/rust-tui/, packages/cli/registry/stacks/rust-wasm/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| c | M | packages/cli/registry/stacks/python-cli/, packages/cli/registry/stacks/python-data/, packages/cli/registry/stacks/python-library/, packages/cli/registry/stacks/streamlit/, packages/cli/registry/stacks/django/, packages/cli/registry/stacks/django-api/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| d | M | packages/cli/registry/stacks/java-cli/, packages/cli/registry/stacks/java-library/, packages/cli/registry/stacks/quarkus-api/, packages/cli/registry/stacks/spring-boot-api/, packages/cli/registry/stacks/spring-boot-web/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
+| a | M | packages/cli/registry/stacks/hono-api/, packages/cli/registry/stacks/nestjs-api/, packages/cli/registry/stacks/typescript-cli/, packages/cli/registry/stacks/typescript-library/, packages/cli/registry/stacks/typescript-mcp/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | merged | deliver/stack-audit-3a | ROI brief |
+| b | M | packages/cli/registry/stacks/nextjs/, packages/cli/registry/stacks/nuxt/, packages/cli/registry/stacks/sveltekit/, packages/cli/registry/stacks/react-router/, packages/cli/registry/stacks/cloudflare-react-router/, packages/cli/registry/stacks/react-vite/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | merged | deliver/stack-audit-3b | ROI brief |
+| c | M | packages/cli/registry/stacks/astro-blog/, packages/cli/registry/stacks/astro-product-site/, packages/cli/registry/stacks/astro-fullstack/, packages/cli/registry/stacks/decks/, packages/cli/registry/search/stacks/astro-blog.json, packages/cli/registry/search/stacks/astro-product-site.json | contracts, packages/cli/registry/stacks/go-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | merged | deliver/stack-audit-3c | ROI brief |
+| d | M | packages/cli/registry/stacks/mobile-expo/, packages/cli/registry/stacks/tauri-react/, packages/cli/registry/stacks/phaser-game/, packages/cli/registry/stacks/threejs-game/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | merged | deliver/stack-audit-3d | ROI brief |
 
-(Each lane also owns its stacks' search cards. Briefs follow the phase 1 stack brief, written during phase 2.)
+### Phase 4: workspaces, enforcement and proofs
 
-### Phase 4: TypeScript, web, apps and games
-
-Depends on: phase 2
-
-| Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/registry/stacks/hono-api/, packages/cli/registry/stacks/nestjs-api/, packages/cli/registry/stacks/typescript-cli/, packages/cli/registry/stacks/typescript-library/, packages/cli/registry/stacks/typescript-mcp/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| b | M | packages/cli/registry/stacks/nextjs/, packages/cli/registry/stacks/nuxt/, packages/cli/registry/stacks/sveltekit/, packages/cli/registry/stacks/react-router/, packages/cli/registry/stacks/cloudflare-react-router/, packages/cli/registry/stacks/react-vite/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| c | M | packages/cli/registry/stacks/astro-blog/, packages/cli/registry/stacks/astro-product-site/, packages/cli/registry/stacks/astro-fullstack/, packages/cli/registry/stacks/decks/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-| d | M | packages/cli/registry/stacks/mobile-expo/, packages/cli/registry/stacks/tauri-react/, packages/cli/registry/stacks/phaser-game/, packages/cli/registry/stacks/threejs-game/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
-
-### Phase 5: workspaces, enforcement and proofs
-
-Depends on: phase 3, phase 4
+Tag: stack-audit/phase-4
+Depends on: phase 3
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | S | packages/cli/registry/stacks/hono-react/, packages/cli/registry/stacks/python-react/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | |
+| a | S | packages/cli/registry/stacks/hono-react/, packages/cli/registry/stacks/python-react/ | contracts | packages/cli/tests/bundled-registry.test.ts | inline | merged | deliver/stack-audit | root allow lists and aggregate cover both parts |
+| b | M | packages/cli/registry/stacks/flutter/, packages/cli/registry/stacks/ios-objc/, packages/cli/registry/stacks/ios-swiftui/, packages/cli/registry/stacks/ios-uikit/, packages/cli/registry/stacks/react-native/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | merged | deliver/stack-audit-4b | ROI brief; the iOS stacks merged from main meet the baseline |
 
-Inline: raise `DX_SEVERITY` to `"warning"` and fix whatever the bundled-registry test then reports; dependency cards and allowlist rows for every reported dep; `bun run bench:pending` from a QA checkout for every remaining changed stack, reading each run note before committing its record.
+Inline: fix the two pilot brief nits (typescript-api's Setup names `effect-api.md` without `docs/guidance/typescript-api/`; python-api names both uvicorn and uvicorn[standard]); raise `DX_SEVERITY` to `"warning"` and fix whatever the bundled-registry test then reports; dependency cards and allowlist rows for every reported dep; bench every B4 stack from a QA checkout (its `dev-cycle` step is new), reading each run note before committing its record.
 
 ## Log
 
@@ -174,3 +197,19 @@ Inline: raise `DX_SEVERITY` to `"warning"` and fix whatever the bundled-registry
 - ci-github (1/e): the aggregate is the default CI call, but each job installs what its targets need first and a stack's own CI note wins where it splits jobs or names steps. Stack lanes in phases 3-4 rewrite their notes to fit.
 - Phase 1 boundary review (5 findings, all accepted): B1, B3 and B4 are now specified in anatomy's "Developer experience" section, which wins over the B-list above where they differ. The audit is out of the aggregate and runs as its own CI step. B4 adds `dev-status`/`dev:status`, a fixed behavior list, a `dev-cycle` shape (layer `check`, 3m, refuses while a recorded server runs), and `scripts/dev-bg.sh` split at `# --- shared body ---`, with a byte-identical body enforced by a registry test. The pilots' allow lists drop install and serve and add clean. The probe's ignore moves into claude-harness's own temp dir. Not taken: adding `added` to `Composed` (lane 1/a decision stands).
 - New deps reported: pip-audit (python-api `deps.dev`) needs a dep card and allowlist row.
+- After the pilot (user decision): land only what phase 1 showed pays off: the missing commands, allow lists, B4 where a wrapper leaves the server on the port, and fragment gaps. Brief and card rewrites, the fragment lanes and a new bench task are dropped. B4 narrows to `make` stacks (lane 2/a); phases renumbered 2-4.
+- 2/b: B1 applied to existing aggregates too: `vuln` left every Go stack's `ci` (CI runs it as its own step). go-tui `golden` and go-library `api-baseline` stay off the allow lists because they overwrite baselines a person should review.
+- 2/c: Rust stacks also dropped `audit` from `ci` (same B1 reading as 2/b) and gained `lint-fix` (clippy --fix, then fmt). Not done, outside ROI scope: no Rust stack has a coverage floor (B7); rust-cli lacks a single-test example (B6).
+- 2/d: django's `ci` includes `build` (collectstatic; offline, verify runs it, writes only gitignored `staticfiles/`). Python B4 scripts probe health with the project's `.venv/bin/python`, not curl.
+- 2/e: JVM `fmt` renamed `format`; JVM dev-bg launches a copy of the jar from `target/dev-bg/` because a rebuild rewrites `target/app.jar` under the running JVM. Found, not fixed (outside scope): quarkus-api's shipped code doesn't compile on Quarkus 4 (Jackson 3 imports, `target/quarkus.log` no longer written); proofs used the 3.x stream. `make audit` on Quarkus 3.40 reports a real Guava advisory.
+- Phase 2 gate: rr ran cli and bench partitions green; the other five were blocked by another session's stuck lock, so lint, typecheck, root tests (325), MCP tests (112) and both e2e suites ran locally with STACKS_LOCAL_GATE=1, all green.
+- 3/d: tauri-react `ci` omits the slow `tauri build` (verify tags it prod); `check` stays as an alias for `ci` because claude-harness-docs' `/check` runs the project's `check`. Its audit is `bun audit` plus `cargo deny check advisories` with no deny.toml.
+- 3/b: cloudflare-react-router gained a Claude adapter and git-hooks as a default. react-vite's change moves python-react's frozen brief digest (regenerate at the end). Noticed, not in scope: react-router ships dev:bg/dev:stop without dev:status or a dev-cycle step.
+- 3/a: hono-react's composed brief sits about 10 words under its 6000-word cap after hono-api's audit sentence was trimmed; the phase 4 workspace lane must not grow it.
+- 3/c: decks gained Biome (decks lint has no fix mode) for B2, and git-hooks and ci-github as defaults; astro-product-site's `ci` includes its offline e2e. `bun audit` fails on fresh astro-blog, astro-product-site and decks installs (transitive advisories), so their CI audit step starts red.
+- Phase 3 merge fix: hono-api and react-vite each fit hono-react's 6000-word budget alone but not together; both `audit` descriptions shortened. Phase 4/a done inline: workspace root adapters allow only declared root commands (hono-react's undeclared make targets would need ~40 brief words it doesn't have). DX_SEVERITY is now "warning". Merging main brought five iOS stacks below the baseline; lane 4/b covers them.
+- Gate: another session's rr run (deliver-index-first, pid 67016) held two hosts for over 90 minutes, so the phase 3 gate is pending; phase 3 isn't tagged yet.
+- 4/b: flutter gained lint-fix and an osv-scanner audit, react-native `bun audit`, ios-swiftui and ios-uikit lint-fix. ios-objc, ios-swiftui and ios-uikit use Apple frameworks only, so `dx-audit` now applies only to a stack that declares `deps`.
+- Final review (12 findings): fixed the lock left by a signal between mkdir and the pid write, `--noproxy` on the python-api and spring-boot-web curl probes, the JVM start window (120 s, matching the serve steps) and probes of the dev-bg copy, rust-tui's `make snapshots` allow rule, `bash` in the astro stacks' tools, python-library's audit description, and an empty-glob pass in the shared-body test, which now also runs the body against a real server (so it runs on CI's Linux). Rejected: dev-stop signaling a leaderless group whose id was reused (the deliberate reaping tradeoff; telling it from our own orphans needs more than ps), tauri-react's `make audit` installing cargo-deny (the rust stacks on main do the same), and the broad curl/mvnw allow patterns (copied from existing stacks; tightening them is registry-wide work).
+- Fix review: the deps-based audit exemption also silenced seven Make stacks with no `deps:` line (go-library ships no go.mod either), so the check names the three Apple-framework stacks instead. The shared-body test now checks stderr, uses a detached stand-in group to show a mismatched record signals nothing, and signals through `process.kill`. Accepted: under dev-cycle's 3m timeout a slow JVM build plus start can lose dev-bg's own timeout message (cleanup stays correct); the LOCKED reorder has no test because its window can't be hit on demand.
+- Gate: "warning" severity failed 108 tests whose fixture registries validate as bundled and expect zero warnings, so DX_SEVERITY is back to "note" and `bundled-registry.test.ts` fails on any `dx-` finding in the real registry instead. The other session's rr run still held the hosts, so the gate ran locally.

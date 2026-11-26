@@ -5,7 +5,7 @@ kind: stack
 name: Java library (Maven Central-ready)
 description: A Java library for other JVM code to depend on, built with Maven and make. A JPMS module exporting one package, JSpecify nullness checked by NullAway, Javadoc with doclint and examples that run as tests, generated-input property tests, a consumer project built against the installed jar, a japicmp API check and the sources and Javadoc jars Maven Central requires.
 tags: [java, library, make]
-tools: [java, mvn, make, git]
+tools: [java, mvn, make, git, osv-scanner]
 decisions:
   - "JDK: the newest Java LTS release (default). Its major goes in `.java-version` and pom.xml's `<java.version>`, which is also the oldest Java callers can run the library on; never an update release."
   - "Build tool: Maven through the committed wrapper (default). Gradle with the Kotlin DSL and a version catalog only when the user asks; then translate each Makefile target one for one and keep every check."
@@ -39,7 +39,7 @@ verify:
 commands:
   env: Check the JDK, the Maven wrapper, every pom.xml version property and the description
   install: Check the toolchain and download dependencies and plugins
-  fmt: Format Java sources with Spotless (palantir-java-format)
+  format: Format Java sources with Spotless (palantir-java-format)
   fmt-check: Fail if Spotless would change any Java source
   lint: "Maven Enforcer: JDK version, dependency convergence, duplicate declarations"
   compile: Compile main and test code with Error Prone and NullAway
@@ -51,7 +51,8 @@ commands:
   test-consumer: Build src/it/consumer on the module path against the installed jar
   api-check: Fail on an incompatible change to the exported API since api/baseline.jar (japicmp)
   api-baseline: Record the API as api/baseline.jar (first setup, then a person at each release)
-  ci: "Everything CI runs (fmt-check, enforcer, tests, coverage, Javadoc, jars, consumer, API check)"
+  audit: Check dependencies for known vulnerabilities (osv-scanner; needs the network)
+  ci: "Every offline check CI runs (fmt-check, enforcer, tests, coverage, Javadoc, jars, consumer, API check)"
   clean: Remove build output
 ---
 
@@ -71,7 +72,7 @@ No generator; nothing comes from a Maven archetype.
 2. **Coordinates.** Set `<groupId>` per the group id decision and replace the `stacks:fill` in `<description>` with one sentence (`make env` refuses it).
 3. **Versions.** For every other empty `<*.version>` property, read the newest release from `https://repo.maven.apache.org/maven2/<groupId as a path>/<artifactId>/maven-metadata.xml`. Its `<release>` can be a milestone or release candidate (`-M1`, `-RC1`), so take the highest plain numeric version: `curl -s <url> | grep -o '<version>[0-9.]*</version>' | sort -V | tail -1`. The coordinates are in `pom.xml`; `junit.version` is `org.junit:junit-bom`'s, `error-prone.version` is `com.google.errorprone:error_prone_core`'s. The consumer project reads the same properties.
 4. **Wrapper.** Run `mvn -N wrapper:wrapper -Dtype=only-script` once (the `mvn` from Homebrew's `maven`). It writes `mvnw`, `mvnw.cmd` and `.mvn/wrapper/maven-wrapper.properties` pinned to that Maven; commit them. From then on only `./mvnw` runs Maven.
-5. `make install`, then `make fmt-check lint compile coverage docs build test-consumer`. Where an installed release rejects shipped code (a new Error Prone, NullAway or doclint finding), fix the code. Keep every compiler flag, Enforcer rule, doclint level, the coverage floor and the module's exports; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why. Run `make fmt` after editing.
+5. `make install`, then `make fmt-check lint compile coverage docs build test-consumer`. Where an installed release rejects shipped code (a new Error Prone, NullAway or doclint finding), fix the code. Keep every compiler flag, Enforcer rule, doclint level, the coverage floor and the module's exports; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why. Run `make format` after editing.
 6. **API baseline.** `make api-baseline`, then `make api-check`. Commit `api/baseline.jar`; from now on it moves only at a release.
 7. Fill the README's `stacks:fill` markers (`readme-filled` checks), link `docs/guidance/java.md`, `docs/public-api.md` and `docs/releasing.md` from AGENTS.md, then run `stacks verify` until it passes.
 
@@ -92,19 +93,19 @@ Unit tests sit beside each class and cover every rule with its error record and 
 
 ## Commands
 
-The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compile, test, coverage, docs, build, jar-check, test-consumer, api-check, api-baseline, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=SlugRulesTest` and `./mvnw -q test -Dtest='SlugRulesTest#reportsTheFirstRuleBroken'`. `make docs` writes the Javadoc to `target/reports/apidocs/`.
+The shipped Makefile (`make help`) has env, install, format, fmt-check, lint, compile, test, coverage, docs, build, jar-check, test-consumer, api-check, api-baseline, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=SlugRulesTest` and `./mvnw -q test -Dtest='SlugRulesTest#reportsTheFirstRuleBroken'`. `make docs` writes the Javadoc to `target/reports/apidocs/`. `make audit` checks the resolved dependencies against the OSV database with osv-scanner; it needs the network, so it stays out of `make ci`.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`. No publish job: releases stay a person's step (`docs/releasing.md`). Record in AGENTS.md that CI never runs `mvn`.
+**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`, then `make audit` as its own step after installing osv-scanner. No publish job: releases stay a person's step (`docs/releasing.md`). Record in AGENTS.md that CI never runs `mvn`.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 
-**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make fmt` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test api-check`. Compiling and Javadoc check the whole project, so they stay out of pre-commit.
+**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make format` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test api-check`. Compiling and Javadoc check the whole project, so they stay out of pre-commit.
 <!-- stacks:end -->
 
 ## Gotchas
 
-- palantir-java-format can't parse unnamed variables (`_`) in record patterns, so `make fmt` fails on `case SlugError.TooLong(_, var max)`. Name every binding and use it.
+- palantir-java-format can't parse unnamed variables (`_`) in record patterns, so `make format` fails on `case SlugError.TooLong(_, var max)`. Name every binding and use it.
 - Calling `./mvnw` directly, outside make, skips the Makefile's `JAVA_HOME` lookup and runs on whatever `java` is on PATH, if any. Use the make targets, or export `JAVA_HOME` first.
 - `{@snippet file=...}` resolves against `--snippet-path`, set to `src/test/java` in the javadoc plugin; a renamed region or file breaks `make docs`, not `make test`.
 - The invoker filters `@name@` in `src/it/consumer/pom.xml` from this project's properties and coordinates. A new consumer dependency needs its version property in the main `pom.xml`.

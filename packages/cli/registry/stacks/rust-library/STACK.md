@@ -40,12 +40,13 @@ commands:
   fmt-check: Fail if rustfmt would change any file
   clippy: clippy on every target, with and without features, warnings denied
   lint: fmt-check and clippy
+  lint-fix: Apply clippy's machine-applicable fixes, with and without features, then format
   check: Type-check every target with no features and with all of them
   test: Unit, integration and doc tests, with no features and with all of them
   doc: Build the API docs with every rustdoc warning denied
   package: Build and compile the .crate exactly as it would publish (uploads nothing)
   audit: Advisories, licenses and sources with cargo-deny (needs network)
-  ci: "Everything CI runs (fmt-check, clippy, test, doc, package, audit)"
+  ci: "Every offline check CI runs (fmt-check, clippy, test, doc, package)"
   clean: Remove build output
 ---
 
@@ -88,10 +89,10 @@ Unit tests sit in each module's `#[cfg(test)] mod tests`: every validation rule 
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, check, test, doc, package, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands (`cargo test --all-features --test api <name>`, `cargo test --doc`). Checks run with `--locked`; commit `Cargo.lock`, as current Cargo guidance says for libraries too.
+The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, lint-fix, check, test, doc, package, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands (`cargo test --all-features --test api <name>`, `cargo test --doc`). `make lint-fix` applies clippy's machine-applicable fixes and formats. Checks run with `--locked`; commit `Cargo.lock`, as current Cargo guidance says for libraries too.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: `make install`, then `make ci` (fmt-check, clippy, test, doc, package, audit), with cargo-deny already installed so `make audit` skips compiling it. No publish job: releases stay a person's step (`docs/releasing.md`). There is no coverage target (Rust coverage needs cargo-llvm-cov, which the stack doesn't ship); record that under Deferred.
+**CI.** One `ubuntu-latest` job: `make install`, then `make ci` (fmt-check, clippy, test, doc, package), then `make audit` as its own step, with cargo-deny already installed so it skips compiling it. The audit needs the network, so it stays out of `ci`. No publish job: releases stay a person's step (`docs/releasing.md`). There is no coverage target (Rust coverage needs cargo-llvm-cov, which the stack doesn't ship); record that under Deferred.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

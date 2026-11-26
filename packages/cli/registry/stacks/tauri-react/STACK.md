@@ -62,7 +62,9 @@ commands:
   coverage: Vitest with coverage
   e2e: Playwright against the Vite dev server on the mock transport
   architecture-check: Check Cargo dependency edges against the crate policy
-  check: Lint, typecheck, tests, bindings drift, crate policy, and e2e
+  ci: "Every offline check CI runs except the bundle build: lint, typecheck, check-targets, coverage, test-rust, bindings-check, architecture-check and e2e"
+  check: Same as ci
+  audit: bun audit and cargo-deny's advisory check (needs the network)
   clean: Remove build, test, and coverage output
 ---
 
@@ -74,7 +76,7 @@ A desktop shell with a Rust core crate, the typed `app_info` command and a live 
 
 1. Add the declared JS app and dev deps with `bun add` and `bun add -d`. Match `@types/node` to the installed Node LTS major. Add Rust deps with `cargo add --manifest-path`: core's manifest gets `serde` (derive), `specta` (derive) and `thiserror`, plus dev `serde_json`; shell's gets `tauri` (specta), `tauri-specta` (typescript), `specta` (derive, function), `specta-typescript`, `serde` (derive), `serde_json`, `thiserror`, `anyhow`, `tracing`, `tracing-subscriber` (env-filter, json), and `tokio` (time, sync, macros, rt), plus build `tauri-build` and dev `tokio` (test-util) and `tempfile`. Resolve the Specta family together from the current tauri-specta release's dependency requirements; bare stable adds select an incompatible API while these are prereleases. Use the same Specta in both crates, and the exporter version that tauri-specta uses. Choose an initial app version and set `package.version` in `src-tauri/Cargo.toml`: unlike Cargo, the Tauri CLI requires this field explicitly. Registry manifests intentionally carry no package version.
 2. Read the current `create-tauri-app` help, then run the official generator non-interactively in a temporary directory with the React TypeScript template and Bun. Copy **only** its `src-tauri/icons/` into this project's `src-tauri/icons/`; discard the generated project. Keep these placeholders in the app's repository until real icons exist, recorded under Deferred. Icons cannot ship as registry files, and `generate_context!` reads them even for clippy and tests.
-3. Review the bundle identifier in `src-tauri/tauri.conf.json` against the decision. Run `make install`, `make bindings-check`, then `make check` and `make build`. If installed releases reject shipped code, generated bindings or config, update them for those releases without dropping a rule or weakening a test, then run `make format`. A bindings drift caused by the exporter changing is resolved with `make bindings`, followed by typecheck and tests. Never overwrite the shipped source with generator output.
+3. Review the bundle identifier in `src-tauri/tauri.conf.json` against the decision. Run `make install`, `make bindings-check`, then `make ci` and `make build`. If installed releases reject shipped code, generated bindings or config, update them for those releases without dropping a rule or weakening a test, then run `make format`. A bindings drift caused by the exporter changing is resolved with `make bindings`, followed by typecheck and tests. Never overwrite the shipped source with generator output.
 4. Record the installed Rust toolchain in `rust-toolchain.toml` (keep components and all three targets), Node LTS in `.node-version` and `engines.node`, and Bun in `packageManager`. Fill README's markers, AGENTS.md and `docs/harness.md`; link `docs/guidance/tauri-react/index.md` from AGENTS.md. Run `stacks verify` and `stacks verify --all` so the sandbox's skipped production bundle is proven too.
 
 ## Layout and conventions
@@ -96,10 +98,10 @@ Playwright cannot drive WKWebView on macOS. Run `make dev` manually to check the
 
 ## Commands
 
-`make help` lists the targets. The Makefile splits frontend and Rust checks for CI, compares fresh bindings without requiring a first commit, and checks all three library targets. Keep its public names. Package scripts run Vite, Vitest and Playwright on Node; Bun installs dependencies and runs scripts.
+`make help` lists the targets. The Makefile splits frontend and Rust checks for CI, compares fresh bindings without requiring a first commit, and checks all three library targets. Keep its public names. `make audit` runs `bun audit` and cargo-deny's advisory check, installing cargo-deny on first use; it needs the network, so it stays out of `ci`. Package scripts run Vite, Vitest and Playwright on Node; Bun installs dependencies and runs scripts.
 
 <!-- stacks:when with=ci-github -->
-CI has frontend on Ubuntu and Rust on the bundle platform (macOS by default), plus aggregate ci-ok. Frontend runs install, lint-web, typecheck-web, coverage and e2e; Rust runs install, lint-rust, test-rust, check-targets, bindings-check, architecture-check and build. Cache Cargo, read the recorded toolchains, and upload Playwright reports on failure. Linux shell builds need WebKitGTK system packages.
+CI has frontend on Ubuntu and Rust on the bundle platform (macOS by default), plus aggregate ci-ok. Frontend runs install, lint-web, typecheck-web, coverage and e2e; Rust runs install, lint-rust, test-rust, check-targets, bindings-check, architecture-check and build, then `make audit` as its own step (it needs the network). Cache Cargo, read the recorded toolchains, and upload Playwright reports on failure. Linux shell builds need WebKitGTK system packages.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->

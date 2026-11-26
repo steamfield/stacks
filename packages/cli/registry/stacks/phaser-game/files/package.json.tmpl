@@ -14,7 +14,8 @@
     "e2e": "bun run build && playwright test",
     "see": "node scripts/see.ts",
     "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
-    "clean": "rm -rf dist coverage test-results playwright-report .runs",
+    "audit": "bun audit",
+    "clean":"rm -rf dist coverage test-results playwright-report .runs",
     "prepare": "bun scripts/prepare.ts"
   }
 }

@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(make env)",
-      "Bash(make fmt)",
+      "Bash(make format)",
       "Bash(make fmt-check)",
       "Bash(make lint)",
       "Bash(make compile)",
@@ -10,7 +10,16 @@
       "Bash(make coverage)",
       "Bash(make test-integration)",
       "Bash(make build)",
-      "Bash(make ci)"
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make dev-status)",
+      "Bash(make audit)",
+      "Bash(make ci)",
+      "Bash(make clean)",
+      "Bash(./mvnw -q test *)",
+      "Bash(./mvnw -q verify *)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -si http://127.0.0.1:*)"
     ]
   },
   "hooks": {

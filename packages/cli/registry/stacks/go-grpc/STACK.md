@@ -62,7 +62,7 @@ commands:
   test-integration: Build the binary, run it on a free port, call it over gRPC and Connect, stop it with signals
   coverage: Race-enabled tests with a coverage floor over hand-written packages
   vuln: Check dependencies and the standard library for known vulnerabilities (govulncheck)
-  ci: "Everything CI runs (generate-check, buf-lint, fmt-check, tidy-check, lint, coverage, test-integration, vuln, build)"
+  ci: "Every offline check CI runs (generate-check, buf-lint, fmt-check, tidy-check, lint, coverage, test-integration, build)"
   clean: Remove build and coverage output
 ---
 

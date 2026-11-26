@@ -16,7 +16,7 @@ BINDINGS := src/core/generated/bindings.ts
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-web build bindings bindings-check \
 	lint lint-web lint-rust format typecheck typecheck-web typecheck-rust check-targets \
-	test test-web test-rust coverage e2e architecture-check check clean stub-dist
+	test test-web test-rust coverage e2e architecture-check audit ci check clean stub-dist
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -92,7 +92,16 @@ e2e: ## Playwright against the Vite dev server on the mock transport (browser fr
 architecture-check: ## Cargo dependency edges against scripts/architecture/crate-edges.json
 	bash -o pipefail -c 'cargo metadata --no-deps --format-version 1 | jq -e --slurpfile allowed scripts/architecture/crate-edges.json -f scripts/architecture/crate-edges.jq'
 
-check: lint typecheck check-targets test bindings-check architecture-check e2e ## The gate: everything above
+audit: ## bun audit, then cargo-deny's advisory check on the crates (needs the network)
+	bun audit
+	@command -v cargo-deny >/dev/null 2>&1 || { \
+		if command -v cargo-binstall >/dev/null 2>&1; then cargo binstall --no-confirm cargo-deny; \
+		else cargo install --locked cargo-deny; fi; }
+	cargo deny check advisories
+
+ci: lint typecheck check-targets coverage test-rust bindings-check architecture-check e2e ## Every offline check CI runs except the bundle build (audit is its own step)
+
+check: ci ## Same as ci, under the name the harness's /check command looks for
 
 # tauri::generate_context! embeds the frontend dist at compile time, so any
 # cargo build of src-tauri needs the directory to exist, even empty.

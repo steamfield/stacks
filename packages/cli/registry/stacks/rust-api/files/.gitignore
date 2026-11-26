@@ -1,6 +1,9 @@
 # Build output
 /target/
 
+# Background server output and pid file (make dev-bg)
+/logs/
+
 # Environment
 .env
 .env.*

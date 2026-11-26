@@ -2,7 +2,7 @@
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
 # fmt-check, clippy, test, test-wasm, build, typecheck-js and test-js; CI calls
-# `make ci`.
+# `make ci`, then `make audit` as its own step.
 
 # wasm-pack's output: the npm package, generated from src/lib.rs.
 PKG := pkg
@@ -10,7 +10,7 @@ PKG := pkg
 PACK := target/npm
 
 .DEFAULT_GOAL := help
-.PHONY: help install tools fmt fmt-check clippy lint test test-wasm build pack consumer-package typecheck-js test-js audit ci clean
+.PHONY: help install tools fmt fmt-check clippy lint lint-fix test test-wasm build pack consumer-package typecheck-js test-js audit ci clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -39,6 +39,11 @@ clippy: ## clippy for the native and wasm32 targets, warnings denied
 	cargo clippy --locked --all-targets --target wasm32-unknown-unknown -- -D warnings
 
 lint: fmt-check clippy ## fmt-check and clippy
+
+lint-fix: ## Apply clippy's machine-applicable fixes for both targets, then format
+	cargo clippy --fix --allow-dirty --locked --all-targets
+	cargo clippy --fix --allow-dirty --locked --all-targets --target wasm32-unknown-unknown
+	cargo fmt --all
 
 test: ## Native unit tests of the Rust logic
 	cargo test --locked
@@ -74,7 +79,7 @@ audit: ## Advisories, licenses and sources with cargo-deny (needs network)
 		else cargo install --locked cargo-deny; fi; }
 	cargo deny check
 
-ci: lint test test-wasm typecheck-js test-js audit ## Everything CI runs
+ci: lint test test-wasm typecheck-js test-js ## Every check CI runs except the audit, which is its own step
 
 clean: ## Remove build output
 	cargo clean

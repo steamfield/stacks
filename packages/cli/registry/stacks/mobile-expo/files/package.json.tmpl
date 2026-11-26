@@ -28,6 +28,7 @@
     "db:generate": "bun run --filter './apps/api' db:generate",
     "db:migrate": "bun run --filter './apps/api' db:migrate",
     "db:check": "bun run --filter './apps/api' db:check",
+    "audit": "bun audit",
     "check": "bun run lint && bun run typecheck && bun run test && bun run db:check && bun run bundle && bun run expo:check"
   }
 }

@@ -7,7 +7,7 @@ description: A Python command-line tool on Typer, packaged as a wheel with uv an
 tags: [python, cli, make]
 deps:
   runtime: [typer, pydantic, pydantic-settings, structlog]
-  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, twine]
+  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, twine, pip-audit]
 tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
@@ -41,6 +41,8 @@ commands:
   coverage: pytest with the coverage floor
   build: Build the wheel and sdist into dist/ and check their metadata with twine
   smoke: Install the wheel in a throwaway environment and run --version, --help and config show
+  ci: lint, typecheck, coverage, build and smoke, as CI runs them
+  audit: pip-audit over the locked dependencies (needs the network)
   clean: Remove caches, build and coverage output
 ---
 
@@ -83,7 +85,7 @@ The shipped Makefile (`make help`) holds every declared target. Mirror them in A
 Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage build smoke` with CI set.
+CI uses uv's setup action (cache on, Python from .python-version), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 
 ## Gotchas

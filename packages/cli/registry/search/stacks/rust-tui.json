@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "rust-tui",
   "source": {
-    "digest": "sha256:09b5d8c262e915c680ab7a27662543791f64943d35363645c29ab1b983563b20",
+    "digest": "sha256:eca77d57ff49d63944c892d5118666b03a266866fcf33a10d380e30e6d9fd708",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A full-screen Rust terminal app on Ratatui with a list and detail screen, snapshot-tested frames and a text and JSON fallback.",
   "description": "Start a keyboard-driven terminal app in Rust. Ratatui draws, crossterm reads keys through Ratatui's re-export, and the state that decides what's on screen is plain Rust changed only by actions, so tests drive it without a terminal. Every binding lives in one table that feeds the footer and help overlay. Each screen renders into Ratatui's test backend and is compared with an insta snapshot, the event loop runs headless over scripted keys, and the built binary is tested with no terminal, where it prints text or JSON instead of hanging. The task list is the example to replace with your own data.",

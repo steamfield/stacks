@@ -7,8 +7,16 @@
       "Bash(make test)",
       "Bash(make coverage)",
       "Bash(make build)",
+      "Bash(make ci)",
+      "Bash(make audit)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make dev-status)",
+      "Bash(make clean)",
       "Bash(make new-article *)",
-      "Bash(bunx vitest run *)"
+      "Bash(bunx vitest run *)",
+      "Bash(bunx prettier --check *)",
+      "Bash(bunx --no-install astro check)"
     ]
   }
 }

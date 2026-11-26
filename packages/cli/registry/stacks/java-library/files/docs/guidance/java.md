@@ -8,7 +8,7 @@ How Java code in this library is written. The shipped code follows every rule he
 - `.java-version` names the JDK major; the Makefile derives `JAVA_HOME` from it when unset, and `pom.xml`'s `java.version` must match it (`make env` checks).
 - Every version lives in a `<properties>` entry of `pom.xml`. JUnit comes from its BOM in `<dependencyManagement>`; any other library or plugin gets a `<name>.version` property. `src/it/consumer/pom.xml` reads the same properties as `@name@`.
 - Keep the build's checks: Enforcer's Java version and dependency convergence, `-Xlint:all` with `failOnWarning`, Error Prone with NullAway, doclint, Spotless, the JaCoCo floor and japicmp. A check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, never a weaker build.
-- Spotless (palantir-java-format) owns formatting, `src/it` included. Run `make fmt` after editing rather than formatting by hand.
+- Spotless (palantir-java-format) owns formatting, `src/it` included. Run `make format` after editing rather than formatting by hand.
 
 ## Dependencies
 

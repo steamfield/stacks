@@ -11,7 +11,7 @@ while IFS= read -r line; do
   [ -n "$line" ] || continue
   if printf '%s\n' "$line" | grep -Eq '(^|[[:space:]])(--help|--version|-h)([[:space:]]|$)'; then continue; fi
   if printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?(python[0-9.]*[[:space:]]+-m[[:space:]]+)?streamlit([[:space:]]+-[^[:space:]]+)*[[:space:]]+(run|hello)([[:space:]]|$)|^([^[:space:]]*/)?make([[:space:]]+[^[:space:]]+)*[[:space:]]+(dev|start)([[:space:]]|$)'; then
-    hook_deny "Streamlit keeps a server in the foreground. Run make test with AppTest, or let stacks verify serve and probe it."; exit 0
+    hook_deny "Streamlit keeps a server in the foreground. Run make test with AppTest, make dev-bg to serve it in the background, or let stacks verify serve and probe it."; exit 0
   fi
 done <<<"$lines"
 exit 0

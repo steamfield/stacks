@@ -50,7 +50,7 @@ commands:
   vuln: Check dependencies and the standard library for known vulnerabilities (govulncheck)
   smoke: Run --version, then start bin/ over stdio and list its tools
   call: List the tools, or call TOOL with ARGS (JSON), over stdio
-  ci: "Everything CI runs (fmt-check, tidy-check, lint, coverage, test-integration, vuln, build, smoke)"
+  ci: "Every offline check CI runs (fmt-check, tidy-check, lint, coverage, test-integration, build, smoke)"
   clean: Remove build and coverage output
 ---
 

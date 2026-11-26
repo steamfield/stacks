@@ -24,7 +24,8 @@ make dev-web    # the frontend alone in a browser, on mock data
 | `make test` | Vitest and cargo test |
 | `make e2e` | Playwright against the frontend on the mock transport |
 | `make bindings` | Regenerate the TypeScript bindings after changing a Rust command or type |
-| `make check` | Everything CI runs |
+| `make ci` | Every offline check CI runs, except the bundle build |
+| `make audit` | Dependency advisories for JS packages and crates (needs the network) |
 | `make build` | Production app bundle |
 
 Run `make help` for the full list.

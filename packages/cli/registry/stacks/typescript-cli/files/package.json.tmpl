@@ -14,6 +14,7 @@
     "coverage": "node node_modules/vitest/vitest.mjs run --coverage",
     "e2e": "bun run build && bun test ./e2e",
     "check": "bun run lint && bun run typecheck && bun run test && bun run e2e",
+    "audit": "bun audit",
     "clean": "rm -rf dist coverage logs .dev",
     "prepare": "bun scripts/prepare.ts"
   }

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint)",
+      "Bash(bun run format)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run test)",
+      "Bash(bun run test *)",
+      "Bash(bun run coverage)",
+      "Bash(bun run build)",
+      "Bash(bun run check)",
+      "Bash(bun run audit)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.dev.vars)", "Read(./.dev.vars.*)"]
+  }
+}

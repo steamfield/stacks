@@ -48,6 +48,7 @@ commands:
   coverage: Run Vitest with coverage
   e2e: Build, then run the Playwright tests against the Node server
   check: Run lint, typecheck, tests and e2e
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build, generated and test output
   prepare: Sync SvelteKit's generated types; outside CI, install git hooks and the Playwright browser
 ---
@@ -97,7 +98,7 @@ The database fragment replaces the service behind the existing async exports. Mo
 <!-- stacks:end -->
 
 <!-- stacks:when with=ci-github -->
-CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure.
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure. `bun run audit` runs as its own step after e2e: the audit needs the network, so it stays out of `check`.
 <!-- stacks:end -->
 
 ## Commands

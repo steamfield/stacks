@@ -10,6 +10,7 @@
 | --- | --- |
 | `make install` | Checks `ios/` and `android/` exist, runs `flutter pub get` |
 | `make fmt` / `make fmt-check` | `dart format` on lib, test, integration_test and tool |
+| `make lint-fix` | `dart fix --apply` for the analyzer's fixable findings, then `dart format` |
 | `make analyze` | `flutter analyze`; any finding fails, infos included |
 | `make test` | Unit and widget tests, no device |
 | `make coverage` | The same with lcov output in `coverage/lcov.info` |
@@ -17,6 +18,7 @@
 | `make test-ios` | `integration_test/` on that simulator |
 | `make build-ios` | Unsigned debug build for the simulator |
 | `make build-android` | Debug APK; needs the Android SDK |
+| `make audit` | osv-scanner over `pubspec.lock`; needs the network, so `make ci` leaves it out |
 | `make ci` | Everything verify runs on a Mac |
 
 One test file: `flutter test test/ui/home/home_screen_test.dart`. One test by name: `flutter test --plain-name 'retry'`.

@@ -5,7 +5,7 @@ kind: stack
 name: Java CLI (picocli)
 description: A Java command-line tool on picocli, built with Maven and make into one runnable jar. Layered TOML config (file, env, flags), one error table mapped to exit codes, text or JSON output, Logback logs to stderr, Error Prone and NullAway, and tests that run the packaged jar.
 tags: [java, cli, make]
-tools: [java, mvn, make, git]
+tools: [java, mvn, make, git, osv-scanner]
 decisions:
   - "JDK: the newest Java LTS release (default). Its major goes in `.java-version` and pom.xml's `<java.version>`; never an update release."
   - "Build tool: Maven through the committed wrapper (default). Gradle with the Kotlin DSL and a version catalog only when the user asks; then translate each Makefile target one for one and keep every check."
@@ -36,7 +36,7 @@ verify:
 commands:
   env: Check the JDK, the Maven wrapper and that every pom.xml version property is filled
   install: Check the toolchain and download dependencies and plugins
-  fmt: Format Java sources with Spotless (palantir-java-format)
+  format: Format Java sources with Spotless (palantir-java-format)
   fmt-check: Fail if Spotless would change any Java source
   lint: "Maven Enforcer: JDK version, dependency convergence, duplicate declarations"
   compile: Compile main and test code with Error Prone and NullAway
@@ -45,7 +45,8 @@ commands:
   test-integration: Integration tests (*IT) that run the packaged jar
   build: Runnable jar with every dependency inside, at target/<name>.jar
   smoke: Run the built jar's --help, --version and config show --json
-  ci: "Everything CI runs (fmt-check, enforcer, every test, coverage, the jar, smoke)"
+  audit: Check dependencies for known vulnerabilities (osv-scanner; needs the network)
+  ci: "Every offline check CI runs (fmt-check, enforcer, every test, coverage, the jar, smoke)"
   clean: Remove build output
 ---
 
@@ -64,7 +65,7 @@ No generator; nothing comes from a picocli or Maven archetype.
 1. **JDK.** Write the major of the newest Java LTS release to `.java-version` (the major only, one line) and to `<java.version>` in `pom.xml`. On macOS install it with `brew install openjdk@<major>`; it is keg-only and the Makefile finds it, so don't link it or rely on `mvn`'s JDK: Homebrew's `maven` depends on the newest `openjdk`, which is usually not an LTS.
 2. **Versions.** For every other empty `<*.version>` property, read the newest release from `https://repo.maven.apache.org/maven2/<groupId as a path>/<artifactId>/maven-metadata.xml`. Its `<release>` can be a milestone or release candidate (`-M1`, `-RC1`), so take the highest plain numeric version: `curl -s <url> | grep -o '<version>[0-9.]*</version>' | sort -V | tail -1`. The coordinates are in `pom.xml`. A BOM's property is the BOM's own version: `jackson.version` is `tools.jackson:jackson-bom`'s, `slf4j.version` is `org.slf4j:slf4j-bom`'s, `junit.version` is `org.junit:junit-bom`'s; Error Prone's is `com.google.errorprone:error_prone_core`'s.
 3. **Wrapper.** Run `mvn -N wrapper:wrapper -Dtype=only-script` once (the `mvn` from Homebrew's `maven`). It writes `mvnw`, `mvnw.cmd` and `.mvn/wrapper/maven-wrapper.properties` pinned to that Maven; commit them. From then on only `./mvnw` runs Maven.
-4. `make install`, then `make fmt-check lint compile coverage test-integration smoke`. Where an installed release rejects shipped code (a renamed Jackson or Logback API, a new Error Prone or NullAway finding), fix the code. Keep every compiler flag, Enforcer rule, the shade transformers and the coverage floor; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, as `Main.terminal` does. Run `make fmt` after editing.
+4. `make install`, then `make fmt-check lint compile coverage test-integration smoke`. Where an installed release rejects shipped code (a renamed Jackson or Logback API, a new Error Prone or NullAway finding), fix the code. Keep every compiler flag, Enforcer rule, the shade transformers and the coverage floor; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, as `Main.terminal` does. Run `make format` after editing.
 5. Fill the README's `stacks:fill` markers (`readme-filled` checks), link `docs/guidance/java.md` from AGENTS.md, then run `stacks verify` until it passes.
 
 ## Conventions
@@ -84,14 +85,14 @@ Unit tests (`*Test`, Surefire) sit beside each package: config precedence and va
 
 ## Commands
 
-The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compile, test, coverage, test-integration, build, smoke, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=AppTest` and `./mvnw -q verify -DskipUTs=true -Dit.test=JarIT`. Run the tool with `java -jar target/<name>.jar` after `make build`.
+The shipped Makefile (`make help`) has env, install, format, fmt-check, lint, compile, test, coverage, test-integration, build, smoke, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=AppTest` and `./mvnw -q verify -DskipUTs=true -Dit.test=JarIT`. Run the tool with `java -jar target/<name>.jar` after `make build`. `make audit` checks the resolved dependencies against the OSV database with osv-scanner; it needs the network, so it stays out of `make ci`.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`. Record in AGENTS.md that CI never runs `mvn`.
+**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`, then `make audit` as its own step after installing osv-scanner. Record in AGENTS.md that CI never runs `mvn`.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 
-**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make fmt` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
+**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make format` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
 <!-- stacks:end -->
 
 ## Gotchas

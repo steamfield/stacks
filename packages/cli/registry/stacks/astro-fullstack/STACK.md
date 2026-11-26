@@ -62,6 +62,7 @@ commands:
   test:watch: Watch Vitest tests
   coverage: Run Vitest with coverage
   check: Run lint, typecheck, tests and the build
+  audit: Check dependencies for known vulnerabilities with bun audit (needs the network)
   clean: Remove build, test and log output in every workspace
   prepare: Install project hooks outside CI
 ---
@@ -105,7 +106,7 @@ Read `docs/api-foundation.md` for lint, testing and development requirements.
 `vitest.config.ts` names `api`, `web` and `tooling` projects. The HTTP suite implements `docs/acceptance/astro-fullstack.md`: real Node listeners and the web handler, fresh layers, safe error bodies and logs, request ids, payload limits and static files. Extend it with new endpoints. The island's Testing Library tests replace only fetch and return contract-encoded bodies; never mock the client or contract. `bun run build` integrates every Astro route and bundles the Node entry. Keep the coverage floors in `docs/api-foundation.md`. Follow `docs/guidance/astro-fullstack/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and the build. No credentials are needed.
+CI sets up Bun from packageManager and Node from .node-version, installs frozen dependencies, then runs lint, typecheck, coverage and the build, then `bun run audit` as its own step: the audit needs the network, so it stays out of `check`. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands and gotchas

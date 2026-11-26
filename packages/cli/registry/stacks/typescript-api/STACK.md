@@ -68,7 +68,7 @@ A working API written against an earlier Effect release; Setup step 2 brings it 
 ## Setup
 
 1. Run the brief's install commands, then check peer ranges and pin `@types/node` to the `.node-version` major. Write Node LTS to `.node-version` and `engines.node`, and the current Bun to `packageManager`.
-2. Run `bun run check`. The shipped code and configs were written against an earlier Effect release: where the installed one renamed or moved an API, update the code to it, following `effect-api.md` to find the current mechanism. Never loosen a test or a coverage floor to fit.
+2. Run `bun run check`. The shipped code and configs were written against an earlier Effect release: where the installed one renamed or moved an API, update the code to it, following `docs/guidance/typescript-api/effect-api.md` to find the current mechanism. Never loosen a test or a coverage floor to fit.
 3. If the installed Node can't run `node src/platform/node.ts` without a flag, add it to the scripts and record it under Build workarounds with its removal condition.
 4. Fill README and AGENTS for this base before adding any resource.
 

@@ -8,6 +8,9 @@
       "Bash(make coverage)",
       "Bash(make build)",
       "Bash(make smoke)",
+      "Bash(make ci)",
+      "Bash(make audit)",
+      "Bash(make clean)",
       "Bash(uv run pytest *)",
       "Bash(uv run mypy *)",
       "Bash(uv run ruff check *)"

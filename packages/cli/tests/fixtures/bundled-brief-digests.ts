@@ -50,16 +50,20 @@
  * All six changed on 2026-11-26 for the stack audit's phase 1 (the core fragments' DX baseline
  * and python-api's dev-bg, audit and ci targets); they await a bench run. All six changed again
  * that day for the phase 1 boundary fixes (audit as its own CI step, dev-status, shared dev-bg).
+ * go-cli changed again that day when its ci command stopped running vuln; it awaits a bench run.
+ * astro-blog changed that day for its ci, audit and dev-bg commands, and python-react for
+ * react-vite's audit command and again for python-api's uvicorn[standard] Setup line; both
+ * await a bench run. astro-blog changed again that day when bash joined its tools.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:e14b163c59981da7f14a60714da7d33aff52f7a2bd0c9f5ec56f747e3bada041",
-  "astro-blog:sandbox": "sha256:cb156a9a016d90b8c252786f9eb3397ef133f9c43d354a9462825c440b5fe76d",
-  "go-cli:default": "sha256:be6e6bef9d7b104dff5e62492ad88b4cd18f74dfaf9e023123120f44363459e6",
-  "go-cli:sandbox": "sha256:91bd4eb5b3e1a226102844f6b3c23464928c49ef48e0822fa2a8566e389a4ea5",
-  "python-react:default": "sha256:35ea6a6003d0244c299a346b1fb4b844bda0ced422529462967f5013beab2fb8",
-  "python-react:sandbox": "sha256:c51e7829403afb896b3d5ee3414993c0dad1feeb9b5cb56d8d7338c9c2b5e2db",
+  "astro-blog:default": "sha256:61276df9a1da999d004385764310f6b21082b36ed51e40cdfbd231650fd5e022",
+  "astro-blog:sandbox": "sha256:8c1acbd07ef826a8511b267d8c11a559244b3a74247d4e46bc12c2632ce5c94a",
+  "go-cli:default": "sha256:37845700f47e2c38a4c50d7d7fff7770cf55e2c4c8f4cef61fca100e147d931f",
+  "go-cli:sandbox": "sha256:60c06a99ad834bdc9f53e66a9b0fc504aeb0fbf5cba8a4fbd10fafafc6f9fd13",
+  "python-react:default": "sha256:9690a52ff08fcad7a16a1f3cfecbdb4429811dfa596eaafc3a9bef4ecec216d1",
+  "python-react:sandbox": "sha256:bc6cbed072ac996e217262b3334134d53a1164e58e286b505658aaec185205a7",
 };

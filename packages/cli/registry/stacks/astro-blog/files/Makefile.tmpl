@@ -1,14 +1,15 @@
 # {{project_name}} development commands.
 #
 # A starting point: adapt the recipes, but keep the target names.
-# `stacks verify` calls install, lint, check, test, build and dev, and CI
-# should call the same targets.
+# `stacks verify` calls install, lint, check, test, build, dev-bg, dev-stop
+# and dev (dev-cycle runs scripts/dev-bg.sh status directly). CI calls
+# install, ci, then audit as its own step.
 
 PORT_WEB ?= 4321
 export PORT_WEB
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint check test coverage build preview new-article format clean
+.PHONY: help install dev dev-bg dev-stop dev-status lint check test coverage build ci audit preview new-article format clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -21,6 +22,15 @@ install: ## Install dependencies (frozen lockfile when CI is set)
 # (otherwise it backgrounds itself and exits). Stop a stray one: bunx astro dev stop
 dev: ## Astro dev server on PORT_WEB
 	bunx astro dev --port $(PORT_WEB) --ignore-lock
+
+dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one it started
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
 
 lint: ## Fail if Prettier would change any file
 	bunx prettier --check .
@@ -38,6 +48,11 @@ coverage: ## Tests with coverage
 build: ## Static production build into dist/
 	bunx astro build
 	node --test tests/build.test.mjs
+
+ci: lint check coverage build ## Every offline check CI runs (audit is its own step)
+
+audit: ## Check dependencies for known vulnerabilities with bun audit (needs the network)
+	bun audit
 
 preview: ## Serve the production build
 	bunx astro preview --port $(PORT_WEB) --ignore-lock

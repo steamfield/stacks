@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "python-library",
   "source": {
-    "digest": "sha256:6e674b2a18ed472b7f418ad595114d305e10b797c5abcb32432166aeedf8eae2",
+    "digest": "sha256:94b16c4dc08627e68796cdfa589de96c737b9500d1c58701f67d489ce6e25b4e",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A typed Python library other code imports, packaged for PyPI with uv, tested on the oldest and newest supported Python.",
   "description": "Write a Python library with a small typed public API, an exception hierarchy callers can catch in one place, and a py.typed marker so users get type hints. uv and make run ruff, strict mypy and pytest with Hypothesis properties on the newest and oldest supported Python, build the wheel and sdist, check them with twine and install the wheel in a clean environment. Replace the sample duration parser with your own API; uploading to PyPI stays a step you run yourself.",

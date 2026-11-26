@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "ios-swiftui",
   "source": {
-    "digest": "sha256:34e8f76d447049a1c0a709033fbe321ce123678579ec25e91d93267056809b36",
+    "digest": "sha256:b9720c29d21825cbce9dc1f546c93556e6aab7f240af3197471d5cab5fc0cf7e",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,

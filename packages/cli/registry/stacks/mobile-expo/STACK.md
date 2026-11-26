@@ -70,6 +70,7 @@ commands:
   db:migrate: Apply migrations
   db:check: Fail if the migration folder disagrees with the schema
   check: lint, typecheck, test, db:check, bundle, expo:check
+  audit: Check dependencies for published advisories (bun audit; needs the network)
 ---
 
 # Expo app + Hono API
@@ -111,14 +112,14 @@ Mobile tests render the real providers, query hook and hc client, with a fresh Q
 
 The root scripts are shipped and delegate to workspace scripts. `setup` installs dependencies, copies missing env and links mobile's env. `dev` runs the preserved owner-scoped supervisor, with output in `.logs/dev.log`; `dev:logs` and `sim:shot` aid simulator debugging. API/mobile scripts keep `dev` and `ios` names for the supervisor. Typechecking includes scripts and every workspace.
 
-`db:up` waits for Postgres; `db:down` stops it without deleting data. `db:check` validates migration metadata and generates against a temporary copy to detect uncommitted schema changes. `test` runs API, mobile and CI contracts; `check` adds lint, typecheck, migration checks, bundle and Expo dependency checks. Keep the names in Commands and AGENTS.md.
+`db:up` waits for Postgres; `db:down` stops it without deleting data. `db:check` validates migration metadata and generates against a temporary copy to detect uncommitted schema changes. `test` runs API, mobile and CI contracts; `check` adds lint, typecheck, migration checks, bundle and Expo dependency checks. `audit` runs `bun audit` over every workspace; it needs the network, so `check` leaves it out. Keep the names in Commands and AGENTS.md.
 <!-- stacks:when with=git-hooks -->
 
 If `scripts/prepare.ts` already runs `lefthook install`, don't add another install step. Pre-push starts Postgres before tests; document that it leaves Postgres running.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-CI jobs cover lint, typecheck, mobile, API and bundle. Use `test:api`/`test:mobile` (no coverage command is declared). API runs migrations and `db:check` against a Postgres service; mobile and bundle set up Node from `.node-version`. The bundle job also runs `expo:check`. Use `changes` outputs named `api`, `mobile`, `bundle`, from a paths-filter step named `filter`. Every filter covers shared config, lockfile and workflow paths; mobile and bundle also cover API/schema changes. Always-running `ci-ok` rejects failed/cancelled jobs and accepts intentional skips.
+CI jobs cover lint, typecheck, mobile, API and bundle. Use `test:api`/`test:mobile` (no coverage command is declared). API runs migrations and `db:check` against a Postgres service; mobile and bundle set up Node from `.node-version`. The bundle job also runs `expo:check`, then `bun run audit` as its own step (it needs the network). Use `changes` outputs named `api`, `mobile`, `bundle`, from a paths-filter step named `filter`. Every filter covers shared config, lockfile and workflow paths; mobile and bundle also cover API/schema changes. Always-running `ci-ok` rejects failed/cancelled jobs and accepts intentional skips.
 <!-- stacks:end -->
 
 ## Gotchas

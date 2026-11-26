@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "python-data",
   "source": {
-    "digest": "sha256:d8866f181040489e18c5b5efbe9dc7bd42109994be44e63ae739df7360bef16f",
+    "digest": "sha256:64251de9dd68af2f14cc4a370d12ccb109c08f8e4db9ead7c8894962f9967e48",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A Python data pipeline on Polars and DuckDB that turns raw CSV into clean Parquet, with tested transforms and marimo notebooks.",
   "description": "Start a Python data project where raw CSV files become clean Parquet. Polars transforms read every column with an explicit schema, reject bad rows with a reason and drop duplicates, and DuckDB runs SQL over the output. A small fixture with dirty rows runs end to end and is compared with expected frames. marimo notebooks, stored as Python, are linted, typechecked and executed by the checks. uv and make run everything; scheduling, cloud storage and dashboards are left for you to add.",

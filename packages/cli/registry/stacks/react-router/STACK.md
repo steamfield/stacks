@@ -49,6 +49,7 @@ commands:
   coverage: Run Vitest with coverage
   e2e: Build and run the health-route browser smoke
   check: Run lint, typecheck, tests, and the browser smoke
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove project build, test, and log output
   prepare: Install project hooks and local browser dependencies outside CI
 ---
@@ -89,7 +90,7 @@ The shipped files are the reference; read `effect-server.md`, `routes.md` and `t
 Add observable behavior tests beside new code. Use Node for server tests and happy-dom per component file; router links/forms need a routes stub. Test timers directly with TestClock when the Effect fragment is selected. E2e builds first, then serves Node on a separate port with Chromium, one worker, forbidOnly in CI and retained failure traces. It checks SSR, hydration, a form action and health without credentials.
 
 <!-- stacks:when with=ci-github -->
-CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, runs lint/typecheck/coverage, installs Chromium with system dependencies, and runs e2e. Upload Playwright reports and test results on failure.
+CI reads Bun from packageManager and Node from .node-version, installs frozen dependencies, runs lint/typecheck/coverage, installs Chromium with system dependencies, and runs e2e. Upload Playwright reports and test results on failure. `bun run audit` runs as its own step after e2e: the audit needs the network, so it stays out of `check`.
 <!-- stacks:end -->
 
 ## Commands

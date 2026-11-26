@@ -9,10 +9,20 @@ import { isStack, type Stack } from "../../registry/entry";
 import type { Check, Composed, View } from "../types";
 import { entryFile, finding } from "../view";
 
-/** Raised to "warning" once every bundled stack meets the baseline. */
+/**
+ * A gap is a note, so registries a test validates as bundled needn't carry the baseline; the
+ * bundled-registry test fails on any `dx-` finding in the real registry.
+ */
 export const DX_SEVERITY: Finding["severity"] = "note";
 
 const BASELINE_FRAGMENTS = ["agent-ops", "git-hooks", "ci-github"] as const;
+
+/**
+ * Stacks built on Apple's frameworks alone, with no package manager for an audit to check.
+ * Named rather than inferred: neither `deps` nor shipped manifests tell them apart (go-library
+ * declares neither, and govulncheck still checks its toolchain).
+ */
+const PLATFORM_ONLY: ReadonlyArray<string> = ["ios-objc", "ios-swiftui", "ios-uikit"];
 
 type Gap = Pick<Finding, "check" | "message">;
 
@@ -83,7 +93,11 @@ function commandGaps(stack: Stack, commands: Composition["commands"]): Gap[] {
       message:
         "declares no format or lint-fix command; add format to run the formatter and the linter's safe fixes, or add a separate lint-fix command",
     });
-  if (!Object.hasOwn(commands, "audit") && !Object.hasOwn(commands, "vuln"))
+  if (
+    !PLATFORM_ONLY.includes(stack.meta.id) &&
+    !Object.hasOwn(commands, "audit") &&
+    !Object.hasOwn(commands, "vuln")
+  )
     gaps.push({
       check: "dx-audit",
       message:
@@ -95,21 +109,22 @@ function commandGaps(stack: Stack, commands: Composition["commands"]): Gap[] {
 }
 
 function backgroundGap(stack: Stack, commands: Composition["commands"], usesMake: boolean) {
+  if (!usesMake) return undefined;
   const { tags, verify } = stack.meta;
   if (!(tags.includes("web") || tags.includes("api"))) return undefined;
   if (!verify.some(({ phase }) => phase === "serve")) return undefined;
 
   const missing = [
     {
-      name: usesMake ? "dev-bg" : "dev:bg",
+      name: "dev-bg",
       fix: "a background start that logs to logs/dev.log",
     },
     {
-      name: usesMake ? "dev-stop" : "dev:stop",
+      name: "dev-stop",
       fix: "a stop that signals only its process group",
     },
     {
-      name: usesMake ? "dev-status" : "dev:status",
+      name: "dev-status",
       fix: "a status command that exits 0 while the recorded server runs",
     },
   ].filter(({ name }) => !Object.hasOwn(commands, name));

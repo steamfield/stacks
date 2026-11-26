@@ -2,13 +2,13 @@
 #
 # A starting point: adapt the recipes to the project, but keep the target
 # names. `stacks verify` calls install, lint, typecheck, coverage, build and
-# smoke, and CI should call the same targets.
+# smoke. CI calls install, ci, then audit as its own step.
 
 BIN := {{project_slug}}
 TEST_WORKERS ?= auto
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage build smoke clean
+.PHONY: help install lint format typecheck test coverage build smoke ci audit clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -46,6 +46,13 @@ smoke: build ## Install the wheel in a throwaway environment and run the command
 	$$run --help >/dev/null && \
 	$$run --json config show \
 		| "$$tmp/venv/bin/python" -c 'import json, sys; json.load(sys.stdin)'
+
+ci: lint typecheck coverage build smoke ## Every check CI runs after install
+
+audit: ## pip-audit over uv.lock (needs the network)
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
 
 clean: ## Remove caches, build and coverage output
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage .coverage.* dist

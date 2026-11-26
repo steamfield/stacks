@@ -48,17 +48,18 @@
  * they are written and git-hooks returned to its default tier; it awaits a bench run.
  * The 0.15.0 version in the brief changed all six again on 2026-11-18.
  * All six changed on 2026-11-26 for the stack audit's phase 1 (the core fragments' DX baseline
- * and python-api's dev-bg, audit and ci targets); they await a bench run.
+ * and python-api's dev-bg, audit and ci targets); they await a bench run. All six changed again
+ * that day for the phase 1 boundary fixes (audit as its own CI step, dev-status, shared dev-bg).
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:fab1802f354569e8cc19daccad509645df92a30702c18cdd7d95960ae46b6b00",
-  "astro-blog:sandbox": "sha256:86b88648f170a9521718a8a22203f63047398578998acf2d52f6a7d22eaeef4a",
-  "go-cli:default": "sha256:7c45e9813c6c4712a144062807414fe189d4daae57f000f38ba092869a76ee14",
-  "go-cli:sandbox": "sha256:125c585bc48056082b91e35cda86efdf1a486b071f7ed219e4751a097280055d",
-  "python-react:default": "sha256:9b913688d3679461e65acb0111eb707b94e4f48f4a6d43d459fac74632f6061f",
-  "python-react:sandbox": "sha256:956fb80882988a37d54cc8bb03f9c94f446499e5b6848176a1af42d92fd3922e",
+  "astro-blog:default": "sha256:e14b163c59981da7f14a60714da7d33aff52f7a2bd0c9f5ec56f747e3bada041",
+  "astro-blog:sandbox": "sha256:cb156a9a016d90b8c252786f9eb3397ef133f9c43d354a9462825c440b5fe76d",
+  "go-cli:default": "sha256:be6e6bef9d7b104dff5e62492ad88b4cd18f74dfaf9e023123120f44363459e6",
+  "go-cli:sandbox": "sha256:91bd4eb5b3e1a226102844f6b3c23464928c49ef48e0822fa2a8566e389a4ea5",
+  "python-react:default": "sha256:35ea6a6003d0244c299a346b1fb4b844bda0ced422529462967f5013beab2fb8",
+  "python-react:sandbox": "sha256:c51e7829403afb896b3d5ee3414993c0dad1feeb9b5cb56d8d7338c9c2b5e2db",
 };

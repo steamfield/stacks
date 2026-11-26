@@ -3,11 +3,11 @@
   "kind": "fragment",
   "id": "agent-ops",
   "source": {
-    "digest": "sha256:1d5a51f199f654cde4cb2601d407260a9ce8ffe206da687f0f6d7485700b50af",
+    "digest": "sha256:6e643180a2e23be9f66b91395651d621448426f6922f21639b1e94a23374c2c7",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "Give every coding agent one AGENTS.md guide, with command and secret guards for Claude Code, Codex, Cursor and OpenCode.",
   "description": "Give coding assistants one project guide for commands, architecture and unfinished work, plus engineering guidance for tests, architecture, error handling and readable code that every agent reads from the first session. AGENTS.md is shared across agents, and each agent's adapter adds hooks that block only destructive commands and secret-shaped writes: Claude Code, Codex, Cursor and OpenCode. Claude Code and OpenCode also get lint feedback and formatting of the session's edits. Fill the guide from the project as built. These hooks guide local agent work and do not sandbox code or replace project tests.",

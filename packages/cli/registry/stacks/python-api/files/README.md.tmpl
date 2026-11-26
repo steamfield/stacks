@@ -21,11 +21,14 @@ Open http://localhost:8000/docs for the interactive API docs.
 | Command | What it does |
 |---|---|
 | `make dev` | Run the API with reload |
+| `make dev-bg` / `make dev-stop` | Run the API with reload in the background (output in `logs/dev.log`) / stop it |
 | `make start` | Run the API without reload |
 | `make lint` / `make format` | Check / fix lint and formatting |
 | `make typecheck` | mypy strict |
 | `make test` | Tests |
 | `make coverage` | Tests with the coverage floor |
+| `make ci` | Every check CI runs |
+| `make audit` | Check locked dependencies for known vulnerabilities |
 | `make openapi` | Rewrite `openapi.json` after a route or model change |
 
 Run `make help` for the full list.
@@ -34,7 +37,7 @@ Run `make help` for the full list.
 
 ```
 app/        FastAPI app: factory, config, routers, schemas, services
-scripts/    dump_openapi.py
+scripts/    dump_openapi.py, dev-bg.sh
 tests/      pytest suite against the real app
 ```
 

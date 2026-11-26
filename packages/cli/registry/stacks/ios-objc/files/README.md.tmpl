@@ -1,0 +1,26 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences: what this iPhone app does and who uses it. -->
+
+An iPhone app in Objective-C and UIKit, with one Swift file called from Objective-C. The Xcode project is generated from `project.yml` by XcodeGen.
+
+## Requirements
+
+<!-- stacks:fill Xcode version, minimum iOS version, and the clang-format and XcodeGen versions this project was set up with. -->
+
+- macOS with Xcode and an iPhone simulator runtime
+- `brew install xcodegen clang-format` (and `xcbeautify` for readable build output)
+
+## Getting started
+
+```sh
+make install   # check tools, generate the Xcode project
+make ci        # lint, build, analyze, unit tests, UI smoke tests
+open *.xcodeproj
+```
+
+`make help` lists every target. Set `SIM_DESTINATION` (for example `platform=iOS Simulator,id=<udid>`) to choose the simulator; otherwise one is picked from `xcrun simctl list`.
+
+## Layout
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map and [docs/guidance/objc.md](docs/guidance/objc.md) for the rules new code follows.

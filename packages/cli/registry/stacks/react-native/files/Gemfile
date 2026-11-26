@@ -1,0 +1,14 @@
+# CocoaPods for the iOS project. `bun run pods` runs it through Bundler, so every machine and CI
+# uses the release Gemfile.lock records. CocoaPods alone chooses its xcodeproj and ActiveSupport;
+# listing them here without bounds lets Bundler fall back to an ancient CocoaPods. A version
+# exclusion added to get green is recorded in AGENTS.md under Build workarounds.
+source "https://rubygems.org"
+
+gem "cocoapods"
+
+# Dropped from Ruby's default gems; CocoaPods and ActiveSupport still load them.
+gem "bigdecimal"
+gem "logger"
+gem "benchmark"
+gem "mutex_m"
+gem "nkf"

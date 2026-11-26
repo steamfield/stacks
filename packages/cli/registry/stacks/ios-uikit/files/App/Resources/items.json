@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "welcome",
+      "title": "Welcome",
+      "summary": "This list is read from items.json by BundledItemService and rendered with a diffable data source."
+    },
+    {
+      "id": "navigation",
+      "title": "Navigation",
+      "summary": "Tapping a row asks the view model, which calls back to AppCoordinator to push this screen."
+    },
+    {
+      "id": "configuration",
+      "title": "Configuration",
+      "summary": "Set APP_ITEMS_RESOURCE or APP_LOAD_DELAY_MS in the scheme to change where items come from and how long loading takes."
+    }
+  ]
+}

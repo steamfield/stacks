@@ -1,0 +1,46 @@
+# {{project_name}}
+
+<!-- stacks:fill: one or two sentences on what the app does and who it's for. -->
+
+An iPhone app in Swift and UIKit, built in code with a coordinator for navigation and MVVM screens.
+
+## Requirements
+
+- macOS with Xcode and an iOS simulator runtime <!-- stacks:fill: the Xcode, Swift and iOS deployment target versions recorded at setup -->
+- XcodeGen and SwiftLint (`brew install xcodegen swiftlint`); xcbeautify is optional (`brew install xcbeautify`)
+- swift-format comes with Xcode (`xcrun swift-format`)
+
+## Getting started
+
+```sh
+make install   # check the toolchain and generate the Xcode project
+make build     # build the app and test bundles for the simulator
+make test      # unit tests
+make test-ui   # UI smoke tests
+open {{project_slug}}.xcodeproj
+```
+
+The `.xcodeproj` is generated from `project.yml` and not committed. Change targets and settings in `project.yml`, then run `make project`.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `make install` | Check the toolchain and generate the Xcode project |
+| `make project` | Regenerate the Xcode project from `project.yml` |
+| `make build` | Build the app and both test bundles for a simulator; warnings fail |
+| `make lint` | SwiftLint with warnings as errors |
+| `make fmt` | Format Swift sources with swift-format |
+| `make fmt-check` | Fail on any swift-format difference or finding |
+| `make test` | Unit tests |
+| `make test-ui` | UI smoke tests on a simulator |
+| `make ci` | Everything CI runs |
+| `make clean` | Remove build output and the generated project |
+
+Set `SIM_UDID` (or a full `SIM_DESTINATION`) to choose the simulator; otherwise the targets pick an available iPhone.
+
+## Docs
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Configuration](docs/configuration.md)
+- [Swift and UIKit guidance](docs/guidance/swift.md)

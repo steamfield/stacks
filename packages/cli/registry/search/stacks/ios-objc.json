@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "ios-objc",
+  "source": {
+    "digest": "sha256:4d3200ab2f167d697c381d1de6c517a905c70eb678aa9edc60f9926e2788215b",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-26"
+  },
+  "summary": "A native iPhone app in Objective-C and UIKit, for teams maintaining or extending Objective-C code, with strict warnings, the static analyzer and XCTest.",
+  "description": "Start an iPhone app in modern Objective-C: ARC, nullability annotations, lightweight generics and designated initializers, with UIKit views built in code on the scene lifecycle. XcodeGen generates the Xcode project, every compiler warning fails the build, and the Clang static analyzer is a check of its own. One screen loads a greeting through a service protocol and shows loading, content and error states, with an error domain that maps each failure to a message. XCTest covers the logic and the screen, an XCUITest smoke test launches the app, clang-format checks style, and one Swift file shows how Objective-C and Swift call each other. It has no backend, accounts or storage.",
+  "seoDescription": "An Objective-C iPhone app recipe: UIKit in code, XcodeGen, nullability, warnings as errors, Clang static analyzer, XCTest, XCUITest and a Swift interop seam.",
+  "projectExamples": [
+    {
+      "title": "Field inspection checklist",
+      "description": "An iPhone checklist app for a team whose inspection tools are already written in Objective-C, showing today's checklist and a clear message when it can't be loaded."
+    },
+    {
+      "title": "Barcode lookup for a C++ scanning library",
+      "description": "An iPhone app that wraps a company's existing C++ barcode decoder through Objective-C and shows the product a scan matches."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for an iPhone app written in Objective-C, Apple's older programming language, using UIKit, the classic framework for iPhone screens.",
+    "goodAt": [
+      "Teams that already maintain Objective-C apps and libraries",
+      "Catching bugs early with strict compiler warnings and Apple's code analyzer",
+      "Adding Swift to an Objective-C app one file at a time"
+    ],
+    "notGoodAt": [
+      "Starting a new iPhone app; choose the SwiftUI or UIKit Swift stack.",
+      "Android or cross-platform apps; choose a Flutter, React Native or Expo stack."
+    ]
+  },
+  "platforms": [
+    "ios",
+    "mobile"
+  ],
+  "productKinds": [
+    "mobile-app"
+  ],
+  "languages": [
+    "objective-c",
+    "swift"
+  ],
+  "requests": [
+    "start an Objective-C iPhone app with UIKit views built in code",
+    "obj-c iOS project with nullability annotations and warnings as errors",
+    "fail the build when the clang static analyzer finds a bug",
+    "Objective-C iPhone app that calls Swift through a bridging header",
+    "objc UIKit app with XCTest unit tests and an XCUITest smoke test"
+  ],
+  "useCases": [
+    "maintaining Objective-C codebases",
+    "extending older Objective-C apps",
+    "wrapping C or C++ libraries for iPhone"
+  ],
+  "synonyms": [
+    "Objective-C",
+    "objc",
+    "obj-c",
+    "Cocoa Touch",
+    "clang-format",
+    "XcodeGen",
+    "Clang static analyzer",
+    "bridging header"
+  ],
+  "goodFor": [
+    "strict compiler warnings",
+    "static analysis",
+    "bridging headers"
+  ],
+  "notFor": [],
+  "caveats": [
+    "Needs macOS with Xcode and an iPhone simulator; nothing builds or tests on Linux.",
+    "Uses only Apple frameworks; CocoaPods or Swift packages are added by hand."
+  ]
+}

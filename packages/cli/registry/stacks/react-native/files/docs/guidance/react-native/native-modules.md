@@ -1,0 +1,39 @@
+# Native modules and native projects
+
+## Who owns what
+
+This is a bare React Native project: `ios/` and `android/` are committed and belong to the project. They were generated once from React Native's template. After that:
+
+- `ios/<Name>.xcodeproj/project.pbxproj` changes only through Xcode or `pod install`. A hand edit to it, the workspace, `ios/Pods/` or `Podfile.lock` breaks in ways a build may not show until later, so the Claude hook denies those edits.
+- `ios/Podfile` is edited by hand when a pod needs an option (the AppInfo test spec line is the example). Run `bun run pods` after every change and commit `Podfile.lock` and any project file changes together.
+- `Info.plist`, `AppDelegate.swift`, `SceneDelegate.swift` and the Android sources are ordinary files you may edit.
+
+## The AppInfo module
+
+| File | Role |
+| --- | --- |
+| `modules/app-info/src/NativeAppInfo.ts` | The spec. Codegen reads it during `pod install` and generates `NativeAppInfoSpec` |
+| `modules/app-info/ios/AppInfoReader.swift` | The logic, in Swift, taking its inputs through the initializer so tests can build one |
+| `modules/app-info/ios/RCTAppInfo.mm` | Objective-C++ glue: conforms to the generated protocol, calls Swift, returns the JSI binding |
+| `modules/app-info/ios/RCTAppInfo.h` | Plain Objective-C header, so Swift and the tests can import the pod's module |
+| `modules/app-info/AppInfo.podspec` | The local pod, with `install_modules_dependencies` and an XCTest test spec |
+| `modules/app-info/package.json` | `codegenConfig`: the spec directory and the `AppInfo` to `RCTAppInfo` mapping |
+| `react-native.config.js` | Points autolinking and codegen at the module |
+
+The Objective-C++ file exists because a Turbo Module's binding is C++. Keep it thin: one method per spec method that calls Swift and resolves or rejects.
+
+## Adding a second module
+
+1. Copy `modules/app-info/` to `modules/<name>/`. Rename the podspec, the pod name, `codegenConfig.name`, the spec file (`Native<Name>.ts`) and the module name in `moduleName` and `TurboModuleRegistry.get`.
+2. Add it to `react-native.config.js` under `dependencies`.
+3. Add `src/native/<name>.ts` with a timeout, a zod schema and `AppError` mapping, plus its tests.
+4. Add the test spec line to `ios/Podfile` if the module has XCTest cases, and a scheme for it in `scripts/ios.sh test`.
+5. Run `bun run pods`, then `bun run ios:build` and `bun run ios:test`.
+
+## Android
+
+The spec uses `TurboModuleRegistry.get`, so the Android build runs and the screen shows the unavailable message. An Android implementation goes in `modules/<name>/android/` (a Kotlin module and package with its own `build.gradle`, plus `codegenConfig.android.javaPackageName`). Autolinking picks it up from the same `react-native.config.js` entry. Add an Android build step where the Android SDK and a JDK are installed when you do.
+
+## Turbo Modules and the New Architecture
+
+The generated project runs the New Architecture. Modules are Turbo Modules generated from a spec; don't write legacy `RCT_EXPORT_METHOD` bridge modules. Methods that touch UIKit must hop to the main queue themselves, since Turbo Module methods run off the main thread.

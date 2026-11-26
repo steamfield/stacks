@@ -1,0 +1,67 @@
+# XcodeGen spec: the source of truth for the Xcode project. `make project` generates
+# {{project_slug}}.xcodeproj from it; the .xcodeproj is gitignored and never edited by hand.
+name: {{project_slug}}
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    # stacks:fill: the iOS deployment target from the decisions, as major.minor.
+    iOS: "stacks:fill"
+settings:
+  base:
+    # stacks:fill: the Swift language mode, the newest the installed compiler supports.
+    SWIFT_VERSION: "stacks:fill"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CODE_SIGN_STYLE: Automatic
+targets:
+  App:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    settings:
+      base:
+        APP_DISPLAY_NAME: "{{project_name}}"
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.{{project_slug}}
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+  AppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: App
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.{{project_slug}}.tests
+  AppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: AppUITests
+    dependencies:
+      - target: App
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.{{project_slug}}.uitests
+        TEST_TARGET_NAME: App
+schemes:
+  App:
+    build:
+      targets:
+        App: all
+    test:
+      gatherCoverageData: true
+      coverageTargets:
+        - App
+      targets:
+        - AppTests
+        - AppUITests

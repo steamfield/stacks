@@ -88,6 +88,8 @@ Layout added across the run:
 
 ### Phase 1: the index revalidates and reports itself (MVP)
 
+Scaffold: 3a0594df
+
 Demo: with a local server as `STACKS_INDEX_URL` (untrusted, so no signature check), `bun run dev doctor --json` shows `commit`, `generatedAt`, `minCli` and `etag`. The signature outcome is shown by `remote-index-refresh.test.ts`, which sets the official URL and a test key through `tests/helpers/remote-index.ts::remoteCli`. `bun run dev list --json` against an index where every entry is drifted finishes inside the budget. `bun run build:index --unsigned --out /tmp/x --previous none` fails without `registry.json`.
 
 Test cases:
@@ -114,9 +116,9 @@ Test cases:
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/src/core/cached-fetch.ts, packages/cli/src/core/registry/remote/service.ts, packages/cli/src/core/registry/remote/verification.ts, packages/cli/src/schemas/remote-index.ts, packages/cli/src/core/doctor.ts, packages/cli/tests/remote-index.test.ts, packages/cli/tests/cached-fetch.test.ts | contracts, packages/cli/tests/helpers/remote-index.ts | packages/cli/tests/remote-index-refresh.test.ts, packages/cli/tests/doctor-index.test.ts | opus | pending | | refresh and doctor tests pass; typecheck clean |
-| b | M | packages/cli/registry/registry.json, packages/cli/scripts/build-index.ts, packages/cli/src/core/validate/checks/registry-meta.ts | contracts, packages/cli/src/core/validate/checks/deps.ts | packages/cli/tests/registry-meta.test.ts, packages/cli/tests/build-index-min-cli.test.ts | sonnet | pending | | registry-meta and build-index tests pass; `build-index*.test.ts` still pass |
-| c | M | packages/cli/src/core/registry/remote/merge.ts, packages/cli/src/core/search/report.ts | contracts, packages/cli/src/core/registry/registry.ts | packages/cli/tests/remote-index-bounded.test.ts, packages/cli/tests/search-hint-index.test.ts | opus | pending | | bounded and hint tests pass; `remote-index.test.ts`, `workspace-index.test.ts`, `search-api-index.test.ts` still pass |
+| a | M | packages/cli/src/core/cached-fetch.ts, packages/cli/src/core/registry/remote/service.ts, packages/cli/src/core/registry/remote/verification.ts, packages/cli/src/schemas/remote-index.ts, packages/cli/src/core/doctor.ts, packages/cli/tests/remote-index.test.ts, packages/cli/tests/cached-fetch.test.ts, packages/cli/tests/cached-fetch-persistence.test.ts | contracts, packages/cli/tests/helpers/remote-index.ts | packages/cli/tests/remote-index-refresh.test.ts, packages/cli/tests/doctor-index.test.ts | opus | running | foreman/idx-1a | refresh and doctor tests pass; typecheck clean |
+| b | M | packages/cli/registry/registry.json, packages/cli/scripts/build-index.ts, packages/cli/src/core/validate/checks/registry-meta.ts | contracts, packages/cli/src/core/validate/checks/deps.ts | packages/cli/tests/registry-meta.test.ts, packages/cli/tests/build-index-min-cli.test.ts | sonnet | running | foreman/idx-1b | registry-meta and build-index tests pass; `build-index*.test.ts` still pass |
+| c | M | packages/cli/src/core/registry/remote/merge.ts, packages/cli/src/core/search/report.ts, packages/cli/src/core/search/run.ts, packages/cli/src/commands/search.ts, packages/cli/src/core/registry/registry.ts, packages/cli/src/commands/add.ts, packages/cli/tests/add-registry-scope.test.ts | contracts | packages/cli/tests/remote-index-bounded.test.ts, packages/cli/tests/search-hint-index.test.ts | opus | running | foreman/idx-1c | bounded and hint tests pass; `remote-index.test.ts`, `workspace-index.test.ts`, `search-api-index.test.ts` still pass |
 
 #### Lane a brief
 

@@ -2,11 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(bun run lint)",
+      "Bash(bun run format)",
       "Bash(bun run typecheck)",
       "Bash(bun run test)",
       "Bash(bun run build)",
       "Bash(bun run check)",
-      "Bash(bun run decks *)"
+      "Bash(bun run audit)",
+      "Bash(bun run clean)",
+      "Bash(bun run decks *)",
+      "Bash(bunx biome check *)"
     ]
   }
 }

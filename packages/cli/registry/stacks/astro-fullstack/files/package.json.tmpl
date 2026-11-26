@@ -23,6 +23,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "audit": "bun audit",
     "clean": "rm -rf apps/api/dist apps/web/dist apps/web/.astro coverage logs",
     "prepare": "bun scripts/prepare.ts"
   }

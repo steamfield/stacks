@@ -15,8 +15,9 @@ test-results/
 .env.*
 !.env.example
 
-# Logs
+# Logs, and the background server's output and pid file (make dev-bg)
 *.log
+/logs/
 
 # Editors and OS
 .idea/

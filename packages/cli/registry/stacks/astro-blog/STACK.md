@@ -28,6 +28,10 @@ verify:
   - { name: check, layer: typecheck, run: make check }
   - { name: test, layer: test, run: make test }
   - { name: build, layer: build, run: make build }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: web
     phase: serve
     layer: serve
@@ -40,11 +44,16 @@ verify:
 commands:
   install: Install dependencies (frozen lockfile when CI is set)
   dev: Astro dev server on PORT_WEB
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
+  dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   lint: Fail if Prettier would change any file
   check: Type-check and validate content (astro check)
   test: Unit and component tests
   coverage: Tests with coverage
   build: Static production build into dist/
+  ci: "Every offline check CI runs (lint, check, coverage, build)"
+  audit: Check dependencies for known vulnerabilities with bun audit (needs the network)
   preview: Serve the production build
   new-article: Scaffold a draft post from SLUG and TITLE
   format: Format with Prettier
@@ -83,10 +92,12 @@ New posts go in `src/content/blog/`; reusable UI in `src/components/` as React, 
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, dev, lint, check, test, coverage, build, preview, new-article, format and clean. Keep the names and mirror them in AGENTS.md.
+The shipped Makefile (`make help`) has install, dev, dev-bg, dev-stop, dev-status, lint, check, test, coverage, build, ci, audit, preview, new-article, format and clean. Keep the names and mirror them in AGENTS.md. `make ci` runs lint, check, coverage and build; `make audit` runs `bun audit`, which needs the network, so it stays out of `ci`.
+
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make dev` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make dev` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 <!-- stacks:when with=ci-github -->
 
-CI reads Bun from `packageManager` and Node from `.node-version`, then runs `make install` (frozen under CI), `make lint`, `make check`, `make coverage` (or `make test` if coverage was declined) and `make build`.
+CI reads Bun from `packageManager` and Node from `.node-version`, then runs `make install` (frozen under CI) and `make ci`, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 <!-- stacks:when with=posthog -->
 
@@ -107,6 +118,7 @@ Include `.claude/hooks/` in Astro checking. Run project tests with Vitest on Nod
 - `make check` refuses missing `@astrojs/check` or TypeScript before invoking Astro, whose install prompt can exit successfully without checking.
 - `@astrojs/check` can lag a TypeScript release. Resolve the newest TypeScript inside the checker's supported peer range, and remove the workaround when the checker supports the new release.
 - Bare `vitest` watches in a TTY; keep `vitest run` in recipes.
+- `make dev-bg` overwrites `logs/dev.log`, and so does the `dev-cycle` verify step, which runs dev-bg then dev-stop. Copy the log first if you still need the last run's output.
 - Astro config runs before `astro:content`; don't query the collection there.
 - Delete `.astro/` if collection types look stale. Only `PUBLIC_` env vars reach browser bundles; draft visibility uses `import.meta.env.DEV`.
 - satori supports flexbox and local TTF, OTF or WOFF fonts, not grid or WOFF2. See the development doc before enabling generated images.

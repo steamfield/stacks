@@ -59,10 +59,38 @@ jobs:
           path: |
             packages/cli/coverage/
             packages/cli/logs/
-  # The one required check: green only when check and every CLI shard passed.
+  # The registry declares the oldest CLI that can read it (registry/registry.json, minCli). Validate
+  # it with that published CLI, so content that needs a newer CLI can't ship under an older minCli.
+  # Between raising minCli and releasing that version, it isn't on npm yet: skip with a notice.
+  registry-min-cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - name: Validate the registry with the CLI at its minCli
+        run: |
+          min_cli="$(jq -er '.minCli' packages/cli/registry/registry.json)"
+          if ! npm view "@steamfield/stacks@${min_cli}" version --fetch-timeout=30000 | grep -qx "${min_cli}"; then
+            echo "::notice title=registry-min-cli::@steamfield/stacks@${min_cli} is not on npm yet; skipped"
+            exit 0
+          fi
+          STACKS_REGISTRY_DIR="$PWD/packages/cli/registry" \
+            npx -y "@steamfield/stacks@${min_cli}" validate --json > validate.json
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: diagnostics-registry-min-cli
+          path: validate.json
+  # The one required check: green only when every job above passed.
   ci-ok:
-    needs: [check, cli-tests]
+    needs: [check, cli-tests, registry-min-cli]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.check.result }}" = success && test "${{ needs.cli-tests.result }}" = success
+      - run: >-
+          test "${{ needs.check.result }}" = success &&
+          test "${{ needs.cli-tests.result }}" = success &&
+          test "${{ needs.registry-min-cli.result }}" = success

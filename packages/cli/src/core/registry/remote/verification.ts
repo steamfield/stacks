@@ -6,10 +6,17 @@ import { type INDEX_PUBLIC_KEYS, RegistryIndex, SignedIndex } from "@steamfield/
 import { Effect, Schema } from "effect";
 import { VERSION } from "../../../version";
 
-type RemoteOutcome = "ok" | "timeout" | "network" | "not_found" | "invalid" | "unsupported";
+type RemoteOutcome =
+  | "ok"
+  | "timeout"
+  | "network"
+  | "not_found"
+  | "invalid"
+  | "signature"
+  | "unsupported";
 /**
- * The cache records decode and signature failures as `invalid` and incompatibility as
- * `unsupported` so fallback retains the reason.
+ * The cache records decode failures as `invalid`, a failed signature check (unknown key or bad
+ * signature) as `signature` and incompatibility as `unsupported`, so fallback retains the reason.
  */
 export type RemoteFailure = Exclude<RemoteOutcome, "ok">;
 
@@ -20,7 +27,7 @@ const base64Bytes = (text: string) =>
   Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
 
 /** True when this CLI's version is at least `minCli`; a malformed `minCli` is never met. */
-function cliMeetsMinimum(minCli: string): boolean {
+export function cliMeetsMinimum(minCli: string): boolean {
   if (!/^\d+\.\d+\.\d+$/.test(minCli)) return false;
   const minimum = minCli.split(".").map(Number);
   const current = VERSION.split(".").map(Number);

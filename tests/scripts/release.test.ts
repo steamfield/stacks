@@ -44,6 +44,7 @@ ${KEYS.map((key) => `  "${key}": "${stale}",`).join("\n")}
 };
 `,
   "packages/cli/CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## [0.9.0] - 2026-11-14\n",
+  "packages/cli/registry/registry.json": '{ "formatVersion": 1, "minCli": "0.8.0" }\n',
 };
 
 // `bun install` succeeds; `bun run dev validate --brief <stack> [--sandbox] --json` prints a brief.
@@ -154,6 +155,34 @@ describe("bun run release", () => {
     expect(git(origin, "tag", "--list").stdout).toBe("");
   });
 
+  it("leaves the registry's minCli alone without --min-cli", () => {
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+    );
+    const result = release("0.9.1");
+    expect(result.status, result.stderr).toBe(0);
+    expect(read("packages/cli/registry/registry.json")).toBe(
+      files["packages/cli/registry/registry.json"],
+    );
+  });
+
+  it.each([
+    ["0.9.1", "--min-cli"],
+    ["--min-cli", "0.9.1"],
+  ])("raises the registry's minCli to the release with %s %s", (...args) => {
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+    );
+    const result = release(...args);
+    expect(result.status, result.stderr).toBe(0);
+    expect(read("packages/cli/registry/registry.json")).toBe(
+      '{ "formatVersion": 1, "minCli": "0.9.1" }\n',
+    );
+    expect(read("packages/cli/package.json")).toContain('"version": "0.9.1"');
+  });
+
   it("allows an edited changelog as the only dirt, so the release is one commit", () => {
     write(
       "packages/cli/CHANGELOG.md",
@@ -217,6 +246,26 @@ describe("bun run release", () => {
 
     it.each(["v0.9.1", "0.9", "0.9.1-rc.1", ""])("for the argument %j", (argument) => {
       refuses(release(...(argument === "" ? [] : [argument])), "usage: bun run release");
+    });
+
+    it.each([
+      ["0.9.1", "--min-cli", "--min-cli"],
+      ["0.9.1", "--minCli"],
+      ["0.9.1", "0.9.2"],
+      ["--min-cli"],
+    ])("for the arguments %j", (...args) => {
+      refuses(release(...args), "usage: bun run release");
+    });
+
+    it("with --min-cli when the registry has no registry.json", () => {
+      write(
+        "packages/cli/CHANGELOG.md",
+        `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+      );
+      git(repo, "rm", "-q", "packages/cli/registry/registry.json");
+      git(repo, "commit", "-qm", "no registry metadata");
+      refuses(release("0.9.1", "--min-cli"), "--min-cli needs packages/cli/registry/registry.json");
+      expect(read("packages/cli/package.json")).toContain('"version": "0.9.0"');
     });
   });
 

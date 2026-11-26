@@ -14,7 +14,12 @@ import { Context, Effect, FileSystem, Layer, Option, Path, Schema, Scope } from 
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../../../config";
 import type { RemoteStatus } from "../../../schemas/remote-index";
-import { type Cache, type CachedResource, makeCachedFetch } from "../../cached-fetch";
+import {
+  type Cache,
+  type CachedResource,
+  makeCachedFetch,
+  type Revalidation,
+} from "../../cached-fetch";
 import { indexRoot } from "../roots";
 import type { IndexRegistryRoot } from "../types";
 import { directoryMatches, extractBundle } from "./files";
@@ -171,6 +176,12 @@ type IndexAccess = {
   readonly bundle: (entry: IndexEntry) => Effect.Effect<Option.Option<string>>;
   /** The cache state for `doctor`, with no request. */
   readonly status: Effect.Effect<RemoteStatus>;
+  /**
+   * Revalidates the index within `INDEX_REFRESH_DEADLINE_MS`, ignoring backoff, once per
+   * invocation: later calls return the same outcome, and afterwards `current` serves what refresh
+   * left without a request. With no index root configured it is `{ source: "none" }`.
+   */
+  readonly refresh: Effect.Effect<Revalidation>;
 };
 
 export type ConfiguredIndex = IndexAccess & { readonly root: IndexRegistryRoot };
@@ -182,6 +193,7 @@ function unconfiguredIndex(offline: AppConfig["Service"]["offline"]): Unconfigur
     current: Effect.succeed(Option.none()),
     bundle: () => Effect.succeed(Option.none()),
     status: offline.pipe(Effect.map(offStatus)),
+    refresh: Effect.succeed({ source: "none" }),
   };
 }
 
@@ -225,6 +237,7 @@ export class RemoteIndex extends Context.Service<
           current: cached.current(),
           status: readStatus(access, config.offline, verification.isDefaultUrl),
           bundle: (entry) => cachedBundle({ ...access, temporary }, entry),
+          refresh: Effect.die(new Error("not implemented: RemoteIndex.refresh")),
         };
       }),
     );

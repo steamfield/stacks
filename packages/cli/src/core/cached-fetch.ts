@@ -3,7 +3,7 @@
  * tolerated because callers can run without the resource. The cache ignores a previous URL so its data
  * cannot be attributed to the current one.
  */
-import { Clock, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
+import { Clock, type Duration, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
 import { HttpClient } from "effect/http";
 import {
   CACHE_FRESHNESS_MS,
@@ -37,6 +37,17 @@ type Loader<A, R = never> = (
   request: Request,
 ) => Effect.Effect<Loaded<A>, CacheFailure, R | Scope.Scope>;
 
+/**
+ * What `CachedResource.revalidate` left as the body: a new one (`fresh`), the stored one confirmed
+ * by a 304 (`revalidated`), the stored one after a failed request (`cached`, with `reason` and
+ * `cachedAt`), or nothing usable (`none`, with `reason` when a request failed or wasn't allowed).
+ */
+export type Revalidation = {
+  source: "fresh" | "revalidated" | "cached" | "none";
+  reason?: CacheFailure | "offline";
+  cachedAt?: string;
+};
+
 export type CachedResource<A> = {
   /** The cached body while fresh; otherwise a request, falling back to the cached body. */
   current: () => Effect.Effect<Option.Option<A>>;
@@ -48,6 +59,15 @@ export type CachedResource<A> = {
    */
   get: <B, R>(at: string, read: Decoder<B, R>) => Effect.Effect<Option.Option<Loaded<B>>, never, R>;
   status: Effect.Effect<CacheState>;
+  /**
+   * Requests the resource now whatever its age, with `If-None-Match` when a body and an ETag are
+   * stored. `ignoreBackoff` skips the URL's recorded backoff, and a failure records its outcome
+   * but no backoff. Never fails: the result says which body `current` and `cached` now serve.
+   */
+  revalidate: (options: {
+    deadline: Duration.Duration;
+    ignoreBackoff: boolean;
+  }) => Effect.Effect<Revalidation>;
 };
 
 const emptyState = (url: string): CacheState => ({
@@ -214,5 +234,7 @@ export const makeCachedFetch = Effect.fn("cachedFetch.make")(function* <A>(optio
 
   const status = loadSaved.pipe(Effect.map(() => ({ ...state })));
   const cached = loadSaved.pipe(Effect.map(() => body));
-  return { current, cached, get, status } satisfies CachedResource<A>;
+  const revalidate: CachedResource<A>["revalidate"] = () =>
+    Effect.die(new Error("not implemented: CachedResource.revalidate"));
+  return { current, cached, get, status, revalidate } satisfies CachedResource<A>;
 });

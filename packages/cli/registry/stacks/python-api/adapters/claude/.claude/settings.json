@@ -13,6 +13,7 @@
       "Bash(make check-openapi)",
       "Bash(make dev-bg)",
       "Bash(make dev-stop)",
+      "Bash(make clean)",
       "Bash(uv run pytest *)"
     ]
   }

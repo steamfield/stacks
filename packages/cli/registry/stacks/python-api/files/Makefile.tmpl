@@ -40,12 +40,12 @@ ci: lint typecheck coverage check-openapi ## Every check CI runs after install
 audit: ## pip-audit over uv.lock (needs the network)
 	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
 	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
-	uvx pip-audit --disable-pip --require-hashes --requirement "$$tmp"
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
 
 dev: ## Uvicorn with reload on PORT_API
 	uv run uvicorn app.main:app --reload --no-access-log --host $(API_HOST) --port $(PORT_API)
 
-dev-bg: ## make dev in the background, logging to logs/dev.log; reuses a healthy server
+dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one it started
 	@bash scripts/dev-bg.sh start
 
 dev-stop: ## Stop the server dev-bg started (its whole process group)

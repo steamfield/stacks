@@ -7,7 +7,7 @@ description: A Python JSON API on FastAPI and Uvicorn with no frontend, managed 
 tags: [python, api, make]
 deps:
   runtime: [fastapi, uvicorn, pydantic, pydantic-settings, structlog]
-  dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx, asgi-lifespan]
+  dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx, asgi-lifespan, pip-audit]
 tools: [uv, make, git, bash, curl]
 merge: [.claude/settings.json]
 decisions:
@@ -48,7 +48,7 @@ commands:
   ci: lint, typecheck, coverage and check-openapi, as CI runs them
   audit: pip-audit over the locked dependencies (needs the network)
   dev: Uvicorn with reload on PORT_API
-  dev-bg: make dev in the background, logging to logs/dev.log; reuses a server that already answers /healthz
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
   dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
   start: Uvicorn without reload on PORT_API, as production runs it
   openapi: Write the app's OpenAPI spec to openapi.json
@@ -85,7 +85,7 @@ Extend `tests/test_http.py` with each new endpoint's success, validation and err
 
 ## Commands
 
-To run the API while you work, use `make dev-bg`: it returns once `/healthz` answers, and the server's output goes to `logs/dev.log`. Stop it with `make dev-stop`. Don't `kill` or `pkill` Uvicorn: the reload supervisor and its worker are separate processes, and stopping one leaves the other holding the port.
+Run the API with `make dev-bg` and stop it with `make dev-stop`. Don't `kill` or `pkill` Uvicorn: the reload supervisor and its worker are separate processes, and stopping one leaves the other holding the port.
 
 <!-- stacks:when with=git-hooks -->
 If `make install` already runs `lefthook install`, don't add another install step. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
@@ -94,7 +94,7 @@ If `make install` already runs `lefthook install`, don't add another install ste
 CI uses uv's setup action (cache on, Python read from `.python-version`), then `make install ci` with CI set.
 <!-- stacks:end -->
 <!-- stacks:when with=postgres -->
-The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free. Append `db-migrate db-check test-db` to the `ci` target, so the CI job with the Postgres service runs only `make install ci`; locally they need `make db-up` first.
+The postgres fragment ships SqlNotes (the NoteStore on Postgres), the notes migration and readiness at `/readyz`; the lifespan uses SqlNotes when a database URL is configured and MemoryNotes otherwise, so the Docker-free suite is unchanged. The 503 test still overrides get_note_store. `/healthz` stays DB-free. The CI job with the Postgres service runs `make install ci`, then the fragment's `make db-migrate db-check test-db`.
 <!-- stacks:end -->
 <!-- stacks:when with=rest-api -->
 The notes slice already follows the REST rule. Record /v1, the tag/message/retryable envelope, cursor limits (20 default, 100 maximum), 400 validation and 405 with Allow in AGENTS.md. Keep those contracts when adding resources.

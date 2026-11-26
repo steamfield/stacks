@@ -8,15 +8,15 @@ do not add a build backend.
 
 Run `make install ci`. The lockfile and generated OpenAPI document belong in git.
 Install uses uv sync --locked in CI. `make audit` checks the locked dependencies
-against known vulnerabilities with pip-audit (run through uvx, so it needs the
-network and no project dependency).
+against known vulnerabilities with pip-audit, a dev dependency locked in uv.lock;
+it needs the network for the vulnerability database.
 
 `make dev` reloads the app; `make start` runs without reload. Both disable Uvicorn
 access logging so the middleware emits one request record. `make dev-bg` runs
-`make dev` in the background for agents and scripts: it reuses a server already
-answering /healthz, otherwise writes the server's output to logs/dev.log and the
-process group id to logs/dev.pid, and returns once /healthz answers. `make dev-stop`
-stops that whole process group. Uvicorn's reload supervisor and its worker are
+`make dev` in the background for agents and scripts: it writes the server's output
+to logs/dev.log and the process group to logs/dev.pid, and returns once /healthz
+answers. A second `make dev-bg` reuses that server; it refuses a port answered by a
+server it didn't start. `make dev-stop` stops the whole process group. Uvicorn's reload supervisor and its worker are
 separate processes, so stopping only one pid leaves the port taken.
 
 Copy .env.example to .env for local settings. ENVIRONMENT accepts development,

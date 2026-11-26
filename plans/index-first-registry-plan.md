@@ -157,6 +157,7 @@ Demo: `bun run dev new typescript-cli /tmp/p --no-launch --json` with `STACKS_IN
 Depends on: phase 1
 
 Scaffold: 8857bd21
+Tag: idx-phase-2
 
 Scaffold (mine): `schemas/new.ts` adds `index_fallback` to the closed `warnings.code` literals plus `reason` and `cachedAt` as `Schema.optionalKey`; `schemas/add.ts` adds the same optional keys to its strict warning; `schemas/sources.ts::ProjectSources`; `core/project/provenance.ts` holds `IndexHeader`, `IndexProvenance` (`{ revalidation: Revalidation; index: IndexHeader | undefined }`), `NO_INDEX_PROVENANCE` and the stubs `readIndexProvenance` and `indexFallbackWarning`; `core/project/sources.ts` holds the stub `projectSources`; `NewOptions.provenance` and `AddOptions.provenance` are required, and the commands pass `NO_INDEX_PROVENANCE` until lane a wires the refresh; the MCP mirror in `packages/mcp/src/schemas/cli.ts`.
 

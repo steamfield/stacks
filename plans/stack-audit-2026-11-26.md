@@ -66,6 +66,7 @@ Every stack meets these; B1 to B5 are checked by `dx-baseline`, the rest by lane
 
 Demo: `bun run dev validate` in `packages/cli` lists `dx-*` notes for unaudited stacks and none for go-api, typescript-api and python-api; their composed briefs (`bun run dev validate --brief <id>`) are shorter; each pilot has a fresh green Codex bench record taken after the core fragments landed.
 Scaffold: bb25fa3b
+Tag: phase-1
 Test cases (lane a, `tests/validate-dx-baseline.test.ts`, each through the real `validate` on a temporary registry validated as bundled, the way `bundled-registry.test.ts` or `validate.test.ts` sets that up):
 - a `make` stack without `ci` gets `dx-aggregate`; with `ci` it doesn't.
 - a `scripts` stack without `check` gets `dx-aggregate`; a `scripts` stack with only `ci` still gets it.

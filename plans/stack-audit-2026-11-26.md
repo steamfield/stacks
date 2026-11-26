@@ -127,6 +127,7 @@ B4 applies to `make` stacks with a serve step (astro-blog, astro-product-site, d
 
 Demo: `bun run dev validate` lists no `dx-*` note for these stacks, and every B4 stack's `dev-cycle` step passes in a fresh scaffold.
 Depends on: phase 1
+Scaffold: 6221687c (no new contracts; anatomy's "Developer experience" and go-api's dev-bg.sh are the contracts)
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

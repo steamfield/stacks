@@ -54,7 +54,7 @@ Sandbox: a minimal workflow. Major-tag action refs are fine (where an action pub
 <!-- stacks:when tag!=monorepo -->
 One sequential `ci-ok` job, unless the stack's CI notes split the work behind a final `ci-ok` (`needs:` all, `if: always()`).
 <!-- stacks:end -->
-Each job first installs what its commands need (browsers with system dependencies, services, linter actions, platform packages). Where the stack's CI notes split jobs or name steps, each job runs what its note names; the note wins. Otherwise CI runs the aggregate below, and with coverage chosen the aggregate runs coverage in place of plain tests; declined, leave it as it is.
+Each job first installs what its commands need (browsers with system dependencies, services, linter actions, platform packages). Where the stack's CI notes split jobs or name steps, each job runs what its note names; the note wins. Otherwise CI runs the aggregate below, and with coverage chosen the aggregate runs coverage in place of plain tests; declined, leave it as it is. A declared `audit` (Go: `vuln`) stays out of the aggregate and runs as its own step after it; it needs the network but no secret.
 <!-- stacks:when tag=make -->
 The aggregate is `make ci` (in a monorepo, each area's). If it's missing, add it running these targets in order: format check, lint, typecheck, coverage (or test), generated-code and drift checks, build. None may write files or need a secret. The targets stay the contract, though a setup action may install a binary they expect.
 <!-- stacks:end -->
@@ -79,7 +79,7 @@ Set up uv with its cache on.
 
 ## Verify
 
-`ci-workflow` checks only the workflow's shape. Run each command the workflow calls, then `actionlint` and `zizmor --offline .github` if installed.
+Run each command the workflow calls, then `actionlint` and `zizmor --offline .github` if installed.
 
 ## AGENTS.md
 

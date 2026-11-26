@@ -108,6 +108,10 @@ function backgroundGap(stack: Stack, commands: Composition["commands"], usesMake
       name: usesMake ? "dev-stop" : "dev:stop",
       fix: "a stop that signals only its process group",
     },
+    {
+      name: usesMake ? "dev-status" : "dev:status",
+      fix: "a status command that exits 0 while the recorded server runs",
+    },
   ].filter(({ name }) => !Object.hasOwn(commands, name));
   if (missing.length === 0) return undefined;
   return {

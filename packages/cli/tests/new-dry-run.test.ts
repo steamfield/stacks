@@ -44,6 +44,7 @@ const expectedFiles = [
   ".stacks/BRIEF.md",
   ".stacks/NOTES.md",
   ".stacks/manifest.json",
+  ".stacks/sources.json",
   "README.md",
   "plain.txt",
 ];

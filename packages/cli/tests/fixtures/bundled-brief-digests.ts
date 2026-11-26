@@ -47,16 +47,17 @@
  * once more that day when its part lines named README, env, AGENTS and CLAUDE files by where
  * they are written and git-hooks returned to its default tier; it awaits a bench run.
  * The 0.15.0 version in the brief changed all six again on 2026-11-18.
+ * All six changed on 2026-11-26 when the brief's file list began naming .stacks/sources.json.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:2220cd50c9f8ed148568c0a6e2d60672f0b8f05a2bcee169ee11fa08b92b3de9",
-  "astro-blog:sandbox": "sha256:8304c7fd38f27689e4f6c64efbba6a65cf4fe1b5e9cf1f688aaa4665c90e7dda",
-  "go-cli:default": "sha256:efb925f5c5b9266a1bf92fc90a0887218dbeeb5b014d990193e2164682b787e4",
-  "go-cli:sandbox": "sha256:53145cba4a702cd840688f48858dd85cc000f8f8ecab35f2de9af70be6006330",
-  "python-react:default": "sha256:86ae633fcc06304455d2437cad0511fc4c403e968117035780b0dbcda669101f",
-  "python-react:sandbox": "sha256:efbfa1ce71dacc426f2de6c8842aee8d5bc9b07fc31a0f4df338958684c9893f",
+  "astro-blog:default": "sha256:5a92945ad2568785b5f26426b9fa159f97a93a93bfd202ef33980f1df5ef15ab",
+  "astro-blog:sandbox": "sha256:b50567c4c31f4a44a1de61c2610c5dc35f25b47febf67e811dfec5ca5843afa4",
+  "go-cli:default": "sha256:9f2387563de4ab4d0896d3f0591daba77bb770a11449a39e61287f5f631e5f8f",
+  "go-cli:sandbox": "sha256:f37b39af44bf5e552728618104b091eaf4a81ad5b5b664cff653c9af31e9492a",
+  "python-react:default": "sha256:477ffa9f2424bcf3e1ca31733c79b6333da45d43041dc0826eca3d74eb63a72d",
+  "python-react:sandbox": "sha256:0ffb87e42766ed290975a82f39d54f4830eb73c55793a9bb9af6fec7ef0cb634",
 };

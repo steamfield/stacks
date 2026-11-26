@@ -22,11 +22,11 @@
       "trusted": true,
       "shadows": [],
       "lastRun": {
-        "date": "2026-10-27",
+        "date": "2026-11-02",
         "result": "pass",
-        "agent": "claude",
+        "agent": "codex",
         "preset": "sandbox",
-        "fingerprint": "sha256:75f418775c9df9eca3ba96edea3002503449b3e7d4741dd41d6252c5fccfefdc"
+        "fingerprint": "sha256:2dc00744dc7fd74297841fc61233b9cddeb81a21e0a7d8b0cd88cb0f35214409"
       }
     },
     {
@@ -50,7 +50,41 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:363f107e49caae7ece110d6101fd4366030383f7fd82f03473fa6302168830aa"
+      }
+    },
+    {
+      "id": "astro-product-site",
+      "kind": "stack",
+      "name": "Astro product site (landing page and docs)",
+      "description": "A static Astro site for a product or open-source project, with a landing page driven by one config file and a Markdown docs section with sidebar, table of contents and pager, plus llms.txt, generated social cards, Tailwind, React, and Playwright with axe.",
+      "tags": [
+        "typescript",
+        "astro",
+        "react",
+        "web",
+        "static",
+        "content",
+        "docs",
+        "make",
+        "bun",
+        "node"
+      ],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-02",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:7a1fd55e23bec24ae7139e1c50125c84a5670cb86b1da93f1e1a52b7f8a12176"
+      }
     },
     {
       "id": "cloudflare-react-router",
@@ -71,6 +105,74 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:270992ea3dcda6bd5003a367f486a67932d84f3b7e43845b57bacd3ab4ebe339"
+      }
+    },
+    {
+      "id": "decks",
+      "kind": "stack",
+      "name": "Decks presentation slides (React and MDX)",
+      "description": "A presentation project for Decks slide decks, written in MDX with React components, motion and charts, served live and built to a static site by the decks command, with the Decks agent skills and Claude Code plugin set up.",
+      "tags": ["typescript", "react", "web", "static", "slides", "scripts", "bun", "node"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-15",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:742849bbbf40354d3025bbbff4aefed7103fb1d4526f52c5afb7488629c6344d"
+      }
+    },
+    {
+      "id": "django",
+      "kind": "stack",
+      "name": "Django web app",
+      "description": "A server-rendered Python web app on Django with its ORM, admin, forms, templates and migrations, managed with uv and make. pytest-django tests pages against a real database, structlog logs each request with an id, and gunicorn with whitenoise serves it.",
+      "tags": ["python", "web", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:8668656df7d2df35ba48543440164e8c2cdad015392df558f38adf6f752f7a5c"
+      }
+    },
+    {
+      "id": "django-api",
+      "kind": "stack",
+      "name": "Django REST API (DRF)",
+      "description": "A Python JSON API on Django and Django REST Framework with no server-rendered pages, managed with uv and make. Django's ORM, migrations and admin hold the data, one error envelope covers every failure, drf-spectacular's committed OpenAPI schema has a drift check, and pytest-django drives the API client against a real database.",
+      "tags": ["python", "api", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:4b3bcb19a4973ca884d5c45f4172a27eaabf36e0166471e08efbffc708ae80d9"
+      }
+    },
+    {
+      "id": "flutter",
+      "kind": "stack",
+      "name": "Flutter app (iOS and Android)",
+      "description": "A Flutter app in Dart for iOS and Android, built the way Flutter's architecture guide lays out (ChangeNotifier view models, repositories over services), with go_router navigation, strict flutter_lints analysis, unit and widget tests, and an integration test on the iOS simulator.",
+      "tags": ["dart", "flutter", "mobile", "ios", "android", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
       "lastRun": null
     },
     {
@@ -82,7 +184,13 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:29a095d0eb12f884000b03899068787d349a16b33a8d31dd60107bd79b44f1ae"
+      }
     },
     {
       "id": "go-cli",
@@ -94,11 +202,209 @@
       "trusted": true,
       "shadows": [],
       "lastRun": {
-        "date": "2026-10-27",
+        "date": "2026-11-01",
         "result": "pass",
         "agent": "claude",
         "preset": "sandbox",
-        "fingerprint": "sha256:4e12cfc53d9c9611429c92d2c3c03b61c077e3e5d11cbe1e6903d95bb80b462e"
+        "fingerprint": "sha256:247092ac2c2b506003e7affb685f7ee53d10b75265540c97044abafc9493e692"
+      }
+    },
+    {
+      "id": "go-grpc",
+      "kind": "stack",
+      "name": "Go gRPC service (Connect)",
+      "description": "A Go RPC service defined in Protocol Buffers and served with Connect, so one handler answers gRPC, gRPC-Web and JSON over plain HTTP. buf lints the schema and generates code, with server reflection, error-mapping interceptors and tests through a real client.",
+      "tags": ["go", "rpc", "grpc", "protobuf", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:b64fa9cdd632487004defd1e7cb822899ec9f73094459d61e33b8750cf6643df"
+      }
+    },
+    {
+      "id": "go-htmx",
+      "kind": "stack",
+      "name": "Go web app (templ + htmx)",
+      "description": "A server-rendered Go web app on the standard library, with type-checked templ components and htmx for partial page updates without a JavaScript build. Forms validate on the server and re-render with inline errors, and tests assert the rendered HTML.",
+      "tags": ["go", "web", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:f23560908635bee86993ab0c798eb86a97977d544c35d5753dcd311e0d532454"
+      }
+    },
+    {
+      "id": "go-library",
+      "kind": "stack",
+      "name": "Go library module",
+      "description": "A reusable Go module with no binary, for other Go code to import. A small documented API with sentinel and typed errors for errors.Is and errors.As, runnable examples, fuzzing, a consumer module that imports it from outside, and an apidiff check against the last release.",
+      "tags": ["go", "library", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:da6d68b0a848c770713a075e3b5f3784e1ab3e922cd07dd40a6c97d180674024"
+      }
+    },
+    {
+      "id": "go-mcp",
+      "kind": "stack",
+      "name": "Go MCP server",
+      "description": "A Model Context Protocol server in Go on the official MCP Go SDK, giving Claude Code and other agent hosts typed tools over stdio, with input schemas derived from Go structs, tool errors the model can read, logs kept off stdout and protocol tests.",
+      "tags": ["go", "mcp", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:87b84182e4e6dcb3f51f50a7fdb158aa80b27bc8236ec303ec835e6c0ae04fa6"
+      }
+    },
+    {
+      "id": "go-tui",
+      "kind": "stack",
+      "name": "Go terminal UI (Bubble Tea)",
+      "description": "A full-screen Go terminal app on Bubble Tea, with Bubbles components and Lip Gloss styles, an Elm-style model tested by sending key messages and comparing rendered frames to saved golden frames, a text and JSON fallback when there's no terminal, and one static binary.",
+      "tags": ["go", "tui", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:1ad0a07b021cc5e8f54cb8f9c28a6760961dcaa5763a0b9bec428213967e7a44"
+      }
+    },
+    {
+      "id": "hono-api",
+      "kind": "stack",
+      "name": "Hono API on Node",
+      "description": "A TypeScript JSON API on Hono served by Node, with zod-validated routes that generate an OpenAPI document, one error envelope, request ids and pino JSON logs, and Vitest tests that call the app in process and over a real port.",
+      "tags": ["typescript", "api", "hono", "node", "bun", "scripts"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-18",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:a498c33cd9efadf4dcd18f867363800e5844e9bf08444246d5f3de59aa0737b9"
+      }
+    },
+    {
+      "id": "hono-react",
+      "kind": "stack",
+      "name": "Hono API + React SPA workspace",
+      "description": "A Hono JSON API in backend/ and a React single-page app on Vite in frontend/, joined by a TanStack Query client generated from the API's OpenAPI document, with root make targets and a check that sends requests through the Vite proxy to the running API.",
+      "tags": [
+        "typescript",
+        "react",
+        "hono",
+        "api",
+        "web",
+        "spa",
+        "fullstack",
+        "monorepo",
+        "make",
+        "bun",
+        "node"
+      ],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-18",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:dd97676ed4d25c30e4a4509fdf774ef31ec124b37ae52a8d153fa027c0c1b31b"
+      }
+    },
+    {
+      "id": "ios-objc",
+      "kind": "stack",
+      "name": "iOS app in Objective-C (UIKit)",
+      "description": "A native iPhone app in Objective-C with UIKit, for teams maintaining or extending Objective-C code. Built in code on the scene lifecycle with an XcodeGen project, nullability annotations, warnings as errors, the Clang static analyzer, XCTest with a coverage floor, XCUITest, clang-format and one Swift file called from Objective-C.",
+      "tags": ["objective-c", "ios", "uikit", "mobile", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
+      "id": "ios-swiftui",
+      "kind": "stack",
+      "name": "iOS app (SwiftUI)",
+      "description": "A native iPhone app in Swift with SwiftUI, Observation view models and Swift 6 strict concurrency. XcodeGen generates the Xcode project; Swift Testing unit tests and an XCUITest launch test run on a simulator, with SwiftLint and swift-format.",
+      "tags": ["swift", "ios", "mobile", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
+      "id": "ios-uikit",
+      "kind": "stack",
+      "name": "iOS app (UIKit)",
+      "description": "A native iPhone app in Swift with UIKit built in code, for teams with UIKit codebases or screens SwiftUI handles poorly. Scene lifecycle, a navigation coordinator, MVVM under strict concurrency, a diffable list, XcodeGen, SwiftLint, swift-format, Swift Testing with a coverage floor, and XCUITest.",
+      "tags": ["swift", "ios", "uikit", "mobile", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
+      "id": "java-cli",
+      "kind": "stack",
+      "name": "Java CLI (picocli)",
+      "description": "A Java command-line tool on picocli, built with Maven and make into one runnable jar. Layered TOML config (file, env, flags), one error table mapped to exit codes, text or JSON output, Logback logs to stderr, Error Prone and NullAway, and tests that run the packaged jar.",
+      "tags": ["java", "cli", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:beb49a3b7213b23b4ef730bc6542e1cb79aabd8379921e8a61d6837aa0401b5d"
+      }
+    },
+    {
+      "id": "java-library",
+      "kind": "stack",
+      "name": "Java library (Maven Central-ready)",
+      "description": "A Java library for other JVM code to depend on, built with Maven and make. A JPMS module exporting one package, JSpecify nullness checked by NullAway, Javadoc with doclint and examples that run as tests, generated-input property tests, a consumer project built against the installed jar, a japicmp API check and the sources and Javadoc jars Maven Central requires.",
+      "tags": ["java", "library", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:3a5e482e69409efca6970699512100d6f1dd21aa5bbe1dbaa565e16e4a6572f9"
       }
     },
     {
@@ -121,7 +427,30 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:14e3828185063687a5d949c4d8ddaf2233483d10ad71886968259521056802e3"
+      }
+    },
+    {
+      "id": "nestjs-api",
+      "kind": "stack",
+      "name": "NestJS API on Node",
+      "description": "A TypeScript JSON API on NestJS served by Node, with feature modules, class-validator DTOs behind a global validation pipe, one exception filter rendering every error as the same envelope, request ids and JSON logs, Swagger docs, and Vitest unit specs plus Supertest contract tests on the real app module.",
+      "tags": ["typescript", "api", "nestjs", "node", "bun", "scripts"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:a29e638c61481e946991bffdeb08b542dc6eafee7463125b0e52af9bcaf9dedd"
+      }
     },
     {
       "id": "nextjs",
@@ -132,7 +461,47 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:3864c78f48930703e46a499f9c1d83dc29f484f4d4f49d21be8b408fbfa0cf5f"
+      }
+    },
+    {
+      "id": "nuxt",
+      "kind": "stack",
+      "name": "Nuxt app on Node",
+      "description": "A full-stack Vue app on Nuxt served by Node, with server API routes, a page that loads them with useFetch, a zod-validated form with field errors, typed runtime config, ESLint, Vitest in Nuxt's test environment and a Playwright test against the production server.",
+      "tags": ["typescript", "vue", "nuxt", "web", "fullstack", "scripts", "bun", "node"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:1c5d9adf68e51a89a4f3a1d57457966b9e87b8082173a440375f7119ecbcbf2b"
+      }
+    },
+    {
+      "id": "phaser-game",
+      "kind": "stack",
+      "name": "Phaser browser game",
+      "description": "A browser game built with Phaser and Vite and served as static files, with tick-based logic kept apart from the engine, IndexedDB saves, touch controls, Vitest, and Playwright scenarios that play the built game headlessly on desktop, phone and WebKit.",
+      "tags": ["typescript", "web", "static", "scripts", "bun", "node", "game", "phaser"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-25",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:8e8ec939f00d3b60902c068bbefdb443ee13f9ec2cf45112a26e690550214d82"
+      }
     },
     {
       "id": "python-api",
@@ -143,13 +512,70 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-18",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:09509e3c89aebae5a0901996a8ca39ad9f0ae3aeb90deddfd700588cafdc091c"
+      }
+    },
+    {
+      "id": "python-cli",
+      "kind": "stack",
+      "name": "Python CLI (Typer)",
+      "description": "A Python command-line tool on Typer, packaged as a wheel with uv and make. Settings come from a TOML file, env and flags through pydantic-settings, commands print text or JSON with a fixed exit-code table, and verify installs the built wheel and runs it.",
+      "tags": ["python", "cli", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:b54490721eb4506df753ec8f7e9c4034349d722a739e9d7921853923650b200f"
+      }
+    },
+    {
+      "id": "python-data",
+      "kind": "stack",
+      "name": "Python data pipeline (Polars, DuckDB)",
+      "description": "A Python data pipeline and notebook project on Polars and DuckDB, managed with uv and make. Tested transforms turn raw CSV into Parquet with explicit schemas and a rejects file, DuckDB queries the result, and marimo notebooks lint, typecheck and run in verify.",
+      "tags": ["python", "data", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:f2146512edc1c755bee689b4a4e37eaf6992fb3e1d59105bf49ec4457a7f5b78"
+      }
+    },
+    {
+      "id": "python-library",
+      "kind": "stack",
+      "name": "Python library for PyPI",
+      "description": "A typed Python library for PyPI in a src layout, built with uv and make. A py.typed marker, strict mypy, pytest with Hypothesis property tests on the newest and oldest supported Python, and a wheel and sdist checked with twine and installed in a clean environment.",
+      "tags": ["python", "library", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:4f7189977e983f7f9b3a60416c3ea341b17ee08deda94a84799486b61c2720fd"
+      }
     },
     {
       "id": "python-react",
       "kind": "stack",
       "name": "Python API + React SPA",
-      "description": "FastAPI backend (uv, ruff, mypy strict, pytest) plus a React single-page app (Vite, React Router in SPA mode, TanStack Query, Tailwind, shadcn/ui) that talks to the API through a typed client generated from its OpenAPI spec.",
+      "description": "A workspace of two stacks in one repository, the FastAPI service from python-api in backend/ and the React single-page app on Vite from react-vite in frontend/, joined by an Orval client generated from the API's OpenAPI document, a Vite proxy and a root Makefile.",
       "tags": [
         "python",
         "typescript",
@@ -166,12 +592,50 @@
       "trusted": true,
       "shadows": [],
       "lastRun": {
-        "date": "2026-10-28",
+        "date": "2026-11-18",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:144bb9fd621e02acbc454278678c47137beba41393402540b8d450cf0b454c5d"
+      }
+    },
+    {
+      "id": "quarkus-api",
+      "kind": "stack",
+      "name": "Quarkus REST API (Java)",
+      "description": "A Java JSON API on Quarkus with Quarkus REST and Jackson, built with Maven and make. One error envelope for every failure, a validated config mapping, request ids and structured JSON logs, readiness checks, Error Prone and NullAway at compile time, and tests through @QuarkusTest and the packaged application.",
+      "tags": ["java", "api", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
         "result": "pass",
         "agent": "codex",
         "preset": "sandbox",
-        "fingerprint": "sha256:0618cb467539568ea52f85298002a46c1154af66affdf910e26ee6c7fbb22601"
+        "fingerprint": "sha256:5331159c0056a1ab634d8724f30a7e40dc9a13d18b51393aaac033f67df905b3"
       }
+    },
+    {
+      "id": "react-native",
+      "kind": "stack",
+      "name": "React Native app (bare workflow)",
+      "description": "A bare React Native app for iOS and Android in TypeScript, without Expo, where the repository owns the native projects. React Navigation drives the screens and a local Turbo Module in Swift shows the native side; Jest with React Native Testing Library, Biome and a simulator build check it.",
+      "tags": [
+        "typescript",
+        "react",
+        "react-native",
+        "mobile",
+        "ios",
+        "android",
+        "scripts",
+        "bun",
+        "node"
+      ],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
     },
     {
       "id": "react-router",
@@ -182,7 +646,166 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:49225be29e23941e7003680ddf61cdd11a47308c3c9160c38601b257d8c98229"
+      }
+    },
+    {
+      "id": "react-vite",
+      "kind": "stack",
+      "name": "React SPA on Vite",
+      "description": "A browser-only React single-page app built with Vite and served as static files, with React Router, TanStack Query over a typed fetch client with zod, Biome, Vitest with Testing Library and MSW, and Playwright tests of the built site.",
+      "tags": ["typescript", "react", "web", "static", "spa", "scripts", "bun", "node"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-18",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:5392fc5d9606318860eba1cda5b2185e3870e096c0fad324c10415bdab7fe748"
+      }
+    },
+    {
+      "id": "rust-api",
+      "kind": "stack",
+      "name": "Rust HTTP API (Axum)",
+      "description": "A Rust JSON API on Axum and Tokio with one error envelope from a thiserror status table, extractor rejections mapped into it, tower-http request ids, access logs, timeouts and panic recovery, JSON tracing logs, graceful shutdown on SIGINT and SIGTERM, and tests against the real router in process and the built binary.",
+      "tags": ["rust", "api", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:46773552ff1993b05c28b270d935179c9af77bdc0777a89e2bd0280e7dbc74f3"
+      }
+    },
+    {
+      "id": "rust-cli",
+      "kind": "stack",
+      "name": "Rust CLI",
+      "description": "A Rust command-line tool with clap commands, layered TOML config (file, env, flags), thiserror errors mapped to exit codes with fix suggestions, human and JSON output, tracing logs to stderr, strict clippy lints, and assert_cmd tests against the built binary.",
+      "tags": ["rust", "cli", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:d07cef5c8af339a1fd45f4574265c27db06e37c9519a5881c6be552335243bfb"
+      }
+    },
+    {
+      "id": "rust-library",
+      "kind": "stack",
+      "name": "Rust library crate",
+      "description": "A Rust library crate for crates.io with a small documented public API, a thiserror error enum, an optional serde feature, doctests on every public item, proptest property tests, rustdoc with warnings denied, and a cargo package check that compiles exactly what would be published.",
+      "tags": ["rust", "library", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:0a834df76ee994093a2ed14d2db65e7cde75e14a9c7546012cccb68ca57376cd"
+      }
+    },
+    {
+      "id": "rust-tui",
+      "kind": "stack",
+      "name": "Rust terminal UI (Ratatui)",
+      "description": "A full-screen Rust terminal app on Ratatui and crossterm, with app state and key handling kept apart from drawing, keybindings in one table that feeds the help overlay, frames rendered into Ratatui's test backend and compared to insta snapshots, a text and JSON fallback when there's no terminal, and terminal restore on panic.",
+      "tags": ["rust", "tui", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:a6d7a5b4fa0668b37377e36d92c1f9be8172bcc4d1b4c2b26c7e8303827723a6"
+      }
+    },
+    {
+      "id": "rust-wasm",
+      "kind": "stack",
+      "name": "Rust WebAssembly package for JavaScript",
+      "description": "A Rust library compiled to WebAssembly with wasm-bindgen and wasm-pack into an npm package with generated TypeScript types. Errors reach JavaScript as exceptions with stable codes; the logic is tested natively, the exports as wasm in Node with wasm-bindgen-test, and the packed tarball from a TypeScript consumer project.",
+      "tags": ["rust", "wasm", "library", "make", "bun", "node"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:126586a7ce29447c8ba36b7df4719129a73b0edfcf982e8d0c6e58f1c6837e5c"
+      }
+    },
+    {
+      "id": "spring-boot-api",
+      "kind": "stack",
+      "name": "Spring Boot REST API (Java)",
+      "description": "A Java JSON API on Spring Boot with Spring MVC and Actuator, built with Maven and make. One error envelope for every failure, validated settings, request ids and structured JSON logs, Error Prone and NullAway at compile time, and tests through Spring's MockMvc and a real server.",
+      "tags": ["java", "api", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:4593cb826af1fc0d38ac7934dfee24326cd25202e236d1530527f74e231897f2"
+      }
+    },
+    {
+      "id": "spring-boot-web",
+      "kind": "stack",
+      "name": "Spring Boot web app (Thymeleaf + htmx)",
+      "description": "A server-rendered Java web app on Spring Boot with Thymeleaf templates and htmx for partial page updates, built with Maven and make, with no JavaScript build. Forms validate on the server and work without JavaScript, Spring Security checks CSRF tokens, error pages come from one table, and tests read the rendered HTML through MockMvc and a browser without JavaScript.",
+      "tags": ["java", "web", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:8408191ea130f5a66fe1eee455e4c73e7abdc2cf5d9180a72ea1253c2c579dbf"
+      }
+    },
+    {
+      "id": "streamlit",
+      "kind": "stack",
+      "name": "Streamlit data app",
+      "description": "An interactive Python data app on Streamlit, managed with uv and make. Sidebar filters drive a metric, an Altair chart and a table over a local CSV; the data logic is a tested Polars package, AppTest drives the page, and verify probes the headless server.",
+      "tags": ["python", "web", "data", "make"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:59439ade0a701db64d6de76cea2f7f0beb28c45df01ccea81c31f1ea8ec9a481"
+      }
     },
     {
       "id": "sveltekit",
@@ -193,7 +816,13 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:161405f3a608ef81a7e59d8eb41989c23acbd77fe8a92047ad1133d9105c30ef"
+      }
     },
     {
       "id": "tauri-react",
@@ -204,7 +833,30 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:b20780eb82c8c5b9d9ba3b247eb19e1971b679e148d687478d8e01a43c7c3a04"
+      }
+    },
+    {
+      "id": "threejs-game",
+      "kind": "stack",
+      "name": "three.js 3D browser game",
+      "description": "A 3D browser game on three.js with Rapier physics loaded after the first frame, built with Vite and served as static files. Game rules run as pure TypeScript on a fixed 60 Hz tick, saves are versioned in IndexedDB, input covers keyboard and touch, and Vitest, Playwright scenarios on desktop and phone Chromium and a headless capture script check it.",
+      "tags": ["typescript", "web", "static", "scripts", "bun", "node", "game", "three"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-25",
+        "result": "pass",
+        "agent": "claude",
+        "preset": "sandbox",
+        "fingerprint": "sha256:9bcf4d81fdcf159c9f8886c3e449974d5f96ceca65db5a85ed28b2fbf84ecac1"
+      }
     },
     {
       "id": "typescript-api",
@@ -215,7 +867,13 @@
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-01",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:ba63343b560d86c562b6d970b675e7bc06a07ed1c4df2f02ea79b7b0448ba2cf"
+      }
     },
     {
       "id": "typescript-cli",
@@ -227,23 +885,46 @@
       "trusted": true,
       "shadows": [],
       "lastRun": {
-        "date": "2026-10-27",
+        "date": "2026-11-02",
         "result": "pass",
-        "agent": "claude",
+        "agent": "codex",
         "preset": "sandbox",
-        "fingerprint": "sha256:54e0b4b6284db94298550dc38cc16e683ba7d2b50ca85a85c3d8c8ba79a6d791"
+        "fingerprint": "sha256:be6c51d039890c0b0deb7ba35458354f84695c4e6065febbcf68a38f8b498a8f"
+      }
+    },
+    {
+      "id": "typescript-library",
+      "kind": "stack",
+      "name": "TypeScript npm library",
+      "description": "A TypeScript package for npm, built to ESM with bundled type declarations by tsdown, checked by publint and Are the Types Wrong, tested with Vitest, and proven by installing the packed tarball into a clean consumer project.",
+      "tags": ["typescript", "library", "npm", "node", "bun", "scripts"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": {
+        "date": "2026-11-16",
+        "result": "pass",
+        "agent": "codex",
+        "preset": "sandbox",
+        "fingerprint": "sha256:8676a55a2cd19f415e5663300375691e4458f7e035032b2ec336a62eebf029a4"
       }
     },
     {
       "id": "typescript-mcp",
       "kind": "stack",
-      "name": "TypeScript MCP server with Effect",
-      "description": "A stdio MCP server on Effect's MCP modules, serving typed tools and a resource over newline-delimited JSON-RPC, with Vitest unit tests and a real client handshake against the built server.",
-      "tags": ["typescript", "mcp", "effect", "bun", "node", "scripts"],
+      "name": "TypeScript MCP server",
+      "description": "A Model Context Protocol server in TypeScript on the official v2 SDK, served over stdio, with zod-described tools, tool errors written for the model, JSON logs kept off stdout, and Vitest tests that connect a real MCP client in memory and to the server process.",
+      "tags": ["typescript", "mcp", "ai", "agents", "node", "bun", "scripts"],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
-      "lastRun": null
+      "lastRun": {
+        "date": "2026-11-14",
+        "result": "pass",
+        "agent": "none",
+        "preset": "sandbox",
+        "fingerprint": "sha256:40ae4ab52b107471fd7cf13c6093393574587a404cf09a034d9789c6325f7ad7"
+      }
     },
     {
       "id": "agent-ops",
@@ -262,7 +943,7 @@
       "id": "bun-release",
       "kind": "fragment",
       "name": "Bun binary releases",
-      "description": "Release a Bun-compiled CLI as standalone binaries for macOS and glibc Linux on x64 and arm64, with SHA256SUMS, a checksum-verifying install.sh, an atomic self-update command and a tag-triggered GitHub release workflow.",
+      "description": "Release a Bun-compiled CLI as standalone binaries for macOS and Linux on x64 and arm64, with SHA256SUMS, a checksum-verifying install.sh and its tests, an atomic self-update command and a tag-triggered GitHub release workflow.",
       "tags": ["bun", "release"],
       "category": "release",
       "appliesTo": ["typescript-cli"],
@@ -275,7 +956,7 @@
       "id": "ce-plugin",
       "kind": "fragment",
       "name": "Claude Essentials plugin",
-      "description": "Enables the claude-essentials (ce) Claude Code plugin for the project and adds path-scoped rules that point Claude at its skills for testing, error handling, debugging, and writing.",
+      "description": "Enables the claude-essentials (ce) Claude Code plugin for the project and adds path-scoped rules that point Claude at its skills for testing, error handling and writing, plus a debugging rule that names its log-reader agent.",
       "tags": ["agents", "claude"],
       "category": "agent-ops",
       "appliesTo": [],
@@ -301,10 +982,57 @@
       "id": "claude-harness",
       "kind": "fragment",
       "name": "Claude Code TypeScript hooks",
-      "description": "Bun TypeScript hook helpers and tested Claude Code guards on top of agent-ops (destructive commands, package manager, generated files, typecheck on write), plus /check, /test and /feature commands, architect and reviewer agents, and a docs/harness.md guide.",
+      "description": "Bun TypeScript hook helpers for stack-specific Claude Code hooks on top of agent-ops, and incremental type checking after each edit.",
       "tags": ["bun", "agents"],
       "category": "agent-ops",
-      "appliesTo": ["node", "bun"],
+      "appliesTo": [
+        "astro-blog",
+        "astro-fullstack",
+        "nextjs",
+        "react-router",
+        "sveltekit",
+        "tauri-react",
+        "typescript-api",
+        "typescript-cli",
+        "react-vite",
+        "hono-api",
+        "typescript-library",
+        "typescript-mcp",
+        "nuxt",
+        "nestjs-api",
+        "phaser-game",
+        "threejs-game"
+      ],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
+      "id": "claude-harness-docs",
+      "kind": "fragment",
+      "name": "Claude Code commands and harness guide",
+      "description": "For long-lived repos, adds /check, /test and /feature commands, read-only architect and reviewer agents, and a docs/harness.md guide to each guard layer on top of the claude-harness hooks.",
+      "tags": ["bun", "agents"],
+      "category": "agent-ops",
+      "appliesTo": [
+        "astro-blog",
+        "astro-fullstack",
+        "nextjs",
+        "react-router",
+        "sveltekit",
+        "tauri-react",
+        "typescript-api",
+        "typescript-cli",
+        "react-vite",
+        "hono-api",
+        "typescript-library",
+        "typescript-mcp",
+        "nuxt",
+        "nestjs-api",
+        "phaser-game",
+        "threejs-game"
+      ],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -314,7 +1042,7 @@
       "id": "clerk",
       "kind": "fragment",
       "name": "Clerk auth for Expo and Hono",
-      "description": "Clerk sign-in for the Expo app and session verification on the Hono API, with auth on by default behind a public-path allowlist, a dev bypass, and tests that run Clerk's real verification against a local keypair with no account or network.",
+      "description": "Clerk sign-in for the Expo app and session verification on the Hono API, with auth on by default behind a public-path allowlist, a dev bypass that fails closed, and tests that run Clerk's real verification against a local keypair with no account or network.",
       "tags": ["auth", "clerk", "vendor"],
       "category": "vendor",
       "appliesTo": ["mobile-expo"],
@@ -326,8 +1054,8 @@
     {
       "id": "cloudflare-d1",
       "kind": "fragment",
-      "name": "Cloudflare D1 with Drizzle",
-      "description": "Typed D1 bindings, Drizzle's D1 driver, checked-in SQL migrations, and isolated local database tests without a Cloudflare account.",
+      "name": "Cloudflare D1 with Drizzle for React Router on Workers",
+      "description": "Cloudflare D1 for the React Router on Workers stack, with a typed D1 binding, Drizzle's D1 driver, checked-in SQL migrations with a drift check, and Workers-runtime tests on isolated local storage, with no Cloudflare account.",
       "tags": ["database", "sqlite", "cloudflare", "workers", "drizzle"],
       "category": "service",
       "appliesTo": ["cloudflare-react-router"],
@@ -339,11 +1067,24 @@
     {
       "id": "cloudflare-pages",
       "kind": "fragment",
-      "name": "Cloudflare Pages",
-      "description": "Deploy a static site's build output to Cloudflare Pages with wrangler (installed as a dev dependency, run through bunx), covering production deploys from the default branch, preview deploys for pull requests, and headers and redirects config.",
+      "name": "Cloudflare Pages for static Astro sites",
+      "description": "Deploys a static Astro site's build (the blog or the product site) to Cloudflare Pages with project-local wrangler, with production deploys from the default branch after the checks pass, pull request previews, cache and security headers, and a local check that serves the build through Cloudflare's Pages runtime.",
       "tags": ["deploy", "cloudflare", "static"],
       "category": "deploy",
-      "appliesTo": ["astro-blog"],
+      "appliesTo": ["astro-blog", "astro-product-site"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
+      "id": "code-docs",
+      "kind": "fragment",
+      "name": "File headers and architecture READMEs",
+      "description": "Source-file documentation checks for TypeScript, JavaScript, Python, Go and Rust, with guidance for writing folder READMEs that explain architectural responsibilities and reading order.",
+      "tags": ["documentation", "readability"],
+      "category": "tooling",
+      "appliesTo": [],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -353,10 +1094,10 @@
       "id": "docker-deploy",
       "kind": "fragment",
       "name": "Docker images + GHCR",
-      "description": "Production container images (multi-stage, non-root, healthchecked) for each deployable part of the project, plus a GitHub Actions workflow that builds and publishes them to GitHub Container Registry after CI passes.",
+      "description": "A production container image (a multi-stage, non-root, healthchecked Dockerfile) that verify builds and starts, plus a GitHub Actions job that publishes it to GitHub Container Registry once the project's checks pass on the default branch.",
       "tags": ["docker", "deploy", "containers", "ghcr"],
       "category": "deploy",
-      "appliesTo": ["python-react", "python-api", "typescript-api", "astro-fullstack", "go-api"],
+      "appliesTo": ["python-api", "typescript-api", "astro-fullstack", "go-api"],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -366,7 +1107,7 @@
       "id": "drizzle-postgres",
       "kind": "fragment",
       "name": "PostgreSQL with Drizzle for Next.js and SvelteKit",
-      "description": "PostgreSQL for the Next.js and SvelteKit stacks through Drizzle ORM and node-postgres (pg): Docker Compose dev and test databases, checked-in SQL migrations with a drift check, a server-only database module and repository, a readiness route, and tests on databases cloned from a migrated template.",
+      "description": "PostgreSQL for the Next.js and SvelteKit stacks through Drizzle ORM and node-postgres (pg): Docker Compose dev and test databases, checked-in SQL migrations with a drift check, a server-side database module and repository, a readiness route, and tests on databases cloned from a migrated template.",
       "tags": ["database", "postgres", "drizzle", "service"],
       "category": "service",
       "appliesTo": ["nextjs", "sveltekit"],
@@ -378,22 +1119,11 @@
     {
       "id": "effect",
       "kind": "fragment",
-      "name": "Effect testing and API skill",
-      "description": "Effect testing with @effect/vitest (fresh real layers per test, TestClock instead of sleeps, typed failure and defect assertions), shipped Effect guidance for each agent, and an agent skill written from the installed Effect release's declarations.",
+      "name": "Effect test kit and API reference",
+      "description": "Effect testing for the Effect stacks with @effect/vitest and a shipped test of TestClock, Layer.fresh and failure assertions, shared guidance for Claude Code, Codex, Cursor and OpenCode, and an API reference the agent writes from the installed Effect release and keeps in step with it.",
       "tags": ["typescript", "effect", "testing"],
       "category": "tooling",
-      "appliesTo": [
-        "astro-blog",
-        "astro-fullstack",
-        "cloudflare-react-router",
-        "mobile-expo",
-        "python-react",
-        "react-router",
-        "tauri-react",
-        "typescript-api",
-        "typescript-cli",
-        "typescript-mcp"
-      ],
+      "appliesTo": ["effect"],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -403,7 +1133,7 @@
       "id": "effect-otlp",
       "kind": "fragment",
       "name": "OpenTelemetry (OTLP) for Effect servers",
-      "description": "OpenTelemetry traces, logs and metrics over OTLP for the Effect server in typescript-api, astro-fullstack and react-router. One observability layer adds trace ids to the existing logs, exports nothing without an endpoint, and is tested with an in-memory tracer and a loopback OTLP receiver.",
+      "description": "OpenTelemetry traces, logs and metrics over OTLP for the Effect server in typescript-api, astro-fullstack and react-router, on Effect's own exporters. One observability layer adds trace ids to the existing logs, exports nothing without an endpoint, and is tested with an in-memory tracer and a loopback OTLP receiver.",
       "tags": ["typescript", "effect", "observability", "opentelemetry", "tracing"],
       "category": "tooling",
       "appliesTo": ["typescript-api", "astro-fullstack", "react-router"],
@@ -416,21 +1146,10 @@
       "id": "effect-schema",
       "kind": "fragment",
       "name": "Effect Schema",
-      "description": "Effect Schema as the one validation and typing layer for data crossing a trust boundary (requests, config, storage, third-party and LLM output), with branded ids, tagged errors, JSON Schema for tools, and round-trip plus property tests.",
+      "description": "Effect Schema as the one validation and typing layer for data crossing a trust boundary in the Effect stacks (requests, config, storage, third-party and LLM output), with branded ids, tagged errors, JSON Schema for tools, and a shipped round-trip and property test.",
       "tags": ["typescript", "effect", "validation", "schema"],
       "category": "tooling",
-      "appliesTo": [
-        "astro-blog",
-        "astro-fullstack",
-        "cloudflare-react-router",
-        "mobile-expo",
-        "python-react",
-        "react-router",
-        "tauri-react",
-        "typescript-api",
-        "typescript-cli",
-        "typescript-mcp"
-      ],
+      "appliesTo": ["effect"],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -440,7 +1159,7 @@
       "id": "effect-sql-postgres",
       "kind": "fragment",
       "name": "PostgreSQL with Effect SQL",
-      "description": "PostgreSQL for the Effect stacks (typescript-api, react-router, astro-fullstack): Docker Compose dev and test databases, migrations run by an explicit command, a scoped connection pool, a schema-decoding repository behind an Effect service, and tests on a private database per test file.",
+      "description": "PostgreSQL for the Effect stacks (typescript-api, react-router, astro-fullstack): Docker Compose dev and test databases, migrations run by an explicit command with a drift check, a scoped connection pool, a schema-decoding repository behind an Effect service, and tests on databases cloned from a migrated template.",
       "tags": ["database", "postgres", "effect", "service"],
       "category": "service",
       "appliesTo": ["typescript-api", "astro-fullstack", "react-router"],
@@ -466,7 +1185,7 @@
       "id": "goreleaser",
       "kind": "fragment",
       "name": "GoReleaser",
-      "description": "Tag-driven releases for a Go binary with GoReleaser, covering cross-platform builds with version ldflags, archives, checksums, a conventional-commit changelog, a GitHub release workflow, and optional Homebrew publishing.",
+      "description": "Tag-driven releases for a Go binary with GoReleaser, shipping a checked .goreleaser.yaml for cross-platform builds with version ldflags, archives, checksums and a conventional-commit changelog, plus a GitHub release workflow and optional Homebrew publishing.",
       "tags": ["go", "release", "goreleaser"],
       "category": "release",
       "appliesTo": ["go-cli"],
@@ -476,10 +1195,36 @@
       "lastRun": null
     },
     {
+      "id": "npm-release",
+      "kind": "fragment",
+      "name": "npm release by tag for TypeScript libraries",
+      "description": "Publish a TypeScript npm library from a pushed v* tag through npm trusted publishing, with provenance and no stored token, a release script that bumps every version in one commit, a rerunnable publish helper with readable failures and tests that run the workflow's own publish step.",
+      "tags": ["npm", "release", "github"],
+      "category": "release",
+      "appliesTo": ["typescript-library"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
+      "id": "openapi-client",
+      "kind": "fragment",
+      "name": "OpenAPI client for React on Vite",
+      "description": "A typed TanStack Query client that Orval generates from the API's OpenAPI document into the React app, sent through the app's own API client, with a drift check against a fresh generation and a check that a page uses it.",
+      "tags": ["openapi", "orval", "react-query", "codegen"],
+      "category": "link",
+      "appliesTo": ["react-vite"],
+      "origin": "bundled",
+      "trusted": true,
+      "shadows": [],
+      "lastRun": null
+    },
+    {
       "id": "openrouter-ai",
       "kind": "fragment",
       "name": "OpenRouter LLM provider",
-      "description": "OpenRouter as the LLM provider for a TypeScript project: an optional API key, model discovery with a ten-minute cache, routing settings, bounded retries with safe upstream errors, a scriptable local stub server for tests, and an eval report format with a dry-run checker.",
+      "description": "OpenRouter as the LLM provider for a TypeScript project: an optional API key, model discovery, routing and fallback settings, attribution headers, OpenRouter's error classes mapped to safe retryable errors, and a local stub server with its own test.",
       "tags": ["typescript", "ai", "openrouter"],
       "category": "vendor",
       "appliesTo": ["typescript-api", "react-router", "typescript-cli"],
@@ -491,8 +1236,8 @@
     {
       "id": "openrouter-chat",
       "kind": "fragment",
-      "name": "OpenRouter web chat",
-      "description": "A web chat app on OpenRouter: streaming replies, a model picker, tool calls, contact extraction, server-side history, usage and cost, Markdown export and a stub-backed Playwright flow.",
+      "name": "OpenRouter web chat for React Router",
+      "description": "A web chat app on OpenRouter: streaming replies, a model picker, tool calls, contact extraction, server-side history, usage and cost, Markdown export and a stub-backed Playwright flow, with Claude Code, Codex, OpenCode and Cursor guidance.",
       "tags": ["typescript", "web", "ai", "openrouter"],
       "category": "app",
       "appliesTo": ["react-router"],
@@ -505,7 +1250,7 @@
       "id": "openrouter-chat-cli",
       "kind": "fragment",
       "name": "OpenRouter CLI chat",
-      "description": "A terminal chat app for typescript-cli on OpenRouter: an OpenTUI chat screen and scriptable commands with NDJSON events, tools also served by a stdio MCP server, chats saved as JSON with Markdown export, and stubbed replay and eval checks.",
+      "description": "A terminal chat app for typescript-cli on OpenRouter: an OpenTUI chat screen and scriptable commands with NDJSON events, tools also served by a stdio MCP server, chats saved as JSON with Markdown export, stubbed replay and eval checks, and Claude Code, Codex, OpenCode and Cursor guidance.",
       "tags": ["typescript", "cli", "tui", "ai", "openrouter"],
       "category": "app",
       "appliesTo": ["typescript-cli"],
@@ -518,10 +1263,10 @@
       "id": "postgres",
       "kind": "fragment",
       "name": "PostgreSQL with SQLAlchemy for Python",
-      "description": "PostgreSQL for the FastAPI stacks (python-react, python-api): Docker Compose dev and test services with healthchecks, SQLAlchemy async models with Alembic migrations, make db-* targets, and a test harness that gives each test file its own database cloned from a migrated template.",
+      "description": "PostgreSQL for the FastAPI service (python-api, also as the backend of python-react): Docker Compose dev and test services with healthchecks, a SQLAlchemy async notes store, Alembic migrations with a drift check, a readiness route, and tests on a private database per file cloned from a migrated template.",
       "tags": ["database", "postgres", "service"],
       "category": "service",
-      "appliesTo": ["python-react", "python-api"],
+      "appliesTo": ["python-api"],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -530,16 +1275,17 @@
     {
       "id": "posthog",
       "kind": "fragment",
-      "name": "PostHog analytics",
-      "description": "PostHog analytics in the web client, disabled when no key is set so tests, CI, and sandboxes need no account, with a typed event catalog and a pre-init buffer.",
+      "name": "PostHog analytics for web clients",
+      "description": "PostHog product analytics in the web client, with a shipped analytics module, typed event catalog and unit test for each supported stack. The SDK never loads while the key is empty, so tests, CI and sandboxes need no account.",
       "tags": ["analytics", "vendor", "web"],
       "category": "vendor",
       "appliesTo": [
         "astro-blog",
+        "astro-product-site",
         "astro-fullstack",
         "cloudflare-react-router",
-        "python-react",
-        "react-router"
+        "react-router",
+        "react-vite"
       ],
       "origin": "bundled",
       "trusted": true,
@@ -550,10 +1296,21 @@
       "id": "rest-api",
       "kind": "fragment",
       "name": "REST resource conventions",
-      "description": "Agent rules for naming and shaping HTTP resources (plural nouns, methods and status codes, one resource shape, cursor pagination, versioning), independent of framework and layout, plus an AGENTS.md section recording the project's choices.",
+      "description": "Agent rules for naming and shaping HTTP resources (plural nouns, methods and status codes, one resource shape, cursor pagination, versioning) for the JSON API stacks in Go, Python, TypeScript, Rust and Java, for Claude Code, Codex, Cursor and OpenCode, plus an AGENTS.md section recording the project's choices.",
       "tags": ["api", "rest", "http", "conventions"],
       "category": "tooling",
-      "appliesTo": ["api"],
+      "appliesTo": [
+        "typescript-api",
+        "astro-fullstack",
+        "go-api",
+        "python-api",
+        "hono-api",
+        "nestjs-api",
+        "django-api",
+        "rust-api",
+        "spring-boot-api",
+        "quarkus-api"
+      ],
       "origin": "bundled",
       "trusted": true,
       "shadows": [],
@@ -563,7 +1320,7 @@
       "id": "rr",
       "kind": "fragment",
       "name": "rr remote test runner",
-      "description": "Configures rr (github.com/rileyhilliard/rr) so the project's test, lint, and build commands can run on remote machines over SSH, with a committed .rr.yaml of named tasks, an AGENTS.md section, and the rr Claude Code plugin.",
+      "description": "Configures rr (github.com/rileyhilliard/rr) so the project's test, lint, and build commands can run on remote machines over SSH or queue on this machine under one lock, with a committed .rr.yaml of named tasks, an AGENTS.md section, the rr Claude Code plugin, and a Claude Code hook that routes test commands through rr.",
       "tags": ["testing", "remote", "ssh"],
       "category": "tooling",
       "appliesTo": [],

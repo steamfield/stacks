@@ -22,7 +22,7 @@
     }
   ],
   "totals": { "passed": 0, "failed": 0, "skipped": 2 },
-  "durationMs": 4,
+  "durationMs": 3,
   "secondsSinceCreated": 0,
   "tamperCheck": "full",
   "changed": {

@@ -11,11 +11,12 @@
     ".stacks/.gitignore",
     ".stacks/BRIEF.md",
     ".stacks/NOTES.md",
-    ".stacks/manifest.json"
+    ".stacks/manifest.json",
+    ".stacks/sources.json"
   ],
   "brief": ".stacks/BRIEF.md",
-  "briefWords": 866,
-  "fixedWords": 801,
+  "briefWords": 932,
+  "fixedWords": 867,
   "missingTools": [],
   "untrusted": [
     {

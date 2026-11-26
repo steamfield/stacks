@@ -10,7 +10,7 @@
       "status": "failed",
       "failureKind": "step",
       "exitCode": 1,
-      "durationMs": 7,
+      "durationMs": 6,
       "reason": "exited with status 1",
       "outputTail": "fixture failure output"
     },
@@ -28,7 +28,7 @@
     }
   ],
   "totals": { "passed": 0, "failed": 2, "skipped": 0 },
-  "durationMs": 13,
+  "durationMs": 10,
   "secondsSinceCreated": 0,
   "tamperCheck": "full",
   "firstGreen": false,

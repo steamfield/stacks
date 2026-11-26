@@ -8,7 +8,7 @@ tags: [python, api, make]
 deps:
   runtime: [fastapi, uvicorn, pydantic, pydantic-settings, structlog]
   dev: [ruff, mypy, pytest, pytest-asyncio, pytest-xdist, pytest-cov, pytest-randomly, httpx, asgi-lifespan]
-tools: [uv, make, git, curl]
+tools: [uv, make, git, bash, curl]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that FastAPI, ruff, and mypy support (default). Setup writes it to .python-version and requires-python."

@@ -3,7 +3,17 @@
  * tolerated because callers can run without the resource. The cache ignores a previous URL so its data
  * cannot be attributed to the current one.
  */
-import { Clock, type Duration, Effect, FileSystem, Option, Path, Schema, type Scope } from "effect";
+import {
+  Clock,
+  type Duration,
+  Effect,
+  FileSystem,
+  Option,
+  Path,
+  Schema,
+  type Scope,
+  Semaphore,
+} from "effect";
 import { HttpClient } from "effect/http";
 import {
   CACHE_FRESHNESS_MS,
@@ -170,7 +180,11 @@ export const makeCachedFetch = Effect.fn("cachedFetch.make")(function* <A>(optio
   // Per-invocation state; the layer that calls this owns it.
   let state = emptyState(url);
   let body = Option.none<A>();
-  const saveState = () => orUndefined(writeCacheFile(cache, stateFile, JSON.stringify(state)));
+  const stateWrites = yield* Semaphore.make(1);
+  // Snapshot under the permit and hold it until the filesystem write settles.
+  const saveState = Effect.suspend(() =>
+    orUndefined(writeCacheFile(cache, stateFile, JSON.stringify(state))),
+  ).pipe(Effect.uninterruptible, stateWrites.withPermit);
   const readCacheFile = (file: string) =>
     cache.fs.readFileString(cache.path.join(cache.root, file));
 
@@ -225,7 +239,7 @@ export const makeCachedFetch = Effect.fn("cachedFetch.make")(function* <A>(optio
     if (fetched._tag === "Failure") {
       state = { ...state, lastOutcome: fetched.failure };
       if (recordBackoff) yield* backOff(at, fetched.failure);
-      yield* saveState();
+      yield* saveState;
     }
     return fetched;
   });
@@ -289,7 +303,7 @@ export const makeCachedFetch = Effect.fn("cachedFetch.make")(function* <A>(optio
       lastOutcome: "ok",
       backoffUntil: null,
     };
-    yield* saveState();
+    yield* saveState;
   });
 
   const fallback = (reason: NonNullable<Revalidation["reason"]>): Revalidation =>

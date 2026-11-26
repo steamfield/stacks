@@ -44,9 +44,14 @@ spawn(process.execPath, ["slow-server.ts"], { stdio: "ignore" });
 setInterval(() => {}, 1 << 30);
 `;
 const SLOW_CHILD = `const server = Bun.serve({ port: Number(process.env.PORT_API), fetch: () => new Response("ok") });
-const exitSoon = () => setTimeout(() => { server.stop(true); process.exit(0); }, 1000);
-process.on("SIGINT", exitSoon);
-process.on("SIGTERM", exitSoon);
+// Once the listener and the signal handlers are gone, nothing keeps the process alive.
+const stopSoon = () => setTimeout(() => {
+  server.stop(true);
+  process.removeAllListeners("SIGINT");
+  process.removeAllListeners("SIGTERM");
+}, 1000);
+process.on("SIGINT", stopSoon);
+process.on("SIGTERM", stopSoon);
 `;
 
 function project(files: Record<string, string>) {

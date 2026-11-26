@@ -62,6 +62,7 @@ async function waitHealthy({ pid, port }: DevServer, seconds: number): Promise<s
   const deadline = Date.now() + seconds * 1000;
   let reason = "logs/dev.pid never named the server";
   while (Date.now() < deadline) {
+    if (interrupted !== undefined) return "interrupted";
     if (!alive(pid)) return "the server process exited";
     if (ours(pid)) {
       const failure = await unhealthy(port, deadline);
@@ -126,20 +127,21 @@ async function stopSpawned(pid: number): Promise<void> {
   await reap(groups);
 }
 
+// Set when start is interrupted: resolves to the exit status once what it spawned is stopped.
+let interrupted: Promise<number> | undefined;
+
 // While start waits, dev.ts and its server run outside the caller's process group, so a Ctrl-C
 // or a tool's timeout signal reaches only this script. Stop what it spawned before exiting, or
-// the server would hold the port with nothing waiting on it. Returns a function that removes
-// the handlers.
+// the server would hold the port with nothing waiting on it. The handlers stay installed once
+// one fires, so a second signal can't cut the stop short. Returns a function that removes them.
 function stopOnInterrupt(pid: number): () => void {
-  let stopping = false;
   const handler = (sig: NodeJS.Signals) => {
-    if (stopping) return;
-    stopping = true;
-    void stopSpawned(pid).finally(() => process.exit(128 + constants.signals[sig]));
+    interrupted ??= stopSpawned(pid).then(() => 128 + constants.signals[sig]);
   };
   const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"];
   for (const sig of signals) process.on(sig, handler);
   return () => {
+    if (interrupted !== undefined) return;
     for (const sig of signals) process.off(sig, handler);
   };
 }
@@ -167,6 +169,11 @@ async function start(): Promise<number> {
   const removeHandlers = stopOnInterrupt(pid);
   const failure = await waitHealthy({ pid, port }, 90);
   removeHandlers();
+  if (interrupted !== undefined) {
+    const status = await interrupted;
+    process.stderr.write("Interrupted; stopped the dev server this start launched.\n");
+    return status;
+  }
   if (!failure) {
     ready({ pid, port });
     return 0;

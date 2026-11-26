@@ -8,6 +8,12 @@ import type { RootStackParamList } from "./routes";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Registers this stack as the root, so useNavigation() and Link are typed without annotations.
+type RootStackType = typeof Stack;
+declare module "@react-navigation/native" {
+  interface RootNavigator extends RootStackType {}
+}
+
 export function RootNavigator() {
   return (
     <Stack.Navigator initialRouteName="Home">

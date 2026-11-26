@@ -43,6 +43,14 @@ Every failure becomes an `AppError` with one of these kinds:
 
 `createLogger({ level })` writes one JSON line per record with `level`, `event` and `time` plus flat fields. Event names are `area.what_happened` (`app_info.failed`). Log kinds and codes, never user data or native payloads. The level comes from settings; tests pass a sink to capture records.
 
+## Secrets
+
+Everything in the JavaScript bundle, `app.json` and `Info.plist` can be read by anyone who has the app, so no API key or token ships in them. A key the app needs stays on a server the app calls; per-user tokens go in the Keychain. The app reads no env file, and `.gitignore` ignores `.env` files so one made for a tool never reaches a commit. See React Native's [security guide](https://reactnative.dev/docs/security).
+
+## Navigation types
+
+`src/app/routes.ts` lists every route and its params. `src/app/navigation.tsx` registers the root stack with React Navigation (`interface RootNavigator`), so `useNavigation()` and `Link` are typed anywhere without annotations; a screen still types its props with `RootScreenProps<"Name">`.
+
 ## Screens
 
 A screen reads its data through a hook in its feature folder (`useAppInfo`) that returns a discriminated state and a reload. The screen renders each state: an `ActivityIndicator` with an accessibility label while loading, `ErrorState` with the mapped message on failure, and the data on success. The hook drops a result that arrives after unmount or a newer reload.

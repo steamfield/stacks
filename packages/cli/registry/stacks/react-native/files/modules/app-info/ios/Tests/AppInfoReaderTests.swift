@@ -1,9 +1,10 @@
 import AppInfo
-import XCTest
+import Foundation
+import Testing
 
 /// Runs on the simulator through the pod's test spec (`bun run ios:test`).
-final class AppInfoReaderTests: XCTestCase {
-  func testReadsDisplayNameVersionAndBuild() throws {
+struct AppInfoReaderTests {
+  @Test func readsDisplayNameVersionAndBuild() throws {
     let reader = AppInfoReader(
       info: [
         "CFBundleDisplayName": "Field Notes",
@@ -14,9 +15,8 @@ final class AppInfoReaderTests: XCTestCase {
       systemVersion: "1.2.3"
     )
 
-    XCTAssertEqual(
-      try reader.read(),
-      [
+    #expect(
+      try reader.read() == [
         "appName": "Field Notes",
         "appVersion": "2.4",
         "buildNumber": "17",
@@ -26,7 +26,7 @@ final class AppInfoReaderTests: XCTestCase {
     )
   }
 
-  func testFallsBackToBundleNameWithoutDisplayName() throws {
+  @Test func fallsBackToBundleNameWithoutDisplayName() throws {
     let reader = AppInfoReader(
       info: [
         "CFBundleName": "FieldNotes",
@@ -36,31 +36,29 @@ final class AppInfoReaderTests: XCTestCase {
       systemVersion: "1.2.3"
     )
 
-    XCTAssertEqual(try reader.read()["appName"], "FieldNotes")
+    #expect(try reader.read()["appName"] == "FieldNotes")
   }
 
-  func testMissingVersionNamesTheKey() {
+  @Test func missingVersionNamesTheKey() throws {
     let reader = AppInfoReader(
       info: ["CFBundleName": "FieldNotes", "CFBundleVersion": "17"],
       systemVersion: "1.2.3"
     )
 
-    XCTAssertThrowsError(try reader.read()) { error in
-      XCTAssertEqual(
-        (error as NSError).localizedDescription,
-        "Info.plist has no CFBundleShortVersionString."
-      )
-    }
+    let error = try #require(throws: (any Error).self) { try reader.read() }
+    #expect(
+      (error as NSError).localizedDescription == "Info.plist has no CFBundleShortVersionString."
+    )
   }
 
-  func testCurrentReadsTheRunningOS() {
+  @Test func currentReadsTheRunningOS() {
     let version = ProcessInfo.processInfo.operatingSystemVersion
     let info = try? AppInfoReader.current().read()
 
-    // The xctest host bundle may lack a display name; the OS facts are always present.
-    XCTAssertEqual(info?["systemName"] ?? "iOS", "iOS")
+    // The test host bundle may lack a display name; the OS facts are always present.
+    #expect((info?["systemName"] ?? "iOS") == "iOS")
     if let systemVersion = info?["systemVersion"] {
-      XCTAssertTrue(systemVersion.hasPrefix("\(version.majorVersion)."))
+      #expect(systemVersion.hasPrefix("\(version.majorVersion)."))
     }
   }
 }

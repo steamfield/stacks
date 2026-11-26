@@ -1,0 +1,28 @@
+# `make analyze` (flutter analyze) fails on any finding, infos included. When a
+# release renames or drops a rule, update the name here; keep the strict
+# language modes and don't silence a rule to get green.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - build/**
+    - ios/**
+    - android/**
+    - .flutter-create/**
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_void_async
+    - cancel_subscriptions
+    - directives_ordering
+    - only_throw_errors
+    - prefer_final_in_for_each
+    - prefer_final_locals
+    - prefer_single_quotes
+    - unawaited_futures

@@ -462,13 +462,18 @@
       "query": "an iOS health app",
       "first": {
         "kind": "stack",
-        "id": "mobile-expo"
+        "id": "ios-swiftui"
       },
       "relevant": [
         {
           "kind": "stack",
-          "id": "mobile-expo",
+          "id": "ios-swiftui",
           "grade": 2
+        },
+        {
+          "kind": "stack",
+          "id": "mobile-expo",
+          "grade": 1
         }
       ]
     },
@@ -540,6 +545,21 @@
           "kind": "stack",
           "id": "nextjs",
           "grade": 2
+        },
+        {
+          "kind": "stack",
+          "id": "flutter",
+          "grade": 1
+        },
+        {
+          "kind": "stack",
+          "id": "ios-swiftui",
+          "grade": 1
+        },
+        {
+          "kind": "stack",
+          "id": "react-native",
+          "grade": 1
         }
       ]
     },
@@ -1190,6 +1210,16 @@
       "relevant": [
         {
           "kind": "stack",
+          "id": "flutter",
+          "grade": 1
+        },
+        {
+          "kind": "stack",
+          "id": "react-native",
+          "grade": 1
+        },
+        {
+          "kind": "stack",
           "id": "mobile-expo",
           "grade": 1
         }
@@ -1197,10 +1227,24 @@
     },
     {
       "id": "nomatch-swiftui",
-      "pool": "no-match",
+      "pool": "platform",
       "split": "holdout",
       "query": "a native SwiftUI iPhone app",
+      "first": {
+        "kind": "stack",
+        "id": "ios-swiftui"
+      },
       "relevant": [
+        {
+          "kind": "stack",
+          "id": "ios-swiftui",
+          "grade": 2
+        },
+        {
+          "kind": "stack",
+          "id": "ios-uikit",
+          "grade": 1
+        },
         {
           "kind": "stack",
           "id": "mobile-expo",
@@ -1403,13 +1447,18 @@
       "query": "rn app",
       "first": {
         "kind": "stack",
-        "id": "mobile-expo"
+        "id": "react-native"
       },
       "relevant": [
         {
           "kind": "stack",
-          "id": "mobile-expo",
+          "id": "react-native",
           "grade": 2
+        },
+        {
+          "kind": "stack",
+          "id": "mobile-expo",
+          "grade": 1
         }
       ]
     },
@@ -1555,13 +1604,18 @@
       "query": "a React Native phone app for installing firmware updates",
       "first": {
         "kind": "stack",
-        "id": "mobile-expo"
+        "id": "react-native"
       },
       "relevant": [
         {
           "kind": "stack",
-          "id": "mobile-expo",
+          "id": "react-native",
           "grade": 2
+        },
+        {
+          "kind": "stack",
+          "id": "mobile-expo",
+          "grade": 1
         }
       ]
     },
@@ -2294,6 +2348,81 @@
       "query": "starter for a three js game with rapier",
       "first": { "kind": "stack", "id": "threejs-game" },
       "relevant": [{ "kind": "stack", "id": "threejs-game", "grade": 2 }]
+    },
+    {
+      "id": "stack-ios-swiftui-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "a SwiftUI app for iPhone with an Observable view model",
+      "first": { "kind": "stack", "id": "ios-swiftui" },
+      "relevant": [{ "kind": "stack", "id": "ios-swiftui", "grade": 2 }]
+    },
+    {
+      "id": "stack-ios-swiftui-2",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "Swift app for iOS that checks data races at compile time",
+      "first": { "kind": "stack", "id": "ios-swiftui" },
+      "relevant": [{ "kind": "stack", "id": "ios-swiftui", "grade": 2 }]
+    },
+    {
+      "id": "stack-ios-uikit-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "programmatic UIKit iPhone app with a coordinator",
+      "first": { "kind": "stack", "id": "ios-uikit" },
+      "relevant": [{ "kind": "stack", "id": "ios-uikit", "grade": 2 }]
+    },
+    {
+      "id": "stack-ios-uikit-2",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "iOS app built with view controllers and Auto Layout to sit beside our UIKit code",
+      "first": { "kind": "stack", "id": "ios-uikit" },
+      "relevant": [{ "kind": "stack", "id": "ios-uikit", "grade": 2 }]
+    },
+    {
+      "id": "stack-ios-objc-1",
+      "pool": "product",
+      "split": "tune",
+      "query": "iPhone app written in Objective-C",
+      "first": { "kind": "stack", "id": "ios-objc" },
+      "relevant": [{ "kind": "stack", "id": "ios-objc", "grade": 2 }]
+    },
+    {
+      "id": "stack-ios-objc-2",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "keep our Objective-C iOS codebase, add a new screen with tests",
+      "first": { "kind": "stack", "id": "ios-objc" },
+      "relevant": [{ "kind": "stack", "id": "ios-objc", "grade": 2 }]
+    },
+    {
+      "id": "stack-react-native-1",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "React Native project that isn't Expo",
+      "first": { "kind": "stack", "id": "react-native" },
+      "relevant": [
+        { "kind": "stack", "id": "react-native", "grade": 2 },
+        { "kind": "stack", "id": "mobile-expo", "grade": 1 }
+      ]
+    },
+    {
+      "id": "stack-flutter-1",
+      "pool": "platform",
+      "split": "tune",
+      "query": "cross-platform Flutter project in Dart targeting iOS and Android",
+      "first": { "kind": "stack", "id": "flutter" },
+      "relevant": [{ "kind": "stack", "id": "flutter", "grade": 2 }]
+    },
+    {
+      "id": "stack-flutter-2",
+      "pool": "paraphrase",
+      "split": "tune",
+      "query": "I want to write my phone app once in Dart",
+      "first": { "kind": "stack", "id": "flutter" },
+      "relevant": [{ "kind": "stack", "id": "flutter", "grade": 2 }]
     }
   ]
 }

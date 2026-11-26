@@ -1,0 +1,55 @@
+# SwiftLint checks code rules; swift-format owns layout (make fmt / make fmt-check), so the
+# rules that only judge whitespace and wrapping are off here to keep the two from fighting.
+# make lint runs with --strict: every warning fails.
+included:
+  - App
+  - AppTests
+  - AppUITests
+excluded:
+  - build
+
+disabled_rules:
+  - closure_parameter_position
+  - opening_brace
+  - trailing_comma
+  - vertical_parameter_alignment
+
+opt_in_rules:
+  - closure_end_indentation
+  - discouraged_optional_boolean
+  - empty_count
+  - empty_string
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - last_where
+  - legacy_objc_type
+  - overridden_super_call
+  - prohibited_super_call
+  - redundant_type_annotation
+  - sorted_first_last
+  - unowned_variable_capture
+  - weak_delegate
+
+identifier_name:
+  excluded:
+    - id
+
+custom_rules:
+  no_print:
+    name: "No print"
+    regex: '(?<![\w.])(print|debugPrint|NSLog)\('
+    message: "Log through os.Logger (the Log enum), never print or NSLog."
+    severity: error
+  no_dispatch_main:
+    name: "No DispatchQueue.main"
+    regex: 'DispatchQueue\.main'
+    message: "UI work belongs on the main actor: mark the type @MainActor or use await MainActor.run."
+    severity: error
+  no_storyboards:
+    name: "No storyboards or nibs"
+    regex: '(UIStoryboard|UINib)\('
+    message: "Screens are built in code with Auto Layout."
+    severity: error

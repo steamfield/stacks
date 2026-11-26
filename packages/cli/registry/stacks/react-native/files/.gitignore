@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData
+xcuserdata
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.xcuserstate
+**/.xcode.env.local
+
+# Android
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+*.keystore
+!debug.keystore
+.kotlin/
+
+# JavaScript
+node_modules/
+coverage/
+*.jsbundle
+.metro-health-check*
+
+# Ruby / CocoaPods
+**/Pods/
+/vendor/bundle/
+
+# Agents
+.claude/worktrees/
+.claude/settings.local.json

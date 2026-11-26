@@ -44,6 +44,8 @@
     "rust": ["rust", "rustlang", "cargo", "axum"],
     "swift": ["swift", "swiftui"],
     "kotlin": ["kotlin"],
+    "dart": ["dart", "flutter"],
+    "objective-c": ["objective-c", "objective c", "objc", "obj-c"],
     "java": ["java", "jvm", "spring boot", "springboot", "maven", "quarkus"]
   },
   "capabilities": {

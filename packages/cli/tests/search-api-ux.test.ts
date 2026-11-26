@@ -225,12 +225,14 @@ test("API fragments retain local cached stats when their evidence is empty", asy
 });
 
 test("merged search keeps at most two weak stacks alongside a strong match", async () => {
-  const opts = apiOptions(space.dir(), server.url);
+  // An empty local registry keeps the bundled iOS stacks from joining the API's strong hit.
+  const opts = { ...apiOptions(space.dir(), server.url), host: { registry: emptyRegistry } };
   server.answer(
     response([
       officialHit("mobile-expo"),
       officialHit("api-weak-one", { tier: "weak", score: 0.2 }),
       officialHit("api-weak-two", { tier: "weak", score: 0.1 }),
+      officialHit("api-weak-three", { tier: "weak", score: 0.05 }),
     ]),
   );
   const args = ["search", "an iOS health app"];

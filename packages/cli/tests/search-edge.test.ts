@@ -6,8 +6,8 @@ import { emptyRegistry, minimal, writeEntry } from "./helpers/registry";
 import {
   fixtureRecord,
   hit,
+  iosCaveats,
   loadRank,
-  mobileCaveats,
   options,
   searched,
   vocabulary,
@@ -34,7 +34,7 @@ test("mixed case and punctuation preserve ranks and scores [4.5c#15]", async () 
       })),
     }));
   expect(comparable(mixed)).toEqual(comparable(lower));
-  expect(mixed.stacks[0]?.id).toBe("mobile-expo");
+  expect(mixed.stacks[0]?.id).toBe("ios-swiftui");
 });
 
 test("stopwords return empty lists without a confident fit [4.5c#16]", async () => {
@@ -127,31 +127,31 @@ test("rejected entries stay out while valid neighbors remain searchable [4.5c#20
 test("non-ASCII content keeps the recognized iOS platform [4.5c#21]", async () => {
   const { value } = await searched("une app iOS pour la santé", options(space.dir()));
   expect(value.understood.platforms).toEqual(["ios"]);
-  expect(value.stacks[0]?.id).toBe("mobile-expo");
+  expect(value.stacks[0]?.id).toBe("ios-swiftui");
 });
 
 test("a copied user card shadows bundled metadata without losing why or caveats [4.5c#22]", async () => {
   const home = space.dir();
   const opts = options(home);
   const created = await runCli(
-    ["create", "stack", "mobile-expo", "--from", "bundled", "--json"],
+    ["create", "stack", "ios-swiftui", "--from", "bundled", "--json"],
     opts,
   );
   expect(created.status, created.stderr).toBe(0);
   expect(created.stderr).toBe("");
-  expect(JSON.parse(created.stdout)).toMatchObject({ id: "mobile-expo" });
+  expect(JSON.parse(created.stdout)).toMatchObject({ id: "ios-swiftui" });
   const { value } = await searched("an iOS health app", opts, ["--limit", "20"]);
-  expect(value.stacks.filter(({ id }) => id === "mobile-expo")).toHaveLength(1);
-  expect(value.stacks[0]).toMatchObject({
-    id: "mobile-expo",
+  expect(value.stacks.filter(({ id }) => id === "ios-swiftui")).toHaveLength(1);
+  // Several bundled stacks ship iOS apps at nearly equal scores, and a user copy carries no
+  // ledger proof, so the copy's rank isn't fixed; its row is what shadowing must keep.
+  const copy = hit(value.stacks, "ios-swiftui");
+  expect(copy).toMatchObject({
     origin: "user",
     trusted: true,
     tier: "strong",
-    caveats: mobileCaveats(),
+    caveats: iosCaveats(),
   });
-  expect(value.stacks[0]?.why).toContainEqual(
-    expect.objectContaining({ field: "platforms", matched: "ios" }),
-  );
+  expect(copy.why).toContainEqual(expect.objectContaining({ field: "platforms", matched: "ios" }));
 });
 
 test("trimmed 500-character multi-byte requests are accepted [4.5c#23]", async () => {

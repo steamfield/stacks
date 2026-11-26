@@ -8,7 +8,7 @@ import { ndjson, runCli, terminal } from "./helpers/cli";
 import {
   hit,
   hitSchema,
-  mobileCaveats,
+  iosCaveats,
   options,
   searched,
   searchSchema,
@@ -25,16 +25,16 @@ test("iOS beats incidental body health matches [4.5c#1]", async () => {
   expect(value).toMatchObject({ ranking: "local", noStrongMatch: false });
   expect(value.understood.platforms).toEqual(["ios"]);
   expect(value.understood.unmatched).toEqual(["health"]);
-  expect(value.stacks[0]).toMatchObject({ id: "mobile-expo", tier: "strong" });
-  expect(hit(value.stacks, "mobile-expo").why).toContainEqual(
-    expect.objectContaining({
-      field: "platforms",
-      matched: "ios",
-      from: expect.stringMatching(/ios/i),
-    }),
-  );
-  for (const row of value.stacks.filter((row) => row.id !== "mobile-expo"))
-    expect(row.tier).not.toBe("strong");
+  expect(value.stacks[0]).toMatchObject({ id: "ios-swiftui", tier: "strong" });
+  const iosMatch = expect.objectContaining({
+    field: "platforms",
+    matched: "ios",
+    from: expect.stringMatching(/ios/i),
+  });
+  expect(hit(value.stacks, "ios-swiftui").why).toContainEqual(iosMatch);
+  // Several stacks ship iOS apps; a stack is strong only through the iOS platform, never "health".
+  for (const row of value.stacks.filter((row) => row.tier === "strong"))
+    expect(row.why, row.id).toContainEqual(iosMatch);
 });
 
 test("unsupported firmware asks for a better description or confirmation of weak matches [4.5c#3]", async () => {
@@ -200,9 +200,10 @@ test("kind and per-list limits filter real hits [4.5c#11]", async () => {
   expect(fragments.fragments[0]?.id).toBe("clerk");
   const stacks = (await searched(ios, opts, ["--kind", "stack", "--limit", "1"])).value;
   expect(stacks.fragments).toEqual([]);
-  expect(stacks.stacks.map(({ id }) => id)).toEqual(["mobile-expo"]);
+  expect(stacks.stacks.map(({ id }) => id)).toEqual(["ios-swiftui"]);
   const defaults = (await searched(ios, opts)).value;
-  expect(defaults.stacks).toHaveLength(3);
+  // Five stacks ship iOS apps and each is strong, so the default limit of five fills both lists.
+  expect(defaults.stacks).toHaveLength(5);
   expect(defaults.fragments).toHaveLength(5);
 });
 
@@ -216,14 +217,16 @@ test("agent blocks show caveats, human text wraps, JSON contains only the result
   });
   expect(agent.status).toBe(0);
   expect(agent.stderr).toBe("");
-  for (const caveat of mobileCaveats()) expect(agent.stdout).toContain(caveat);
+  for (const caveat of iosCaveats()) expect(agent.stdout).toContain(caveat);
   for (const row of [...value.stacks, ...value.fragments]) {
     expect(agent.stdout).toContain(row.id);
     expect(agent.stdout).toContain(row.summary);
   }
-  expect(agent.stdout).toContain("Why: ios (platforms); iOS (summary)");
+  expect(agent.stdout).toContain(
+    "Why: ios (platforms); iOS (id, name, tags, requests, useCases, synonyms)",
+  );
   expect(agent.stdout.trim().split("\n").at(-1)).toMatch(
-    /^Next:.*local-stacks show mobile-expo.*local-stacks new mobile-expo/,
+    /^Next:.*local-stacks show ios-swiftui.*local-stacks new ios-swiftui/,
   );
   const human = await runCli(["search", ios], {
     ...opts,
@@ -231,7 +234,7 @@ test("agent blocks show caveats, human text wraps, JSON contains only the result
   });
   expect(human.status).toBe(0);
   expect(human.stderr).toBe("");
-  expect(human.stdout.replace(/\s+/g, " ")).toContain(mobileCaveats()[0]?.replace(/\s+/g, " "));
+  expect(human.stdout.replace(/\s+/g, " ")).toContain(iosCaveats()[0]?.replace(/\s+/g, " "));
   expect(human.stdout.split("\n").length).toBeGreaterThan(agent.stdout.split("\n").length);
   expect(human.stdout).toContain("strong");
   const humanText = human.stdout.replace(/\s+/g, " ");

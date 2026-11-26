@@ -1,0 +1,66 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make install)",
+      "Bash(make fmt)",
+      "Bash(make fmt-check)",
+      "Bash(make analyze)",
+      "Bash(make test)",
+      "Bash(make coverage)",
+      "Bash(make simulator)",
+      "Bash(make test-ios)",
+      "Bash(make build-ios)",
+      "Bash(make build-android)",
+      "Bash(make ci)",
+      "Bash(flutter analyze)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter test)",
+      "Bash(flutter test *)",
+      "Bash(flutter pub get)",
+      "Bash(flutter pub deps *)",
+      "Bash(flutter pub outdated)",
+      "Bash(flutter devices)",
+      "Bash(flutter doctor)",
+      "Bash(flutter doctor -v)",
+      "Bash(dart format *)",
+      "Bash(dart analyze *)",
+      "Bash(xcrun simctl list *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-flutter.sh\" ] && command -v cat >/dev/null 2>&1 && err=$(mktemp 2>/dev/null); then trap 'rm -f \"$err\" 2>/dev/null' EXIT; if bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-flutter.sh\" 2>\"$err\"; then cat \"$err\" >&2; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'guard-flutter.sh: hook unavailable; allowing this call.' >&2; fi; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'guard-flutter.sh: hook unavailable; allowing this call.' >&2; fi; exit 0",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-xcode-project.sh\" ] && command -v cat >/dev/null 2>&1 && err=$(mktemp 2>/dev/null); then trap 'rm -f \"$err\" 2>/dev/null' EXIT; if bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-xcode-project.sh\" 2>\"$err\"; then cat \"$err\" >&2; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'protect-xcode-project.sh: hook unavailable; allowing this call.' >&2; fi; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'protect-xcode-project.sh: hook unavailable; allowing this call.' >&2; fi; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-dart.sh\" ] && command -v cat >/dev/null 2>&1 && err=$(mktemp 2>/dev/null); then trap 'rm -f \"$err\" 2>/dev/null' EXIT; if bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-dart.sh\" 2>\"$err\"; then cat \"$err\" >&2; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'lint-dart.sh: hook unavailable; allowing this call.' >&2; fi; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'lint-dart.sh: hook unavailable; allowing this call.' >&2; fi; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

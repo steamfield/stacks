@@ -165,11 +165,13 @@ test("health, native SwiftUI and no-match controls keep their agreed judgments [
   const { queries } = readSet("golden.json");
   const health = queries.find((query: Query) => query.query === "an iOS health app");
   expect(health).toBeDefined();
-  expect(health?.first).toEqual({ kind: "stack", id: "mobile-expo" });
+  // A native iOS stack exists, so it answers iOS requests first; Expo stays relevant.
+  expect(health?.first).toEqual({ kind: "stack", id: "ios-swiftui" });
+  expect(health?.relevant).toContainEqual({ kind: "stack", id: "mobile-expo", grade: 1 });
   expect(["trap", "platform"]).toContain(health?.pool);
   const native = queries.find((query: Query) => query.query === "a native SwiftUI iPhone app");
   expect(native).toBeDefined();
-  expect(native?.first).toBeUndefined();
+  expect(native?.first).toEqual({ kind: "stack", id: "ios-swiftui" });
   expect(native?.noMatch).not.toBe(true);
   expect(native?.relevant).toContainEqual({ kind: "stack", id: "mobile-expo", grade: 1 });
   expect(queries.filter((query: Query) => query.noMatch === true).length).toBeGreaterThanOrEqual(3);

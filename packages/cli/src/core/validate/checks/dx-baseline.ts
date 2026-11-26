@@ -9,8 +9,11 @@ import { isStack, type Stack } from "../../registry/entry";
 import type { Check, Composed, View } from "../types";
 import { entryFile, finding } from "../view";
 
-/** Every bundled stack meets the baseline, so a regression warns (and fails the registry test). */
-export const DX_SEVERITY: Finding["severity"] = "warning";
+/**
+ * A gap is a note, so registries a test validates as bundled needn't carry the baseline; the
+ * bundled-registry test fails on any `dx-` finding in the real registry.
+ */
+export const DX_SEVERITY: Finding["severity"] = "note";
 
 const BASELINE_FRAGMENTS = ["agent-ops", "git-hooks", "ci-github"] as const;
 

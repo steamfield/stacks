@@ -30,6 +30,10 @@ test("the bundled registry validates with zero errors and zero warnings [1.5#14]
   expect(result.status).toBe(0);
 });
 
+test("every bundled stack meets the developer-experience baseline", () => {
+  expect(report.findings.filter((finding) => finding.check.startsWith("dx-"))).toEqual([]);
+});
+
 const composed = (entry: string) =>
   report.sizes.filter((row) => row.kind === "composed" && row.entry === entry);
 

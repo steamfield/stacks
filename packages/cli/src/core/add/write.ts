@@ -9,6 +9,7 @@ import {
   MANIFEST_PATH,
   NOTES,
   NOTES_PATH,
+  SOURCES_PATH,
   STATE_DIR,
 } from "../../project-layout";
 import type { Brief } from "../brief/types";
@@ -102,6 +103,7 @@ export const applyAdd = (input: {
   manifest: Manifest;
   stateManifest: Manifest;
   brief: Brief;
+  sources: string;
 }) =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -111,7 +113,12 @@ export const applyAdd = (input: {
       const exists = (rel: string) => fs.exists(path.join(writer.root, rel));
       const writeOrReplace = (rel: string, text: string) =>
         Effect.gen(function* () {
-          if (yield* exists(rel)) yield* writer.rewrite(rel, encoder.encode(text));
+          if (yield* exists(rel))
+            yield* writer.rewrite(
+              rel,
+              encoder.encode(text),
+              rel === SOURCES_PATH ? { backupByRename: true } : undefined,
+            );
           else yield* writer.write(rel, encoder.encode(text));
         });
       for (const operation of fileOperations(input.plan)) {
@@ -129,6 +136,7 @@ export const applyAdd = (input: {
         if (!(yield* exists(rel))) yield* writer.write(rel, encoder.encode(text));
       yield* writer.directory(STATE_DIR);
       yield* writeOrReplace(BRIEF_PATH, input.brief.text);
+      yield* writeOrReplace(SOURCES_PATH, input.sources);
       const recorded = yield* recordState(
         input.manifest,
         input.stateManifest,

@@ -77,6 +77,8 @@ export type Composition<S extends Entry | null = Entry> = {
   stack: S;
   /** Composition order (requirements first, ties by id, the app last), bodies resolved. */
   fragments: ReadonlyArray<MountedEntry>;
+  /** Add mode only: previously applied fragments resolved from the current registry. */
+  readonly applied?: ReadonlyArray<MountedEntry>;
   /** The workspace's parts in `parts` order, each mounted; absent for a composition without parts. */
   parts?: ReadonlyArray<ComposedPart>;
   /** The one fragment with category "app", also in `fragments`. */

@@ -46,6 +46,7 @@ const cliFiles = [
   ".stacks/BRIEF.md",
   ".stacks/NOTES.md",
   ".stacks/manifest.json",
+  ".stacks/sources.json",
 ];
 
 it.effect.prop(

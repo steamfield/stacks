@@ -167,6 +167,7 @@ Tag: stack-audit/phase-2
 Demo: `bun run dev validate` lists no `dx-*` note for these stacks; the B4 stacks' `dev-cycle` passes in a fresh scaffold.
 Depends on: phase 2
 Scaffold: stack-audit/phase-2 (no new contracts)
+Tag: stack-audit/phase-3
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -177,6 +178,7 @@ Scaffold: stack-audit/phase-2 (no new contracts)
 
 ### Phase 4: workspaces, enforcement and proofs
 
+Tag: stack-audit/phase-4
 Depends on: phase 3
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |

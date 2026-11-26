@@ -1,3 +1,4 @@
+import OSLog
 import SwiftUI
 
 /// The entry point. It reads the configuration once and shows the first screen, or the

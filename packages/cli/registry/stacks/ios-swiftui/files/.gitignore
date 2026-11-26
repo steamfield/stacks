@@ -6,6 +6,9 @@
 DerivedData/
 *.xcresult
 
+# Local build settings never reach the repository
+*.local.xcconfig
+
 # Xcode per-user state
 xcuserdata/
 *.xcuserstate

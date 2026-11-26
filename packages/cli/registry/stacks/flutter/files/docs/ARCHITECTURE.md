@@ -15,7 +15,7 @@ lib/
   domain/models/            immutable app models (Greeting)
   data/
     services/               one interface per external source, plus fakes
-    repositories/           the source of truth for each model; returns Result
+    repositories/           the source of truth for each model: an interface plus implementations; returns Result
   utils/                    AppError, Result, logging
 test/                       mirrors lib/
 integration_test/           runs on a simulator or device
@@ -30,6 +30,8 @@ tool/                       Dart scripts the Makefile calls
 | View model (`ui/<feature>/view_models`) | repositories, domain models | widgets, `BuildContext`, services |
 | Repository (`data/repositories`) | services, domain models | Flutter widgets |
 | Service (`data/services`) | one external source (HTTP, storage, a plugin) | other services, models beyond JSON |
+
+Each repository is an `abstract interface class` (`GreetingRepository`) with its implementations beside it (`GreetingRepositoryRemote`, over a service). View models and `AppDependencies` name the interface, so another environment or a test can pass a different implementation.
 
 A view model exposes one sealed state type and methods for user actions. The view switches on that state exhaustively, so adding a state is a compile error until every view handles it.
 

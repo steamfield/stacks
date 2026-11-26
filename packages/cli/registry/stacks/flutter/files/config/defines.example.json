@@ -1,0 +1,5 @@
+{
+  "GREETING_NAME": "world",
+  "SERVICE_DELAY_MS": "300",
+  "LOG_LEVEL": "INFO"
+}

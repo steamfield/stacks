@@ -1,4 +1,4 @@
-import 'package:app/data/repositories/greeting_repository.dart';
+import 'package:app/data/repositories/greeting_repository_remote.dart';
 import 'package:app/data/services/fake_greeting_service.dart';
 import 'package:app/data/services/greeting_service.dart';
 import 'package:app/domain/models/greeting.dart';
@@ -32,7 +32,7 @@ void main() {
   });
 
   test('turns the service payload into a Greeting', () async {
-    final repository = GreetingRepository(
+    final repository = GreetingRepositoryRemote(
       service: FakeGreetingService(),
       name: 'Ada',
     );
@@ -49,7 +49,7 @@ void main() {
   });
 
   test('a payload missing its message is an invalid response', () async {
-    final repository = GreetingRepository(
+    final repository = GreetingRepositoryRemote(
       service: FakeGreetingService(response: {'recipient': 'Ada'}),
       name: 'Ada',
     );
@@ -59,7 +59,7 @@ void main() {
   });
 
   test('a network failure from the service passes through', () async {
-    final repository = GreetingRepository(
+    final repository = GreetingRepositoryRemote(
       service: FakeGreetingService(
         failure: const AppError(AppErrorKind.network, 'offline'),
       ),
@@ -72,7 +72,7 @@ void main() {
   });
 
   test('any other exception becomes unexpected and is logged severe', () async {
-    final repository = GreetingRepository(
+    final repository = GreetingRepositoryRemote(
       service: _ThrowingService(const FormatException('bad bytes')),
       name: 'Ada',
     );

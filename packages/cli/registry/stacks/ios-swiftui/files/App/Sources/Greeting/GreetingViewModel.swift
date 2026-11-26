@@ -1,3 +1,4 @@
+import OSLog
 import Observation
 
 /// State for the greeting screen. It owns the load and its failure; the view only renders

@@ -102,9 +102,10 @@ export function hit(hits: ReadonlyArray<Hit>, id: string): Hit {
   if (found === undefined) throw new Error(`Missing search hit ${id}`);
   return found;
 }
-export function mobileCaveats() {
+/** Caveats of ios-swiftui, the bundled stack that answers plain iOS requests first. */
+export function iosCaveats() {
   const value = Schema.decodeUnknownSync(SearchMetadata)(
-    JSON.parse(readFileSync(cardPath(bundled, { kind: "stack", id: "mobile-expo" }), "utf8")),
+    JSON.parse(readFileSync(cardPath(bundled, { kind: "stack", id: "ios-swiftui" }), "utf8")),
   );
   expect(value.caveats?.length).toBeGreaterThan(0);
   return value.caveats ?? [];

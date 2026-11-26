@@ -48,6 +48,7 @@ commands:
   openapi: Write the app's OpenAPI document to openapi.json, formatted by Biome
   check:openapi: Fail if openapi.json no longer matches the app's document (run bun run openapi)
   check: Run lint, typecheck, tests, the OpenAPI drift check and the build
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build and coverage output
   prepare: Install git hooks outside CI
 ---
@@ -88,7 +89,7 @@ The shipped code keeps these; new code does too. `docs/guidance/hono-api/api.md`
 Unit tests sit beside the code (`src/**/*.test.ts`). `tests/http-contract.test.ts` drives the real app with `app.request()` and asserts statuses, envelopes, headers and request records. `tests/server.test.ts` serves on port 0 and calls it with `fetch`. A new endpoint adds its success, every error status it returns, and its validation edges to the contract tables. Details in `docs/guidance/hono-api/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, `check:openapi` and the build. No credentials are needed.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, `check:openapi` and the build, then `bun run audit` as its own step. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands

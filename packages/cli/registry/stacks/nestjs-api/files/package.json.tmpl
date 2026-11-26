@@ -14,6 +14,7 @@
     "test:watch": "vitest --project unit",
     "coverage": "vitest run --coverage",
     "check": "bun run lint && bun run typecheck && bun run coverage && bun run build",
+    "audit": "bun audit",
     "clean": "rm -rf dist coverage",
     "prepare": "bun scripts/prepare.ts"
   }

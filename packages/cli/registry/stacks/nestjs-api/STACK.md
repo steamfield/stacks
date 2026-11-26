@@ -47,6 +47,7 @@ commands:
   test:watch: Watch the unit specs
   coverage: Run both test projects with coverage thresholds
   check: Run lint, typecheck, coverage and the build
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build and coverage output
   prepare: Install git hooks outside CI
 ---
@@ -94,12 +95,12 @@ The shipped code keeps these; new code does too. `docs/guidance/nestjs-api/api.m
 Vitest has `unit` (`src/**/*.spec.ts`) and `e2e` (`tests/e2e/**/*.e2e-spec.ts`) projects; verify runs each separately. Unit specs build services through `Test.createTestingModule`. Contract specs call `testApp()` and assert statuses, bodies, headers, request records and `/openapi.json`; a new endpoint adds its success, every error status it returns, its validation edges and its path there. Override a provider through `testApp({ notes })` only for failures the real one can't produce. Details in `docs/guidance/nestjs-api/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage and the build. No credentials are needed.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage and the build. `bun run audit` runs as its own step after them; it needs the network. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/notes/notes.service.spec.ts`. `dev` stays in the foreground: run it in the background, or use `bun run build && bun run start` on a free `PORT_API`, then stop it. `start` serves the last build. Generate with `bunx nest g module|controller|service <name> --no-spec`, module first, then `bun run format`; the `add-resource` skill walks the whole flow.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/notes/notes.service.spec.ts`. `dev` stays in the foreground: run it in the background, or use `bun run build && bun run start` on a free `PORT_API`, then stop it. `start` serves the last build. `bun run audit` checks dependencies against published advisories and needs the network, so neither `check` nor verify runs it. Generate with `bunx nest g module|controller|service <name> --no-spec`, module first, then `bun run format`; the `add-resource` skill walks the whole flow.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer. Format staged TypeScript with Prettier and lint it with oxlint.

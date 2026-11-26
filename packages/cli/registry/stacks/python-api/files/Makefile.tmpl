@@ -2,7 +2,8 @@
 #
 # A starting point: adapt the recipes to the project, but keep the target
 # names. `stacks verify` calls install, lint, typecheck, coverage, check-openapi,
-# dev-bg, dev-stop and start. CI calls install and ci.
+# dev-bg, dev-stop and start (dev-cycle runs scripts/dev-bg.sh status directly). CI calls
+# install, ci, then audit as its own step.
 
 PORT_API ?= 8000
 API_HOST ?= 127.0.0.1
@@ -10,7 +11,7 @@ TEST_WORKERS ?= auto
 export PORT_API
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage ci audit dev dev-bg dev-stop start \
+.PHONY: help install lint format typecheck test coverage ci audit dev dev-bg dev-stop dev-status start \
 	openapi check-openapi clean
 
 help: ## List targets
@@ -50,6 +51,9 @@ dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one i
 
 dev-stop: ## Stop the server dev-bg started (its whole process group)
 	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
 
 start: ## Uvicorn without reload on PORT_API, as production runs it
 	uv run uvicorn app.main:app --no-access-log --host $(API_HOST) --port $(PORT_API)

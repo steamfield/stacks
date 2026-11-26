@@ -1,11 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(make install)",
       "Bash(make build)",
-      "Bash(make serve)",
       "Bash(make dev-bg)",
       "Bash(make dev-stop)",
+      "Bash(make dev-status)",
       "Bash(make vet)",
       "Bash(make lint)",
       "Bash(make lint-fix)",
@@ -16,6 +15,7 @@
       "Bash(make coverage)",
       "Bash(make vuln)",
       "Bash(make ci)",
+      "Bash(make clean)",
       "Bash(go test *)",
       "Bash(go vet *)",
       "Bash(go build *)",

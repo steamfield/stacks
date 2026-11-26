@@ -29,7 +29,10 @@ verify:
   - { name: build, layer: build, run: make build }
   - { name: test, layer: test, run: make test }
   - { name: test-integration, layer: test, run: make test-integration }
-  - { name: dev-cycle, layer: test, timeout: 3m, run: make dev-bg && make dev-stop }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: api
     phase: serve
     layer: serve
@@ -45,6 +48,7 @@ commands:
   serve: Build, then run the server in the foreground until SIGINT or SIGTERM
   dev-bg: Build, then start bin/server in the background (or reuse a healthy one), logging to logs/dev.log
   dev-stop: Stop the process group dev-bg started
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   vet: Type-check every package, including tagged integration tests (go vet)
   lint: Run golangci-lint
   lint-fix: Run golangci-lint with --fix
@@ -54,7 +58,7 @@ commands:
   test-integration: Build the binary, run it on a free port, test it over HTTP and stop it with signals
   coverage: Race-enabled tests with a coverage floor
   vuln: Check dependencies and the standard library for known vulnerabilities (govulncheck)
-  ci: "Everything CI runs (fmt-check, lint, coverage, test-integration, vuln, build)"
+  ci: "Every offline check CI runs (fmt-check, lint, coverage, test-integration, build)"
   clean: Remove build and coverage output
 ---
 
@@ -93,10 +97,14 @@ Keep the integration tests for SIGINT, SIGTERM, exit status, the stopped record 
 
 `make help` lists every declared command; mirror them in AGENTS.md. Run one test with `go test -race -run TestRequestFailures ./internal/httpapi/`.
 
-To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make serve` or kill server processes by name: dev-stop signals only the process group it recorded. Stop it before `stacks verify`, whose serve step needs the port.
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make serve` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make serve` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 
 <!-- stacks:when with=agent-ops -->
-The stack's Claude settings already allow its make targets except `clean`, plus go test, vet and build and curl to 127.0.0.1. Add rules only for new commands.
+The stack's Claude settings already allow its make targets except `install` and `serve`, plus go test, vet and build and curl to 127.0.0.1. Add rules only for new commands.
+<!-- stacks:end -->
+
+<!-- stacks:when with=ci-github -->
+CI runs `make ci`, then `make vuln` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->

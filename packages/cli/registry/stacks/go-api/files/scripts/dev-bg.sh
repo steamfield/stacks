@@ -1,29 +1,59 @@
 #!/usr/bin/env bash
-# `make dev-bg` / `make dev-stop`: bin/server in the background, for agents and scripts that
-# can't sit in a foreground terminal.
+# `make dev-bg` / `make dev-stop` / `make dev-status`: bin/server in the background, for agents
+# and scripts that can't sit in a foreground terminal.
 #
-#   start  Reuse the server logs/dev.pid records if it runs on the requested HOST and PORT and
-#          still answers /healthz. Otherwise start bin/server in its own process group, record
-#          "<group> <host> <port> <start time>" in logs/dev.pid, send its output to logs/dev.log
-#          and wait for /healthz. If it never answers, stop the group and exit 1 with the log's
-#          last lines.
-#   stop   SIGTERM the recorded process group, SIGKILL it after a grace period, then remove
-#          logs/dev.pid. Only the recorded group is signaled, never processes found by name.
+# Everything below the shared-body marker is identical in every Make stack's copy of this
+# script; a registry test enforces it. Change behavior there in all stacks at once, and keep
+# per-stack facts in the settings above it.
+
+# Env var naming the bind address, or "" when the server takes no host setting (DEV_HOST is used).
+HOST_VAR=HOST
+DEV_HOST=127.0.0.1
+# Env var naming the port, and its default (the stack's `env` value for verify).
+PORT_VAR=PORT
+DEV_PORT=8080
+# How long start waits for healthy, how long dev-stop lets the server shut down (longer than
+# the default SHUTDOWN_TIMEOUT, so in-flight requests finish), and the grace when a start fails
+# or is interrupted (under the 5 s a verify step timeout allows between SIGTERM and SIGKILL).
+START_SECONDS=30
+STOP_SECONDS=15
+ABORT_SECONDS=3
+# How messages name the server, and what a reuse should remind the caller of.
+SERVER_LABEL=bin/server
+REUSE_NOTE="It runs the binary built when it started; make dev-stop && make dev-bg picks up new code."
+
+# Runs the serve command in the foreground on host $1, port $2. The body starts it in the
+# background with output going to logs/dev.log. exec, so the recorded pid is the server itself.
+launch() {
+  HOST="$1" PORT="$2" exec ./bin/server
+}
+
+# Succeeds when the URL the serve step's expect.http names answers on host $1, port $2. The
+# binary's own -healthcheck probes /healthz there (mapping a wildcard bind to loopback), so no
+# curl is needed.
+healthy() {
+  HOST="$1" PORT="$2" ./bin/server -healthcheck >/dev/null 2>&1
+}
+
+# --- shared body ---
 #
-# Health checks use the binary's own -healthcheck flag, so no curl is needed.
+#   start   Reuse the server logs/dev.pid records if it runs on the requested host and port and
+#           is healthy. Otherwise launch in its own process group, record
+#           "<group> <host> <port> <start time>" in logs/dev.pid, send its output to
+#           logs/dev.log and wait for healthy. If it never gets healthy or start is interrupted
+#           (exit 130), stop the group.
+#   stop    SIGTERM the recorded process group, SIGKILL it after STOP_SECONDS, remove the record.
+#           Only the recorded group is signaled, never processes found by name.
+#   status  Exit 0 when the recorded server is running, else 1.
+#
+# A server started in the foreground (make serve, make dev) isn't recorded: start refuses while
+# it holds the port, and stop leaves it alone.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
 PID_FILE=logs/dev.pid
 LOG_FILE=logs/dev.log
 LOCK_DIR=logs/dev.lock
-BIN=./bin/server
-START_SECONDS=30
-# dev-stop's grace: longer than the default SHUTDOWN_TIMEOUT, so in-flight requests can finish.
-STOP_SECONDS=15
-# The grace when start gives up or is interrupted. A stacks verify step that times out gets
-# SIGTERM and then SIGKILL 5 s later, so the SIGKILL to the server has to go out before that.
-ABORT_SECONDS=3
 
 # Globals rather than locals: the signal trap reads them, and a trap runs inside whatever
 # function was executing when the signal arrived, where that function's locals and positional
@@ -51,10 +81,6 @@ recorded_alive() {
   else
     group_alive "$1"
   fi
-}
-
-healthy() {
-  HOST="$1" PORT="$2" "$BIN" -healthcheck >/dev/null 2>&1
 }
 
 show_log() {
@@ -144,10 +170,23 @@ abort_start() {
   return 1
 }
 
+# The requested host and port: the variables' values from the shell, or the defaults. Reuse is
+# judged against these, so an unset variable still means the default, not "any".
+requested() {
+  REQ_HOST=$DEV_HOST
+  if [ -n "$HOST_VAR" ]; then
+    REQ_HOST=${!HOST_VAR:-$DEV_HOST}
+  fi
+  REQ_PORT=${!PORT_VAR:-$DEV_PORT}
+}
+
 start() {
-  local host="${HOST:-127.0.0.1}" port="${PORT:-8080}" group rhost rport rstart since deadline
+  local host port group rhost rport rstart since deadline
+  requested
+  host=$REQ_HOST
+  port=$REQ_PORT
   if [ "$port" = 0 ]; then
-    echo "dev-bg needs a fixed PORT; PORT=0 picks a port the health check can't know." >&2
+    echo "dev-bg needs a fixed $PORT_VAR; 0 picks a port the health check can't know." >&2
     return 1
   fi
   # Installed before the launch, so no signal can land between starting the server and trapping.
@@ -163,11 +202,11 @@ start() {
       return 1
     fi
     if healthy "$rhost" "$rport"; then
-      echo "Reusing the server on http://$rhost:$rport (process group $group). It runs the binary built when it started; make dev-stop && make dev-bg picks up new code."
+      echo "Reusing the server on http://$rhost:$rport (process group $group). $REUSE_NOTE"
       echo "Logs: $LOG_FILE. Stop: make dev-stop"
       return 0
     fi
-    echo "The recorded server (process group $group) doesn't answer /healthz on $rhost:$rport. Stop it with make dev-stop, then start again." >&2
+    echo "The recorded server (process group $group) isn't healthy on $rhost:$rport; run make dev-stop, then start again." >&2
     show_log
     return 1
   fi
@@ -175,20 +214,20 @@ start() {
   rm -f "$PID_FILE"
   # A server dev-bg didn't start can't be stopped by dev-stop, so don't pass it off as ours.
   if healthy "$host" "$port"; then
-    echo "Another server already answers /healthz on $host:$port and logs/dev.pid doesn't record it. Stop that one or set PORT." >&2
+    echo "Another server already answers on $host:$port and logs/dev.pid doesn't record it (a foreground server, or another checkout's). Stop that one or set $PORT_VAR." >&2
     return 1
   fi
   # Job control gives the background job its own process group (macOS has no setsid), so stop
   # reaches the server and anything it spawns, and a signal to whoever ran make doesn't.
   set -m
-  HOST="$host" PORT="$port" "$BIN" </dev/null >"$LOG_FILE" 2>&1 &
+  launch "$host" "$port" </dev/null >"$LOG_FILE" 2>&1 &
   DEV_PGID=$!
   set +m
   # Out of bash's job table, so stopping it here doesn't print a job-status line.
   disown "$DEV_PGID"
   since=$(started "$DEV_PGID")
   if [ -z "$since" ]; then
-    echo "ps can't report bin/server's start time, which dev-stop needs to recognize it." >&2
+    echo "ps can't report $SERVER_LABEL's start time, which dev-stop needs to recognize it." >&2
     abort_start
     return 1
   fi
@@ -196,7 +235,7 @@ start() {
   deadline=$((SECONDS + START_SECONDS))
   while [ "$SECONDS" -lt "$deadline" ]; do
     if ! group_alive "$DEV_PGID"; then
-      echo "bin/server exited before /healthz answered." >&2
+      echo "$SERVER_LABEL exited before it was healthy." >&2
       abort_start
       return 1
     fi
@@ -208,7 +247,7 @@ start() {
     fi
     sleep 0.2
   done
-  echo "bin/server didn't answer /healthz on $host:$port within ${START_SECONDS}s; stopping it." >&2
+  echo "$SERVER_LABEL wasn't healthy on $host:$port within ${START_SECONDS}s; stopping it." >&2
   abort_start
 }
 
@@ -231,11 +270,23 @@ stop() {
   echo "Stopped the server (process group $group)."
 }
 
+status() {
+  local group rhost rport rstart
+  if [ -r "$PID_FILE" ] && read -r group rhost rport rstart <"$PID_FILE" &&
+    recorded_alive "$group" "$rstart"; then
+    echo "Background server recorded on http://$rhost:$rport (process group $group). Logs: $LOG_FILE"
+    return 0
+  fi
+  echo "No background server running."
+  return 1
+}
+
 case "${1:-}" in
 start) start ;;
 stop) stop ;;
+status) status ;;
 *)
-  echo "usage: scripts/dev-bg.sh start|stop" >&2
+  echo "usage: scripts/dev-bg.sh start|stop|status" >&2
   exit 2
   ;;
 esac

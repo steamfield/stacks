@@ -142,16 +142,16 @@ test("a copied user card shadows bundled metadata without losing why or caveats 
   expect(JSON.parse(created.stdout)).toMatchObject({ id: "ios-swiftui" });
   const { value } = await searched("an iOS health app", opts, ["--limit", "20"]);
   expect(value.stacks.filter(({ id }) => id === "ios-swiftui")).toHaveLength(1);
-  expect(value.stacks[0]).toMatchObject({
-    id: "ios-swiftui",
+  // Several bundled stacks ship iOS apps at nearly equal scores, and a user copy carries no
+  // ledger proof, so the copy's rank isn't fixed; its row is what shadowing must keep.
+  const copy = hit(value.stacks, "ios-swiftui");
+  expect(copy).toMatchObject({
     origin: "user",
     trusted: true,
     tier: "strong",
     caveats: iosCaveats(),
   });
-  expect(value.stacks[0]?.why).toContainEqual(
-    expect.objectContaining({ field: "platforms", matched: "ios" }),
-  );
+  expect(copy.why).toContainEqual(expect.objectContaining({ field: "platforms", matched: "ios" }));
 });
 
 test("trimmed 500-character multi-byte requests are accepted [4.5c#23]", async () => {

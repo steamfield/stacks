@@ -41,6 +41,7 @@ commands:
   fmt-check: Fail if rustfmt would change any file
   clippy: clippy for the native and wasm32 targets, warnings denied
   lint: fmt-check and clippy
+  lint-fix: Apply clippy's machine-applicable fixes for the native and wasm32 targets, then format
   test: Native unit tests of the Rust logic
   test-wasm: The exports compiled to wasm32 and run in Node (wasm-bindgen-test)
   build: Compile to wasm and generate the npm package in pkg/ (wasm-pack, release, wasm-opt)
@@ -48,7 +49,7 @@ commands:
   typecheck-js: Typecheck consumer/ against the packed package's generated .d.ts
   test-js: Run consumer/'s tests on Node against the packed package
   audit: Advisories, licenses and sources with cargo-deny (needs network)
-  ci: "Everything CI runs (lint, test, test-wasm, typecheck-js, test-js, audit)"
+  ci: "Every check CI runs except the audit (lint, test, test-wasm, typecheck-js, test-js)"
   clean: Remove build output and pkg/
 ---
 
@@ -92,10 +93,10 @@ Unit tests sit in each logic module's `#[cfg(test)] mod tests` and run natively 
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, test, test-wasm, build, pack, typecheck-js, test-js, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with the single-test command (`cargo test <name>`); the wasm suite runs whole with `make test-wasm`, because wasm-pack passes extra arguments to its build step as well, where a test name fails. Checks run with `--locked`; commit `Cargo.lock` and `consumer/bun.lock`.
+The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, lint-fix, test, test-wasm, build, pack, typecheck-js, test-js, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with the single-test command (`cargo test <name>`); the wasm suite runs whole with `make test-wasm`, because wasm-pack passes extra arguments to its build step as well, where a test name fails. `make lint-fix` applies clippy's machine-applicable fixes and formats. Checks run with `--locked`; commit `Cargo.lock` and `consumer/bun.lock`.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: Node from `.node-version`, Bun from `consumer/package.json`'s `packageManager`, wasm-pack and cargo-deny from a prebuilt-binary installer, then `make install` and `make ci`. Cache wasm-pack's download cache (`~/.cache/.wasm-pack` on Linux) with the Cargo cache. No publish job: releases stay a person's step. There is no coverage target (Rust coverage needs cargo-llvm-cov, which the stack doesn't ship); record that under Deferred.
+**CI.** One `ubuntu-latest` job: Node from `.node-version`, Bun from `consumer/package.json`'s `packageManager`, wasm-pack and cargo-deny from a prebuilt-binary installer, then `make install`, `make ci`, and `make audit` as its own step (it needs the network). Cache wasm-pack's download cache (`~/.cache/.wasm-pack` on Linux) with the Cargo cache. No publish job: releases stay a person's step. There is no coverage target (Rust coverage needs cargo-llvm-cov, which the stack doesn't ship); record that under Deferred.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

@@ -5,18 +5,25 @@
       "Bash(make fmt-check)",
       "Bash(make clippy)",
       "Bash(make lint)",
+      "Bash(make lint-fix)",
       "Bash(make check)",
       "Bash(make test)",
       "Bash(make build)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make dev-status)",
       "Bash(make audit)",
       "Bash(make ci)",
+      "Bash(make clean)",
       "Bash(cargo fmt *)",
       "Bash(cargo check *)",
       "Bash(cargo clippy *)",
       "Bash(cargo test *)",
       "Bash(cargo build *)",
       "Bash(cargo tree *)",
-      "Bash(cargo metadata *)"
+      "Bash(cargo metadata *)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -si http://127.0.0.1:*)"
     ]
   }
 }

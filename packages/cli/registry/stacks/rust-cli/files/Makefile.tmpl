@@ -1,14 +1,15 @@
 # {{project_name}} development commands.
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
-# fmt-check, clippy, check, test, build and smoke; CI calls `make ci`.
+# fmt-check, clippy, check, test, build and smoke; CI calls `make ci`, then
+# `make audit` as its own step.
 
 BIN        := {{project_slug}}
 TARGET_DIR := $(or $(CARGO_TARGET_DIR),target)
 RELEASE    := $(TARGET_DIR)/release/$(BIN)
 
 .DEFAULT_GOAL := help
-.PHONY: help install fmt fmt-check clippy lint check test build smoke audit ci clean
+.PHONY: help install fmt fmt-check clippy lint lint-fix check test build smoke audit ci clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -27,6 +28,10 @@ clippy: ## clippy on every target with warnings denied
 	cargo clippy --locked --all-targets --all-features -- -D warnings
 
 lint: fmt-check clippy ## fmt-check and clippy
+
+lint-fix: ## Apply clippy's machine-applicable fixes, then format
+	cargo clippy --fix --allow-dirty --locked --all-targets --all-features
+	cargo fmt --all
 
 check: ## Type-check every target
 	cargo check --locked --all-targets --all-features
@@ -48,7 +53,7 @@ audit: ## Advisories, licenses and sources with cargo-deny (needs network)
 		else cargo install --locked cargo-deny; fi; }
 	cargo deny check
 
-ci: fmt-check clippy test smoke audit ## Everything CI runs
+ci: fmt-check clippy test smoke ## Every offline check CI runs (audit is its own step)
 
 clean: ## Remove build output
 	cargo clean

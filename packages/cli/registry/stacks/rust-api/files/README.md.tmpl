@@ -26,8 +26,10 @@ Requires rustup (the toolchain comes from `rust-toolchain.toml`) and make.
 | `make build` | Release binary in `target/release/` |
 | `make test` | Unit, router and binary tests |
 | `make lint` | rustfmt check and clippy with warnings denied |
+| `make lint-fix` | Apply clippy's machine-applicable fixes, then format |
+| `make dev-bg` / `make dev-stop` | Run the server in the background, logging to `logs/dev.log`, and stop it |
 | `make audit` | cargo-deny: advisories, licenses, sources |
-| `make ci` | Everything CI runs |
+| `make ci` | Every offline check CI runs (not the audit) |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
 

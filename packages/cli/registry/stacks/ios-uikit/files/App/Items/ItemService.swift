@@ -2,8 +2,10 @@ import Foundation
 
 /// Where the list gets its items. View models depend on this protocol only, so tests pass a
 /// stub and a network-backed service can replace `BundledItemService` without touching them.
+/// `@concurrent` keeps the work off the caller's actor (the main actor, for a view model)
+/// even when a build setting makes nonisolated async functions run on the caller's actor.
 protocol ItemService: Sendable {
-  func items() async throws(AppError) -> [Item]
+  @concurrent func items() async throws(AppError) -> [Item]
 }
 
 /// Reads `<resource>.json` from a bundle. The app's only data source until it has a backend.
@@ -12,7 +14,7 @@ struct BundledItemService: ItemService {
   let resource: String
   let delay: Duration
 
-  func items() async throws(AppError) -> [Item] {
+  @concurrent func items() async throws(AppError) -> [Item] {
     if delay > .zero {
       // Cancellation ends the wait early; the caller decides what a cancelled load means.
       try? await Task.sleep(for: delay)

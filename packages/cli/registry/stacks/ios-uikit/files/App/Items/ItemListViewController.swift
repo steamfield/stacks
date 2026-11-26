@@ -15,6 +15,11 @@ final class ItemListViewController: UIViewController {
   enum AccessibilityID {
     static let list = "items.list"
     static func row(_ id: Item.ID) -> String { "items.row.\(id)" }
+    /// On the root view, naming the state on screen, so UI tests don't match on copy.
+    static let loading = "items.state.loading"
+    static let empty = "items.state.empty"
+    static let loaded = "items.state.loaded"
+    static let failed = "items.state.failed"
   }
 
   let viewModel: ItemListViewModel
@@ -90,18 +95,22 @@ final class ItemListViewController: UIViewController {
     case .idle, .loading:
       apply([])
       contentUnavailableConfiguration = UIContentUnavailableConfiguration.loading()
+      view.accessibilityIdentifier = AccessibilityID.loading
     case .loaded(let items) where items.isEmpty:
       apply([])
       var empty = UIContentUnavailableConfiguration.empty()
       empty.image = UIImage(systemName: "tray")
       empty.text = String(localized: "No items yet")
       contentUnavailableConfiguration = empty
+      view.accessibilityIdentifier = AccessibilityID.empty
     case .loaded(let items):
       apply(items)
       contentUnavailableConfiguration = nil
+      view.accessibilityIdentifier = AccessibilityID.loaded
     case .failed(let message):
       apply([])
       contentUnavailableConfiguration = failureConfiguration(message)
+      view.accessibilityIdentifier = AccessibilityID.failed
     }
   }
 

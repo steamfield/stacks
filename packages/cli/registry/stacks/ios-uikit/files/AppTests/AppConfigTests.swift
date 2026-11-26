@@ -1,62 +1,86 @@
-import XCTest
+import Foundation
+import Testing
 
 @testable import App
 
-final class AppConfigTests: XCTestCase {
-  func testDefaultsApplyWhenNothingIsSet() throws {
+struct AppConfigTests {
+  @Test func defaultsApplyWhenNothingIsSet() throws {
     let config = try AppConfig.load(info: [:], environment: [:])
-    XCTAssertEqual(config, AppConfig.defaults)
+    #expect(config == AppConfig.defaults)
   }
 
-  func testInfoPlistOverridesDefaults() throws {
+  @Test func infoPlistOverridesDefaults() throws {
     let config = try AppConfig.load(
       info: ["ItemsResource": "featured", "LoadDelayMilliseconds": 250],
       environment: [:]
     )
-    XCTAssertEqual(config.itemsResource, "featured")
-    XCTAssertEqual(config.loadDelay, .milliseconds(250))
+    #expect(config.itemsResource == "featured")
+    #expect(config.loadDelay == .milliseconds(250))
   }
 
-  func testEnvironmentOverridesInfoPlist() throws {
+  @Test func environmentOverridesInfoPlist() throws {
     let config = try AppConfig.load(
       info: ["ItemsResource": "featured", "LoadDelayMilliseconds": 250],
       environment: ["APP_ITEMS_RESOURCE": "archive", "APP_LOAD_DELAY_MS": "0"]
     )
-    XCTAssertEqual(config.itemsResource, "archive")
-    XCTAssertEqual(config.loadDelay, .zero)
+    #expect(config.itemsResource == "archive")
+    #expect(config.loadDelay == .zero)
   }
 
-  private struct InvalidCase {
-    var info: [String: Any] = [:]
-    var environment: [String: String] = [:]
-    let key: String
-  }
+  /// One rejected input per case. Info.plist values are built inside the test, because
+  /// `[String: Any]` isn't `Sendable` and test arguments must be.
+  enum InvalidCase: CaseIterable, Sendable {
+    case resourceNotAString
+    case delayNotANumber
+    case delayEnvFractional
+    case resourceBlank
+    case delayNegative
+    case delayTooLong
 
-  func testRejectsInvalidValues() {
-    let cases = [
-      InvalidCase(info: ["ItemsResource": 3], key: "ItemsResource"),
-      InvalidCase(info: ["LoadDelayMilliseconds": "soon"], key: "LoadDelayMilliseconds"),
-      InvalidCase(environment: ["APP_LOAD_DELAY_MS": "1.5"], key: "APP_LOAD_DELAY_MS"),
-      InvalidCase(environment: ["APP_ITEMS_RESOURCE": "  "], key: "itemsResource"),
-      InvalidCase(environment: ["APP_LOAD_DELAY_MS": "-1"], key: "loadDelay"),
-      InvalidCase(environment: ["APP_LOAD_DELAY_MS": "10001"], key: "loadDelay"),
-    ]
-    for testCase in cases {
-      XCTAssertThrowsError(
-        try AppConfig.load(info: testCase.info, environment: testCase.environment),
-        "expected \(testCase.key) to be rejected"
-      ) { error in
-        guard case .invalidConfig(let key, _) = error as? AppError else {
-          return XCTFail("expected invalidConfig, got \(error)")
-        }
-        XCTAssertEqual(key, testCase.key)
+    var info: [String: Any] {
+      switch self {
+      case .resourceNotAString: ["ItemsResource": 3]
+      case .delayNotANumber: ["LoadDelayMilliseconds": "soon"]
+      default: [:]
+      }
+    }
+
+    var environment: [String: String] {
+      switch self {
+      case .delayEnvFractional: ["APP_LOAD_DELAY_MS": "1.5"]
+      case .resourceBlank: ["APP_ITEMS_RESOURCE": "  "]
+      case .delayNegative: ["APP_LOAD_DELAY_MS": "-1"]
+      case .delayTooLong: ["APP_LOAD_DELAY_MS": "10001"]
+      default: [:]
+      }
+    }
+
+    var key: String {
+      switch self {
+      case .resourceNotAString: "ItemsResource"
+      case .delayNotANumber: "LoadDelayMilliseconds"
+      case .delayEnvFractional: "APP_LOAD_DELAY_MS"
+      case .resourceBlank: "itemsResource"
+      case .delayNegative, .delayTooLong: "loadDelay"
       }
     }
   }
 
-  func testShippedInfoPlistLoads() throws {
+  @Test(arguments: InvalidCase.allCases)
+  func rejectsInvalidValues(_ invalid: InvalidCase) {
+    let error = #expect(throws: AppError.self) {
+      try AppConfig.load(info: invalid.info, environment: invalid.environment)
+    }
+    guard case .invalidConfig(let key, _) = error else {
+      Issue.record("expected invalidConfig, got \(String(describing: error))")
+      return
+    }
+    #expect(key == invalid.key)
+  }
+
+  @Test func shippedInfoPlistLoads() throws {
     let info = Bundle.main.object(forInfoDictionaryKey: AppConfig.infoKey) as? [String: Any]
-    let config = try AppConfig.load(info: try XCTUnwrap(info), environment: [:])
-    XCTAssertEqual(config.itemsResource, "items")
+    let config = try AppConfig.load(info: try #require(info), environment: [:])
+    #expect(config.itemsResource == "items")
   }
 }

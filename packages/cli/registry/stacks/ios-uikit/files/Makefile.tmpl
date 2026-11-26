@@ -6,6 +6,10 @@ PROJECT := {{project_slug}}
 SCHEME := App
 SOURCES := App AppTests AppUITests
 DERIVED := build/DerivedData
+# Line coverage floor for the App target under the unit tests (make coverage). Raise it as
+# tests grow; lowering it needs a reason in AGENTS.md.
+COVERAGE_MIN ?= 80
+COVERAGE_BUNDLE := build/coverage/AppTests.xcresult
 
 # Simulator builds never sign. -parallel-testing-enabled NO stops xcodebuild cloning the
 # simulator, which is slow and collides with other runs on the same machine.
@@ -24,7 +28,7 @@ QUIET :=
 PRETTY := | xcbeautify
 endif
 
-.PHONY: help env install project build lint fmt fmt-check test test-ui ci clean
+.PHONY: help env install project build lint fmt fmt-check test coverage test-ui ci clean
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -54,14 +58,20 @@ fmt: ## Format Swift sources with swift-format
 fmt-check: ## Fail if swift-format would change anything or reports a lint finding
 	xcrun swift-format lint --strict --recursive --parallel $(SOURCES)
 
-# ONLY narrows a run: make test ONLY=AppTests/ItemListViewModelTests/testRetryAfterFailureLoadsItems
-test: project ## Unit tests (AppTests) on the simulator; ONLY=<target/class/test> runs one
+# ONLY narrows a run: make test ONLY='AppTests/ItemListViewModelTests/retryAfterFailureLoadsItems()'
+test: project ## Unit tests (AppTests) on the simulator; ONLY=<target/suite/test> runs one
 	$(XCODEBUILD) -only-testing:$(or $(ONLY),AppTests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
+
+coverage: project ## Unit tests with line coverage; fails below COVERAGE_MIN percent
+	rm -rf $(COVERAGE_BUNDLE)
+	$(XCODEBUILD) -only-testing:AppTests -parallel-testing-enabled NO -enableCodeCoverage YES \
+		-resultBundlePath $(COVERAGE_BUNDLE) test $(QUIET) $(PRETTY)
+	bash scripts/coverage.sh $(COVERAGE_BUNDLE) $(COVERAGE_MIN)
 
 test-ui: project ## UI smoke tests (AppUITests); launches the app on the simulator
 	$(XCODEBUILD) -only-testing:$(or $(ONLY),AppUITests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
 
-ci: fmt-check lint build test test-ui ## Everything CI runs
+ci: fmt-check lint build coverage test-ui ## Everything CI runs
 
 clean: ## Remove build output and the generated project
 	rm -rf build $(PROJECT).xcodeproj

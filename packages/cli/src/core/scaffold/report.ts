@@ -4,6 +4,7 @@
  */
 import type { NewResult } from "../../schemas/new";
 import { type Audience, plainStyle, type Style } from "../../services/output";
+import { VERSION } from "../../version";
 import { collapsePaths } from "../brief/paths";
 import type { Composition } from "../compose/types";
 import { partsLine } from "../text/parts-line";
@@ -39,8 +40,43 @@ const gitLine = (result: Pick<NewResult, "warnings" | "git" | "dryRun">) => {
   return "git not found; no repository";
 };
 
+type ReportWarning = Omit<NewResult["warnings"][number], "code"> & { code: string };
+
+const indexWarningMessages = {
+  timeout: "Index unreachable (timeout)",
+  network: "Index unreachable (network)",
+  not_found: "Index unreachable (not_found)",
+  invalid: "Index invalid",
+  signature: "Index signature failed",
+  unsupported: "Index needs a newer stacks (run stacks update)",
+  offline: "Offline",
+} satisfies Record<NonNullable<ReportWarning["reason"]>, string>;
+
+function indexAge(elapsedMs: number): string {
+  const minutes = Math.floor(Math.max(0, elapsedMs) / 60_000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function indexWarningLine(
+  reason: NonNullable<ReportWarning["reason"]>,
+  cachedAt?: string,
+  now?: number,
+) {
+  const message = indexWarningMessages[reason];
+  if (cachedAt === undefined)
+    return `${message}; used the registry bundled with stacks ${VERSION}.`;
+  const millis = Date.parse(cachedAt);
+  if (!Number.isFinite(millis)) return `${message}; used the cached index.`;
+  const date = new Date(millis).toISOString().slice(0, 16).replace("T", " ");
+  const age = now === undefined ? "" : ` (${indexAge(now - millis)} old)`;
+  return `${message}; used the cached index from ${date} UTC${age}.`;
+}
+
 /** Render unknown warning codes as data. */
-export const warningLine = (warning: { code: string; id: string }) => {
+export const warningLine = (warning: ReportWarning, now?: number) => {
   const id = printable(warning.id);
   switch (warning.code) {
     case "always_not_applicable":
@@ -60,6 +96,10 @@ export const warningLine = (warning: { code: string; id: string }) => {
       return `the manifest's part stack ${id} is in no registry; fragments are placed by its id`;
     case "name_unreadable":
       return `couldn't read the project name from ${id}`;
+    case "index_fallback":
+      if (warning.reason !== undefined)
+        return indexWarningLine(warning.reason, warning.cachedAt, now);
+      return `${warning.code}: ${id}`;
     default:
       return `${printable(warning.code)}: ${id}`;
   }
@@ -82,7 +122,7 @@ export const missingLine = (item: NewResult["missingTools"][number]) => {
  */
 export function renderNew(
   result: Omit<NewResult, "handoff">,
-  context: { shown: string; audience: Audience; style?: Style },
+  context: { shown: string; audience: Audience; style?: Style; now?: number },
 ): string {
   const human = context.audience === "human";
   const { style = plainStyle } = context;
@@ -116,7 +156,7 @@ export function renderNew(
   if (warnings.length)
     lines.push(
       style("warn", "Warnings:"),
-      ...warnings.map((warning) => `  ${style("warn", warningLine(warning))}`),
+      ...warnings.map((warning) => `  ${style("warn", warningLine(warning, context.now))}`),
     );
   if (result.untrusted.length)
     lines.push(

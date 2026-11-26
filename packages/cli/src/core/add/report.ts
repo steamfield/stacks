@@ -7,7 +7,7 @@ import { printable } from "../text/text";
 /** The add summary; callers shorten project and untrusted paths with shownPath for agents. */
 export function renderAdd(
   result: Omit<AddResult, "handoff">,
-  context: { shown: string; audience: Audience; invocation: string },
+  context: { shown: string; audience: Audience; invocation: string; now?: number },
 ): string {
   return [
     `Added ${result.added.map(printable).join(", ")}${context.shown === "." ? "" : ` to ${printable(context.shown)}`}`,
@@ -18,7 +18,7 @@ export function renderAdd(
     // missingTools above says the same as each missing_tool warning, with its owners.
     ...result.warnings
       .filter((warning) => warning.code !== "missing_tool")
-      .map((warning) => `Warning: ${warningLine(warning)}`),
+      .map((warning) => `Warning: ${warningLine(warning, context.now)}`),
     ...(result.mergeNeeded.length
       ? [
           "",

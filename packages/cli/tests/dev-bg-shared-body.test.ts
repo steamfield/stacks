@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { existsSync, globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join, sep } from "node:path";
@@ -40,15 +40,27 @@ test("bundled dev-bg scripts mark one byte-identical shared body", () => {
 const run = promisify(execFile);
 const dirs: ReturnType<typeof tempDir>[] = [];
 
-afterEach(async () => {
+const groups: number[] = [];
+
+/** Signals process group `group`; false when it doesn't exist. */
+function signalGroup(group: number, signal: NodeJS.Signals | 0) {
+  try {
+    process.kill(-group, signal);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+afterEach(() => {
+  // A failed assertion can leave a server or a stand-in group running.
   for (const dir of dirs.splice(0)) {
-    // A failed assertion can leave the server running; kill its group before removing the dir.
     const record = join(dir.path, "logs", "dev.pid");
-    const group = existsSync(record) ? readFileSync(record, "utf8").split(" ")[0] : undefined;
-    if (group && group !== String(process.pid))
-      await run("kill", ["-KILL", `-${group}`]).catch(() => undefined);
+    const group = Number(existsSync(record) ? readFileSync(record, "utf8").split(" ")[0] : 0);
+    if (group > 1 && group !== process.pid) groups.push(group);
     dir.cleanup();
   }
+  for (const group of groups.splice(0)) signalGroup(group, "SIGKILL");
 });
 
 function freePort(): Promise<number> {
@@ -95,53 +107,49 @@ async function checkout() {
   const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: dir.path };
   const devBg = async (command: string) =>
     run("bash", ["scripts/dev-bg.sh", command], { cwd: dir.path, env }).then(
-      ({ stdout }) => ({ code: 0, stdout }),
-      (error: { code?: number; stdout?: string }) => ({
+      ({ stdout, stderr }) => ({ code: 0, stdout, stderr }),
+      (error: { code?: number; stdout?: string; stderr?: string }) => ({
         code: error.code ?? -1,
         stdout: error.stdout ?? "",
+        stderr: error.stderr ?? "",
       }),
     );
   return { dir: dir.path, port, devBg };
-}
-
-async function groupAlive(group: string) {
-  return run("kill", ["-0", `-${group}`]).then(
-    () => true,
-    () => false,
-  );
 }
 
 test("dev-bg starts, reuses, reports and stops its server's process group", async () => {
   const { dir, port, devBg } = await checkout();
 
   const started = await devBg("start");
-  expect(started).toMatchObject({ code: 0 });
+  expect(started).toMatchObject({ code: 0, stderr: "" });
   expect(started.stdout).toContain(`Server running on http://127.0.0.1:${port}`);
-  const group = readFileSync(join(dir, "logs", "dev.pid"), "utf8").split(" ")[0] ?? "";
-  expect(await groupAlive(group)).toBe(true);
+  const group = Number(readFileSync(join(dir, "logs", "dev.pid"), "utf8").split(" ")[0]);
+  expect(signalGroup(group, 0)).toBe(true);
 
   const reused = await devBg("start");
-  expect(reused).toMatchObject({ code: 0 });
+  expect(reused).toMatchObject({ code: 0, stderr: "" });
   expect(reused.stdout).toContain(`Reusing the server on http://127.0.0.1:${port}`);
-  expect((await devBg("status")).code).toBe(0);
+  expect(await devBg("status")).toMatchObject({ code: 0, stderr: "" });
 
-  expect(await devBg("stop")).toMatchObject({ code: 0 });
-  expect(await groupAlive(group)).toBe(false);
+  expect(await devBg("stop")).toMatchObject({ code: 0, stderr: "" });
+  expect(signalGroup(group, 0)).toBe(false);
   expect(existsSync(join(dir, "logs", "dev.pid"))).toBe(false);
-  expect((await devBg("status")).code).toBe(1);
+  expect(await devBg("status")).toMatchObject({ code: 1, stderr: "" });
 }, 30_000);
 
 test("dev-stop drops a record whose leader is a different process and signals nothing", async () => {
   const { dir, devBg } = await checkout();
+  // A live group leader that dev-bg didn't start: the record's start time can't match it.
+  const stranger = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
+  stranger.unref();
+  const group = stranger.pid ?? 0;
+  groups.push(group);
   mkdirSync(join(dir, "logs"));
-  // This test's own pid is alive, but its start time can't match the recorded one.
-  writeFileSync(
-    join(dir, "logs", "dev.pid"),
-    `${process.pid} 127.0.0.1 1 Thu Jan  1 00:00:00 1970\n`,
-  );
+  writeFileSync(join(dir, "logs", "dev.pid"), `${group} 127.0.0.1 1 Thu Jan  1 00:00:00 1970\n`);
 
   const stopped = await devBg("stop");
-  expect(stopped).toMatchObject({ code: 0 });
+  expect(stopped).toMatchObject({ code: 0, stderr: "" });
   expect(stopped.stdout).toContain("had already exited");
   expect(existsSync(join(dir, "logs", "dev.pid"))).toBe(false);
+  expect(signalGroup(group, 0)).toBe(true);
 }, 30_000);

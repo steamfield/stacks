@@ -14,6 +14,13 @@ export const DX_SEVERITY: Finding["severity"] = "warning";
 
 const BASELINE_FRAGMENTS = ["agent-ops", "git-hooks", "ci-github"] as const;
 
+/**
+ * Stacks built on Apple's frameworks alone, with no package manager for an audit to check.
+ * Named rather than inferred: neither `deps` nor shipped manifests tell them apart (go-library
+ * declares neither, and govulncheck still checks its toolchain).
+ */
+const PLATFORM_ONLY: ReadonlyArray<string> = ["ios-objc", "ios-swiftui", "ios-uikit"];
+
 type Gap = Pick<Finding, "check" | "message">;
 
 export const dxBaselineChecks: Check = Effect.fn("validate.dxBaseline")(function* (view) {
@@ -83,9 +90,11 @@ function commandGaps(stack: Stack, commands: Composition["commands"]): Gap[] {
       message:
         "declares no format or lint-fix command; add format to run the formatter and the linter's safe fixes, or add a separate lint-fix command",
     });
-  // A stack on platform frameworks alone (ios-objc) has no dependency for an audit to check.
-  const declaresDeps = Object.values(stack.meta.deps).some((names) => names.length > 0);
-  if (declaresDeps && !Object.hasOwn(commands, "audit") && !Object.hasOwn(commands, "vuln"))
+  if (
+    !PLATFORM_ONLY.includes(stack.meta.id) &&
+    !Object.hasOwn(commands, "audit") &&
+    !Object.hasOwn(commands, "vuln")
+  )
     gaps.push({
       check: "dx-audit",
       message:

@@ -150,25 +150,18 @@ test.each([
     declared: ["check", "audit"],
     expected: [format],
   },
-  {
-    name: "missing audit command",
-    tags: "make",
-    declared: ["ci", "format"],
-    deps: "deps: { app: [left-pad] }",
-    expected: [audit],
-  },
-  {
-    name: "a stack with no declared dependencies needs no audit",
-    tags: "make",
-    declared: ["ci", "format"],
-    deps: "deps: { app: [] }",
-    expected: [],
-  },
+  { name: "missing audit command", tags: "make", declared: ["ci", "format"], expected: [audit] },
   { name: "no runner tag skips command checks", tags: "cli", declared: [], expected: [] },
-])("$name", async ({ tags, declared, deps = "", expected }) => {
+])("$name", async ({ tags, declared, expected }) => {
   const root = commandRegistry();
-  stack(root, `tags: [${tags}]\n${commands(declared)}\n${baseline}\n${deps}`);
+  stack(root, `tags: [${tags}]\n${commands(declared)}\n${baseline}`);
   await expectDx(root, expected);
+});
+
+test("a stack on Apple's frameworks alone needs no audit command", async () => {
+  const root = commandRegistry();
+  stack(root, `tags: [make]\n${commands(["ci", "format"])}\n${baseline}`, { id: "ios-objc" });
+  await expectDx(root, []);
 });
 
 test.each([
@@ -378,7 +371,7 @@ test("the same registry gets DX findings only when validated as bundled", async 
 
 test("a bundled brief preview leaves the DX audit to registry validation", async () => {
   const root = registry();
-  stack(root, "tags: [make]\ndeps: { app: [left-pad] }");
+  stack(root, "tags: [make]");
   await expectDx(root, [aggregate("ci"), audit, format, ...missingFragments]);
   const { status, stdout, stderr } = await runCli(["validate", "--brief", "sample", "--json"], {
     env: quiet,

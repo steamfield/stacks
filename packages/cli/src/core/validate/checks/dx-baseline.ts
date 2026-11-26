@@ -95,21 +95,22 @@ function commandGaps(stack: Stack, commands: Composition["commands"]): Gap[] {
 }
 
 function backgroundGap(stack: Stack, commands: Composition["commands"], usesMake: boolean) {
+  if (!usesMake) return undefined;
   const { tags, verify } = stack.meta;
   if (!(tags.includes("web") || tags.includes("api"))) return undefined;
   if (!verify.some(({ phase }) => phase === "serve")) return undefined;
 
   const missing = [
     {
-      name: usesMake ? "dev-bg" : "dev:bg",
+      name: "dev-bg",
       fix: "a background start that logs to logs/dev.log",
     },
     {
-      name: usesMake ? "dev-stop" : "dev:stop",
+      name: "dev-stop",
       fix: "a stop that signals only its process group",
     },
     {
-      name: usesMake ? "dev-status" : "dev:status",
+      name: "dev-status",
       fix: "a status command that exits 0 while the recorded server runs",
     },
   ].filter(({ name }) => !Object.hasOwn(commands, name));

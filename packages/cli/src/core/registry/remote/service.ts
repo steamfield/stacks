@@ -10,9 +10,10 @@ import {
   type IndexEntry,
   RegistryIndex,
 } from "@steamfield/stacks-format";
-import { Context, Effect, FileSystem, Layer, Option, Path, Schema, Scope } from "effect";
+import { Context, Duration, Effect, FileSystem, Layer, Option, Path, Schema, Scope } from "effect";
 import { HttpClient } from "effect/http";
 import { AppConfig } from "../../../config";
+import { INDEX_REFRESH_DEADLINE_MS } from "../../../constants";
 import type { RemoteStatus } from "../../../schemas/remote-index";
 import {
   type Cache,
@@ -20,6 +21,7 @@ import {
   makeCachedFetch,
   type Revalidation,
 } from "../../cached-fetch";
+import { defined } from "../../object";
 import { indexRoot } from "../roots";
 import type { IndexRegistryRoot } from "../types";
 import { directoryMatches, extractBundle } from "./files";
@@ -69,6 +71,7 @@ const readStatus = Effect.fn("remoteIndex.readStatus")(function* (
   isDefaultUrl: boolean,
 ) {
   const state = yield* options.cached.status;
+  const index = Option.getOrUndefined(yield* options.cached.cached);
   return {
     url: state.url,
     isDefaultUrl,
@@ -77,6 +80,12 @@ const readStatus = Effect.fn("remoteIndex.readStatus")(function* (
     lastAttempt: state.lastAttempt,
     lastOutcome: state.lastOutcome,
     backoffUntil: state.backoffUntil,
+    ...defined({
+      commit: index?.commit,
+      generatedAt: index?.generatedAt,
+      minCli: index?.minCli,
+      etag: state.etag,
+    }),
   };
 });
 
@@ -232,12 +241,30 @@ export class RemoteIndex extends Context.Service<
             .pipe(Effect.provideService(Scope.Scope, scope)),
         );
         const access = { cache, cached, url };
+        let refreshStarted = false;
+        const refresh = yield* Effect.cached(
+          Effect.gen(function* () {
+            refreshStarted = true;
+            return yield* cached.revalidate({
+              deadline: Duration.millis(INDEX_REFRESH_DEADLINE_MS),
+              ignoreBackoff: true,
+            });
+          }).pipe(
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                refreshStarted = false;
+              }),
+            ),
+          ),
+        );
         return {
           root,
-          current: cached.current(),
+          current: Effect.suspend(() =>
+            refreshStarted ? refresh.pipe(Effect.andThen(cached.cached)) : cached.current(),
+          ),
           status: readStatus(access, config.offline, verification.isDefaultUrl),
           bundle: (entry) => cachedBundle({ ...access, temporary }, entry),
-          refresh: Effect.die(new Error("not implemented: RemoteIndex.refresh")),
+          refresh,
         };
       }),
     );

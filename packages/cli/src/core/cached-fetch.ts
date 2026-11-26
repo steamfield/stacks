@@ -21,7 +21,7 @@ import {
   FAILURE_BACKOFF_MS,
   NOT_FOUND_BACKOFF_MS,
 } from "../constants";
-import { RemoteStatus } from "../schemas/remote-index";
+import { type IndexFallbackReason, type IndexOutcome, RemoteStatus } from "../schemas/remote-index";
 import { replaceFile } from "./fs/replace-file";
 import { defined } from "./object";
 
@@ -38,7 +38,7 @@ const State = Schema.Struct({
 });
 
 /** Why a request produced nothing usable; recorded as `lastOutcome`. */
-export type CacheFailure = Exclude<NonNullable<typeof State.Type.lastOutcome>, "ok">;
+export type CacheFailure = Exclude<typeof IndexOutcome.Type, "ok">;
 /** The directory a resource's body and state files live in, with the services to reach it. */
 export type Cache = { fs: FileSystem.FileSystem; path: Path.Path; root: string };
 type CacheState = typeof State.Type & { backoffs: Record<string, string> };
@@ -58,7 +58,7 @@ type Loader<A, R = never> = (
  */
 export type Revalidation = {
   source: "fresh" | "revalidated" | "cached" | "none";
-  reason?: CacheFailure | "offline";
+  reason?: typeof IndexFallbackReason.Type;
   cachedAt?: string;
 };
 

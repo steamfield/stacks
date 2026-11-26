@@ -1,9 +1,8 @@
 /** Validates `stacks search` requests and renders the results. */
-import { type SearchHit, SearchResult } from "@steamfield/stacks-format";
+import { SearchResult } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { entryKey } from "../core/registry/entry";
-import { RemoteIndex } from "../core/registry/remote/service";
+import { indexUpdateHint } from "../core/search/hint";
 import { renderSearch } from "../core/search/report";
 import { search } from "../core/search/run";
 import { textWidth } from "../core/text/wrap";
@@ -29,18 +28,6 @@ const checkedRequest = (words: ReadonlyArray<string>, limit: number) =>
       return yield* new BadInput({ details: { flag: "limit", value: String(limit) } });
     return { request, length };
   });
-
-/** Search already put registry reads offline, so this only consults the verified cache. */
-const indexUpdateHint = Effect.fn("search.indexUpdateHint")(function* () {
-  const remote = yield* Effect.serviceOption(RemoteIndex);
-  if (Option.isNone(remote)) return undefined;
-  const index = yield* remote.value.current;
-  const status = yield* remote.value.status;
-  if (status.lastOutcome === "unsupported") return () => true;
-  if (Option.isNone(index)) return undefined;
-  const indexed = new Set(index.value.entries.map(({ kind, id }) => entryKey(kind, id)));
-  return (hit: SearchHit) => !indexed.has(entryKey(hit.kind, hit.id));
-});
 
 export const searchCommand = Command.make(
   "search",

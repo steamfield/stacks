@@ -13,6 +13,7 @@ import { Clock, Effect, FileSystem, Path, Result, Schema } from "effect";
 import type { Finding } from "../../../schemas/validate";
 import { countWords } from "../../brief/words";
 import { goAllowlistKey } from "../../deps/index";
+import { ALLOWLIST_FILE, officialRoot } from "../../registry/meta";
 import type { FileAccess } from "../../registry/types";
 import { readSearchFile } from "../../search/sidecar";
 import type { Check, View } from "../types";
@@ -46,12 +47,10 @@ const issue = (
 ): Finding => ({ check, severity, file, message });
 
 const readAllowlist = Effect.fn("validate.dependencyAllowlist")(function* (root: string) {
+  if ((yield* officialRoot(root)) === "absent") return { state: "absent" } satisfies AllowlistRead;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const at = path.join(root, "allowlist.json");
-  const exists = yield* fs.exists(at).pipe(Effect.orElseSucceed(() => false));
-  if (!exists) return { state: "absent" } satisfies AllowlistRead;
-  const loaded = yield* Effect.result(fs.readFile(at));
+  const loaded = yield* Effect.result(fs.readFile(path.join(root, ALLOWLIST_FILE)));
   if (Result.isFailure(loaded)) return { state: "invalid" } satisfies AllowlistRead;
   const decoded = yield* Effect.result(decode(DependencyAllowlist, loaded.success));
   if (Result.isFailure(decoded)) return { state: "invalid" } satisfies AllowlistRead;
@@ -70,7 +69,7 @@ function allowlistFindings(names: DependencyAllowlist["names"]) {
       issue(
         "deps-ambiguous",
         "error",
-        "allowlist.json",
+        ALLOWLIST_FILE,
         `${name} appears in ${ecosystems.join(" and ")}.`,
       ),
     );
@@ -190,7 +189,7 @@ export const dependencyChecks: Check = Effect.fn("validate.dependencies")(functi
   if (read.state === "invalid")
     return {
       findings: [
-        issue("deps-invalid", "error", "allowlist.json", "Cannot decode dependency allowlist."),
+        issue("deps-invalid", "error", ALLOWLIST_FILE, "Cannot decode dependency allowlist."),
       ],
     };
   const { names } = read.allowlist;

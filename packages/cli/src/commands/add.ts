@@ -1,5 +1,5 @@
 /** Handles `stacks add` and records telemetry after the handoff settles. */
-import { Effect, Option, Path, Schema } from "effect";
+import { Context, Effect, Layer, Option, Path, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { type Added, add } from "../core/add/index";
 import { renderAdd } from "../core/add/report";
@@ -60,7 +60,7 @@ const addReplayNames = {
  */
 const projectRegistry = Effect.fn("add.projectRegistry")(function* (project: string) {
   const roots = yield* projectRoots(project);
-  return yield* Registry.pipe(Effect.provide(Registry.layer(roots)));
+  return Context.get(yield* Layer.build(Registry.layer(roots)), Registry);
 });
 
 /**
@@ -143,7 +143,7 @@ export const addCommand = Command.make("add", addFlags, (flags) =>
     }
     yield* printLaunch(decision, context.shown, prefix);
     yield* launchHandoff(decision, result.project, context);
-  }).pipe(recordCommandError("add")),
+  }).pipe(Effect.scoped, recordCommandError("add")),
 ).pipe(
   Command.withDescription(
     `Apply fragments to an existing repository without overwriting live files. Conflicts are parked under ${INCOMING}/ for your agent to merge; verify checks the whole project. Exits 0 on success, 2 on bad input or an unknown fragment, 3 on a bad manifest, 5 when the project's verify steps changed (VerifyChanged), 6 on permissions, 130 when interrupted; after launching a terminal agent, the agent's own status; an app launch exits 0.`,

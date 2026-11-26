@@ -3,7 +3,8 @@
  * invocation so reading the catalog never downloads files.
  */
 import { type IndexEntry, IndexEntry as IndexEntrySchema } from "@steamfield/stacks-format";
-import { Effect, Option, Schema } from "effect";
+import { Clock, Effect, Fiber, Option, Schema, type Scope, Semaphore } from "effect";
+import { INDEX_REFRESH_DEADLINE_MS } from "../../../constants";
 import {
   type CatalogEntry,
   catalogRow,
@@ -22,7 +23,8 @@ import type { FileAccess } from "../types";
 import { directoryMatches } from "./files";
 import type { ConfiguredIndex } from "./service";
 
-type Resolution = Effect.Effect<RegistryEntry | undefined>;
+type Resolution = (deadline?: number) => Effect.Effect<RegistryEntry | undefined>;
+const RESOLUTION_CONCURRENCY = 8;
 
 const aboveIndex = (entry: RegistryEntry | undefined) =>
   entry?.origin === "project" || entry?.origin === "user";
@@ -242,6 +244,38 @@ const indexCatalogRow = (ref: IndexEntry): CatalogEntry => ({
   rejected: false,
 });
 
+const indexResolution = Effect.fn("registry.indexResolution")(function* (
+  resolve: Effect.Effect<RegistryEntry | undefined>,
+  fallback: () => Entry | undefined,
+  options: { scope: Scope.Scope; permits: Semaphore.Semaphore },
+) {
+  let running: Fiber.Fiber<RegistryEntry | undefined> | undefined;
+  const start = yield* Effect.cached(
+    resolve.pipe(
+      options.permits.withPermit,
+      Effect.forkIn(options.scope),
+      Effect.tap((fiber) =>
+        Effect.sync(() => {
+          running = fiber;
+        }),
+      ),
+    ),
+  );
+  const get = start.pipe(Effect.flatMap(Fiber.join));
+  return Effect.fnUntraced(function* (deadline?: number) {
+    if (deadline === undefined) return yield* get;
+    const remaining = deadline - (yield* Clock.currentTimeMillis);
+    // A later read can still see completed resolutions after the budget has expired.
+    const settled = running?.pollUnsafe();
+    if (settled !== undefined) return yield* settled;
+    if (remaining <= 0) return fallback();
+    // Time out the join, leaving the download in the registry scope for later readers.
+    const fiber = yield* start;
+    const result = yield* Fiber.join(fiber).pipe(Effect.timeoutOption(remaining));
+    return Option.getOrElse(result, fallback);
+  });
+});
+
 /**
  * Ignore references with newer or invalid schemas. For a winning project or user entry, record
  * the index as a shadow.
@@ -254,26 +288,33 @@ const mergeIndex = Effect.fn("registry.mergeIndex")(function* (
     bundledEntries: ReadonlyArray<Entry>;
     catalog: Map<string, CatalogEntry>;
     resolutions: Map<string, Resolution>;
+    scope: Scope.Scope;
   },
 ) {
-  const { local, bundledEntries, catalog, resolutions } = options;
+  const { local, bundledEntries, catalog, resolutions, scope } = options;
   const index = yield* remote.current;
   const originals = new Map(bundledEntries.map((entry) => [entryKey(entry.kind, entry.id), entry]));
+  // Resolutions that outlive an all read still occupy their slots until they finish.
+  const permits = yield* Semaphore.make(RESOLUTION_CONCURRENCY);
   for (const ref of Option.isSome(index) ? index.value.entries : []) {
     if (ref.schemaVersion > 1 || !Schema.is(IndexEntrySchema)(ref)) continue;
     const key = entryKey(ref.kind, ref.id);
     const existing = local.get(key);
     if (aboveIndex(existing)) {
-      resolutions.set(key, Effect.succeed(withIndexShadow(existing)));
+      const shadowed = withIndexShadow(existing);
+      resolutions.set(key, () => Effect.succeed(shadowed));
       continue;
     }
     catalog.set(key, indexCatalogRow(ref));
-    const resolve = yield* Effect.cached(
-      resolveReference(io, ref, { remote, original: originals.get(key), bundledEntries }).pipe(
+    const original = originals.get(key);
+    const resolve = yield* indexResolution(
+      resolveReference(io, ref, { remote, original, bundledEntries }).pipe(
         Effect.map((entry) => entry ?? existing),
       ),
+      () => bundledComposition(original, bundledEntries),
+      { scope, permits },
     );
-    resolutions.set(key, resolve);
+    resolutions.set(key, original === undefined ? () => resolve() : resolve);
   }
 });
 
@@ -281,19 +322,26 @@ export const remoteRegistry = Effect.fn("registry.remoteRegistry")(function* (
   io: FileAccess,
   remote: ConfiguredIndex,
   local: ReadonlyMap<string, RegistryEntry>,
-  bundledEntries: ReadonlyArray<Entry>,
+  options: { bundledEntries: ReadonlyArray<Entry>; scope: Scope.Scope },
 ) {
   const catalog = new Map(Array.from(local, ([key, entry]) => [key, catalogRow(entry)]));
   const resolutions = new Map<string, Resolution>(
-    Array.from(local, ([key, entry]) => [key, Effect.succeed(entry)]),
+    Array.from(local, ([key, entry]) => [key, () => Effect.succeed(entry)]),
   );
-  yield* mergeIndex(io, remote, { local, bundledEntries, catalog, resolutions });
+  yield* mergeIndex(io, remote, { ...options, local, catalog, resolutions });
+  let deadline: number | undefined;
   return {
     catalog: Effect.succeed([...catalog.values()].sort(compareEntries)),
-    all: Effect.forEach([...resolutions.values()], (effect) => effect).pipe(
-      Effect.map((entries) => entries.filter((entry) => entry !== undefined).sort(compareEntries)),
-    ),
+    all: Effect.gen(function* () {
+      const now = yield* Clock.currentTimeMillis;
+      deadline ??= now + INDEX_REFRESH_DEADLINE_MS;
+      const cutoff = deadline;
+      const entries = yield* Effect.forEach(resolutions.values(), (resolve) => resolve(cutoff), {
+        concurrency: RESOLUTION_CONCURRENCY,
+      });
+      return entries.filter((entry) => entry !== undefined).sort(compareEntries);
+    }),
     get: (kind: Entry["kind"], id: string) =>
-      resolutions.get(entryKey(kind, id)) ?? Effect.succeed(undefined),
+      resolutions.get(entryKey(kind, id))?.() ?? Effect.succeed(undefined),
   };
 });

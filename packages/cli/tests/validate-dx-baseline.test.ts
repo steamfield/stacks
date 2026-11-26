@@ -150,11 +150,24 @@ test.each([
     declared: ["check", "audit"],
     expected: [format],
   },
-  { name: "missing audit command", tags: "make", declared: ["ci", "format"], expected: [audit] },
+  {
+    name: "missing audit command",
+    tags: "make",
+    declared: ["ci", "format"],
+    deps: "deps: { app: [left-pad] }",
+    expected: [audit],
+  },
+  {
+    name: "a stack with no declared dependencies needs no audit",
+    tags: "make",
+    declared: ["ci", "format"],
+    deps: "deps: { app: [] }",
+    expected: [],
+  },
   { name: "no runner tag skips command checks", tags: "cli", declared: [], expected: [] },
-])("$name", async ({ tags, declared, expected }) => {
+])("$name", async ({ tags, declared, deps = "", expected }) => {
   const root = commandRegistry();
-  stack(root, `tags: [${tags}]\n${commands(declared)}\n${baseline}`);
+  stack(root, `tags: [${tags}]\n${commands(declared)}\n${baseline}\n${deps}`);
   await expectDx(root, expected);
 });
 
@@ -365,7 +378,7 @@ test("the same registry gets DX findings only when validated as bundled", async 
 
 test("a bundled brief preview leaves the DX audit to registry validation", async () => {
   const root = registry();
-  stack(root, "tags: [make]");
+  stack(root, "tags: [make]\ndeps: { app: [left-pad] }");
   await expectDx(root, [aggregate("ci"), audit, format, ...missingFragments]);
   const { status, stdout, stderr } = await runCli(["validate", "--brief", "sample", "--json"], {
     env: quiet,

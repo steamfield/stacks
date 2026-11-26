@@ -83,7 +83,9 @@ function commandGaps(stack: Stack, commands: Composition["commands"]): Gap[] {
       message:
         "declares no format or lint-fix command; add format to run the formatter and the linter's safe fixes, or add a separate lint-fix command",
     });
-  if (!Object.hasOwn(commands, "audit") && !Object.hasOwn(commands, "vuln"))
+  // A stack on platform frameworks alone (ios-objc) has no dependency for an audit to check.
+  const declaresDeps = Object.values(stack.meta.deps).some((names) => names.length > 0);
+  if (declaresDeps && !Object.hasOwn(commands, "audit") && !Object.hasOwn(commands, "vuln"))
     gaps.push({
       check: "dx-audit",
       message:

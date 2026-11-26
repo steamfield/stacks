@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "ios-uikit",
   "source": {
-    "digest": "sha256:a129e734893bfd052a47aa49a1a9f6518acbf23d806f17813af1e8dc14d5eb49",
+    "digest": "sha256:aeaeccd322f56592910063531753357fcb24d453739c4f62976e7225b3811cbb",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,

@@ -39,7 +39,7 @@ xcrun simctl delete "$udid"
 
 ## Lint and format
 
-`make lint` runs SwiftLint with `--strict`, so warnings fail. `make fmt` formats with swift-format and `make fmt-check` fails on any difference. SwiftLint's layout rules that swift-format owns are disabled in `.swiftlint.yml`; keep the two from disagreeing when adding rules.
+`make lint` runs SwiftLint with `--strict`, so warnings fail. `make fmt` formats with swift-format and `make fmt-check` fails on any difference. `make lint-fix` applies SwiftLint's automatic fixes, then runs the formatter. SwiftLint's layout rules that swift-format owns are disabled in `.swiftlint.yml`; keep the two from disagreeing when adding rules.
 
 ## XcodeBuildMCP (optional)
 

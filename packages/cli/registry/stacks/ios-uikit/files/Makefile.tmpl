@@ -28,7 +28,7 @@ QUIET :=
 PRETTY := | xcbeautify
 endif
 
-.PHONY: help env install project build lint fmt fmt-check test test-ui ci clean
+.PHONY: help env install project build lint lint-fix fmt fmt-check test test-ui ci clean
 
 help: ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -51,6 +51,10 @@ build: project ## Build the app and both test bundles for the simulator; warning
 
 lint: ## SwiftLint, warnings as errors
 	swiftlint lint --strict --quiet
+
+lint-fix: ## Apply SwiftLint's automatic fixes, then format with swift-format
+	swiftlint lint --fix --quiet
+	xcrun swift-format format --in-place --recursive --parallel $(SOURCES)
 
 fmt: ## Format Swift sources with swift-format
 	xcrun swift-format format --in-place --recursive --parallel $(SOURCES)

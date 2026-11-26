@@ -50,6 +50,7 @@ commands:
   ios:build: xcodebuild Debug build for the iOS simulator, unsigned, after checking app.json's name
   ios:test: The AppInfo pod's XCTest bundle on an available iPhone simulator
   check: Every check verify runs after install
+  audit: Check the JavaScript dependencies in bun.lock for known vulnerabilities (bun audit; needs the network)
   clean: Remove coverage, bundles and Xcode derived data
 ---
 
@@ -111,10 +112,10 @@ The native side has two checks. `ios:build` compiles the app, pods and module fo
 
 ## Commands
 
-`package.json` wires every declared command. Mirror them in AGENTS.md with a scoped example such as `bun run test src/native/app-info.test.ts`. `bun start` serves Metro for `bun run ios` and `bun run android`; neither is part of verify.
+`package.json` wires every declared command. Mirror them in AGENTS.md with a scoped example such as `bun run test src/native/app-info.test.ts`. `bun start` serves Metro for `bun run ios` and `bun run android`; neither is part of verify. `bun run audit` needs the network, so `check` leaves it out.
 
 <!-- stacks:when with=ci-github -->
-CI needs two jobs behind `ci-ok`. An `ubuntu-latest` job sets up Node and Bun and runs install, lint, typecheck, coverage and bundle, none of which need Xcode. A `macos-latest` job (or the runner image with the Xcode version the README records) sets up Node, Bun and Ruby with Bundler caching, then runs install, pods, lint:native, ios:build and ios:test. Cache `ios/Pods` keyed on `ios/Podfile.lock`. No Android build runs until the AppInfo module has an Android implementation.
+CI needs two jobs behind `ci-ok`. An `ubuntu-latest` job sets up Node and Bun and runs install, lint, typecheck, coverage and bundle, none of which need Xcode, then audit as its own step. A `macos-latest` job (or the runner image with the Xcode version the README records) sets up Node, Bun and Ruby with Bundler caching, then runs install, pods, lint:native, ios:build and ios:test. Cache `ios/Pods` keyed on `ios/Podfile.lock`. No Android build runs until the AppInfo module has an Android implementation.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->

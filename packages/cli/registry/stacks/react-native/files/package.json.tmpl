@@ -19,6 +19,7 @@
     "ios:build": "bash scripts/ios.sh build",
     "ios:test": "bash scripts/ios.sh test",
     "check": "bun run lint && bun run lint:native && bun run typecheck && bun run test && bun run bundle && bun run ios:build && bun run ios:test",
+    "audit": "bun audit",
     "clean": "rm -rf coverage build"
   }
 }

@@ -9,7 +9,7 @@ FLUTTER ?= flutter
 DART ?= dart
 DART_SOURCES := lib test integration_test tool
 
-.PHONY: help install fmt fmt-check analyze test coverage simulator test-ios build-ios build-android ci clean
+.PHONY: help install fmt lint-fix fmt-check analyze test coverage simulator test-ios build-ios build-android audit ci clean
 
 help: ## List the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -19,6 +19,10 @@ install: ## Check ios/ and android/ exist, then fetch packages
 	$(FLUTTER) pub get
 
 fmt: ## Format Dart sources
+	$(DART) format $(DART_SOURCES)
+
+lint-fix: ## Apply dart fix's safe fixes for analyzer findings, then format
+	$(DART) fix --apply
 	$(DART) format $(DART_SOURCES)
 
 fmt-check: ## Fail if dart format would change any file
@@ -46,6 +50,10 @@ build-ios: ## Debug build for the iOS simulator, unsigned
 
 build-android: ## Debug APK (needs the Android SDK)
 	$(FLUTTER) build apk --debug
+
+audit: ## Check pubspec.lock for known vulnerabilities (osv-scanner; needs the network)
+	@command -v osv-scanner >/dev/null || { echo "osv-scanner not found. Install it: https://google.github.io/osv-scanner/installation/" >&2; exit 1; }
+	osv-scanner scan source -L pubspec.lock
 
 ci: fmt-check analyze coverage build-ios test-ios ## Everything verify runs on a Mac
 

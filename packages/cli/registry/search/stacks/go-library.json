@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-library",
   "source": {
-    "digest": "sha256:3a35d090f66498f1ef2c99e1afd634cae1c8b457996fd39532d9774807015e43",
+    "digest": "sha256:edeb9682215a30efc295764aa1a07429b9ceb96fa1cfc9c955b0fa4329a4d874",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A reusable Go module with no binary, for other Go code to import: a small documented API, runnable examples and an API-compatibility check.",
   "description": "Start a Go library that other modules import with go get. A duration parser proves the shape: exported functions with doc comments, functional options validated by a constructor, sentinel errors wrapped by a typed error so callers use errors.Is and errors.As, examples that pkg.go.dev shows and every check runs, a fuzzing property, and a consumer module that imports it from outside. golangci-lint requires a doc comment on every exported name and keeps printing and global state out, and apidiff fails the checks on an incompatible change since the last release. It ships no binary, CLI or server, and releasing stays a person's step.",

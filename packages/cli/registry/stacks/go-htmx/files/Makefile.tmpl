@@ -2,9 +2,10 @@
 #
 # A starting point: adapt the recipes, but keep the target names.
 # `stacks verify` calls install, generate-check, templ-fmt-check, htmx-check, fmt-check, vet,
-# lint, build, tidy-check, test, test-integration and serve, and CI should call the same targets
-# (golangci-lint's own action is the one exception). templ is a `go tool` dependency in go.mod,
-# so the CLI and the runtime library always share one version.
+# lint, build, tidy-check, test, test-integration, dev-bg, dev-stop and serve (dev-cycle runs
+# scripts/dev-bg.sh status directly), and CI should call the same targets plus vuln as its own
+# step (golangci-lint's own action is the one exception). templ is a `go tool` dependency in
+# go.mod, so the CLI and the runtime library always share one version.
 
 BIN      := server
 PKG      := ./cmd/$(BIN)
@@ -26,7 +27,7 @@ GOIMPORTS     := $(shell command -v goimports 2>/dev/null || echo $(GOBIN_DIR)/g
 GO_DIRS       := cmd internal static tests
 
 .DEFAULT_GOAL := help
-.PHONY: help install generate generate-check templ-fmt-check htmx htmx-check build serve vet lint lint-fix fmt fmt-check tidy-check test test-integration coverage vuln ci clean
+.PHONY: help install generate generate-check templ-fmt-check htmx htmx-check build serve dev-bg dev-stop dev-status vet lint lint-fix fmt fmt-check tidy-check test test-integration coverage vuln ci clean
 
 # Fails when golangci-lint is missing; warns when it differs from .golangci-lint-version.
 define require_golangci_lint
@@ -70,6 +71,15 @@ build: ## Build bin/server with version info (templates and static files are emb
 serve: build ## Build, then run the server in the foreground until SIGINT or SIGTERM
 	exec ./bin/$(BIN)
 
+dev-bg: build ## Start bin/server in the background, or reuse a healthy one; output goes to logs/dev.log
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
+
 vet: ## Type-check every package, including tagged integration tests (go vet)
 	go vet -tags integration ./...
 
@@ -110,7 +120,7 @@ coverage: ## Race-enabled tests with a coverage floor
 vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-ci: generate-check templ-fmt-check htmx-check fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs
+ci: generate-check templ-fmt-check htmx-check fmt-check tidy-check lint coverage test-integration build ## Every offline check CI runs (vuln is its own step)
 
 clean: ## Remove build and coverage output
 	rm -rf bin/ coverage.out coverage.html

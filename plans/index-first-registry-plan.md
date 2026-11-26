@@ -91,6 +91,7 @@ Layout added across the run:
 ### Phase 1: the index revalidates and reports itself (MVP)
 
 Scaffold: 3a0594df
+Tag: idx-phase-1
 
 Demo: with a local server as `STACKS_INDEX_URL` (untrusted, so no signature check), `bun run dev doctor --json` shows `commit`, `generatedAt`, `minCli` and `etag`. The signature outcome is shown by `remote-index-refresh.test.ts`, which sets the official URL and a test key through `tests/helpers/remote-index.ts::remoteCli`. `bun run dev list --json` against an index where every entry is drifted finishes inside the budget. `bun run build:index --unsigned --out /tmp/x --previous none` fails without `registry.json`.
 

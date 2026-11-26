@@ -12,7 +12,7 @@
 | `make fmt` / `make fmt-check` | `dart format` on lib, test, integration_test and tool |
 | `make analyze` | `flutter analyze`; any finding fails, infos included |
 | `make test` | Unit and widget tests, no device |
-| `make coverage` | The same with lcov output in `coverage/lcov.info` |
+| `make coverage` | The same with lcov output in `coverage/lcov.info`; fails when line coverage of `lib/` is below `COVERAGE_MIN` (80 by default, in the Makefile). Verify and CI run this |
 | `make simulator` | Prints the iPhone simulator the iOS targets use, booting it if needed |
 | `make test-ios` | `integration_test/` on that simulator |
 | `make build-ios` | Unsigned debug build for the simulator |
@@ -35,7 +35,7 @@ Android is a real target, but verify on a Mac proves iOS. `make build-android` n
 
 ## Settings
 
-Values are compiled in with `--dart-define` (or `--dart-define-from-file=<file>.json`) and read once by `AppConfig`. Each has a default, and an invalid value stops startup with a message naming the key.
+Values are compiled in with `--dart-define`, or from a file with `--dart-define-from-file=config/defines.json`, and read once by `AppConfig`. Copy `config/defines.example.json` to `config/defines.json` (gitignored) for local values; a test keeps the example's keys in step with `AppConfig.keys`. Each has a default, and an invalid value stops startup with a message naming the key.
 
 | Key | Default | Rule |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ Values are compiled in with `--dart-define` (or `--dart-define-from-file=<file>.
 flutter run --dart-define=LOG_LEVEL=FINE --dart-define=SERVICE_DELAY_MS=0
 ```
 
-Defines are compiled into the app binary, so never pass a secret this way.
+Defines are compiled into the app binary, and anything in the binary can be extracted, so never pass a secret this way. Runtime secrets come from the app's backend.
 
 ## The Xcode project
 

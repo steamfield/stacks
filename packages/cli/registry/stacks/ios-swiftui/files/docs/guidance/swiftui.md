@@ -23,4 +23,4 @@ Each screen has a `#Preview` built from a local service with `AppConfig.defaults
 
 ## Accessibility
 
-Every element a UI test finds gets `.accessibilityIdentifier("feature.element")`. Use system fonts (`.font(.title)`) so Dynamic Type works, and give image-only buttons a label.
+Every element a UI test finds gets `.accessibilityIdentifier("feature.element")`. Use system fonts (`.font(.title)`) so Dynamic Type works, and give image-only buttons a label. Text over the background keeps the primary color: `.foregroundStyle(.secondary)` on small text fails the contrast check in `LaunchTests`' accessibility audit.

@@ -5,6 +5,8 @@ SHELL := /bin/bash
 FLUTTER ?= flutter
 DART ?= dart
 DART_SOURCES := lib test integration_test tool
+# Minimum line coverage of lib/ under unit and widget tests, in percent.
+COVERAGE_MIN ?= 80
 
 .PHONY: help install fmt fmt-check analyze test coverage simulator test-ios build-ios build-android ci clean
 
@@ -27,8 +29,16 @@ analyze: ## Static analysis with analysis_options.yaml; infos fail too
 test: ## Unit and widget tests (no device)
 	$(FLUTTER) test
 
-coverage: ## Unit and widget tests with lcov output in coverage/
+coverage: ## Unit and widget tests with lcov output; fails below COVERAGE_MIN
 	$(FLUTTER) test --coverage
+	@awk -F: -v min=$(COVERAGE_MIN) ' \
+		/^LF:/ { total += $$2 } /^LH:/ { hit += $$2 } \
+		END { \
+			if (total == 0) { print "coverage: coverage/lcov.info has no lines" > "/dev/stderr"; exit 1 } \
+			pct = 100 * hit / total; \
+			printf "coverage: lib/ %.1f%% of %d lines (minimum %s%%)\n", pct, total, min; \
+			if (pct < min) { printf "coverage: below the %s%% floor; add tests or lower COVERAGE_MIN in the Makefile\n", min > "/dev/stderr"; exit 1 } \
+		}' coverage/lcov.info
 
 simulator: ## Print the iPhone simulator the iOS targets use, booting it if needed
 	@$(DART) run tool/ios_simulator.dart | tail -n 1

@@ -10,6 +10,6 @@ paths:
 - Services and view models are built in `Launch.start` (the composition root) and passed down, never created inside a view body.
 - Show `AppError.userMessage` only; log `logDescription` through `Log.<area>`, never `print`.
 - Every element a UI test finds gets an `accessibilityIdentifier` (`feature.element`).
-- A new setting: build setting in project.yml, `$(SETTING)` in App/Info.plist, key, default and validation in `AppConfig`, a test row. No secrets in Info.plist.
+- A new setting: build setting in project.yml, `$(SETTING)` in App/Info.plist, key, default and validation in `AppConfig`, a test row. No secrets in Info.plist or anywhere else in the bundle; runtime secrets come from the backend.
 
 Reasons and examples: [docs/guidance/swiftui.md](../../../docs/guidance/swiftui.md).

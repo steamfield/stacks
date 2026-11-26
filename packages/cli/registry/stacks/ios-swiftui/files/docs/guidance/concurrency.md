@@ -21,6 +21,8 @@ final class GreetingViewModel {
 }
 ```
 
+`SWIFT_APPROACHABLE_CONCURRENCY` is on, so a nonisolated `async` function runs on its caller's actor. A service method called from a view model therefore runs on the main actor until it awaits; mark a function `@concurrent` when its work (decoding a large payload, say) should leave the main actor.
+
 `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` stays off. Turning it on changes what every unannotated declaration in every target means, so it's the user's call.
 
 ## What not to do

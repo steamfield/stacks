@@ -16,9 +16,9 @@ final class AppConfig {
 
   /// Reads the defines compiled into this build.
   factory AppConfig.fromEnvironment() => AppConfig.parse(const {
-    'GREETING_NAME': String.fromEnvironment('GREETING_NAME'),
-    'SERVICE_DELAY_MS': String.fromEnvironment('SERVICE_DELAY_MS'),
-    'LOG_LEVEL': String.fromEnvironment('LOG_LEVEL'),
+    greetingNameKey: String.fromEnvironment(greetingNameKey),
+    serviceDelayKey: String.fromEnvironment(serviceDelayKey),
+    logLevelKey: String.fromEnvironment(logLevelKey),
   });
 
   /// Validates raw define values. A missing or blank value takes the default.
@@ -29,11 +29,19 @@ final class AppConfig {
     }
 
     return AppConfig(
-      greetingName: _greetingName(value('GREETING_NAME')),
-      serviceDelay: _serviceDelay(value('SERVICE_DELAY_MS')),
-      logLevel: _logLevel(value('LOG_LEVEL')),
+      greetingName: _greetingName(value(greetingNameKey)),
+      serviceDelay: _serviceDelay(value(serviceDelayKey)),
+      logLevel: _logLevel(value(logLevelKey)),
     );
   }
+
+  static const greetingNameKey = 'GREETING_NAME';
+  static const serviceDelayKey = 'SERVICE_DELAY_MS';
+  static const logLevelKey = 'LOG_LEVEL';
+
+  /// Every define this class reads, the keys `config/defines.example.json`
+  /// lists.
+  static const keys = {greetingNameKey, serviceDelayKey, logLevelKey};
 
   static const defaults = AppConfig(
     greetingName: 'world',

@@ -3,15 +3,15 @@
   "kind": "stack",
   "id": "ios-uikit",
   "source": {
-    "digest": "sha256:01762717a29a8a838727bbb832bb8e88ef3abacd00679747a2072dd387c9df6a",
+    "digest": "sha256:e9c6576663e938f9a28ac869c9a8564de50f6ba744fb8ba2648d60d193ca052f",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,
     "reviewedAt": "2026-11-26"
   },
   "summary": "A native iPhone app in Swift with UIKit screens built in code, a navigation coordinator and tests that run on a simulator.",
-  "description": "Start a native iPhone app in Swift with UIKit screens laid out in code. A scene delegate loads validated settings and hands navigation to a coordinator; each screen is a view controller rendering a main-actor view model, and the list uses a diffable data source with loading, empty and error states. XcodeGen generates the Xcode project, SwiftLint and swift-format check the code, and XCTest and XCUITest run on a simulator. The list reads a bundled JSON file, so a real data source, more screens and any backend are yours to add.",
-  "seoDescription": "A UIKit iPhone app recipe in Swift: Auto Layout in code, coordinator navigation, MVVM with strict concurrency, a diffable list, XcodeGen, XCTest and XCUITest.",
+  "description": "Start a native iPhone app in Swift with UIKit screens laid out in code. A scene delegate loads validated settings and hands navigation to a coordinator; each screen is a view controller rendering a main-actor view model, and the list uses a diffable data source with loading, empty and error states. XcodeGen generates the Xcode project, SwiftLint and swift-format check the code, Swift Testing unit tests hold a line-coverage floor, and XCUITest runs the journeys with accessibility audits on a simulator. The list reads a bundled JSON file, so a real data source, more screens and any backend are yours to add.",
+  "seoDescription": "A UIKit iPhone app recipe in Swift: Auto Layout in code, coordinator navigation, strict-concurrency MVVM, a diffable list, XcodeGen, Swift Testing, XCUITest.",
   "projectExamples": [
     {
       "title": "Site inspection checklist",

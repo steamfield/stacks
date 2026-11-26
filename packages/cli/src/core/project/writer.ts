@@ -24,8 +24,15 @@ export type ProjectWriter = {
   ) => Effect.Effect<void, PermissionDenied | TargetNotEmpty>;
   /** Replaces a file this writer created, with the same checks. */
   readonly replace: (rel: string, data: Uint8Array) => Effect.Effect<void, PermissionDenied>;
-  /** Rewrites an existing regular file, retaining its original bytes and mode for rollback. */
-  readonly rewrite: (rel: string, data: Uint8Array) => Effect.Effect<void, PermissionDenied>;
+  /**
+   * Rewrites an existing regular file, retaining its original bytes and mode for rollback.
+   * `backupByRename` backs it up without a read and uses normal permissions for the replacement.
+   */
+  readonly rewrite: (
+    rel: string,
+    data: Uint8Array,
+    options?: { backupByRename: true },
+  ) => Effect.Effect<void, PermissionDenied>;
   readonly directory: (rel: string) => Effect.Effect<void, PermissionDenied | TargetNotEmpty>;
   /**
    * Hands a directory the CLI's own process is about to create (git's `.git`) to the rollback,
@@ -39,7 +46,7 @@ export type ProjectWriter = {
   readonly discard: (rel: string) => Effect.Effect<void>;
 };
 
-type Backup = { bytes: Uint8Array; mode: number };
+type Backup = { bytes: Uint8Array; mode: number } | { movedTo: string };
 
 const unwritable = (at: string) =>
   new PermissionDenied({ details: { reason: "unwritable", path: at } });
@@ -135,11 +142,20 @@ export function openProject(
           yield* Effect.ignore(fs.remove(adoptedDir, { recursive: true }));
       });
 
+    const stageReplacement = Effect.fnUntraced(function* (
+      staged: string,
+      bytes: Uint8Array,
+      mode: number | undefined,
+    ) {
+      yield* fs.writeFile(staged, bytes, { flag: "wx" });
+      if (mode !== undefined) yield* fs.chmod(staged, mode & 0o777);
+    });
+
     /**
      * Stages `bytes` in a temporary directory beside `file` and renames it over the file.
      * Replacing the directory entry keeps a hard-linked parked file from changing live bytes.
      */
-    const atomicReplace = (file: string, bytes: Uint8Array, mode: number) =>
+    const atomicReplace = (file: string, bytes: Uint8Array, mode?: number) =>
       Effect.scoped(
         Effect.gen(function* () {
           const temporary = yield* fs.makeTempDirectoryScoped({
@@ -148,17 +164,31 @@ export function openProject(
           });
           if (!(yield* isInside(temporary))) return yield* escapes(file);
           const staged = path.join(temporary, "replacement");
-          yield* fs.writeFile(staged, bytes, { flag: "wx" });
-          yield* fs.chmod(staged, mode & 0o777);
+          yield* stageReplacement(staged, bytes, mode);
           if (!(yield* inside(file))) return yield* escapes(file);
           yield* fs.rename(staged, file);
           if (!(yield* inside(file))) return yield* escapes(file);
         }),
       ).pipe(Effect.catchTag("PlatformError", () => Effect.fail(unwritable(file))));
 
-    /** Restore only while the path still names a regular file inside the project. */
+    const restoreMovedBackup = Effect.fn("project.restoreMovedBackup")(function* (
+      file: string,
+      backup: string,
+    ) {
+      const type = yield* directoryType(file);
+      if (type !== "File" && type !== "Missing") return false;
+      if (!(yield* inside(backup))) return false;
+      yield* fs.rename(backup, file);
+      yield* removeEmptyDirectory(path.dirname(backup));
+      return true;
+    });
+
     const restoreBackup = (file: string, backup: Backup) =>
       Effect.gen(function* () {
+        if ("movedTo" in backup) {
+          if (!(yield* inside(file))) return false;
+          return yield* restoreMovedBackup(file, backup.movedTo);
+        }
         const info = yield* fs.lstat(file);
         if (info.type !== "File" || !(yield* inside(file))) return false;
         yield* atomicReplace(file, backup.bytes, backup.mode);
@@ -170,6 +200,13 @@ export function openProject(
         const restored = yield* Effect.exit(restoreBackup(file, backup));
         if (Exit.isSuccess(restored) && restored.value) continue;
         if (invocation._tag === "Some") yield* invocation.value.rollbackIncomplete(file);
+      }
+    });
+    const removeMovedBackups = Effect.gen(function* () {
+      for (const backup of backups.values()) {
+        if (!("movedTo" in backup) || !(yield* inside(backup.movedTo))) continue;
+        yield* Effect.ignore(fs.remove(backup.movedTo));
+        yield* removeEmptyDirectory(path.dirname(backup.movedTo));
       }
     });
     const removeDirectories = Effect.gen(function* () {
@@ -189,7 +226,7 @@ export function openProject(
       yield* removeDirectories;
     });
     // Registered before the first write, so every write below is covered.
-    yield* Effect.addFinalizer((exit) => (Exit.isSuccess(exit) ? Effect.void : rollback));
+    yield* Effect.addFinalizer((exit) => (Exit.isSuccess(exit) ? removeMovedBackups : rollback));
 
     const targetExists = (absolute: string) =>
       new TargetNotEmpty({ details: { path: absolute, entries: [] } });
@@ -341,11 +378,36 @@ export function openProject(
         );
       });
 
-    /**
-     * Backs up an existing regular file the first time it is rewritten (unless this writer created
-     * it, since rollback removes those), then replaces it atomically with its mode kept.
-     */
-    const rewriteExisting = (rel: string, data: Uint8Array) =>
+    /** Move within the same filesystem, into a private directory nobody else can already own. */
+    const moveBackup = Effect.fn("project.moveBackup")(function* (file: string) {
+      const dir = yield* fs
+        .makeTempDirectory({
+          directory: path.dirname(file),
+          prefix: `.${path.basename(file)}.bak-`,
+        })
+        .pipe(Effect.mapError(() => unwritable(file)));
+      const movedTo = path.join(dir, "original");
+      if (!(yield* isInside(dir))) return yield* escapes(file);
+      yield* fs.rename(file, movedTo).pipe(
+        Effect.mapError(() => unwritable(file)),
+        Effect.onError(() => removeEmptyDirectory(dir)),
+      );
+      backups.set(file, { movedTo });
+    });
+
+    const backupOriginal = Effect.fnUntraced(function* (
+      file: string,
+      mode: number,
+      options: Parameters<ProjectWriter["rewrite"]>[2],
+    ) {
+      if (backups.has(file) || files.includes(file)) return;
+      if (options?.backupByRename) return yield* moveBackup(file);
+      const bytes = yield* fs.readFile(file).pipe(Effect.mapError(() => unwritable(file)));
+      backups.set(file, { bytes, mode });
+    });
+
+    /** Back up an existing file only on its first rewrite, unless rollback already removes it. */
+    const rewriteExisting = (rel: string, data: Uint8Array, options?: { backupByRename: true }) =>
       Effect.uninterruptible(
         Effect.gen(function* () {
           const parts = segments(rel);
@@ -356,11 +418,8 @@ export function openProject(
           const file = path.join(root, ...parts);
           const info = yield* fs.lstat(file).pipe(Effect.mapError(() => unwritable(file)));
           if (info.type !== "File") return yield* escapes(file);
-          if (!backups.has(file) && !files.includes(file)) {
-            const bytes = yield* fs.readFile(file).pipe(Effect.mapError(() => unwritable(file)));
-            backups.set(file, { bytes, mode: info.mode });
-          }
-          yield* atomicReplace(file, data, info.mode);
+          yield* backupOriginal(file, info.mode, options);
+          yield* atomicReplace(file, data, options?.backupByRename ? undefined : info.mode);
         }),
       );
 

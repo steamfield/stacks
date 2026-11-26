@@ -242,7 +242,7 @@ A `ci-github` change triggers the canary rule (D42), so the four canaries are re
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | a | M | packages/cli/registry/stacks/ios-uikit/, packages/cli/registry/stacks/ios-objc/ | | | opus | merged | | |
 | b | M | packages/cli/registry/stacks/ios-swiftui/, packages/cli/registry/stacks/flutter/ | | | opus | merged | | |
-| c | M | packages/cli/registry/stacks/react-native/, packages/cli/registry/fragments/ci-github/ | | | opus | pending | | |
+| c | M | packages/cli/registry/stacks/react-native/, packages/cli/registry/fragments/ci-github/ | | | opus | merged | | |
 
 (Inline, mine: the bar as a checklist in `.claude/skills/stack-authoring/`, plus any search-card or dependency-card updates for new tools such as Maestro, since cards and `allowlist.json` are shared files. Phase 5 runs alongside phases 2 to 4, because it owns no file they own.)
 

@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "flutter",
   "source": {
-    "digest": "sha256:3fefbf6d5e2ca1283e5bc115aa926b3dd79f480c41a6af7238edc4e63c9f7a22",
+    "digest": "sha256:aaf01ed0a653a044c8f0edd37236f16333f9d2fab37196598d2c8dac8d761f35",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,

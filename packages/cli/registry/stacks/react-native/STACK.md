@@ -64,21 +64,27 @@ Link `docs/guidance/react-native/index.md` from AGENTS.md.
 ## Setup
 
 1. Generate the native projects before installing anything. Look up the current React Native release (`npm view react-native version`), read `npx @react-native-community/cli@latest init --help` (the generator React Native's own docs name, published by the react-native-community organization on npm), then run init non-interactively into a temporary directory outside the project, with that React Native version, the native project name and bundle identifier from the decisions, and install, pods and git skipped.
-2. Install the declared dependencies with `bun add` and `bun add -d`, taking versions from the generated `package.json` where it lists the package: `react`, `react-native`, the `@react-native/*` and `@react-native-community/cli*` packages at its exact versions, and `@babel/core` and `@babel/runtime` within its ranges, because React Native's Babel preset breaks on a newer Babel major. That rules out the plain `bun add` lines under Start here for those packages. Install `@babel/plugin-transform-export-namespace-from` at the same Babel major; everything else takes its current release within peer ranges. Then copy only the generated `ios/` (including `ios/.xcode.env`) and `android/` into the project and delete the temporary directory. Never copy its `App.tsx`, `index.js`, `app.json`, `package.json`, `Gemfile`, tests, ESLint, Prettier, Babel or Metro files over the shipped ones.
+2. Install the declared dependencies with `bun add` and `bun add -d`, taking versions from the generated `package.json` where it lists the package: `react`, `react-native`, the `@react-native/*` and `@react-native-community/cli*` packages at its exact versions, and `@babel/core` and `@babel/runtime` within its ranges, because React Native's Babel preset breaks on a newer Babel major. That rules out the plain `bun add` lines under Start here for those packages. Install `@babel/plugin-transform-export-namespace-from` at the same Babel major; everything else takes its current release within peer ranges. Then copy only the generated `ios/` (including `ios/.xcode.env`) and `android/` into the project and delete the temporary directory (if a command guard refuses, leave it; it sits outside the project). Never copy its `App.tsx`, `index.js`, `app.json`, `package.json`, `Gemfile`, tests, ESLint, Prettier, Babel or Metro files over the shipped ones.
 3. Replace the `stacks:fill` in `app.json`'s `name` with the native project name; `ios:build` fails until they match. In `ios/Podfile`, inside the app target and right after `config = use_native_modules!`, add `pod "AppInfo", :path => "../modules/app-info", :testspecs => ["Tests"]` so CocoaPods builds the module's XCTest bundle.
-4. Run `bun run pods`. Bundler resolves CocoaPods from the shipped Gemfile; if it or CocoaPods rejects the installed Ruby, carry over the matching exclusion from the template's Gemfile and record it under Build workarounds. React Native's notice that calling `pod install` directly is deprecated is informational.
+4. Run `bun run pods` with a Homebrew or version-manager Ruby first on PATH; the script refuses macOS's `/usr/bin/ruby`, whose old Bundler stamps a `Gemfile.lock` no newer Ruby can load. Bundler resolves CocoaPods from the shipped Gemfile; if it or CocoaPods rejects the installed Ruby, carry over the matching exclusion from the template's Gemfile and record it under Build workarounds. React Native's notice that calling `pod install` directly is deprecated is informational.
 5. Run `bun run lint`, `bun run lint:native`, `bun run typecheck`, `bun run test`, `bun run bundle`, `bun run ios:build` and `bun run ios:test`. Where an installed release rejects shipped code or config (a renamed API, a moved option), update it from that release's docs or types, keeping every check, lint rule and assertion. Then `bun run format`.
-6. Add these cases to `.claude/hooks/smoke.sh` beside the other guards, so `hooks-smoke` covers the stack's hooks:
+6. If `.claude/hooks/smoke.sh` exists, add these cases beside the other guards, so `hooks-smoke` covers the stack's hooks. The three hooks come with the Claude Code adapter; when Claude Code isn't a target agent they're absent, the cases skip, and you don't write them yourself.
 
    ```sh
-   denies "a Podfile.lock edit" '{"tool_input":{"file_path":"ios/Podfile.lock","content":"x"}}' $h/protect-native-project.sh
-   allows "a project file edit" '{"tool_input":{"file_path":"ios/App.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-native-project.sh
-   allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/App/Info.plist","content":"x"}}' $h/protect-native-project.sh
-   denies "Metro in the foreground" '{"tool_input":{"command":"bun run start"}}' $h/guard-react-native.sh
-   allows "the Jest run" '{"tool_input":{"command":"bun run test"}}' $h/guard-react-native.sh
-   allows "a TypeScript file in the Swift linter" '{"tool_input":{"file_path":"src/config.ts"}}' $h/lint-swift.sh
-   wires .claude/settings.json hooks/protect-native-project.sh
-   wires .claude/settings.json hooks/guard-react-native.sh
+   if [ -f $h/protect-native-project.sh ]; then
+     denies "a Podfile.lock edit" '{"tool_input":{"file_path":"ios/Podfile.lock","content":"x"}}' $h/protect-native-project.sh
+     allows "a project file edit" '{"tool_input":{"file_path":"ios/App.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-native-project.sh
+     allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/App/Info.plist","content":"x"}}' $h/protect-native-project.sh
+     wires .claude/settings.json hooks/protect-native-project.sh
+   fi
+   if [ -f $h/guard-react-native.sh ]; then
+     denies "Metro in the foreground" '{"tool_input":{"command":"bun run start"}}' $h/guard-react-native.sh
+     allows "the Jest run" '{"tool_input":{"command":"bun run test"}}' $h/guard-react-native.sh
+     wires .claude/settings.json hooks/guard-react-native.sh
+   fi
+   if [ -f $h/lint-swift.sh ]; then
+     allows "a TypeScript file in the Swift linter" '{"tool_input":{"file_path":"src/config.ts"}}' $h/lint-swift.sh
+   fi
    ```
 
 7. Record Node in `.node-version`, Bun in `packageManager`, and React Native, Xcode, the iOS deployment target, Swift, Ruby and CocoaPods in the README's Toolchain section. Commit `Gemfile.lock`, `ios/Podfile.lock` and the native projects; `ios/Pods/` and `vendor/bundle/` stay ignored.

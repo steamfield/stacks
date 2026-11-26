@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
-# iOS checks for verify and CI on macOS. `build` compiles the app, its pods and the AppInfo
-# module for the simulator without signing. `test` runs the AppInfo pod's XCTest bundle on an
-# available iPhone simulator (scripts/sim-destination.sh picks it). Both need `bun run pods`
-# first, and pipe through xcbeautify when it is installed.
+# iOS tasks for verify and CI on macOS. `pods` installs CocoaPods through Bundler and runs
+# pod install. `build` compiles the app, its pods and the AppInfo module for the simulator
+# without signing. `test` runs the AppInfo pod's XCTest bundle on an available iPhone simulator
+# (scripts/sim-destination.sh picks it). Both need `pods` first, and pipe through xcbeautify
+# when it is installed.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [ "${1:-}" = pods ]; then
+  # macOS's own Ruby carries a Bundler too old for current Rubies; a Gemfile.lock it writes
+  # stamps that Bundler, and every other Ruby then fails to load it.
+  if [ "$(command -v ruby)" = /usr/bin/ruby ]; then
+    echo "ios.sh: ruby is macOS's system Ruby (/usr/bin/ruby). Put a Homebrew or version-manager Ruby first on PATH, then run bun run pods again." >&2
+    exit 1
+  fi
+  bundle install
+  cd ios && exec bundle exec pod install
+fi
 
 workspace=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit 2>/dev/null || true)
 if [ -z "$workspace" ]; then
@@ -45,7 +57,7 @@ test)
     CODE_SIGNING_ALLOWED=NO test
   ;;
 *)
-  echo "usage: scripts/ios.sh build|test" >&2
+  echo "usage: scripts/ios.sh pods|build|test" >&2
   exit 2
   ;;
 esac

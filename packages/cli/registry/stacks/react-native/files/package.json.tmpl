@@ -5,7 +5,7 @@
     "start": "react-native start",
     "ios": "react-native run-ios",
     "android": "react-native run-android",
-    "pods": "bundle install && cd ios && bundle exec pod install",
+    "pods": "bash scripts/ios.sh pods",
     "lint": "biome check .",
     "lint:native": "xcrun swift-format lint --strict --recursive modules",
     "format": "biome check --write . && xcrun swift-format format --in-place --recursive modules",

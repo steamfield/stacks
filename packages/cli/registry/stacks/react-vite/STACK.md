@@ -48,7 +48,7 @@ commands:
   coverage: Run Vitest with coverage
   e2e: Build, then run the Playwright tests against vite preview
   check: Run lint, typecheck, tests and e2e
-  audit: Check dependencies for published advisories (bun audit; needs the network)
+  audit: Run bun audit (needs the network)
   clean: Remove build, test and coverage output
   prepare: Install git hooks and the Playwright browser outside CI
 ---
@@ -94,7 +94,7 @@ Vitest's `app` project runs `src/**/*.test.{ts,tsx}` on happy-dom with MSW, and 
 `bun run e2e` builds, serves `dist/` with `vite preview` on `PORT_E2E`, and runs Chromium with one worker against routed API responses: list to detail, a deep-link reload, the not-found page and a 500 with its request id. Details in `docs/guidance/react-vite/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with its system dependencies, then runs e2e. Upload Playwright reports and test results on failure. No credentials are needed. `bun run audit` runs as its own step after e2e: the audit needs the network, so it stays out of `check`.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with its system dependencies, then runs e2e, then `bun run audit` as its own step. Upload Playwright reports and test results on failure. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands

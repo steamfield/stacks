@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "react-vite",
   "source": {
-    "digest": "sha256:b8bec58a24370566a501c86f57ac1cb3c895219984280914d09c784bf6f0c462",
+    "digest": "sha256:f5867dbdf251da7e3be95eaab4320749aff66e9c5ff63d7125ea4ae90bba884e",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

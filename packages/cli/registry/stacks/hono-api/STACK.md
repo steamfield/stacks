@@ -48,7 +48,7 @@ commands:
   openapi: Write the app's OpenAPI document to openapi.json, formatted by Biome
   check:openapi: Fail if openapi.json no longer matches the app's document (run bun run openapi)
   check: Run lint, typecheck, tests, the OpenAPI drift check and the build
-  audit: Check dependencies for published advisories (bun audit; needs the network)
+  audit: Run bun audit (needs the network)
   clean: Remove build and coverage output
   prepare: Install git hooks outside CI
 ---

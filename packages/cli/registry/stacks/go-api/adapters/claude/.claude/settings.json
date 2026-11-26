@@ -1,16 +1,28 @@
 {
   "permissions": {
     "allow": [
+      "Bash(make install)",
+      "Bash(make build)",
+      "Bash(make serve)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
       "Bash(make vet)",
       "Bash(make lint)",
+      "Bash(make lint-fix)",
       "Bash(make fmt)",
       "Bash(make fmt-check)",
       "Bash(make test)",
       "Bash(make test-integration)",
       "Bash(make coverage)",
-      "Bash(make build)",
+      "Bash(make vuln)",
       "Bash(make ci)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go build *)",
+      "Bash(go list *)",
+      "Bash(golangci-lint run *)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -si http://127.0.0.1:*)"
     ]
   }
 }

@@ -28,10 +28,24 @@ with PORT=0, reads the actual address from JSON logs, keeps draining stdout
 and kills any surviving child in cleanup. Signal cases check both SIGINT and
 SIGTERM, exit status and the final stopped record.
 
-`make fmt` applies gofmt and goimports. `make serve` builds `bin/server`,
-embeds version metadata and runs it in the foreground. `make ci` adds coverage
-and vulnerability checks. A standard-library advisory needs a patched Go
-toolchain, recorded in go.mod, rather than a disabled vulnerability check.
+`make fmt` applies gofmt and goimports; `make lint-fix` applies golangci-lint's
+fixes. `make serve` builds `bin/server`, embeds version metadata and runs it in
+the foreground. `make ci` adds coverage and vulnerability checks. A
+standard-library advisory needs a patched Go toolchain, recorded in go.mod,
+rather than a disabled vulnerability check.
+
+## Background server
+
+`make dev-bg` builds, then runs `bin/server` from `scripts/dev-bg.sh` in its
+own process group, with its output in `logs/dev.log` and
+`<group> <host> <port>` in `logs/dev.pid`. It returns once `/healthz` answers
+(probed with `bin/server -healthcheck`), and stops the group and prints the
+log's tail if that takes over 30 seconds. A second `make dev-bg` reuses the
+recorded server while it answers; it keeps running the binary it started
+with, so run `make dev-stop && make dev-bg` after a code change.
+`make dev-stop` sends SIGTERM to the recorded group, SIGKILL after 15 seconds,
+and removes the pid file. HOST and PORT come from the shell, as for
+`make serve`; PORT=0 is refused because the health check needs a known port.
 
 Fill README and the selected fragments' AGENTS, hook and CI guidance before
 the final `stacks verify`. The default hooks and workflow are supplied by

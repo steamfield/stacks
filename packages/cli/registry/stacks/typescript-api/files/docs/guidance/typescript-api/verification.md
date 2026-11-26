@@ -1,6 +1,6 @@
 # Before calling work done
 
-Run `bun run check` (lint, typecheck, test, build) and read the output. The build is the only check that catches a platform import the bundle can't resolve.
+Run `bun run check` (lint, typecheck, tests with coverage floors, build) and read the output. The build is the only check that catches a platform import the bundle can't resolve.
 
 - A clean exit code isn't a pass. A `-t` filter that matches nothing exits 0 with every test skipped; read the counts.
 - Exercise the change against a running server. `bun run dev:bg` reuses the dev server already running from this checkout or starts one, and returns once `/healthz` answers, printing its URL (use the port it prints). Then hit the endpoints with `curl -si`, the error responses as well as the successes: a bad body, a missing resource, a wrong method (the 404 envelope).

@@ -33,7 +33,8 @@ export function runningDevServer(): DevServer | undefined {
   return ps.stdout.includes("scripts/dev.ts") ? { pid: Number(pid), port } : undefined;
 }
 
-function groupAlive(pgid: number): boolean {
+/** Whether any process in the group is alive (EPERM: alive, owned by another user). */
+export function groupAlive(pgid: number): boolean {
   try {
     process.kill(-pgid, 0);
     return true;

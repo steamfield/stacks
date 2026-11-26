@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 import { makeFixture } from "./helpers/dev";
 
 function freePort(): Promise<string> {
@@ -66,10 +66,9 @@ it("starts a background dev server and stops its processes", async () => {
       expect(stop.status, stop.stdout + stop.stderr).toBe(0);
       expect(stop.stderr).toBe("");
       expect(stop.stdout).toContain("Stopped");
-      await vi.waitFor(() => {
-        expect(existsSync(join(project.dir, "logs/dev.pid"))).toBe(false);
-        for (const group of groups) expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
-      });
+      // stop returns only once the server's group is gone, so the port is free for the next start.
+      expect(existsSync(join(project.dir, "logs/dev.pid"))).toBe(false);
+      for (const group of groups) expect(() => process.kill(-group, 0)).toThrow(/ESRCH/);
     } finally {
       for (const pid of [...groups.map((group) => -group), ...(owner ? [owner] : [])]) {
         try {

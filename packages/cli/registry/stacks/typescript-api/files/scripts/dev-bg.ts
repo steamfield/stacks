@@ -26,7 +26,14 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { type DevServer, orphanedGroups, PID_FILE, readPidFile, runningDevServer } from "./dev-pid";
+import {
+  type DevServer,
+  groupAlive,
+  orphanedGroups,
+  PID_FILE,
+  readPidFile,
+  runningDevServer,
+} from "./dev-pid";
 import { devStatus, unanswered } from "./dev-status";
 
 process.chdir(join(import.meta.dirname, ".."));
@@ -70,7 +77,7 @@ async function waitHealthy({ pid, port }: DevServer, seconds: number): Promise<s
   return reason;
 }
 
-async function waitExit(gone: () => boolean, seconds: number): Promise<void> {
+async function waitUntil(gone: () => boolean, seconds: number): Promise<void> {
   const deadline = Date.now() + seconds * 1000;
   while (Date.now() < deadline && !gone()) await sleep(500);
 }
@@ -142,14 +149,21 @@ function signal(target: number, sig: NodeJS.Signals): void {
   }
 }
 
+// The groups have been sent SIGTERM. Give them 5 s, then SIGKILL what's left; returns the groups
+// still alive after that.
+async function reap(groups: number[]): Promise<number[]> {
+  const left = () => groups.filter(groupAlive);
+  await waitUntil(() => left().length === 0, 5);
+  for (const pgid of left()) signal(-pgid, "SIGKILL");
+  await waitUntil(() => left().length === 0, 2);
+  return left();
+}
+
 // dev.ts was SIGKILLed (a tool timeout, say), so its exit handler never stopped the server. Its
 // process group is named in the pid file; stop it directly.
 async function stopOrphans(groups: number[], say: (line: string) => void): Promise<number> {
   for (const pgid of groups) signal(-pgid, "SIGTERM");
-  await waitExit(() => orphanedGroups().length === 0, 5);
-  for (const pgid of orphanedGroups()) signal(-pgid, "SIGKILL");
-  await waitExit(() => orphanedGroups().length === 0, 2);
-  const left = orphanedGroups();
+  const left = await reap(groups);
   if (left.length) {
     console.error(`The dev server's process group ${left.join(", ")} didn't exit.`);
     return 1;
@@ -171,16 +185,27 @@ async function stop(quiet = false): Promise<number> {
     return 0;
   }
   const { pid, port } = running;
+  // Read before dev.ts exits and removes the pid file.
+  const groups = readPidFile()?.groups ?? [];
   // SIGINT, like Ctrl-C: dev.ts passes it to the server, lets it shut down and finishes writing
   // logs/dev.log. Only dev.ts itself is signaled, never the group of whoever started it.
   signal(pid, "SIGINT");
-  await waitExit(() => !alive(pid), 10);
+  await waitUntil(() => !alive(pid), 10);
   if (alive(pid)) {
     signal(pid, "SIGTERM");
-    await waitExit(() => !alive(pid), 5);
+    await waitUntil(() => !alive(pid), 5);
   }
   if (alive(pid)) {
     console.error(`The dev server (pid ${pid}) didn't exit; port ${port} may still be taken.`);
+    return 1;
+  }
+  // dev.ts's exit handler sends the server's group SIGTERM without waiting for it. The port is
+  // free only once every recorded group is gone, so a caller can start a server right after.
+  const left = await reap(groups);
+  if (left.length) {
+    console.error(
+      `The dev server's process group ${left.join(", ")} didn't exit; port ${port} may still be taken.`,
+    );
     return 1;
   }
   say(`Stopped the dev server on port ${port} (pid ${pid}).`);

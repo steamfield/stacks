@@ -3,19 +3,19 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:d0eef63d1b3764e277fefa21a80d0f8cf14b03da056c407e7c3397d48248aa4a",
+    "digest": "sha256:b9e9bf012ea53370bfd0f3cf20c58b9eef12d2b4f77ec9bfbe0958ee58c9e3f8",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
-    "reviewedAt": "2026-11-24"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "Add shared Bun TypeScript hook helpers and incremental type checks after each Claude Code edit.",
   "description": "Give a TypeScript project on Bun a shared hook helper for payloads, bounded child processes and hook responses. For Claude Code, the adapter type-checks the project incrementally after each edit and reports the errors back. Destructive-command and secret guards come from agent-ops, and stack guards only stop commands that would hang the session.",
   "seoDescription": "Shared Bun TypeScript hook helpers and incremental TypeScript checking after each Claude Code edit.",
   "projectExamples": [
     {
-      "title": "Dev server guard",
-      "description": "A stack hook stops a foreground dev server that would hold the agent's session open, and points at the background script instead.",
+      "title": "Dev server status at session start",
+      "description": "A stack's SessionStart hook built on the shared helper reports the checkout's running dev servers so the agent reuses them.",
       "stack": "typescript-api"
     },
     {
@@ -40,7 +40,7 @@
   ],
   "requests": [
     "catch TypeScript errors after Claude changes a file",
-    "stop the agent from starting a dev server that never exits",
+    "share payload parsing and timed child processes across our Claude Code hooks",
     "write a Claude Code hook in TypeScript with Bun"
   ],
   "useCases": [

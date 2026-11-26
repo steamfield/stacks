@@ -30,33 +30,20 @@ verify:
 
 # Agent operations
 
-One canonical instruction file for every coding agent, `AGENTS.md`, plus a Claude Code adapter.
+`AGENTS.md` is the one instruction file for every coding agent, and each targeted agent's adapter adds guards against destructive commands and secret writes. Read `docs/guidance/engineering/` before writing code.
 
 ## What to add
 
-**`AGENTS.md`** is a skeleton. Fill it last, once verify is nearly green, from the project as built:
-
-- Replace each `stacks:fill` comment with real content; empty sections get "None yet."
-- Commands match the real Makefile or scripts, each run once, including a single-test-file command. The architecture map lists only directories that exist.
-- **Build workarounds** lists every pin, patch, disabled rule, or hack you added to get green, with when to remove it. **Deferred** and **Pending user actions** record what you left out and what only the user can do.
-- Under about 200 lines. Other fragments' sections go under their own `##` near related ones (database after Architecture map, CI and deploy before Deferred).
+Fill `AGENTS.md` last, once verify is nearly green, following each `stacks:fill` comment. Commands lists every declared command, each run once, plus one concrete single-test command (one test file or one test name). Another fragment's section goes under its own `##` near related ones: a database after Architecture map, CI and deploy before Deferred.
 
 <!-- stacks:when mode=add -->
-When the repo already has an `AGENTS.md`, the skeleton isn't copied (it's listed as "merge needed"). Keep the existing file and add the skeleton's missing sections (Commands, Build workarounds, Deferred, Pending user actions). An existing `CLAUDE.md` must import `AGENTS.md` (`@AGENTS.md` on its own line, which verify checks) instead of duplicating it; move shared content into `AGENTS.md`.
+An existing `AGENTS.md` is kept (listed as "merge needed"): add whichever of the skeleton's Commands, Build workarounds, Deferred and Pending user actions sections it lacks. An existing `CLAUDE.md` imports `AGENTS.md` with `@AGENTS.md` on its own line, which verify checks; move shared content into `AGENTS.md`.
 <!-- stacks:end -->
 
-**Engineering guidance:** read `docs/guidance/engineering/` (tests, architecture, errors, readable code) before writing code, and keep `AGENTS.md`'s Conventions, Testing and Error handling consistent with it.
+Once Commands are settled, let agents run these declared commands without a prompt: the aggregate check, test, the single-test command, lint, format or lint-fix, typecheck, coverage, audit, build, the background start, stop and status, logs, and clean (it removes only generated output). In Claude Code that is `Bash(<cmd>)` and `Bash(<cmd> *)` in `.claude/settings.json`; in OpenCode, `"<cmd>": "allow"` and `"<cmd> *": "allow"` under `permission.bash` in `opencode.json`. Keep prompting for install, which changes dependencies; dev and start, which never return; and anything that deploys, releases, migrates a shared database, deletes data or makes paid or live third-party calls. Allow rules already merged into `.claude/settings.json` are approved.
 
-**Hooks** deny only destructive or irreversible work (deleting root, home or the project, discarding work or history, force pushes, dropped tables, publishing, cloud deletes, `curl | sh`, secret or `.env` writes) and fail open. Conventions go in guidance and lint, never a denying hook. A block means ask the user, never work around it.
+Hooks deny only destructive or irreversible work and fail open; conventions belong in guidance and lint. A hook you add gets a deny and a near-miss case in `.claude/hooks/smoke.sh`, which `hooks-smoke` runs; when it fails, fix the hook or its wiring, never the script. Keep `.claude/hooks/` whatever the targets, because every agent's guards run from it. Codex runs project hooks only after the user trusts the project and approves each in `/hooks`: list that under Pending user actions.
 
-**Claude Code adapter** (when Claude is a target): `CLAUDE.md` imports `AGENTS.md` via `@AGENTS.md` (never remove the line). `.claude/settings.json` wires the hooks; other fragments deep-merge into it. Replace `.claude/README.md`'s `stacks:fill` row with one row per shipped hook (`claude-readme-filled` checks).
+Claude Code asks the user before any edit under `.claude/` or to `lefthook.yml`. If the user declines, finish the rest, then ask once for all of them with the exact content.
 
-Once Commands are settled, allow the project's non-destructive commands (lint, format, typecheck, test, single test file) in `.claude/settings.json` as `Bash(<cmd>)` / `Bash(<cmd> *)`. Never allow deploy, publish, release, migrate or deletes. Allow rules already merged into `.claude/settings.json` are approved.
-
-**Other agents** run the shell guards from `.claude/hooks/`, so keep it whatever the targets. Codex runs project hooks only after the user trusts the project and approves each in `/hooks`: list that under Pending user actions.
-
-`hooks-smoke` runs `.claude/hooks/smoke.sh`, the project's only hook test: a deny and a near miss per guard, and every hook config parses and wires real files. A hook you add gets a case there. If it fails, fix the hook or wiring, never the script.
-
-Claude Code asks the user before any edit under `.claude/` or to `lefthook.yml`; if denied, finish the rest, then ask once for all of them with exact content.
-
-With a linter (a formatter alone doesn't count), confirm `lint-on-write.sh` reports a deliberate error, then revert; if silent, check the linter is where the hook looks (`.venv`, `node_modules/.bin`, PATH). On Stop, `format-changed.sh` formats this session's files. With biome or eslint, add `.claude/worktrees/` to `.gitignore`.
+With a linter configured (a formatter alone doesn't count), write a deliberate lint error and confirm `lint-on-write.sh` reports it, then revert. If it stays silent, the linter isn't where the hook looks (`.venv`, `node_modules/.bin`, PATH). With Biome or ESLint, add `.claude/worktrees/` to the root `.gitignore`.

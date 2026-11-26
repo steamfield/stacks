@@ -2,14 +2,14 @@
 
 Skill: deliver. Profile: deliver. On resume, re-read shared/lane-dag.md before anything else.
 plan_graph: /Users/riley/.claude/plugins/cache/claude-essentials/ce/6.0.6/shared/scripts/plan_graph.py
-Started: 2026-11-26. Timebox: none. Landing branch: deliver/index-first-registry (worktree `.claude/worktrees/deliver-index-first`; this plan is copied to `plans/index-first-registry-plan.md` there after approval).
+Started: 2026-11-26. Timebox: none. Landing branch: deliver/index-first-registry (worktree `.claude/worktrees/deliver-index-first`), cut from `feat/ios-stacks` at bc7733ba because phase 5 needs the iOS stacks, which aren't on `main` yet.
 Gate: `rr check` (~30s, clone is opted in to rr). Filtered tests: `bun run test:unit tests/<file>.test.ts` in `packages/cli` (local; a single file is allowed outside rr). Typecheck: `bun run typecheck` (repo root).
 Runner: `rr` for every whole-suite run (`rr check`, `rr test-cli`); scoped files, lint and typecheck run locally.
 Worktree setup: `bun install --frozen-lockfile`.
 Suppressions: biome-ignore, @ts-expect-error, test.skip, it.skip, describe.skip, .only
 Manifests: package.json, bun.lock
 
-Repo overrides of the deliver defaults (`.claude/rules/agent-ops.md`, `.claude/delegate.md`): implementation lanes go to Codex through the `foreman` skill with `.claude/delegate/contract.md` as the contract template (sol, high effort). Codex runs the one `code-reviewer` pass on its own lane, so there is no separate Claude lane review; I still run `check-lane`, the brief check and the shape check before merging. Shared contracts in `packages/format/src` and `src/errors.ts`, and all harness edits (`.claude/`, CI workflows, `.rr.yaml`, lefthook, `tsconfig*.json`, `biome.json`), are mine, in scaffolds or inline. The phase 1 boundary review and the final review run as the profile says. Lanes run no gate (the command guard denies whole-suite runs to `CODEX_DELEGATE=1`).
+Repo overrides of the deliver defaults (`.claude/rules/agent-ops.md`, `.claude/delegate.md`): implementation lanes go to Codex through the `foreman` skill with `.claude/delegate/contract.md` as the contract template (sol, high effort). Codex runs the one `code-reviewer` pass on its own lane, so there is no separate Claude lane review; I still run `check-lane`, the brief check and the shape check before merging. Shared contracts in `packages/format/src` and `src/errors.ts`, and all harness edits (`.claude/`, CI workflows, `.rr.yaml`, lefthook, `tsconfig*.json`, `biome.json`), are mine, in scaffolds or inline. The phase 1 boundary review and the final review run as the profile says. Lanes run no gate (the command guard denies whole-suite runs to `CODEX_DELEGATE=1`). Each phase's tests come from Codex test-author runs (`.claude/delegate/contract-tests.md`, one per lane, per `.claude/rules/cli/testing.md` "Process and gate"), reviewed by me and committed in the scaffold. The foreman runs are named `idx-t<phase><lane>` for test authors and `idx-<phase><lane>` for implementers, with contracts under the session scratchpad's `contracts/`.
 
 ## Context
 
@@ -92,7 +92,7 @@ Demo: with a local server as `STACKS_INDEX_URL` (untrusted, so no signature chec
 
 Test cases:
 - revalidate with a stored ETag and body sends `If-None-Match`; a 304 refreshes `cachedAt`, keeps the body, and returns `revalidated`.
-- A 304 with no stored body refetches without the header inside the same deadline and returns `fresh`.
+- A stored ETag with a missing or undecodable body sends no `If-None-Match`; a 200 returns `fresh`. A 304 to a request that carried no `If-None-Match` is a `network` failure, with no second request.
 - A 200 replaces the body and stores the new ETag; returns `fresh`.
 - revalidate ignores a backoff a read recorded when `ignoreBackoff` is true; `current()` still honors it.
 - revalidate timeout with a cache returns `cached` with reason `timeout` and `cachedAt`; with no cache returns `none` with reason `timeout`.
@@ -142,7 +142,7 @@ Scaffold note: root `scripts/release.ts` gains `--min-cli`, which sets `registry
 
 - Goal: `list` and every `Registry.all` reader stay inside a fixed time on any drift between the index and the bundled registry, and search stops suggesting entries the CLI can't open.
 - Interface: `remote/merge.ts::remoteRegistry.all`; `core/search/report.ts::next`; reads `RemoteIndex.cached` and `RemoteIndex.status`.
-- Behavior: resolve index entries with `concurrency: 8`. One 3,000 ms deadline (`INDEX_REFRESH_DEADLINE_MS`, from the scaffold) starts at the first `all` call and is shared by every `all` call in the invocation; pins (fragments and parts) count against it. An entry with a bundled copy races its existing `Effect.cached` resolution against the deadline: losing returns the bundled copy for that `all` result only, and the resolution keeps running in the remote registry's scope so a later `get` awaits the index copy. Never cache the fallback. Index-only entries are awaited without the race. No new entry type. `next`: keep `show`/`new` unless a cached index exists and lacks the hit's id, or `status.lastOutcome === "unsupported"`; then the hint is `stacks update`.
+- Behavior: resolve index entries with `concurrency: 8`. One 3,000 ms deadline (`INDEX_REFRESH_DEADLINE_MS`, from the scaffold) starts at the first `all` call and is shared by every `all` call in the invocation; pins (fragments and parts) count against it. An entry with a bundled copy races its existing `Effect.cached` resolution against the deadline: losing returns the bundled copy for that `all` result only, and the resolution keeps running in the remote registry's scope so a later `get` awaits the index copy. Never cache the fallback. Index-only entries are awaited without the race. No new entry type. Each bundle request keeps its own `CACHED_FETCH_DEADLINE_MS` (1,500 ms) deadline, so the shared deadline bounds cumulative time across queued downloads, not one slow request. `next`: keep `show`/`new` unless a cached index exists and lacks the hit's id, or `status.lastOutcome === "unsupported"`; then the hint is `stacks update`.
 - Out of scope: refresh, picker changes.
 - Done when: the two scaffold test files pass, plus the existing remote, workspace-index and search-api-index tests.
 

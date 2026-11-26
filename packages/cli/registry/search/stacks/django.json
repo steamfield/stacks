@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "django",
   "source": {
-    "digest": "sha256:bb679468638483339dcfa8a9289816ddb1d4d6648b4c64fc3880d29032d29983",
+    "digest": "sha256:fc6298f043d4932ff03b3b1f028e8b7da39ea79e6dea65aa35c872ae71deaa23",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A server-rendered Python website on Django with its ORM, admin, forms and migrations, served by gunicorn and tested against a real database.",
   "description": "Start a Django site that renders HTML on the server. Settings come from environment variables with validated defaults, and production refuses to start without a secret key. One notes app proves the shape: a model and its migration, an admin page, and a form that re-renders with inline errors or redirects after a save. A custom user model exists from the first migration. Every request is logged with an id, and a health view answers the serve probe. Checks cover ruff, djLint, strict mypy, pytest-django, missing migrations and Django's deployment checklist. Data lives in SQLite; Postgres, sign-in pages and background jobs are left to the project.",

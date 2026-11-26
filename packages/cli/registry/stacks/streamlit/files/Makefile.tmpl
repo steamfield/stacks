@@ -1,8 +1,9 @@
 # {{project_name}} development commands.
 #
 # A starting point: adapt the recipes to the project, but keep the target
-# names. `stacks verify` calls install, lint, typecheck, coverage and start,
-# and CI should call the same targets except start.
+# names. `stacks verify` calls install, lint, typecheck, coverage, dev-bg,
+# dev-stop and start (dev-cycle runs scripts/dev-bg.sh status directly). CI
+# calls install, ci, then audit as its own step.
 
 PORT_WEB ?= 8501
 WEB_HOST ?= 127.0.0.1
@@ -10,7 +11,7 @@ TEST_WORKERS ?= auto
 STREAMLIT := uv run streamlit run app.py --server.port $(PORT_WEB) --server.address $(WEB_HOST)
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage dev start clean
+.PHONY: help install lint format typecheck test coverage ci audit dev dev-bg dev-stop dev-status start clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -34,8 +35,24 @@ test: ## pytest (parallel), including the AppTest page tests
 coverage: ## pytest with the branch coverage floor
 	uv run pytest -n $(TEST_WORKERS) --cov --cov-report=term-missing
 
+ci: lint typecheck coverage ## Every check CI runs after install
+
+audit: ## pip-audit over uv.lock (needs the network)
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
+
 dev: ## Streamlit on PORT_WEB, rerunning the page when a file is saved
 	$(STREAMLIT) --server.runOnSave true
+
+dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one it started
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
 
 start: ## Streamlit on PORT_WEB with no file watcher, as a deploy runs it
 	exec $(STREAMLIT) --server.fileWatcherType none

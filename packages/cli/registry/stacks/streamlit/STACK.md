@@ -7,8 +7,8 @@ description: An interactive Python data app on Streamlit, managed with uv and ma
 tags: [python, web, data, make]
 deps:
   runtime: [streamlit, polars, altair, pydantic, pydantic-settings, structlog]
-  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist]
-tools: [uv, make, git, jq]
+  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, pip-audit]
+tools: [uv, make, git, jq, bash]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that Streamlit and Polars both publish wheels for (default). Setup writes .python-version and requires-python."
@@ -28,6 +28,10 @@ verify:
   - { name: lint, layer: lint, run: make lint }
   - { name: typecheck, layer: typecheck, run: make typecheck }
   - { name: test, layer: test, run: make coverage }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: web
     phase: serve
     layer: serve
@@ -44,7 +48,12 @@ commands:
   typecheck: mypy strict over app.py, src and tests
   test: pytest (parallel), including the AppTest page tests
   coverage: pytest with the branch coverage floor
+  ci: lint, typecheck and coverage, as CI runs them
+  audit: pip-audit over the locked dependencies (needs the network)
   dev: Streamlit on PORT_WEB, rerunning the page on save
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
+  dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   start: Streamlit on PORT_WEB with no file watcher, as a deploy runs it
   clean: Remove caches and coverage output
 ---
@@ -53,7 +62,7 @@ commands:
 
 ## What stacks wrote
 
-A one-page Streamlit app that passes every check once its dependencies are installed. `app.py` is the page and nothing more: page config, two sidebar multiselects with keys, three metrics, an Altair chart and a table, a `st.cache_data` wrapper around the loader, and the one place an `AppError` becomes `st.error`. The logic is in `src/package_name/`, which never imports Streamlit: `data.py` (`SALES_SCHEMA` and `load_sales`, the only file read), `metrics.py` (`Filters`, `Summary` and pure functions for filter options, filtering, totals, revenue by month and money formatting), `charts.py` (the Altair spec), `config.py` (pydantic-settings), `errors.py` (`AppError` and the `HEADINGS` table the page shows per code) and `log.py` (structlog to stderr). The payload is `data/sample.csv`, 24 orders whose totals are worked out by hand in the tests: `tests/test_app.py` runs the page with Streamlit's AppTest, selects a region and a product, and asserts the revenue changes from $1,400.00 to $380.00 and then $320.00; it also covers the missing-file error and empty data. `.streamlit/config.toml` (headless, no usage statistics, no magic, no tracebacks for viewers), the Makefile, `pyproject.toml`, `.env.example` and `docs/ARCHITECTURE.md` ship too. Read the code before extending it.
+A one-page Streamlit app that passes every check once its dependencies are installed. `app.py` is the page and nothing more: page config, two sidebar multiselects with keys, three metrics, an Altair chart and a table, a `st.cache_data` wrapper around the loader, and the one place an `AppError` becomes `st.error`. The logic is in `src/package_name/`, which never imports Streamlit: `data.py` (`SALES_SCHEMA` and `load_sales`, the only file read), `metrics.py` (`Filters`, `Summary` and pure functions for filter options, filtering, totals, revenue by month and money formatting), `charts.py` (the Altair spec), `config.py` (pydantic-settings), `errors.py` (`AppError` and the `HEADINGS` table the page shows per code) and `log.py` (structlog to stderr). The payload is `data/sample.csv`, 24 orders whose totals are worked out by hand in the tests: `tests/test_app.py` runs the page with Streamlit's AppTest, selects a region and a product, and asserts the revenue changes from $1,400.00 to $380.00 and then $320.00; it also covers the missing-file error and empty data. `.streamlit/config.toml` (headless, no usage statistics, no magic, no tracebacks for viewers), the Makefile, the background dev-server script (`scripts/dev-bg.sh`), `pyproject.toml`, `.env.example` and `docs/ARCHITECTURE.md` ship too. Read the code before extending it.
 
 ## Setup
 
@@ -85,11 +94,13 @@ The shipped code follows these; new code keeps to them.
 
 The shipped Makefile (`make help`) holds every declared target. Mirror them in AGENTS.md with a single-test command (`uv run pytest tests/test_app.py`). `make dev` is for people looking at the page; agents run `make test`.
 
+To keep the page served while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make dev` or kill Streamlit by name: make and `uv run` sit between you and the server, and dev-stop signals only the process group it recorded. A foreground `make dev` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
+
 <!-- stacks:when with=git-hooks -->
 Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage` with CI set.
+CI uses uv's setup action (cache on, Python from .python-version), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 
 ## Gotchas
@@ -99,5 +110,5 @@ CI uses uv's setup action (cache on, Python from .python-version), then `make in
 - AppTest's default timeout is 3 seconds and the first run in a worker imports Streamlit, Polars and Altair; `tests/test_app.py` passes a longer `default_timeout`.
 - `st.cache_data` pickles return values and keeps them across reruns and AppTest runs in one process. Exceptions aren't cached, so a fixed file loads on the next rerun.
 - Without `server.headless` the first `streamlit run` asks for an email and opens a browser, which hangs verify. Usage statistics are on unless `browser.gatherUsageStats` is false.
-- `streamlit run`, `make dev` and `make start` stay in the foreground; the guard hook denies them to agents.
+- `streamlit run`, `make dev` and `make start` stay in the foreground; the guard hook denies them to agents, who use `make dev-bg`.
 - Headless on a wildcard address (`0.0.0.0`), Streamlit looks up the machine's public IP from checkip.amazonaws.com to print an "External URL". `make start` binds `127.0.0.1`, which skips it; an image sets `STREAMLIT_LOGGER_HIDE_WELCOME_MESSAGE=true`.

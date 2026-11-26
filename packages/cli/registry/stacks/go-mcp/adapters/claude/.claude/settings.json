@@ -15,6 +15,7 @@
       "Bash(make call)",
       "Bash(make vuln)",
       "Bash(make ci)",
+      "Bash(make clean)",
       "Bash(go test *)",
       "Bash(go vet *)",
       "Bash(go build *)",

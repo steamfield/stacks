@@ -34,9 +34,9 @@ Requires Go, make, and [golangci-lint](https://golangci-lint.run/).
 | `make test` | Unit tests |
 | `make test-integration` | Integration tests against the built binary |
 | `make lint` | golangci-lint |
-| `make vuln` | govulncheck |
+| `make vuln` | govulncheck (needs the network; CI runs it after `make ci`) |
 | `make coverage` | Race-enabled tests with a coverage floor |
-| `make ci` | Everything CI runs |
+| `make ci` | Every offline check CI runs |
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for more.
 

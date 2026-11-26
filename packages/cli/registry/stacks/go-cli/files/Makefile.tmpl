@@ -86,7 +86,7 @@ smoke: build ## Build and run the binary's --help and --version
 	./bin/$(BIN) --help >/dev/null
 	./bin/$(BIN) --version
 
-ci: fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs
+ci: fmt-check tidy-check lint coverage test-integration build ## Every offline check CI runs (vuln is its own step)
 
 clean: ## Remove build and coverage output
 	rm -rf bin/ dist/ coverage.out coverage.html

@@ -15,15 +15,21 @@
       "Bash(make test-integration)",
       "Bash(make coverage)",
       "Bash(make build)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make dev-status)",
       "Bash(make vuln)",
       "Bash(make ci)",
+      "Bash(make clean)",
       "Bash(go test *)",
       "Bash(go vet *)",
       "Bash(go build *)",
       "Bash(go list *)",
       "Bash(go tool templ generate)",
       "Bash(go tool templ fmt internal)",
-      "Bash(golangci-lint run *)"
+      "Bash(golangci-lint run *)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -si http://127.0.0.1:*)"
     ]
   },
   "hooks": {

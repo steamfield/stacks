@@ -48,7 +48,7 @@ commands:
   coverage: Race-enabled tests with a coverage floor
   doc: Print the package documentation as pkg.go.dev shows it
   vuln: Check dependencies and the standard library for known vulnerabilities (govulncheck)
-  ci: "Everything CI runs (fmt-check, tidy-check, vet, lint, coverage, fuzz, consumer, api-check, vuln)"
+  ci: "Every offline check CI runs (fmt-check, tidy-check, vet, lint, coverage, fuzz, consumer, api-check)"
   clean: Remove coverage output
 ---
 

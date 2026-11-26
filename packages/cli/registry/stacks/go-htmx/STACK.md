@@ -8,7 +8,7 @@ tags: [go, web, make]
 deps:
   web: [github.com/a-h/templ]
   test: [github.com/stretchr/testify, github.com/PuerkitoBio/goquery]
-tools: [go, make, git, golangci-lint, curl, jq]
+tools: [go, make, git, golangci-lint, curl, jq, bash]
 decisions:
   - "Module path: github.com/<owner>/<project-slug> (default), owner from `gh api user -q .login` or the git remote, never the author's display name. If neither exists, keep the bare `<project-slug>` the shipped imports use and list the path under decisions to revisit."
   - "htmx: the release npm tags `latest`, downloaded by `make htmx` into static/vendor/ and committed (default). Never the `next` tag; a new major changes the response-handling config the layout sets. A CDN script tag instead only when the user asks, and then the content security policy must allow that host."
@@ -35,6 +35,10 @@ verify:
   - { name: tidy, layer: check, run: make tidy-check }
   - { name: test, layer: test, run: make test }
   - { name: test-integration, layer: test, run: make test-integration }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: web
     phase: serve
     layer: serve
@@ -53,6 +57,9 @@ commands:
   htmx-check: Fail unless the vendored htmx file is present
   build: Build bin/server with templates and static files embedded
   serve: Build, then run the server in the foreground until SIGINT or SIGTERM
+  dev-bg: Build, then start bin/server in the background (or reuse a healthy one), logging to logs/dev.log
+  dev-stop: Stop the process group dev-bg started
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   vet: Type-check every package, including tagged integration tests (go vet)
   lint: Run golangci-lint
   lint-fix: Run golangci-lint with --fix
@@ -63,7 +70,7 @@ commands:
   test-integration: Build the binary, run it on a free port, load pages and post forms both ways, stop it with signals
   coverage: Race-enabled tests with a coverage floor
   vuln: Check dependencies and the standard library for known vulnerabilities (govulncheck)
-  ci: "Everything CI runs (generate-check, templ-fmt-check, htmx-check, fmt-check, tidy-check, lint, coverage, test-integration, vuln, build)"
+  ci: "Every offline check CI runs (generate-check, templ-fmt-check, htmx-check, fmt-check, tidy-check, lint, coverage, test-integration, build)"
   clean: Remove build and coverage output
 ---
 
@@ -71,7 +78,7 @@ commands:
 
 ## What stacks wrote
 
-A working server-rendered web app that passes every check once its modules resolve, htmx is downloaded and the components are generated. `cmd/server/main.go` binds the listener, drains on SIGINT or SIGTERM and has a `-healthcheck` flag. `internal/views` holds the templ components (layout, notes page, note form, list item, error page) and the plain view types they take; `internal/web` holds the routes, middleware (request id, access log, panic recovery, security headers, cross-origin protection), form handling, the error table and the buffered `render`. `static/` embeds `app.css` and the vendored `htmx.min.js` into the binary. The payload is a notes page whose form posts with htmx: a valid post returns the new list item and an out-of-band empty form, an invalid one returns 422 with the form and its field errors, and the same form works as a plain post without JavaScript. `internal/notes`, `internal/config`, `internal/errors` and `internal/log` hold the domain and boundaries. Component and handler tests sit beside the code and assert on the rendered HTML with goquery; `tests/integration` runs the built binary. The Makefile, `.golangci.yml`, `.env.example` and `docs/` (ARCHITECTURE, pages, configuration, DEVELOPMENT) ship too. Read the code before extending it.
+A working server-rendered web app that passes every check once its modules resolve, htmx is downloaded and the components are generated. `cmd/server/main.go` binds the listener, drains on SIGINT or SIGTERM and has a `-healthcheck` flag. `internal/views` holds the templ components (layout, notes page, note form, list item, error page) and the plain view types they take; `internal/web` holds the routes, middleware (request id, access log, panic recovery, security headers, cross-origin protection), form handling, the error table and the buffered `render`. `static/` embeds `app.css` and the vendored `htmx.min.js` into the binary. The payload is a notes page whose form posts with htmx: a valid post returns the new list item and an out-of-band empty form, an invalid one returns 422 with the form and its field errors, and the same form works as a plain post without JavaScript. `internal/notes`, `internal/config`, `internal/errors` and `internal/log` hold the domain and boundaries. Component and handler tests sit beside the code and assert on the rendered HTML with goquery; `tests/integration` runs the built binary. `scripts/dev-bg.sh` runs the server in the background. The Makefile, `.golangci.yml`, `.env.example` and `docs/` (ARCHITECTURE, pages, configuration, DEVELOPMENT) ship too. Read the code before extending it.
 
 ## Setup
 
@@ -107,7 +114,9 @@ Tagged integration tests build the binary once in TestMain, start it on PORT=0 a
 
 ## Commands
 
-The shipped Makefile (`make help`) holds every declared command. Mirror them in AGENTS.md with a single-test command such as `go test -race -run TestHTMXPostWithErrorsRetargetsTheForm ./internal/web/`. Run `make serve` in the background when needed and stop only the pid you started.
+The shipped Makefile (`make help`) holds every declared command. Mirror them in AGENTS.md with a single-test command such as `go test -race -run TestHTMXPostWithErrorsRetargetsTheForm ./internal/web/`.
+
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make serve` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make serve` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 
 <!-- stacks:when with=agent-ops -->
 The stack's Claude settings allow its non-destructive make targets, go test and `go tool templ generate|fmt`. Generate `*_templ.go` with `make generate`, refresh vendor files with `make htmx`, and run templ through `go tool`. `.claude/hooks/templ-generate.sh` refreshes edited components and reports syntax errors. `.claude/skills/add-page` walks through adding a page or form. List the generation hook and skill in `.claude/README.md`. Add allow rules only for new commands.
@@ -133,3 +142,4 @@ CI reads Go from go.mod and runs `make install`, `make generate-check`, `make te
 - The embed directive names `vendor/htmx.min.js`, so build, vet and lint fail with "pattern ... no matching files" until `make htmx` has run.
 - `http.CrossOriginProtection` allows requests without `Sec-Fetch-Site` or `Origin`, so curl and tests pass without headers; test the block with `Sec-Fetch-Site: cross-site`.
 - Race checks need cgo and a C compiler. Fix the environment instead of dropping `-race`.
+- `make dev-bg` overwrites `logs/dev.log`, and so does the `dev-cycle` verify step, which runs dev-bg then dev-stop. Copy the log first if you still need the last run's output.

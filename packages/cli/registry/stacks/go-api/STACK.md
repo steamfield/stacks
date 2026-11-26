@@ -7,7 +7,7 @@ description: A Go HTTP API on the standard library (net/http, slog) with no web 
 tags: [go, api, make]
 deps:
   test: [github.com/stretchr/testify]
-tools: [go, make, git, golangci-lint]
+tools: [go, make, git, golangci-lint, bash]
 decisions:
   - "Module path: github.com/<owner>/<project-slug> (default), owner from `gh api user -q .login` or the git remote, never the author's display name. If neither exists, use the bare `<project-slug>` and list the path under decisions to revisit."
   - "Router: the standard library's ServeMux with method patterns (default). Add a third-party router only when the user asks for one, and record why in AGENTS.md."

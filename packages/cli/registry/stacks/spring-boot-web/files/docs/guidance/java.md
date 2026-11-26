@@ -8,7 +8,7 @@ How Java code in this project is written. The shipped code follows every rule he
 - `.java-version` names the JDK major; the Makefile derives `JAVA_HOME` from it when unset, and `pom.xml`'s `java.version` must match it (`make env` checks).
 - Every version lives in a `<properties>` entry of `pom.xml`. The Spring Boot BOM manages library versions, so a managed dependency has no `<version>`; an unmanaged one gets a `<name>.version` property. Plugins always get a property, since the BOM manages none.
 - Keep the build's checks: Enforcer's Java version and dependency convergence, `-Xlint:all` with `failOnWarning`, Error Prone with NullAway, Spotless and the JaCoCo floor. A check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, never a weaker build.
-- Spotless (palantir-java-format) owns formatting. Run `make fmt` after editing rather than formatting by hand.
+- Spotless (palantir-java-format) owns formatting. Run `make format` after editing rather than formatting by hand.
 
 ## Nullness
 

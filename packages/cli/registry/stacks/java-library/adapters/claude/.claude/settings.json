@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(make env)",
-      "Bash(make fmt)",
+      "Bash(make format)",
       "Bash(make fmt-check)",
       "Bash(make lint)",
       "Bash(make compile)",
@@ -13,7 +13,10 @@
       "Bash(make jar-check)",
       "Bash(make test-consumer)",
       "Bash(make api-check)",
-      "Bash(make ci)"
+      "Bash(make audit)",
+      "Bash(make ci)",
+      "Bash(make clean)",
+      "Bash(./mvnw -q test *)"
     ]
   }
 }

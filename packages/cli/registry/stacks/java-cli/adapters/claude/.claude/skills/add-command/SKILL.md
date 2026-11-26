@@ -12,4 +12,4 @@ description: Add a subcommand to this Java CLI with its picocli class, errors, o
 3. **Fail.** Throw `CliException` with an `ErrorCode`. A failure the table lacks is a new `ErrorCode` constant (exit status: 2 for a mistake in the invocation, 3 for configuration, 1 otherwise; a suggestion ending in a period), a case in `ErrorCodeTest` and a row in `docs/ARCHITECTURE.md`'s exit-status table. Never rename a code.
 4. **Settings.** A new setting is a component of `Config` with its default in `DEFAULTS`, a rule in `validate` if it can be wrong, a `Layer` component and its environment line in `ConfigLoader`, a precedence case in `ConfigLoaderTest` and a row in `docs/configuration.md`.
 5. **Test.** In `AppTest`, a success case in text and `--json`, and one case per failure, each asserting the exit status and both streams. In `JarIT`, one case per new exit path through the packaged jar.
-6. Run `make fmt compile coverage test-integration`.
+6. Run `make format compile coverage test-integration`.

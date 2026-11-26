@@ -8,7 +8,7 @@ How Java code in this project is written. The shipped code follows every rule he
 - `.java-version` names the JDK major; the Makefile derives `JAVA_HOME` from it when unset, and `pom.xml`'s `java.version` must match it (`make env` checks).
 - Every version lives in a `<properties>` entry of `pom.xml`. Jackson, SLF4J and JUnit come from their BOMs in `<dependencyManagement>`, so those dependencies have no `<version>`; any other library or plugin gets a `<name>.version` property.
 - Keep the build's checks: Enforcer's Java version and dependency convergence, `-Xlint:all` with `failOnWarning`, Error Prone with NullAway, Spotless and the JaCoCo floor. A check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, as `Main.terminal` does, never a weaker build.
-- Spotless (palantir-java-format) owns formatting. Run `make fmt` after editing rather than formatting by hand.
+- Spotless (palantir-java-format) owns formatting. Run `make format` after editing rather than formatting by hand.
 - The jar is shaded: every dependency is inside `target/<name>.jar`. A new dependency that registers itself through `META-INF/services` works because the shade configuration merges those files; keep `ServicesResourceTransformer`.
 
 ## Nullness

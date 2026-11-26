@@ -2,7 +2,7 @@
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
 # fmt-check, lint, compile, coverage, test-integration, build and smoke; CI
-# calls `make ci`.
+# calls install, ci, then audit as its own step.
 
 JAR        := target/{{project_slug}}.jar
 JAVA_MAJOR := $(strip $(shell cat .java-version 2>/dev/null))
@@ -23,7 +23,7 @@ export JAVA_HOME
 JAVA := $(if $(JAVA_HOME),$(JAVA_HOME)/bin/)java
 
 .DEFAULT_GOAL := help
-.PHONY: help env install fmt fmt-check lint compile test coverage test-integration build smoke ci clean
+.PHONY: help env install format fmt-check lint compile test coverage test-integration build smoke audit ci clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-17s %s\n", $$1, $$2}'
@@ -39,7 +39,7 @@ install: env ## Check the toolchain and download dependencies and plugins
 	$(MVN) -q dependency:go-offline
 	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
 
-fmt: env ## Format Java sources (Spotless, palantir-java-format)
+format: env ## Format Java sources (Spotless, palantir-java-format)
 	$(MVN) -q spotless:apply
 
 fmt-check: env ## Fail if Spotless would change any Java source
@@ -70,7 +70,12 @@ smoke: build ## Run the jar's --help, --version and config show --json
 	"$(JAVA)" -jar $(JAR) --version
 	"$(JAVA)" -jar $(JAR) config show --json
 
-ci: fmt-check ## Everything CI runs (fmt-check, enforcer, every test, coverage, the jar, smoke)
+# Needs the network, so it stays out of ci and verify; CI runs it as its own step.
+audit: env ## Check dependencies for known vulnerabilities (osv-scanner)
+	@command -v osv-scanner >/dev/null || { echo "osv-scanner not found. Install it: https://google.github.io/osv-scanner/installation/" >&2; exit 1; }
+	osv-scanner scan source -L pom.xml
+
+ci: fmt-check ## Every offline check CI runs (fmt-check, enforcer, every test, coverage, the jar, smoke; audit is its own step)
 	$(MVN) verify
 	$(MAKE) smoke
 

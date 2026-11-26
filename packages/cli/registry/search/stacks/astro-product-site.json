@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "astro-product-site",
   "source": {
-    "digest": "sha256:5791c7c6cac17af49123056ceeed2898cf41128f89f558aeea2fa1a398761648",
+    "digest": "sha256:840e8ab776b9be4622a9e2d32d359ce0530a8acec700c75a99ea034dcf07b991",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

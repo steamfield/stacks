@@ -9,7 +9,7 @@ deps:
   site: [astro, "@astrojs/mdx", "@astrojs/react", "@astrojs/sitemap", "@astrojs/rss", react, react-dom, tailwindcss, "@tailwindcss/vite", "@tailwindcss/typography"]
   site-dev: ["@astrojs/check", typescript, "@types/react", "@types/react-dom", vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/dom", "@testing-library/jest-dom", yaml, prettier, prettier-plugin-astro]
   og-images: [satori, "@resvg/resvg-js"]
-tools: [bun, node, make, git]
+tools: [bun, node, make, git, bash]
 decisions:
   - "Production site URL for canonical links, sitemap, and RSS (default: https://example.com)."
   - "Generated Open Graph images per post with satori (default: off; a static image in public/)."

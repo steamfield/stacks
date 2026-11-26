@@ -53,15 +53,15 @@
  * go-cli changed again that day when its ci command stopped running vuln; it awaits a bench run.
  * astro-blog changed that day for its ci, audit and dev-bg commands, and python-react for
  * react-vite's audit command and again for python-api's uvicorn[standard] Setup line; both
- * await a bench run.
+ * await a bench run. astro-blog changed again that day when bash joined its tools.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:e8e1c77c35bc194939b5943f9901c9cd95fb05e985d48c0738c974e3d6415a91",
-  "astro-blog:sandbox": "sha256:412b981ec11cf1a1d6d67e8220083d7b643e5b76a00e8c464a767cf703d8d094",
+  "astro-blog:default": "sha256:61276df9a1da999d004385764310f6b21082b36ed51e40cdfbd231650fd5e022",
+  "astro-blog:sandbox": "sha256:8c1acbd07ef826a8511b267d8c11a559244b3a74247d4e46bc12c2632ce5c94a",
   "go-cli:default": "sha256:37845700f47e2c38a4c50d7d7fff7770cf55e2c4c8f4cef61fca100e147d931f",
   "go-cli:sandbox": "sha256:60c06a99ad834bdc9f53e66a9b0fc504aeb0fbf5cba8a4fbd10fafafc6f9fd13",
   "python-react:default": "sha256:9690a52ff08fcad7a16a1f3cfecbdb4429811dfa596eaafc3a9bef4ecec216d1",

@@ -18,7 +18,7 @@ DEV_PORT=8080
 # server shut down (longer than the default SHUTDOWN_TIMEOUT, so in-flight requests finish), and
 # the grace when a start fails or is interrupted (under the 5 s a verify step timeout allows
 # between SIGTERM and SIGKILL).
-START_SECONDS=60
+START_SECONDS=120
 STOP_SECONDS=15
 ABORT_SECONDS=3
 # How messages name the server, and what a reuse should remind the caller of.
@@ -36,9 +36,12 @@ launch() {
 
 # Succeeds when the URL the serve step's expect.http names answers on host $1, port $2. The
 # jar's own --healthcheck probes /actuator/health there (mapping a wildcard bind to loopback),
-# so no curl is needed.
+# so no curl is needed. It runs the dev-bg copy when there is one, since a rebuild may be
+# rewriting target/app.jar.
 healthy() {
-  HOST="$1" PORT="$2" "${JAVA_HOME:+$JAVA_HOME/bin/}java" -jar target/app.jar --healthcheck >/dev/null 2>&1
+  local jar=target/dev-bg/app.jar
+  [ -f "$jar" ] || jar=target/app.jar
+  HOST="$1" PORT="$2" "${JAVA_HOME:+$JAVA_HOME/bin/}java" -jar "$jar" --healthcheck >/dev/null 2>&1
 }
 
 # --- shared body ---
@@ -144,8 +147,9 @@ acquire_lock() {
     fi
     sleep 0.2
   done
-  echo $$ >"$LOCK_DIR/pid"
+  # Set first, so a signal before the pid is written still releases the lock.
   LOCKED=1
+  echo $$ >"$LOCK_DIR/pid"
 }
 
 release_lock() {

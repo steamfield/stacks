@@ -9,7 +9,7 @@ deps:
   site: [astro, "@astrojs/react", "@astrojs/sitemap", "@astrojs/markdown-satteri", react, react-dom, tailwindcss, "@tailwindcss/vite", "@tailwindcss/typography", satori, sharp, "@fontsource/inter"]
   site-dev: ["@astrojs/check", typescript, "@types/react", "@types/react-dom", "@biomejs/biome", prettier, prettier-plugin-astro, vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/dom", "@testing-library/jest-dom", "@testing-library/user-event"]
   browser-test: ["@playwright/test", "@axe-core/playwright"]
-tools: [bun, node, make, git]
+tools: [bun, node, make, git, bash]
 decisions:
   - "Production site URL for canonicals, the sitemap, social cards and llms.txt (default: https://example.com)."
   - "Product name, tagline, repository, version and install commands in src/config.ts (default: placeholders; fill them from the parent repository's README when there is one)."

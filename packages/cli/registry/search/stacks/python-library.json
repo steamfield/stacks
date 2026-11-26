@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "python-library",
   "source": {
-    "digest": "sha256:54fe65c9e4ebd2f62cf2cb5d07d40e5aeef72ec1565fd08cb0e66da8cddb0b9a",
+    "digest": "sha256:94b16c4dc08627e68796cdfa589de96c737b9500d1c58701f67d489ce6e25b4e",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

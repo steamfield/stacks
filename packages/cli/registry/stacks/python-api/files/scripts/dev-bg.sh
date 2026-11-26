@@ -33,7 +33,8 @@ launch() {
 }
 
 # Succeeds when the URL the serve step's expect.http names (/healthz) answers on host $1, port
-# $2. A wildcard bind address is reached over loopback.
+# $2. A wildcard bind address is reached over loopback; -q skips the caller's ~/.curlrc, and
+# --noproxy keeps an http_proxy from intercepting loopback.
 healthy() {
   local host="$1"
   case "$host" in
@@ -41,7 +42,7 @@ healthy() {
   ::) host="[::1]" ;;
   *:*) host="[$host]" ;;
   esac
-  curl -fs -o /dev/null --max-time 2 "http://$host:$2/healthz"
+  curl -q -fs --noproxy '*' -o /dev/null --max-time 2 "http://$host:$2/healthz"
 }
 
 # --- shared body ---
@@ -147,8 +148,9 @@ acquire_lock() {
     fi
     sleep 0.2
   done
-  echo $$ >"$LOCK_DIR/pid"
+  # Set first, so a signal before the pid is written still releases the lock.
   LOCKED=1
+  echo $$ >"$LOCK_DIR/pid"
 }
 
 release_lock() {

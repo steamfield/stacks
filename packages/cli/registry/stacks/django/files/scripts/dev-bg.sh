@@ -149,8 +149,9 @@ acquire_lock() {
     fi
     sleep 0.2
   done
-  echo $$ >"$LOCK_DIR/pid"
+  # Set first, so a signal before the pid is written still releases the lock.
   LOCKED=1
+  echo $$ >"$LOCK_DIR/pid"
 }
 
 release_lock() {

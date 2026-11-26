@@ -8,7 +8,6 @@
       "Bash(make lint-fix)",
       "Bash(make check)",
       "Bash(make test)",
-      "Bash(make snapshots)",
       "Bash(make build)",
       "Bash(make smoke)",
       "Bash(make audit)",

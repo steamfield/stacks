@@ -44,7 +44,7 @@ commands:
   build: Build the sdist and wheel into dist/ and check their metadata with twine
   smoke: Install the wheel on the oldest Python outside the source tree, import it, and type-check a consumer against it
   ci: lint, typecheck, coverage, test-min, build and smoke, as CI runs them
-  audit: pip-audit over the locked dev dependencies (needs the network)
+  audit: pip-audit over every locked dependency (needs the network)
   clean: Remove caches, build and coverage output
 ---
 

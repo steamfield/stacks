@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "astro-blog",
   "source": {
-    "digest": "sha256:4792081c155cf15df658991a4b0e84ac9d288aa8246935340397ee94f23a16c6",
+    "digest": "sha256:98d766febf80c81cef35540c74abf6d37fed81c8ac01f2022c0eaf8d70304b8a",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

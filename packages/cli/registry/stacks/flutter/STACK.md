@@ -93,7 +93,7 @@ The settings allow the make targets and read-only flutter, dart and simctl comma
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-**CI.** Two jobs behind `ci-ok`. Install Flutter with the Flutter setup action on the stable channel at the version recorded in `docs/DEVELOPMENT.md`, with its cache on. `checks` on `ubuntu-latest`: `make install fmt-check analyze coverage build-android` (the Linux image has the Android SDK and a JDK, so this is where Android builds; add a Java setup step if the Gradle build asks for a different JDK). `ios` on a macOS runner (`macos-latest`, or the image with the Xcode version recorded at setup, selected with `xcode-select`): `make install build-ios test-ios`. A Linux job can't run anything that needs Xcode, and macOS minutes cost more, so keep the macOS job to the iOS targets.
+**CI.** Two jobs behind `ci-ok`. Install Flutter with the Flutter setup action on the stable channel at the version recorded in `docs/DEVELOPMENT.md`, with its cache on. `checks` on `ubuntu-latest`: `make install fmt-check analyze coverage build-android` (the Linux image has the Android SDK and a JDK, so this is where Android builds; add a Java setup step if the Gradle build asks for a different JDK). `ios` on macOS (ci-github's Xcode steps, with the Xcode version recorded at setup): `make install build-ios test-ios`, and nothing else.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

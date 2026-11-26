@@ -3,7 +3,7 @@
   "kind": "stack",
   "id": "ios-objc",
   "source": {
-    "digest": "sha256:1ca78393dbe83e9b5b88656a742be54d7b534a0f0549fa61e866aeb4fdb9a844",
+    "digest": "sha256:5a33e46d303636fcfbdaa215eb438f81bb3fb280a9188a73c38aff849a9d120d",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,

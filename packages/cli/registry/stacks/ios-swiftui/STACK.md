@@ -88,7 +88,7 @@ Unit tests use Swift Testing (`import Testing`, `@Test`, `#expect`), parameteriz
 The shipped Makefile (`make help`) has doctor, project, typecheck, build, lint, fmt, fmt-check, test, coverage, test-ui, ci, clean. xcodebuild output goes through `xcbeautify` when it's installed. `SIMULATOR_UDID=<udid> make test` picks a simulator; otherwise `scripts/sim-destination.sh` takes a booted iPhone, then any available iPhone on the newest runtime. Mirror the targets in AGENTS.md.
 <!-- stacks:when with=ci-github -->
 
-**CI.** iOS jobs need a macOS runner, so the runner decision's default here is `macos-latest` (or the image with the Xcode version you recorded); select Xcode with `sudo xcode-select -s` when the image has several. The `CI` variable makes `make project` skip `lefthook install`. Install XcodeGen, SwiftLint and xcbeautify with Homebrew, then call `make project` and `make ci`. A Linux job can't run xcodebuild or the simulator; it could run SwiftLint alone, which isn't worth a second job. macOS minutes cost more, so set `timeout-minutes` and cancel superseded runs.
+**CI.** One job on macOS (ci-github's Xcode steps); use `sudo xcode-select -s` to pick the Xcode. The `CI` variable makes `make project` skip `lefthook install`. Install XcodeGen, SwiftLint and xcbeautify with Homebrew, then call `make project` and `make ci`. A Linux job could run SwiftLint alone, which isn't worth a second job. Set `timeout-minutes` and cancel superseded runs.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

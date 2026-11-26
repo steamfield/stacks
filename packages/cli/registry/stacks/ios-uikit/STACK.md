@@ -99,7 +99,7 @@ The path-scoped rules in `.claude/rules/ios-uikit/` (concurrency, UI layer, test
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-**CI.** One job on a macOS runner (`macos-latest`, or the image whose Xcode matches the version AGENTS.md records), because building and testing need Xcode and a simulator; the runners decision's `ubuntu-latest` default can't build this app. Select that Xcode with `xcode-select` from the image's documented path, `brew install xcodegen swiftlint xcbeautify`, then `make install ci` with `timeout-minutes` around 45; `make ci` runs `coverage` in place of `test`, which answers the coverage decision. Don't name a simulator in the workflow; `scripts/sim-destination.sh` finds one on the image. A Linux job could run only SwiftLint, so keep everything in the macOS job. macOS minutes cost more than Linux ones; note that under Deferred if the user wants UI tests on pull requests only.
+**CI.** One job on macOS (ci-github's Xcode steps; the Xcode version is the one AGENTS.md records). `brew install xcodegen swiftlint xcbeautify`, then `make install ci` with `timeout-minutes` around 45; `make ci` runs `coverage` in place of `test`, which answers the coverage decision. `scripts/sim-destination.sh` finds a simulator on the image. A Linux job could run only SwiftLint, so keep everything in the macOS job. If the user wants UI tests on pull requests only, note that under Deferred.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

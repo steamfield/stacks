@@ -101,7 +101,7 @@ allows "an edit to the XcodeGen spec" '{"tool_input":{"file_path":"project.yml"}
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ci-ok` job on a macOS runner (`macos-latest`, or the newest Xcode image GitHub lists), because building, analyzing and testing need Xcode and a simulator; the runners decision's `ubuntu-latest` default can't build this app. macOS minutes cost more than Linux ones. Select Xcode with `xcode-select` or a setup action, install XcodeGen and clang-format with Homebrew, then `make install` and `make ci`; `make ci` runs `coverage` in place of `test`, which answers the coverage decision. `scripts/sim-destination.sh` picks the runner's simulator, so pass no device name. Only `make format-check` could run on Linux, so keep everything in the macOS job. Upload `build/logs/` and the `.xcresult` bundles under `build/DerivedData/Logs/Test/` when a job fails.
+**CI.** One `ci-ok` job on macOS (ci-github's Xcode steps). Install XcodeGen and clang-format with Homebrew, then `make install` and `make ci`; `make ci` runs `coverage` in place of `test`, which answers the coverage decision. `scripts/sim-destination.sh` picks the runner's simulator. Only `make format-check` could run on Linux, so keep everything in the macOS job. On failure, upload `build/logs/` along with the `.xcresult` bundles under `build/DerivedData/Logs/Test/`.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

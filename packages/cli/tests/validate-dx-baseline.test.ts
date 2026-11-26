@@ -180,32 +180,32 @@ test.each([
 const noBackground = (names: string) =>
   note(
     "background",
-    `has a serve step but no ${names} command; add a background start that logs to logs/dev.log and a stop that signals only its process group`,
+    `has a serve step but no ${names} command; add a background start that logs to logs/dev.log and a stop that signals only its process group and a status command that exits 0 while the recorded server runs`,
   );
 
 test.each([
   {
-    name: "make web stacks need both Make targets",
+    name: "make web stacks need all three background targets",
     runner: "make",
     tag: "web",
     step: serve,
     present: [],
-    expected: [noBackground("dev-bg or dev-stop")],
+    expected: [noBackground("dev-bg or dev-stop or dev-status")],
   },
   {
-    name: "scripts API stacks need both script names",
+    name: "scripts API stacks need all three background scripts",
     runner: "scripts",
     tag: "api",
     step: serve,
     present: [],
-    expected: [noBackground("dev:bg or dev:stop")],
+    expected: [noBackground("dev:bg or dev:stop or dev:status")],
   },
   {
     name: "when only the start is missing, name the start",
     runner: "make",
     tag: "api",
     step: serve,
-    present: ["dev-stop"],
+    present: ["dev-stop", "dev-status"],
     expected: [
       note(
         "background",
@@ -218,7 +218,7 @@ test.each([
     runner: "scripts",
     tag: "web",
     step: serve,
-    present: ["dev:bg"],
+    present: ["dev:bg", "dev:status"],
     expected: [
       note(
         "background",
@@ -227,15 +227,28 @@ test.each([
     ],
   },
   {
-    name: "the complete background pair clears the check",
+    name: "when only status is missing, name status",
+    runner: "make",
+    tag: "api",
+    step: serve,
+    present: ["dev-bg", "dev-stop"],
+    expected: [
+      note(
+        "background",
+        "has a serve step but no dev-status command; add a status command that exits 0 while the recorded server runs",
+      ),
+    ],
+  },
+  {
+    name: "all three background commands clear the check",
     runner: "scripts",
     tag: "web",
     step: serve,
-    present: ["dev:bg", "dev:stop"],
+    present: ["dev:bg", "dev:stop", "dev:status"],
     expected: [],
   },
   {
-    name: "a serve step alone does not require a background pair",
+    name: "a serve step alone does not require background commands",
     runner: "make",
     tag: "desktop",
     step: serve,

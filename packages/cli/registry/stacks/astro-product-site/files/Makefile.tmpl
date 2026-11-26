@@ -1,14 +1,16 @@
 # {{project_name}} site commands.
 #
 # Adapt the recipes, but keep the target names: `stacks verify` calls install,
-# lint, check, test, build, e2e and dev, and CI should call the same targets.
+# lint, check, test, build, dev-bg, dev-stop and dev, and runs the browser tests
+# through scripts/e2e.mjs (dev-cycle runs scripts/dev-bg.sh status directly).
+# CI calls install, ci, then audit as its own step.
 
 PORT_WEB ?= 4321
 PORT_E2E ?= 4322
 export PORT_WEB PORT_E2E
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev lint format check test coverage build preview e2e clean
+.PHONY: help install dev dev-bg dev-stop dev-status lint format check test coverage build preview e2e ci audit clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -24,6 +26,15 @@ install: ## Install dependencies (frozen lockfile when CI is set)
 # (otherwise it backgrounds itself and exits). Stop a stray one: bunx astro dev stop
 dev: ## Astro dev server on PORT_WEB
 	bunx astro dev --port $(PORT_WEB) --ignore-lock
+
+dev-bg: ## make dev in the background, logging to logs/dev.log; reuses the one it started
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
 
 lint: ## Biome for TS, JS, CSS and JSON; Prettier for .astro files
 	bunx biome check .
@@ -52,6 +63,11 @@ preview: ## Serve the production build on PORT_WEB
 
 e2e: ## Browser and accessibility tests against the production build
 	node scripts/e2e.mjs
+
+ci: lint check coverage build e2e ## Every offline check CI runs (audit is its own step)
+
+audit: ## Check dependencies for known vulnerabilities with bun audit (needs the network)
+	bun audit
 
 clean: ## Remove build output, test output and Astro caches
 	rm -rf dist .astro node_modules/.astro coverage playwright-report test-results

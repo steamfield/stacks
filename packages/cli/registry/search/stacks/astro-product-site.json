@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "astro-product-site",
   "source": {
-    "digest": "sha256:1772f0463e6472840ba542381d73b08fd5d0b75c1cd1691dfb25d4cb0cff313b",
+    "digest": "sha256:5791c7c6cac17af49123056ceeed2898cf41128f89f558aeea2fa1a398761648",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A static landing page and Markdown documentation for a product or open-source project, built with Astro.",
   "description": "One config file drives the landing page: hero, install commands, a demo block, features, users and sponsors, with empty sections left out. The docs section turns Markdown files into pages with a sidebar, an on-page table of contents, previous and next links, a Markdown copy of each page and llms.txt for agents. Social preview images are generated at build time, and the checks cover links, anchors and accessibility in light and dark themes. Hosting is separate: add cloudflare-pages for its deploy workflow. Search is not included.",

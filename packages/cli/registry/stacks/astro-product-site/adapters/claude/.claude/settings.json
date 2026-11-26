@@ -8,7 +8,16 @@
       "Bash(make coverage)",
       "Bash(make build)",
       "Bash(make e2e)",
-      "Bash(bunx vitest run *)"
+      "Bash(make ci)",
+      "Bash(make audit)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make dev-status)",
+      "Bash(make clean)",
+      "Bash(bunx vitest run *)",
+      "Bash(bunx biome check *)",
+      "Bash(bunx --no-install astro check)",
+      "Bash(bunx --no-install playwright test *)"
     ],
     "deny": ["Read(./.env)", "Read(./.env.*)"]
   }

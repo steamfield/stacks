@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "ci-github",
   "source": {
-    "digest": "sha256:9ddf8e0d72ada09d53421f482816a972f8ba5f3f3e13a752193235c0657eeb60",
+    "digest": "sha256:a67910d9e659127f378ee6e0af30aff75ba7f6365d162f754d7bd228fdb7b258",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

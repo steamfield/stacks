@@ -46,7 +46,7 @@ test -n "$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || l
 
 ## Verify
 
-Verify checks that pre-commit and pre-push have jobs and feeds commit-msg a bad and a good subject. It never runs pre-commit, which sees only tracked files: `git add -A`, then run `lefthook run pre-commit --all-files` and check each job ran and passed.
+Verify never runs pre-commit, which sees only tracked files: `git add -A`, then run `lefthook run pre-commit --all-files` and check each job ran and passed.
 
 ## AGENTS.md
 

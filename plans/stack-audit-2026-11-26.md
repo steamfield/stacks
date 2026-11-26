@@ -181,7 +181,8 @@ Depends on: phase 3
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | S | packages/cli/registry/stacks/hono-react/, packages/cli/registry/stacks/python-react/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | pending | | root allow lists and aggregate cover both parts |
+| a | S | packages/cli/registry/stacks/hono-react/, packages/cli/registry/stacks/python-react/ | contracts | packages/cli/tests/bundled-registry.test.ts | inline | merged | deliver/stack-audit | root allow lists and aggregate cover both parts |
+| b | M | packages/cli/registry/stacks/flutter/, packages/cli/registry/stacks/ios-objc/, packages/cli/registry/stacks/ios-swiftui/, packages/cli/registry/stacks/ios-uikit/, packages/cli/registry/stacks/react-native/ | contracts | packages/cli/tests/bundled-registry.test.ts | opus | running | deliver/stack-audit-4b | ROI brief; the iOS stacks merged from main meet the baseline |
 
 Inline: fix the two pilot brief nits (typescript-api's Setup names `effect-api.md` without `docs/guidance/typescript-api/`; python-api names both uvicorn and uvicorn[standard]); raise `DX_SEVERITY` to `"warning"` and fix whatever the bundled-registry test then reports; dependency cards and allowlist rows for every reported dep; bench every B4 stack from a QA checkout (its `dev-cycle` step is new), reading each run note before committing its record.
 
@@ -204,3 +205,5 @@ Inline: fix the two pilot brief nits (typescript-api's Setup names `effect-api.m
 - 3/b: cloudflare-react-router gained a Claude adapter and git-hooks as a default. react-vite's change moves python-react's frozen brief digest (regenerate at the end). Noticed, not in scope: react-router ships dev:bg/dev:stop without dev:status or a dev-cycle step.
 - 3/a: hono-react's composed brief sits about 10 words under its 6000-word cap after hono-api's audit sentence was trimmed; the phase 4 workspace lane must not grow it.
 - 3/c: decks gained Biome (decks lint has no fix mode) for B2, and git-hooks and ci-github as defaults; astro-product-site's `ci` includes its offline e2e. `bun audit` fails on fresh astro-blog, astro-product-site and decks installs (transitive advisories), so their CI audit step starts red.
+- Phase 3 merge fix: hono-api and react-vite each fit hono-react's 6000-word budget alone but not together; both `audit` descriptions shortened. Phase 4/a done inline: workspace root adapters allow only declared root commands (hono-react's undeclared make targets would need ~40 brief words it doesn't have). DX_SEVERITY is now "warning". Merging main brought five iOS stacks below the baseline; lane 4/b covers them.
+- Gate: another session's rr run (deliver-index-first, pid 67016) held two hosts for over 90 minutes, so the phase 3 gate is pending; phase 3 isn't tagged yet.

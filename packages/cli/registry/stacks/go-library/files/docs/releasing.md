@@ -10,7 +10,7 @@ A Go module is released by pushing a git tag; there is no registry upload. Once 
 
 ## Each release
 
-1. Run `make ci`.
+1. Run `make ci`, then `make vuln`.
 2. Decide the version from [the compatibility rules](public-api.md#compatibility). `make api-check` passing means nothing exported broke since the baseline; a compatible addition is the next minor, a fix the next patch.
 3. Note the change for users in the release notes or a `CHANGELOG.md`.
 4. The person tags the commit `v<version>` and pushes the tag. pkg.go.dev picks the version up after someone fetches it, or after a request on its page.

@@ -89,7 +89,7 @@ smoke: build ## Run the binary's --help and --version, and its text fallback wit
 	./bin/$(BIN) --version
 	@out="$$(./bin/$(BIN) </dev/null)" && test -n "$$out" || { echo "smoke: the binary printed nothing without a terminal"; exit 1; }
 
-ci: fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs
+ci: fmt-check tidy-check lint coverage test-integration build ## Every offline check CI runs (vuln is its own step)
 
 clean: ## Remove build and coverage output
 	rm -rf bin/ dist/ coverage.out coverage.html

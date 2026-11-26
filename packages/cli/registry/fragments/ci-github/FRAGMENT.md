@@ -10,7 +10,7 @@ tags: [ci, github]
 applies_to: []
 tools: [git]
 decisions:
-  - "Runners: ubuntu-latest (default) or self-hosted labels (private repos only)."
+  - "Runners: ubuntu-latest (default; macOS for jobs running xcodebuild, xcrun or a simulator) or self-hosted labels (private repos only)."
   - "CI runs the coverage target instead of plain tests (default: yes, when the project has one)."
   - "Weekly grouped Dependabot updates per ecosystem and for actions (default: yes)."
 verify:
@@ -33,6 +33,9 @@ If the repo already has workflows, fold the checks they run into `ci.yml` rather
 - **Triggers**: `push` to the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/`; with no remote, the current branch), `pull_request`, `workflow_dispatch`; never `pull_request_target`.
 - **Permissions**: top-level `contents: read`, more only at job level. `actions/checkout` gets `persist-credentials: false`.
 - **Jobs call the project's make targets (or package scripts, without a Makefile)**, never re-implemented inline; a CI-only check gets a target or script first. Frozen-lockfile installs.
+<!-- stacks:when tag=ios -->
+- **Xcode steps**: a verify step that calls `xcodebuild`, `xcrun` or a simulator runs in a macOS job; steps that don't need Xcode stay on Linux, which costs less. Pin `macos-<N>`, the image whose Xcode matches the version the project records, since `-latest` labels move to a new image over weeks; select that Xcode with `xcode-select`. Name no simulator in the workflow, and upload `.xcresult` bundles when the job fails.
+<!-- stacks:end -->
 - **Runtimes**: official setup actions reading versions from project files (`packageManager`, `.node-version`, `go.mod`, `.python-version`); create a missing one from the installed version.
 - Pass `${{ github.event.* }}` and `${{ github.head_ref }}` to `run:` through `env:`.
 - **Generated-code drift**: if generated code is committed, regenerate and fail on `git diff --exit-code`.

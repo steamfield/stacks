@@ -54,11 +54,12 @@ Sandbox: a minimal workflow. Major-tag action refs are fine (where an action pub
 <!-- stacks:when tag!=monorepo -->
 One sequential `ci-ok` job, unless the stack's CI notes split the work behind a final `ci-ok` (`needs:` all, `if: always()`).
 <!-- stacks:end -->
+Each job first installs what its commands need (browsers with system dependencies, services, linter actions, platform packages). Where the stack's CI notes split jobs or name steps, each job runs what its note names; the note wins. Otherwise CI runs the aggregate below, and with coverage chosen the aggregate runs coverage in place of plain tests; declined, leave it as it is.
 <!-- stacks:when tag=make -->
-CI calls `make ci` (in a monorepo, each area's aggregate target), adding it if missing. With coverage chosen, `ci` runs the coverage target in place of plain tests. A setup action may install a binary the Makefile expects; the targets stay the contract.
+The aggregate is `make ci` (in a monorepo, each area's). If it's missing, add it running these targets in order: format check, lint, typecheck, coverage (or test), generated-code and drift checks, build. None may write files or need a secret. The targets stay the contract, though a setup action may install a binary they expect.
 <!-- stacks:end -->
 <!-- stacks:when tag=scripts -->
-CI runs a frozen install, then the `check` script (in a monorepo, each area's), adding it if missing. With coverage chosen, `check` runs `coverage` in place of `test`.
+The aggregate is a frozen install, then the `check` script (in a monorepo, each area's). If `check` is missing, add it running these scripts in order: format check, lint, typecheck, coverage (or test), generated-code and drift checks, build. None may write files or need a secret.
 <!-- stacks:end -->
 <!-- stacks:when tag=bun -->
 Bun's setup action takes `bun-version-file: package.json`.

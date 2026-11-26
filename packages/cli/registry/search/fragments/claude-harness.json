@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "claude-harness",
   "source": {
-    "digest": "sha256:5e1bfb5d894ad159a021daef7bbbed96fc904ef9ead36122f25fe39d8080d5a5",
+    "digest": "sha256:b9e9bf012ea53370bfd0f3cf20c58b9eef12d2b4f77ec9bfbe0958ee58c9e3f8",
     "by": "drafted",
     "model": "claude/claude-opus-5-5",
     "promptVersion": 2,
@@ -14,8 +14,8 @@
   "seoDescription": "Shared Bun TypeScript hook helpers and incremental TypeScript checking after each Claude Code edit.",
   "projectExamples": [
     {
-      "title": "Dev server guard",
-      "description": "A stack hook built on the shared helper stops a foreground dev server that would hold the agent's session open, and points at the background script instead.",
+      "title": "Dev server status at session start",
+      "description": "A stack's SessionStart hook built on the shared helper reports the checkout's running dev servers so the agent reuses them.",
       "stack": "typescript-api"
     },
     {

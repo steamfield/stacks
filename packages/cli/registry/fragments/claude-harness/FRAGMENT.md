@@ -14,7 +14,7 @@ verify:
   - name: claude-typecheck-hook
     layer: test
     tags: [hygiene]
-    run: "r=; for p in . ..; do test -f $p/.claude/hooks/typecheck-on-write.ts && r=$p && break; done; test -n \"$r\" || exit 0; t=$(ls node_modules/.bin/tsc */node_modules/.bin/tsc 2>/dev/null | head -n 1); test -n \"$t\" || { echo 'claude-typecheck-hook: no node_modules/.bin/tsc; install typescript' >&2; exit 1; }; d=$(mktemp -d $r/.claude/hooks/.typecheck-probe.XXXXXX) || exit 1; trap 'rm -rf \"$d\"' EXIT; mkdir -p \"$d/node_modules/.bin\" && ln -s \"$PWD/$t\" \"$d/node_modules/.bin/tsc\" && printf '{\"compilerOptions\":{\"strict\":true,\"noEmit\":true,\"types\":[]},\"files\":[\"probe.ts\"]}\\n' > \"$d/tsconfig.json\" && printf 'export const n: number = \"text\";\\n' > \"$d/probe.ts\" && printf '{\"tool_input\":{\"file_path\":\"%s/probe.ts\"}}' \"$PWD/$d\" | bun $r/.claude/hooks/typecheck-on-write.ts | grep -q 'type error(s), 1 in probe.ts' || { echo 'claude-typecheck-hook: typecheck-on-write.ts reported nothing for a deliberate type error' >&2; exit 1; }"
+    run: "r=$(git rev-parse --show-toplevel 2>/dev/null) || r=.; test ! -f \"$r/.claude/hooks/typecheck-probe.sh\" || bash \"$r/.claude/hooks/typecheck-probe.sh\""
 ---
 
 # Claude Code TypeScript hooks
@@ -27,4 +27,4 @@ A hook you add follows agent-ops' policy (deny only destructive work or a comman
 
 ## Verify
 
-`claude-typecheck-hook` feeds `typecheck-on-write.ts` a deliberate type error in a throwaway package under `.claude/hooks/` and fails unless the hook reports it. It uses the `tsc` installed where the step runs (or one directory down), and passes without running when Claude Code isn't a target.
+`claude-typecheck-hook` runs `.claude/hooks/typecheck-probe.sh` from the git top level, which feeds `typecheck-on-write.ts` a deliberate type error and fails unless the hook reports it. It passes without running when Claude Code isn't a target. If it fails, fix the hook or the install, never the probe.

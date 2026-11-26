@@ -30,7 +30,7 @@ verify:
 
 # Git hooks (lefthook)
 
-Replace the `stacks:fill` comment in `lefthook.yml` with the pre-commit and pre-push jobs it describes, as `jobs:` lists. lefthook 2 has no `skip_output`, and `exclude` takes only globs. Keep the commit-msg job and its script; don't add commitlint.
+Replace the `stacks:fill` comment in `lefthook.yml` with the pre-commit and pre-push jobs it describes, as `jobs:` lists. lefthook 2 has no `skip_output`, and `exclude` takes only globs. Unless Conventional Commits was declined, keep the commit-msg job and its script; don't add commitlint.
 
 <!-- stacks:when mode=add -->
 `lefthook install` refuses to run while `core.hooksPath` is set. If the repo already uses husky (`.husky/`), the pre-commit framework (`.pre-commit-config.yaml`) or hand-written `.git/hooks`, port those checks into `lefthook.yml`, then ask the user before running `lefthook install --reset-hooks-path` and removing the old manager. If stacks parked `lefthook.yml` under `.stacks/incoming/`, merge its commit-msg job into the existing file.

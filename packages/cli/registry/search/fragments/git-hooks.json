@@ -3,7 +3,7 @@
   "kind": "fragment",
   "id": "git-hooks",
   "source": {
-    "digest": "sha256:c4a10b973322a157e7c8c6d874b6a8c37a64732ce969126adf2b4056933abb7b",
+    "digest": "sha256:26854dbbbf5d962fbabeeea5c8898b72c6272f44b6b875a1ac74f76b7282c97e",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,

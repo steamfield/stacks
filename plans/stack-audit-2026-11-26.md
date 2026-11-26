@@ -166,13 +166,14 @@ Tag: stack-audit/phase-2
 
 Demo: `bun run dev validate` lists no `dx-*` note for these stacks; the B4 stacks' `dev-cycle` passes in a fresh scaffold.
 Depends on: phase 2
+Scaffold: stack-audit/phase-2 (no new contracts)
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/registry/stacks/hono-api/, packages/cli/registry/stacks/nestjs-api/, packages/cli/registry/stacks/typescript-cli/, packages/cli/registry/stacks/typescript-library/, packages/cli/registry/stacks/typescript-mcp/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | pending | | ROI brief |
-| b | M | packages/cli/registry/stacks/nextjs/, packages/cli/registry/stacks/nuxt/, packages/cli/registry/stacks/sveltekit/, packages/cli/registry/stacks/react-router/, packages/cli/registry/stacks/cloudflare-react-router/, packages/cli/registry/stacks/react-vite/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | pending | | ROI brief |
-| c | M | packages/cli/registry/stacks/astro-blog/, packages/cli/registry/stacks/astro-product-site/, packages/cli/registry/stacks/astro-fullstack/, packages/cli/registry/stacks/decks/, packages/cli/registry/search/stacks/astro-blog.json, packages/cli/registry/search/stacks/astro-product-site.json | contracts, packages/cli/registry/stacks/go-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | pending | | ROI brief |
-| d | M | packages/cli/registry/stacks/mobile-expo/, packages/cli/registry/stacks/tauri-react/, packages/cli/registry/stacks/phaser-game/, packages/cli/registry/stacks/threejs-game/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | pending | | ROI brief |
+| a | M | packages/cli/registry/stacks/hono-api/, packages/cli/registry/stacks/nestjs-api/, packages/cli/registry/stacks/typescript-cli/, packages/cli/registry/stacks/typescript-library/, packages/cli/registry/stacks/typescript-mcp/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | running | deliver/stack-audit-3a | ROI brief |
+| b | M | packages/cli/registry/stacks/nextjs/, packages/cli/registry/stacks/nuxt/, packages/cli/registry/stacks/sveltekit/, packages/cli/registry/stacks/react-router/, packages/cli/registry/stacks/cloudflare-react-router/, packages/cli/registry/stacks/react-vite/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | running | deliver/stack-audit-3b | ROI brief |
+| c | M | packages/cli/registry/stacks/astro-blog/, packages/cli/registry/stacks/astro-product-site/, packages/cli/registry/stacks/astro-fullstack/, packages/cli/registry/stacks/decks/, packages/cli/registry/search/stacks/astro-blog.json, packages/cli/registry/search/stacks/astro-product-site.json | contracts, packages/cli/registry/stacks/go-api/ | packages/cli/tests/bundled-registry.test.ts, packages/cli/tests/dev-bg-shared-body.test.ts | opus | running | deliver/stack-audit-3c | ROI brief |
+| d | M | packages/cli/registry/stacks/mobile-expo/, packages/cli/registry/stacks/tauri-react/, packages/cli/registry/stacks/phaser-game/, packages/cli/registry/stacks/threejs-game/ | contracts, packages/cli/registry/stacks/typescript-api/ | packages/cli/tests/bundled-registry.test.ts | opus | running | deliver/stack-audit-3d | ROI brief |
 
 ### Phase 4: workspaces, enforcement and proofs
 

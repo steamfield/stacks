@@ -13973,6 +13973,1390 @@
       "interventions": 0,
       "note": "plans/runs/2026-11-26-python-api.md",
       "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "ios-swiftui",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "620490108b9a80ea1423d3d5887ddd1f64525af8",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:95986a7ca7fea30b11c120c406001ecd71b4c7fbc3007382e7133d49d816011f",
+      "compositionFingerprint": "sha256:832f7713ae9c064594b7071b0db236a9815818a58e7b24327f9b6700a5ff30b5",
+      "briefWords": 3794,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:14:09.438Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 20031,
+        "secondsSinceCreated": 136,
+        "steps": [
+          {
+            "name": "project",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 142
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 52
+          },
+          {
+            "name": "fmt-check",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 50
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 125
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2136
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2846
+          },
+          {
+            "name": "test-ui",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 12242
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1759
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 8
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 432
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 30
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 28
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 141
+          }
+        ]
+      },
+      "verifyRuns": 3,
+      "minutesToGreen": 1.0473166666666667,
+      "minutesToFirstTest": 1.0473166666666667,
+      "agentMinutes": 1.9325,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-ios-swiftui.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "ios-uikit",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "620490108b9a80ea1423d3d5887ddd1f64525af8",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:326a729ae0c7339b11399d7448e374cd933c47852b48d45fd577b41e811345f1",
+      "compositionFingerprint": "sha256:642bc158de44469abe9ec28d75d72112584ac013b2aa8a3670c5570f01a364c6",
+      "briefWords": 3830,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:17:54.482Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 25474,
+        "secondsSinceCreated": 228,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 120
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 49
+          },
+          {
+            "name": "fmt-check",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 57
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 126
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 2203
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 3359
+          },
+          {
+            "name": "test-ui",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 18801
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 490
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 32
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 29
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 158
+          }
+        ]
+      },
+      "verifyRuns": 3,
+      "minutesToGreen": 2.099266666666667,
+      "minutesToFirstTest": 2.099266666666667,
+      "agentMinutes": 3.3637333333333332,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-ios-uikit.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "ios-objc",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "620490108b9a80ea1423d3d5887ddd1f64525af8",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:63a004eaccf17625f8a64fc0f175f80bec66008024f3f53098ee3a3f01dc5053",
+      "compositionFingerprint": "sha256:28208884c1a497d7c2b4302fc84fba1d925dc4d51acb79f4926a8c0d4c027c6e",
+      "briefWords": 3939,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:20:26.786Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 25346,
+        "secondsSinceCreated": 149,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 273
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 50
+          },
+          {
+            "name": "project-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 7
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 57
+          },
+          {
+            "name": "build",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1727
+          },
+          {
+            "name": "analyze",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1839
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 3037
+          },
+          {
+            "name": "test-ui",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 17337
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 10
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 22
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 669
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 21
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 46
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 42
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 192
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 1.9147666666666667,
+      "minutesToFirstTest": 1.9147666666666667,
+      "agentMinutes": 2.0640833333333335,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-ios-objc.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "react-native",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "620490108b9a80ea1423d3d5887ddd1f64525af8",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:f69171e772820fe1df8b19520482c0c6acd3d021bee2d18a985181d9e185892b",
+      "compositionFingerprint": "sha256:716d9e1e10597a02c5ed1927dba1dc91c96b5b171982aa3e3f67f04141af9964",
+      "briefWords": 4075,
+      "result": "fail",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:27:10.016Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "failed",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 1243,
+        "secondsSinceCreated": 376,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 115
+          },
+          {
+            "name": "pods",
+            "phase": "setup",
+            "layer": "install",
+            "status": "failed",
+            "failureKind": "step",
+            "exitCode": 1,
+            "durationMs": 1127
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "lint-native",
+            "phase": "check",
+            "layer": "lint",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "bundle",
+            "phase": "check",
+            "layer": "build",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ios-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ios-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 4.899266666666667,
+      "minutesToFirstTest": 4.899266666666667,
+      "agentMinutes": 6.02975,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-react-native.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "flutter",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "620490108b9a80ea1423d3d5887ddd1f64525af8",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:1ea90286dd443425d3293c7fa83ae388d58b50c580a71a7416ee7349d6b12411",
+      "compositionFingerprint": "sha256:4760b929bb8c8044865d1ca0932bb6f17f77ca42d88a86f864b777253b7ce519",
+      "briefWords": 3915,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:30:02.838Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 91002,
+        "secondsSinceCreated": 260,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1080
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 69
+          },
+          {
+            "name": "fmt-check",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 279
+          },
+          {
+            "name": "analyze",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9396
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 4723
+          },
+          {
+            "name": "build-ios",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 22924
+          },
+          {
+            "name": "test-ios",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 49834
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 37
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 40
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 54
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1472
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 170
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 248
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 182
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 473
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 2.7004166666666665,
+      "minutesToFirstTest": 2.7004166666666665,
+      "agentMinutes": 2.80635,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-flutter.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "react-native",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "562c00461cb5be7531fbc1c0613b024338c8e723",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:966d1e70bf530e68f408ce50e661ead73cce679c9723896dce3d1c9864ab445f",
+      "compositionFingerprint": "sha256:d624672e77e72ac3372066be1683aecf9757e6377c0dc16eb196eb6c5789c885",
+      "briefWords": 4161,
+      "result": "fail",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:40:41.984Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "failed",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 829,
+        "secondsSinceCreated": 317,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 105
+          },
+          {
+            "name": "pods",
+            "phase": "setup",
+            "layer": "install",
+            "status": "failed",
+            "failureKind": "step",
+            "exitCode": 1,
+            "durationMs": 722
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "lint-native",
+            "phase": "check",
+            "layer": "lint",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "bundle",
+            "phase": "check",
+            "layer": "build",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ios-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ios-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "skipped",
+            "durationMs": 0
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "skipped",
+            "durationMs": 0
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 3.786216666666667,
+      "minutesToFirstTest": 3.786216666666667,
+      "agentMinutes": 5.0803,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-react-native-2.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "flutter",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "562c00461cb5be7531fbc1c0613b024338c8e723",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:f431bf1c1eb7f61482a4515eaf2e539b938a7a4d48724d63e2d10482428ecd5e",
+      "compositionFingerprint": "sha256:f1c63526714fc7cc31e78483d2b78b67fe02e9f1d9c2ae225ace6159657eb38e",
+      "briefWords": 3965,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:44:19.274Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 47885,
+        "secondsSinceCreated": 261,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 957
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 54
+          },
+          {
+            "name": "fmt-check",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 155
+          },
+          {
+            "name": "analyze",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6004
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 4139
+          },
+          {
+            "name": "build-ios",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 17286
+          },
+          {
+            "name": "test-ios",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 18561
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 464
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 13
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 33
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 32
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 155
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 1.6908,
+      "minutesToFirstTest": 1.6908,
+      "agentMinutes": 3.551433333333333,
+      "interventions": 1,
+      "note": "plans/runs/2026-11-26-flutter-2.md",
+      "hooksFired": null
+    },
+    {
+      "schemaVersion": 1,
+      "date": "2026-11-26",
+      "stack": "react-native",
+      "with": [],
+      "preset": "sandbox",
+      "agent": "codex",
+      "agentVersion": "0.171.0",
+      "mode": "headless",
+      "repoCommit": "f18d4d2e49d68fa8d6763acfc4f13f9b81192999",
+      "cli": "0.15.0",
+      "fingerprint": "sha256:d4f3fe34d8d305272b9540ddb614307004c22c7ba8712cef206de247936ed1ce",
+      "compositionFingerprint": "sha256:ceaf9a7357cce745b95558711c9797b258e78923e782846b24a432bb867fbd5d",
+      "briefWords": 4161,
+      "result": "pass",
+      "agentEnded": "exit",
+      "run": {
+        "schemaVersion": 1,
+        "at": "2026-11-26T19:50:33.313Z",
+        "cli": "0.15.0",
+        "agent": "none",
+        "outcome": "green",
+        "scope": "full",
+        "tamperCheck": "full",
+        "acceptedChanges": false,
+        "durationMs": 64313,
+        "secondsSinceCreated": 318,
+        "steps": [
+          {
+            "name": "install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 95
+          },
+          {
+            "name": "pods",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9606
+          },
+          {
+            "name": "git-hooks-install",
+            "phase": "setup",
+            "layer": "install",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 56
+          },
+          {
+            "name": "lint",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 221
+          },
+          {
+            "name": "lint-native",
+            "phase": "check",
+            "layer": "lint",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 48
+          },
+          {
+            "name": "typecheck",
+            "phase": "check",
+            "layer": "typecheck",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 108
+          },
+          {
+            "name": "test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 4622
+          },
+          {
+            "name": "bundle",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 1408
+          },
+          {
+            "name": "ios-build",
+            "phase": "check",
+            "layer": "build",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 35107
+          },
+          {
+            "name": "ios-test",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 12263
+          },
+          {
+            "name": "readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 9
+          },
+          {
+            "name": "agents-md-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 11
+          },
+          {
+            "name": "claude-md-imports-agents",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 5
+          },
+          {
+            "name": "claude-readme-filled",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 6
+          },
+          {
+            "name": "hooks-smoke",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 473
+          },
+          {
+            "name": "ci-workflow",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 12
+          },
+          {
+            "name": "git-hooks-validate",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 35
+          },
+          {
+            "name": "git-hooks-jobs",
+            "phase": "check",
+            "layer": "check",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 35
+          },
+          {
+            "name": "git-hooks-commit-msg",
+            "phase": "check",
+            "layer": "test",
+            "status": "passed",
+            "exitCode": 0,
+            "durationMs": 189
+          }
+        ]
+      },
+      "verifyRuns": 2,
+      "minutesToGreen": 3.9731833333333335,
+      "minutesToFirstTest": 3.9731833333333335,
+      "agentMinutes": 4.047316666666666,
+      "interventions": 0,
+      "note": "plans/runs/2026-11-26-react-native-3.md",
+      "hooksFired": null
     }
   ]
 }

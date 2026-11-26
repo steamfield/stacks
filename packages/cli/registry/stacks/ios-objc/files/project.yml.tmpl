@@ -1,0 +1,62 @@
+# XcodeGen spec: the source of truth for the Xcode project. `make project`
+# generates {{project_slug}}.xcodeproj from it; the .xcodeproj is gitignored and
+# never edited by hand. Shared build settings live in Config/Shared.xcconfig.
+name: {{project_slug}}
+options:
+  createIntermediateGroups: true
+  # stacks:fill Set deploymentTarget.iOS here to the minimum iOS version decision, and SWIFT_VERSION under settings.base to the newest language mode the installed Swift compiler supports. Then delete this comment.
+configFiles:
+  Debug: Config/Shared.xcconfig
+  Release: Config/Shared.xcconfig
+settings:
+  base:
+    TARGETED_DEVICE_FAMILY: "1"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: YES
+targets:
+  App:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.{{project_slug}}
+        PRODUCT_MODULE_NAME: App
+        SWIFT_OBJC_BRIDGING_HEADER: App/App-Bridging-Header.h
+        INFOPLIST_KEY_CFBundleDisplayName: "{{project_name}}"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  AppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.{{project_slug}}.tests
+  AppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: AppUITests
+    dependencies:
+      - target: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.{{project_slug}}.uitests
+        TEST_TARGET_NAME: App
+schemes:
+  App:
+    build:
+      targets:
+        App: all
+    test:
+      targets:
+        - AppTests
+        - AppUITests

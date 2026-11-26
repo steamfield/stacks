@@ -1,0 +1,21 @@
+# Objective-C style, checked by `make format-check` and applied by `make format`.
+# No Language key, so headers clang-format reads as C or C++ get the same style.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 120
+PointerAlignment: Right
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortBlocksOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Attach
+IndentCaseLabels: false
+ObjCBlockIndentWidth: 4
+ObjCSpaceAfterProperty: true
+ObjCSpaceBeforeProtocolList: true
+ObjCBreakBeforeNestedBlockParam: true
+SortIncludes: CaseInsensitive
+IncludeBlocks: Preserve
+# Without this, clang-format reads NS_ERROR_ENUM as a call and glues the brace to it.
+Macros:
+  - "NS_ERROR_ENUM(domain, name)=enum name : NSInteger"

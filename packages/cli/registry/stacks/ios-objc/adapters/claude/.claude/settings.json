@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make project)",
+      "Bash(make format)",
+      "Bash(make format-check)",
+      "Bash(make lint)",
+      "Bash(make build)",
+      "Bash(make analyze)",
+      "Bash(make test)",
+      "Bash(make test ONLY=*)",
+      "Bash(make test-ui)",
+      "Bash(make ci)",
+      "Bash(make destination)",
+      "Bash(xcodegen generate)",
+      "Bash(xcodegen generate *)",
+      "Bash(xcrun simctl list)",
+      "Bash(xcrun simctl list *)",
+      "Bash(xcodebuild -list *)",
+      "Bash(xcodebuild -showBuildSettings *)",
+      "Bash(clang-format --dry-run *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-xcodeproj.sh\" ] && command -v cat >/dev/null 2>&1 && err=$(mktemp 2>/dev/null); then trap 'rm -f \"$err\" 2>/dev/null' EXIT; if bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-xcodeproj.sh\" 2>\"$err\"; then cat \"$err\" >&2; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'protect-xcodeproj.sh: hook unavailable; allowing this call.' >&2; fi; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'protect-xcodeproj.sh: hook unavailable; allowing this call.' >&2; fi; exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v bash >/dev/null 2>&1 && [ -r \"${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-objc.sh\" ] && command -v cat >/dev/null 2>&1 && err=$(mktemp 2>/dev/null); then trap 'rm -f \"$err\" 2>/dev/null' EXIT; if bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-objc.sh\" 2>\"$err\"; then cat \"$err\" >&2; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'lint-objc.sh: hook unavailable; allowing this call.' >&2; fi; else cat >/dev/null 2>&1 || while IFS= read -r _; do :; done; printf '%s\\n' 'lint-objc.sh: hook unavailable; allowing this call.' >&2; fi; exit 0",
+            "timeout": 45
+          }
+        ]
+      }
+    ]
+  }
+}

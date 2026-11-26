@@ -96,6 +96,10 @@
     // Expo, Hono, Drizzle and zod are installed only in the mobile scaffold.
     "registry/stacks/mobile-expo/files/apps/**",
     "registry/stacks/mobile-expo/files/packages/**",
+    // React Native, React Navigation, Jest and zod are installed only in the React Native scaffold.
+    "registry/stacks/react-native/files/src",
+    "registry/stacks/react-native/files/tests",
+    "registry/stacks/react-native/files/modules",
     // These SPAs import React, browser globals and tools installed only in the scaffold.
     "registry/stacks/tauri-react/files/src/**",
     "registry/stacks/tauri-react/files/tests/**",

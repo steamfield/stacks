@@ -1,0 +1,71 @@
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
+# macOS ships GNU Make 3.81, which ignores .SHELLFLAGS, so each piped recipe starts with this
+# line itself. Without pipefail a failed xcodebuild piped into xcbeautify exits 0.
+STRICT := set -euo pipefail;
+# XcodeGen needs USER, which stripped-down automation environments leave unset.
+export USER := $(if $(USER),$(USER),$(shell id -un))
+
+PROJECT := {{project_slug}}
+SCHEME := App
+SOURCES := App AppTests AppUITests
+DERIVED := build/DerivedData
+
+# Simulator builds never sign. -parallel-testing-enabled NO stops xcodebuild cloning the
+# simulator, which is slow and collides with other runs on the same machine.
+XCODEBUILD = xcodebuild -project $(PROJECT).xcodeproj -scheme $(SCHEME) \
+	-derivedDataPath $(DERIVED) -destination "$$(bash scripts/sim-destination.sh)" \
+	CODE_SIGNING_ALLOWED=NO
+
+# xcbeautify condenses xcodebuild's log when installed; without it, -quiet keeps only
+# warnings, errors and test failures.
+XCBEAUTIFY := $(shell command -v xcbeautify 2>/dev/null)
+ifeq ($(XCBEAUTIFY),)
+QUIET := -quiet
+PRETTY :=
+else
+QUIET :=
+PRETTY := | xcbeautify
+endif
+
+.PHONY: help env install project build lint fmt fmt-check test test-ui ci clean
+
+help: ## List the targets
+	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
+
+env: ## Check the toolchain and that project.yml has no unfilled values
+	@for tool in xcodebuild xcrun xcodegen swiftlint; do \
+		command -v $$tool >/dev/null || { echo "missing $$tool (see README.md, Requirements)" >&2; exit 1; }; \
+	done
+	@xcrun --find swift-format >/dev/null || { echo "xcrun can't find swift-format; select a full Xcode with xcode-select" >&2; exit 1; }
+	@if grep -n 'stacks:fill' project.yml; then echo "project.yml: fill the values above first" >&2; exit 1; fi
+
+install: env project ## Check the toolchain, generate the Xcode project, install git hooks
+	@test -n "$$CI" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || lefthook install
+
+project: env ## Generate the .xcodeproj from project.yml (skipped when nothing changed)
+	xcodegen generate --spec project.yml --use-cache --quiet
+
+build: project ## Build the app and both test bundles for the simulator; warnings fail the build
+	@$(STRICT) $(XCODEBUILD) build-for-testing $(QUIET) $(PRETTY)
+
+lint: ## SwiftLint, warnings as errors
+	swiftlint lint --strict --quiet
+
+fmt: ## Format Swift sources with swift-format
+	xcrun swift-format format --in-place --recursive --parallel $(SOURCES)
+
+fmt-check: ## Fail if swift-format would change anything or reports a lint finding
+	xcrun swift-format lint --strict --recursive --parallel $(SOURCES)
+
+# ONLY narrows a run: make test ONLY=AppTests/ItemListViewModelTests/testRetryAfterFailureLoadsItems
+test: project ## Unit tests (AppTests) on the simulator; ONLY=<target/class/test> runs one
+	@$(STRICT) $(XCODEBUILD) -only-testing:$(or $(ONLY),AppTests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
+
+test-ui: project ## UI smoke tests (AppUITests); launches the app on the simulator
+	@$(STRICT) $(XCODEBUILD) -only-testing:$(or $(ONLY),AppUITests) -parallel-testing-enabled NO test $(QUIET) $(PRETTY)
+
+ci: fmt-check lint build test test-ui ## Everything CI runs
+
+clean: ## Remove build output and the generated project
+	rm -rf build $(PROJECT).xcodeproj

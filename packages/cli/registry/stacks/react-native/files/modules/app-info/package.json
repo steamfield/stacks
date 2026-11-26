@@ -1,0 +1,16 @@
+{
+  "name": "app-info",
+  "version": "0.1",
+  "private": true,
+  "description": "Local Turbo Module: the app's version and the device's OS, read on the native side.",
+  "codegenConfig": {
+    "name": "AppInfoSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "ios": {
+      "modulesProvider": {
+        "AppInfo": "RCTAppInfo"
+      }
+    }
+  }
+}

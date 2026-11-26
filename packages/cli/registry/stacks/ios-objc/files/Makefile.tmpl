@@ -1,0 +1,65 @@
+# {{project_name}} development commands.
+#
+# Adapt the recipes, but keep the target names. `stacks verify` calls install,
+# lint, build, analyze, test and test-ui; CI calls `make ci`. Every xcodebuild
+# call goes through scripts/xcodebuild.sh, which picks a simulator at run time
+# (scripts/sim-destination.sh; set SIMULATOR_UDID to choose one).
+
+SHELL := /bin/bash
+# XcodeGen needs USER, which stripped-down automation environments leave unset.
+export USER := $(if $(USER),$(USER),$(shell id -un))
+
+OBJC_SOURCES = $(shell find App AppTests AppUITests -name '*.h' -o -name '*.m')
+SWIFT_FORMAT := xcrun swift-format
+XCODEBUILD := bash scripts/xcodebuild.sh
+# Narrow `make test` to one class or method: make test ONLY=AppTests/APPConfigTests
+ONLY ?= AppTests
+
+.DEFAULT_GOAL := help
+.PHONY: help install project format format-check lint build analyze test test-ui ci destination clean
+
+help: ## List targets
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-13s %s\n", $$1, $$2}'
+
+install: ## Check the toolchain, generate the Xcode project and install git hooks
+	@command -v xcodebuild >/dev/null || { echo "Xcode is missing: install it from the App Store, then xcode-select -s /Applications/Xcode.app." >&2; exit 1; }
+	@command -v xcodegen >/dev/null || { echo "xcodegen is missing: brew install xcodegen" >&2; exit 1; }
+	@command -v clang-format >/dev/null || { echo "clang-format is missing: brew install clang-format" >&2; exit 1; }
+	@$(SWIFT_FORMAT) --version >/dev/null 2>&1 || { echo "swift-format is missing: it ships with Xcode; check xcode-select -p." >&2; exit 1; }
+	@command -v xcbeautify >/dev/null || echo "xcbeautify is not installed; xcodebuild output stays raw (brew install xcbeautify)."
+	@bash scripts/sim-destination.sh >/dev/null
+	$(MAKE) project
+	@test -n "$${CI:-}" || ! test -f lefthook.yml || ! command -v lefthook >/dev/null || lefthook install
+
+project: ## Generate the .xcodeproj from project.yml (XcodeGen; skipped when nothing changed)
+	xcodegen generate --use-cache --quiet
+
+format: ## Format Objective-C (clang-format) and Swift (swift-format) in place
+	clang-format -i $(OBJC_SOURCES)
+	$(SWIFT_FORMAT) format --in-place --recursive App
+
+format-check: ## Fail if clang-format would change any Objective-C file
+	clang-format --dry-run --Werror $(OBJC_SOURCES)
+
+lint: format-check ## format-check, then swift-format lint in strict mode
+	$(SWIFT_FORMAT) lint --strict --recursive App
+
+build: project ## Compile the app and both test bundles for the simulator; warnings are errors
+	$(XCODEBUILD) build build-for-testing
+
+analyze: project ## Clang static analyzer (deep); fails on any finding
+	bash scripts/analyze.sh
+
+test: project ## XCTest unit tests in the simulator (ONLY=AppTests/<Class>[/<method>] for one)
+	$(XCODEBUILD) test test -only-testing:$(ONLY)
+
+test-ui: project ## XCUITest smoke tests: launch the app in the simulator
+	$(XCODEBUILD) test-ui test -only-testing:AppUITests
+
+ci: lint build analyze test test-ui ## Everything CI runs
+
+destination: ## Print the simulator destination xcodebuild will use
+	@bash scripts/sim-destination.sh
+
+clean: ## Remove build output and the generated project
+	rm -rf build ./*.xcodeproj

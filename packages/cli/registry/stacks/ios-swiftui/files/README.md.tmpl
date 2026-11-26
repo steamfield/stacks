@@ -1,0 +1,21 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences: what the app does and who it's for. -->
+
+A native iPhone app in Swift and SwiftUI. `project.yml` defines the Xcode project; XcodeGen generates it.
+
+## Toolchain
+
+<!-- stacks:fill The versions recorded at setup: Xcode, iOS SDK, Swift, iOS deployment target, XcodeGen, SwiftLint. -->
+
+Install the tools with `brew install xcodegen swiftlint xcbeautify` (swift-format ships with Xcode), then run `make doctor`.
+
+## Getting started
+
+```sh
+make project     # generate the Xcode project from project.yml
+make test        # unit tests on a simulator
+open *.xcodeproj # run and debug in Xcode
+```
+
+`make help` lists every target. `docs/DEVELOPMENT.md` covers simulators, signing and the project file; `docs/ARCHITECTURE.md` covers how the app is put together.

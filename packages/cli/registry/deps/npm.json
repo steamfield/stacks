@@ -103,6 +103,36 @@
         "reviewedAt": "2026-11-01"
       }
     },
+    "@babel/core": {
+      "whatItIs": "The JavaScript compiler React Native's bundler uses to turn modern TypeScript and JSX into code the phone runs.",
+      "homepage": "https://babeljs.io",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@babel/plugin-transform-export-namespace-from": {
+      "whatItIs": "A Babel plugin that compiles `export * as name from` statements, which some React Native libraries use.",
+      "homepage": "https://babeljs.io/docs/babel-plugin-transform-export-namespace-from",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@babel/runtime": {
+      "whatItIs": "Shared helper functions that Babel-compiled code calls at run time, so each file doesn't carry its own copy.",
+      "homepage": "https://babeljs.io/docs/babel-runtime",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
     "@biomejs/biome": {
       "whatItIs": "A tool that tidies the layout of code files and flags a set of common mistakes.",
       "goodAt": [
@@ -462,6 +492,108 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "@react-native-community/cli": {
+      "whatItIs": "The command-line tool for a React Native app that keeps its own iOS and Android projects: it starts the bundler and builds and runs the app.",
+      "goodAt": [
+        "Running the app on an iPhone simulator or Android emulator",
+        "Linking native libraries into the iOS and Android projects"
+      ],
+      "notGoodAt": ["Projects where Expo manages the native code; use the Expo CLI there."],
+      "example": "A developer runs one command and the app opens on the iPhone simulator with live reload.",
+      "homepage": "https://github.com/react-native-community/cli",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-native-community/cli-platform-android": {
+      "whatItIs": "The React Native CLI's Android commands: building, installing and running the app on an emulator or device.",
+      "homepage": "https://github.com/react-native-community/cli",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-native-community/cli-platform-ios": {
+      "whatItIs": "The React Native CLI's iOS commands: building the Xcode project and running the app on a simulator or iPhone.",
+      "homepage": "https://github.com/react-native-community/cli",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-native/babel-preset": {
+      "whatItIs": "React Native's Babel settings, which compile the app's TypeScript and JSX the way the phone's JavaScript engine expects.",
+      "homepage": "https://github.com/facebook/react-native/tree/main/packages/react-native-babel-preset",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-native/jest-preset": {
+      "whatItIs": "Jest settings for React Native that stand in for the phone's native parts so screens can be tested on a computer.",
+      "homepage": "https://github.com/facebook/react-native",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-native/metro-config": {
+      "whatItIs": "React Native's default settings for Metro, the bundler that packs the app's JavaScript for the phone.",
+      "homepage": "https://github.com/facebook/react-native/tree/main/packages/metro-config",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-native/typescript-config": {
+      "whatItIs": "React Native's shared TypeScript settings, which a project's tsconfig extends.",
+      "homepage": "https://github.com/facebook/react-native/tree/main/packages/typescript-config",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-navigation/native": {
+      "whatItIs": "Moves people between the screens of a React Native app and keeps track of where they came from.",
+      "goodAt": [
+        "Going from a list screen to a detail screen and back",
+        "Opening a screen from a link into the app"
+      ],
+      "notGoodAt": ["Web sites; use a web router for pages in a browser."],
+      "example": "Tapping an order in the list opens its details, and the back button returns to the list.",
+      "homepage": "https://reactnavigation.org",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
+    "@react-navigation/native-stack": {
+      "whatItIs": "A React Navigation screen stack that uses the phone's own screen transitions on iOS and Android.",
+      "homepage": "https://reactnavigation.org/docs/native-stack-navigator",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
       }
     },
     "@react-router/dev": {
@@ -1650,6 +1782,16 @@
         "model": "claude-haiku-5-5",
         "promptVersion": 2,
         "reviewedAt": "2026-10-29"
+      }
+    },
+    "test-renderer": {
+      "whatItIs": "Renders React components in memory without a screen, so React Native Testing Library can inspect them in tests.",
+      "homepage": "https://www.npmjs.com/package/test-renderer",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
       }
     },
     "tailwind-merge": {

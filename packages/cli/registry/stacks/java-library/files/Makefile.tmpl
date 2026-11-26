@@ -2,7 +2,7 @@
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
 # fmt-check, lint, compile, coverage, docs, build, test-consumer and api-check;
-# CI calls `make ci`.
+# CI calls install, ci, then audit as its own step.
 
 JAR         := target/{{project_slug}}
 JAVA_MAJOR  := $(strip $(shell cat .java-version 2>/dev/null))
@@ -25,7 +25,7 @@ export JAVA_HOME
 JAR_TOOL := $(if $(JAVA_HOME),$(JAVA_HOME)/bin/)jar
 
 .DEFAULT_GOAL := help
-.PHONY: help env install fmt fmt-check lint compile test coverage docs build jar-check test-consumer api-check api-baseline ci clean
+.PHONY: help env install format fmt-check lint compile test coverage docs build jar-check test-consumer api-check api-baseline audit ci clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
@@ -42,7 +42,7 @@ install: env ## Check the toolchain and download dependencies and plugins
 	$(MVN) -q dependency:go-offline
 	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
 
-fmt: env ## Format Java sources (Spotless, palantir-java-format)
+format: env ## Format Java sources (Spotless, palantir-java-format)
 	$(MVN) -q spotless:apply
 
 fmt-check: env ## Fail if Spotless would change any Java source
@@ -96,7 +96,13 @@ api-baseline: env ## Record the current API as api/baseline.jar (first setup, th
 	@mkdir -p api
 	cp $(JAR).jar api/baseline.jar
 
-ci: fmt-check ## Everything CI runs (fmt-check, enforcer, every test, coverage, Javadoc, jars, consumer, API check)
+# Needs the network, so it stays out of ci and verify; CI runs it as its own step. It reads the
+# library's pom.xml only: src/it/consumer depends on the unpublished library.
+audit: env ## Check dependencies for known vulnerabilities (osv-scanner)
+	@command -v osv-scanner >/dev/null || { echo "osv-scanner not found. Install it: https://google.github.io/osv-scanner/installation/" >&2; exit 1; }
+	osv-scanner scan source -L pom.xml
+
+ci: fmt-check ## Every offline check CI runs (fmt-check, enforcer, every test, coverage, Javadoc, jars, consumer, API check; audit is its own step)
 	$(MVN) verify
 	@$(MAKE) --no-print-directory jar-check api-check
 

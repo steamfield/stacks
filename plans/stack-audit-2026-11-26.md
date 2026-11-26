@@ -1,7 +1,9 @@
 # Plan: bundled registry audit (stacks and fragments)
 
+Status: done. Merged to main on 2026-11-26.
+
 Skill: deliver. Profile: deliver. On resume, re-read shared/lane-dag.md before anything else.
-plan_graph: /Users/riley/.claude/plugins/cache/claude-essentials/ce/6.0.6/shared/scripts/plan_graph.py
+plan_graph: the ce plugin's `shared/scripts/plan_graph.py`
 Started: 2026-11-26. Timebox: none. Landing branch: deliver/stack-audit (worktree `.claude/worktrees/deliver-stack-audit`).
 Gate: `rr check` (about 30 s; the clone is opted in to rr). Filtered tests: `bun run test:unit tests/<file>.test.ts` in `packages/cli`. Typecheck: `bun run typecheck`.
 Runner: rr for the gate and whole suites; scoped tests, lint and typecheck run locally.

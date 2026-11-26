@@ -13,6 +13,8 @@
       "Bash(bun run ios:build)",
       "Bash(bun run ios:test)",
       "Bash(bun run check)",
+      "Bash(bun run audit)",
+      "Bash(bun run clean)",
       "Bash(xcrun simctl list *)",
       "Bash(xcrun swift-format lint *)"
     ]

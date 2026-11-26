@@ -35,6 +35,7 @@ commands:
   project: Regenerate the .xcodeproj from project.yml when the spec or file list changed
   build: Build the app and both test bundles for a simulator, warnings as errors
   lint: SwiftLint with --strict
+  lint-fix: Apply SwiftLint's automatic fixes, then format with swift-format
   fmt: Format Swift sources with swift-format
   fmt-check: Fail on any swift-format difference or lint finding
   test: Unit tests (AppTests) on a simulator
@@ -79,7 +80,7 @@ No generator; the agent runs XcodeGen through `make project`.
 
 ## Commands
 
-The shipped Makefile (`make help`) has env, install, project, build, lint, fmt, fmt-check, test, test-ui, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md.
+The shipped Makefile (`make help`) has env, install, project, build, lint, lint-fix, fmt, fmt-check, test, test-ui, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md.
 <!-- stacks:when with=agent-ops -->
 
 **Agent hooks.** The stack's Claude adapter adds two hooks on agent-ops' `_lib.sh`, and its settings allow the make targets and read-only Xcode commands. `protect-xcodeproj.sh` denies Edit and Write inside `*.xcodeproj`, `*.xcworkspace` or a `.pbxproj`. `lint-swift.sh` runs SwiftLint and swift-format on each Swift file written and returns findings as context; agent-ops' `lint-on-write.sh` skips Swift. List both in `.claude/README.md`, and add their cases to `.claude/hooks/smoke.sh` before its `parses` function:

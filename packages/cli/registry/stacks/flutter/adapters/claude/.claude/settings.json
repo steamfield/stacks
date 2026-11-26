@@ -3,6 +3,7 @@
     "allow": [
       "Bash(make install)",
       "Bash(make fmt)",
+      "Bash(make lint-fix)",
       "Bash(make fmt-check)",
       "Bash(make analyze)",
       "Bash(make test)",
@@ -11,7 +12,9 @@
       "Bash(make test-ios)",
       "Bash(make build-ios)",
       "Bash(make build-android)",
+      "Bash(make audit)",
       "Bash(make ci)",
+      "Bash(make clean)",
       "Bash(flutter analyze)",
       "Bash(flutter analyze *)",
       "Bash(flutter test)",

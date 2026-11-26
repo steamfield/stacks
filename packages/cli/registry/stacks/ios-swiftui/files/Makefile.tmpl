@@ -18,7 +18,7 @@ BEAUTIFY := $(if $(shell command -v xcbeautify),| xcbeautify --quiet,)
 # Resolved inside each recipe, so a missing simulator fails the target that needs it.
 DESTINATION = dest="$$(bash scripts/sim-destination.sh)"
 
-.PHONY: help doctor project typecheck build lint fmt fmt-check test test-ui ci clean
+.PHONY: help doctor project typecheck build lint lint-fix fmt fmt-check test test-ui ci clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -43,6 +43,10 @@ build: ## Release build for the simulator (production settings), warnings as err
 
 lint: ## SwiftLint, warnings fail
 	swiftlint lint --strict --quiet
+
+lint-fix: ## Apply SwiftLint's automatic fixes, then format with swift-format
+	swiftlint lint --fix --quiet
+	xcrun swift-format format --in-place --recursive --parallel $(SWIFT_SOURCES)
 
 fmt: ## Format Swift sources with swift-format
 	xcrun swift-format format --in-place --recursive --parallel $(SWIFT_SOURCES)

@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "go-api",
   "source": {
-    "digest": "sha256:4d124557356952fd674dc444ec201f09400b7117bd1c699f81b0f5e8e8bc8f9f",
+    "digest": "sha256:6151f2baca13ec6594535b1e5cb191ff498a109ed17469162c430775f4448a82",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A Go HTTP API on the standard library with JSON resources, consistent errors, request logs and graceful shutdown.",
   "description": "Write a Go HTTP service on net/http's own router, with no web framework. One in-memory resource proves the shape: list, read and create routes, JSON validation, a single error envelope for misses and wrong methods, request IDs, slog access logs, a body size limit and server timeouts. The binary stops cleanly on SIGINT or SIGTERM, and integration tests check that against the built server. The recipe picks no database, authentication or hosting; the in-memory store sits behind an interface a database can replace.",

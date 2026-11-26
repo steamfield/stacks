@@ -9,7 +9,8 @@ make serve
 curl -s http://127.0.0.1:8080/healthz
 ```
 
-The server logs JSON to stdout and stops cleanly on Ctrl+C or SIGTERM.
+The server logs JSON to stdout and stops cleanly on Ctrl+C or SIGTERM. To keep it running in
+the background instead, use `make dev-bg` (output in `logs/dev.log`) and `make dev-stop`.
 
 ## API
 
@@ -34,6 +35,7 @@ Requires Go, make, a C compiler (for the race detector) and [golangci-lint](http
 |---|---|
 | `make build` | Build `bin/server` |
 | `make serve` | Build and run the server in the foreground |
+| `make dev-bg` / `make dev-stop` | Start the server in the background, or reuse a healthy one; stop it |
 | `make test` | Unit and handler tests with the race detector |
 | `make test-integration` | Run the built binary and test it over HTTP, including signal shutdown |
 | `make lint` | golangci-lint |

@@ -17,6 +17,7 @@
       "Bash(bun run logs)",
       "Bash(bun run logs *)",
       "Bash(bun run audit)",
+      "Bash(bun run clean)",
       "Bash(curl -s localhost:*)",
       "Bash(curl -s http://localhost:*)",
       "Bash(curl -si localhost:*)",

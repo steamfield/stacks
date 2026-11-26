@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "cloudflare-react-router",
   "source": {
-    "digest": "sha256:087d986bb5decbca280b68809dd5a0ed2f77c5cd49b834f85b51c190918c80d5",
+    "digest": "sha256:6e6833218612b867a8c050791c2992880d45b3c5eab329168ae5b4b8bdd7cdcb",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A server-rendered web app with JSON endpoints, typed runtime bindings and local tests on Cloudflare Workers.",
   "description": "Build an application whose React pages and JSON resource routes run in Cloudflare Workers. Development and integration tests use the local Workers runtime, and generated types describe runtime bindings. The initial slice is a page, health route and harmless scheduled-handler slot. Storage is absent until you add it; cloudflare-d1 supplies the compatible SQL binding and migration workflow. Cloud deployment still needs your account and credentials.",

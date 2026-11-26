@@ -239,7 +239,7 @@ A `ci-github` change triggers the canary rule (D42), so the four canaries are re
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/registry/stacks/ios-uikit/, packages/cli/registry/stacks/ios-objc/ | | | opus | pending | | |
+| a | M | packages/cli/registry/stacks/ios-uikit/, packages/cli/registry/stacks/ios-objc/ | | | opus | merged | | |
 | b | M | packages/cli/registry/stacks/ios-swiftui/, packages/cli/registry/stacks/flutter/ | | | opus | pending | | |
 | c | M | packages/cli/registry/stacks/react-native/, packages/cli/registry/fragments/ci-github/ | | | opus | pending | | |
 

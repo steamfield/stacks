@@ -10,7 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { createServer } from "node:http";
+import { createServer, type IncomingHttpHeaders } from "node:http";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import type { IndexEntry, RegistryIndex, SignedIndex } from "@steamfield/stacks-format";
@@ -60,19 +60,34 @@ export function execute(command: string, args: string[], cwd: string, env: Envir
 /** A real loopback server. Holding a response open lets TestClock own the client deadline. */
 export async function remoteServer(root: string) {
   const requests: string[] = [];
-  let mode: "files" | "not_found" | "hold" | "partial" | "network" = "files";
+  const headers: IncomingHttpHeaders[] = [];
+  let etag: string | undefined;
+  let mode: RemoteMode | "not_modified" = "files";
   const server = createServer((request, response) => {
     const pathname = new URL(request.url ?? "/", "http://fixture").pathname;
     requests.push(pathname);
-    if (mode === "hold") return;
-    if (mode === "network") {
-      request.socket.destroy();
-      return;
+    headers.push(request.headers);
+    switch (mode) {
+      case "hold":
+        return;
+      case "network":
+        request.socket.destroy();
+        return;
+      case "not_modified":
+        response.writeHead(304).end();
+        return;
     }
     const file = join(root, pathname);
     if (mode === "not_found" || !existsSync(file) || !statSync(file).isFile()) {
       response.writeHead(404).end();
       return;
+    }
+    if (etag !== undefined) {
+      response.setHeader("ETag", etag);
+      if (request.headers["if-none-match"] === etag) {
+        response.writeHead(304).end();
+        return;
+      }
     }
     response.setHeader("Content-Type", "application/json");
     const bytes = readFileSync(file);
@@ -91,6 +106,10 @@ export async function remoteServer(root: string) {
   return {
     url: `http://127.0.0.1:${address.port}`,
     requests,
+    headers,
+    setEtag(value: string) {
+      etag = value;
+    },
     mode(value: typeof mode) {
       mode = value;
     },
@@ -102,7 +121,11 @@ export async function remoteServer(root: string) {
   };
 }
 
-export type RemoteServer = Awaited<ReturnType<typeof remoteServer>>;
+type RemoteMode = "files" | "not_found" | "hold" | "partial" | "network";
+export type RemoteServer = Pick<
+  Awaited<ReturnType<typeof remoteServer>>,
+  "url" | "requests" | "close"
+> & { mode(value: RemoteMode): void };
 
 /** Preserve the configured URL/trust decision; replace only HTTP transport with loopback. */
 export const localHttp = (url: string) =>

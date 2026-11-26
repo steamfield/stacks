@@ -49,6 +49,7 @@ commands:
   e2e: Build, then run the Playwright scenarios, smoke and see tests against vite preview
   see: Play the last build headlessly to exact ticks and write frames, state and events to .runs/
   check: Run lint, typecheck, tests and e2e
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build, test and see output
   prepare: Install git hooks and the Playwright browsers outside CI
 ---
@@ -99,12 +100,12 @@ Vitest's `unit` project runs logic, kit and `tests/*.test.ts`; `runtime` drives 
 `bun run see --scenario <name>` (or `--input "jump right*30" --at 0,30,end`) plays the last build to exact ticks and prints a summary whose first line is the run folder under `.runs/`, holding `frame-<tick>.png`, `state.json`, `events.jsonl` and `console.log`. Run `bun run build` first; it refuses a build older than `src/`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and test, installs Chromium and WebKit with their system dependencies (`bunx playwright install --with-deps chromium webkit`), then runs e2e. Headless Chromium on CI has no GPU; the shipped `CHROMIUM_ARGS` turn on SwiftShader so the renderer stays WebGL, and the smoke test fails if it falls back to canvas. Upload Playwright reports and test results on failure. No credentials are needed.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and test, installs Chromium and WebKit with their system dependencies (`bunx playwright install --with-deps chromium webkit`), then runs e2e, and `bun run audit` as its own step (it needs the network). Headless Chromium on CI has no GPU; the shipped `CHROMIUM_ARGS` turn on SwiftShader so the renderer stays WebGL, and the smoke test fails if it falls back to canvas. Upload Playwright reports and test results on failure. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/logic/world.test.ts`. `preview` and `see` serve the last build, so run `build` first.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/logic/world.test.ts`. `preview` and `see` serve the last build, so run `build` first. `audit` needs the network, so `check` leaves it out.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer. pre-commit runs Biome with fixes on staged files; pre-push runs typecheck and tests.

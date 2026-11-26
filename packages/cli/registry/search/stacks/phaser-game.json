@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "phaser-game",
   "source": {
-    "digest": "sha256:920b3dfe6c4679e778e2497e6d03d1e0dc0a7318c10868fb88e776946e1d7d0b",
+    "digest": "sha256:5991dc148c198f3341fb2fd4302c7720b887f7344d3321e6d38c2a069b7d6781",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-24"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A 2D Phaser game for the browser, built by Vite into static files, with logic tests and headless playthroughs in Playwright.",
   "description": "Start a 2D browser game on Phaser and Vite that builds to static files. Game rules run in fixed ticks in plain TypeScript with no Phaser, DOM or clock access, so Vitest tests them directly and a seeded run always ends in the same state. Phaser scenes only draw that state. Saves go to IndexedDB through a versioned zod schema with migrations. Playwright drives the built game tick by tick in desktop Chromium, a phone viewport and WebKit, and a capture script writes frames and state for a scenario. The sample is one small platformer level; art, audio, hosting and online play are left to the project.",

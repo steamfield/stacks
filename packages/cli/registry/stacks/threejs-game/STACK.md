@@ -48,6 +48,7 @@ commands:
   e2e: Build, then run the Playwright scenarios, smoke tests and the see check against vite preview
   see: Play the built game headlessly to exact ticks and write frames, state and events to a run folder
   check: Run lint, typecheck, tests and e2e
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build, test and see output
   prepare: Install git hooks and the Playwright browser outside CI
 ---
@@ -95,12 +96,12 @@ Vitest's `logic` project runs `src/logic/` and `src/kit/core/` tests; `unit` run
 `bun run e2e` builds, serves `dist/` with `vite preview` on a free port, and runs Playwright on desktop Chromium and a phone held in the game's orientation. The phone project runs only the smoke tests. Smoke asserts the `webgl2` renderer, physics loading, a save surviving a reload, the pinned `WALK_HASH` and the touch controls; `see.spec.ts` runs `bun run see` once and checks its run folder. Details in `docs/guidance/threejs-game/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and tests, installs Chromium with its system dependencies (`bunx playwright install --with-deps chromium`, since `prepare` skips the download under `CI`), then runs `bun run e2e`. Hosted runners have no GPU: `tests/support/chromium-args.ts` already passes the SwiftShader flags that give headless Chromium software WebGL, so don't drop them from `playwright.config.ts`. Upload `test-results/` on failure. No credentials are needed.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and tests, installs Chromium with its system dependencies (`bunx playwright install --with-deps chromium`, since `prepare` skips the download under `CI`), then runs `bun run e2e`, and `bun run audit` as its own step (it needs the network). Hosted runners have no GPU: `tests/support/chromium-args.ts` already passes the SwiftShader flags that give headless Chromium software WebGL, so don't drop them from `playwright.config.ts`. Upload `test-results/` on failure. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with scoped examples such as `bun run test src/logic/world.test.ts` and `bun run see --scenario collect-first-orb --at 0,end`. `preview` and `see` serve the last build, so run `build` first.
+`package.json` wires every declared command; mirror them in AGENTS.md with scoped examples such as `bun run test src/logic/world.test.ts` and `bun run see --scenario collect-first-orb --at 0,end`. `preview` and `see` serve the last build, so run `build` first. `audit` needs the network, so `check` leaves it out.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer. pre-commit runs Biome with fixes on staged files; pre-push runs typecheck and tests, leaving e2e to CI.

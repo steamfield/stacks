@@ -9,7 +9,9 @@
       "Bash(bun run build)",
       "Bash(bun run e2e)",
       "Bash(bun run see *)",
-      "Bash(bun run check)"
+      "Bash(bun run check)",
+      "Bash(bun run audit)",
+      "Bash(bun run clean)"
     ],
     "deny": ["Read(./.env)", "Read(./.env.local)"]
   },

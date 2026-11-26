@@ -14,6 +14,12 @@ if [ "${1:-}" = pods ]; then
     echo "ios.sh: ruby is macOS's system Ruby (/usr/bin/ruby). Put a Homebrew or version-manager Ruby first on PATH, then run bun run pods again." >&2
     exit 1
   fi
+  # CocoaPods crashes on an encoding error without a UTF-8 locale, which CI and agent shells
+  # often lack.
+  case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+  *UTF-8* | *utf8* | *UTF8* | *utf-8*) ;;
+  *) export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 ;;
+  esac
   bundle install
   cd ios && exec bundle exec pod install
 fi

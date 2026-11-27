@@ -4,6 +4,25 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+### Added
+
+- `new` and `add` write `.stacks/sources.json` with the index commit and the origin and digest of each entry used. The `new` brief also names the index commit and generation time when available. Projects without the file still work.
+- `new` and `add` report `index_fallback` when the configured index can't be refreshed or the CLI is offline. The report says whether they used a cached index or the bundled registry.
+- `doctor --json` reports the cached index's `commit`, `generatedAt` and `minCli`, plus `etag` when one was stored.
+- `registry.json` declares `minCli`, the oldest CLI that can read the registry. `build:index` copies it into the index, and `validate` checks the file on official registry roots.
+- The `search` text report suggests `stacks update` for a recommended entry only when the cached index lacks it or the last index outcome was `unsupported`.
+
+### Changed
+
+- Published CLIs read the signed registry index by default, so stacks and fragments can update between npm releases. `new` and `add` revalidate the index before reading entries. The bundled registry stays available for offline use.
+- The signed dependency allowlist comes from beside the configured index URL. Without an index URL, the CLI skips the remote allowlist.
+- `flutter`, `ios-objc`, `ios-swiftui`, `ios-uikit` and `react-native` enforce configurable line coverage floors, defaulting to 80%. Flutter adds widget accessibility checks, and the three native iOS stacks add XCUITest accessibility audits. `ios-uikit` moves unit tests to Swift Testing. `react-native` uses Swift Testing and ships a `.swift-format` config for its native module. Its Maestro flow runs at default and accessibility text sizes on an iOS simulator.
+- `ci-github` tells the agent to put Xcode and simulator steps for iOS-tagged stacks in a macOS job.
+
+### Fixed
+
+- `list` falls back to bundled copies of entries still resolving after a shared 3-second deadline, including their pinned fragments and workspace parts. Entries available only in the index can take longer.
+
 ## [0.16.0] - 2026-11-26
 
 ### Added

@@ -48,6 +48,7 @@ commands:
   coverage: Run Vitest with coverage
   e2e: Build, then run the Playwright tests against the production server
   check: Run lint, typecheck, tests and e2e
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build, test and coverage output
   prepare: Install git hooks and the Playwright browser outside CI
 ---
@@ -101,7 +102,7 @@ Vitest runs on Node with the React plugin and the `@/*` alias; component tests s
 Vitest cannot render async server components or supply Next's action/revalidation context. Playwright runs Chromium against `next build` plus `next start`, with one worker, no server reuse and retained traces on failure. Its tests cover seed data, rejected input without a write, successful action/revalidation, reload persistence within that process, health JSON and a real 404. Use unique names and condition waits; tests need no secrets or network beyond localhost.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from packageManager and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure. No credentials are needed.
+CI sets up Bun from packageManager and Node from `.node-version`, installs frozen dependencies, runs lint, typecheck and coverage, installs Chromium with system dependencies, then runs e2e. Upload Playwright reports and test results on failure. No credentials are needed. `bun run audit` runs as its own step after e2e: the audit needs the network, so it stays out of `check`.
 <!-- stacks:end -->
 
 ## Commands

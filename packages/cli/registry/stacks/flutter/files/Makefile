@@ -1,6 +1,9 @@
 # Every project task. `make help` lists them; verify and CI call these targets.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
+# macOS ships GNU Make 3.81, which ignores .SHELLFLAGS, so each piped recipe starts with this
+# line itself. Without pipefail a failed simulator lookup piped into tail exits 0.
+STRICT := set -euo pipefail;
 
 FLUTTER ?= flutter
 DART ?= dart
@@ -8,7 +11,7 @@ DART_SOURCES := lib test integration_test tool
 # Minimum line coverage of lib/ under unit and widget tests, in percent.
 COVERAGE_MIN ?= 80
 
-.PHONY: help install fmt fmt-check analyze test coverage simulator test-ios build-ios build-android ci clean
+.PHONY: help install fmt lint-fix fmt-check analyze test coverage simulator test-ios build-ios build-android audit ci clean
 
 help: ## List the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -18,6 +21,10 @@ install: ## Check ios/ and android/ exist, then fetch packages
 	$(FLUTTER) pub get
 
 fmt: ## Format Dart sources
+	$(DART) format $(DART_SOURCES)
+
+lint-fix: ## Apply dart fix's safe fixes for analyzer findings, then format
+	$(DART) fix --apply
 	$(DART) format $(DART_SOURCES)
 
 fmt-check: ## Fail if dart format would change any file
@@ -41,10 +48,10 @@ coverage: ## Unit and widget tests with lcov output; fails below COVERAGE_MIN
 		}' coverage/lcov.info
 
 simulator: ## Print the iPhone simulator the iOS targets use, booting it if needed
-	@$(DART) run tool/ios_simulator.dart | tail -n 1
+	@$(STRICT) $(DART) run tool/ios_simulator.dart | tail -n 1
 
 test-ios: ## Integration tests on an iPhone simulator
-	@device=$$($(DART) run tool/ios_simulator.dart | tail -n 1) && test -n "$$device" && \
+	@$(STRICT) device=$$($(DART) run tool/ios_simulator.dart | tail -n 1) && test -n "$$device" && \
 		echo "flutter test integration_test -d $$device" && \
 		$(FLUTTER) test integration_test -d "$$device"
 
@@ -53,6 +60,10 @@ build-ios: ## Debug build for the iOS simulator, unsigned
 
 build-android: ## Debug APK (needs the Android SDK)
 	$(FLUTTER) build apk --debug
+
+audit: ## Check pubspec.lock for known vulnerabilities (osv-scanner; needs the network)
+	@command -v osv-scanner >/dev/null || { echo "osv-scanner not found. Install it: https://google.github.io/osv-scanner/installation/" >&2; exit 1; }
+	osv-scanner scan source -L pubspec.lock
 
 ci: fmt-check analyze coverage build-ios test-ios ## Everything verify runs on a Mac
 

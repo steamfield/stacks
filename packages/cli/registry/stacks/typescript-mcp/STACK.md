@@ -42,6 +42,7 @@ commands:
   test:watch: Watch Vitest tests
   coverage: Run Vitest with coverage thresholds
   check: Run lint, typecheck, coverage, the build and the smoke check
+  audit: Check dependencies for published advisories (bun audit; needs the network)
   clean: Remove build and coverage output
   prepare: Install git hooks outside CI
 ---
@@ -82,12 +83,12 @@ The shipped code keeps these; new code does too. `docs/guidance/typescript-mcp/s
 Unit tests sit beside the code as `test.each` tables of input and exact output, and of input and the `ToolError` code it raises. `tests/server.test.ts` asserts what a host sees through `listTools()` and `callTool()`, including `isError` results and schema validation; a new tool adds its list entry, a success, each tool error and one invalid input there. `tests/stdio.test.ts` spawns `node src/index.ts`; verify runs it on its own. `bun run smoke` is the only check of the bundle. Details in `docs/guidance/typescript-mcp/testing.md`.
 
 <!-- stacks:when with=ci-github -->
-CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, the build and `bun run smoke`. No credentials are needed.
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, then runs lint, typecheck, coverage, the build and `bun run smoke`, then `bun run audit` as its own step, which needs the network. No credentials are needed.
 <!-- stacks:end -->
 
 ## Commands
 
-`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/tools/read-file.test.ts`. To call a tool by hand: `bun run build`, then `node_modules/.bin/mcp-inspector --cli -e MCP_ROOT=. node dist/index.js --method tools/call --tool-name read_file --tool-arg path=README.md`. `inspect` opens Inspector's web UI and never exits; start it in the background for a person, never to check your own work. `docs/guidance/typescript-mcp/verification.md` shows how to register the build with Claude Code or another host.
+`package.json` wires every declared command; mirror them in AGENTS.md with a scoped example such as `bun run test src/tools/read-file.test.ts`. To call a tool by hand: `bun run build`, then `node_modules/.bin/mcp-inspector --cli -e MCP_ROOT=. node dist/index.js --method tools/call --tool-name read_file --tool-arg path=README.md`. `bun run audit` checks dependencies against published advisories and needs the network, so neither `check` nor verify runs it. `inspect` opens Inspector's web UI and never exits; start it in the background for a person, never to check your own work. `docs/guidance/typescript-mcp/verification.md` shows how to register the build with Claude Code or another host.
 
 <!-- stacks:when with=git-hooks -->
 `scripts/prepare.ts` already runs `lefthook install` when `lefthook.yml` exists outside CI, so don't add another installer.

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make lint)",
+      "Bash(make format)",
+      "Bash(make typecheck)",
+      "Bash(make test)",
+      "Bash(make coverage)",
+      "Bash(make build)",
+      "Bash(make e2e)",
+      "Bash(make openapi)",
+      "Bash(make check-openapi)",
+      "Bash(make api-client)",
+      "Bash(make check-api-copy)",
+      "Bash(make check-pair)",
+      "Bash(make check-docs)",
+      "Bash(make check)"
+    ]
+  }
+}

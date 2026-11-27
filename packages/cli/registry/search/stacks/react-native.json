@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "react-native",
   "source": {
-    "digest": "sha256:f4fd592729c7d03baea31fe3abbd78412224e921ec9bed1fa334f9b59a430038",
+    "digest": "sha256:eeaa4f283af453fc760ee7ae19ed2979ac1e5edea0d759a831c83b726b72d31b",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-26"
+    "reviewedAt": "2026-11-27"
   },
   "summary": "A bare React Native app for iOS and Android in TypeScript that owns its native projects, with a Swift Turbo Module example.",
   "description": "Start a React Native app with the community CLI instead of Expo, for teams that keep the Xcode and Android projects in the repository and write their own native code. The JavaScript side has React Navigation, validated settings, one error type with user-facing messages, structured logs and an error boundary. A local Turbo Module written in Swift reads the app version and OS, and one screen shows its answer with loading and error states. Jest covers screens and navigation, Swift tests cover the module, and a Maestro flow runs the release build on the iOS simulator. The project is the app alone, and the sample module has no Android implementation yet.",

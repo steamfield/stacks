@@ -14,6 +14,8 @@
       "Bash(bun run build)",
       "Bash(bun run gate)",
       "Bash(bun run check)",
+      "Bash(bun run audit)",
+      "Bash(bun run clean)",
       "Bash(bun pm pack --dry-run)"
     ]
   },

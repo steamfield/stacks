@@ -5,7 +5,7 @@ kind: stack
 name: Spring Boot web app (Thymeleaf + htmx)
 description: A server-rendered Java web app on Spring Boot with Thymeleaf templates and htmx for partial page updates, built with Maven and make, with no JavaScript build. Forms validate on the server and work without JavaScript, Spring Security checks CSRF tokens, error pages come from one table, and tests read the rendered HTML through MockMvc and a browser without JavaScript.
 tags: [java, web, make]
-tools: [java, mvn, make, git]
+tools: [java, mvn, make, git, bash, curl, osv-scanner]
 decisions:
   - "JDK: the newest LTS release Spring Boot supports (default). Its major goes in `.java-version` and pom.xml's `<java.version>`; never an update release."
   - "Build tool: Maven through the committed wrapper (default). Gradle with the Kotlin DSL and a version catalog only when the user asks; then translate each Makefile target one for one and keep every check."
@@ -31,6 +31,10 @@ verify:
   - { name: test, layer: test, run: make coverage }
   - { name: test-integration, layer: test, run: make test-integration }
   - { name: build, layer: build, run: make build }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: web
     phase: serve
     layer: serve
@@ -43,7 +47,7 @@ verify:
 commands:
   env: Check the JDK, the Maven wrapper and that every pom.xml version property is filled
   install: Check the toolchain and download dependencies and plugins
-  fmt: Format Java sources with Spotless (palantir-java-format)
+  format: Format Java sources with Spotless (palantir-java-format)
   fmt-check: Fail if Spotless would change any Java source
   lint: "Maven Enforcer: JDK version, dependency convergence, duplicate declarations"
   compile: Compile main and test code with Error Prone and NullAway
@@ -52,7 +56,11 @@ commands:
   test-integration: Integration tests (*IT) against the app on a random port
   build: Executable jar at target/app.jar
   serve: Build, then run the jar in the foreground until SIGINT or SIGTERM
-  ci: "Everything CI runs (fmt-check, enforcer, every test, coverage, the jar)"
+  dev-bg: Build, then start the jar in the background (or reuse a healthy one), logging to logs/dev.log
+  dev-stop: Stop the process group dev-bg started
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
+  audit: Check dependencies for known vulnerabilities (osv-scanner; needs the network)
+  ci: "Every offline check CI runs (fmt-check, enforcer, every test, coverage, the jar)"
   clean: Remove build output
 ---
 
@@ -71,7 +79,7 @@ No generator; nothing in `src/` comes from Spring Initializr.
 1. **JDK.** Write the major of the newest Java LTS release that the current Spring Boot supports to `.java-version` (the major only, one line) and to `<java.version>` in `pom.xml`. On macOS install it with `brew install openjdk@<major>`; it is keg-only and the Makefile finds it, so don't link it or rely on `mvn`'s JDK: Homebrew's `maven` depends on the newest `openjdk`, which is usually not an LTS.
 2. **Versions.** For every other empty `<*.version>` property, read the newest release from `https://repo.maven.apache.org/maven2/<groupId as a path>/<artifactId>/maven-metadata.xml`. Its `<release>` can be a milestone or release candidate (`-M1`, `-RC1`), so take the highest plain numeric version: `curl -s <url> | grep -o '<version>[0-9.]*</version>' | sort -V | tail -1`. The coordinates are in `pom.xml`; the property for Spring Boot is `spring-boot-dependencies`'s, Error Prone's is `error_prone_core`'s, htmx's is `org.webjars.npm:htmx.org`'s. Thymeleaf, Spring Security, HtmlUnit and the WebJars locator come from the Boot BOM and get no property.
 3. **Wrapper.** Run `mvn -N wrapper:wrapper -Dtype=only-script` once (the `mvn` from Homebrew's `maven`). It writes `mvnw`, `mvnw.cmd` and `.mvn/wrapper/maven-wrapper.properties` pinned to that Maven; commit them. From then on only `./mvnw` runs Maven.
-4. `make install`, then `make fmt-check lint compile coverage test-integration build`. Where an installed release rejects shipped code (a moved Boot test class, a renamed property, a changed htmx attribute, a new Error Prone or NullAway finding), fix the code. Keep every compiler flag, Enforcer rule, the CSRF check and the coverage floor; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why. Run `make fmt` after editing.
+4. `make install`, then `make fmt-check lint compile coverage test-integration build`. Where an installed release rejects shipped code (a moved Boot test class, a renamed property, a changed htmx attribute, a new Error Prone or NullAway finding), fix the code. Keep every compiler flag, Enforcer rule, the CSRF check and the coverage floor; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why. Run `make format` after editing.
 5. Fill the README's `stacks:fill` markers (`readme-filled` checks), link `docs/guidance/java.md` and `docs/web.md` from AGENTS.md, then run `stacks verify` until it passes. The `web` step runs `make serve` and probes the home page on `PORT`.
 
 ## Conventions
@@ -92,14 +100,16 @@ Unit tests sit beside each package under `src/test/java` (`*Test`, Surefire): th
 
 ## Commands
 
-The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compile, test, coverage, test-integration, build, serve, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=NotesControllerTest` and `./mvnw -q verify -DskipUTs=true -Dit.test=WebIT`. Run `make serve` in the background when needed and stop only the pid you started.
+The shipped Makefile (`make help`) has env, install, format, fmt-check, lint, compile, test, coverage, test-integration, build, serve, dev-bg, dev-stop, dev-status, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=NotesControllerTest` and `./mvnw -q verify -DskipUTs=true -Dit.test=WebIT`. `make audit` checks the resolved dependencies against the OSV database with osv-scanner; it needs the network, so it stays out of `make ci`.
+
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make serve` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make serve` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`. Record in AGENTS.md that CI never runs `mvn`.
+**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`, then `make audit` as its own step after installing osv-scanner. Record in AGENTS.md that CI never runs `mvn`.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 
-**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make fmt` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
+**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make format` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
 <!-- stacks:end -->
 
 ## Gotchas
@@ -118,5 +128,6 @@ The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compi
 - Without the parent POM nothing configures Failsafe for Boot: its `classesDirectory` points at `target/classes`, because the repackaged jar keeps classes under `BOOT-INF/`.
 - Surefire's `argLine` starts with `@{argLine}` so JaCoCo's agent survives, and `pom.xml` declares an empty `argLine` so the reference resolves when JaCoCo is skipped.
 - `make serve` runs the built jar, not `./mvnw spring-boot:run`, which forks a JVM that a signal to Maven can leave running. Use the Maven wrapper and WebJars for browser dependencies.
+- `make dev-bg` runs a copy of the jar from `target/dev-bg/`. Maven rewrites `target/app.jar` in place, and a JVM still reading it fails on the next class or template it loads, so keep the copy: builds and tests then leave the background server running the code it started with.
 - A `${PORT:8080}` placeholder resolves an empty `PORT` to empty, not the default; unset a variable rather than blanking it.
 - The agent-ops format hook runs `./mvnw spotless:apply` on the session's Java files at Stop; it needs the wrapper and finds the JDK from `.java-version` like the Makefile.

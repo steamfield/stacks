@@ -68,6 +68,8 @@ Write `packages/cli/registry/search/stacks/<id>.json` following `search-card.md`
 
 ## Check and hand back
 
+Every bundled stack meets the baseline in anatomy's "Developer experience" section; `validate` reports a `dx-*` finding for each command or fragment missing from the default composition, and the rest (single-test command, coverage floor, toolchain pins, permissions, linter) is yours to check.
+
 From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind stack`, `bun run dev validate --brief <id> --sandbox`, then `bun run test:unit tests/registry/bundled-registry.test.ts tests/registry/registry.test.ts` and the search tests in `search-card.md`. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgments, and the pending user actions:

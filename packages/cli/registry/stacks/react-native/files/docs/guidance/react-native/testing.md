@@ -26,7 +26,7 @@ The coverage floor (80% of lines under `src/`) lives in `jest.config.js` and is 
 
 ## Swift tests
 
-`modules/app-info/ios/Tests/` uses Swift Testing (`@Test`, `#expect`, `#require`) and runs through the pod's test spec. The Podfile line with `:testspecs => ["Tests"]` makes CocoaPods generate the `AppInfo-Unit-Tests` scheme, and `scripts/ios.sh test` runs it on the simulator `scripts/sim-destination.sh` picks: `IOS_SIMULATOR_ID` if set, else a booted iPhone, else an iPhone on the newest iOS runtime. No script names a device model or OS version.
+`modules/app-info/ios/Tests/` uses Swift Testing (`@Test`, `#expect`, `#require`) and runs through the pod's test spec. The Podfile line with `:testspecs => ["Tests"]` makes CocoaPods generate the `AppInfo-Unit-Tests` scheme, and `scripts/ios.sh test` runs it on the simulator `scripts/sim-destination.sh` picks: `SIMULATOR_UDID` if set, else a booted iPhone, else an iPhone on the newest iOS runtime. No script names a device model or OS version.
 
 Build Swift types so tests can construct them with plain values, as `AppInfoReader(info:systemVersion:)` does, and keep calls to `Bundle.main` or `UIDevice` in one static factory. The pod compiles with complete strict concurrency checking and Swift warnings as errors.
 

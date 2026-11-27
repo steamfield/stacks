@@ -103,6 +103,26 @@ const rows = [
     reason: "run_in_background",
   },
   {
+    stack: "react-native",
+    hook: "guard-react-native.sh",
+    deny: [
+      "bun run start",
+      "npx react-native start --reset-cache",
+      "bun run test:watch",
+      "bunx jest --watch",
+      "bun run test --watchAll",
+    ],
+    reason: "run_in_background",
+    allow: "bun run test",
+  },
+  {
+    stack: "flutter",
+    hook: "guard-flutter.sh",
+    deny: ["flutter run -d iPhone", "fvm flutter run", "flutter attach", "flutter logs"],
+    reason: "run_in_background",
+    allow: "flutter test integration_test -d iPhone",
+  },
+  {
     stack: "typescript-api",
     hook: "guard-api-commands.sh",
     deny: ["bun run dev"],
@@ -166,7 +186,7 @@ test("the inventory exercises each distinct anti-hang artifact once", () => {
     .filter((file) => file.isFile() && file.name.startsWith("guard-") && file.name.endsWith(".sh"))
     .map((file) => join(file.parentPath, file.name));
   const distinct = new Set(scripts.map((path) => readFileSync(path, "utf8")));
-  expect(scripts.map((path) => relative(registry, path))).toHaveLength(15);
+  expect(scripts.map((path) => relative(registry, path))).toHaveLength(17);
   expect(distinct.size).toBe(rows.length);
   const tested = rows.map((row) =>
     readFileSync(join(project(row.stack).root, ".claude/hooks", row.hook), "utf8"),

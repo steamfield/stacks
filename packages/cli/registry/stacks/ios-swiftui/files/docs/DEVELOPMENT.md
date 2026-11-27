@@ -27,7 +27,7 @@ macOS ships GNU Make 3.81, which ignores `.SHELLFLAGS`. Every piped xcodebuild r
 
 ## Simulators
 
-`scripts/sim-destination.sh` prints the `-destination` for xcodebuild: `SIMULATOR_UDID` when set, otherwise a booted iPhone on the newest iOS runtime, otherwise the first available iPhone there. List them with `xcrun simctl list devices available`. When several agents or terminals test at once, give each its own simulator:
+`scripts/sim-destination.sh` prints the `-destination` for xcodebuild: `SIMULATOR_UDID` when set, otherwise a booted iPhone, otherwise the first iPhone on the newest iOS runtime. List them with `xcrun simctl list devices available`. When several agents or terminals test at once, give each its own simulator:
 
 ```sh
 udid=$(xcrun simctl create "<name>" <device type id> <runtime id>)
@@ -39,7 +39,7 @@ xcrun simctl delete "$udid"
 
 ## Lint and format
 
-`make lint` runs SwiftLint with `--strict`, so warnings fail. `make fmt` formats with swift-format and `make fmt-check` fails on any difference. SwiftLint's layout rules that swift-format owns are disabled in `.swiftlint.yml`; keep the two from disagreeing when adding rules.
+`make lint` runs SwiftLint with `--strict`, so warnings fail. `make fmt` formats with swift-format and `make fmt-check` fails on any difference. `make lint-fix` applies SwiftLint's automatic fixes, then runs the formatter. SwiftLint's layout rules that swift-format owns are disabled in `.swiftlint.yml`; keep the two from disagreeing when adding rules.
 
 ## XcodeBuildMCP (optional)
 

@@ -34,7 +34,7 @@ The build uses complete concurrency checking and treats warnings as errors, so a
 - A new view model gets tests for each state it can reach and each callback. A new screen gets a test per rendered state (`loadViewIfNeeded`, then its `AccessibilityID`) and a coordinator test that the right view controller lands on the navigation stack.
 - `make coverage` fails when the `App` target's line coverage under `AppTests` is below the Makefile's `COVERAGE_MIN` (80 by default). Meet the floor with tests; raise it as coverage grows.
 - UI tests stay on XCTest, because Swift Testing has no UI automation. They launch the real app, so keep them few: one per journey. Find elements by accessibility identifier and wait with `waitForExistence(timeout:)`. Call `try app.performAccessibilityAudit()` on each screen a journey reaches; it checks labels, contrast, Dynamic Type and clipped text. To reach an error state, set an `APP_*` key in `launchEnvironment` that `AppConfig` already reads; never add a test-only branch to app code.
-- `scripts/sim-destination.sh` picks the simulator: `SIM_DESTINATION` or `SIM_UDID` when set, otherwise a booted iPhone on the newest iOS runtime, otherwise any iPhone there. Never write a device name or OS version into the Makefile or CI.
+- `scripts/sim-destination.sh` picks the simulator: `SIMULATOR_UDID` when set, otherwise a booted iPhone, otherwise the first iPhone on the newest iOS runtime. Never write a device name or OS version into the Makefile or CI.
 
 ## Lint and format
 

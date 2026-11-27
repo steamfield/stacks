@@ -39,10 +39,10 @@ import { workspace } from "./helpers/verify";
 
 const space = workspace();
 afterEach(() => space.release());
-function fixture() {
+function fixture(stackFrontmatter = "") {
   const home = space.dir();
   const registry = space.dir();
-  const entry = stack(registry);
+  const entry = stack(registry, "sample", stackFrontmatter);
   reviewSearchFixture(registry);
   const preview = (args: string[] = []) =>
     runCli(["validate", "--brief", "sample", ...args, "--json"], {
@@ -452,7 +452,13 @@ test("conflicting preview fragments fail with ComposeConflict and no result or w
 // This assertion runs before missing functionality can hide fixture problems: a clean fixture
 // must pass the shipped registry validator with the exact empty finding set.
 test("the preview fixture starts with no validation findings", async () => {
-  const { home, registry } = fixture();
+  const { home, registry } = fixture(
+    [
+      "commands: { check: Run CI checks, format: Apply safe fixes, audit: Audit dependencies }",
+      "fragments: { default: [agent-ops, git-hooks, ci-github] }",
+    ].join("\n"),
+  );
+  for (const id of ["agent-ops", "git-hooks", "ci-github"]) fragment(registry, id);
   const result = await runCli(["validate", "--json"], { home, env: quiet, host: { registry } });
   success(result);
   const report = Schema.decodeUnknownSync(ValidateReport)(JSON.parse(result.stdout));

@@ -1227,7 +1227,7 @@
     },
     {
       "id": "nomatch-swiftui",
-      "pool": "no-match",
+      "pool": "platform",
       "split": "holdout",
       "query": "a native SwiftUI iPhone app",
       "first": {

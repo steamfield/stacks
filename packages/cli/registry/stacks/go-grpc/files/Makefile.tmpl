@@ -104,7 +104,7 @@ coverage: ## Race-enabled tests with a coverage floor over hand-written packages
 vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-ci: generate-check buf-lint fmt-check tidy-check lint coverage test-integration vuln build ## Everything CI runs (breaking runs separately on pull requests)
+ci: generate-check buf-lint fmt-check tidy-check lint coverage test-integration build ## Every offline check CI runs (vuln is its own step; breaking runs separately on pull requests)
 
 clean: ## Remove build and coverage output
 	rm -rf bin/ coverage.out coverage.html

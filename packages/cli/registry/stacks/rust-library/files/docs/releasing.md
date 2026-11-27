@@ -13,7 +13,7 @@ Publishing to crates.io is permanent: a version can be yanked but never deleted 
 
 1. Decide the version from [the semver rules](public-api.md#semver) and set `package.version`.
 2. Note the change for users (a `CHANGELOG.md` entry or the release notes).
-3. Run `make ci`. `make package` lists the files that would ship and compiles them from the extracted `.crate` in `target/package/`.
+3. Run `make ci` and `make audit`. `make package` lists the files that would ship and compiles them from the extracted `.crate` in `target/package/`.
 4. The person runs `cargo publish --dry-run`, then `cargo publish` with their crates.io token, and tags the commit `v<version>`.
 
 Release tooling (release-plz, cargo-release) and semver checks in CI are deferred until the first release.

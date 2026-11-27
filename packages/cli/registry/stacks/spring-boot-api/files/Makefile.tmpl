@@ -1,8 +1,9 @@
 # {{project_name}} development commands.
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
-# fmt-check, lint, compile, coverage, test-integration, build and serve; CI
-# calls `make ci`.
+# fmt-check, lint, compile, coverage, test-integration, build, dev-bg, dev-stop
+# and serve (dev-cycle runs scripts/dev-bg.sh status directly). CI calls
+# install, ci, then audit as its own step.
 
 JAR        := target/app.jar
 JAVA_MAJOR := $(strip $(shell cat .java-version 2>/dev/null))
@@ -22,7 +23,7 @@ endif
 export JAVA_HOME
 
 .DEFAULT_GOAL := help
-.PHONY: help env install fmt fmt-check lint compile test coverage test-integration build serve ci clean
+.PHONY: help env install format fmt-check lint compile test coverage test-integration build serve dev-bg dev-stop dev-status audit ci clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-17s %s\n", $$1, $$2}'
@@ -38,7 +39,7 @@ install: env ## Check the toolchain and download dependencies and plugins
 	$(MVN) -q dependency:go-offline
 	@test -n "$$CI" || ! test -f lefthook.yml || lefthook install
 
-fmt: env ## Format Java sources (Spotless, palantir-java-format)
+format: env ## Format Java sources (Spotless, palantir-java-format)
 	$(MVN) -q spotless:apply
 
 fmt-check: env ## Fail if Spotless would change any Java source
@@ -66,7 +67,21 @@ build: env ## Executable jar at target/app.jar
 serve: build ## Build, then run the jar in the foreground until SIGINT or SIGTERM
 	exec "$${JAVA_HOME:+$$JAVA_HOME/bin/}java" -jar $(JAR)
 
-ci: fmt-check ## Everything CI runs (fmt-check, enforcer, every test, coverage, the jar)
+dev-bg: build ## Start the jar in the background, or reuse a healthy one; output goes to logs/dev.log
+	@bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
+
+# Needs the network, so it stays out of ci and verify; CI runs it as its own step.
+audit: env ## Check dependencies for known vulnerabilities (osv-scanner)
+	@command -v osv-scanner >/dev/null || { echo "osv-scanner not found. Install it: https://google.github.io/osv-scanner/installation/" >&2; exit 1; }
+	osv-scanner scan source -L pom.xml
+
+ci: fmt-check ## Every offline check CI runs (fmt-check, enforcer, every test, coverage, the jar; audit is its own step)
 	$(MVN) verify
 
 clean: env ## Remove build output

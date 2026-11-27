@@ -2,15 +2,15 @@
 # Print an xcodebuild -destination for an available iPhone simulator, so no
 # device name or iOS version is written into the Makefile.
 #
-#   SIM_DESTINATION set    printed as is (CI or a simulator you created)
+#   SIMULATOR_UDID set     that simulator (xcrun simctl list devices available)
 #   otherwise              a booted iPhone if there is one, else the first iPhone
 #                          on the newest installed iOS runtime
 #
 # Exits 1 with a hint when no iPhone simulator is installed.
 set -euo pipefail
 
-if [ -n "${SIM_DESTINATION:-}" ]; then
-  printf '%s\n' "$SIM_DESTINATION"
+if [ -n "${SIMULATOR_UDID:-}" ]; then
+  printf 'platform=iOS Simulator,id=%s\n' "$SIMULATOR_UDID"
   exit 0
 fi
 

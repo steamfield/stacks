@@ -9,7 +9,7 @@ How Java code in this project is written. The shipped code follows every rule he
 - Every version lives in a `<properties>` entry of `pom.xml`. The Quarkus platform BOM manages the Quarkus extensions and most libraries, so a managed dependency has no `<version>`; an unmanaged one gets a `<name>.version` property. Plugins always get a property; the Quarkus Maven plugin shares the platform's.
 - Add a Quarkus capability as its extension (`io.quarkus:quarkus-<name>`, managed by the BOM), not as the plain library underneath it: the extension does the build-time wiring the library alone lacks.
 - Keep the build's checks: Enforcer's Java version and dependency convergence, `-Xlint:all` with `failOnWarning`, Error Prone with NullAway, Spotless and the JaCoCo floor. A check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why, never a weaker build.
-- Spotless (palantir-java-format) owns formatting. Run `make fmt` after editing rather than formatting by hand.
+- Spotless (palantir-java-format) owns formatting. Run `make format` after editing rather than formatting by hand.
 - The app runs in JVM mode from `target/quarkus-app/`. Never `quarkus:dev` in an agent shell: it watches files and holds the terminal.
 
 ## Nullness

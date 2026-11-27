@@ -31,7 +31,8 @@ Requires the JDK named in `.java-version` (on macOS, `brew install openjdk@<majo
 | `make build` | The jar, sources jar and Javadoc jar under `target/` |
 | `make test-consumer` | Builds a separate project against the installed jar |
 | `make api-check` | Fails on an incompatible change since the last release |
-| `make ci` | Everything CI runs |
+| `make audit` | Known vulnerabilities in dependencies (osv-scanner) |
+| `make ci` | Every offline check CI runs |
 
 Releasing is a person's step: [docs/releasing.md](docs/releasing.md).
 

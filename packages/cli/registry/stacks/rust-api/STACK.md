@@ -7,7 +7,7 @@ description: A Rust JSON API on Axum and Tokio with one error envelope from a th
 tags: [rust, api, make]
 deps:
   api: [axum, tokio, tower, tower-http, serde, serde_json, thiserror, tracing, tracing-subscriber]
-tools: [cargo, rustup, make, git]
+tools: [cargo, rustup, make, git, bash]
 decisions:
   - "Listen address: HOST 127.0.0.1 and PORT 8080 (default); a container sets HOST=0.0.0.0."
   - "Proving resource: notes (title, body) held in memory (default), or the project's first real resource with the same routes and tests."
@@ -28,6 +28,10 @@ verify:
   - { name: check, layer: typecheck, run: make check }
   - { name: test, layer: test, run: make test }
   - { name: build, layer: build, run: make build }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: api
     phase: serve
     layer: serve
@@ -43,12 +47,16 @@ commands:
   fmt-check: Fail if rustfmt would change any file
   clippy: clippy on every target with warnings denied
   lint: fmt-check and clippy
+  lint-fix: Apply clippy's machine-applicable fixes, then format
   check: Type-check every target
   test: Unit, router and binary tests (tests/binary.rs starts the server and signals it)
   build: Release binary in target/release/
   serve: Build, then run the release server in the foreground until SIGINT or SIGTERM
+  dev-bg: Build, then start the release server in the background (or reuse a healthy one), logging to logs/dev.log
+  dev-stop: Stop the process group dev-bg started
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   audit: Advisories, licenses and sources with cargo-deny (needs network)
-  ci: "Everything CI runs (fmt-check, clippy, test, build, audit)"
+  ci: "Every offline check CI runs (fmt-check, clippy, test, build)"
   clean: Remove build output
 ---
 
@@ -58,7 +66,7 @@ A JSON service on Axum and Tokio: one error table from variant to status, one en
 
 ## What stacks wrote
 
-A working slice that passes every check once its crates are added. `Cargo.toml` is one package at the root inside a workspace, with the lint policy in `[workspace.lints]`, a library named `api` and no dependencies yet; `clippy.toml`, `rust-toolchain.toml` and `deny.toml` sit beside it. `src/main.rs` reads the process and calls `api::run` (`src/lib.rs`), which serves or answers `--healthcheck` (`probe.rs`). Serving loads `Config` from the environment (`config.rs`), starts JSON logging (`logging.rs`) and runs `server::run`: bind, log `listening`, serve `app::router`, drain on a signal, log `stopped`. `app.rs` layers the middleware over the route table (`routes.rs`, `routes/health.rs`, `routes/notes.rs`); `error.rs` holds `ApiError` with its status table and `StartError` with its exit statuses; `extract.rs` wraps axum's extractors so rejections become envelopes. The in-memory notes resource (`notes.rs`, create, read and cursor-paged list) is the payload. Unit tests sit in each module; `tests/http.rs` drives the real router in process and `tests/binary.rs` runs the built server and signals it. `docs/` has ARCHITECTURE, configuration, `http-api.md` (the HTTP contract) and `guidance/rust.md`, the Rust rules every agent follows. Read the code before extending it.
+A working slice that passes every check once its crates are added. `Cargo.toml` is one package at the root inside a workspace, with the lint policy in `[workspace.lints]`, a library named `api` and no dependencies yet; `clippy.toml`, `rust-toolchain.toml` and `deny.toml` sit beside it. `src/main.rs` reads the process and calls `api::run` (`src/lib.rs`), which serves or answers `--healthcheck` (`probe.rs`). Serving loads `Config` from the environment (`config.rs`), starts JSON logging (`logging.rs`) and runs `server::run`: bind, log `listening`, serve `app::router`, drain on a signal, log `stopped`. `app.rs` layers the middleware over the route table (`routes.rs`, `routes/health.rs`, `routes/notes.rs`); `error.rs` holds `ApiError` with its status table and `StartError` with its exit statuses; `extract.rs` wraps axum's extractors so rejections become envelopes. The in-memory notes resource (`notes.rs`, create, read and cursor-paged list) is the payload. Unit tests sit in each module; `tests/http.rs` drives the real router in process and `tests/binary.rs` runs the built server and signals it. `scripts/dev-bg.sh` runs the release server in the background. `docs/` has ARCHITECTURE, configuration, `http-api.md` (the HTTP contract) and `guidance/rust.md`, the Rust rules every agent follows. Read the code before extending it.
 
 ## Setup
 
@@ -94,10 +102,12 @@ Unit tests sit in each module's `#[cfg(test)] mod tests`: config parsing and val
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, check, test, build, serve, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with a single-test command such as `cargo test --test http bad_queries`. Run `make serve` in the background when needed and stop only the pid you started. Checks run with `--locked`; commit `Cargo.lock`.
+The shipped Makefile (`make help`) has install, fmt, fmt-check, clippy, lint, lint-fix, check, test, build, serve, dev-bg, dev-stop, dev-status, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with a single-test command such as `cargo test --test http bad_queries`. `make lint-fix` applies clippy's machine-applicable fixes and formats. Checks run with `--locked`; commit `Cargo.lock`.
+
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make serve` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make serve` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: `make install`, then `make ci` (fmt-check, clippy, test, build, audit), with cargo-deny already installed so `make audit` skips compiling it. The stack has no coverage target (Rust coverage needs cargo-llvm-cov, which it doesn't ship), so CI runs plain tests; record that under Deferred.
+**CI.** One `ubuntu-latest` job: `make install`, then `make ci` (fmt-check, clippy, test, build), then `make audit` as its own step, with cargo-deny already installed so it skips compiling it. The audit needs the network, so it stays out of `ci`. The stack has no coverage target (Rust coverage needs cargo-llvm-cov, which it doesn't ship), so CI runs plain tests; record that under Deferred.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

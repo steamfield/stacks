@@ -52,6 +52,7 @@ commands:
   ios:test: The AppInfo pod's Swift tests on an available iPhone simulator
   ios:e2e: Install the ios:build app and run the Maestro flows at the default and an accessibility text size
   check: Every check verify runs after install
+  audit: Check the JavaScript dependencies in bun.lock for known vulnerabilities (bun audit; needs the network)
   clean: Remove coverage, bundles and Xcode derived data
 ---
 
@@ -65,18 +66,28 @@ Link `docs/guidance/react-native/index.md` from AGENTS.md.
 
 ## Setup
 
-1. Generate the native projects before installing anything. Look up the current React Native release (`npm view react-native version`), read `npx @react-native-community/cli@latest init --help`, then run init non-interactively into a temporary directory outside the project, with that React Native version, the native project name and bundle identifier from the decisions, and install, pods and git skipped.
-2. Install the declared dependencies with `bun add` and `bun add -d`, taking versions from the generated `package.json` where it lists the package: `react`, `react-native`, the `@react-native/*` and `@react-native-community/cli*` packages at its exact versions, and `@babel/core` and `@babel/runtime` within its ranges, because React Native's Babel preset breaks on a newer Babel major. That rules out the plain `bun add` lines under Start here for those packages. Install `@babel/plugin-transform-export-namespace-from` at the same Babel major; everything else takes its current release within peer ranges. Then copy only the generated `ios/` (including `ios/.xcode.env`) and `android/` into the project and delete the temporary directory. Never copy its `App.tsx`, `index.js`, `app.json`, `package.json`, `Gemfile`, tests, ESLint, Prettier, Babel or Metro files over the shipped ones.
+1. Generate the native projects before installing anything. Look up the current React Native release (`npm view react-native version`), read `npx @react-native-community/cli@latest init --help` (the generator React Native's own docs name, published by the react-native-community organization on npm), then run init non-interactively into a temporary directory outside the project, with that React Native version, the native project name and bundle identifier from the decisions, and install, pods and git skipped.
+2. Install the declared dependencies with `bun add` and `bun add -d`, taking versions from the generated `package.json` where it lists the package: `react`, `react-native`, the `@react-native/*` and `@react-native-community/cli*` packages at its exact versions, and `@babel/core` and `@babel/runtime` within its ranges, because React Native's Babel preset breaks on a newer Babel major. That rules out the plain `bun add` lines under Start here for those packages. Install `@babel/plugin-transform-export-namespace-from` at the same Babel major; everything else takes its current release within peer ranges. Then copy only the generated `ios/` (including `ios/.xcode.env`) and `android/` into the project and delete the temporary directory (if a command guard refuses, leave it; it sits outside the project). Never copy its `App.tsx`, `index.js`, `app.json`, `package.json`, `Gemfile`, tests, ESLint, Prettier, Babel or Metro files over the shipped ones.
 3. Replace the `stacks:fill` in `app.json`'s `name` with the native project name; `ios:build` fails until they match. In `ios/Podfile`, inside the app target and right after `config = use_native_modules!`, add `pod "AppInfo", :path => "../modules/app-info", :testspecs => ["Tests"]` so CocoaPods builds the module's test bundle.
-4. Run `bun run pods`. Bundler resolves CocoaPods from the shipped Gemfile; if it or CocoaPods rejects the installed Ruby, carry over the matching exclusion from the template's Gemfile and record it under Build workarounds. React Native's notice that calling `pod install` directly is deprecated is informational.
+4. Run `bun run pods` with a Homebrew or version-manager Ruby first on PATH; the script refuses macOS's `/usr/bin/ruby`, whose old Bundler stamps a `Gemfile.lock` no newer Ruby can load. Bundler resolves CocoaPods from the shipped Gemfile; if it or CocoaPods rejects the installed Ruby, carry over the matching exclusion from the template's Gemfile and record it under Build workarounds. React Native's notice that calling `pod install` directly is deprecated is informational.
 5. Run `bun run lint`, `bun run lint:native`, `bun run typecheck`, `bun run coverage`, `bun run bundle`, `bun run ios:build`, `bun run ios:test` and `bun run ios:e2e`. `ios:e2e` needs a JDK and the Maestro CLI (Maestro's install guide has the commands); when either is missing, it names what's missing, and the install goes under Pending user actions. Where an installed release rejects shipped code or config (a renamed API, a moved option), update it from that release's docs or types, keeping every check, lint rule and assertion. Then `bun run format`.
-6. Add these cases to `.claude/hooks/smoke.sh` so `hooks-smoke` covers the stack's hooks: the first three beside the other guards, the `wires` line after the existing `wires` lines (the function is defined just above them):
+6. If `.claude/hooks/smoke.sh` exists, add these cases so `hooks-smoke` covers the stack's hooks: the first three beside the other guards, the `wires` line after the existing `wires` lines (the function is defined just above them). The three hooks come with the Claude Code adapter; when Claude Code isn't a target agent they're absent, the cases skip, and you don't write them yourself.
 
    ```sh
-   denies "a project file edit" '{"tool_input":{"file_path":"ios/App.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-native-project.sh
-   allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/App/Info.plist","content":"x"}}' $h/protect-native-project.sh
-   allows "a TypeScript file in the Swift linter" '{"tool_input":{"file_path":"src/config.ts"}}' $h/lint-swift.sh
-   wires .claude/settings.json hooks/protect-native-project.sh
+   if [ -f $h/protect-native-project.sh ]; then
+     denies "a Podfile.lock edit" '{"tool_input":{"file_path":"ios/Podfile.lock","content":"x"}}' $h/protect-native-project.sh
+     allows "a project file edit" '{"tool_input":{"file_path":"ios/App.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-native-project.sh
+     allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/App/Info.plist","content":"x"}}' $h/protect-native-project.sh
+     wires .claude/settings.json hooks/protect-native-project.sh
+   fi
+   if [ -f $h/guard-react-native.sh ]; then
+     denies "Metro in the foreground" '{"tool_input":{"command":"bun run start"}}' $h/guard-react-native.sh
+     allows "the Jest run" '{"tool_input":{"command":"bun run test"}}' $h/guard-react-native.sh
+     wires .claude/settings.json hooks/guard-react-native.sh
+   fi
+   if [ -f $h/lint-swift.sh ]; then
+     allows "a TypeScript file in the Swift linter" '{"tool_input":{"file_path":"src/config.ts"}}' $h/lint-swift.sh
+   fi
    ```
 
 7. Record Node in `.node-version`, Ruby in `.ruby-version`, Bun in `packageManager`, and React Native, Xcode, the iOS deployment target, Swift, Ruby, CocoaPods, the JDK and Maestro in the README's Toolchain section. Commit `Gemfile.lock`, `ios/Podfile.lock` and the native projects; `ios/Pods/` and `vendor/bundle/` stay ignored.
@@ -87,7 +98,8 @@ Link `docs/guidance/react-native/index.md` from AGENTS.md.
 The shipped code keeps these; new code does too. `docs/guidance/react-native/` has the reasons.
 
 - Only `src/native/` imports a native spec. It wraps each call in a timeout, decodes the answer with zod and throws `AppError`; screens see typed state, never a raw native promise.
-- Native code lives in a local module under `modules/<name>/`, listed in `react-native.config.js`, with its own podspec. Logic goes in Swift; the Objective-C++ file only conforms to the codegen protocol and forwards. The Xcode project file, the workspace, `ios/Pods/` and `Podfile.lock` change only through Xcode or `pod install`; the Claude hook denies hand edits.
+- Native code lives in a local module under `modules/<name>/`, listed in `react-native.config.js`, with its own podspec. Logic goes in Swift; the Objective-C++ file only conforms to the codegen protocol and forwards. `ios/Pods/`, `Podfile.lock` and the workspace change only through `bun run pods`; the Claude hook denies hand edits to them. Keep edits to the Xcode project file to settings a module can't carry.
+- Metro (`bun run start`) and Jest's watch mode never exit, so an agent runs Metro only in the background and tests through `bun run test`; `guard-react-native.sh` denies them in the foreground.
 - A spec file is named `Native<Name>.ts`, exports `Spec` and uses `TurboModuleRegistry.get`, so a platform without an implementation gets the unavailable state instead of a crash.
 - Failures are `AppError` with a `kind`. `userMessage` and `isRetryable` in `src/errors.ts` are the one table; a new kind adds a row and a test.
 - Settings live in `src/config.ts`: each has a default, a zod rule and a test row. Values arrive as the root component's initial properties, and unknown keys are rejected.
@@ -100,14 +112,14 @@ The shipped code keeps these; new code does too. `docs/guidance/react-native/` h
 
 Jest runs `src/**/*.test.ts(x)` and `tests/**/*.test.tsx` on React Native's preset. Screen tests render the real `App` with React Native Testing Library, await `render`, press with `userEvent`, find elements by role and text, and replace only the native spec with `jest.mock`; a new screen gets a test for each state it renders. `src/native/` tests pass a fake source and cover success, unavailable, native rejection, decode failure and timeout. Verify runs Jest through `coverage`, which fails below the 80% line floor in `jest.config.js`; the person may change the floor there. The floor covers JavaScript only: the Swift side is one small class whose behavior `ios:test` checks case by case, so an Xcode coverage floor isn't worth a second report until the native code grows.
 
-The native side has three checks. `ios:build` builds Release for the simulator with signing off, so the JavaScript bundle is inside the app. `ios:test` runs `modules/app-info/ios/Tests/` (Swift Testing) through the pod's test spec, which compiles with complete strict concurrency checking and Swift warnings as errors. `ios:e2e` installs the `ios:build` product and runs the Maestro flows in `.maestro/` twice, at the default text size and at `accessibility-extra-large`, resetting the size even when a flow fails. All three use the iPhone simulator `scripts/sim-destination.sh` picks; set `IOS_SIMULATOR_ID` to a UDID to use your own. A new Swift type gets `@Test` cases; a new screen people rely on gets a flow step. Jest can't see native code and the Swift tests can't see JavaScript, so a spec change needs both; only the Maestro flow crosses the boundary.
+The native side has three checks. `ios:build` builds Release for the simulator with signing off, so the JavaScript bundle is inside the app. `ios:test` runs `modules/app-info/ios/Tests/` (Swift Testing) through the pod's test spec, which compiles with complete strict concurrency checking and Swift warnings as errors. `ios:e2e` installs the `ios:build` product and runs the Maestro flows in `.maestro/` twice, at the default text size and at `accessibility-extra-large`, resetting the size even when a flow fails. All three use the iPhone simulator `scripts/sim-destination.sh` picks; set `SIMULATOR_UDID` to a UDID to use your own. A new Swift type gets `@Test` cases; a new screen people rely on gets a flow step. Jest can't see native code and the Swift tests can't see JavaScript, so a spec change needs both; only the Maestro flow crosses the boundary.
 
 ## Commands
 
-`package.json` wires every declared command. Mirror them in AGENTS.md with a scoped example such as `bun run test src/native/app-info.test.ts`. `bun start` serves Metro for `bun run ios` and `bun run android`; neither is part of verify.
+`package.json` wires every declared command. Mirror them in AGENTS.md with a scoped example such as `bun run test src/native/app-info.test.ts`. `bun start` serves Metro for `bun run ios` and `bun run android`; neither is part of verify. `bun run audit` needs the network, so `check` leaves it out.
 
 <!-- stacks:when with=ci-github -->
-CI needs two jobs behind `ci-ok`. An `ubuntu-latest` job sets up Node and Bun and runs install, lint, typecheck, coverage and bundle, none of which need Xcode. A macOS job on the image whose Xcode matches the README sets up Node, Bun and Ruby (from `.ruby-version`, with Bundler caching), installs Maestro from its Homebrew tap and uses the image's JDK, then runs install, pods, lint:native, ios:build, ios:test and ios:e2e. Cache `ios/Pods` keyed on `ios/Podfile.lock`, and upload `~/.maestro/tests/` when the job fails. No Android build runs until the AppInfo module has an Android implementation.
+CI needs two jobs behind `ci-ok`. An `ubuntu-latest` job sets up Node and Bun and runs install, lint, typecheck, coverage and bundle, none of which need Xcode, then audit as its own step. A macOS job on the image whose Xcode matches the README sets up Node, Bun and Ruby (from `.ruby-version`, with Bundler caching), installs Maestro from its Homebrew tap and uses the image's JDK, then runs install, pods, lint:native, ios:build, ios:test and ios:e2e. Cache `ios/Pods` keyed on `ios/Podfile.lock`, and upload `~/.maestro/tests/` when the job fails. No Android build runs until the AppInfo module has an Android implementation.
 <!-- stacks:end -->
 
 <!-- stacks:when with=git-hooks -->

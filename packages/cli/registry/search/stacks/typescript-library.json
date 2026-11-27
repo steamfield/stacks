@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "typescript-library",
   "source": {
-    "digest": "sha256:09333b4739b2054a03fd0685cc29bbc14d3cc91994e2fd9c69e9e408c5ad611d",
+    "digest": "sha256:5e2fc0f29a154ece08e2d01649506ad8dc112c51db9af7a42142f0482049d226",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A TypeScript package for npm, built to ESM with type declarations and checked as the tarball users will install.",
   "description": "Start a TypeScript package meant for npm. The starter has one small public function with an options object, a documented error type with stable codes, and a single entry point whose exports are pinned by a test. tsdown builds ESM and bundled type declarations, publint and Are the Types Wrong check the package settings, and a consumer check installs the packed tarball into a clean project, then typechecks and runs it. The package stays private until you decide to publish, which you do yourself.",

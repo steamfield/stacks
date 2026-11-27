@@ -7,7 +7,7 @@ description: A presentation project for Decks slide decks, written in MDX with R
 tags: [typescript, react, web, static, slides, scripts, bun, node]
 deps:
   decks: ["@steamfield/decks", react, react-dom]
-  dev: [typescript, "@types/react", "@types/react-dom", "@types/node"]
+  dev: [typescript, "@types/react", "@types/react-dom", "@types/node", "@biomejs/biome"]
 tools: [bun, node, git]
 decisions:
   - "First deck: a conventional deck with a cover and one three-point slide (default), or a story deck (`--story`) with a stage, story cards and a data module when the person wants a data-driven talk."
@@ -16,8 +16,8 @@ decisions:
   - "Node version: current LTS (default), recorded in .node-version. The decks command runs on Node; Bun installs and runs scripts."
 merge: [.claude/settings.json]
 fragments:
-  default: [agent-ops]
-  optional: [git-hooks, ci-github, ce-plugin, rr]
+  default: [agent-ops, git-hooks, ci-github]
+  optional: [ce-plugin, rr]
 env:
   PORT_WEB: "3030"
 verify:
@@ -45,10 +45,12 @@ commands:
   decks: The installed decks command (bun run decks new <alias>, decks init, decks shot ...)
   dev: Serve the project's deck with live updates (first free port from 3030, or --port)
   build: Build the deck to a static site in dist/<alias>/
-  lint: Lint every registered deck's prose for error-level patterns
+  lint: Lint every registered deck's prose for error-level patterns, then run Biome over the decks' TypeScript, CSS and JSON
+  format: Apply Biome formatting and safe fixes to the decks' TypeScript, CSS and JSON
   typecheck: Run tsc over the decks' config, setup and component files
   test: Check decks.json, every deck's config and slides, slide names and prose (decks check)
-  check: decks check, typecheck, then build
+  check: Lint, typecheck, decks check, then build
+  audit: Check dependencies for known vulnerabilities with bun audit (needs the network)
   clean: Remove build output
 ---
 
@@ -56,7 +58,7 @@ commands:
 
 ## What stacks wrote
 
-A Bun project shell for Decks: `package.json` scripts that drive the installed `decks` command for one deck named after the project, a strict `tsconfig.json` over `decks/`, `.gitignore`, a README to fill, and Claude Code permissions for the scripts. The project's own deck and the agent setup come from the framework's own commands in Setup, so they match the installed release. Read the shipped files and then the installed guide at `node_modules/@steamfield/decks/docs/` before writing slides.
+A Bun project shell for Decks: `package.json` scripts that drive the installed `decks` command for one deck named after the project, a strict `tsconfig.json` over `decks/`, a `biome.json` that lints and formats the decks' TypeScript, CSS and JSON, `.gitignore`, a README to fill, and Claude Code permissions for the scripts. The project's own deck and the agent setup come from the framework's own commands in Setup, so they match the installed release. Read the shipped files and then the installed guide at `node_modules/@steamfield/decks/docs/` before writing slides.
 
 <!-- stacks:when payload=example -->
 It also wrote `decks/example/`, a four-slide reference deck registered as `example` in `decks.json`: a cover, one claim with bullets revealed by `Steps` and per-click speaker notes, a figure drawn by a deck component from `data/03-words.ts` with its source in `data-sources.md`, and a close. Its figure is hand-drawn to stay small; a real chart uses the kit's `OpenChart`. Read it before writing the first slide; it follows the Decks skills, so copy its patterns rather than inventing markup. README's "Run the example deck" section tells the person how to present it. Keep it unless the person asks to remove it; removing it means deleting `decks/example/` and its `decks.json` entry. `stacks new decks <dir> --payload none` leaves it out.
@@ -76,7 +78,7 @@ Each deck lives in `decks/<alias>/` and is registered in `decks.json`; `decks ne
 3. Run `bun run decks init`, which runs the installed `node_modules/.bin/decks`. This step is required: it is how the project gets the Decks agent guidance. It enables the Decks Claude Code plugin in `.claude/settings.json` pinned to the installed version, copies the Decks skills (`working-with-decks`, `building-a-deck`, `writing-slides`, `deck-design`, `deck-motion`, `visualization`, `deck-data`) to `.agents/skills/`, and adds a Decks section to `AGENTS.md`, keeping what stacks and the fragments wrote. If it fails, stop and report its output to the person; never copy the skills or write the section by hand. Leave the files it writes as they are, and read `working-with-decks` before writing any slide.
    `decks init` owns `.agents/skills/` and refuses to write through a symlink, so keep it a real directory: where the AGENTS.md harness section asks to merge `.agents/skills` into `.claude/skills` behind a symlink, skip that move in this project, and write there that the Decks skills live in `.agents/skills/` for Codex and reach Claude Code through the Decks plugin. Project skills of your own go in `.claude/skills/`.
 4. Record the installed Bun in `packageManager` and Node in `.node-version`.
-5. Run `bun run lint`, `bun run typecheck`, `bun run test` and `bun run build`. Where the installed release rejects shipped config, update the config for that release without loosening `strict` or dropping a check.
+5. Run `bun run format` so the files `decks new` wrote match the shipped Biome config, then `bun run lint`, `bun run typecheck`, `bun run test` and `bun run build`. Where the installed release rejects shipped config, update the config for that release without loosening `strict` or dropping a check.
 6. Fill README's `stacks:fill` markers, finish the selected fragments, then run `stacks verify` until green. Tell the person to run `claude plugin install decks@steamfield --scope project` once if they use Claude Code; it installs into their own Claude Code, so don't run it for them.
 
 ## Conventions
@@ -92,7 +94,11 @@ Each deck lives in `decks/<alias>/` and is registered in `decks.json`; `decks ne
 
 ## Commands
 
-`bun run dev`, `build`, `lint`, `typecheck`, `test`, `check` and `clean`, plus `bun run decks <command>` for `new`, `init`, `shot` and `export`. `bun run decks <command> --help` prints the installed flags.
+`bun run dev`, `build`, `lint`, `format`, `typecheck`, `test`, `check`, `audit` and `clean`, plus `bun run decks <command>` for `new`, `init`, `shot` and `export`. `bun run decks <command> --help` prints the installed flags. `check` runs every offline check; `audit` runs `bun audit`, which needs the network, so it stays out of `check`. Biome skips `.mdx` slides; `decks lint` and `decks check` cover their prose.
+
+<!-- stacks:when with=ci-github -->
+CI sets up Bun from `packageManager` and Node from `.node-version`, installs frozen dependencies, runs `bun run check`, then `bun run audit` as its own step: the audit needs the network, so it stays out of `check`. The build only warns without Chromium, so CI needs no browser.
+<!-- stacks:end -->
 
 ## Gotchas
 

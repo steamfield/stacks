@@ -47,7 +47,7 @@ commands:
   coverage: Race-enabled tests with a coverage floor and a failure summary (gotestsum)
   vuln: Check dependencies for known vulnerabilities (govulncheck)
   smoke: Build and run the binary's --help and --version
-  ci: "Everything CI runs (fmt-check, tidy-check, lint, coverage, test-integration, vuln, build): the full check"
+  ci: "Every offline check CI runs (fmt-check, tidy-check, lint, coverage, test-integration, build)"
   clean: Remove build and coverage output
 ---
 

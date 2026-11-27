@@ -6,7 +6,7 @@ name: Python library for PyPI
 description: A typed Python library for PyPI in a src layout, built with uv and make. A py.typed marker, strict mypy, pytest with Hypothesis property tests on the newest and oldest supported Python, and a wheel and sdist checked with twine and installed in a clean environment.
 tags: [python, library, make]
 deps:
-  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, hypothesis, twine]
+  dev: [ruff, mypy, pytest, pytest-cov, pytest-randomly, pytest-xdist, hypothesis, twine, pip-audit]
 tools: [uv, make, git, jq]
 merge: [.claude/settings.json]
 decisions:
@@ -43,6 +43,8 @@ commands:
   test-min: pytest on the oldest supported Python, in a fresh environment
   build: Build the sdist and wheel into dist/ and check their metadata with twine
   smoke: Install the wheel on the oldest Python outside the source tree, import it, and type-check a consumer against it
+  ci: lint, typecheck, coverage, test-min, build and smoke, as CI runs them
+  audit: pip-audit over every locked dependency (needs the network)
   clean: Remove caches, build and coverage output
 ---
 
@@ -86,7 +88,7 @@ The shipped Makefile (`make help`) holds every declared target. Mirror them in A
 Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage test-min build smoke` with CI set. `test-min` covers the oldest Python, so a version matrix is optional; if the user wants one, run `make test` per version and keep `test-min`.
+CI uses uv's setup action (cache on, Python from .python-version), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`. `test-min` covers the oldest Python, so a version matrix is optional; if the user wants one, run `make test` per version and keep `test-min`.
 <!-- stacks:end -->
 
 ## Gotchas

@@ -30,6 +30,7 @@ The `.xcodeproj` is generated from `project.yml` and not committed. Change targe
 | `make project` | Regenerate the Xcode project from `project.yml` |
 | `make build` | Build the app and both test bundles for a simulator; warnings fail |
 | `make lint` | SwiftLint with warnings as errors |
+| `make lint-fix` | Apply SwiftLint's automatic fixes, then format |
 | `make fmt` | Format Swift sources with swift-format |
 | `make fmt-check` | Fail on any swift-format difference or finding |
 | `make test` | Unit tests |
@@ -38,7 +39,7 @@ The `.xcodeproj` is generated from `project.yml` and not committed. Change targe
 | `make ci` | Everything CI runs |
 | `make clean` | Remove build output and the generated project |
 
-Set `SIM_UDID` (or a full `SIM_DESTINATION`) to choose the simulator; otherwise the targets pick an available iPhone.
+Set `SIMULATOR_UDID` to choose the simulator; otherwise the targets pick a booted iPhone, then the first iPhone on the newest iOS runtime.
 
 ## Docs
 

@@ -35,6 +35,7 @@ commands:
   project: Regenerate the .xcodeproj from project.yml when the spec or file list changed
   build: Build the app and both test bundles for a simulator, warnings as errors
   lint: SwiftLint with --strict
+  lint-fix: Apply SwiftLint's automatic fixes, then format with swift-format
   fmt: Format Swift sources with swift-format
   fmt-check: Fail on any swift-format difference or lint finding
   test: Unit tests (AppTests) on a simulator
@@ -76,14 +77,14 @@ No generator; the agent runs XcodeGen through `make project`.
 
 ## Testing
 
-Unit tests use Swift Testing (`@Test`, `#expect`, `#require`, `arguments:` for cases that differ only by data); test arguments must be `Sendable`. `make test` runs `AppTests`, hosted in the app: view model and screen suites are `@MainActor`, drive `load()` and `select(itemID:)` against the test doubles in `AppTests/Support/` and assert on `state`, the callbacks and the rendered state's `AccessibilityID`; coordinator tests check the navigation stack after each action; config tests cover precedence and every rejection. A new screen adds a test per state and a coordinator test for how it's reached. `make coverage` runs the same tests with coverage and fails when the `App` target's line coverage drops below `COVERAGE_MIN` (80 by default) in the Makefile; meet it with tests, never by lowering it. `make test-ui` runs `AppUITests` on XCTest, since Swift Testing has no UI automation: one test per journey, finding elements by the `AccessibilityID` enums, reaching error states through `launchEnvironment`, and calling `performAccessibilityAudit()` on each new screen. All targets use `scripts/sim-destination.sh`: set `SIM_UDID` or `SIM_DESTINATION` to choose a simulator. Run one suite or test with `make test ONLY='AppTests/<Suite>/<test>()'`.
+Unit tests use Swift Testing (`@Test`, `#expect`, `#require`, `arguments:` for cases that differ only by data); test arguments must be `Sendable`. `make test` runs `AppTests`, hosted in the app: view model and screen suites are `@MainActor`, drive `load()` and `select(itemID:)` against the test doubles in `AppTests/Support/` and assert on `state`, the callbacks and the rendered state's `AccessibilityID`; coordinator tests check the navigation stack after each action; config tests cover precedence and every rejection. A new screen adds a test per state and a coordinator test for how it's reached. `make coverage` runs the same tests with coverage and fails when the `App` target's line coverage drops below `COVERAGE_MIN` (80 by default) in the Makefile; meet it with tests, never by lowering it. `make test-ui` runs `AppUITests` on XCTest, since Swift Testing has no UI automation: one test per journey, finding elements by the `AccessibilityID` enums, reaching error states through `launchEnvironment`, and calling `performAccessibilityAudit()` on each new screen. All targets use `scripts/sim-destination.sh`: set `SIMULATOR_UDID` to choose a simulator. Run one suite or test with `make test ONLY='AppTests/<Suite>/<test>()'`.
 
 ## Commands
 
-The shipped Makefile (`make help`) has env, install, project, build, lint, fmt, fmt-check, test, coverage, test-ui, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md.
+The shipped Makefile (`make help`) has env, install, project, build, lint, lint-fix, fmt, fmt-check, test, coverage, test-ui, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md.
 <!-- stacks:when with=agent-ops -->
 
-**Agent hooks.** The stack's Claude adapter adds two hooks on agent-ops' `_lib.sh`, and its settings allow the make targets and read-only Xcode commands. `protect-xcodeproj.sh` denies Edit, Write and shell writes (in-place `sed`/`perl`, redirection, `tee`, PlistBuddy, `plutil -replace`) inside `*.xcodeproj`, `*.xcworkspace` or a `.pbxproj`. `lint-swift.sh` runs SwiftLint and swift-format on each Swift file written and returns findings as context; agent-ops' `lint-on-write.sh` skips Swift. List both in `.claude/README.md`, and add their cases to `.claude/hooks/smoke.sh` before its `parses` function:
+**Agent hooks.** The stack's Claude adapter adds two hooks on agent-ops' `_lib.sh`, and its settings allow the make targets and read-only Xcode commands. `protect-xcodeproj.sh` denies Edit and Write inside `*.xcodeproj`, `*.xcworkspace` or a `.pbxproj`. `lint-swift.sh` runs SwiftLint and swift-format on each Swift file written and returns findings as context; agent-ops' `lint-on-write.sh` skips Swift. List both in `.claude/README.md`, and add their cases to `.claude/hooks/smoke.sh` before its `parses` function:
 
 ```sh
 if [ -f $h/protect-xcodeproj.sh ]; then
@@ -107,7 +108,7 @@ The path-scoped rules in `.claude/rules/ios-uikit/` (concurrency, UI layer, test
 <!-- stacks:end -->
 <!-- stacks:when with=rr -->
 
-**rr.** Every task needs Xcode, so rr hosts must be Macs with Xcode, XcodeGen and SwiftLint (`require:` them). Wrap `make test`, `make coverage`, `make test-ui` and `make ci`; pass `SIM_UDID` only when a host needs a specific simulator.
+**rr.** Every task needs Xcode, so rr hosts must be Macs with Xcode, XcodeGen and SwiftLint (`require:` them). Wrap `make test`, `make coverage`, `make test-ui` and `make ci`; pass `SIMULATOR_UDID` only when a host needs a specific simulator.
 <!-- stacks:end -->
 
 ## Gotchas

@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "tauri-react",
   "source": {
-    "digest": "sha256:714d2657405c7f78ab790e052bcae6ed4ed179839c75098d14c2a74b9232140d",
+    "digest": "sha256:7cbef9439e9863b2a79408aa0a0357b033465afd65357453bfe01e0616ed350c",
     "by": "drafted",
     "model": "codex/gpt-6.1-sol",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-16"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A desktop app with a React interface and Rust logic connected through generated TypeScript bindings.",
   "description": "Give Rust application logic a React desktop interface through generated TypeScript bindings. A thin Tauri shell exposes typed commands and live channels, while a transport facade lets the same interface run against browser fixtures. Tests cover Rust logic, bindings and the mocked interface. The starting app shows application information and a live tick; filesystem workflows, persistence and other desktop behavior are features you implement.",

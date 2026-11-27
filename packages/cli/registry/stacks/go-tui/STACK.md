@@ -49,7 +49,7 @@ commands:
   golden: Rewrite the golden frames after a deliberate view change
   vuln: Check dependencies and the standard library for known vulnerabilities (govulncheck)
   smoke: Run the binary's --help and --version, and its text fallback with no terminal
-  ci: "Everything CI runs (fmt-check, tidy-check, lint, coverage, test-integration, vuln, build)"
+  ci: "Every offline check CI runs (fmt-check, tidy-check, lint, coverage, test-integration, build)"
   clean: Remove build and coverage output
 ---
 

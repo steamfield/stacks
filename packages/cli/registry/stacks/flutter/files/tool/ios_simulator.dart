@@ -1,5 +1,5 @@
 // Prints the UDID of the iPhone simulator `make test-ios` runs on, booting it
-// first when needed. Set IOS_SIMULATOR to a UDID to choose one yourself.
+// first when needed. Set SIMULATOR_UDID to a UDID to choose one yourself.
 //
 // Picks a booted iPhone if there is one, else the first iPhone on the newest
 // iOS runtime, so no device name or OS version is written down anywhere.
@@ -10,7 +10,7 @@ import 'dart:io';
 typedef Simulator = ({String udid, String name, bool booted});
 
 Future<void> main() async {
-  final chosen = Platform.environment['IOS_SIMULATOR']?.trim() ?? '';
+  final chosen = Platform.environment['SIMULATOR_UDID']?.trim() ?? '';
   final Simulator simulator;
   if (chosen.isNotEmpty) {
     simulator = (udid: chosen, name: chosen, booted: false);

@@ -30,4 +30,4 @@ src/core/                framework-free TypeScript, alias @core/
 - Selector discipline is a contract: a render-count test pushes a frame that changes one slice and asserts a sibling didn't re-render. Prove it by widening the selector and watching it fail.
 - Never hold an element reference across an `await`; re-query inside `waitFor`.
 - Playwright runs against the Vite dev server on the mock transport, on its own free port. It can't drive the packaged webview, so changes to native behavior also need a manual `make dev` check; say when you didn't do one.
-- Scope while iterating (`bun run test -- <path> -t "<name>"`), then run `make test`, then `make check` once before calling the work done.
+- Scope while iterating (`bun run test -- <path> -t "<name>"`), then run `make test`, then `make ci` once before calling the work done.

@@ -5,7 +5,7 @@ kind: stack
 name: Flutter app (iOS and Android)
 description: A Flutter app in Dart for iOS and Android, built the way Flutter's architecture guide lays out (ChangeNotifier view models, repositories over services), with go_router navigation, strict flutter_lints analysis, unit and widget tests, and an integration test on the iOS simulator.
 tags: [dart, flutter, mobile, ios, android, make]
-tools: [flutter, dart, make, git, xcrun]
+tools: [flutter, dart, make, git, xcrun, osv-scanner]
 decisions:
   - "Organization for the iOS bundle id and the Android application id, in reverse-domain form: ask the user (default `com.example`, recorded in AGENTS.md under Pending user actions, since the App Store and Google Play reject it)."
   - "Dart package name: `app` (default), fixed so the shipped `package:app/` imports need no rename. To rename it, change `name:` in pubspec.yaml and every `package:app/` import in test/ and integration_test/ in one change, then run `make analyze test`."
@@ -30,6 +30,7 @@ verify:
 commands:
   install: Check ios/ and android/ exist, then flutter pub get
   fmt: Format Dart sources
+  lint-fix: Apply dart fix's safe fixes for analyzer findings, then format
   fmt-check: Fail if dart format would change any file
   analyze: flutter analyze with analysis_options.yaml; infos fail too
   test: Unit and widget tests, no device
@@ -38,6 +39,7 @@ commands:
   test-ios: Integration tests on an iPhone simulator
   build-ios: Unsigned debug build for the iOS simulator
   build-android: Debug APK (needs the Android SDK)
+  audit: Check pubspec.lock for known vulnerabilities (osv-scanner; needs the network)
   ci: "Everything verify runs on a Mac (fmt-check, analyze, coverage, build-ios, test-ios)"
   clean: Remove build output
 ---
@@ -54,7 +56,7 @@ A working slice that passes every check once Setup has generated the platform fo
 
 `ios/` and `android/` come from `flutter create`; they can't ship as files because they carry the current Flutter release's templates. Everything else ships.
 
-1. Read `flutter create --help`, then generate into a scratch subdirectory, never the project root: `.flutter-create/`, platforms iOS and Android only, the project name set to the project slug with hyphens turned into underscores, the organization from the decision, and no `pub get`. Copy its `ios/`, `android/` and `.metadata` into the project root, copy the `version:` line and the `environment:` block from its `pubspec.yaml` into the shipped `pubspec.yaml` (iOS reads the build name and number from `version:`), then delete `.flutter-create/`. Keep the shipped `lib/`, `test/`, `pubspec.yaml` and `analysis_options.yaml`.
+1. Read `flutter create --help`, then generate into a scratch subdirectory, never the project root: `.flutter-create/`, platforms iOS and Android only, the project name set to the project slug with hyphens turned into underscores, the organization from the decision, and no `pub get`. Copy its `ios/`, `android/` and `.metadata` into the project root, copy the `version:` line and the `environment:` block from its `pubspec.yaml` into the shipped `pubspec.yaml` (iOS reads the build name and number from `version:`), then delete `.flutter-create/` (it's gitignored, so leave it if a command guard refuses). Keep the shipped `lib/`, `test/`, `pubspec.yaml` and `analysis_options.yaml`.
 2. Add the packages so each resolves to its current release: `flutter pub add go_router logging material_ui`, then `flutter pub add dev:flutter_lints`. Never type a version into `pubspec.yaml`.
 3. `make install`, then `make fmt-check analyze coverage`. Where an installed release rejects shipped code or config (a renamed go_router API, a lint rule renamed or removed), update the code or the rule name and keep every rule, the strict language modes and the coverage floor. Run `make fmt` after editing.
 4. `make build-ios test-ios`. The first iOS build takes several minutes. If no iPhone simulator exists, `make simulator` says how to add one.
@@ -79,21 +81,28 @@ A working slice that passes every check once Setup has generated the platform fo
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, fmt, fmt-check, analyze, test, coverage, simulator, test-ios, build-ios, build-android, ci, clean. Adapt recipes, keep the names, and mirror them in AGENTS.md with `flutter test test/ui/home/home_screen_test.dart` as the single-file command. No target starts `flutter run`.
+The shipped Makefile (`make help`) has install, fmt, lint-fix, fmt-check, analyze, test, coverage, simulator, test-ios, build-ios, build-android, audit, ci, clean. Adapt recipes, keep the names, and mirror them in AGENTS.md with `flutter test test/ui/home/home_screen_test.dart` as the single-file command. No target starts `flutter run`. `make audit` checks `pubspec.lock` against the OSV database with osv-scanner; it needs the network, so it stays out of `make ci`.
 <!-- stacks:when with=agent-ops -->
 
-**Claude Code.** The stack's `.claude/` adds two hooks and three path-scoped rules under `.claude/rules/flutter/`. `protect-xcode-project.sh` denies Edit and Write on `*.pbxproj` and anything inside `*.xcodeproj/` or `*.xcworkspace/`, because Flutter, Swift Package Manager and CocoaPods rewrite those; `Info.plist` and `AppDelegate.swift` stay editable. `lint-dart.sh` runs `dart analyze` on each `.dart` file written, since agent-ops' `lint-on-write.sh` has no Dart linter; confirm it reports a deliberate error, then revert. List both hooks in `.claude/README.md`, and add these cases to `.claude/hooks/smoke.sh` beside the other guards:
+**Claude Code.** The stack's `.claude/` adds three hooks and three path-scoped rules under `.claude/rules/flutter/`. `guard-flutter.sh` denies foreground `flutter run`, `flutter attach` and `flutter logs`, which never exit; an unavailable guard allows the call with a note. `protect-xcode-project.sh` denies Edit and Write on the iOS files Flutter and CocoaPods regenerate (`ios/Flutter/ephemeral/`, `ios/Flutter/Generated.xcconfig`, `GeneratedPluginRegistrant.*`, `ios/Pods/`, `Podfile.lock`), where a hand edit is lost; the committed `Runner.xcodeproj`, `Info.plist` and `AppDelegate.swift` stay editable. `lint-dart.sh` runs `dart analyze` on each `.dart` file written, since agent-ops' `lint-on-write.sh` has no Dart linter; confirm it reports a deliberate error, then revert. List the hooks in `.claude/README.md`, and add these cases to `.claude/hooks/smoke.sh` beside the other guards. The hooks come with the Claude Code adapter; when Claude Code isn't a target agent they're absent, the cases skip, and you don't write them yourself.
 
 ```sh
-denies "a project.pbxproj edit" '{"tool_input":{"file_path":"ios/Runner.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-xcode-project.sh
-allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/Runner/Info.plist","content":"x"}}' $h/protect-xcode-project.sh
+if [ -f $h/protect-xcode-project.sh ]; then
+  denies "a Generated.xcconfig edit" '{"tool_input":{"file_path":"ios/Flutter/Generated.xcconfig","content":"x"}}' $h/protect-xcode-project.sh
+  allows "a project.pbxproj edit" '{"tool_input":{"file_path":"ios/Runner.xcodeproj/project.pbxproj","content":"x"}}' $h/protect-xcode-project.sh
+  allows "an Info.plist edit" '{"tool_input":{"file_path":"ios/Runner/Info.plist","content":"x"}}' $h/protect-xcode-project.sh
+fi
+if [ -f $h/guard-flutter.sh ]; then
+  denies "flutter run in the foreground" '{"tool_input":{"command":"flutter run"}}' $h/guard-flutter.sh
+  allows "flutter test" '{"tool_input":{"command":"flutter test"}}' $h/guard-flutter.sh
+fi
 ```
 
 The settings allow the make targets and read-only flutter, dart and simctl commands. XcodeBuildMCP is optional (docs/DEVELOPMENT.md); don't add a `.mcp.json`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-**CI.** Two jobs behind `ci-ok`. Install Flutter with the Flutter setup action on the stable channel at the version recorded in `docs/DEVELOPMENT.md`, with its cache on. `checks` on `ubuntu-latest`: `make install fmt-check analyze coverage build-android` (the Linux image has the Android SDK and a JDK, so this is where Android builds; add a Java setup step if the Gradle build asks for a different JDK). `ios` on macOS (ci-github's Xcode steps, with the Xcode version recorded at setup): `make install build-ios test-ios`, and nothing else.
+**CI.** Two jobs behind `ci-ok`. Install Flutter with the Flutter setup action on the stable channel at the version recorded in `docs/DEVELOPMENT.md`, with its cache on. `checks` on `ubuntu-latest`: `make install fmt-check analyze coverage build-android` (the Linux image has the Android SDK and a JDK, so this is where Android builds; add a Java setup step if the Gradle build asks for a different JDK), then `make audit` as its own step after installing osv-scanner. `ios` on macOS (ci-github's Xcode steps, with the Xcode version recorded at setup): `make install build-ios test-ios`, and nothing else.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

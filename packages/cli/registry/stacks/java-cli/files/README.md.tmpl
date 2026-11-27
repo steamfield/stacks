@@ -34,8 +34,9 @@ Requires the JDK named in `.java-version` (on macOS, `brew install openjdk@<majo
 | `make build` | Runnable jar at `target/{{project_slug}}.jar` |
 | `make test` | Unit tests |
 | `make test-integration` | Runs the packaged jar |
-| `make fmt` | Format with Spotless |
-| `make ci` | Everything CI runs |
+| `make format` | Format with Spotless |
+| `make audit` | Known vulnerabilities in dependencies (osv-scanner) |
+| `make ci` | Every offline check CI runs |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is laid out.
 

@@ -112,7 +112,7 @@ doc: ## Print the package documentation as pkg.go.dev shows it
 vuln: ## Check dependencies and the standard library for known vulnerabilities (govulncheck)
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-ci: fmt-check tidy-check vet lint coverage fuzz consumer api-check vuln ## Everything CI runs
+ci: fmt-check tidy-check vet lint coverage fuzz consumer api-check ## Every offline check CI runs (vuln is its own step)
 
 clean: ## Remove coverage output
 	rm -f coverage.out coverage.html

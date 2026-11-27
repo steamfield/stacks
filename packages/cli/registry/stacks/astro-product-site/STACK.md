@@ -9,7 +9,7 @@ deps:
   site: [astro, "@astrojs/react", "@astrojs/sitemap", "@astrojs/markdown-satteri", react, react-dom, tailwindcss, "@tailwindcss/vite", "@tailwindcss/typography", satori, sharp, "@fontsource/inter"]
   site-dev: ["@astrojs/check", typescript, "@types/react", "@types/react-dom", "@biomejs/biome", prettier, prettier-plugin-astro, vitest, "@vitest/coverage-v8", happy-dom, "@testing-library/react", "@testing-library/dom", "@testing-library/jest-dom", "@testing-library/user-event"]
   browser-test: ["@playwright/test", "@axe-core/playwright"]
-tools: [bun, node, make, git]
+tools: [bun, node, make, git, bash]
 decisions:
   - "Production site URL for canonicals, the sitemap, social cards and llms.txt (default: https://example.com)."
   - "Product name, tagline, repository, version and install commands in src/config.ts (default: placeholders; fill them from the parent repository's README when there is one)."
@@ -35,6 +35,10 @@ verify:
     layer: check
     tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: web
     phase: serve
     layer: serve
@@ -43,6 +47,9 @@ verify:
 commands:
   install: Install dependencies (frozen lockfile when CI is set) and, outside CI, Playwright's Chromium
   dev: Astro dev server on PORT_WEB
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
+  dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   lint: Biome for TS, JS, CSS and JSON; Prettier for .astro files
   format: Apply Biome and Prettier fixes
   check: Type-check pages, components and content (astro check)
@@ -51,6 +58,8 @@ commands:
   build: Static build into dist/, then the acceptance tests over it
   preview: Serve the production build on PORT_WEB
   e2e: Browser and accessibility tests against the production build
+  ci: "Every offline check CI runs (lint, check, coverage, build, e2e)"
+  audit: Check dependencies for known vulnerabilities with bun audit (needs the network)
   clean: Remove build output, test output and Astro caches
 ---
 
@@ -91,10 +100,12 @@ When the site lives in a product's repository (`site/`, `docs-site/`), `new` ref
 
 ## Commands
 
-The shipped Makefile (`make help`) has install, dev, lint, format, check, test, coverage, build, preview, e2e and clean. Keep the names and mirror them in AGENTS.md. Verify runs the browser step as `node scripts/e2e.mjs` because make reports every failure as status 2, and the script exits 127 when Chromium is missing so verify records an environment problem rather than a failing test.
+The shipped Makefile (`make help`) has install, dev, dev-bg, dev-stop, dev-status, lint, format, check, test, coverage, build, preview, e2e, ci, audit and clean. Keep the names and mirror them in AGENTS.md. `make ci` runs lint, check, coverage, build and e2e; `make audit` runs `bun audit`, which needs the network, so it stays out of `ci`. Verify runs the browser step as `node scripts/e2e.mjs` because make reports every failure as status 2, and the script exits 127 when Chromium is missing so verify records an environment problem rather than a failing test.
+
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make dev` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make dev` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 <!-- stacks:when with=ci-github -->
 
-CI reads Bun from `packageManager` and Node from `.node-version`, runs `make install` (frozen under CI), `make lint`, `make check`, `make coverage` and `make build`, then installs Chromium with its system dependencies (`bunx playwright install --with-deps chromium`) and runs `make e2e`. Upload `playwright-report/` and `test-results/` when it fails.
+CI reads Bun from `packageManager` and Node from `.node-version`, runs `make install` (frozen under CI), installs Chromium with its system dependencies (`bunx playwright install --with-deps chromium`), then runs `make ci`, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`. Upload `playwright-report/` and `test-results/` when it fails.
 <!-- stacks:end -->
 <!-- stacks:when with=posthog -->
 
@@ -115,4 +126,5 @@ Deploy the static `dist/`; no Astro adapter is needed. The fragment's `public/_h
 - Astro config runs before the content layer; don't query collections there.
 - satori lays out flexbox only and reads TTF, OTF or WOFF fonts, not WOFF2.
 - Bare `vitest` watches in a terminal; keep `vitest run` in recipes.
+- `make dev-bg` overwrites `logs/dev.log`, and so does the `dev-cycle` verify step, which runs dev-bg then dev-stop. Copy the log first if you still need the last run's output.
 - The content layer caches rendered Markdown in `node_modules/.astro/` and doesn't notice a changed plugin in `src/lib/markdown.ts`. Run `make clean` after editing a plugin, or when collection types look stale.

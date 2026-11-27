@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 # Print an xcodebuild -destination for an available iPhone simulator, so no Makefile target
-# names a device model or iOS release. Order: $SIM_DESTINATION as given, then $SIM_UDID, then
-# a booted iPhone on the newest iOS runtime, then any iPhone on the newest runtime.
+# names a device model or iOS release. Order: $SIMULATOR_UDID, then a booted iPhone, then the
+# first iPhone on the newest iOS runtime.
 set -euo pipefail
 
-if [ -n "${SIM_DESTINATION:-}" ]; then
-  printf '%s\n' "$SIM_DESTINATION"
-  exit 0
-fi
-if [ -n "${SIM_UDID:-}" ]; then
-  printf 'platform=iOS Simulator,id=%s\n' "$SIM_UDID"
+if [ -n "${SIMULATOR_UDID:-}" ]; then
+  printf 'platform=iOS Simulator,id=%s\n' "$SIMULATOR_UDID"
   exit 0
 fi
 
@@ -32,13 +28,10 @@ function run(argv) {
     return 0;
   };
   const runtimes = Object.keys(devices).filter((k) => /SimRuntime\.iOS-/.test(k)).sort(newerFirst);
-  for (const runtime of runtimes) {
-    const phones = devices[runtime].filter((d) =>
-      d.isAvailable !== false && /SimDeviceType\.iPhone/.test(d.deviceTypeIdentifier || ""));
-    const pick = phones.find((d) => d.state === "Booted") || phones[0];
-    if (pick) return pick.udid;
-  }
-  return "";
+  const phones = runtimes.flatMap((runtime) => devices[runtime].filter((d) =>
+    d.isAvailable !== false && /SimDeviceType\.iPhone/.test(d.deviceTypeIdentifier || "")));
+  const pick = phones.find((d) => d.state === "Booted") || phones[0];
+  return pick ? pick.udid : "";
 }
 JS
 )

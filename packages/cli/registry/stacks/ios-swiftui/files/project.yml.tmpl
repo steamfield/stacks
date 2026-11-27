@@ -8,7 +8,8 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    SWIFT_VERSION: "6.0"
+    # Setup fills this with the Swift language mode decision; `make project` refuses an empty value.
+    SWIFT_VERSION: ""
     SWIFT_STRICT_CONCURRENCY: complete
     # Xcode's app template turns these on: nonisolated async functions run on the caller's
     # actor unless marked @concurrent, and a file sees only the modules it imports.

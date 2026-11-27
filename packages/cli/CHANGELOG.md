@@ -4,6 +4,25 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-26
+
+### Added
+
+- Mobile stacks: `ios-swiftui`, `ios-uikit` and `ios-objc` for native iOS apps, `react-native` and `flutter` for cross-platform ones.
+- Every bundled stack now ships the commands an agent needs to work without a person nearby: one aggregate check that runs everything CI runs offline (`make ci`, or `check` in package scripts), a formatter with the linter's safe fixes (`format` or `lint-fix`), and a dependency audit that needs no account or key (`audit`; Go keeps `vuln`). CI runs the audit as its own step, since it needs the network. Each stack's agent allow list covers these commands, so agents run them without a permission prompt.
+- Make stacks with a dev server (go-api, go-htmx, rust-api, python-api, django, django-api, streamlit, the JVM servers and the astro stacks) gain `make dev-bg`, `make dev-stop` and `make dev-status`: start or reuse a background server that logs to `logs/dev.log`, stop only its process group, and report whether it runs. A new `dev-cycle` verify step starts and stops it, so the script is checked on every verify.
+- `validate` reports a bundled stack missing that baseline as a note, and the authoring guide describes it.
+
+### Changed
+
+- `cloudflare-react-router` gains a Claude Code adapter and installs git hooks by default; `decks` gains Biome, git hooks and CI by default; `tauri-react` gains `make ci`.
+- JVM stacks name their formatter target `format` instead of `fmt`.
+- Workspace stacks (`hono-react`, `python-react`) allow their root commands for agents.
+
+### Fixed
+
+- React Native's pods step refuses macOS's system Ruby and gives CocoaPods a UTF-8 locale.
+
 ## [0.15.0] - 2026-11-25
 
 ### Added

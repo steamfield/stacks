@@ -5,7 +5,7 @@ kind: stack
 name: Quarkus REST API (Java)
 description: A Java JSON API on Quarkus with Quarkus REST and Jackson, built with Maven and make. One error envelope for every failure, a validated config mapping, request ids and structured JSON logs, readiness checks, Error Prone and NullAway at compile time, and tests through @QuarkusTest and the packaged application.
 tags: [java, api, make]
-tools: [java, mvn, make, git]
+tools: [java, mvn, make, git, bash, osv-scanner]
 decisions:
   - "JDK: the newest LTS release Quarkus supports (default). Its major goes in `.java-version` and pom.xml's `<java.version>`; never an update release."
   - "Quarkus: the newest platform release (default), or the current LTS stream when the team upgrades only between LTS releases."
@@ -31,6 +31,10 @@ verify:
   - { name: test, layer: test, run: make coverage }
   - { name: test-integration, layer: test, run: make test-integration }
   - { name: build, layer: build, run: make build }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: api
     phase: serve
     layer: serve
@@ -43,7 +47,7 @@ verify:
 commands:
   env: Check the JDK, the Maven wrapper and that every pom.xml version property is filled
   install: Check the toolchain and download dependencies and plugins
-  fmt: Format Java sources with Spotless (palantir-java-format)
+  format: Format Java sources with Spotless (palantir-java-format)
   fmt-check: Fail if Spotless would change any Java source
   lint: "Maven Enforcer: JDK version, dependency convergence, duplicate declarations"
   compile: Compile main and test code with Error Prone and NullAway
@@ -52,7 +56,11 @@ commands:
   test-integration: Integration tests (*IT) against the packaged application in its own process
   build: JVM application in target/quarkus-app (run its quarkus-run.jar)
   serve: Build, then run the application in the foreground until SIGINT or SIGTERM
-  ci: "Everything CI runs (fmt-check, enforcer, every test, coverage, the build)"
+  dev-bg: Build, then start the application in the background (or reuse a healthy one), logging to logs/dev.log
+  dev-stop: Stop the process group dev-bg started
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
+  audit: Check dependencies for known vulnerabilities (osv-scanner; needs the network)
+  ci: "Every offline check CI runs (fmt-check, enforcer, every test, coverage, the build)"
   clean: Remove build output
 ---
 
@@ -71,7 +79,7 @@ No generator; nothing in `src/` comes from code.quarkus.io or the Quarkus CLI.
 1. **JDK.** Write the major of the newest Java LTS release that the current Quarkus supports to `.java-version` (the major only, one line) and to `<java.version>` in `pom.xml`. On macOS install it with `brew install openjdk@<major>`; it is keg-only and the Makefile finds it, so don't link it or rely on `mvn`'s JDK: Homebrew's `maven` depends on the newest `openjdk`, which is usually not an LTS.
 2. **Versions.** For every other empty `<*.version>` property, read the newest release from `https://repo.maven.apache.org/maven2/<groupId as a path>/<artifactId>/maven-metadata.xml`. Its `<release>` can be a beta or release candidate (`.Beta2`, `.CR1`), so take the highest plain numeric version: `curl -s <url> | grep -o '<version>[0-9.]*</version>' | sort -V | tail -1`. Quarkus versions can have four parts (`x.y.z.w`); keep them whole. The coordinates are in `pom.xml`; the property for Quarkus is `io.quarkus.platform:quarkus-bom`'s, Error Prone's is `error_prone_core`'s.
 3. **Wrapper.** Run `mvn -N wrapper:wrapper -Dtype=only-script` once (the `mvn` from Homebrew's `maven`). It writes `mvnw`, `mvnw.cmd` and `.mvn/wrapper/maven-wrapper.properties` pinned to that Maven; commit them. From then on only `./mvnw` runs Maven.
-4. `make install`, then `make fmt-check lint compile coverage test-integration build`. Where an installed release rejects shipped code (a relocated extension, a renamed property, a new Error Prone or NullAway finding), fix the code. Keep every compiler flag, Enforcer rule and the coverage floor; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why. Run `make fmt` after editing.
+4. `make install`, then `make fmt-check lint compile coverage test-integration build`. Where an installed release rejects shipped code (a relocated extension, a renamed property, a new Error Prone or NullAway finding), fix the code. Keep every compiler flag, Enforcer rule and the coverage floor; a check that is wrong for one place gets `@SuppressWarnings("<check>")` on that member with a comment saying why. Run `make format` after editing.
 5. Fill the README's `stacks:fill` markers (`readme-filled` checks), link `docs/guidance/java.md` and `docs/http-api.md` from AGENTS.md, then run `stacks verify` until it passes. The `api` step runs `make serve` and probes `/q/health/ready` on `PORT`.
 
 ## Conventions
@@ -90,14 +98,16 @@ Unit tests sit beside each package under `src/test/java` (`*Test`, Surefire): th
 
 ## Commands
 
-The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compile, test, coverage, test-integration, build, serve, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=NotesResourceTest` and `./mvnw -q verify -DskipUTs=true -Dit.test=ApiIT`. Run `make serve` in the background when needed and stop only the pid you started.
+The shipped Makefile (`make help`) has env, install, format, fmt-check, lint, compile, test, coverage, test-integration, build, serve, dev-bg, dev-stop, dev-status, audit, ci, clean. Adapt recipes, keep the names, mirror them in AGENTS.md with single-test commands: `./mvnw -q test -Dtest=NotesResourceTest` and `./mvnw -q verify -DskipUTs=true -Dit.test=ApiIT`. `make audit` checks the resolved dependencies against the OSV database with osv-scanner; it needs the network, so it stays out of `make ci`.
+
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make serve` or kill server processes by name: dev-stop signals only the process group it recorded. A foreground `make serve` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
 <!-- stacks:when with=ci-github -->
 
-**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`. Record in AGENTS.md that CI never runs `mvn`.
+**CI.** One `ubuntu-latest` job: setup-java from `.java-version`, then `make install` and `make ci`, then `make audit` as its own step after installing osv-scanner. Record in AGENTS.md that CI never runs `mvn`.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 
-**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make fmt` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
+**Git hooks.** The shipped `make install` runs `lefthook install` outside CI once `lefthook.yml` exists, so write that file first. pre-commit runs `make format` on `*.java` with `stage_fixed: true`, so formatting fixes are restaged; pre-push runs `make lint test`. Compiling checks the whole project, so it stays out of pre-commit.
 <!-- stacks:end -->
 <!-- stacks:when with=rest-api -->
 
@@ -109,6 +119,7 @@ The shipped Makefile (`make help`) has env, install, fmt, fmt-check, lint, compi
 - Quarkus's JUnit extension is `io.quarkus:quarkus-junit`; memory says `quarkus-junit5`, which is now only a relocation. The platform BOM doesn't manage AssertJ, so it has its own property.
 - `<packaging>quarkus</packaging>` with the plugin's `<extensions>true</extensions>` binds the Quarkus build to `package`; `make build` writes `target/quarkus-app/`, which runs only as a whole directory.
 - Never run `quarkus:dev` (or `quarkus dev`) as an agent: it watches files, reads keys from the terminal and holds it. The guard hook denies it; `make serve` runs the built app.
+- `make dev-bg` runs a copy of `target/quarkus-app/` from `target/dev-bg/`. Maven rewrites the application's jars in place, and a JVM still reading them fails on the next class it loads, so keep the copy: builds and tests then leave the background server running the code it started with.
 - Build-time properties (`quarkus.package.*`, which extensions are active, `quarkus.http.root-path`) are fixed when the app is built: changing one in the environment does nothing until `make build`. Runtime properties (host, port, log level, `app.*`) are read at start.
 - Dev Services start a container whenever an extension needs a service (a datasource, Kafka) and no URL is configured, in `@QuarkusTest` too. With Docker absent, tests then fail with a container error, not a config error. Set the service's URL to turn them off.
 - `quarkus.http.test-port=0` keeps tests off `PORT` and off the default test port 8081; keep it, or parallel test runs collide.

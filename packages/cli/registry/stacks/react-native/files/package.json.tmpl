@@ -5,7 +5,7 @@
     "start": "react-native start",
     "ios": "react-native run-ios",
     "android": "react-native run-android",
-    "pods": "bundle install && cd ios && LC_ALL=en_US.UTF-8 bundle exec pod install",
+    "pods": "bash scripts/ios.sh pods",
     "lint": "biome check --error-on-warnings .",
     "lint:native": "xcrun swift-format lint --strict --recursive modules",
     "format": "biome check --write . && xcrun swift-format format --in-place --recursive modules",
@@ -20,6 +20,7 @@
     "ios:test": "bash scripts/ios.sh test",
     "ios:e2e": "bash scripts/ios.sh e2e",
     "check": "bun run lint && bun run lint:native && bun run typecheck && bun run coverage && bun run bundle && bun run ios:build && bun run ios:test && bun run ios:e2e",
+    "audit": "bun audit",
     "clean": "rm -rf coverage build"
   }
 }

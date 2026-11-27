@@ -6,6 +6,9 @@
 *.out
 coverage.html
 
+# Background server output and pid file (make dev-bg)
+/logs/
+
 # Go workspace files
 go.work
 go.work.sum

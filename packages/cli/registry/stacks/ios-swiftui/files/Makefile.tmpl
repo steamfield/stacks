@@ -4,6 +4,8 @@ SHELL := /bin/bash
 # macOS ships GNU Make 3.81, which ignores .SHELLFLAGS, so each piped recipe starts with this
 # line itself. Without pipefail a failed xcodebuild piped into xcbeautify exits 0.
 STRICT := set -euo pipefail;
+# XcodeGen needs USER, which stripped-down automation environments leave unset.
+export USER := $(if $(USER),$(USER),$(shell id -un))
 
 PROJECT := {{project_slug}}.xcodeproj
 SCHEME := App
@@ -21,17 +23,18 @@ COVERAGE_MIN ?= 80
 COVERAGE_EXCLUDE := *View.swift *Screen.swift MainApp.swift
 COVERAGE_RESULT := build/unit-tests.xcresult
 
-.PHONY: help doctor project typecheck build lint fmt fmt-check test coverage test-ui ci clean
+.PHONY: help doctor project typecheck build lint lint-fix fmt fmt-check test coverage test-ui ci clean
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
 
-doctor: ## Check the toolchain and that project.yml has a deployment target
+doctor: ## Check the toolchain and that project.yml has a deployment target and Swift version
 	@for tool in xcodebuild xcodegen swiftlint; do \
 	  command -v $$tool >/dev/null || { echo "doctor: $$tool is not on PATH (see docs/DEVELOPMENT.md)" >&2; exit 1; }; \
 	done
 	@xcrun --find swift-format >/dev/null 2>&1 || { echo "doctor: xcrun can't find swift-format; select a full Xcode with xcode-select" >&2; exit 1; }
-	@grep -Eq '^[[:space:]]+iOS: "[0-9]+(\.[0-9]+)*"' project.yml || { echo "doctor: set options.deploymentTarget.iOS in project.yml (Setup step 1)" >&2; exit 1; }
+	@grep -Eq '^[[:space:]]+iOS: "?[0-9]+(\.[0-9]+)*"?' project.yml || { echo "doctor: set options.deploymentTarget.iOS in project.yml (Setup step 1)" >&2; exit 1; }
+	@grep -Eq '^[[:space:]]+SWIFT_VERSION: "?[0-9]+(\.[0-9]+)*"?' project.yml || { echo "doctor: set SWIFT_VERSION in project.yml (Setup step 1)" >&2; exit 1; }
 
 project: doctor ## Generate the Xcode project from project.yml (XcodeGen), install git hooks
 	xcodegen generate --quiet
@@ -45,6 +48,10 @@ build: ## Release build for the simulator (production settings), warnings as err
 
 lint: ## SwiftLint, warnings fail
 	swiftlint lint --strict --quiet
+
+lint-fix: ## Apply SwiftLint's automatic fixes, then format with swift-format
+	swiftlint lint --fix --quiet
+	xcrun swift-format format --in-place --recursive --parallel $(SWIFT_SOURCES)
 
 fmt: ## Format Swift sources with swift-format
 	xcrun swift-format format --in-place --recursive --parallel $(SWIFT_SOURCES)

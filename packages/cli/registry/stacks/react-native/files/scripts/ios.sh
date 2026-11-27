@@ -1,12 +1,30 @@
 #!/usr/bin/env bash
-# iOS checks for verify and CI on macOS. `build` compiles a Release build of the app, its pods
-# and the AppInfo module for the simulator without signing, with the JavaScript bundled in.
-# `test` runs the AppInfo pod's Swift tests. `e2e` installs the `build` product and runs the
-# Maestro flows in .maestro/ at the default text size, then at an accessibility text size. All
-# three use the iPhone simulator scripts/sim-destination.sh picks, need `bun run pods` first, and
-# pipe xcodebuild through xcbeautify when it is installed.
+# iOS tasks for verify and CI on macOS. `pods` installs CocoaPods through Bundler and runs
+# pod install. `build` compiles a Release build of the app, its pods and the AppInfo module for
+# the simulator without signing, with the JavaScript bundled in. `test` runs the AppInfo pod's
+# Swift tests. `e2e` installs the `build` product and runs the Maestro flows in .maestro/ at the
+# default text size, then at an accessibility text size. The last three use the iPhone simulator
+# scripts/sim-destination.sh picks, need `pods` first, and pipe xcodebuild through xcbeautify
+# when it is installed.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [ "${1:-}" = pods ]; then
+  # macOS's own Ruby carries a Bundler too old for current Rubies; a Gemfile.lock it writes
+  # stamps that Bundler, and every other Ruby then fails to load it.
+  if [ "$(command -v ruby)" = /usr/bin/ruby ]; then
+    echo "ios.sh: ruby is macOS's system Ruby (/usr/bin/ruby). Put a Homebrew or version-manager Ruby first on PATH, then run bun run pods again." >&2
+    exit 1
+  fi
+  # CocoaPods crashes on an encoding error without a UTF-8 locale, which CI and agent shells
+  # often lack.
+  case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+  *UTF-8* | *utf8* | *UTF8* | *utf-8*) ;;
+  *) export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 ;;
+  esac
+  bundle install
+  cd ios && exec bundle exec pod install
+fi
 
 workspace=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit 2>/dev/null || true)
 if [ -z "$workspace" ]; then
@@ -87,7 +105,7 @@ e2e)
   e2e
   ;;
 *)
-  echo "usage: scripts/ios.sh build|test|e2e" >&2
+  echo "usage: scripts/ios.sh pods|build|test|e2e" >&2
   exit 2
   ;;
 esac

@@ -7,8 +7,8 @@ description: A server-rendered Python web app on Django with its ORM, admin, for
 tags: [python, web, make]
 deps:
   runtime: [django, gunicorn, whitenoise, structlog, django-stubs-ext]
-  dev: [ruff, mypy, django-stubs, pytest, pytest-django, pytest-cov, pytest-randomly, pytest-xdist, djlint]
-tools: [uv, make, git, jq]
+  dev: [ruff, mypy, django-stubs, pytest, pytest-django, pytest-cov, pytest-randomly, pytest-xdist, djlint, pip-audit]
+tools: [uv, make, git, jq, bash]
 merge: [.claude/settings.json]
 decisions:
   - "Python version: the newest stable CPython that Django, django-stubs, ruff and mypy support (default). Setup writes it to .python-version and requires-python."
@@ -30,6 +30,10 @@ verify:
   - { name: migrations, layer: check, run: make check-migrations }
   - { name: deploy-check, layer: check, run: make check-deploy }
   - { name: build, layer: build, run: make build }
+  - name: dev-cycle
+    layer: check
+    timeout: 3m
+    run: "if bash scripts/dev-bg.sh status >/dev/null; then echo 'A dev server is running; stop it first: make dev-stop' >&2; exit 1; fi; make dev-bg && make dev-stop"
   - name: web
     phase: serve
     layer: serve
@@ -51,7 +55,12 @@ commands:
   migrate: Apply migrations to the local database
   check-deploy: Django's deployment checks with production settings; warnings fail
   build: collectstatic into staticfiles/ with hashed, compressed files
+  ci: lint, typecheck, coverage, check-migrations, check-deploy and build, as CI runs them
+  audit: pip-audit over the locked dependencies (needs the network)
   dev: Migrate, then the development server with reload on PORT_WEB
+  dev-bg: make dev in the background, logging to logs/dev.log; reuses the server it started and refuses a port another server answers
+  dev-stop: Stop the process group dev-bg recorded in logs/dev.pid
+  dev-status: Exit 0 when the server dev-bg started is running, else 1
   start: Production settings - build, migrate, then gunicorn on PORT_WEB
   clean: Remove caches, coverage and collected static files
 ---
@@ -60,7 +69,7 @@ commands:
 
 ## What stacks wrote
 
-A working Django project that passes every check once its dependencies are installed. `config/` holds `env.py` (every deployment setting read from the environment once, validated, failing fast by name; production refuses to start without `DJANGO_SECRET_KEY` or with DEBUG on), `settings.py`, `logging.py` (structlog over the standard library, readable in development and JSON on stdout in production), `urls.py`, `wsgi.py` and `gunicorn.py`. `core/` has the request middleware (request ids, one log line per request with the route pattern) and `/healthz`. `accounts/` is the custom user model with its admin. `notes/` is the payload: a `Note` model with its migration, admin, `ModelForm` and one view that lists notes and creates one through a POST-redirect-GET form with inline errors and a flash message, proving the ORM, migrations, forms, CSRF, templates, messages and static files end to end. `templates/` holds the base layout and the 404 and 500 pages. Unit tests sit beside `config/` and `notes/`; `tests/` drives pages through Django's test client on a real database. The Makefile, `pyproject.toml` tool config, `.env.example` and `docs/` ship too. Read the code before extending it.
+A working Django project that passes every check once its dependencies are installed. `config/` holds `env.py` (every deployment setting read from the environment once, validated, failing fast by name; production refuses to start without `DJANGO_SECRET_KEY` or with DEBUG on), `settings.py`, `logging.py` (structlog over the standard library, readable in development and JSON on stdout in production), `urls.py`, `wsgi.py` and `gunicorn.py`. `core/` has the request middleware (request ids, one log line per request with the route pattern) and `/healthz`. `accounts/` is the custom user model with its admin. `notes/` is the payload: a `Note` model with its migration, admin, `ModelForm` and one view that lists notes and creates one through a POST-redirect-GET form with inline errors and a flash message, proving the ORM, migrations, forms, CSRF, templates, messages and static files end to end. `templates/` holds the base layout and the 404 and 500 pages. Unit tests sit beside `config/` and `notes/`; `tests/` drives pages through Django's test client on a real database. The Makefile, the background dev-server script (`scripts/dev-bg.sh`), `pyproject.toml` tool config, `.env.example` and `docs/` ship too. Read the code before extending it.
 
 ## Setup
 
@@ -91,11 +100,13 @@ No generator. Use the shipped files; `pyproject.toml` has no `requires-python` b
 
 The shipped Makefile (`make help`) holds every declared target. Mirror them and a single-file command (`uv run pytest tests/test_notes.py`) in AGENTS.md. `make start`, `make build` and `make check-deploy` run with production settings and a random throwaway secret key unless `DJANGO_SECRET_KEY` is set. `uv run python manage.py createsuperuser` makes an admin login.
 
+To keep a server running while you work, use `make dev-bg` and read `logs/dev.log`; stop it with `make dev-stop`. Don't background `make dev` or kill runserver by name: its autoreloader and the child that holds the port are separate processes, and dev-stop signals only the process group it recorded. A foreground `make dev` isn't recorded, so dev-bg refuses while it holds the port. Stop the background server before `stacks verify`: its dev-cycle step fails while `make dev-status` finds one, and the serve step needs the port.
+
 <!-- stacks:when with=git-hooks -->
 Write lefthook.yml before `make install`: the recipe calls lefthook only outside CI when its config and executable exist. pre-commit formats staged Python with ruff and re-stages fixes, then lints; pre-push runs `make test`.
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
-CI uses uv's setup action (cache on, Python from .python-version), then `make install lint typecheck coverage check-migrations check-deploy build` with CI set.
+CI uses uv's setup action (cache on, Python from .python-version), then `make install ci` with CI set, then `make audit` as its own step: the audit needs the network, so it stays out of `ci`.
 <!-- stacks:end -->
 
 ## Gotchas

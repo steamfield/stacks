@@ -8,6 +8,7 @@ tags: [swift, ios, mobile, make]
 tools: [xcodebuild, xcrun, xcodegen, swiftlint, make, git]
 decisions:
   - "iOS deployment target: one major below the installed Xcode's newest iOS SDK (default), never below the first release with the Observation framework. It goes in project.yml's `options.deploymentTarget.iOS` as `major.0`."
+  - "Swift language mode: the newest the installed compiler supports (default), as project.yml's `SWIFT_VERSION`. Never below 6, where data races are errors."
   - "Bundle identifier: `com.example.<project-slug>` (default) in project.yml, with `.tests` and `.uitests` for the test targets. Use the user's reverse domain when they give one."
   - "Devices: iPhone only (default, `TARGETED_DEVICE_FAMILY` 1). iPhone and iPad sets it to `\"1,2\"` and adds the iPad orientations."
   - "Target and module name: `App` (default), fixed so the shipped `@testable import App` lines need no rename. To rename, change the three targets and the scheme in project.yml, `SCHEME` in the Makefile, every `@testable import App`, and the folder names, in one change, then `make project typecheck`."
@@ -31,11 +32,12 @@ verify:
     tags: [hygiene]
     run: "test -s README.md && ! grep -n 'stacks:fill' README.md"
 commands:
-  doctor: Check the toolchain and that project.yml has a deployment target
+  doctor: Check the toolchain and that project.yml has a deployment target and Swift version
   project: Generate the Xcode project from project.yml with XcodeGen, and install the git hooks outside CI when lefthook.yml exists
   typecheck: Compile the app and both test targets for a simulator, warnings as errors
   build: Release build for the simulator, warnings as errors
   lint: SwiftLint in strict mode
+  lint-fix: Apply SwiftLint's automatic fixes, then format with swift-format
   fmt: Format Swift sources with swift-format
   fmt-check: Fail if swift-format would change any Swift source
   test: Unit tests (Swift Testing) on a simulator
@@ -51,7 +53,7 @@ A native iPhone app: SwiftUI views over `@Observable` view models, services behi
 
 ## What stacks wrote
 
-A working slice that passes every check once Setup fills the deployment target. `project.yml` declares three targets: `App`, `AppTests` (Swift Testing, hosted in the app) and `AppUITests` (XCUITest), plus the `App` scheme. `App/Sources/MainApp.swift` is the entry point; `Launch.start` there is the composition root. `Config/AppConfig.swift` reads typed settings from `App/Info.plist`, which project.yml's build settings fill per configuration, with validated defaults. `Support/` holds `AppError` (each case's user message, retry flag and log text), `ErrorView` and `Log` (one `os.Logger` per area). `Greeting/` is the payload: `GreetingService` (a protocol with `LocalGreetingService`, no network), `GreetingViewModel` and `GreetingScreen` with its loading, loaded and error states. Tests sit in `AppTests/` and `AppUITests/LaunchTests.swift`, which ends in an accessibility audit. `scripts/sim-destination.sh` picks a simulator at run time, and `scripts/coverage-check.sh` holds `make coverage` to the floor. `.swiftlint.yml`, `.swift-format` and `docs/` (ARCHITECTURE, DEVELOPMENT, `guidance/`) complete it. Read the code before extending it.
+A working slice that passes every check once Setup fills the deployment target and Swift version. `project.yml` declares three targets: `App`, `AppTests` (Swift Testing, hosted in the app) and `AppUITests` (XCUITest), plus the `App` scheme. `App/Sources/MainApp.swift` is the entry point; `Launch.start` there is the composition root. `Config/AppConfig.swift` reads typed settings from `App/Info.plist`, which project.yml's build settings fill per configuration, with validated defaults. `Support/` holds `AppError` (each case's user message, retry flag and log text), `ErrorView` and `Log` (one `os.Logger` per area). `Greeting/` is the payload: `GreetingService` (a protocol with `LocalGreetingService`, no network), `GreetingViewModel` and `GreetingScreen` with its loading, loaded and error states. Tests sit in `AppTests/` and `AppUITests/LaunchTests.swift`, which ends in an accessibility audit. `scripts/sim-destination.sh` picks a simulator at run time, and `scripts/coverage-check.sh` holds `make coverage` to the floor. `.swiftlint.yml`, `.swift-format` and `docs/` (ARCHITECTURE, DEVELOPMENT, `guidance/`) complete it. Read the code before extending it.
 
 ## Layout
 
@@ -61,8 +63,8 @@ A feature gets a folder under `App/Sources/` like `Greeting/`: its service proto
 
 No generator: the project file comes from `project.yml`.
 
-1. **Toolchain.** `xcodebuild -version`, `xcrun --show-sdk-version --sdk iphonesimulator`, `xcrun swift --version`, `xcodegen --version`, `swiftlint version`, `xcrun swift-format --version`. Install a missing tool with Homebrew (`brew install xcodegen swiftlint xcbeautify`); swift-format comes with Xcode. Write the deployment target decision into project.yml's `options.deploymentTarget.iOS`.
-2. `make project`, then `make fmt-check lint typecheck coverage test-ui build`. Where the installed Xcode rejects shipped code or a setting (a deprecated API, a new concurrency diagnostic, a renamed lint rule), fix the code; keep Swift 6 mode, complete checking, approachable concurrency, member import visibility, warnings as errors, the coverage floor and every enabled lint rule. `make fmt` after editing Swift.
+1. **Toolchain.** `xcodebuild -version`, `xcrun --show-sdk-version --sdk iphonesimulator`, `xcrun swift --version`, `xcodegen --version`, `swiftlint version`, `xcrun swift-format --version`. Install a missing tool with Homebrew (`brew install xcodegen swiftlint xcbeautify`); swift-format comes with Xcode. Write the deployment target decision into project.yml's `options.deploymentTarget.iOS` and the Swift language mode decision into its `SWIFT_VERSION`.
+2. `make project`, then `make fmt-check lint typecheck coverage test-ui build`. Where the installed Xcode rejects shipped code or a setting (a deprecated API, a new concurrency diagnostic, a renamed lint rule), fix the code; keep the Swift language mode at 6 or newer, complete checking, approachable concurrency, member import visibility, warnings as errors, the coverage floor and every enabled lint rule. `make fmt` after editing Swift.
 3. Record the Xcode, iOS SDK, Swift, XcodeGen, SwiftLint and deployment target versions in the README's toolchain section and in AGENTS.md.
 4. Fill the README's `stacks:fill` markers (`readme-filled` checks), link `docs/guidance/` from AGENTS.md, then run `stacks verify` until it passes.
 
@@ -85,7 +87,7 @@ Unit tests use Swift Testing (`import Testing`, `@Test`, `#expect`), parameteriz
 
 ## Commands
 
-The shipped Makefile (`make help`) has doctor, project, typecheck, build, lint, fmt, fmt-check, test, coverage, test-ui, ci, clean. xcodebuild output goes through `xcbeautify` when it's installed. `SIMULATOR_UDID=<udid> make test` picks a simulator; otherwise `scripts/sim-destination.sh` takes a booted iPhone, then any available iPhone on the newest runtime. Mirror the targets in AGENTS.md.
+The shipped Makefile (`make help`) has doctor, project, typecheck, build, lint, lint-fix, fmt, fmt-check, test, coverage, test-ui, ci, clean. xcodebuild output goes through `xcbeautify` when it's installed. `SIMULATOR_UDID=<udid> make test` picks a simulator; otherwise `scripts/sim-destination.sh` takes a booted iPhone, then the first iPhone on the newest runtime. Mirror the targets in AGENTS.md.
 <!-- stacks:when with=ci-github -->
 
 **CI.** One job on macOS (ci-github's Xcode steps); use `sudo xcode-select -s` to pick the Xcode. The `CI` variable makes `make project` skip `lefthook install`. Install XcodeGen, SwiftLint and xcbeautify with Homebrew, then call `make project` and `make ci`. A Linux job could run SwiftLint alone, which isn't worth a second job. Set `timeout-minutes` and cancel superseded runs.

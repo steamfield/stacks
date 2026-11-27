@@ -2,7 +2,8 @@
 #
 # A starting point: adapt the recipes to the project, but keep the target
 # names. `stacks verify` calls install, lint, typecheck, coverage,
-# pipeline-check and notebooks, and CI should call the same targets.
+# pipeline-check and notebooks. CI calls install, ci, then audit as its own
+# step.
 
 BIN := {{project_slug}}
 TEST_WORKERS ?= auto
@@ -12,7 +13,7 @@ EXPECTED := data/fixtures/expected
 MARIMO_CHECK := uv run marimo check --strict --ignore MF001
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint format typecheck test coverage pipeline pipeline-check notebooks clean
+.PHONY: help install lint format typecheck test coverage pipeline pipeline-check notebooks ci audit clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -52,6 +53,13 @@ notebooks: ## Run every notebook headlessly (marimo export html into a temp dir)
 	for notebook in notebooks/*.py; do \
 		uv run marimo export html "$$notebook" -o "$$tmp/$$(basename "$$notebook" .py).html" || exit 1; \
 	done
+
+ci: lint typecheck coverage pipeline-check notebooks ## Every check CI runs after install
+
+audit: ## pip-audit over uv.lock (needs the network)
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	uv export --frozen --format requirements-txt --no-emit-project --quiet > "$$tmp" || exit 1; \
+	uv run pip-audit --disable-pip --require-hashes --requirement "$$tmp"
 
 clean: ## Remove caches and coverage output
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage .coverage.* notebooks/__marimo__

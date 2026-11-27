@@ -28,10 +28,36 @@ with PORT=0, reads the actual address from JSON logs, keeps draining stdout
 and kills any surviving child in cleanup. Signal cases check both SIGINT and
 SIGTERM, exit status and the final stopped record.
 
-`make fmt` applies gofmt and goimports. `make serve` builds `bin/server`,
-embeds version metadata and runs it in the foreground. `make ci` adds coverage
-and vulnerability checks. A standard-library advisory needs a patched Go
-toolchain, recorded in go.mod, rather than a disabled vulnerability check.
+`make fmt` applies gofmt and goimports; `make lint-fix` applies golangci-lint's
+fixes. `make serve` builds `bin/server`, embeds version metadata and runs it in
+the foreground. `make ci` runs every offline check, coverage included. `make
+vuln` runs govulncheck, which needs the network, so CI runs it as its own step
+after `make ci`. A standard-library advisory needs a patched Go toolchain,
+recorded in go.mod, rather than a disabled vulnerability check.
+
+## Background server
+
+`make dev-bg` builds, then runs `bin/server` from `scripts/dev-bg.sh` in its
+own process group, with its output in `logs/dev.log` and
+`<group> <host> <port> <start time>` in `logs/dev.pid`. It returns once
+`/healthz` answers (probed with `bin/server -healthcheck`). If that takes over
+30 seconds or the script is interrupted, it stops the group (SIGKILL after 3
+seconds, inside a verify step timeout's 5 second window) and prints the log's
+tail. Overlapping starts in one checkout queue on `logs/dev.lock`, so only one
+launches. A second `make dev-bg` on the same HOST and PORT reuses the
+recorded server while it answers; on another port it refuses until
+`make dev-stop`. A reused server keeps running the binary it started with, so
+run `make dev-stop && make dev-bg` after a code change.
+
+`make dev-stop` sends SIGTERM to the recorded group, SIGKILL after 15 seconds,
+and removes the pid file. It signals nothing when the recorded pid is alive
+with a different start time, since a stale pid file can name a pid another
+process has since taken. A group whose leader exited but whose members remain
+is still stopped. `make dev-status` exits 0 while the recorded server runs and
+1 otherwise. A foreground `make serve` isn't recorded: dev-bg refuses while it
+holds the port, and dev-stop leaves it alone. HOST and PORT come from the
+shell, as for `make serve`; PORT=0 is refused because the health check needs a
+known port.
 
 Fill README and the selected fragments' AGENTS, hook and CI guidance before
 the final `stacks verify`. The default hooks and workflow are supplied by

@@ -6,6 +6,12 @@
       "Bash(make typecheck)",
       "Bash(make test)",
       "Bash(make coverage)",
+      "Bash(make ci)",
+      "Bash(make audit)",
+      "Bash(make dev-bg)",
+      "Bash(make dev-stop)",
+      "Bash(make dev-status)",
+      "Bash(make clean)",
       "Bash(uv run pytest *)",
       "Bash(uv run mypy *)",
       "Bash(uv run ruff check *)"

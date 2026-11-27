@@ -14,6 +14,8 @@
       "Bash(bun run check)",
       "Bash(bun run e2e)",
       "Bash(bun run e2e *)",
+      "Bash(bun run audit)",
+      "Bash(bun run clean)",
       "Bash(bun run dev)",
       "Bash(bun run dev *)",
       "Bash(./dist/*)"

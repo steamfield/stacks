@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "hono-react",
   "source": {
-    "digest": "sha256:1afeebe6dd9016fef7ca2a30a1ce297a79a3a84f3241362717bdecee3815b24f",
+    "digest": "sha256:edbb61770b08526b40be511f6e4b023d2b0e56f127a039f881b16e0fa18cb3e1",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-18"
+    "reviewedAt": "2026-11-26"
   },
   "summary": "A TypeScript JSON API on Hono and a React single-page app on Vite in one repository, joined by a generated typed client.",
   "description": "Run a Hono API on Node in backend/ and a React single-page app on Vite in frontend/, each with its own scripts, tests and lint rules. The API's OpenAPI document generates TanStack Query hooks for the frontend, drift checks keep the copy and the client current, and a root check starts both parts and requests the API through the Vite proxy. Notes stay in memory and there is no authentication, so storage and accounts are still yours to add.",

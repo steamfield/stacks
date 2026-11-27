@@ -12,7 +12,7 @@ while IFS= read -r line; do
   if printf '%s\n' "$line" | grep -Eq '(^|[[:space:]])(--help|--version|-h)([[:space:]]|$)'; then continue; fi
   if printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?mvnw?([[:space:]]|$)' &&
     printf '%s\n' "$line" | grep -Eq '[[:space:]]spring-boot:run([[:space:]]|$)'; then
-    hook_deny "spring-boot:run holds a JVM open. Run make serve in the background and stop the pid you started."; exit 0
+    hook_deny "spring-boot:run holds a JVM open. Run make dev-bg to keep a server in the background, and make dev-stop to stop it."; exit 0
   fi
 done <<<"$lines"
 exit 0

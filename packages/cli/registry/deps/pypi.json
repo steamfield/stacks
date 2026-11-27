@@ -297,6 +297,22 @@
         "reviewedAt": "2026-10-29"
       }
     },
+    "pip-audit": {
+      "whatItIs": "pip-audit, a Python tool that checks a project's installed packages against a public list of known security problems.",
+      "goodAt": [
+        "Flagging a dependency version with a published security problem before it ships",
+        "Running in CI or locally with no account or API key"
+      ],
+      "notGoodAt": ["Finding security bugs in the project's own code; review the code for that."],
+      "example": "Before a release, a developer runs the check and learns that one library has a known flaw fixed in a newer version, so they upgrade it.",
+      "homepage": "https://github.com/pypa/pip-audit",
+      "source": {
+        "by": "drafted",
+        "model": "claude-opus-5-5",
+        "promptVersion": 4,
+        "reviewedAt": "2026-11-26"
+      }
+    },
     "polars": {
       "whatItIs": "Polars, a fast Python library for working with tables of data, such as filtering rows, joining tables and adding up totals.",
       "goodAt": [

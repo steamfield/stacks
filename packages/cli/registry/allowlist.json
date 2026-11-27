@@ -199,6 +199,7 @@
       "hypothesis",
       "marimo",
       "mypy",
+      "pip-audit",
       "polars",
       "pyarrow",
       "pydantic",

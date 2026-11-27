@@ -1,14 +1,15 @@
 # {{project_name}} development commands.
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
-# fmt-check, clippy, check, test, build and serve; CI calls `make ci`.
+# fmt-check, clippy, check, test, build, dev-bg, dev-stop and serve (dev-cycle runs
+# scripts/dev-bg.sh status directly). CI calls install, ci, then audit as its own step.
 
 BIN        := {{project_slug}}
 TARGET_DIR := $(or $(CARGO_TARGET_DIR),target)
 RELEASE    := $(TARGET_DIR)/release/$(BIN)
 
 .DEFAULT_GOAL := help
-.PHONY: help install fmt fmt-check clippy lint check test build serve audit ci clean
+.PHONY: help install fmt fmt-check clippy lint lint-fix check test build serve dev-bg dev-stop dev-status audit ci clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -29,6 +30,10 @@ clippy: ## clippy on every target with warnings denied
 
 lint: fmt-check clippy ## fmt-check and clippy
 
+lint-fix: ## Apply clippy's machine-applicable fixes, then format
+	cargo clippy --fix --allow-dirty --locked --all-targets --all-features
+	cargo fmt --all
+
 check: ## Type-check every target
 	cargo check --locked --all-targets --all-features
 
@@ -42,13 +47,23 @@ build: ## Release binary in target/release/
 serve: build ## Build, then run the release server in the foreground until SIGINT or SIGTERM
 	exec $(RELEASE)
 
+# DEV_BIN tells the script which binary to run and probe, so it follows CARGO_TARGET_DIR and BIN.
+dev-bg: build ## Start the release server in the background, or reuse a healthy one; output goes to logs/dev.log
+	@DEV_BIN=$(RELEASE) bash scripts/dev-bg.sh start
+
+dev-stop: ## Stop the server dev-bg started (its whole process group)
+	@bash scripts/dev-bg.sh stop
+
+dev-status: ## Exit 0 when the server dev-bg started is running, else 1
+	@bash scripts/dev-bg.sh status
+
 audit: ## Advisories, licenses and sources with cargo-deny (needs network)
 	@command -v cargo-deny >/dev/null 2>&1 || { \
 		if command -v cargo-binstall >/dev/null 2>&1; then cargo binstall --no-confirm cargo-deny; \
 		else cargo install --locked cargo-deny; fi; }
 	cargo deny check
 
-ci: fmt-check clippy test build audit ## Everything CI runs
+ci: fmt-check clippy test build ## Every offline check CI runs (audit is its own step)
 
 clean: ## Remove build output
 	cargo clean

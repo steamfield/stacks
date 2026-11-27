@@ -3,10 +3,11 @@
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
 # lint, build, analyze, coverage and test-ui; CI calls `make ci`. Every xcodebuild
 # call goes through scripts/xcodebuild.sh, which picks a simulator at run time
-# (scripts/sim-destination.sh; set SIM_DESTINATION to choose one).
+# (scripts/sim-destination.sh; set SIMULATOR_UDID to choose one).
 
 SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
+# XcodeGen needs USER, which stripped-down automation environments leave unset.
+export USER := $(if $(USER),$(USER),$(shell id -un))
 
 OBJC_SOURCES = $(shell find App AppTests AppUITests -name '*.h' -o -name '*.m')
 SWIFT_FORMAT := xcrun swift-format

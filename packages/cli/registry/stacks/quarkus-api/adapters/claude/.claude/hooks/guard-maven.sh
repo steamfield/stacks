@@ -13,7 +13,7 @@ while IFS= read -r line; do
   if { printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?mvnw?([[:space:]]|$)' &&
     printf '%s\n' "$line" | grep -Eq '[[:space:]]quarkus:dev([[:space:]]|$)'; } ||
     printf '%s\n' "$line" | grep -Eq '^([^[:space:]]*/)?quarkus[[:space:]]+dev([[:space:]]|$)'; then
-    hook_deny "Quarkus dev mode holds the terminal open. Run make test, or make serve in the background and stop the pid you started."; exit 0
+    hook_deny "Quarkus dev mode holds the terminal open. Run make test, or make dev-bg to keep a server in the background and make dev-stop to stop it."; exit 0
   fi
 done <<<"$lines"
 exit 0

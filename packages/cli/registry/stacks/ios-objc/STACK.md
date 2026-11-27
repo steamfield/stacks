@@ -85,7 +85,7 @@ Unit tests stay on XCTest: Swift Testing can't test Objective-C directly, and a 
 
 `AppUITests` stays a smoke check. Each test launches the app and waits for elements by identifier; alternate states come from launch arguments (`-APPGreetingResource missing` overrides the config). Each new screen a journey reaches gets `performAccessibilityAuditWithAuditTypes:issueHandler:error:`, which checks labels, contrast, Dynamic Type and clipped text. Put behavior in unit tests, since every UI test launches the app and adds seconds.
 
-Every xcodebuild call disables parallel testing, so xcodebuild never clones simulators, and builds unsigned. `make test`, `make coverage` and `make test-ui` boot the simulator `scripts/sim-destination.sh` picks; set `SIM_DESTINATION` to use a specific one.
+Every xcodebuild call disables parallel testing, so xcodebuild never clones simulators, and builds unsigned. `make test`, `make coverage` and `make test-ui` boot the simulator `scripts/sim-destination.sh` picks; set `SIMULATOR_UDID` to use a specific one.
 
 ## Commands
 
@@ -116,5 +116,5 @@ allows "an edit to the XcodeGen spec" '{"tool_input":{"file_path":"project.yml"}
 - `-Wextra`'s unused-parameter warning is off (`-Wno-unused-parameter` in `Config/Shared.xcconfig`) because every delegate and data source method that ignores an argument would trip it. It is the only loosened warning.
 - A new source file needs `make project` before Xcode or xcodebuild sees it; every Makefile build target runs it first.
 - The scene manifest is generated (`INFOPLIST_KEY_UIApplicationSceneManifest_Generation`), so the scene delegate class is set in `-application:configurationForConnectingSceneSession:options:`, not in an Info.plist.
-- Several agents or projects on one machine can share a booted simulator. When runs collide (an "Application failed preflight checks" or a busy-device error), create a simulator for this project and set `SIM_DESTINATION`.
+- Several agents or projects on one machine can share a booted simulator. When runs collide (an "Application failed preflight checks" or a busy-device error), create a simulator for this project and set `SIMULATOR_UDID`.
 - Old Objective-C examples online use manual retain and release, `NSLog`, `@synthesize` and nib-based view controllers; ARC, `os_log`, auto-synthesis and code-built views replace all four.

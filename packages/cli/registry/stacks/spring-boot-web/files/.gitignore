@@ -1,6 +1,9 @@
 # Build output
 /target/
 
+# make dev-bg's server log and record
+/logs/
+
 # Environment
 .env
 .env.*

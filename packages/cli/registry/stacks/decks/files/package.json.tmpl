@@ -6,10 +6,12 @@
     "decks": "decks",
     "dev": "decks dev {{project_slug}}",
     "build": "decks build {{project_slug}}",
-    "lint": "decks lint",
+    "lint": "decks lint && biome check .",
+    "format": "biome check --write .",
     "typecheck": "tsc -p .",
     "test": "decks check",
-    "check": "decks check && tsc -p . && decks build {{project_slug}}",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "audit": "bun audit",
     "clean": "rm -rf dist"
   }
 }

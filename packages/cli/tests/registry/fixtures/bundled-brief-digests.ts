@@ -49,16 +49,17 @@
  * The 0.15.0 version in the brief changed all six again on 2026-11-18.
  * All six changed on 2026-11-26 when the brief's file list began naming .stacks/sources.json,
  * and again that day when ci-github named macOS runners for Xcode jobs; they await a bench run.
+ * The 0.17.0 version in the brief changed all six again on 2026-11-27.
  * After proving an intentional brief change, regenerate each
  * key from `bun run dev validate --brief <stack> [--sandbox] --json` at the repo root:
  * parse stdout as JSON and sha256 its `brief` string as UTF-8, with no added newline.
  * Both presets use validate's canonical context, not new's machine-dependent brief.
  */
 export const briefDigests: Readonly<Record<string, string>> = {
-  "astro-blog:default": "sha256:13dc9c9806395f72136338cf9ecbe5b43ce6e9273ee561c55f4f0f8b358037cd",
-  "astro-blog:sandbox": "sha256:430b1433b9f8206005b32d09c2ba8ed61176f45325e47da1dc715eebc1368abb",
-  "go-cli:default": "sha256:72ebb39d6b0dc89f83d0a4aafbc825a0388a6642a8ad226180374c0fdc061c35",
-  "go-cli:sandbox": "sha256:18b37f0baf6589e6e9890e24530aad9eea48bd4a6786f237a628bb6771418fdf",
-  "python-react:default": "sha256:b72a693316f3cb3d8ef08035caee751abd2dfedcc4dc163dbbc2a7e131bf062a",
-  "python-react:sandbox": "sha256:23716d6dca7b703038dd28b4dfc0d3e5e47ce570cb76a3fa2281cf88e1e7f4bd",
+  "astro-blog:default": "sha256:239a2b91a6aa1535f421277faa46e573cd1a92f9b1836fdce7973b5c5326d354",
+  "astro-blog:sandbox": "sha256:cfe068db4cc4d7bca9eeb560758671ae32c53e85a3fb778d8cb4f3607c8bc90d",
+  "go-cli:default": "sha256:078b4050e2cf4154cf58128747c00ad265b6ddc321c09e365ff76fd25345be58",
+  "go-cli:sandbox": "sha256:556bf5a6bf06b220a0e5b92ef74ca99003ec2163f51d3ba03ceb2bcc4bd1a8cd",
+  "python-react:default": "sha256:f52534cdc4bc0d49e263351fbd2979ca58b28c867ad2884bf0bc7d5110ab91a1",
+  "python-react:sandbox": "sha256:bd178e6caf0959b85a93acdc7f91afc81b96fba5e5748476b10d09e17a136f06",
 };

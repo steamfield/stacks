@@ -4,6 +4,8 @@ All notable changes to `@steamfield/stacks`. The format follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-27
+
 ### Added
 
 - `new` and `add` write `.stacks/sources.json` with the index commit and the origin and digest of each entry used. The `new` brief also names the index commit and generation time when available. Projects without the file still work.

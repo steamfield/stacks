@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
       - uses: oven-sh/setup-bun@v2
@@ -26,7 +26,7 @@ jobs:
       # The CLI's Vitest suite runs sharded in cli-tests below; the other packages' coverage here.
       - run: bun run --filter '!@steamfield/stacks' coverage
       - run: bun run e2e
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: diagnostics
@@ -42,7 +42,7 @@ jobs:
     outputs:
       behavior: ${{ steps.diff.outputs.behavior }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: diff
@@ -71,8 +71,8 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
       - uses: oven-sh/setup-bun@v2
@@ -80,7 +80,7 @@ jobs:
           bun-version-file: package.json
       - run: bun run install:ci
       - run: bun run --cwd packages/cli coverage --project behavior --shard=${{ matrix.shard }}/4
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: diagnostics-cli-${{ matrix.shard }}
@@ -93,8 +93,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
       - uses: oven-sh/setup-bun@v2
@@ -102,7 +102,7 @@ jobs:
           bun-version-file: package.json
       - run: bun run install:ci
       - run: bun run --cwd packages/cli test:registry
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: diagnostics-registry
@@ -114,8 +114,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
       - name: Validate the registry with the CLI at its minCli
@@ -127,7 +127,7 @@ jobs:
           fi
           STACKS_REGISTRY_DIR="$PWD/packages/cli/registry" \
             npx -y "@steamfield/stacks@${min_cli}" validate --json > validate.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: diagnostics-registry-min-cli

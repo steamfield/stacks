@@ -5,7 +5,7 @@ import { Schema } from "effect";
 import { parse } from "smol-toml";
 import { expect } from "vitest";
 import { parse as parseYaml } from "yaml";
-import type { scaffoldAdapters } from "../../helpers/native-adapters";
+import type { scaffoldAdapters } from "./native-adapters";
 
 const configs = {
   claude: ".claude/settings.json",

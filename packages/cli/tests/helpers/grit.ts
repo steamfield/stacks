@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tempDir } from "../../helpers/cli";
+import { tempDir } from "./cli";
 
-const pkg = join(import.meta.dirname, "../../..");
+const pkg = join(import.meta.dirname, "../..");
 
 /** Lints `source` written to `path` under a temporary root with only the boundary plugin. */
 export function lint(path: string, source: string, plugin = "biome-plugins/boundaries.grit") {

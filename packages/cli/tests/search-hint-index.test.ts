@@ -19,6 +19,7 @@ import {
   success,
 } from "./helpers/remote-index";
 import { apiOptions, decoded, officialHit, response } from "./helpers/search-api";
+import { searchRegistry } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
@@ -185,3 +186,35 @@ for (const { name, state, update, selected = hit } of cases) {
     }),
   );
 }
+
+it.effect("a local bundled hit missing from the cached index is shown, not sent to update", () =>
+  Effect.gen(function* () {
+    const home = space.dir();
+    const published = join(home, "published");
+    const server = yield* Effect.acquireRelease(
+      Effect.promise(() => serveSearch(published, hit)),
+      (server) => Effect.promise(() => server.close()),
+    );
+    yield* seed(home, published, server, "present");
+    const seededRequests = server.requests.length;
+    const clock = yield* Clock.Clock;
+    const options = apiOptions(home, server.url);
+    const host = { ...options.host, registry: searchRegistry, invocation };
+    const text = yield* Effect.promise((signal) =>
+      remoteCli(["search", "flutter", "--local"], {
+        ...options,
+        home,
+        server,
+        host,
+        clock,
+        signal,
+      }),
+    );
+    success(text);
+    expect(text.stdout).toContain("stack flutter");
+    expect(text.stdout.split("\n").filter((line) => line.startsWith("Next: "))).toEqual([
+      `Next: ${invocation} show flutter, then ${invocation} new flutter <dir>.`,
+    ]);
+    expect(server.requests.slice(seededRequests)).toEqual([]);
+  }),
+);

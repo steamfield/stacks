@@ -20,11 +20,10 @@ import { BUDGET } from "../../src/core/validate/compositions/budget";
 import { BriefPreview } from "../../src/schemas/validate";
 import { Processes } from "../../src/services/processes";
 import { runProcesses } from "../helpers/cli";
+import { compositionWorkspace, quote, snapshot } from "../helpers/composition-workspace";
 import { readManifestAt, recordPath } from "../helpers/verify";
 import { briefDigests } from "./fixtures/bundled-brief-digests";
 import { bundled } from "./helpers/bundled";
-
-import { compositionWorkspace, quote, snapshot } from "./helpers/composition-workspace";
 
 const catalog = await Effect.runPromise(
   Effect.flatMap(Registry, (registry) => registry.all).pipe(

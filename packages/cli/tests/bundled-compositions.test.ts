@@ -11,11 +11,10 @@ import { Schema } from "effect";
 import { afterAll, beforeEach, expect, test } from "vitest";
 import { ComposeConflictDetails } from "../src/errors";
 import type { runCli } from "./helpers/cli";
+import { compositionWorkspace, snapshot } from "./helpers/composition-workspace";
 import { spawnGit } from "./helpers/git";
 import { adapterRegistry } from "./helpers/native-adapters";
 import { minimal, writeEntry } from "./helpers/registry";
-
-import { compositionWorkspace, snapshot } from "./registry/helpers/composition-workspace";
 
 const { home, cli, scaffold, success, withGit, gitCallsOnly, reset, cleanup } =
   compositionWorkspace(adapterRegistry, []);

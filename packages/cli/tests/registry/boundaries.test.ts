@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { lint } from "./helpers/grit";
+import { lint } from "../helpers/grit";
 
 test.each(["typescript-cli"])(
   "%s starter Grit rejects console and misplaced env reads, allowing near misses",

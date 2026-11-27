@@ -5,8 +5,8 @@ import { Schema } from "effect";
 import { parse } from "smol-toml";
 import { afterEach, expect, test } from "vitest";
 import { adapterWorkspace, nativeAgents, scaffoldAdapters } from "../helpers/native-adapters";
+import { checkNativeFiles, instructionMetadata } from "../helpers/native-files";
 import { bundled } from "./helpers/bundled";
-import { checkNativeFiles, instructionMetadata } from "./helpers/native-files";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());

@@ -15,9 +15,9 @@ import {
 import { join, relative } from "node:path";
 import { Schema } from "effect";
 import { expect } from "vitest";
-import { NewResult } from "../../../src/schemas/new";
-import { quiet, runCli, tempDir } from "../../helpers/cli";
-import { gitShim } from "../../helpers/git";
+import { NewResult } from "../../src/schemas/new";
+import { quiet, runCli, tempDir } from "./cli";
+import { gitShim } from "./git";
 
 export const quote = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
 const sha256 = (text: string | Buffer) =>

@@ -3,7 +3,7 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { expect, test } from "vitest";
 import { tempDir } from "./helpers/cli";
-import { lint } from "./registry/helpers/grit";
+import { lint } from "./helpers/grit";
 
 const pkg = join(import.meta.dirname, "..");
 

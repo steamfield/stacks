@@ -1,0 +1,45 @@
+# {{project_name}}
+
+<!-- stacks:fill One or two sentences on what this tool does and who it's for. -->
+
+## Install
+
+<!-- stacks:fill A bash code block with `go install <module path>@latest`, using the real module path from go.mod. -->
+
+Or build from source:
+
+```bash
+make build
+./bin/{{project_slug}} --help
+```
+
+## Usage
+
+```bash
+{{project_slug}} --help
+{{project_slug}} --version
+```
+
+<!-- stacks:fill The two or three commands people run most, with one line each on what they do. -->
+
+Every command accepts `--json` for machine-readable output. See [docs/configuration.md](docs/configuration.md) for config files, environment variables, and flags.
+
+## Development
+
+Requires Go, make, and [golangci-lint](https://golangci-lint.run/).
+
+| Command | What it does |
+|---|---|
+| `make build` | Build `bin/{{project_slug}}` |
+| `make test` | Unit tests |
+| `make test-integration` | Integration tests against the built binary |
+| `make lint` | golangci-lint |
+| `make vuln` | govulncheck |
+| `make coverage` | Race-enabled tests with a coverage floor |
+| `make ci` | Everything CI runs |
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for more.
+
+## License
+
+Copyright (c) {{year}} {{author}}

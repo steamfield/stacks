@@ -1,0 +1,73 @@
+package cli
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestConfigShow(t *testing.T) {
+	for _, jsonOutput := range []bool{false, true} {
+		t.Run(map[bool]string{false: "human", true: "JSON"}[jsonOutput], func(t *testing.T) {
+			isolate(t)
+			root := newRootCmd("dev", "none", "unknown")
+			var out, stderr bytes.Buffer
+			root.SetOut(&out)
+			root.SetErr(&stderr)
+			args := []string{"config", "show", "--verbose"}
+			if jsonOutput {
+				args = append(args, "--json")
+			}
+			root.SetArgs(args)
+			require.NoError(t, root.Execute())
+			assert.Contains(t, out.String(), "Hello, world!")
+			assert.Contains(t, stderr.String(), "configuration loaded")
+			if jsonOutput {
+				assert.JSONEq(t, `{"greeting":"Hello, world!","json":true,"verbose":true,"no-color":false}`, out.String())
+				assert.True(t, json.Valid(stderr.Bytes()))
+			} else {
+				assert.Contains(t, out.String(), `greeting: "Hello, world!"`)
+			}
+		})
+	}
+}
+
+func TestConfigShowQuotesGreeting(t *testing.T) {
+	isolate(t)
+	t.Setenv(config.EnvPrefix+"_GREETING", "hello\njson: true")
+	root := newRootCmd("dev", "none", "unknown")
+	var out, stderr bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"config", "show"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, out.String(), `greeting: "hello\njson: true"`)
+	assert.NotContains(t, out.String(), "\njson: true")
+	assert.Empty(t, stderr.String())
+}
+
+func TestConfigShowFailure(t *testing.T) {
+	isolate(t)
+	path := filepath.Join(t.TempDir(), "bad.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("greeting: [\n"), 0o600))
+	root := newRootCmd("dev", "none", "unknown")
+	var out, stderr bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"config", "show", "--config", path})
+	err := root.Execute()
+	var failure *apperrors.Error
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, apperrors.Config, failure.Code)
+	assert.NotEmpty(t, failure.Suggestion)
+	assert.Empty(t, out.String())
+	assert.Empty(t, stderr.String())
+}

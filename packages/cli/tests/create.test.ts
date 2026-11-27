@@ -21,7 +21,6 @@ import { ValidateReport } from "../src/schemas/validate";
 import { VerifyResult } from "../src/schemas/verify";
 import {
   authoringGuide,
-  bundledRegistry,
   createCli,
   created,
   createFailure,
@@ -35,6 +34,7 @@ import {
   userRoot,
 } from "./helpers/create";
 import { spawnGit } from "./helpers/git";
+import { adapterRegistry } from "./helpers/native-adapters";
 import { minimal, writeEntry } from "./helpers/registry";
 import { splitEvents } from "./helpers/verify";
 
@@ -103,11 +103,12 @@ describe("create an entry", () => {
     "a fresh skeleton refuses an existing id (project copy: %s)",
     async (projectCopy) => {
       const home = createWorkspace();
+      const host = { cwd: home, registry: adapterRegistry };
       if (projectCopy) source(home, "stack", "go-cli");
       const before = entrySnapshot(home);
       const args = ["create", "stack", "go-cli"];
       const error = createFailure(
-        await createCli(home, [...args, "--json"], { host: { cwd: home } }),
+        await createCli(home, [...args, "--json"], { host }),
         2,
         "BadInput",
       );
@@ -123,7 +124,7 @@ describe("create an entry", () => {
       });
       expect(entrySnapshot(home)).toEqual(before);
       expect(existsSync(entryPath(home, "stack", "go-cli"))).toBe(false);
-      const text = await createCli(home, args, { host: { cwd: home } });
+      const text = await createCli(home, args, { host });
       expect(text.status).toBe(2);
       expect(text.stdout).toBe("");
       expect(text.stderr).toContain(
@@ -131,9 +132,7 @@ describe("create an entry", () => {
       );
       if (!projectCopy) {
         const preview = jsonResult(
-          await createCli(home, ["new", "go-cli", "demo", "--dry-run", "--json"], {
-            host: { cwd: home },
-          }),
+          await createCli(home, ["new", "go-cli", "demo", "--dry-run", "--json"], { host }),
           NewResult,
         );
         expect(preview.fragments.length).toBeGreaterThan(0);
@@ -381,12 +380,13 @@ describe("create an entry", () => {
 
   test("a bundled working copy shadows its origin and new reads the edited body [3.1b#2]", async () => {
     const home = createWorkspace();
+    const host = { registry: adapterRegistry };
     await created(
-      await createCli(home, ["create", "stack", "go-cli", "--from", "bundled", "--json"]),
+      await createCli(home, ["create", "stack", "go-cli", "--from", "bundled", "--json"], { host }),
     );
     const copy = entryPath(home, "stack", "go-cli");
-    expect(entrySnapshot(copy)).toEqual(entrySnapshot(join(bundledRegistry, "stacks/go-cli")));
-    const rows = jsonResult(await createCli(home, ["list", "--json"]), ListResult);
+    expect(entrySnapshot(copy)).toEqual(entrySnapshot(join(adapterRegistry, "stacks/go-cli")));
+    const rows = jsonResult(await createCli(home, ["list", "--json"], { host }), ListResult);
     expect(rows.rejected).toEqual([]);
     expect(rows.entries.find((row) => row.id === "go-cli" && row.kind === "stack")).toMatchObject({
       origin: "user",
@@ -396,7 +396,7 @@ describe("create an entry", () => {
     const path = join(copy, "STACK.md");
     writeFileSync(path, `${read(path)}\nPERSONAL COPY GUIDANCE\n`);
     const result = jsonResult(
-      await createCli(home, ["new", "go-cli", "app", "--json", "--author", ""]),
+      await createCli(home, ["new", "go-cli", "app", "--json", "--author", ""], { host }),
       NewResult,
     );
     expect(read(join(result.project, result.brief))).toContain("PERSONAL COPY GUIDANCE");

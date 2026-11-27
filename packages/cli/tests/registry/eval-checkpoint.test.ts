@@ -6,11 +6,13 @@ import { validateEvalReport } from "../../registry/fragments/openrouter-chat/fil
 import { spawnGit } from "../helpers/git";
 import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
 import { readManifestAt } from "../helpers/verify";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 let composed = "";
 beforeAll(async () => {
   const result = await scaffoldAdapters({
+    registry: bundled,
     home: space.temp(),
     stack: "react-router",
     fragments: ["openrouter-chat"],
@@ -182,6 +184,7 @@ const EVAL_FILES = [
 
 test("a vendor-only composition ships the OpenRouter stub and no eval checker", async () => {
   const value = await scaffoldAdapters({
+    registry: bundled,
     home: space.temp(),
     stack: "typescript-cli",
     fragments: ["openrouter-ai"],
@@ -196,6 +199,7 @@ test("a vendor-only composition ships the OpenRouter stub and no eval checker", 
 
 test("both chat apps ship byte-identical eval checkers with an eval verify step", async () => {
   const value = await scaffoldAdapters({
+    registry: bundled,
     home: space.temp(),
     stack: "typescript-cli",
     fragments: ["openrouter-chat-cli"],

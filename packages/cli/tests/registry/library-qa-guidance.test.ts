@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -31,6 +32,7 @@ test.each(compositions.flatMap((c) => agents.map((agent) => ({ ...c, agent }))))
   "$guide guidance and native references resolve for $agent",
   async ({ stack, fragments, guide, required, agent }) => {
     const result = await scaffoldAdapters({
+      registry: bundled,
       home: space.temp(),
       stack,
       fragments,
@@ -69,6 +71,7 @@ test.each(compositions.flatMap((c) => agents.map((agent) => ({ ...c, agent }))))
 
 test.each(agents)("Effect bootstrap can start without an API reference for %s", async (agent) => {
   const result = await scaffoldAdapters({
+    registry: bundled,
     home: space.temp(),
     stack: "typescript-cli",
     agents: [agent],
@@ -90,6 +93,7 @@ test.each(agents)("Effect bootstrap can start without an API reference for %s", 
 // python-react's backend is python-api: a tag/message/retryable envelope, the id in a header.
 test("Python's error model and acceptance pin the envelope and the x-request-id header", async () => {
   const { project } = await scaffoldAdapters({
+    registry: bundled,
     home: space.temp(),
     stack: "python-react",
     agents: ["codex"],

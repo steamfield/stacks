@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "claude-essentials": {
+      "source": {
+        "source": "github",
+        "repo": "rileyhilliard/claude-essentials"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "ce@claude-essentials": true
+  }
+}

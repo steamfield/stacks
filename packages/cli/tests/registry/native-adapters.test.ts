@@ -76,7 +76,12 @@ function configuredInstructions(
 test.each(stacks.flatMap((stack) => AgentId.literals.map((agent) => ({ stack, agent }))))(
   "$stack writes only the selected $agent adapter [3.4b#1]",
   async ({ stack, agent }) => {
-    const result = await scaffoldAdapters({ home: space.temp(), stack, agents: [agent] });
+    const result = await scaffoldAdapters({
+      registry: bundled,
+      home: space.temp(),
+      stack,
+      agents: [agent],
+    });
     expect(result.agents).toEqual([agent]);
     for (const file of result.written)
       expect(existsSync(join(result.project, file)), file).toBe(true);
@@ -90,6 +95,7 @@ test.each(stacks)(
   "%s composes Claude and Codex together without losing either config [3.4b#1]",
   async (stack) => {
     const result = await scaffoldAdapters({
+      registry: bundled,
       home: space.temp(),
       stack,
       agents: ["claude", "codex"],
@@ -113,6 +119,7 @@ test.each(
   "$fragment supplies $agent-readable guidance in a documented instruction file [3.4b#1]",
   async ({ fragment, stack, token, agent }) => {
     const result = await scaffoldAdapters({
+      registry: bundled,
       home: space.temp(),
       stack,
       fragments: [fragment],

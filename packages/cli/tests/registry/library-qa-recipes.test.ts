@@ -7,6 +7,7 @@ import { VerifyEvent, VerifyResult } from "../../src/schemas/verify";
 import { quiet, runCli } from "../helpers/cli";
 import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
 import { readManifestAt, readRecord, recordPath, stateEnv } from "../helpers/verify";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -18,7 +19,12 @@ function shim(dir: string, name: string, body: string) {
 
 test("Astro check refuses missing checker dependencies without an installation prompt", async () => {
   const home = space.temp();
-  const { project } = await scaffoldAdapters({ home, stack: "astro-blog", agents: ["codex"] });
+  const { project } = await scaffoldAdapters({
+    registry: bundled,
+    home,
+    stack: "astro-blog",
+    agents: ["codex"],
+  });
   const bin = join(home, "bin");
   shim(bin, "bunx", 'echo "Would you like to install @astrojs/check?"; exit 0');
   const env = { HOME: home, PATH: `${bin}:${process.env.PATH ?? ""}` };
@@ -55,7 +61,12 @@ test("Astro check refuses missing checker dependencies without an installation p
 
 test("Astro preview explicitly stays foreground and has a documented stop command", async () => {
   const home = space.temp();
-  const { project } = await scaffoldAdapters({ home, stack: "astro-blog", agents: ["codex"] });
+  const { project } = await scaffoldAdapters({
+    registry: bundled,
+    home,
+    stack: "astro-blog",
+    agents: ["codex"],
+  });
   const bin = join(home, "bin");
   shim(bin, "bunx", 'echo "astro invocation: $*"');
   const result = spawnSync("make", ["preview", "PORT_WEB=4567"], {
@@ -73,7 +84,12 @@ test("Astro preview explicitly stays foreground and has a documented stop comman
 
 test("Tauri install disables rustup self-update for this invocation", async () => {
   const home = space.temp();
-  const { project } = await scaffoldAdapters({ home, stack: "tauri-react", agents: ["codex"] });
+  const { project } = await scaffoldAdapters({
+    registry: bundled,
+    home,
+    stack: "tauri-react",
+    agents: ["codex"],
+  });
   const bin = join(home, "bin");
   for (const name of ["bun", "bunx", "cargo", "rustup"]) shim(bin, name, `echo '${name}' "$@"`);
   const result = spawnSync("make", ["install"], {
@@ -91,6 +107,7 @@ test("Tauri install disables rustup self-update for this invocation", async () =
 test("adding CLI chat supplies a helper accepted by the prescribed base formatter", async () => {
   const home = space.temp();
   const { project } = await scaffoldAdapters({
+    registry: bundled,
     home,
     stack: "typescript-cli",
     agents: ["codex"],
@@ -114,6 +131,7 @@ test("hook smoke cannot set the first test milestone", async () => {
   const home = space.temp();
   const env = stateEnv(home);
   const { project } = await scaffoldAdapters({
+    registry: bundled,
     home,
     stack: "react-router",
     agents: ["cursor"],
@@ -144,6 +162,7 @@ test("real passing tests still set the test-command milestone without changing t
   const home = space.temp();
   const env = stateEnv(home);
   const { project } = await scaffoldAdapters({
+    registry: bundled,
     home,
     stack: "react-router",
     agents: ["cursor"],

@@ -1,0 +1,36 @@
+# Configuration
+
+`{{project_slug}} config show` prints the effective configuration. Precedence
+is defaults, home file, project file, environment, then explicitly set flags.
+Unset flags preserve lower-priority values; `--json=false` overrides a true
+value from a file or the environment.
+
+The home file is `~/.config/{{project_slug}}/config.yaml`. The optional project
+file is `./{{project_slug}}.yaml`; it overrides individual home-file keys.
+`--config path` replaces both default paths with that YAML file. Missing files
+are allowed, including an explicitly selected file. Malformed or unreadable
+files fail with a `CONFIG` error and a suggestion.
+
+| YAML key | Default | Environment | Flag |
+|---|---|---|---|
+| `greeting` | `Hello, world!` | `{{env_prefix}}_GREETING` | none |
+| `json` | `false` | `{{env_prefix}}_JSON` | `--json` |
+| `verbose` | `false` | `{{env_prefix}}_VERBOSE` | `--verbose` |
+| `no-color` | `false` | `{{env_prefix}}_NO_COLOR` | `--no-color` |
+
+`greeting` must contain non-whitespace text. Boolean settings accept Go boolean
+values such as `true` and `false`. Empty environment values are ignored.
+The environment prefix comes from the binary name, upper-cased with hyphens
+replaced by underscores. Dots and hyphens in keys also become underscores.
+
+`{{env_prefix}}_DEBUG=1` enables debug logging independently of `verbose`;
+other values do not. Logs go to stderr, with warnings enabled by default.
+`NO_COLOR`, even when empty, disables color. Color also requires a terminal
+destination, and is never used in JSON output.
+
+`--config`, `--json`, `--verbose` and `--no-color` are persistent flags.
+`--help` (or `-h`) shows command help; root `--version` shows build metadata.
+Help and version do not load config files; pass `--json` explicitly to render
+them as JSON. The built-in `help [command]` command also shows command help.
+JSON help has a `help` field; JSON version has `version`, `commit` and `date`.
+Errors before configuration is loaded use the explicit output flags.

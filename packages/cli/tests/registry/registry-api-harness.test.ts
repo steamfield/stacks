@@ -3,6 +3,7 @@ import { existsSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -13,7 +14,12 @@ const cases = ["astro-fullstack", "typescript-api"].flatMap((stack) =>
 test.each(cases)(
   "$stack ships tooling tests for $agent",
   async ({ stack, agent }) => {
-    const result = await scaffoldAdapters({ home: space.temp(), stack, agents: [agent] });
+    const result = await scaffoldAdapters({
+      registry: bundled,
+      home: space.temp(),
+      stack,
+      agents: [agent],
+    });
     for (const file of [
       "scripts/dev-logs.test.ts",
       "scripts/dev-bg.test.ts",
@@ -56,6 +62,7 @@ test.each(cases)(
 
 test("the API tooling tests compile separately from NodeNext application tests", async () => {
   const result = await scaffoldAdapters({
+    registry: bundled,
     home: space.temp(),
     stack: "typescript-api",
     agents: ["claude", "codex"],

@@ -16,7 +16,7 @@ import { expect } from "vitest";
 import { NewResult } from "../../src/schemas/new";
 import { quiet, runCli, tempDir } from "./cli";
 
-export const bundled = join(import.meta.dirname, "..", "..", "registry");
+export const adapterRegistry = join(import.meta.dirname, "..", "fixtures", "registry-adapters");
 export const samples = join(import.meta.dirname, "..", "fixtures", "native-adapters");
 export const nativeAgents = ["codex", "opencode", "cursor"] as const;
 
@@ -37,6 +37,7 @@ export function adapterWorkspace() {
 export async function scaffoldAdapters(options: {
   home: string;
   agents: readonly AgentId[];
+  registry?: string;
   stack?: string;
   fragments?: readonly string[];
   without?: readonly string[];
@@ -58,7 +59,7 @@ export async function scaffoldAdapters(options: {
     {
       home: options.home,
       env: { ...quiet, PATH: process.env.PATH ?? "", ...options.env },
-      host: { cwd: options.home, registry: bundled },
+      host: { cwd: options.home, registry: options.registry ?? adapterRegistry },
     },
   );
   expect(result.stderr).toBe("");

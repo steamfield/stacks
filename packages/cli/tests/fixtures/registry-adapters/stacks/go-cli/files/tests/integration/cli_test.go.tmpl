@@ -1,0 +1,76 @@
+//go:build integration
+
+package integration
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+func TestCLI(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		code int
+		out  string
+		json bool
+	}{
+		{name: "help", args: []string{"--help"}, out: "Usage:"},
+		{name: "version", args: []string{"--version"}, out: config.Binary + " version dev"},
+		{name: "show", args: []string{"config", "show"}, out: `greeting: "Hello, world!"`},
+		{name: "JSON show", args: []string{"config", "show", "--json"}, out: "Hello, world!", json: true},
+		{name: "JSON help", args: []string{"--json", "--help"}, out: "Usage:", json: true},
+		{name: "JSON version", args: []string{"--json", "--version"}, out: `"version":"dev"`, json: true},
+		{name: "unknown", args: []string{"unknown"}, code: 2},
+		{name: "JSON unknown", args: []string{"--json", "unknown"}, code: 2, json: true},
+		{name: "malformed config", args: []string{"config", "show", "--config", "bad.yaml"}, code: 1},
+		{name: "JSON malformed config", args: []string{"config", "show", "--json", "--config", "bad.yaml"}, code: 1, json: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "bad.yaml"), []byte("greeting: [\n"), 0o600))
+			cmd := exec.Command(binary, tt.args...)
+			cmd.Dir = dir
+			cmd.Env = []string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "NO_COLOR=1"}
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			err := cmd.Run()
+			if tt.code == 0 {
+				require.NoError(t, err, stderr.String())
+				assert.Contains(t, stdout.String(), tt.out)
+				assert.Empty(t, stderr.String())
+				if tt.json {
+					assert.True(t, json.Valid(stdout.Bytes()), stdout.String())
+				}
+			} else {
+				var exit *exec.ExitError
+				require.ErrorAs(t, err, &exit)
+				assert.Equal(t, tt.code, exit.ExitCode())
+				assert.Empty(t, stdout.String())
+				if tt.json {
+					var document struct {
+						Error struct{ Code, Message, Suggestion string }
+					}
+					require.NoError(t, json.Unmarshal(stderr.Bytes(), &document))
+					assert.NotEmpty(t, document.Error.Suggestion)
+					assert.NotEmpty(t, document.Error.Message)
+					assert.Equal(t, map[int]string{1: "CONFIG", 2: "INVALID_INPUT"}[tt.code], document.Error.Code)
+				} else {
+					assert.Contains(t, stderr.String(), "Suggestion: ")
+					assert.Equal(t, 1, bytes.Count(stderr.Bytes(), []byte("Suggestion:")))
+				}
+			}
+		})
+	}
+}

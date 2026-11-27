@@ -14,7 +14,7 @@ import { expect } from "vitest";
 import { quiet, runCli, tempDir } from "./cli";
 
 export const createFixture = fileURLToPath(new URL("../fixtures/create/", import.meta.url));
-export const bundledRegistry = fileURLToPath(new URL("../../registry/", import.meta.url));
+const bundledRegistry = fileURLToPath(new URL("../../registry/", import.meta.url));
 export const authoringGuide = fileURLToPath(new URL("../../docs/authoring.md", import.meta.url));
 const dirs: ReturnType<typeof tempDir>[] = [];
 export function createWorkspace() {

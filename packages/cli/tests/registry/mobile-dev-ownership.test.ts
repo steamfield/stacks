@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 const children: ChildProcess[] = [];
@@ -115,7 +116,12 @@ setInterval(() => {
 
 async function fixture() {
   const home = space.temp();
-  const { project } = await scaffoldAdapters({ home, stack: "mobile-expo", agents: ["codex"] });
+  const { project } = await scaffoldAdapters({
+    registry: bundled,
+    home,
+    stack: "mobile-expo",
+    agents: ["codex"],
+  });
   projects.push(project);
   // Never execute the unsafe historical launcher, even during revert verification.
   expect(readFileSync(join(project, "scripts/dev.sh"), "utf8")).not.toMatch(/pkill|reap_all/);

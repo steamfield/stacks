@@ -33,6 +33,7 @@ import {
   snapshot,
 } from "./helpers/add";
 import { gitEnv, spawnGit } from "./helpers/git";
+import { adapterRegistry } from "./helpers/native-adapters";
 import { minimal, writeEntry } from "./helpers/registry";
 import {
   readManifestAt,
@@ -950,16 +951,9 @@ test("a known stack enforces fragment compatibility without changing project or 
   expect(readFileSync(file)).toEqual(state);
 });
 
-test("astro-blog refuses bun-release as inapplicable", async () => {
-  const project = addProject();
-  project.registry = join(import.meta.dirname, "../registry");
-  const created = await addCli(project, [
-    "new",
-    "astro-blog",
-    project.root,
-    "--no-launch",
-    "--json",
-  ]);
+test("go-cli refuses bun-release as inapplicable", async () => {
+  const project = { ...addProject(), registry: adapterRegistry };
+  const created = await addCli(project, ["new", "go-cli", project.root, "--no-launch", "--json"]);
   expect(created.status).toBe(0);
   expect(created.stderr).toBe("");
   const before = snapshot(project.root);
@@ -1015,11 +1009,18 @@ test("add examples use the manifest's first target agent when --agents is omitte
 });
 
 test.each([
-  ["go-api", "docker-deploy", "health"],
-  ["astro-blog", "cloudflare-pages", "adapter"],
+  ["go-cli", "ci-github", "version read from `go.mod`"],
+  ["typescript-library", "git-hooks", "don't add another installer"],
 ])("add %s notes under %s from the current recipe", async (stack, fragment, note) => {
-  const project = { ...addProject(), registry: join(import.meta.dirname, "../registry") };
-  const created = await addCli(project, ["new", stack, project.root, "--json"]);
+  const project = { ...addProject(), registry: adapterRegistry };
+  const created = await addCli(project, [
+    "new",
+    stack,
+    project.root,
+    "--without",
+    fragment,
+    "--json",
+  ]);
   expect(created.status).toBe(0);
   await added(await addCli(project, ["add", fragment, "--json"]));
   const brief = read(project.root, ".stacks/BRIEF.md");

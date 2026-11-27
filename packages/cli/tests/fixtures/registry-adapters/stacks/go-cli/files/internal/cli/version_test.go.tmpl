@@ -1,0 +1,34 @@
+package cli
+
+import (
+	"bytes"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"{{project_slug}}/internal/config"
+)
+
+func TestVersion(t *testing.T) {
+	for _, json := range []bool{false, true} {
+		t.Run(map[bool]string{false: "human", true: "JSON"}[json], func(t *testing.T) {
+			root := newRootCmd("dev", "none", "unknown")
+			var out, stderr bytes.Buffer
+			root.SetOut(&out)
+			root.SetErr(&stderr)
+			args := []string{"--version"}
+			if json {
+				args = append(args, "--json")
+			}
+			root.SetArgs(args)
+			require.NoError(t, root.Execute())
+			if json {
+				assert.JSONEq(t, `{"version":"dev","commit":"none","date":"unknown"}`, out.String())
+			} else {
+				assert.Equal(t, config.Binary+" version dev\n", out.String())
+			}
+			assert.Empty(t, stderr.String())
+		})
+	}
+}

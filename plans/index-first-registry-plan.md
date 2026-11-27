@@ -1,7 +1,8 @@
 # Plan: index-first registry and registry-scoped tests
 
 Skill: deliver. Profile: deliver. On resume, re-read shared/lane-dag.md before anything else.
-plan_graph: /Users/riley/.claude/plugins/cache/claude-essentials/ce/6.0.6/shared/scripts/plan_graph.py
+plan_graph: the ce plugin's `shared/scripts/plan_graph.py`
+Status: done 2026-11-27, released as 0.17.0.
 Started: 2026-11-26. Timebox: none. Landing branch: deliver/index-first-registry (worktree `.claude/worktrees/deliver-index-first`), cut from `feat/ios-stacks` at bc7733ba because phase 5 needs the iOS stacks, which aren't on `main` yet.
 Gate: `rr check` (~30s, clone is opted in to rr). Filtered tests: `bun run test:unit tests/<file>.test.ts` in `packages/cli` (local; a single file is allowed outside rr). Typecheck: `bun run typecheck` (repo root).
 Runner: `rr` for every whole-suite run (`rr check`, `rr test-cli`); scoped files, lint and typecheck run locally.
@@ -267,3 +268,4 @@ A `ci-github` change triggers the canary rule (D42), so the four canaries are re
 
 - 2026-11-26 plan critique (devils-advocate, opus): 8 findings, all applied. Signature demos fixed and every failed signature check mapped to `signature`. Metadata-only entries dropped in favor of a non-cached deadline race. Budget scope made per invocation, with a `get`-after-lapse test. No warning without an index root. Refresh memoized, so no second request. Lane ownership fixed (`cliMeetsMinimum` exported, `compose-files.test.ts`, add internals, phase 2 contracts in a scaffold). Phase 4 now depends on phase 2. The proof gate's effect on deploy-shipped content and on the five unproven stacks is stated.
 - 2026-11-27 main released 0.16.0 (the stack audit, which applied the DX baseline to every stack, the five mobile ones included) while this run was in flight. Main is merged into the landing branch (ed33722f), keeping both sides of the mobile stack changes, and this run releases as 0.17.0. Where the Spec says 0.16 for this run's CLI, read 0.17.
+- 2026-11-27 final review (code-reviewer): 6 findings. Fixed: search's update hint now applies only to index-origin hits; helpers shared with behavior tests moved out of `tests/registry/`; AGENTS.md updated. Rejected: a directory at `.stacks/sources.json` fails `add` the same way one at `BRIEF.md` does; a SIGKILL-orphaned rename backup is low risk; the refresh memo's interrupt reset is live. Known gap: `createCli` still defaults to the real registry, since 7 create tests pin findings on its content. Merged to main (77b03681), released 0.17.0 (format 0.10.0, MCP 0.1.11). Production still signs with the legacy key until stacks-api signs with `stacks-index-2026a`; the five mobile stacks join the index once benched.

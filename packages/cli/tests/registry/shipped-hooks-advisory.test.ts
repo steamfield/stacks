@@ -13,7 +13,8 @@ import {
 import { dirname, join, matchesGlob, relative } from "node:path";
 import { Schema } from "effect";
 import { afterAll, beforeAll, expect, test, vi } from "vitest";
-import { guardCommands } from "./helpers/native-adapters";
+import { guardCommands } from "../helpers/native-adapters";
+import { bundled as registry } from "./helpers/bundled";
 import {
   agentOps,
   allowed,
@@ -27,7 +28,6 @@ import {
   HOOK_TEST_TIMEOUT,
   hookCommand,
   noted,
-  registry,
   run,
   Settings,
   settings,

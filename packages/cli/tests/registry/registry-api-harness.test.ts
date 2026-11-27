@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
-import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
+import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -23,7 +23,7 @@ test.each(cases)(
       expect(existsSync(join(result.project, file)), file).toBe(true);
     }
     symlinkSync(
-      join(import.meta.dirname, "../node_modules"),
+      join(import.meta.dirname, "../../node_modules"),
       join(result.project, "node_modules"),
       "dir",
     );
@@ -33,7 +33,7 @@ test.each(cases)(
         join(result.project, "node_modules/vitest/vitest.mjs"),
         "run",
         "--config",
-        join(import.meta.dirname, "fixtures/native-adapters/vitest-tooling.config.ts"),
+        join(import.meta.dirname, "../fixtures/native-adapters/vitest-tooling.config.ts"),
         "scripts/dev-logs.test.ts",
         "--no-color",
         "--maxWorkers",
@@ -61,7 +61,7 @@ test("the API tooling tests compile separately from NodeNext application tests",
     agents: ["claude", "codex"],
   });
   symlinkSync(
-    join(import.meta.dirname, "../node_modules"),
+    join(import.meta.dirname, "../../node_modules"),
     join(result.project, "node_modules"),
     "dir",
   );

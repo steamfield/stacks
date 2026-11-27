@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
-import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
-import { readManifestAt } from "./helpers/verify";
+import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
+import { readManifestAt } from "../helpers/verify";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());

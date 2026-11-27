@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { Manifest } from "@steamfield/stacks-format";
 import { Exit, Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { NewResult } from "../src/schemas/new";
-import { quiet, runCli, tempDir } from "./helpers/cli";
-import { bundledAt, composeExit } from "./helpers/compose";
-import { reviewSearchFixture } from "./helpers/search-fixture";
+import { NewResult } from "../../src/schemas/new";
+import { quiet, runCli, tempDir } from "../helpers/cli";
+import { bundledAt, composeExit } from "../helpers/compose";
+import { reviewSearchFixture } from "../helpers/search-fixture";
+import { bundled as registry } from "./helpers/bundled";
 
-const registry = join(import.meta.dirname, "../registry");
 const dirs: ReturnType<typeof tempDir>[] = [];
 afterEach(() => {
   for (const dir of dirs.splice(0)) dir.cleanup();
@@ -63,7 +63,7 @@ async function scaffold(stack: string) {
 }
 
 // validate's budget rows for these pairings are asserted against the suite's one whole-registry
-// report, in tests/bundled-registry.test.ts.
+// report, in tests/registry/bundled-registry.test.ts.
 test("astro-blog composes one destructive hook and single-owner files with the harness [3.4a#1]", async () => {
   const { decoded, project } = await scaffold("astro-blog");
   expect(decoded.fragments.filter((id) => id === "claude-harness")).toHaveLength(1);

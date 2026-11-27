@@ -2,13 +2,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { expect, test } from "vitest";
-import { loadRank, records, vocabulary } from "./helpers/search-command";
-import { evaluate } from "./helpers/search-eval";
-import { GoldenSet } from "./helpers/search-golden";
+import { loadRank, records, vocabulary } from "../helpers/search-command";
+import { evaluate } from "../helpers/search-eval";
+import { GoldenSet } from "../helpers/search-golden";
+import { bundled } from "./helpers/bundled";
 
 test("local ranking meets every golden judgment and the metric gate [4.5c#2]", async () => {
   const rank = await loadRank();
-  const entries = await records();
+  const entries = await records(bundled);
   const aliases = vocabulary();
   const golden = Schema.decodeUnknownSync(GoldenSet)(
     JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/search/golden.json"), "utf8")),

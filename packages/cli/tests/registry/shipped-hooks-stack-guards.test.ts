@@ -2,6 +2,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { join, relative } from "node:path";
 import { afterAll, beforeAll, expect, test, vi } from "vitest";
+import { bundled as registry } from "./helpers/bundled";
 import {
   agentOps,
   allowed,
@@ -11,7 +12,6 @@ import {
   fixture,
   HOOK_TEST_TIMEOUT,
   noted,
-  registry,
   run,
   withoutTool,
   writePayload,

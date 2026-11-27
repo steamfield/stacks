@@ -32,7 +32,7 @@ A proof covers the stack's own content: its `STACK.md`, the files, adapters and 
 
 ## Landing a one-stack change
 
-1. Edit the stack, run `bunx vitest run tests/bundled-registry.test.ts` (which validates the bundled registry) and the tests that cover the stack, and commit.
+1. Edit the stack, run `bunx vitest run tests/registry/bundled-registry.test.ts` (which validates the bundled registry) and the tests that cover the stack, and commit.
 2. `bun run prove <stack>`, or `bun run bench <stack>` when it needs an agent. Commit the record.
 3. Merge. If you changed a shared fragment, prove the canaries (`bun run bench:pending --list` names them) instead of every stack.
 4. Deploy. `build:index` with the live `--previous` URL keeps every other entry's proof, and serves a stack whose proof is out of date from its previous entry ("stale proof") instead of dropping it.
@@ -104,12 +104,12 @@ Keep golden queries out of search-sidecar drafting prompts and examples. Holdout
 Run the coverage and metric tests after changing judgments:
 
 ```sh
-bun run test:unit tests/search-golden.test.ts tests/search-golden-coverage.test.ts tests/search-eval.test.ts
+bun run test:unit tests/registry/search-golden.test.ts tests/registry/search-golden-coverage.test.ts tests/search-eval.test.ts
 ```
 
 `evaluate(rank, golden)` reports tune, holdout, and query-weighted total summaries. MRR includes queries with any relevant stack, counting only stack positions through ten. Recall@3 and fragment recall@5 average only queries with grade-2 judgments of that kind; ineligible queries do not dilute the average. Empty eligible groups score zero. First-result and no-match summaries carry passed/total counts. `pairwiseWins` separately counts same-kind competitors above a present `first`; a missing `first` scores zero there but fails the first-result check.
 
-The baseline is the `gate` object in `golden.json` (`mrr`, `recallAt3`, `fragmentRecallAt5`). `tests/search-golden.test.ts` runs local ranking against the set, requires every first-result and no-match case to pass in both splits, and lets each metric fall at most 0.02 below its baseline. When an accepted ranking raises a metric, raise that baseline in the same commit; never lower another metric to offset it. Lower a baseline only as a deliberate, reviewed decision, with the reason in the commit message. Review judgment changes as product decisions and explain their effect on the scores.
+The baseline is the `gate` object in `golden.json` (`mrr`, `recallAt3`, `fragmentRecallAt5`). `tests/registry/search-golden.test.ts` runs local ranking against the set, requires every first-result and no-match case to pass in both splits, and lets each metric fall at most 0.02 below its baseline. When an accepted ranking raises a metric, raise that baseline in the same commit; never lower another metric to offset it. Lower a baseline only as a deliberate, reviewed decision, with the reason in the commit message. Review judgment changes as product decisions and explain their effect on the scores.
 
 ## Drafting and reviewing search cards
 

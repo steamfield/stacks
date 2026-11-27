@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, expect, test } from "vitest";
-import { quiet, runCli, tempDir } from "./helpers/cli";
-import { gitShim } from "./helpers/git";
+import { quiet, runCli, tempDir } from "../helpers/cli";
+import { gitShim } from "../helpers/git";
+import { bundled } from "./helpers/bundled";
 
 // Briefs as the 1.6b gate runs composed them (`new <stack> --sandbox`). Each test pins a place
 // where a run's agent stopped, guessed or worked around the brief.
-const bundled = join(import.meta.dirname, "..", "registry");
 
 // The preview is read-only and deterministic, so each stack's brief is composed once per file
 // rather than once per test (about thirty full validations otherwise, slow under the full gate).

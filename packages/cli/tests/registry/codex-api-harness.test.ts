@@ -8,7 +8,7 @@ import {
   guardCommands,
   runGuard,
   scaffoldAdapters,
-} from "./helpers/native-adapters";
+} from "../helpers/native-adapters";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -58,7 +58,7 @@ test.each(cases)(
     const recorded = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
       JSON.parse(
         readFileSync(
-          join(import.meta.dirname, "fixtures/native-adapters/codex-pretooluse.json"),
+          join(import.meta.dirname, "../fixtures/native-adapters/codex-pretooluse.json"),
           "utf8",
         ),
       ),

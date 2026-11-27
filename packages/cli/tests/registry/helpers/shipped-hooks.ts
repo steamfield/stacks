@@ -8,15 +8,15 @@ import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { Effect, Schema } from "effect";
 import { expect } from "vitest";
-import { compose } from "../../src/core/compose/compose";
-import { composeFiles, NEUTRAL_VARS } from "../../src/core/compose/files";
-import { isStack } from "../../src/core/registry/entry";
-import { Registry } from "../../src/core/registry/registry";
-import { tempDir } from "./cli";
-import { scaffoldAdapters } from "./native-adapters";
+import { compose } from "../../../src/core/compose/compose";
+import { composeFiles, NEUTRAL_VARS } from "../../../src/core/compose/files";
+import { isStack } from "../../../src/core/registry/entry";
+import { Registry } from "../../../src/core/registry/registry";
+import { tempDir } from "../../helpers/cli";
+import { scaffoldAdapters } from "../../helpers/native-adapters";
+import { bundled } from "./bundled";
 
-export const registry = join(import.meta.dirname, "../../registry");
-export const agentOps = join(registry, "fragments/agent-ops");
+export const agentOps = join(bundled, "fragments/agent-ops");
 export const agents = ["claude", "codex", "cursor", "opencode"] as const;
 export type Agent = (typeof agents)[number];
 export const Settings = Schema.Struct({
@@ -43,7 +43,7 @@ const recorded = Schema.decodeUnknownSync(
 )(
   JSON.parse(
     readFileSync(
-      join(import.meta.dirname, "../fixtures/hook-input/claude-code-2026-10-26.json"),
+      join(import.meta.dirname, "../../fixtures/hook-input/claude-code-2026-10-26.json"),
       "utf8",
     ),
   ),
@@ -63,8 +63,9 @@ export function fixture() {
     path: space.path,
     cleanup: () => space.cleanup(),
     async scaffold() {
-      const project = (await scaffoldAdapters({ home: space.path, agents, name: "café project" }))
-        .project;
+      const project = (
+        await scaffoldAdapters({ home: space.path, stack: "go-cli", agents, name: "café project" })
+      ).project;
       mkdirSync(join(project, "tmp"));
       return project;
     },
@@ -150,7 +151,7 @@ function withBundledRegistry<A, E>(
 ) {
   return Effect.runPromise(
     effect.pipe(
-      Effect.provide(Registry.layer([{ origin: "bundled", path: registry }])),
+      Effect.provide(Registry.layer([{ origin: "bundled", path: bundled }])),
       Effect.provide(NodeServices.layer),
     ),
   );

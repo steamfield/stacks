@@ -198,7 +198,7 @@ Keys received 2026-11-27 (R1).
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | a | M | packages/cli/src/build.ts, packages/cli/scripts/build.ts, packages/cli/src/constants.ts, packages/cli/src/core/allowlist.ts, packages/cli/tests/helpers/cli.ts | | | opus | merged | foreman/idx-3a | |
-| b | S | packages/cli/docs/architecture.md, packages/cli/docs/concepts.md, packages/cli/docs/reference/commands.md, packages/cli/docs/reference/configuration.md, packages/cli/CHANGELOG.md | | | sonnet | pending | | |
+| b | S | packages/cli/docs/architecture.md, packages/cli/docs/concepts.md, packages/cli/docs/reference/commands.md, packages/cli/docs/reference/configuration.md, packages/cli/CHANGELOG.md | | | sonnet | pending | foreman/idx-3b | |
 
 (Scaffold, mine: `packages/format/src/index-keys.ts` keys plus a format version bump (0.10.0) in its own commit, and the rename of `STACKS_PUBLISH_TELEMETRY`/`STACKS_PUBLISHED_TELEMETRY` to `STACKS_PUBLISH`/`STACKS_PUBLISHED_BUILD` across `release.yml`, `scripts/build.ts`, `src/build.ts`, the `constants.ts` comment and AGENTS.md; lane a adds the index URL gating on it. Root `AGENTS.md` telemetry paragraph and map updates happen inline at the end of the run.)
 

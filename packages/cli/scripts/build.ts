@@ -41,7 +41,7 @@ const result = await Bun.build({
   packages: "bundle",
   define: {
     STACKS_RELEASE_BUILD: "true",
-    STACKS_PUBLISHED_TELEMETRY: process.env.STACKS_PUBLISH_TELEMETRY === "1" ? "true" : "false",
+    STACKS_PUBLISHED_BUILD: process.env.STACKS_PUBLISH === "1" ? "true" : "false",
     PACKAGED_ESCAPES: JSON.stringify(escapedRegistryFiles()),
   },
   minify: true,

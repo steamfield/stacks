@@ -8,7 +8,7 @@
 export const HOSTED_API_URL = "https://stacks.steamfield.io";
 /** Official index URL, unset until a host exists. `STACKS_INDEX_URL` overrides it. */
 export const OFFICIAL_INDEX_URL: string | undefined = undefined;
-/** Telemetry base URL for packages built with `STACKS_PUBLISH_TELEMETRY=1`. `STACKS_TELEMETRY_URL` overrides it. */
+/** Telemetry base URL for packages built with `STACKS_PUBLISH=1`. `STACKS_TELEMETRY_URL` overrides it. */
 export const OFFICIAL_TELEMETRY_URL = HOSTED_API_URL;
 /** npm registry base URL for `update`. No environment or settings override. */
 export const NPM_REGISTRY_URL = "https://registry.npmjs.org";

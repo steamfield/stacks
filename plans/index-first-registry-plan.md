@@ -193,14 +193,14 @@ Test cases (from RFC acceptance, refreshed): a cached index under 24h plus a 200
 
 Demo: `STACKS_PUBLISH=1 bun run build` then `node dist/stacks doctor --json` names `https://stacks.steamfield.io/v1/index.json` as the default URL. Against today's production (still signed with the laptop key) `new --json` reports `index_fallback` with reason `signature`, which shows the wiring works. The full path goes green after the `stacks-api` signing change (Release, step 3). `bun run dev list --json` makes no index or allowlist request.
 Depends on: phase 2
-Blocked on: the maintainer's two public PEMs (R1).
+Keys received 2026-11-27 (R1).
 
 | Lane | Size | Owns files | Reads | Tests | Model | Status | Branch | Done when |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| a | M | packages/cli/scripts/build.ts, packages/cli/src/constants.ts, packages/cli/src/core/allowlist.ts, packages/cli/tests/helpers/cli.ts | | | opus | pending | | |
+| a | M | packages/cli/src/build.ts, packages/cli/scripts/build.ts, packages/cli/src/constants.ts, packages/cli/src/core/allowlist.ts, packages/cli/tests/helpers/cli.ts | | | opus | pending | | |
 | b | S | packages/cli/docs/architecture.md, packages/cli/docs/concepts.md, packages/cli/docs/reference/commands.md, packages/cli/docs/reference/configuration.md, packages/cli/CHANGELOG.md | | | sonnet | pending | | |
 
-(Scaffold, mine: `packages/format/src/index-keys.ts` keys plus a format version bump in its own commit, and `.github/workflows/release.yml` env rename. Root `AGENTS.md` telemetry paragraph and map updates happen inline at the end of the run.)
+(Scaffold, mine: `packages/format/src/index-keys.ts` keys plus a format version bump (0.10.0) in its own commit, and the rename of `STACKS_PUBLISH_TELEMETRY`/`STACKS_PUBLISHED_TELEMETRY` to `STACKS_PUBLISH`/`STACKS_PUBLISHED_BUILD` across `release.yml`, `scripts/build.ts`, `src/build.ts`, the `constants.ts` comment and AGENTS.md; lane a adds the index URL gating on it. Root `AGENTS.md` telemetry paragraph and map updates happen inline at the end of the run.)
 
 ### Phase 4: registry content checks run on their own
 

@@ -2,16 +2,16 @@ import { cpSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { expect, test } from "vitest";
-import { ListResult } from "../src/schemas/list";
-import { quiet, runCli, tempDir } from "./helpers/cli";
-import { minimal, writeEntry } from "./helpers/registry";
-import { GoldenSet } from "./helpers/search-golden";
+import { ListResult } from "../../src/schemas/list";
+import { quiet, runCli, tempDir } from "../helpers/cli";
+import { minimal, writeEntry } from "../helpers/registry";
+import { GoldenSet } from "../helpers/search-golden";
+import { bundled } from "./helpers/bundled";
 
 type Query = GoldenSet["queries"][number];
 type Ref = Pick<ListResult["entries"][number], "kind" | "id">;
 
 const fixtures = join(import.meta.dirname, "fixtures", "search");
-const bundled = join(import.meta.dirname, "..", "registry");
 const fixtureRegistry = join(fixtures, "registry");
 const pools = ["platform", "product", "paraphrase", "trap", "fragment", "combined", "no-match"];
 

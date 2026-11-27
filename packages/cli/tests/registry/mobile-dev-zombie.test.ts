@@ -2,8 +2,8 @@ import { spawn, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test, vi } from "vitest";
-import { tempDir } from "./helpers/cli";
-import { bundled } from "./helpers/native-adapters";
+import { tempDir } from "../helpers/cli";
+import { bundled } from "./helpers/bundled";
 
 // Keep the member's parent outside its group so the test controls reaping instead
 // of racing launchd. The leader is reaped before readiness is reported.

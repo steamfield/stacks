@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
-import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
+import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
 
 const space = adapterWorkspace();
 const children: ChildProcess[] = [];

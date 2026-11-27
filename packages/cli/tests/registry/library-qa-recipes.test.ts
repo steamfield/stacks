@@ -3,10 +3,10 @@ import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { VerifyEvent, VerifyResult } from "../src/schemas/verify";
-import { quiet, runCli } from "./helpers/cli";
-import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
-import { readManifestAt, readRecord, recordPath, stateEnv } from "./helpers/verify";
+import { VerifyEvent, VerifyResult } from "../../src/schemas/verify";
+import { quiet, runCli } from "../helpers/cli";
+import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
+import { readManifestAt, readRecord, recordPath, stateEnv } from "../helpers/verify";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -100,7 +100,7 @@ test("adding CLI chat supplies a helper accepted by the prescribed base formatte
   const file = join(project, "scripts/lib/stub-pid.ts");
   const source = readFileSync(file, "utf8");
   const formatted = spawnSync(
-    join(import.meta.dirname, "../node_modules/.bin/biome"),
+    join(import.meta.dirname, "../../node_modules/.bin/biome"),
     ["format", `--config-path=${config}`, `--stdin-file-path=${file}`],
     { input: source, encoding: "utf8", timeout: 10_000 },
   );
@@ -150,7 +150,7 @@ test("real passing tests still set the test-command milestone without changing t
     without: ["git-hooks"],
     env,
   });
-  const runner = join(import.meta.dirname, "../node_modules/vitest/vitest.mjs");
+  const runner = join(import.meta.dirname, "../../node_modules/vitest/vitest.mjs");
   const packageFile = join(project, "package.json");
   const pkg = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
     JSON.parse(readFileSync(packageFile, "utf8")),
@@ -168,7 +168,11 @@ test("real passing tests still set the test-command milestone without changing t
       },
     }),
   );
-  symlinkSync(join(import.meta.dirname, "../node_modules"), join(project, "node_modules"), "dir");
+  symlinkSync(
+    join(import.meta.dirname, "../../node_modules"),
+    join(project, "node_modules"),
+    "dir",
+  );
   // Exercise shipped behavior with this checkout's tools, without React/Vite dependencies.
   writeFileSync(
     join(project, "tests/milestone.config.ts"),

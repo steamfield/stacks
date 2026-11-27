@@ -13,9 +13,9 @@ import { dirname, join, relative } from "node:path";
 import { outputPath, shippedPath } from "@steamfield/stacks-format";
 import { Effect } from "effect";
 import { afterAll, expect, test } from "vitest";
-import { decodeEntry } from "../src/core/registry/entry";
+import { decodeEntry } from "../../src/core/registry/entry";
+import { bundled as registry } from "./helpers/bundled";
 
-const registry = join(import.meta.dirname, "../registry");
 const checker = join(registry, "fragments/code-docs/files/scripts/check-file-headers.sh");
 const temporary = mkdtempSync(join(tmpdir(), "bundled-file-headers-"));
 afterAll(() => rmSync(temporary, { recursive: true, force: true }));

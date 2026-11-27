@@ -1,11 +1,12 @@
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { ListResult } from "../src/schemas/list";
-import { quiet, runCli } from "./helpers/cli";
-import { GoldenSet } from "./helpers/search-golden";
-import { bundled, card, cardPath, entryAt, put, readJson } from "./helpers/search-metadata";
-import { workspace } from "./helpers/verify";
+import { ListResult } from "../../src/schemas/list";
+import { quiet, runCli } from "../helpers/cli";
+import { GoldenSet } from "../helpers/search-golden";
+import { card, cardPath, entryAt, put, readJson } from "../helpers/search-metadata";
+import { workspace } from "../helpers/verify";
+import { bundled } from "./helpers/bundled";
 
 const space = workspace();
 afterEach(() => space.release());
@@ -45,7 +46,7 @@ async function bundledEntries() {
 }
 
 test("every drafting prompt including examples excludes golden query strings [4.5b#13a]", async () => {
-  const { buildPrompt, PROMPT_VERSION } = await import("../scripts/decorate/prompt");
+  const { buildPrompt, PROMPT_VERSION } = await import("../../scripts/decorate/prompt");
   const { SearchMetadata, SearchVocabulary } = await import("@steamfield/stacks-format");
   const entries = await bundledEntries();
   const cards = entries.map((entry) =>

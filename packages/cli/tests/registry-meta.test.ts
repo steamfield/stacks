@@ -1,10 +1,8 @@
-import { cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
-import { cliMeetsMinimum } from "../src/core/registry/remote/verification";
 import { ErrorEnvelope } from "../src/errors";
-import { RegistryMeta } from "../src/schemas/registry-meta";
 import { ValidateReport } from "../src/schemas/validate";
 import { VERSION } from "../src/version";
 import { quiet, runCli } from "./helpers/cli";
@@ -100,15 +98,4 @@ test.each([
   expect(result.findings).toEqual([]);
   expect(result.status, result.stderr).toBe(0);
   expect(result.stderr).toBe("");
-});
-
-// A release without `--min-cli` keeps the floor, so the shipped minimum may trail VERSION.
-test("the shipped registry declares a minimum this CLI meets", () => {
-  const contents = readFileSync(join(import.meta.dirname, "../registry/registry.json"), "utf8");
-  const shipped = Schema.decodeUnknownSync(Schema.fromJsonString(RegistryMeta))(contents, {
-    onExcessProperty: "error",
-  });
-
-  expect(shipped.minCli).toMatch(/^\d+\.\d+\.\d+$/);
-  expect(cliMeetsMinimum(shipped.minCli)).toBe(true);
 });

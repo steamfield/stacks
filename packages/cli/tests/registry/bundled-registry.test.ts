@@ -1,8 +1,8 @@
-import { join } from "node:path";
 import { Schema } from "effect";
 import { beforeAll, expect, test } from "vitest";
-import { ValidateReport } from "../src/schemas/validate";
-import { quiet, runCli } from "./helpers/cli";
+import { ValidateReport } from "../../src/schemas/validate";
+import { quiet, runCli } from "../helpers/cli";
+import { bundled } from "./helpers/bundled";
 
 // The registry that ships with the CLI: every entry in it must validate with zero errors and zero
 // warnings, and resolve only inside itself. Notes never fail this gate.
@@ -10,7 +10,6 @@ import { quiet, runCli } from "./helpers/cli";
 // This is the suite's one validation of the whole bundled registry, so its cost grows with the
 // registry only here. Other tests that need a whole-registry property assert it against this
 // report; a test about one entry validates that entry alone.
-const bundled = join(import.meta.dirname, "..", "registry");
 
 let result: Awaited<ReturnType<typeof runCli>>;
 let report: ValidateReport;

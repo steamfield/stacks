@@ -3,7 +3,7 @@ import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { afterAll, beforeAll, expect, test, vi } from "vitest";
-import { guardCommands, samples } from "./helpers/native-adapters";
+import { guardCommands, samples } from "../helpers/native-adapters";
 import {
   type Agent,
   agents,

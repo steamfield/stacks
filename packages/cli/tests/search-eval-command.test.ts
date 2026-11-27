@@ -88,7 +88,7 @@ function evaluateCommand(home: string, args: string[], env: NodeJS.ProcessEnv) {
 // longer under a loaded gate.
 test("eval compares lexical and fused metrics, calls embeddings only when requested [4.5c#13]", async () => {
   const golden = Schema.decodeUnknownSync(GoldenSet)(
-    readJson(join(cliRoot, "tests/fixtures/search/golden.json")),
+    readJson(join(cliRoot, "tests/registry/fixtures/search/golden.json")),
   );
   const queries = new Set(golden.queries.map(({ query }) => query));
   const target = Schema.decodeUnknownSync(

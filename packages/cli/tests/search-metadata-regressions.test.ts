@@ -188,16 +188,3 @@ test("validating one entry does not enumerate another kind's unreadable cards", 
   ).toEqual([expect.objectContaining({ check: "vocabulary-ignored" })]);
   expect(readJson(cardPath(root, sample))).toMatchObject({ id: sample.id });
 });
-
-test("every bundled card is byte for byte what decorate writes, so approving changes one line", async () => {
-  const { readdirSync } = await import("node:fs");
-  const { Schema } = await import("effect");
-  const { SearchMetadata } = await import("@steamfield/stacks-format");
-  for (const kind of ["stack", "fragment"] as const) {
-    for (const name of readdirSync(join(bundled, "search", `${kind}s`))) {
-      const text = readFileSync(join(bundled, "search", `${kind}s`, name), "utf8");
-      const decoded = Schema.decodeUnknownSync(SearchMetadata)(JSON.parse(text));
-      expect(text, name).toBe(`${JSON.stringify(decoded, null, 2)}\n`);
-    }
-  }
-});

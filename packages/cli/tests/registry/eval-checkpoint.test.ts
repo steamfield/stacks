@@ -2,10 +2,10 @@ import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { validateEvalReport } from "../registry/fragments/openrouter-chat/files/scripts/lib/eval-report";
-import { spawnGit } from "./helpers/git";
-import { adapterWorkspace, scaffoldAdapters } from "./helpers/native-adapters";
-import { readManifestAt } from "./helpers/verify";
+import { validateEvalReport } from "../../registry/fragments/openrouter-chat/files/scripts/lib/eval-report";
+import { spawnGit } from "../helpers/git";
+import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
+import { readManifestAt } from "../helpers/verify";
 
 const space = adapterWorkspace();
 let composed = "";
@@ -25,7 +25,7 @@ function fixture(scenario = "success") {
   const project = join(root, "fixture");
   mkdirSync(project);
   cpSync(join(composed, "scripts"), join(project, "scripts"), { recursive: true });
-  cpSync(join(import.meta.dirname, "fixtures/eval-checkpoint"), join(project, "scripts"), {
+  cpSync(join(import.meta.dirname, "../fixtures/eval-checkpoint"), join(project, "scripts"), {
     recursive: true,
   });
   mkdirSync(join(root, "tmp"));

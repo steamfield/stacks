@@ -419,4 +419,4 @@ test("malformed reference JSON reports one error per file and skips cascading re
 });
 
 // That the shipped entries have zero errors and warnings with every rot check enabled [2.2#9] is
-// asserted against the suite's one whole-registry report, in tests/bundled-registry.test.ts.
+// asserted against the suite's one whole-registry report, in tests/registry/bundled-registry.test.ts.

@@ -64,7 +64,13 @@ export function fixture() {
     cleanup: () => space.cleanup(),
     async scaffold() {
       const project = (
-        await scaffoldAdapters({ home: space.path, stack: "go-cli", agents, name: "café project" })
+        await scaffoldAdapters({
+          registry: bundled,
+          home: space.path,
+          stack: "go-cli",
+          agents,
+          name: "café project",
+        })
       ).project;
       mkdirSync(join(project, "tmp"));
       return project;

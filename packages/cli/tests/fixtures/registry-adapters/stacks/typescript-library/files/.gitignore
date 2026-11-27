@@ -1,0 +1,30 @@
+# Build output
+dist/
+*.tgz
+
+# Dependencies
+node_modules/
+
+# Test output
+coverage/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+
+# Agent worktrees
+.claude/worktrees/
+
+# Logs
+logs/
+*.log
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+.DS_Store
+Thumbs.db

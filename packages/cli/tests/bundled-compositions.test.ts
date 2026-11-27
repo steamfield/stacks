@@ -12,13 +12,13 @@ import { afterAll, beforeEach, expect, test } from "vitest";
 import { ComposeConflictDetails } from "../src/errors";
 import type { runCli } from "./helpers/cli";
 import { spawnGit } from "./helpers/git";
+import { adapterRegistry } from "./helpers/native-adapters";
 import { minimal, writeEntry } from "./helpers/registry";
 
 import { compositionWorkspace, snapshot } from "./registry/helpers/composition-workspace";
 
-const bundled = join(import.meta.dirname, "../registry");
 const { home, cli, scaffold, success, withGit, gitCallsOnly, reset, cleanup } =
-  compositionWorkspace(bundled, []);
+  compositionWorkspace(adapterRegistry, []);
 afterAll(cleanup);
 beforeEach(reset);
 
@@ -146,8 +146,8 @@ test("a symlinked cwd under an agent ignores inherited repository variables [3.3
   const result = success(
     await withGit(() =>
       cli(
-        ["new", "cloudflare-react-router", "project", "--no-launch", "--json", "--author", ""],
-        bundled,
+        ["new", "go-cli", "project", "--no-launch", "--json", "--author", ""],
+        adapterRegistry,
         alias,
         {
           AI_AGENT: "codex",

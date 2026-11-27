@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { adapterWorkspace, scaffoldAdapters } from "../helpers/native-adapters";
 import { readManifestAt } from "../helpers/verify";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -50,6 +51,7 @@ test.each(contracts)(
   "$stack requires application acceptance independent of hook coverage",
   async ({ stack, fragments, steps }) => {
     const { project } = await scaffoldAdapters({
+      registry: bundled,
       home: space.temp(),
       stack,
       fragments,

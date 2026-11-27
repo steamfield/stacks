@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "isolatedDeclarations": false
+  },
+  "include": ["*.ts", "scripts/**/*.ts", ".claude/hooks/**/*.ts"],
+  "exclude": []
+}

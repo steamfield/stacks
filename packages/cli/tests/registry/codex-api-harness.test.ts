@@ -9,6 +9,7 @@ import {
   runGuard,
   scaffoldAdapters,
 } from "../helpers/native-adapters";
+import { bundled } from "./helpers/bundled";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -21,6 +22,7 @@ test.each(cases)(
   "$stack supplies Codex's complete Bash guards with --agents $selection",
   async ({ stack, selection }) => {
     const result = await scaffoldAdapters({
+      registry: bundled,
       home: space.temp(),
       stack,
       agents: selection === "codex" ? ["codex"] : ["claude", "codex"],
@@ -89,7 +91,12 @@ test.each(cases)(
 test.each(["astro-fullstack", "typescript-api"])(
   "%s Codex wrapper fails open",
   async (stack) => {
-    const result = await scaffoldAdapters({ home: space.temp(), stack, agents: ["codex"] });
+    const result = await scaffoldAdapters({
+      registry: bundled,
+      home: space.temp(),
+      stack,
+      agents: ["codex"],
+    });
     const command = guardCommands(result.project, "codex", "Bash").find((item) =>
       item.includes("guard-api-commands.sh"),
     );

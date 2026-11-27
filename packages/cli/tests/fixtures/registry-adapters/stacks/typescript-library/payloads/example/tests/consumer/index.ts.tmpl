@@ -1,0 +1,32 @@
+// A TypeScript user of the published package. scripts/consumer.ts installs the packed tarball
+// next to this file, typechecks it under strict NodeNext resolution, then runs it with Node.
+// Keep it importing by package name, and add each new export here.
+import {
+  isLibraryError,
+  LibraryError,
+  type LibraryErrorCode,
+  type Result,
+  type SlugifyOptions,
+  safeSlugify,
+  slugify,
+} from "{{project_slug}}";
+
+function check(condition: boolean, message: string): void {
+  if (!condition) throw new Error(`consumer (ts): ${message}`);
+}
+
+const options: SlugifyOptions = { separator: "_", maxLength: 40 };
+const slug: string = slugify("Hello, World!", options);
+check(slug === "hello_world", `slugify gave ${slug}`);
+
+const failed: Result<string> = safeSlugify("!!!");
+check(!failed.ok && failed.error.code === "empty_result", "safeSlugify reports empty_result");
+
+const expected: LibraryErrorCode = "invalid_option";
+try {
+  slugify("text", { maxLength: 0 });
+  check(false, "maxLength 0 should throw");
+} catch (error) {
+  check(error instanceof LibraryError, "the thrown error is a LibraryError");
+  check(isLibraryError(error) && error.code === expected, "the error carries its code");
+}

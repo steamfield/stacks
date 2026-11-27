@@ -3,8 +3,9 @@ import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { JsonSchema, Schema, SchemaRepresentation } from "effect";
 import { expect, test } from "vitest";
-import { bundled, samples } from "./helpers/native-adapters";
+import { samples } from "./helpers/native-adapters";
 
+const cli = join(import.meta.dirname, "..");
 const recordedSchema = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown))(
   JSON.parse(readFileSync(join(samples, "claude-plugin.schema.json"), "utf8")),
 );
@@ -37,7 +38,6 @@ test("the recorded marketplace schema accepts skills directories and rejects mal
 });
 
 test("the Claude marketplace manifest decodes and names a contained shipped copy of the CLI skill [3.4b#4]", () => {
-  const cli = join(bundled, "..");
   const root = realpathSync(join(cli, "plugin"));
   const json: unknown = JSON.parse(readFileSync(join(root, ".claude-plugin/plugin.json"), "utf8"));
   Schema.decodeUnknownSync(marketplaceSchema)(json);
@@ -75,7 +75,6 @@ function tree(dir: string): string[] {
 }
 
 test("the plugin carries a byte-identical copy of every file of both shipped skills", () => {
-  const cli = join(bundled, "..");
   const shipped = join(cli, "skills");
   const copy = join(cli, "plugin", "skills");
   for (const name of ["stacks", "stacks-author"]) {
@@ -106,7 +105,6 @@ const Marketplace = Schema.Struct({
 });
 
 test("the marketplace lists the plugin by its manifest name, pinned to the tag of the current release", () => {
-  const cli = join(bundled, "..");
   const marketplace = Schema.decodeUnknownSync(Marketplace, { onExcessProperty: "error" })(
     JSON.parse(readFileSync(join(cli, "../../.claude-plugin/marketplace.json"), "utf8")),
   );

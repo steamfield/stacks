@@ -1,12 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, expect, test } from "vitest";
-import {
-  adapterWorkspace,
-  bundled,
-  nativeAgents,
-  scaffoldAdapters,
-} from "./helpers/native-adapters";
+import { adapterWorkspace, nativeAgents, scaffoldAdapters } from "./helpers/native-adapters";
 import { checkNativeFiles } from "./registry/helpers/native-files";
 
 const space = adapterWorkspace();
@@ -26,7 +21,7 @@ test.each(nativeAgents)(
 );
 
 test("the agent table distinguishes enforcement, instructions and unproved runs [3.4b#10]", () => {
-  const readme = readFileSync(join(bundled, "..", "docs", "agents.md"), "utf8");
+  const readme = readFileSync(join(import.meta.dirname, "../docs/agents.md"), "utf8");
   for (const agent of ["claude", ...nativeAgents]) {
     const row = readme
       .split("\n")

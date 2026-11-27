@@ -34,7 +34,7 @@ async function scaffold(stack: string) {
   const home = workspace();
   const bundled = join(home, "bundled");
   cpSync(registry, bundled, { recursive: true });
-  reviewSearchFixture(bundled);
+  reviewSearchFixture(bundled, registry);
   const cwd = join(home, "unrelated cwd");
   mkdirSync(cwd);
   const result = await runCli(

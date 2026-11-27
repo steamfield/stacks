@@ -5,7 +5,6 @@ import { ListResult } from "../../src/schemas/list";
 import { quiet, runCli } from "../helpers/cli";
 import {
   cardPath,
-  put,
   readJson,
   searchFindings,
   seed,
@@ -59,6 +58,5 @@ test("cross-category aliases are allowed and bare go is absent [4.5b#13e]", asyn
   expect(vocabulary.languages.go?.length).toBeGreaterThan(0);
   const f = setup();
   await stamp(f.root, sample);
-  put(join(f.root, "search/vocabulary.json"), JSON.stringify(vocabulary));
-  expect(searchFindings(await validateSearch(f.root, { ...f, bundled: true }))).toEqual([]);
+  expect(searchFindings(await validateSearch(f.root, { ...f, registry: bundled }))).toEqual([]);
 });

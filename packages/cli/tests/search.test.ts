@@ -126,7 +126,7 @@ test.each([
   expect(text.stderr.trim().split("\n").at(-1)).toMatch(/^ {2}Next: /);
 });
 
-test("kind and per-list limits filter real hits [4.5c#11]", async () => {
+test("kind and per-list limits filter ranked hits [4.5c#11]", async () => {
   const opts = options(space.dir());
   const fragments = (await searched("sign in", opts, ["--kind", "fragment", "--limit", "3"])).value;
   expect(fragments.stacks).toEqual([]);
@@ -137,9 +137,11 @@ test("kind and per-list limits filter real hits [4.5c#11]", async () => {
   expect(stacks.fragments).toEqual([]);
   expect(stacks.stacks.map(({ id }) => id)).toEqual(["ios-swiftui"]);
   const defaults = (await searched(ios, opts)).value;
-  // Five stacks ship iOS apps and each is strong, so the default limit of five fills both lists.
-  expect(defaults.stacks).toHaveLength(5);
-  expect(defaults.fragments).toHaveLength(5);
+  const all = (await searched(ios, opts, ["--limit", "20"])).value;
+  for (const kind of ["stacks", "fragments"] as const) {
+    expect(all[kind].length).toBeGreaterThan(5);
+    expect(defaults[kind]).toEqual(all[kind].slice(0, 5));
+  }
 });
 
 test("agent blocks show caveats, human text wraps, JSON contains only the result [4.5c#14]", async () => {

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "openrouter-chat",
+  "source": {
+    "digest": "sha256:bda6d1b84e4b2bf4cbe6e46617b10b934fa81a8ea594670770e1a270aaa36208",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "Add browser chat with streaming replies, model selection, server history, tool calls, usage costs and Markdown export.",
+  "description": "Add the reference browser chat application to react-router. It includes streamed replies, model selection, a deterministic time tool, contact extraction and Markdown export, with usage metadata and local browser tests. History lives on the server in memory by default; SQLite is an implementation choice for restart persistence. There is no authentication: possessing a chat URL grants access. Configure an OpenRouter key for live requests.",
+  "seoDescription": "A streaming OpenRouter browser chat app for React Router, with model selection, tools, contact extraction, usage details and Markdown export.",
+  "projectExamples": [
+    {
+      "title": "Model exploration notebook",
+      "description": "A browser notebook where visitors choose AI models, watch replies arrive and export conversations as Markdown with model and usage details.",
+      "stack": "react-router"
+    },
+    {
+      "title": "Contact extraction workbench",
+      "description": "A browser workbench where users paste text and receive contact details extracted by an AI model and checked against a defined data shape.",
+      "stack": "react-router"
+    }
+  ],
+  "plain": {
+    "whatItIs": "A browser chat app for AI models through OpenRouter, showing replies as they are written and keeping history on the server.",
+    "goodAt": [
+      "Trying different AI models from a web page",
+      "Exporting a conversation as a plain-text Markdown file",
+      "Pulling contact details out of pasted text"
+    ],
+    "notGoodAt": [
+      "Private accounts, or history that survives a restart; add sign-in and saved storage.",
+      "Keeping chats private, since anyone with a chat's link can open it."
+    ]
+  },
+  "capabilities": ["ai"],
+  "requests": [
+    "let visitors choose a model and watch replies arrive in the browser",
+    "keep conversations on the server and offer a Markdown download",
+    "add a form that extracts contact details from free text"
+  ],
+  "useCases": ["browser conversations", "structured contact extraction"],
+  "synonyms": [
+    "OpenRouter",
+    "streaming chat",
+    "model picker",
+    "tool calls",
+    "token usage",
+    "AI chatbot",
+    "LLM chat"
+  ],
+  "goodFor": [
+    "stopping replies while preserving partial text",
+    "offline development without paid model requests"
+  ],
+  "notFor": [
+    "terminal interfaces",
+    "end-to-end test setup for an existing app",
+    "e2e browser tests",
+    "private user accounts without added authentication"
+  ]
+}

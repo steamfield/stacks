@@ -13,12 +13,12 @@ import { expect } from "vitest";
 import type { Entry } from "../../src/core/registry/entry";
 import { quiet, runCli } from "./cli";
 import {
-  bundled,
   card,
   cardPath,
   entryAt,
   put,
   readJson,
+  searchRegistry,
   seed,
   sourceDigest,
 } from "./search-metadata";
@@ -37,10 +37,10 @@ export async function searchSchema(): Promise<Schema.Codec<SearchView>> {
 export async function hitSchema(): Promise<Schema.Codec<Hit>> {
   return SearchHit;
 }
-export const vocabulary = () =>
-  Schema.decodeUnknownSync(SearchVocabulary)(readJson(join(bundled, "search/vocabulary.json")));
+export const vocabulary = (root = searchRegistry) =>
+  Schema.decodeUnknownSync(SearchVocabulary)(readJson(join(root, "search/vocabulary.json")));
 
-export async function records(root = bundled): Promise<RankRecord[]> {
+export async function records(root = searchRegistry): Promise<RankRecord[]> {
   const { readdirSync } = await import("node:fs");
   const entries: RankRecord[] = [];
   for (const kind of ["stack", "fragment"] as const) {
@@ -73,7 +73,7 @@ export async function fixtureRecord(
   return { entry: { ...(await entryAt(root, ref)), ...overrides.entry }, search };
 }
 
-export function options(home: string, registry = bundled): Parameters<typeof runCli>[1] {
+export function options(home: string, registry = searchRegistry): Parameters<typeof runCli>[1] {
   return {
     home: realpathSync(home),
     env: { ...quiet, XDG_STATE_HOME: join(realpathSync(home), "state") },
@@ -102,10 +102,12 @@ export function hit(hits: ReadonlyArray<Hit>, id: string): Hit {
   if (found === undefined) throw new Error(`Missing search hit ${id}`);
   return found;
 }
-/** Caveats of ios-swiftui, the bundled stack that answers plain iOS requests first. */
+/** Caveats of ios-swiftui, the fixture stack that answers plain iOS requests first. */
 export function iosCaveats() {
   const value = Schema.decodeUnknownSync(SearchMetadata)(
-    JSON.parse(readFileSync(cardPath(bundled, { kind: "stack", id: "ios-swiftui" }), "utf8")),
+    JSON.parse(
+      readFileSync(cardPath(searchRegistry, { kind: "stack", id: "ios-swiftui" }), "utf8"),
+    ),
   );
   expect(value.caveats?.length).toBeGreaterThan(0);
   return value.caveats ?? [];

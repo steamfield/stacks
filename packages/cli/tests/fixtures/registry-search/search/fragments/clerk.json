@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "clerk",
+  "source": {
+    "digest": "sha256:283aba53e5c4bf0283e96f1f3e2990f42b6429c8bd74f278fbe25a0f7ba33a22",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "Add mobile sign-in and verified user sessions to an API, with protected routes and account-free local tests.",
+  "description": "Connect Expo sign-in to session verification in the Hono API. Protected routes require a verified user id, with a small public-path allowlist and explicit local bypass. Tests use a local signing key to exercise real verification without a Clerk account. Configure the Clerk application, keys and redirect URLs before live sign-in; application-specific permissions and record ownership still need implementation.",
+  "seoDescription": "Clerk sign-in for Expo and verified Hono API sessions, with protected routes, an explicit local bypass and account-free verification tests.",
+  "projectExamples": [
+    {
+      "title": "Private reading log",
+      "description": "A private reading log where signed-in readers record books and notes from their phone, with the API identifying each reader through a verified Clerk session.",
+      "stack": "mobile-expo"
+    },
+    {
+      "title": "Member settings screen",
+      "description": "A phone app where members sign in, view their account identity and update their own profile details through authenticated API requests.",
+      "stack": "mobile-expo"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Adds sign-up and login to the phone app, using Clerk, a hosted sign-in service, and makes the server turn away people who aren't signed in.",
+    "goodAt": [
+      "Letting only signed-in users reach the protected parts of the server",
+      "Testing sign-in checks on your own computer without a Clerk account"
+    ],
+    "notGoodAt": [
+      "Deciding who may see or change each record; that is app code you write.",
+      "Running your own sign-in system; this uses the hosted Clerk service."
+    ]
+  },
+  "capabilities": ["auth"],
+  "requests": [
+    "let people enter my phone app with an emailed code",
+    "reject API calls without a valid user session",
+    "exercise protected routes locally without contacting an identity service"
+  ],
+  "useCases": ["Expo user sessions", "authenticated Hono routes"],
+  "synonyms": [
+    "Clerk",
+    "login",
+    "authentication",
+    "sign in",
+    "JWT verification",
+    "email code",
+    "bearer tokens",
+    "session verification",
+    "secure token storage"
+  ],
+  "goodFor": [
+    "protecting routes except an explicit public allowlist",
+    "local development with an explicit auth bypass"
+  ],
+  "notFor": ["self-hosted identity management", "session recording"],
+  "caveats": [
+    "Apple sign-in entitlements can require a simulator signing certificate; leave them disabled unless needed."
+  ]
+}

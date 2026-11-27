@@ -1,5 +1,4 @@
 import {
-  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -15,14 +14,12 @@ import { decodeEntry } from "../../src/core/registry/entry";
 import { searchSourceDigest } from "../../src/core/search/digest";
 import { sidecarPath } from "../../src/core/search/sidecar";
 import type { Finding } from "../../src/schemas/validate";
+import { copyVocabulary } from "./search-metadata";
 
 /** Complete a synthetic bundled registry after building or deliberately editing its entries. */
-export function reviewSearchFixture(root: string): void {
+export function reviewSearchFixture(root: string, vocabularyRoot?: string): void {
   mkdirSync(join(root, "search"), { recursive: true });
-  copyFileSync(
-    join(import.meta.dirname, "../../registry/search/vocabulary.json"),
-    join(root, "search/vocabulary.json"),
-  );
+  copyVocabulary(root, vocabularyRoot);
   for (const [kind, directory, markdown] of [
     ["stack", "stacks", "STACK.md"],
     ["fragment", "fragments", "FRAGMENT.md"],

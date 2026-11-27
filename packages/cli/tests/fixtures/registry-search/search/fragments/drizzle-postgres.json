@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "drizzle-postgres",
+  "source": {
+    "digest": "sha256:fd2b1aabd80f414c7170c5b0be462350122ef3b6d2a3eb003639d24bc6975c68",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "Add PostgreSQL to a Next.js or SvelteKit app through Drizzle, with SQL migrations and isolated database tests.",
+  "description": "Add PostgreSQL to Next.js or SvelteKit through Drizzle ORM and the pg driver: Docker Compose services for development and tests, checked-in SQL migrations with a drift check, a server-only database module, one repository behind the starter items service and a readiness route. Each test file gets its own database cloned from a migrated template, and the end-to-end run gets its own too. Your product tables, queries and access rules are still to write; hosting a production database is separate.",
+  "seoDescription": "Postgres for Next.js and SvelteKit through Drizzle ORM and pg, with checked-in SQL migrations and isolated database tests.",
+  "projectExamples": [
+    {
+      "title": "Team request tracker",
+      "description": "A request tracker where a team submits requests and updates their status through Next.js forms, with records saved in Postgres through Drizzle repositories.",
+      "stack": "nextjs"
+    },
+    {
+      "title": "Inventory catalog with history",
+      "description": "An inventory catalog where staff look up items and review their change history, with records stored in Postgres and edits submitted through SvelteKit forms.",
+      "stack": "sveltekit"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Adds a PostgreSQL database server to a Next.js or SvelteKit app, with Drizzle for queries and saved steps for table changes.",
+    "goodAt": [
+      "Running a local database on your own computer for development and tests",
+      "Giving each test file its own copy of the database, made from a ready template",
+      "Saving table changes as steps, and checking them against the code's schema"
+    ],
+    "notGoodAt": [
+      "Hosting a live production database; arrange a hosting provider separately.",
+      "Other stacks; the Effect and FastAPI Postgres add-ons are built for those."
+    ]
+  },
+  "capabilities": ["database"],
+  "requests": [
+    "drizzle orm with postgres in my nextjs app",
+    "add database persistence to my nextjs app with Drizzle migrations",
+    "persist SvelteKit form data in Postgres with Drizzle migrations",
+    "run database tests in parallel without sharing one database"
+  ],
+  "useCases": [
+    "persistent data for Next.js and SvelteKit apps",
+    "typed SQL queries on a Node server",
+    "SQL migrations checked in with the code",
+    "parallel database integration tests"
+  ],
+  "synonyms": [
+    "Drizzle",
+    "Drizzle ORM",
+    "drizzle-kit",
+    "node-postgres",
+    "PostgreSQL",
+    "ORM",
+    "Docker Compose",
+    "Prisma alternative"
+  ],
+  "goodFor": ["migrations as the schema source", "server-only database access"],
+  "notFor": ["Effect", "FastAPI", "Cloudflare D1", "managed production database provisioning"]
+}

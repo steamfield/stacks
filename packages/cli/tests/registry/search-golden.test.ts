@@ -10,7 +10,7 @@ import { bundled } from "./helpers/bundled";
 test("local ranking meets every golden judgment and the metric gate [4.5c#2]", async () => {
   const rank = await loadRank();
   const entries = await records(bundled);
-  const aliases = vocabulary();
+  const aliases = vocabulary(bundled);
   const golden = Schema.decodeUnknownSync(GoldenSet)(
     JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/search/golden.json"), "utf8")),
   );

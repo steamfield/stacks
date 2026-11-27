@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "postgres",
+  "source": {
+    "digest": "sha256:80d6ce48b6603e906c0ce80ef4dc26ec1ee80c430d28368d63ca841b7eb0b3e6",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-18"
+  },
+  "summary": "Add local PostgreSQL services, explicit schema migrations and a private database for each test file cloned from a migrated template.",
+  "description": "Add local Postgres development and test services, SQLAlchemy/Alembic integration for the FastAPI service (python-api, alone or as the backend of python-react), and explicit migration commands. The test harness clones a migrated template so each test file has a private database. Readiness checks distinguish API health from database availability. Product tables, queries and access rules are your work. Production hosting is separate, and migrations run as a release step rather than at application startup.",
+  "seoDescription": "Postgres for FastAPI projects, with Docker Compose, SQLAlchemy, Alembic migrations and isolated databases for integration tests.",
+  "projectExamples": [
+    {
+      "title": "Persistent inventory workbench",
+      "description": "An inventory workbench where staff enter equipment records in a React interface and retrieve them from a Python API backed by Postgres.",
+      "stack": "python-react"
+    },
+    {
+      "title": "Import review database",
+      "description": "An import review API that saves incoming rows and reviewers' decisions in Postgres, so reviewers can retrieve earlier results and continue their work.",
+      "stack": "python-api"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Adds PostgreSQL storage to Python web apps and APIs, with local test databases and saved steps for table changes.",
+    "goodAt": [
+      "Running the database on your own computer for development and tests",
+      "Making table changes through reviewed, saved steps",
+      "Giving each test file its own ready-made copy of the database"
+    ],
+    "notGoodAt": ["Hosting a live production database; arrange a hosting provider separately."]
+  },
+  "capabilities": ["database"],
+  "requests": [
+    "give my backend a local SQL database with persistent development data",
+    "isolate each test file's database without rebuilding its schema every time",
+    "manage schema changes through migrations and check them against my models",
+    "run a separate fast database service for tests"
+  ],
+  "useCases": ["local database development", "parallel database integration tests"],
+  "synonyms": [
+    "Postgres",
+    "Docker Compose",
+    "SQLAlchemy",
+    "Alembic",
+    "template database",
+    "FastAPI",
+    "postgress"
+  ],
+  "goodFor": ["migrations as the schema source", "async Python database sessions"],
+  "notFor": ["TypeScript", "Node", "Drizzle", "managed production database provisioning"]
+}

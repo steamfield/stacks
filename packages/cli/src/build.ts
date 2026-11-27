@@ -22,7 +22,10 @@ export const SOURCE_BUILD: Build = {
 export const CLI_BUILD: Build = {
   releaseBuild: typeof STACKS_RELEASE_BUILD !== "undefined" && STACKS_RELEASE_BUILD,
   officialApiUrl: HOSTED_API_URL,
-  officialIndexUrl: OFFICIAL_INDEX_URL,
+  officialIndexUrl:
+    typeof STACKS_PUBLISHED_BUILD !== "undefined" && STACKS_PUBLISHED_BUILD
+      ? OFFICIAL_INDEX_URL
+      : undefined,
   officialTelemetryUrl:
     typeof STACKS_PUBLISHED_BUILD !== "undefined" && STACKS_PUBLISHED_BUILD
       ? OFFICIAL_TELEMETRY_URL

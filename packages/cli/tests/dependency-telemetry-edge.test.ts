@@ -76,6 +76,7 @@ function cliOptions(cwd?: string, human = false, debug = false) {
       ...(human ? { stdoutIsTTY: true } : {}),
     },
     env: {
+      STACKS_INDEX_URL: `${url}/v1/index.json`,
       STACKS_TELEMETRY_URL: url,
       XDG_CACHE_HOME: join(home, "cache"),
       XDG_STATE_HOME: join(home, "state"),

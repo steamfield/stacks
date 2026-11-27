@@ -20,7 +20,7 @@ test.each([
   const listed = await remoteCli(["list", "--json"], options);
   success(listed);
   Schema.decodeUnknownSync(Schema.fromJsonString(ListResult))(listed.stdout);
-  expect(server.requests).toEqual([indexPath]);
+  expect([...server.requests].sort()).toEqual(["/v1/allowlist.json", indexPath]);
 
   const doctor = await remoteCli(["doctor", "--json"], options);
   success(doctor);
@@ -34,7 +34,7 @@ test.each([
   });
   if (etag === undefined) expect(remoteIndex).not.toHaveProperty("etag");
   else expect(remoteIndex).toHaveProperty("etag", etag);
-  expect(server.requests).toEqual([indexPath]);
+  expect([...server.requests].sort()).toEqual(["/v1/allowlist.json", indexPath]);
 });
 
 test("doctor omits all four index metadata keys before any fetch", async () => {

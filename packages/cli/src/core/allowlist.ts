@@ -1,5 +1,5 @@
 /**
- * Provides the signed dependency allowlist through `signatureValid` and `makeCachedFetch`.
+ * Provides the signed dependency allowlist from the directory of the configured index URL.
  */
 import {
   DependencyAllowlist,
@@ -11,6 +11,7 @@ import { HttpClient } from "effect/http";
 import { AppConfig } from "../config";
 import { type CacheFailure, makeCachedFetch } from "./cached-fetch";
 import { signatureValid } from "./registry/remote/verification";
+import { isFetchableUrl } from "./registry/roots";
 
 const verifyAllowlist = Effect.fn("allowlist.verify")(function* (
   text: string,
@@ -51,11 +52,11 @@ export class Allowlist extends Context.Service<
         const path = yield* Path.Path;
         const client = yield* HttpClient.HttpClient;
         const config = yield* AppConfig;
-        const apiUrl = yield* config.apiUrl;
-        // Without a key nothing could verify, so a release build with no published keys never fetches.
-        if (apiUrl === undefined || keys.length === 0) return noAllowlist;
+        const indexUrl = yield* config.remoteIndexUrl;
+        if (indexUrl === undefined || keys.length === 0 || !isFetchableUrl(indexUrl))
+          return noAllowlist;
         const cache = { fs, path, root: (yield* config.paths).cache };
-        const url = new URL("v1/allowlist.json", `${apiUrl.replace(/\/$/, "")}/`).href;
+        const url = new URL("allowlist.json", indexUrl).href;
         const resource = yield* makeCachedFetch({
           cache,
           client,

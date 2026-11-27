@@ -66,8 +66,12 @@ it.effect.each([200, 304])(
       expect(written.entries).toEqual([
         { kind: "stack", id: "sample", origin: "bundled", digest: fixture.stack.digest },
       ]);
-      expect(fixture.server.requests).toEqual([fixtureIndexPath, fixtureIndexPath]);
-      expect(fixture.server.headers[1]?.["if-none-match"]).toBe('"cached-index"');
+      expect([...fixture.server.requests].sort()).toEqual([
+        "/v1/allowlist.json",
+        fixtureIndexPath,
+        fixtureIndexPath,
+      ]);
+      expect(fixture.headers()[1]?.["if-none-match"]).toBe('"cached-index"');
     }),
 );
 
@@ -88,7 +92,7 @@ const withHeldBundles = Effect.fn("test.withHeldBundles")(function* () {
   }
   writeFixtureIndex(fixture.published, entries);
   const server = yield* Effect.acquireRelease(
-    Effect.promise(() => heldServer(fixture.published, (path) => path !== fixtureIndexPath)),
+    Effect.promise(() => heldServer(fixture.published, (path) => path.startsWith("/v1/entries/"))),
     (server) => Effect.promise(() => server.close()),
   );
   return { ...fixture, server, entries };

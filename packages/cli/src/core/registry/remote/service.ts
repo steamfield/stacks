@@ -22,7 +22,7 @@ import {
   type Revalidation,
 } from "../../cached-fetch";
 import { defined } from "../../object";
-import { indexRoot } from "../roots";
+import { indexRoot, isFetchableUrl } from "../roots";
 import type { FileAccess, IndexRegistryRoot } from "../types";
 import { directoryMatches, extractBundle } from "./files";
 import { type RemoteFailure, verifyIndex } from "./verification";
@@ -39,18 +39,6 @@ type BundleAccess = Access & {
   /** The invocation's fallback directory, created on first use. */
   temporary: ReturnType<FileSystem.FileSystem["makeTempDirectory"]>;
 };
-
-/**
- * True for a URL the CLI may fetch: HTTPS, or HTTP to localhost or 127.0.0.1, with no credentials.
- * Any other configured URL keeps the origin on but makes no request.
- */
-function isFetchableUrl(text: string): boolean {
-  if (!URL.canParse(text)) return false;
-  const url = new URL(text);
-  if (url.username || url.password) return false;
-  if (url.protocol === "https:") return true;
-  return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
-}
 
 const bundleUrl = (indexUrl: string, entry: IndexEntry) =>
   new URL(`entries/${entry.kind}/${entry.id}/${entry.digest}.json`, indexUrl).href;

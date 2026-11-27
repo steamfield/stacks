@@ -55,7 +55,7 @@ Write `packages/cli/registry/search/fragments/<id>.json` following `search-card.
 
 ## Check and hand back
 
-From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind fragment`, the brief composition above for each stack it fits (or a representative stack when `applies_to` is empty), then `bun run test:unit tests/bundled-registry.test.ts tests/registry.test.ts` and the search tests in `search-card.md`. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.
+From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind fragment`, the brief composition above for each stack it fits (or a representative stack when `applies_to` is empty), then `bun run test:unit tests/registry/bundled-registry.test.ts tests/registry/registry.test.ts` and the search tests in `search-card.md`. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgment, and the pending user actions:
 

@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
@@ -21,9 +20,6 @@ const bunDir = spawnSync("which", ["bun"], { encoding: "utf8" })
 
 const KEYS = ["astro-blog:default", "astro-blog:sandbox", "go-cli:default"] as const;
 const stale = `sha256:${"0".repeat(64)}`;
-const briefFor = (stack: string, preset: string) => `brief of ${stack} ${preset}`;
-const digestOf = (stack: string, preset: string) =>
-  `sha256:${createHash("sha256").update(briefFor(stack, preset), "utf8").digest("hex")}`;
 
 const files: Record<string, string> = {
   "packages/cli/package.json": '{\n  "name": "@steamfield/stacks",\n  "version": "0.9.0"\n}\n',
@@ -47,13 +43,15 @@ ${KEYS.map((key) => `  "${key}": "${stale}",`).join("\n")}
   "packages/cli/registry/registry.json": '{ "formatVersion": 1, "minCli": "0.8.0" }\n',
 };
 
-// `bun install` succeeds; `bun run dev validate --brief <stack> [--sandbox] --json` prints a brief.
+// `bun install` succeeds; `bun run --cwd packages/cli digests` (the real one is covered by
+// packages/cli/tests/registry/brief-digests.test.ts) records the version the digests saw, or fails
+// when FAKE_DIGESTS_FAIL is set.
 const fakeBun = `#!/bin/sh
 echo "bun $*" >> "$FAKE_LOG"
 if [ "$1" = install ]; then exit 0; fi
-if [ "$1 $2 $3 $4" = "run dev validate --brief" ]; then
-  preset=default; [ "$6" = "--sandbox" ] && preset=sandbox
-  printf '{"brief":"brief of %s %s"}' "$5" "$preset"; exit 0
+if [ "$*" = "run --cwd packages/cli digests" ]; then
+  [ -n "$FAKE_DIGESTS_FAIL" ] && { echo "Could not produce brief for go-cli:default." >&2; exit 1; }
+  grep -o '"version": "[^"]*"' packages/cli/package.json >> "$FAKE_LOG"; exit 0
 fi
 exit 98
 `;
@@ -100,12 +98,16 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 function release(...args: string[]) {
+  return releaseWith({}, ...args);
+}
+
+function releaseWith(extra: Record<string, string>, ...args: string[]) {
   const log = join(dir, "bun.log");
   // The real bun runs the script by absolute path; the fake on PATH answers the script's own calls.
   const result = spawnSync(join(bunDir, "bun"), ["scripts/release.ts", ...args], {
     cwd: repo,
     encoding: "utf8",
-    env: { HOME: dir, PATH: `${join(dir, "bin")}:/usr/bin:/bin`, FAKE_LOG: log },
+    env: { HOME: dir, PATH: `${join(dir, "bin")}:/usr/bin:/bin`, FAKE_LOG: log, ...extra },
   });
   return { ...result, log: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
@@ -131,14 +133,22 @@ describe("bun run release", () => {
     expect(read("packages/cli/tests/fixtures/index/harness.ts")).toContain('cli: "0.9.1"');
     expect(read("packages/mcp/package.json")).toContain('"version": "0.1.3"');
     const digests = read("packages/cli/tests/registry/fixtures/bundled-brief-digests.ts");
-    for (const key of KEYS) {
-      const [stack = "", preset = ""] = key.split(":");
-      expect(digests).toContain(`"${key}": "${digestOf(stack, preset)}"`);
-    }
+    // The digests regenerate after the version is rewritten, since the brief names the version.
+    expect(result.log).toContain('bun run --cwd packages/cli digests\n"version": "0.9.1"');
     expect(digests).toMatch(
       / \* The 0\.9\.1 version in the brief changed all six again on \d{4}-\d\d-\d\d\./,
     );
     expect(result.log).toContain("bun install");
+  });
+
+  it("fails with the digest script's message when a brief can't be regenerated", () => {
+    write(
+      "packages/cli/CHANGELOG.md",
+      `${files["packages/cli/CHANGELOG.md"]}\n## [0.9.1] - 2026-11-15\n`,
+    );
+    const result = releaseWith({ FAKE_DIGESTS_FAIL: "1" }, "0.9.1");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Could not produce brief for go-cli:default.");
   });
 
   it("prints the next steps with the tag after the bump commit, and never commits, tags or pushes", () => {

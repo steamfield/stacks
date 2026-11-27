@@ -6,7 +6,6 @@
 // registry older CLIs can't read. It never commits, tags or pushes. A pushed `v<x.y.z>` tag runs .github/workflows/release.yml, which publishes; an agent
 // never publishes. packages/format/README.md, "Publishing", has the whole flow.
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -118,36 +117,7 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** The stack and preset of every digest the fixture pins, read from the fixture itself. */
-function digestKeys(): string[] {
-  return [...readFileSync(DIGESTS, "utf8").matchAll(/"([\w-]+:(?:default|sandbox))": "sha256:/g)]
-    .map((match) => match[1])
-    .filter((key) => key !== undefined);
-}
-
-/** A brief's digest as the fixture defines it: sha256 of the `brief` string from `validate --brief`. */
-function briefDigest(key: string): string {
-  const [stack, preset] = key.split(":");
-  const out = run("bun", [
-    "run",
-    "dev",
-    "validate",
-    "--brief",
-    stack ?? "",
-    ...(preset === "sandbox" ? ["--sandbox"] : []),
-    "--json",
-  ]);
-  const body: unknown = JSON.parse(out);
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("brief" in body) ||
-    typeof body.brief !== "string"
-  )
-    return fail(`validate --brief ${key} printed no brief`);
-  return `sha256:${createHash("sha256").update(body.brief, "utf8").digest("hex")}`;
-}
-
+/** Notes the version in the digests' history, then regenerates the digests with `bun run digests`. */
 function rewriteDigests(version: string): void {
   const today = new Date().toISOString().slice(0, 10);
   rewrite(
@@ -155,8 +125,9 @@ function rewriteDigests(version: string): void {
     /^ \* After proving an intentional brief change/m,
     ` * The ${version} version in the brief changed all six again on ${today}.\n * After proving an intentional brief change`,
   );
-  for (const key of digestKeys())
-    rewrite(DIGESTS, new RegExp(`("${key}": )"sha256:[0-9a-f]{64}"`), `$1"${briefDigest(key)}"`);
+  // The digest script rewrites the file on disk, so the history line must land first.
+  flush();
+  run("bun", ["run", "--cwd", "packages/cli", "digests"]);
 }
 
 function rewriteVersions(version: string, previous: string): void {

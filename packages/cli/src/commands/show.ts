@@ -23,9 +23,11 @@ export const showCommand = Command.make(
   ({ id, kind }) =>
     Effect.gen(function* () {
       const output = yield* Output;
-      yield* (yield* Allowlist).refresh;
       const host = yield* Host;
-      const report = yield* showReport(id, Option.getOrUndefined(kind));
+      const { refresh } = yield* Allowlist;
+      const [report] = yield* Effect.all([showReport(id, Option.getOrUndefined(kind)), refresh], {
+        concurrency: 2,
+      });
       yield* (yield* Telemetry).recordShow(report);
       // Only agent text shortens the path; JSON keeps it absolute.
       const path =

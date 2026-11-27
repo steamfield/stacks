@@ -124,6 +124,7 @@ async function invoke(
     },
     env: {
       STACKS_DEV_API_URL: endpoint.url,
+      STACKS_INDEX_URL: `${endpoint.url}/v1/index.json`,
       STACKS_TELEMETRY_URL: endpoint.url,
       XDG_CACHE_HOME: join(home, "cache"),
       XDG_STATE_HOME: join(home, "state"),

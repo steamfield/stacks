@@ -25,6 +25,18 @@ export const indexRoot = Effect.fn("registry.indexRoot")(function* (config: AppC
 });
 
 /**
+ * True for a URL the CLI may fetch: HTTPS, or HTTP to localhost or 127.0.0.1, with no credentials.
+ * Any other configured URL keeps the origin on but makes no request.
+ */
+export function isFetchableUrl(text: string): boolean {
+  if (!URL.canParse(text)) return false;
+  const url = new URL(text);
+  if (url.username || url.password) return false;
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
+}
+
+/**
  * The bundled root: STACKS_REGISTRY_DIR resolved against the cwd when set, else
  * `Host.registry`. `found` when it is a directory; a variable naming no directory is a warning.
  */

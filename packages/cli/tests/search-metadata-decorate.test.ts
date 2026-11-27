@@ -37,8 +37,7 @@ function setup(refs?: ReadonlyArray<Ref>) {
   rmSync(cardPath(f.registry, mobile), { force: true });
   return f;
 }
-// Validates each named stack alone, so the cost doesn't grow with the bundled registry the
-// workspace copies, and returns the ones whose card is stale.
+// Validates each named stack alone so unrelated fixture cards can't affect the result.
 async function staleStacks(f: DecorateWorkspace, ids: ReadonlyArray<string>) {
   const stale: string[] = [];
   for (const id of ids) {

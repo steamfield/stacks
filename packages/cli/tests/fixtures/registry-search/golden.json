@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "gate": {
+    "mrr": 1,
+    "recallAt3": 0.98,
+    "fragmentRecallAt5": 1
+  },
+  "queries": [
+    {
+      "id": "platform-phone-backend",
+      "pool": "platform",
+      "split": "tune",
+      "query": "an iPhone and Android app with a backend",
+      "first": {
+        "kind": "stack",
+        "id": "mobile-expo"
+      },
+      "relevant": [
+        {
+          "kind": "stack",
+          "id": "mobile-expo",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "combined-go-release",
+      "pool": "combined",
+      "split": "tune",
+      "query": "a Go command line tool with tagged cross platform binary releases",
+      "first": {
+        "kind": "stack",
+        "id": "go-cli"
+      },
+      "relevant": [
+        {
+          "kind": "stack",
+          "id": "go-cli",
+          "grade": 2
+        },
+        {
+          "kind": "fragment",
+          "id": "goreleaser",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "paraphrase-workouts",
+      "pool": "paraphrase",
+      "split": "holdout",
+      "query": "something people install on their phone to log workouts",
+      "first": {
+        "kind": "stack",
+        "id": "mobile-expo"
+      },
+      "relevant": [
+        {
+          "kind": "stack",
+          "id": "mobile-expo",
+          "grade": 2
+        }
+      ]
+    },
+    {
+      "id": "nomatch-firmware",
+      "pool": "no-match",
+      "split": "holdout",
+      "query": "firmware for a microcontroller",
+      "noMatch": true,
+      "relevant": []
+    }
+  ]
+}

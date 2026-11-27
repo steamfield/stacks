@@ -14,7 +14,7 @@ import { expect } from "vitest";
 import { cli } from "../../src/cli";
 import { VERSION } from "../../src/version";
 import { quiet, runCli, trackChild } from "./cli";
-import { bundled } from "./search-metadata";
+import { searchRegistry } from "./search-metadata";
 
 export function officialHit(id: string, overrides: Partial<SearchHit> = {}): SearchHit {
   return Schema.decodeUnknownSync(SearchHit)({
@@ -147,7 +147,7 @@ export function apiOptions(home: string, url: string): NonNullable<Parameters<ty
   const root = realpathSync(home);
   return {
     home: root,
-    host: { cwd: root, registry: bundled },
+    host: { cwd: root, registry: searchRegistry },
     env: {
       ...quiet,
       STACKS_DEV_API_URL: url,
@@ -200,6 +200,7 @@ export function childSearch(args: string[], options: ReturnType<typeof apiOption
           // Bun's transpiler cache would otherwise write hundreds of files into the isolated home.
           BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0",
           PATH: process.env.PATH,
+          STACKS_REGISTRY_DIR: options.host?.registry ?? searchRegistry,
           ...options.env,
         },
         timeout: 10_000,

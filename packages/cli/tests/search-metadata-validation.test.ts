@@ -5,13 +5,13 @@ import { afterEach, expect, test } from "vitest";
 import { ListResult } from "../src/schemas/list";
 import { quiet, runCli } from "./helpers/cli";
 import {
-  bundled,
   card,
   cardPath,
   copyVocabulary,
   put,
   readJson,
   searchFindings,
+  searchRegistry,
   seed,
   stamp,
   validateSearch,
@@ -80,7 +80,7 @@ test.each([
   "duplicate aliases within $category are vocabulary-invalid $tag",
   async ({ category, values }) => {
     const f = setup();
-    const vocabulary = readJson(join(bundled, "search/vocabulary.json"));
+    const vocabulary = readJson(join(searchRegistry, "search/vocabulary.json"));
     const { SearchVocabulary } = await import("@steamfield/stacks-format");
     const decoded = Schema.decodeUnknownSync(SearchVocabulary)(vocabulary);
     put(join(f.root, "search/vocabulary.json"), JSON.stringify({ ...decoded, [category]: values }));
@@ -90,7 +90,6 @@ test.each([
   },
 );
 
-// Validates against the whole bundled registry; the 5 s default is too tight on a loaded gate host.
 test("180 text words warn without treating long text as invalid [4.5b#7]", {
   timeout: 15_000,
 }, async () => {
@@ -246,7 +245,7 @@ test("repeated text in a project card warns but still decodes [4.5b#16]", async 
   const result = await runCli(["list", "--json"], {
     home,
     env: quiet,
-    host: { cwd: home, registry: bundled },
+    host: { cwd: home, registry: searchRegistry },
   });
   expect(result.status, result.stderr).toBe(0);
   expect(result.stderr).toBe("");

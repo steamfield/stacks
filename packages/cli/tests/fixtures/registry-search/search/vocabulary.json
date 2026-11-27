@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "platforms": {
+    "ios": ["ios", "iphone", "ipad"],
+    "android": ["android"],
+    "mobile": ["mobile", "phone", "app store", "rn", "react native"],
+    "web": ["web", "website", "browser"],
+    "desktop": ["desktop", "macos", "mac app", "windows", "linux desktop"],
+    "cli": ["cli", "command line", "terminal"],
+    "server": ["server", "backend", "api"]
+  },
+  "productKinds": {
+    "blog": ["blog", "posts"],
+    "content-site": ["static site", "docs site", "marketing site"],
+    "api": ["api", "rest", "http service"],
+    "web-app": ["web app", "saas", "dashboard", "next.js"],
+    "mobile-app": ["mobile app", "phone app", "rn app"],
+    "desktop-app": ["desktop app"],
+    "cli-tool": ["cli tool", "command line tool"],
+    "ai-app": ["chat", "llm", "ai"],
+    "fullstack": ["full stack", "fullstack", "frontend and backend"],
+    "library": ["library", "npm package", "python package", "crate", "sdk"]
+  },
+  "languages": {
+    "typescript": ["typescript", "ts", "javascript", "js", "node", "npm"],
+    "python": ["python", "fastapi", "django", "pypi"],
+    "go": [
+      "golang",
+      "in go",
+      "go cli",
+      "go api",
+      "go service",
+      "go backend",
+      "go binary",
+      "go binaries",
+      "go tool",
+      "go release",
+      "go releases",
+      "go library",
+      "go package",
+      "go module",
+      "go mcp"
+    ],
+    "rust": ["rust", "rustlang", "cargo", "axum"],
+    "swift": ["swift", "swiftui"],
+    "kotlin": ["kotlin"],
+    "dart": ["dart", "flutter"],
+    "objective-c": ["objective-c", "objective c", "objc", "obj-c"],
+    "java": ["java", "jvm", "spring boot", "springboot", "maven", "quarkus"]
+  },
+  "capabilities": {
+    "auth": [
+      "auth",
+      "authentication",
+      "login",
+      "log in",
+      "sign in",
+      "sign-in",
+      "sign up",
+      "user accounts"
+    ],
+    "database": ["database", "db", "sql", "postgres", "sqlite", "postgresql", "postgress", "pg"],
+    "analytics": ["analytics", "product analytics", "event tracking"],
+    "deploy": ["deploy", "deployment", "hosting", "host it"],
+    "ci": ["ci", "continuous integration", "github actions"],
+    "release": ["release", "releases", "publish", "binaries"],
+    "ai": ["llm", "ai", "chat", "model api"],
+    "git-hooks": ["git hooks", "pre-commit", "pre-push"],
+    "agent-harness": ["coding agent", "claude code", "codex", "agent hooks"]
+  }
+}

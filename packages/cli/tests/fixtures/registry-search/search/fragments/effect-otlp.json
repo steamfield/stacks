@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "effect-otlp",
+  "source": {
+    "digest": "sha256:c65a63e54f9b2893c2c6c5b83c43c2db00d0f6b3e09fbb18885cab4c3a10537d",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "Add observability to an Effect server: traces, logs and metrics exported to an OpenTelemetry collector, with trace ids in the server logs.",
+  "description": "Add OpenTelemetry to the Effect server in an API, Astro or React Router project. One observability layer exports traces, logs and metrics over OTLP when an endpoint is configured and does nothing otherwise, so development and tests need no collector. Each request gets one server span named by its route, log records carry trace ids, and defect messages stay out of exported data. Tests use an in-memory tracer and a loopback receiver. Browser code is not instrumented, and choosing and running a telemetry backend is left to the project.",
+  "seoDescription": "OpenTelemetry traces, logs and metrics over OTLP for Effect servers, with trace ids in logs and tests that need no collector.",
+  "projectExamples": [
+    {
+      "title": "Traced order API",
+      "description": "A JSON API whose request spans show which service call made a slow request, exported to a local collector during development.",
+      "stack": "typescript-api"
+    },
+    {
+      "title": "Server-rendered app with correlated logs",
+      "description": "A React Router app whose loader and action logs carry trace ids, so one slow page load can be followed across log lines and spans.",
+      "stack": "react-router"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Sends the server's timing records, logs and counts to a monitoring tool you choose, so slow requests can be traced.",
+    "goodAt": [
+      "Finding which step inside a request was slow, such as a call to another service",
+      "Matching request logs to their traces",
+      "Running tests without a monitoring tool or any account"
+    ],
+    "notGoodAt": [
+      "Browser screens; it only watches the server, so use a browser monitoring tool there."
+    ]
+  },
+  "capabilities": [],
+  "requests": [
+    "send traces from my Effect server to an OTLP collector",
+    "put trace ids in my server logs",
+    "find which service call makes an API request slow",
+    "export request metrics and spans through OpenTelemetry"
+  ],
+  "useCases": [
+    "request tracing for Effect servers",
+    "correlating logs with traces",
+    "exporting server telemetry to a collector"
+  ],
+  "synonyms": [
+    "OpenTelemetry",
+    "OTel",
+    "OTLP",
+    "distributed tracing",
+    "spans",
+    "trace context",
+    "observability",
+    "Jaeger",
+    "Tempo"
+  ],
+  "goodFor": ["finding slow calls inside a request", "tests that need no collector or account"],
+  "notFor": ["replacing the stack's request logger"],
+  "caveats": [
+    "Only the server process is instrumented; browser code sends no telemetry.",
+    "Exports nothing until OTEL_EXPORTER_OTLP_ENDPOINT points at a collector."
+  ]
+}

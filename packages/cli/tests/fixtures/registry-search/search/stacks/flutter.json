@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "flutter",
+  "source": {
+    "digest": "sha256:4bfa13a55a82a0e301f80729371baa1963290de5456f8974ddf5a0e293769c9f",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-26"
+  },
+  "summary": "A Flutter app in Dart for iPhone and Android, with view models, repositories, go_router and a test that runs on the iOS simulator.",
+  "description": "Start a Flutter app for iOS and Android from one Dart codebase. The recipe follows the layers in Flutter's architecture guide: screens read ChangeNotifier view models, view models call repositories, and repositories decode data from services behind an interface, starting with an in-memory fake. go_router handles navigation and the not-found page, settings come from --dart-define values with validated defaults, and one error type turns every failure into a message the screen shows with a retry. Unit and widget tests run without a device, and an integration test runs the app on an iPhone simulator. The home screen's greeting is the example payload; your screens, real services and store setup come next.",
+  "seoDescription": "A Flutter starter for iOS and Android with ChangeNotifier view models, repositories, go_router, strict analysis and tests on the iOS simulator.",
+  "projectExamples": [
+    {
+      "title": "Conference schedule app",
+      "description": "An iPhone and Android app for attendees that loads the session list from the organizer's feed, shows each talk's room and time, and offers a retry when the network drops."
+    },
+    {
+      "title": "Transit departures board",
+      "description": "A phone app that shows the next departures for a stop the rider picks, loaded from a public transit feed, on iOS and Android."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter phone app for iPhone and Android written once in Dart with Flutter, Google's toolkit that draws the same screens on both.",
+    "goodAt": [
+      "One codebase for iPhone and Android screens",
+      "Screens that load data and show loading and error states",
+      "Tests that run the app on an iPhone simulator"
+    ],
+    "notGoodAt": [
+      "Apps written in Swift with Apple's own tools; choose a SwiftUI or UIKit stack.",
+      "Apps that need their own server and database; mobile-expo includes both."
+    ]
+  },
+  "platforms": ["ios", "android", "mobile"],
+  "productKinds": ["mobile-app"],
+  "languages": ["dart"],
+  "requests": [
+    "build a flutter app for iphone and android",
+    "dart mobile app with view models, repositories and go_router",
+    "one codebase for ios and android with widget tests",
+    "flutter starter that follows the official app architecture guide"
+  ],
+  "useCases": [
+    "iOS and Android apps from one codebase",
+    "mobile apps that load data from a service"
+  ],
+  "synonyms": [
+    "Flutter",
+    "Dart",
+    "go_router",
+    "ChangeNotifier",
+    "flutter_lints",
+    "integration_test",
+    "MVVM",
+    "cross-platform mobile",
+    "Material Design"
+  ],
+  "goodFor": [
+    "layered view models and repositories",
+    "widget and simulator integration tests",
+    "strict static analysis",
+    "unsigned simulator builds"
+  ],
+  "notFor": ["iPhone app backend", "Android app backend"],
+  "caveats": [
+    "Verify needs a Mac with Xcode and proves the iOS build; Android builds need the Android SDK and aren't part of verify."
+  ]
+}

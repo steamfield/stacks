@@ -9,7 +9,7 @@ test.each(["machine learning pipeline", "a chrome extension"])(
     const result = rank({
       request,
       entries: await records(bundled),
-      vocabulary: vocabulary(),
+      vocabulary: vocabulary(bundled),
       limit: 20,
     });
     expect([...result.stacks, ...result.fragments].filter((hit) => hit.tier === "strong")).toEqual(
@@ -22,7 +22,7 @@ test("a language mismatch cannot remain a strong or high scoring stack", async (
   const result = rank({
     request: "rust web server",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   for (const hit of result.stacks.filter((row) =>
@@ -37,7 +37,7 @@ test("determiners after negators exclude a backend", async () => {
   const result = rank({
     request: "a react app without a backend",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(result.understood.platforms).not.toContain("server");
@@ -51,7 +51,7 @@ test("a named exclusion demotes Next.js", async () => {
   const result = rank({
     request: "not next.js, a react spa with vite",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(result.stacks[0]?.id).not.toBe("nextjs");
@@ -69,7 +69,7 @@ test("a negated named stack stays out of the strong matches", async () => {
   const result = rank({
     request: "I don't want next.js, a react spa",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(result.stacks.find((hit) => hit.id === "nextjs")?.penalties).toContainEqual(
@@ -88,7 +88,7 @@ test.each([
   const result = rank({
     request,
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   const nextjs = result.stacks.find((hit) => hit.id === "nextjs");
@@ -102,7 +102,7 @@ test("a fragment that doesn't apply to the named stack carries a fit penalty", a
   const result = rank({
     request: "next.js web app with posthog analytics",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   const posthog = result.fragments.find((hit) => hit.id === "posthog");
@@ -116,7 +116,7 @@ test("only explicitly named stacks can be strong", async () => {
   const result = rank({
     request: "next.js saas with auth and stripe payments",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(result.stacks[0]).toMatchObject({ id: "nextjs", tier: "strong" });
@@ -128,7 +128,7 @@ test("only explicitly named stacks can be strong", async () => {
 test("generic stack names do not add fragment fit penalties", async () => {
   const entries = await records(bundled);
   for (const request of ["python api", "astro site with comments"]) {
-    const result = rank({ request, entries, vocabulary: vocabulary(), limit: 20 });
+    const result = rank({ request, entries, vocabulary: vocabulary(bundled), limit: 20 });
     expect(
       result.fragments
         .flatMap((hit) => hit.penalties)
@@ -142,7 +142,7 @@ test("a fit penalty names each requested stack once", async () => {
   const result = rank({
     request: "react router app with auth",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   const penalty = result.fragments
@@ -163,7 +163,7 @@ test("fit-penalty mention text dedupes casing", async () => {
   const result = rank({
     request: "Next.js and next.js auth",
     entries,
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   const penalty = result.fragments
@@ -176,7 +176,7 @@ test("a TypeScript CLI published to npm remains strong", async () => {
   const result = rank({
     request: "typescript cli published to npm",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
   });
   expect(result.stacks[0]).toMatchObject({ id: "typescript-cli", tier: "strong" });
 });
@@ -186,7 +186,7 @@ test("fragment fit follows explicitly named stacks", async () => {
   const result = rank({
     request: "next.js saas with auth and stripe payments",
     entries,
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(result.fragments.find((hit) => hit.id === "clerk")?.penalties).toContainEqual(
@@ -197,7 +197,12 @@ test("fragment fit follows explicitly named stacks", async () => {
       .find((hit) => hit.id === "drizzle-postgres")
       ?.penalties.some((penalty) => penalty.entry.startsWith("applies to")),
   ).toBe(false);
-  const generic = rank({ request: "typescript api", entries, vocabulary: vocabulary(), limit: 20 });
+  const generic = rank({
+    request: "typescript api",
+    entries,
+    vocabulary: vocabulary(bundled),
+    limit: 20,
+  });
   expect(
     generic.fragments
       .flatMap((hit) => hit.penalties)
@@ -206,7 +211,7 @@ test("fragment fit follows explicitly named stacks", async () => {
   const multiple = rank({
     request: "next.js and mobile-expo with auth",
     entries,
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(
@@ -222,7 +227,7 @@ test.each(["react app with postgres", "next stage with auth"])(
     const result = rank({
       request,
       entries: await records(bundled),
-      vocabulary: vocabulary(),
+      vocabulary: vocabulary(bundled),
       limit: 30,
     });
     expect(
@@ -237,14 +242,14 @@ test("add requests describe an existing project", async () => {
   const result = rank({
     request: "add authentication",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(result.stacks).toEqual([]);
   const existing = rank({
     request: "add browser tests to my React app",
     entries: await records(bundled),
-    vocabulary: vocabulary(),
+    vocabulary: vocabulary(bundled),
     limit: 20,
   });
   expect(existing.stacks.length).toBeGreaterThan(0);
@@ -265,7 +270,11 @@ test.each([
   ["desktop app", "tauri-react"],
   ["rest api in python with postgres", "python-api"],
 ])("clear intent remains strong for %s", async (request, first) => {
-  const result = rank({ request, entries: await records(bundled), vocabulary: vocabulary() });
+  const result = rank({
+    request,
+    entries: await records(bundled),
+    vocabulary: vocabulary(bundled),
+  });
   expect(result.stacks[0]).toMatchObject({ id: first, tier: "strong" });
 });
 
@@ -276,7 +285,7 @@ test.each(["ts api", "typescript api"])(
     for (const cached of [false, true]) {
       const result = rank({
         request,
-        vocabulary: vocabulary(),
+        vocabulary: vocabulary(bundled),
         entries: entries.map((record) => ({
           ...record,
           ...(cached && record.entry.id === "python-react"

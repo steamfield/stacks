@@ -4,10 +4,10 @@ import { afterEach, expect, test } from "vitest";
 import { quiet, runCli } from "./helpers/cli";
 import { created, createFailure } from "./helpers/create";
 import {
-  bundled,
   cardPath,
   put,
   searchFindings,
+  searchRegistry,
   seed,
   stamp,
   validateSearch,
@@ -28,14 +28,14 @@ test("copying a bundled entry preserves its card bytes and refuses a second writ
     runCli(["create", "stack", ref.id, "--from", "bundled", "--json"], {
       home,
       env: quiet,
-      host: { registry: bundled },
+      host: { registry: searchRegistry },
     });
   const result = await invoke();
   expect(result.status, result.stderr).toBe(0);
   expect(result.stderr).toBe("");
   await created({ ...result, home, args: ["create", "stack", ref.id] });
   expect(readFileSync(cardPath(root, ref), "utf8")).toBe(
-    readFileSync(cardPath(bundled, ref), "utf8"),
+    readFileSync(cardPath(searchRegistry, ref), "utf8"),
   );
   expect(searchFindings(await validateSearch(root, { home }))).toEqual([]);
   const entry = join(root, "stacks/mobile-expo/STACK.md");

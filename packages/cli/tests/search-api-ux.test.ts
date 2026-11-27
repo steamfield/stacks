@@ -2,12 +2,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { StatsSummary } from "@steamfield/stacks-format";
 import { Schema } from "effect";
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test } from "vitest";
 import { ErrorEnvelope } from "../src/errors";
 import { runCli, terminal } from "./helpers/cli";
 import { emptyRegistry } from "./helpers/registry";
 import {
-  apiOptions as bundledOptions,
+  apiOptions,
   decoded,
   officialHit,
   response,
@@ -19,17 +19,6 @@ import { copySearchRegistry, put } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
-const shared = workspace();
-let searchRegistry: string;
-// Search needs all candidates and their evidence, but none of their project payloads.
-beforeAll(() => {
-  searchRegistry = copySearchRegistry(shared.dir());
-});
-afterAll(() => shared.release());
-function apiOptions(home: string, url: string) {
-  const options = bundledOptions(home, url);
-  return { ...options, host: { ...options.host, registry: searchRegistry } };
-}
 let server: SearchServer;
 beforeEach(async () => {
   server = await searchServer();
@@ -112,10 +101,8 @@ test("a weak-only fragment keeps broader-search recovery guidance", async () => 
 test.each([false, true])(
   "local fragment success has consistent text and JSON (human %s)",
   async (human) => {
-    const opts = {
-      ...apiOptions(space.dir(), server.url),
-      ...(human ? { host: { ...terminal, registry: searchRegistry } } : {}),
-    };
+    const opts = apiOptions(space.dir(), server.url);
+    if (human) opts.host = { ...opts.host, ...terminal };
     const args = ["search", "migrate to Cloudflare Pages", "--local", "--kind", "fragment"];
     const json = decoded(await runCli([...args, "--json"], opts));
     expect(json.fragments[0]).toMatchObject({ id: "cloudflare-pages", tier: "strong" });

@@ -1,11 +1,11 @@
-import 'package:app/data/repositories/greeting_repository.dart';
+import 'package:app/data/repositories/greeting_repository_remote.dart';
 import 'package:app/data/services/fake_greeting_service.dart';
 import 'package:app/ui/home/view_models/home_view_model.dart';
 import 'package:app/utils/app_error.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 HomeViewModel _viewModel(FakeGreetingService service) => HomeViewModel(
-  repository: GreetingRepository(service: service, name: 'tester'),
+  repository: GreetingRepositoryRemote(service: service, name: 'tester'),
 );
 
 void main() {

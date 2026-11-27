@@ -6,9 +6,9 @@
 
 /** Hosted API base URL. A valid `STACKS_DEV_API_URL` overrides it in source builds. */
 export const HOSTED_API_URL = "https://stacks.steamfield.io";
-/** Official index URL, unset until a host exists. `STACKS_INDEX_URL` overrides it. */
-export const OFFICIAL_INDEX_URL: string | undefined = undefined;
-/** Telemetry base URL for packages built with `STACKS_PUBLISH_TELEMETRY=1`. `STACKS_TELEMETRY_URL` overrides it. */
+/** Default index URL for builds with `STACKS_PUBLISH=1`. `STACKS_INDEX_URL` overrides it. */
+export const OFFICIAL_INDEX_URL: string = new URL("v1/index.json", `${HOSTED_API_URL}/`).href;
+/** Telemetry base URL for packages built with `STACKS_PUBLISH=1`. `STACKS_TELEMETRY_URL` overrides it. */
 export const OFFICIAL_TELEMETRY_URL = HOSTED_API_URL;
 /** npm registry base URL for `update`. No environment or settings override. */
 export const NPM_REGISTRY_URL = "https://registry.npmjs.org";
@@ -41,6 +41,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const CACHE_FRESHNESS_MS = DAY_MS;
 /** Fetch deadline for the index, bundles, stats and allowlist. No environment or settings override. */
 export const CACHED_FETCH_DEADLINE_MS = 1_500;
+/** Deadline for `RemoteIndex.refresh` before `new` and `add`, and for resolving index entries across one invocation's `Registry.all` calls. No environment or settings override. */
+export const INDEX_REFRESH_DEADLINE_MS = 3_000;
 /** Failure backoff for cached fetches, search and telemetry. A 404 changes it for cached fetches and `Retry-After` can override it for telemetry. */
 export const FAILURE_BACKOFF_MS = 10 * 60 * 1000;
 /** Backoff after a 404 from the index, bundles, stats or allowlist. No environment or settings override. */

@@ -2,7 +2,7 @@
  * Renders the real App (navigation, services, error boundary) and drives it like a person.
  * Only the native spec is replaced: Jest has no iOS runtime behind TurboModuleRegistry.
  */
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { render, screen, userEvent } from "@testing-library/react-native";
 import { App } from "../src/app/app";
 
 // jest.mock factories may only reference variables whose names start with "mock".
@@ -30,8 +30,10 @@ function deferred<T>() {
 }
 
 async function openAppInfo() {
+  const user = userEvent.setup();
   await render(<App config={{ logLevel: "error" }} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Show app info" }));
+  await user.press(screen.getByRole("button", { name: "Show app info" }));
+  return user;
 }
 
 beforeEach(() => {
@@ -45,8 +47,8 @@ test("navigates from home to app info and shows loading, then the native answer"
   await openAppInfo();
   expect(screen.getByLabelText("Loading app info")).toBeOnTheScreen();
 
-  await act(async () => answer.resolve(info));
-  expect(screen.getByText("Field Notes")).toBeOnTheScreen();
+  answer.resolve(info);
+  expect(await screen.findByText("Field Notes")).toBeOnTheScreen();
   expect(screen.getByText("2.4 (17)")).toBeOnTheScreen();
   expect(screen.getByText("iOS 1.2.3")).toBeOnTheScreen();
 });
@@ -58,11 +60,11 @@ test("shows the mapped error for a native rejection and recovers on retry", asyn
     )
     .mockResolvedValueOnce(info);
 
-  await openAppInfo();
+  const user = await openAppInfo();
   expect(await screen.findByText("Couldn't read app info")).toBeOnTheScreen();
   expect(screen.getByText("The device couldn't read this information.")).toBeOnTheScreen();
 
-  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  await user.press(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("Field Notes")).toBeOnTheScreen();
   expect(mockGetAppInfo).toHaveBeenCalledTimes(2);
 });

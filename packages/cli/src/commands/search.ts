@@ -2,6 +2,7 @@
 import { SearchResult } from "@steamfield/stacks-format";
 import { Effect, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
+import { indexUpdateHint } from "../core/search/hint";
 import { renderSearch } from "../core/search/report";
 import { search } from "../core/search/run";
 import { textWidth } from "../core/text/wrap";
@@ -73,6 +74,7 @@ export const searchCommand = Command.make(
           human,
           width: textWidth(human, host.columns),
           measure: host.stringWidth,
+          needsUpdate: output.audience === "json" ? undefined : yield* indexUpdateHint(),
         }),
       );
     }),

@@ -1,0 +1,7 @@
+// A TypeScript user of the published package. scripts/consumer.ts installs the packed tarball
+// next to this file, typechecks it under strict NodeNext resolution, then runs it with Node.
+// Keep it importing by package name, and add each new export here.
+import * as api from "{{project_slug}}";
+
+const names: string[] = Object.keys(api);
+if (names.length !== 0) throw new Error(`consumer (ts): unexpected exports ${names.join(", ")}`);

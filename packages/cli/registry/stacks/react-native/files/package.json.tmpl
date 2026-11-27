@@ -6,7 +6,7 @@
     "ios": "react-native run-ios",
     "android": "react-native run-android",
     "pods": "bash scripts/ios.sh pods",
-    "lint": "biome check .",
+    "lint": "biome check --error-on-warnings .",
     "lint:native": "xcrun swift-format lint --strict --recursive modules",
     "format": "biome check --write . && xcrun swift-format format --in-place --recursive modules",
     "typecheck": "tsc --noEmit",
@@ -18,7 +18,8 @@
     "bundle:android": "react-native bundle --platform android --dev false --entry-file index.js --bundle-output build/js/android/index.android.bundle --assets-dest build/js/android",
     "ios:build": "bash scripts/ios.sh build",
     "ios:test": "bash scripts/ios.sh test",
-    "check": "bun run lint && bun run lint:native && bun run typecheck && bun run test && bun run bundle && bun run ios:build && bun run ios:test",
+    "ios:e2e": "bash scripts/ios.sh e2e",
+    "check": "bun run lint && bun run lint:native && bun run typecheck && bun run coverage && bun run bundle && bun run ios:build && bun run ios:test && bun run ios:e2e",
     "audit": "bun audit",
     "clean": "rm -rf coverage build"
   }

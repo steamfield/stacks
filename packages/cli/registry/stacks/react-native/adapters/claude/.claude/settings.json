@@ -12,6 +12,7 @@
       "Bash(bun run pods)",
       "Bash(bun run ios:build)",
       "Bash(bun run ios:test)",
+      "Bash(bun run ios:e2e)",
       "Bash(bun run check)",
       "Bash(bun run audit)",
       "Bash(bun run clean)",

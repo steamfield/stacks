@@ -2,10 +2,11 @@
  * Renders the new-project brief. Section and list order matter because digests pin its bytes.
  */
 import { APP_TAG } from "@steamfield/stacks-format";
-import { METADATA_DIR } from "../../project-layout";
+import { METADATA_DIR, SOURCES_PATH } from "../../project-layout";
 import { sessionRootNames } from "../compose/mount";
 import { isClientRole } from "../compose/roles";
 import type { ComposedPart, Composition, MountedEntry, PartMount } from "../compose/types";
+import type { IndexHeader } from "../project/provenance";
 import type { Entry } from "../registry/entry";
 import { envPrefix, slug } from "../text/slug";
 import {
@@ -41,7 +42,10 @@ type NewBrief = {
  * Pure rendering. With an app, give the base its own definition of done first because
  * `runApp` requires a green base.
  */
-export function renderBrief(composition: Composition<Entry | null>, context: BriefContext): Brief {
+export function renderBrief(
+  composition: Composition<Entry | null>,
+  context: BriefContext & { index?: IndexHeader },
+): Brief {
   if (!composition.stack) throw new Error("A new-project brief requires a stack");
   const { stack, app } = composition;
   const brief: NewBrief = {
@@ -62,7 +66,13 @@ export function renderBrief(composition: Composition<Entry | null>, context: Bri
   writeGroundRules(out, context);
   writeDecisions(out, composition.decisions, context.yes);
   writeDependencies(out, composition, context);
-  writeGuidance(out, T.sections.stack(oneLine(stack.meta.name), stack.id), stack);
+  writeGuidance(
+    out,
+    T.sections.stack(oneLine(stack.meta.name), stack.id),
+    stack,
+    context.index &&
+      T.sections.index(oneLine(context.index.commit.slice(0, 7)), context.index.generatedAt),
+  );
   if (composition.parts)
     writeWorkspaceSections(out, {
       parts: composition.parts,
@@ -156,7 +166,9 @@ function writeFacts(out: BriefWriter, brief: NewBrief): void {
 function writeWrittenPaths(out: BriefWriter, written: ReadonlyArray<string>): void {
   if (written.length === 0) return;
   out.fixed(T.facts.written);
-  for (const line of collapsePaths(written)) {
+  const paths = collapsePaths(written.filter((path) => path !== SOURCES_PATH));
+  if (written.includes(SOURCES_PATH)) paths.push(SOURCES_PATH);
+  for (const line of paths.sort()) {
     // The metadata listing is CLI-owned text; entry file paths are supplied by entries.
     if (line.startsWith(`${METADATA_DIR}/`)) out.fixed(writtenPathItem(line));
     else out.data(writtenPathItem(line));

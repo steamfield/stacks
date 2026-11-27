@@ -1,0 +1,31 @@
+# Development
+
+Initialize the module with `go mod init {{project_slug}}`, or use the intended
+remote module path and replace `{{project_slug}}/internal/` in the Go imports.
+Resolve the dependencies before running the Makefile:
+
+```sh
+go get github.com/spf13/cobra github.com/spf13/viper golang.org/x/term go.yaml.in/yaml/v3 github.com/stretchr/testify
+go mod tidy
+make install
+```
+
+Install golangci-lint using its official installation instructions. `make install`
+downloads modules and installs goimports and gotestsum when they are missing.
+Run `make help` for all targets. The binary entry is the project root.
+
+```sh
+make fmt-check tidy-check build vet lint test test-integration smoke coverage
+```
+
+`make fmt` applies gofmt and goimports. Unit tests use testify and live beside
+the code. Integration tests have the `integration` build tag; their `TestMain`
+builds one binary for the suite and each case runs it in an isolated directory.
+`make vet` and golangci-lint include this tag. `make coverage` runs unit tests
+with the race detector and enforces the Makefile's coverage floor; it needs cgo.
+
+`make build` embeds version, commit and build time through linker flags.
+Without linker flags, `go run . --version` prints the development default.
+`make vuln` checks reachable dependency vulnerabilities. `make ci` runs the
+checks used in CI. Fill the README's `stacks:fill` markers before the project's
+`stacks verify` can pass its README check.

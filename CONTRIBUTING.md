@@ -35,7 +35,7 @@ A new entry's PR stays a draft, and CI stays red until a maintainer finishes the
 
 ## Landing a one-stack change (maintainers)
 
-Edit the stack, then `bun run prove <stack>` from `packages/cli` (or `bun run bench <stack>` when it needs an agent) and commit the record with the change. Run `bunx vitest run tests/bundled-registry.test.ts` and the tests that cover the stack, merge, and deploy. Other stacks keep their proofs; a shared fragment change needs only the canaries in `registry/canaries.json`. [Maintaining](packages/cli/docs/maintaining.md#landing-a-one-stack-change) has the details.
+Edit the stack, then `bun run prove <stack>` from `packages/cli` (or `bun run bench <stack>` when it needs an agent) and commit the record with the change. Run `bunx vitest run tests/registry/bundled-registry.test.ts` and the tests that cover the stack, merge, and deploy. Other stacks keep their proofs; a shared fragment change needs only the canaries in `registry/canaries.json`. [Maintaining](packages/cli/docs/maintaining.md#landing-a-one-stack-change) has the details.
 
 ## Updating your entry
 

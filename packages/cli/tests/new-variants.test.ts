@@ -4,8 +4,8 @@ import { Schema } from "effect";
 import { afterEach, expect, test } from "vitest";
 import { NewResult } from "../src/schemas/new";
 import { quiet, runCli, tempDir } from "./helpers/cli";
-import { bundledRegistry } from "./helpers/create";
 import { spawnGit } from "./helpers/git";
+import { adapterRegistry } from "./helpers/native-adapters";
 
 const dirs: ReturnType<typeof tempDir>[] = [];
 afterEach(() => {
@@ -23,7 +23,7 @@ async function newCli(args: string[], at: string, env: Record<string, string> = 
   return runCli(["new", "--no-launch", "--agents", "claude", "--json", ...args], {
     home: at,
     env: { ...quiet, ...env },
-    host: { registry: bundledRegistry, cwd: at },
+    host: { registry: adapterRegistry, cwd: at },
   });
 }
 const decode = (stdout: string) => Schema.decodeUnknownSync(NewResult)(JSON.parse(stdout));

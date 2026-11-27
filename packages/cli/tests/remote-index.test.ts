@@ -12,9 +12,10 @@ import {
 import { join } from "node:path";
 import { it } from "@effect/vitest";
 import { EntryBundle, type IndexEntry, StatsSummary } from "@steamfield/stacks-format";
-import { Effect, Fiber, Option, Schema } from "effect";
+import { Clock, Effect, Fiber, Option, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
+import { INDEX_REFRESH_DEADLINE_MS } from "../src/constants";
 import type { RemoteIndex } from "../src/core/registry/remote/service";
 import { DoctorReport } from "../src/schemas/doctor";
 import { LedgerLastRun } from "../src/schemas/ledger";
@@ -249,29 +250,30 @@ it.effect("one changed signed byte is ignored and leaves the good cache intact [
     );
     yield* TestClock.adjust("24 hours");
     const rejected = yield* readRemote();
-    expect(rejected.status.lastOutcome).toBe("invalid");
+    expect(rejected.status.lastOutcome).toBe("signature");
     expect(readFileSync(join(cacheRoot(home), "index.json"), "utf8")).toBe(cached);
     expect(Option.isSome(rejected.index)).toBe(true);
     expect(rejected.index).toEqual(good.index);
   }),
 );
 
-test.each(["signature", "keyId", "json"])(
-  "a bad %s falls back to bundled with invalid status [4.0d#2]",
-  async (kind) => {
-    const envelope = { ...fixture.envelope };
-    if (kind === "signature") envelope.signature = Buffer.alloc(64).toString("base64");
-    if (kind === "keyId") envelope.keyId = "unknown-key";
-    writeFileSync(
-      join(root, "published/v1/index.json"),
-      kind === "json" ? "{broken" : JSON.stringify(envelope),
-    );
-    expect(row(list(await cli(["list", "--json"])))).toMatchObject({ origin: "bundled" });
-    const result = await cli(["doctor", "--json"]);
-    success(result);
-    expect(JSON.parse(result.stdout)).toHaveProperty("remoteIndex.lastOutcome", "invalid");
-  },
-);
+test.each([
+  { kind: "signature", outcome: "signature" },
+  { kind: "keyId", outcome: "signature" },
+  { kind: "json", outcome: "invalid" },
+])("a bad $kind falls back to bundled with $outcome status [4.0d#2]", async ({ kind, outcome }) => {
+  const envelope = { ...fixture.envelope };
+  if (kind === "signature") envelope.signature = Buffer.alloc(64).toString("base64");
+  if (kind === "keyId") envelope.keyId = "unknown-key";
+  writeFileSync(
+    join(root, "published/v1/index.json"),
+    kind === "json" ? "{broken" : JSON.stringify(envelope),
+  );
+  expect(row(list(await cli(["list", "--json"])))).toMatchObject({ origin: "bundled" });
+  const result = await cli(["doctor", "--json"]);
+  success(result);
+  expect(JSON.parse(result.stdout)).toHaveProperty("remoteIndex.lastOutcome", outcome);
+});
 
 test.each([
   { signature: "valid", origin: "index" },
@@ -309,6 +311,17 @@ test.each([{ formatVersion: 2 }, { minCli: "99.0.0" }])(
   },
 );
 
+test.each([
+  "not a URL",
+  "mailto:index@example.invalid",
+  "http://index.example.invalid/v1/index.json",
+  "https://user:password@index.example.invalid/v1/index.json",
+])("list uses bundled entries and skips index and allowlist requests for %s", async (url) => {
+  const result = await cli(["list", "--json"], { home, server, env: { STACKS_INDEX_URL: url } });
+  expect(row(list(result))).toMatchObject({ origin: "bundled", trusted: true });
+  expect(server.requests).toEqual([]);
+});
+
 it.effect("a stalled HTTP response reaches its deadline and backs off ten minutes [4.0d#4]", () =>
   Effect.gen(function* () {
     yield* Effect.promise(() => import("../src/core/registry/remote/service"));
@@ -341,6 +354,47 @@ test("list with a five-second response returns within 2.5 seconds and keeps exit
   list(await cli(["list", "--json"]));
   expect(server.requests).toHaveLength(count);
 });
+
+it.effect.each(["show", "new"])(
+  "%s requests the index and allowlist together when the host stalls",
+  (command) =>
+    Effect.gen(function* () {
+      server.mode("hold");
+      const clock = yield* Clock.Clock;
+      const args =
+        command === "show"
+          ? ["show", "sample", "--json"]
+          : ["new", "sample", "project", "--sandbox", "--dry-run", "--json"];
+      const running = yield* Effect.promise((signal) =>
+        cli(args, { home, server, clock, signal }),
+      ).pipe(Effect.forkChild);
+      yield* Effect.promise(() =>
+        expect
+          .poll(() => [...server.requests].sort())
+          .toEqual(["/v1/allowlist.json", "/v1/index.json"]),
+      );
+      yield* TestClock.adjust(INDEX_REFRESH_DEADLINE_MS + 1);
+      const result = yield* Fiber.join(running);
+      success(result);
+      if (command === "show") {
+        expect(
+          Schema.decodeUnknownSync(Schema.fromJsonString(ShowReport))(result.stdout),
+        ).toMatchObject({
+          id: "sample",
+          origin: "bundled",
+        });
+      } else {
+        expect(
+          Schema.decodeUnknownSync(Schema.fromJsonString(NewResult))(result.stdout),
+        ).toMatchObject({
+          stack: "sample",
+          warnings: expect.arrayContaining([
+            expect.objectContaining({ code: "index_fallback", reason: "timeout" }),
+          ]),
+        });
+      }
+    }),
+);
 
 it.effect("an uncached bundle download has the same deadline and backoff [4.0d#4]", () =>
   Effect.gen(function* () {

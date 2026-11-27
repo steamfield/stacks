@@ -10,6 +10,7 @@ import { missingTools } from "../src/core/compose/compose";
 import type { Composition } from "../src/core/compose/types";
 import { tempDir } from "./helpers/cli";
 import { bundledAt, composeExit } from "./helpers/compose";
+import { adapterRegistry } from "./helpers/native-adapters";
 import { composeRegistry, copyEntry, minimal, realRegistry, writeEntry } from "./helpers/registry";
 
 const dirs: ReturnType<typeof tempDir>[] = [];
@@ -466,7 +467,7 @@ test.each([
   async ({ agents, without, reviewer }) => {
     const composition = await composed(
       { stack: "typescript-library", agents, without },
-      { roots: bundledAt(join(import.meta.dirname, "../registry")) },
+      { roots: bundledAt(adapterRegistry) },
     );
     const invocation = "npx -y stacks@1.2.3";
     const brief = renderBrief(composition, context({ invocation })).text;

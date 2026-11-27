@@ -1,4 +1,4 @@
-import 'package:app/data/repositories/greeting_repository.dart';
+import 'package:app/data/repositories/greeting_repository_remote.dart';
 import 'package:app/data/services/fake_greeting_service.dart';
 import 'package:app/ui/core/widgets/error_view.dart';
 import 'package:app/ui/home/view_models/home_view_model.dart';
@@ -11,7 +11,7 @@ Widget _host(FakeGreetingService service) => MaterialApp(
   home: HomeScreen(
     title: 'Home',
     createViewModel: () => HomeViewModel(
-      repository: GreetingRepository(service: service, name: 'tester'),
+      repository: GreetingRepositoryRemote(service: service, name: 'tester'),
     ),
   ),
 );

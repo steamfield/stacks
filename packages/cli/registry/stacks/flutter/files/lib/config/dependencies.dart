@@ -1,4 +1,5 @@
 import '../data/repositories/greeting_repository.dart';
+import '../data/repositories/greeting_repository_remote.dart';
 import '../data/services/fake_greeting_service.dart';
 import 'app_config.dart';
 
@@ -11,7 +12,7 @@ final class AppDependencies {
 
   /// Every repository backed by an in-memory fake service.
   factory AppDependencies.fake(AppConfig config) => AppDependencies(
-    greetingRepository: GreetingRepository(
+    greetingRepository: GreetingRepositoryRemote(
       service: FakeGreetingService(delay: config.serviceDelay),
       name: config.greetingName,
     ),

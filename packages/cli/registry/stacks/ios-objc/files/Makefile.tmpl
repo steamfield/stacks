@@ -1,7 +1,7 @@
 # {{project_name}} development commands.
 #
 # Adapt the recipes, but keep the target names. `stacks verify` calls install,
-# lint, build, analyze, test and test-ui; CI calls `make ci`. Every xcodebuild
+# lint, build, analyze, coverage and test-ui; CI calls `make ci`. Every xcodebuild
 # call goes through scripts/xcodebuild.sh, which picks a simulator at run time
 # (scripts/sim-destination.sh; set SIMULATOR_UDID to choose one).
 
@@ -14,9 +14,13 @@ SWIFT_FORMAT := xcrun swift-format
 XCODEBUILD := bash scripts/xcodebuild.sh
 # Narrow `make test` to one class or method: make test ONLY=AppTests/APPConfigTests
 ONLY ?= AppTests
+# Line coverage floor for the App target under the unit tests (make coverage). Raise it
+# as tests grow; lowering it needs a reason in AGENTS.md.
+COVERAGE_MIN ?= 80
+COVERAGE_BUNDLE := build/coverage/AppTests.xcresult
 
 .DEFAULT_GOAL := help
-.PHONY: help install project format format-check lint build analyze test test-ui ci destination clean
+.PHONY: help install project format format-check lint build analyze test coverage test-ui ci destination clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-13s %s\n", $$1, $$2}'
@@ -53,10 +57,15 @@ analyze: project ## Clang static analyzer (deep); fails on any finding
 test: project ## XCTest unit tests in the simulator (ONLY=AppTests/<Class>[/<method>] for one)
 	$(XCODEBUILD) test test -only-testing:$(ONLY)
 
-test-ui: project ## XCUITest smoke tests: launch the app in the simulator
+coverage: project ## Unit tests with line coverage; fails below COVERAGE_MIN percent
+	rm -rf $(COVERAGE_BUNDLE)
+	$(XCODEBUILD) coverage test -only-testing:AppTests -enableCodeCoverage YES -resultBundlePath $(COVERAGE_BUNDLE)
+	bash scripts/coverage.sh $(COVERAGE_BUNDLE) $(COVERAGE_MIN)
+
+test-ui: project ## XCUITest smoke tests and accessibility audit: launch the app in the simulator
 	$(XCODEBUILD) test-ui test -only-testing:AppUITests
 
-ci: lint build analyze test test-ui ## Everything CI runs
+ci: lint build analyze coverage test-ui ## Everything CI runs
 
 destination: ## Print the simulator destination xcodebuild will use
 	@bash scripts/sim-destination.sh

@@ -2,6 +2,7 @@ import {
   chmodSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   symlinkSync,
@@ -41,6 +42,36 @@ const state: ProjectState = {
   firstTestPassAt: null,
 };
 const changedState: ProjectState = { ...state, verifyDigest: "new-digest" };
+
+test("interrupting a replacement restores the unreadable original's bytes and mode", async () => {
+  const root = temp();
+  const metadata = join(root, ".stacks");
+  const file = join(metadata, "sources.json");
+  mkdirSync(metadata);
+  writeFileSync(file, "original sources\n");
+  chmodSync(file, 0o000);
+  const controller = new AbortController();
+  const program = Effect.scoped(
+    Effect.gen(function* () {
+      const writer = yield* openProject(root);
+      yield* writer.rewrite(".stacks/sources.json", bytes("new sources\n"), {
+        backupByRename: true,
+      });
+      expect(readFileSync(file, "utf8")).toBe("new sources\n");
+      yield* Effect.sync(() => controller.abort());
+      yield* Effect.never;
+    }),
+  );
+  const result = await runCli(["--json"], { program, env: quiet, signal: controller.signal });
+  expect(result.status, result.stderr).toBe(130);
+  expect(result.stdout).toBe("");
+  expect(JSON.parse(result.stderr).error).toMatchObject({ tag: "Interrupted" });
+  expect(JSON.parse(result.stderr).error).not.toHaveProperty("rollback");
+  expect(readdirSync(metadata)).toEqual(["sources.json"]);
+  expect(lstatSync(file).mode & 0o777).toBe(0);
+  chmodSync(file, 0o600);
+  expect(readFileSync(file, "utf8")).toBe("original sources\n");
+});
 
 function rewriteThenFail(target: string, mutate: () => void, another = false) {
   return Effect.scoped(

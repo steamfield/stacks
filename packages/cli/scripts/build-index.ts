@@ -3,13 +3,13 @@ import { NodeServices } from "@effect/platform-node";
 import { Clock, Console, Effect, Layer, Option, Path } from "effect";
 import { SOURCE_BUILD } from "../src/build";
 import { AppConfig } from "../src/config";
+import { readRegistryMeta } from "../src/core/registry/meta";
 import { Registry } from "../src/core/registry/registry";
 import { printable } from "../src/core/text/text";
 import { validate } from "../src/core/validate";
 import { stringWidth } from "../src/platform/width";
 import { Host } from "../src/services/host";
 import { Foreground, Processes } from "../src/services/processes";
-import { VERSION } from "../src/version";
 import { readAllowlist, readDependencyCards } from "./index/allowlist";
 import { argumentsFor, IncludeUnprovenUsage } from "./index/arguments";
 import { buildDirectory } from "./index/directory";
@@ -56,6 +56,14 @@ const program = Effect.gen(function* () {
     return;
   }
   yield* requireFullHistory(packageRoot);
+  const { minCli } = yield* readRegistryMeta(root).pipe(
+    Effect.mapError(({ message, requiresNewerCli }) => {
+      const fix = requiresNewerCli
+        ? " Build from a checkout at or above the declared minimum."
+        : "";
+      return new Error(`registry.json: ${message}${fix}`);
+    }),
+  );
   yield* validateRegistry();
   const allowlist = yield* readAllowlist(root);
   const previous = options.previous === null ? null : yield* fetchIndex(options.previous.href);
@@ -111,7 +119,7 @@ const program = Effect.gen(function* () {
     directory,
     index: {
       formatVersion: 1,
-      minCli: VERSION,
+      minCli,
       generatedAt,
       commit: checkoutCommit,
       entries: withAuthors(selected.entries, yield* readAuthors(root)),

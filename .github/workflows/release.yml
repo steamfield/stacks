@@ -70,11 +70,11 @@ jobs:
       - name: Pack the format package
         working-directory: packages/format
         run: bun run pack
-      - name: Pack the CLI with its telemetry endpoint
+      - name: Pack the CLI as a published build (official index and telemetry endpoints)
         if: github.event_name == 'push'
         working-directory: packages/cli
         env:
-          STACKS_PUBLISH_TELEMETRY: "1"
+          STACKS_PUBLISH: "1"
         run: bun run pack
       - name: Pack the MCP server
         if: github.event_name == 'push'

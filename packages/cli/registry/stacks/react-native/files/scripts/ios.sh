@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # iOS tasks for verify and CI on macOS. `pods` installs CocoaPods through Bundler and runs
-# pod install. `build` compiles the app, its pods and the AppInfo module for the simulator
-# without signing. `test` runs the AppInfo pod's XCTest bundle on an available iPhone simulator
-# (scripts/sim-destination.sh picks it). Both need `pods` first, and pipe through xcbeautify
+# pod install. `build` compiles a Release build of the app, its pods and the AppInfo module for
+# the simulator without signing, with the JavaScript bundled in. `test` runs the AppInfo pod's
+# Swift tests. `e2e` installs the `build` product and runs the Maestro flows in .maestro/ at the
+# default text size, then at an accessibility text size. The last three use the iPhone simulator
+# scripts/sim-destination.sh picks, need `pods` first, and pipe xcodebuild through xcbeautify
 # when it is installed.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -41,6 +43,7 @@ fi
 
 # Not ios/build: pod install writes codegen output there, and a clean must not delete it.
 derived=build/ios
+product="$derived/Build/Products/Release-iphonesimulator/$app.app"
 
 run() {
   if command -v xcbeautify >/dev/null 2>&1; then
@@ -50,11 +53,47 @@ run() {
   fi
 }
 
+# Maestro runs on a JDK. macOS ships a /usr/bin/java stub even without one, so ask java_home.
+require_e2e_tools() {
+  local missing=()
+  /usr/libexec/java_home >/dev/null 2>&1 || missing+=("a JDK (/usr/libexec/java_home finds none; /usr/bin/java alone is a stub)")
+  command -v maestro >/dev/null 2>&1 || missing+=("the maestro CLI (not on PATH)")
+  if [ "${#missing[@]}" -gt 0 ]; then
+    printf 'ios.sh: e2e needs %s.\n' "${missing[@]}" >&2
+    echo "ios.sh: install them as the README's Getting started section says, then run bun run ios:e2e again." >&2
+    exit 1
+  fi
+}
+
+e2e() {
+  require_e2e_tools
+  if [ ! -d "$product" ]; then
+    echo "ios.sh: no $product yet; run bun run ios:build first." >&2
+    exit 1
+  fi
+  local destination udid bundle_id
+  destination=$(bash scripts/sim-destination.sh)
+  udid=${destination##*id=}
+  bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$product/Info.plist")
+
+  xcrun simctl boot "$udid" 2>/dev/null || true
+  xcrun simctl bootstatus "$udid" -b >/dev/null
+  xcrun simctl install "$udid" "$product"
+
+  # Put the text size back even when a flow fails, so the simulator isn't left at a large size.
+  trap 'xcrun simctl ui "$udid" content_size large >/dev/null 2>&1 || true' EXIT
+  xcrun simctl ui "$udid" content_size large
+  maestro --device "$udid" test -e APP_ID="$bundle_id" .maestro
+  xcrun simctl ui "$udid" content_size accessibility-extra-large
+  maestro --device "$udid" test -e APP_ID="$bundle_id" .maestro
+}
+
 case "${1:-}" in
 build)
-  run xcodebuild -workspace "$workspace" -scheme "$app" -configuration Debug \
-    -destination "generic/platform=iOS Simulator" -derivedDataPath "$derived" \
-    CODE_SIGNING_ALLOWED=NO build
+  destination=$(bash scripts/sim-destination.sh)
+  run xcodebuild -workspace "$workspace" -scheme "$app" -configuration Release \
+    -destination "$destination" -derivedDataPath "$derived" \
+    ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
   ;;
 test)
   destination=$(bash scripts/sim-destination.sh)
@@ -62,8 +101,11 @@ test)
     -destination "$destination" -derivedDataPath "$derived" \
     CODE_SIGNING_ALLOWED=NO test
   ;;
+e2e)
+  e2e
+  ;;
 *)
-  echo "usage: scripts/ios.sh pods|build|test" >&2
+  echo "usage: scripts/ios.sh pods|build|test|e2e" >&2
   exit 2
   ;;
 esac

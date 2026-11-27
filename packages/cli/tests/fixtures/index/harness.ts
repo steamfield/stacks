@@ -20,6 +20,7 @@ import { expect } from "vitest";
 import { proofFingerprint } from "../../../src/core/fingerprint";
 import { LedgerRecord } from "../../../src/schemas/ledger";
 import { ValidateReport } from "../../../src/schemas/validate";
+import { VERSION } from "../../../src/version";
 import { quiet, runCli } from "../../helpers/cli";
 import { bundledAt, composeExit } from "../../helpers/compose";
 import { runRecord, writeLedger } from "../../helpers/ledger";
@@ -217,6 +218,10 @@ export async function fixture(temporary: string) {
       generatedAt: "2026-10-28T00:00:00Z",
       names: { npm: [], pypi: [], go: [], crates: [] },
     }),
+  );
+  writeFileSync(
+    join(registry, "registry.json"),
+    JSON.stringify({ formatVersion: 1, minCli: VERSION }),
   );
   for (const id of ["sample", "never-proven"]) {
     writeEntry({

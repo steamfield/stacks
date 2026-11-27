@@ -6,7 +6,7 @@ An iPhone app in Objective-C and UIKit with one screen. The Xcode project is gen
 
 1. `App/main.m` starts `UIApplicationMain` with `APPAppDelegate`.
 2. `APPAppDelegate` logs the launch and returns a scene configuration whose delegate class is `APPSceneDelegate` (the scene manifest is generated, so there is no Info.plist entry to edit).
-3. `APPSceneDelegate` reads `APPConfig` from `NSUserDefaults` (falling back to defaults with a fault log if a setting is invalid), builds `APPBundledGreetingService` and passes it to `APPGreetingViewController`, inside a navigation controller.
+3. `APPSceneDelegate` reads `APPConfig` from `NSUserDefaults`, builds `APPBundledGreetingService` and passes it to `APPGreetingViewController`, inside a navigation controller. If a setting is invalid it logs a fault and passes `APPFailedGreetingService` instead, so the screen shows the configuration error.
 4. `APPGreetingViewController` shows a spinner, asks the service for the greeting, and shows the headline (formatted in Swift by `GreetingFormatter`) or an error message with a retry button.
 
 ## Code map
@@ -17,13 +17,13 @@ An iPhone app in Objective-C and UIKit with one screen. The Xcode project is gen
 | `App/Config/` | `APPConfig`: settings read from user defaults and validated |
 | `App/Errors/` | `APPErrorDomain`, `APPErrorCode`, `APPErrorMake` and `APPUserMessage` |
 | `App/Logging/` | `os_log` handles per category |
-| `App/Greeting/` | The payload: `APPGreeting` model, `APPGreetingService` protocol, the bundled service, the screen and the Swift formatter |
+| `App/Greeting/` | The payload: `APPGreeting` model, `APPGreetingService` protocol, the bundled service, the failed service for an invalid config, the screen and the Swift formatter |
 | `App/Resources/` | `greeting.json`, the payload the bundled service reads |
 | `App/App-Bridging-Header.h` | Objective-C headers visible to Swift |
 | `AppTests/` | XCTest unit tests, the stub service and test fixtures |
-| `AppUITests/` | XCUITest smoke tests |
+| `AppUITests/` | XCUITest smoke tests and the accessibility audit |
 | `Config/Shared.xcconfig` | Language, warning and analyzer settings for every target |
-| `scripts/` | `sim-destination.sh` (picks a simulator), `xcodebuild.sh` (one xcodebuild invocation style), `analyze.sh` (fails on analyzer findings) |
+| `scripts/` | `sim-destination.sh` (picks a simulator), `xcodebuild.sh` (one xcodebuild invocation style), `analyze.sh` (fails on analyzer findings), `coverage.sh` (fails below the Makefile's `COVERAGE_MIN`) |
 
 ## Where new code goes
 

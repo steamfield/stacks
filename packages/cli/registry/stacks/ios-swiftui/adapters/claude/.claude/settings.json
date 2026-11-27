@@ -10,6 +10,7 @@
       "Bash(make fmt)",
       "Bash(make fmt-check)",
       "Bash(make test)",
+      "Bash(make coverage)",
       "Bash(make test-ui)",
       "Bash(make ci)",
       "Bash(make clean)",

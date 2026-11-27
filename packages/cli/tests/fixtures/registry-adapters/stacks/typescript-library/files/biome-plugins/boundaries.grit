@@ -1,0 +1,46 @@
+// Library boundaries: src/ runs on any runtime, reads nothing from the process, never logs, throws
+// only LibraryError, and its public entry exports by name and never from src/internal/.
+language js
+
+or {
+  or {
+    JsModuleSource() as $src,
+    `import($src)`
+  } where {
+    $filename <: r".*/src/.*",
+    $src <: r"[\"'](?:node:[^\"']+|bun|bun:[^\"']*)[\"']",
+    register_diagnostic(span=$src, message="src/ is platform neutral: it runs in Node, Bun, Deno and browsers. Take what you need as a parameter instead of importing a runtime module.")
+  },
+  JsModuleSource() as $src where {
+    $filename <: r".*/src/index\.ts",
+    $src <: r"[\"']\./internal/.*[\"']",
+    register_diagnostic(span=$src, message="src/internal/ is private. Export a public module's function from src/index.ts, not an internal one.")
+  },
+  or {
+    `process.$x`,
+    `globalThis.process`
+  } as $p where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$p, message="A library never reads the process (env, argv, exit). Take it as an option from the caller.")
+  },
+  `console.$m($args)` as $c where {
+    $filename <: r".*/src/.*",
+    $filename <: not r".*\.test\.ts",
+    register_diagnostic(span=$c, message="A library never writes to the console. Return the value, or throw LibraryError with a code.")
+  },
+  `throw new $cls($args)` as $t where {
+    $cls <: r"(?:Error|TypeError|RangeError|SyntaxError)",
+    $filename <: r".*/src/.*",
+    $filename <: not r".*\.test\.ts",
+    register_diagnostic(span=$t, message="Throw LibraryError with a code from src/errors.ts, so callers can branch on error.code.")
+  },
+  or {
+    JsExportDefaultDeclarationClause(),
+    JsExportDefaultExpressionClause(),
+    `export * from $src`,
+    `export * as $ns from $src`
+  } as $e where {
+    $filename <: r".*/src/.*",
+    register_diagnostic(span=$e, message="Export by name, so the public API is the list in src/index.ts and the build can drop unused code.")
+  }
+}

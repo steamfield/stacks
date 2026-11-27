@@ -17,7 +17,7 @@ Rules every agent follows in this project. The shipped code under `lib/` and `te
 
 - One view model per screen, a `ChangeNotifier` that exposes a single sealed state and methods for user actions. The view reads it through `ListenableBuilder` and switches on the state exhaustively.
 - The screen creates its view model through a factory in `initState` and disposes it in `dispose`. A view model checks it isn't disposed before notifying after an `await`.
-- View models call repositories, never services. Repositories return `Result<T>` (`Ok` or `Err`), so a view model handles failure with a `switch`, not `try`/`catch`.
+- View models call repositories, never services. A repository is an `abstract interface class` with its implementations beside it (`GreetingRepository`, `GreetingRepositoryRemote`); view models take the interface. Repositories return `Result<T>` (`Ok` or `Err`), so a view model handles failure with a `switch`, not `try`/`catch`.
 - Views take no repositories and do no I/O. Navigation uses `context.go(Routes.x)` with paths from `routing/routes.dart`.
 - No global singletons or service locators. A new repository goes in `AppDependencies`, built once in `buildRoot`, and reaches screens through the router.
 - Add `provider` or Riverpod only when the user asks for it; the layering above stays.
@@ -30,4 +30,6 @@ Rules every agent follows in this project. The shipped code under `lib/` and `te
 - `pumpAndSettle` waits for animations to finish, so it never returns while a `CircularProgressIndicator` is on screen. Check the loading state with `pump()`, then settle once the data arrives.
 - A test that changes global state (logging, `FlutterError.onError`) restores it or goes through a function that replaces it, such as `configureLogging`.
 - `integration_test/` runs the app as `main` builds it on a simulator (`make test-ios`). Add a case there for each new screen's main path; keep edge cases in widget tests, which run in seconds.
-- A new screen gets: a view model test for each state transition, a widget test for loading, content and error, and a route in the router test if it has its own path.
+- `test/ui/accessibility_test.dart` runs Flutter's `meetsGuideline` checks (Android and iOS tap targets, labeled tap targets, text contrast), once at 3x text scale. Give an icon-only button a `tooltip` or `Semantics` label, and don't fix text sizes that should scale.
+- `make coverage` fails below `COVERAGE_MIN` (80% of `lib/` lines). Add tests rather than lowering it.
+- A new screen gets: a view model test for each state transition, a widget test for loading, content and error, a guideline case in the accessibility test, and a route in the router test if it has its own path.

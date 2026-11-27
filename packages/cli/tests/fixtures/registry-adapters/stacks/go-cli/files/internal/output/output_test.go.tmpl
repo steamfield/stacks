@@ -1,0 +1,92 @@
+package output
+
+import (
+	"bytes"
+	"errors"
+	"io"
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "{{project_slug}}/internal/errors"
+)
+
+func TestRender(t *testing.T) {
+	for _, json := range []bool{false, true} {
+		t.Run(map[bool]string{false: "human", true: "JSON"}[json], func(t *testing.T) {
+			var buf bytes.Buffer
+			err := Render(&buf, Options{JSON: json}, map[string]string{"greeting": "hello"}, "hello")
+			require.NoError(t, err)
+			if json {
+				assert.JSONEq(t, `{"greeting":"hello"}`, buf.String())
+			} else {
+				assert.Equal(t, "hello\n", buf.String())
+			}
+		})
+	}
+}
+
+func TestRenderErrors(t *testing.T) {
+	tests := []struct {
+		name, code string
+		err        error
+	}{
+		{"structured", apperrors.Config, apperrors.New(apperrors.Config, "bad config", "Fix YAML.")},
+		{"unstructured", apperrors.Internal, errors.New("unexpected failure")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			RenderError(&buf, Options{JSON: true}, tt.err)
+			assert.Contains(t, buf.String(), `"code":"`+tt.code+`"`)
+			assert.Contains(t, buf.String(), `"suggestion":`)
+			buf.Reset()
+			RenderError(&buf, Options{}, tt.err)
+			assert.Contains(t, buf.String(), tt.code+": ")
+			assert.Contains(t, buf.String(), "Suggestion: ")
+			assert.NotContains(t, buf.String(), "\x1b[")
+		})
+	}
+}
+
+func TestWriteFailure(t *testing.T) {
+	file, err := os.CreateTemp(t.TempDir(), "closed")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+	for _, json := range []bool{false, true} {
+		err := Render(file, Options{JSON: json}, "hello", "hello")
+		var failure *apperrors.Error
+		require.ErrorAs(t, err, &failure)
+		assert.Equal(t, apperrors.IO, failure.Code)
+		assert.NotEmpty(t, failure.Suggestion)
+	}
+	RenderError(file, Options{JSON: true}, io.ErrClosedPipe)
+}
+
+func TestColor(t *testing.T) {
+	var buf bytes.Buffer
+	assert.False(t, ColorEnabled(&buf, false), "redirected output has no color")
+	assert.False(t, ColorEnabled(os.Stdout, true))
+	t.Setenv("NO_COLOR", "")
+	assert.False(t, ColorEnabled(os.Stdout, false), "even an empty NO_COLOR disables color")
+}
+
+type shortWriter struct{}
+
+func (shortWriter) Write([]byte) (int, error) { return 0, nil }
+
+func TestWriter(t *testing.T) {
+	var buf bytes.Buffer
+	writer := &Writer{Writer: &buf}
+	_, err := writer.Write([]byte("hello"))
+	require.NoError(t, err)
+	assert.NoError(t, writer.Err())
+	assert.Equal(t, "hello", buf.String())
+	writer = &Writer{Writer: shortWriter{}}
+	_, err = writer.Write([]byte("hello"))
+	require.ErrorIs(t, err, io.ErrShortWrite)
+	assert.ErrorIs(t, writer.Err(), io.ErrShortWrite)
+	assert.Equal(t, 1, apperrors.ExitCode(writer.Err()))
+}

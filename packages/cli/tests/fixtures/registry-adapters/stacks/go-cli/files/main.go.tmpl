@@ -1,0 +1,9 @@
+package main
+
+import "{{project_slug}}/internal/cli"
+
+var version, commit, date = "dev", "none", "unknown"
+
+func main() {
+	cli.Execute(version, commit, date)
+}

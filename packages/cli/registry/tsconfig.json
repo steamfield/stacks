@@ -1,0 +1,132 @@
+{
+  // The registry's own typecheck. It lives under registry/ so a content change stays inside it.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "node"],
+    "rootDirs": [
+      "stacks/astro-fullstack/adapters/claude",
+      "stacks/astro-fullstack/files",
+      "fragments/claude-harness/adapters/claude",
+      "fragments/claude-harness/files",
+      "fragments/openrouter-chat-cli/adapters/claude",
+      "stacks/hono-api/adapters/claude",
+      "stacks/nestjs-api/adapters/claude",
+      "stacks/nextjs/adapters/claude",
+      "stacks/nuxt/adapters/claude",
+      "stacks/react-router/adapters/claude",
+      "stacks/react-vite/adapters/claude",
+      "stacks/sveltekit/adapters/claude",
+      "stacks/tauri-react/adapters/claude",
+      "stacks/typescript-api/adapters/claude",
+      "stacks/typescript-api/files",
+      "stacks/typescript-cli/adapters/claude",
+      "stacks/typescript-library/adapters/claude",
+      "stacks/typescript-mcp/adapters/claude"
+    ],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["**/*.ts", "**/.claude/hooks/*.ts"],
+  "exclude": [
+    // Workers, React Router, Vite and generated binding types belong to the fresh scaffold.
+    "stacks/cloudflare-react-router/files/*.ts",
+    "stacks/cloudflare-react-router/files/**/*.d.ts",
+    "stacks/cloudflare-react-router/files/app",
+    "stacks/cloudflare-react-router/files/workers",
+    "stacks/cloudflare-react-router/files/tests",
+    // Astro/React and browser dependencies are checked in the fresh blog scaffold.
+    "stacks/astro-blog/files/*.ts",
+    "stacks/astro-blog/files/src",
+    "stacks/astro-blog/files/tests",
+    // Astro, React, satori, Playwright and DOM types are installed only in the product-site scaffold.
+    "stacks/astro-product-site/files/*.ts",
+    "stacks/astro-product-site/files/src",
+    "stacks/astro-product-site/files/tests",
+    "stacks/astro-product-site/files/e2e",
+    // Astro/React/Vite and browser types are installed only in the fresh scaffold.
+    // Keep apps/api, packages/contract, scripts and hook tests checked here.
+    "stacks/astro-fullstack/files/apps/web",
+    // Only the Bun entry imports @effect/platform-bun (not installed in this checkout).
+    "stacks/typescript-cli/files/src/bin.ts",
+    // React Router/React/Vite and DOM types belong to the scaffold's dependencies.
+    // Keep its scripts/ and adapter hooks checked by this project.
+    "stacks/react-router/files/*.ts",
+    "stacks/react-router/files/app",
+    "stacks/react-router/files/tests",
+    "stacks/react-router/files/e2e",
+    // React, Vite, MSW, zod and DOM types belong to the SPA scaffold; keep scripts and hooks checked.
+    "stacks/react-vite/files/*.ts",
+    "stacks/react-vite/files/src",
+    "stacks/react-vite/files/tests",
+    "stacks/react-vite/files/e2e",
+    // Hono, zod and pino are installed only in the API scaffold; keep scripts and hooks checked.
+    "stacks/hono-api/files/*.ts",
+    "stacks/hono-api/files/src",
+    "stacks/hono-api/files/tests",
+    // Imports the app (Hono, zod, pino), installed only in the API scaffold.
+    "stacks/hono-api/files/scripts/openapi.ts",
+    // NestJS, class-validator and Swagger are installed only in the API scaffold, and its
+    // decorators need the scaffold's experimentalDecorators; keep scripts and hooks checked.
+    "stacks/nestjs-api/files/*.ts",
+    "stacks/nestjs-api/files/src",
+    "stacks/nestjs-api/files/tests",
+    // tsdown is installed only in the library scaffold; its src/, tests and scripts stay checked.
+    "stacks/typescript-library/files/tsdown.config.ts",
+    // The MCP SDK, zod and pino are installed only in the MCP scaffold; keep scripts and hooks checked.
+    "stacks/typescript-mcp/files/*.ts",
+    "stacks/typescript-mcp/files/src",
+    "stacks/typescript-mcp/files/tests",
+    // Next/React/Vitest browser dependencies belong to the scaffold; keep scripts and hooks checked.
+    "stacks/nextjs/files/*.ts",
+    "stacks/nextjs/files/next-env.d.ts",
+    "stacks/nextjs/files/src",
+    "stacks/nextjs/files/tests",
+    "stacks/nextjs/files/e2e",
+    // Nuxt auto-imports, Vue, zod and test-utils resolve only in the scaffold; keep scripts and hooks checked.
+    "stacks/nuxt/files/*.ts",
+    "stacks/nuxt/files/app",
+    "stacks/nuxt/files/server",
+    "stacks/nuxt/files/shared",
+    "stacks/nuxt/files/tests",
+    "stacks/nuxt/files/e2e",
+    // SvelteKit's $app/*, ./$types and browser dependencies resolve only in the scaffold.
+    // Keep prepare/e2e scripts and adapter hook tests checked here.
+    "stacks/sveltekit/files/*.ts",
+    "stacks/sveltekit/files/src",
+    "stacks/sveltekit/files/tests",
+    "stacks/sveltekit/files/e2e",
+    // Expo, Hono, Drizzle and zod are installed only in the mobile scaffold.
+    "stacks/mobile-expo/files/apps/**",
+    "stacks/mobile-expo/files/packages/**",
+    // React Native, React Navigation, Jest and zod are installed only in the React Native scaffold.
+    "stacks/react-native/files/src",
+    "stacks/react-native/files/tests",
+    "stacks/react-native/files/modules",
+    // These SPAs import React, browser globals and tools installed only in the scaffold.
+    "stacks/tauri-react/files/src/**",
+    "stacks/tauri-react/files/tests/**",
+    "stacks/tauri-react/files/*.config.ts",
+    // The example deck imports @steamfield/decks and React, installed only in the decks scaffold.
+    "stacks/decks/payloads/example/decks/**",
+    // three.js, Rapier, Vite, Playwright, zod and DOM types are installed only in the game
+    // scaffold; scripts/prepare.ts stays checked here.
+    "stacks/threejs-game/files/*.ts",
+    "stacks/threejs-game/files/src",
+    "stacks/threejs-game/files/tests",
+    "stacks/threejs-game/files/scenarios",
+    "stacks/threejs-game/files/scripts/see.ts",
+    // Fragment files that import their host's dependencies are checked in the host scaffold.
+    // Overlays target one stack's layout and dependencies, so all of them are.
+    "fragments/*/stacks/**",
+    "fragments/clerk/files/apps/**",
+    "fragments/cloudflare-d1/files/drizzle.config.ts",
+    // Orval is installed only in the client scaffold; the drift script stays checked here.
+    "fragments/openapi-client/files/orval.config.ts",
+    // Phaser, Vite, Playwright, idb-keyval, zod and DOM types are installed only in the game
+    // scaffold, and src/game.ts exists only once rendered; keep prepare.ts and hooks checked.
+    "stacks/phaser-game/files/*.ts",
+    "stacks/phaser-game/files/src",
+    "stacks/phaser-game/files/tests",
+    "stacks/phaser-game/files/scenarios",
+    "stacks/phaser-game/files/scripts/see.ts"
+  ]
+}

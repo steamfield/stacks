@@ -24,6 +24,7 @@ import { importChecks } from "./checks/imports";
 import { ledgerChecks } from "./checks/ledger-notes";
 import { partStepChecks } from "./checks/part-steps";
 import { referenceChecks } from "./checks/references";
+import { registryMetaChecks } from "./checks/registry-meta";
 import { searchChecks } from "./checks/search";
 import { shippedReferenceChecks } from "./checks/shipped-refs";
 import { submissionChecks } from "./checks/submission";
@@ -46,6 +47,7 @@ export const checks: ReadonlyArray<Check> = [
   loadChecks,
   searchChecks,
   dependencyChecks,
+  registryMetaChecks,
   authorChecks,
   metadataChecks,
   workspaceChecks,

@@ -5,6 +5,7 @@ import { countWords } from "../src/core/brief/words";
 import { BUDGET } from "../src/core/validate/compositions/budget";
 import { quiet, runCli, terminal } from "./helpers/cli";
 import { ledgerRecord, writeLedger } from "./helpers/ledger";
+import { adapterRegistry } from "./helpers/native-adapters";
 import { minimal, writeEntry } from "./helpers/registry";
 import { reviewSearchFixture } from "./helpers/search-fixture";
 import {
@@ -23,7 +24,7 @@ afterEach(() => space.release());
 
 test("show labels both bundled library payloads and explains how to omit the example", async () => {
   const home = space.dir();
-  const registry = join(import.meta.dirname, "../registry");
+  const registry = adapterRegistry;
   const report = await showReport(
     await runCli(["show", "typescript-library", "--json"], {
       home,

@@ -188,15 +188,18 @@ That paragraph appears in the brief only when `ci-github` is part of the project
 
 ## Where entries come from
 
-stacks reads entries from three places, called roots, and the first one that has an id wins:
+stacks looks up each entry by id in these roots, in order:
 
 | Origin | Where | Trusted |
 | --- | --- | --- |
 | `project` | `.stacks/stacks/` and `.stacks/fragments/` in the current directory | No |
 | `user` | `~/.config/stacks/` (or `$XDG_CONFIG_HOME/stacks/`) | Yes |
-| `bundled` | The registry shipped with the CLI | Yes |
+| `index` | Entry bundles named by the remote registry index | Yes for the signed official index |
+| `bundled` | The registry shipped with the CLI | Yes, unless overridden with `STACKS_REGISTRY_DIR` |
 
-A fourth origin, `index`, sits between user and bundled when you point `STACKS_INDEX_URL` at a remote registry index. It is off by default, and its entries are untrusted; [Configuration](reference/configuration.md#remote-registry-cache) has the details.
+The index and the bundled registry are two origins for the same kinds of entries. A published CLI can pick up updated stacks and fragments through the signed index between package releases. It still ships a bundled copy of the registry so you can scaffold offline. See [Configuration](reference/configuration.md#remote-registry-cache) for cache and trust rules.
+
+The official registry declares `minCli` in `registry.json`. It is the oldest CLI version that can read the registry. The index carries the same minimum, so an older CLI can recognize when it needs an update.
 
 ```mermaid
 flowchart LR
@@ -204,15 +207,17 @@ flowchart LR
   p -- "yes" --> pu["use it<br/>untrusted"]
   p -- "no" --> u{"user root<br/>has my-api?"}
   u -- "yes" --> uu["use it<br/>trusted"]
-  u -- "no" --> b{"bundled<br/>has my-api?"}
-  b -- "yes" --> bu["use it<br/>trusted"]
+  u -- "no" --> i{"usable index copy<br/>of my-api?"}
+  i -- "yes" --> iu["use it"]
+  i -- "no" --> b{"bundled<br/>has my-api?"}
+  b -- "yes" --> bu["use it"]
   b -- "no" --> nf(("NotFound"))
 
   classDef warn fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7
   classDef ok fill:#065f46,stroke:#10b981,stroke-width:2px,color:#d1fae5
   classDef err fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fee2e2
   class pu warn
-  class uu,bu ok
+  class uu,iu,bu ok
   class nf err
 ```
 
@@ -242,12 +247,15 @@ Briefs are long, often 4,000 words or more, and that's deliberate. The agent rea
 | Path | What it holds | Committed |
 | --- | --- | --- |
 | `.stacks/manifest.json` | The stack, fragments, preset, agents, commands, environment defaults and verify steps, plus a digest of the steps | Yes |
+| `.stacks/sources.json` | The index metadata and the origin and digest of each composed entry | Yes |
 | `.stacks/BRIEF.md` | The agent's task | No |
 | `.stacks/NOTES.md` | The agent's notes: questions it asked under "Asked", problems with the brief under "Findings" | No |
 | `.stacks/state/runs.jsonl` | One line per verify run | No |
 | `.stacks/incoming/` | Files `add` couldn't write because the project already had them | No |
 
 The manifest is the part that lasts. It's committed with the project, so anyone who clones it can run `stacks verify` and get the same checks.
+
+`.stacks/sources.json` has `formatVersion: 1`. Its `index` holds `commit`, `generatedAt` and `fetchedAt` for the index the command read, or `null` when no usable index was read. Each row in `entries` has `kind`, `id`, `origin` and the canonical bundle `digest`. A mounted workspace stack row also has `part`, the name of its mount. `add` updates the record, keeping existing rows for entries it leaves in place and recording the index used for that invocation. A project without this file is valid.
 
 There is one more record, outside the project: a state record under `~/.local/state/stacks/projects/`. It holds a second copy of the steps' digest and the project's timings (when it first went green). The next section explains why it exists.
 

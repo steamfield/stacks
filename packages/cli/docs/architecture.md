@@ -42,15 +42,23 @@ Each stage is a separate module with one job, and the first four are pure in the
 
 Compose (`src/core/compose/`) resolves the stack id across project, user, index and bundled origins, applies `required`, `default`, `--with` and `--without`, follows `requires` and checks `conflicts` and `applies_to`. Its output, a `Composition`, lists every entry with its decisions, dependencies, commands, environment defaults and verify steps, in a fixed order.
 
-`core/registry/remote/service.ts::RemoteIndex` owns bounded HTTP reads, signature and digest verification, freshness and failure backoff. The registry preserves local precedence and bundled identity for equal digests. An index stack carries the exact fragment snapshot named in its proof; an unavailable bundle falls back to the complete bundled composition. `doctor` inspects cache state without refreshing, and `verify` never reads the index. Remote data cannot start a process.
-
-`constants.ts` holds the optional official index URL (`OFFICIAL_INDEX_URL`), and `AppConfig.remoteIndexUrl` resolves it; `bin.ts` supplies the key list. Production currently has no official URL. `STACKS_INDEX_URL` overrides it; with neither, the origin is off, returns no index, and makes no HTTP requests. Doctor reports `url: null` and `isDefaultUrl: false` when off. Only an effective URL matching the supplied official URL takes the signature-checked trust path; other URLs are untrusted.
-
 Render turns a composition into bytes. One function, `composeFiles`, renders every planned file (copying, filling `.tmpl` templates, deep-merging JSON files that several entries ship), and `renderBrief` writes the brief. Because rendering is deterministic, stacks can fingerprint a composition: the same stack, fragments and preset always hash the same, which is how the bundled ledger knows whether a recorded run still describes the current stack.
 
 Write (`src/core/project/writer.ts`) is the only code that writes into a project. It refuses any path that resolves outside the project's real path, creates files exclusively so it never overwrites, and rolls back everything it wrote if a later step fails or you press Ctrl+C.
 
 Hand off decides what happens next, by the first rule that matches. Inside an agent session, stacks prints a "NEXT STEP FOR THE AGENT" line. With `--json`, `--dry-run`, `--no-launch`, a non-terminal or any untrusted entry, it prints the prompt. Otherwise `--launch` selects a harness explicitly, or the first available agent in the `agents` setting launches. Without an available configured agent, one found harness launches immediately, and several show a numbered picker after the summary. The order is `claude`, `codex`, `opencode`, `cursor` (the `cursor-agent` program), `copilot`, then the Codex app on macOS. Terminal agents receive the prompt and terminal in the project; the app opens a project URL and exits 0. The [command reference](reference/commands.md) has the full rule order and app detection requirements.
+
+## Reading the registry index
+
+Published builds default to the official index and verify its Ed25519 signature against the keys shipped with the CLI. Source builds and local packs have no default index URL. An override is trusted only when it matches the build's official URL and the signature verifies. See [Configuration](reference/configuration.md#remote-registry-cache) for the URL and cache paths.
+
+The signed index build uses the run ledger to select current stacks with a matching proof and includes the fragments and workspace parts their compositions pin. If an updated stack has no matching proof, the build can carry forward its previous index entry.
+
+`list` and `show` reuse an index cached within the past 24 hours. `new` and `add` revalidate before reading the registry, including for their pickers. The request has a 3-second deadline and bypasses retry backoff. With a usable cached body and its ETag, the CLI sends `If-None-Match`. A `304` confirms the cached body and renews its timestamp. `RemoteIndex` remembers the result for the invocation, so later registry reads make no second index request. If revalidation fails or the CLI is offline, it uses the cached index when available and falls back to the bundled registry otherwise. `doctor` reads the cache without refreshing, and `verify` never reads the index.
+
+Index entries take precedence over bundled entries, with bundled identity kept for equal digests. An index stack uses the exact fragments and workspace parts pinned in the index. Full registry reads share a separate 3-second deadline for resolving entries with bundled copies, including their pins. A read uses the bundled copy if resolution misses that deadline. A download already in progress can still finish for a later lookup in the same invocation. Entries available only in the index can wait past the shared deadline because they have no bundled copy. When an index stack or one of its pins is unavailable, the CLI uses the bundled composition if it has one.
+
+The CLI checks each downloaded bundle against its index digest. When it refreshes the signed dependency allowlist, it fetches `allowlist.json` beside the effective index URL and verifies its signature. `new` and `add` write `.stacks/sources.json` with the index metadata they read and the origin and digest of the entries they actually used. See [Concepts](concepts.md#the-project-after-new) for the record's fields.
 
 ## The rules the design keeps
 
@@ -62,7 +70,7 @@ People own what lasts and agents own what ages. Layout, enforcement and the defi
 
 The definition of done is tamper-evident. The verify steps are digested into the manifest and into a state record outside the project, and verify refuses to run steps that don't match. Only a person can accept a change. [Concepts](concepts.md#why-verify-checks-its-own-steps) explains the mechanism.
 
-Trust follows origin. Entries from the project root, from a configured `STACKS_INDEX_URL` and from a `STACKS_REGISTRY_DIR` override are untrusted: they still compose, but they never auto-launch an agent and an agent is told to ask first.
+Trust follows origin. Project entries, entries from custom index URLs and entries under a `STACKS_REGISTRY_DIR` override are untrusted. They still compose, and the CLI tells the agent to ask before using them. Only trusted entries can auto-launch an agent.
 
 ## Three audiences, one result
 

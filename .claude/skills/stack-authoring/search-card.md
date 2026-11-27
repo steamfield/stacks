@@ -55,10 +55,10 @@ bun run dev search --local --kind fragment --json "gitlab ci"
 
 Try at least five requests the entry should win, three it should lose to a sibling, one near miss its `notFor` should push down, and one request it should win that contains each excluded word. Report them as a table in your hand-back.
 
-Don't read `packages/cli/tests/fixtures/search/golden.json` while writing a card: holdout queries must not leak into `requests`. After the card is written, run from `packages/cli`:
+Don't read `packages/cli/tests/registry/fixtures/search/golden.json` while writing a card: holdout queries must not leak into `requests`. After the card is written, run from `packages/cli`:
 
 ```sh
-bun run test:unit tests/search-golden.test.ts tests/search-metadata-holdout.test.ts tests/search-golden-coverage.test.ts
+bun run test:unit tests/registry/search-golden.test.ts tests/registry/search-metadata-holdout.test.ts tests/registry/search-golden-coverage.test.ts
 ```
 
 `search-golden.test.ts` ranks the real registry against the golden set; a new entry that takes another entry's first-result query fails it, and that failure is yours to fix in your card. A new entry needs golden judgments (a stack two first-result queries, a fragment one relevant judgment), which are product decisions. Propose them in the hand-back, phrased differently from your own `requests`, as tune candidates; the maintainer adds them and picks the holdout split.
@@ -67,5 +67,5 @@ bun run test:unit tests/search-golden.test.ts tests/search-metadata-holdout.test
 
 Leave exactly these and report them; fix everything else:
 
-- `tests/search-golden-coverage.test.ts`, failing on the new id's missing judgments
-- `tests/search-metadata-holdout.test.ts`, when stamping changes which reviewed cards it takes as prompt examples and the new example contains a golden query. A failure that names one of your own cards' requests is yours to fix.
+- `tests/registry/search-golden-coverage.test.ts`, failing on the new id's missing judgments
+- `tests/registry/search-metadata-holdout.test.ts`, when stamping changes which reviewed cards it takes as prompt examples and the new example contains a golden query. A failure that names one of your own cards' requests is yours to fix.

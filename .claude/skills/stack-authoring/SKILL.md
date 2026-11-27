@@ -31,6 +31,11 @@ What the slice carries, for any stack:
 - Every config the checks use: lint, format, typecheck, test, the build tool's config, the task runner (Makefile or `package.json` scripts with no dependency blocks), `.env.example`, `.gitignore`, and `docs/` for reference material the body links to.
 - Nothing that ages (anatomy's list), and nothing no verify step exercises.
 
+Beyond the slice, every stack meets the dev-setup bar in `references/dev-setup-bar.md`: formatter,
+strict linter and compiler settings, the standard test framework with UI and end-to-end layers,
+a coverage floor, CI that can run the verify steps, and accessibility and secrets basics. Check
+the stack against it before handing back.
+
 Where a framework has a generator (Next.js, SvelteKit, Astro, React Router, Expo, Tauri), ship the durable parts of its output with the slice: the app source, its config files and the tests. Keep a generator step in Setup only for what can't ship as files (Expo or Tauri native project directories and icons, a lockfile), run it into a subdirectory, and merge without overwriting shipped files.
 
 `STACK.md` follows the slice. Open with "What stacks wrote" (one paragraph, ending "read the code before extending it"), as `go-cli` does; `typescript-api` says the same in its unheaded first paragraphs, and a converted stack uses the heading. Setup becomes: add the declared `deps` so they resolve to current releases, run the checks, update shipped code or config the installed release rejects without loosening a check, record toolchain versions, fill the README. Conventions shrink to rules new code must keep, each already followed by the shipped code; cut prose the code now carries. Keep every Gotcha that still applies. Keep `id`, `tags` and `description` unless the description becomes false. Keep `deps` to names the slice imports. A new name needs a dependency card (`search-card.md`) and an allowlist row; the row is a maintainer's step, so don't add it: report the need instead.
@@ -65,7 +70,7 @@ Write `packages/cli/registry/search/stacks/<id>.json` following `search-card.md`
 
 Every bundled stack meets the baseline in anatomy's "Developer experience" section; `validate` reports a `dx-*` finding for each command or fragment missing from the default composition, and the rest (single-test command, coverage floor, toolchain pins, permissions, linter) is yours to check.
 
-From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind stack`, `bun run dev validate --brief <id> --sandbox`, then `bun run test:unit tests/bundled-registry.test.ts tests/registry.test.ts` and the search tests in `search-card.md`. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.
+From `packages/cli`: `bun run dev validate`, `bun run dev show <id> --kind stack`, `bun run dev validate --brief <id> --sandbox`, then `bun run test:unit tests/registry/bundled-registry.test.ts tests/registry/registry.test.ts` and the search tests in `search-card.md`. Fix every failure except the ones `search-card.md` lists as staying red on a new draft.
 
 The hand-back lists the files changed, the validate and test results with counts, the search request table, the proposed golden judgments, and the pending user actions:
 

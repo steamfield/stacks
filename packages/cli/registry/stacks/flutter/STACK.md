@@ -10,6 +10,7 @@ decisions:
   - "Organization for the iOS bundle id and the Android application id, in reverse-domain form: ask the user (default `com.example`, recorded in AGENTS.md under Pending user actions, since the App Store and Google Play reject it)."
   - "Dart package name: `app` (default), fixed so the shipped `package:app/` imports need no rename. To rename it, change `name:` in pubspec.yaml and every `package:app/` import in test/ and integration_test/ in one change, then run `make analyze test`."
   - "State management: ChangeNotifier view models read through ListenableBuilder, both in the Flutter SDK (default). Use provider or Riverpod only when the user asks; keep one view model per screen and the repository layer either way."
+  - "Coverage floor: 80% (default), `COVERAGE_MIN` in the Makefile, over the lines of `lib/` under unit and widget tests."
   - "Platforms: iOS and Android (default). Add web or desktop only when the user asks, by generating that platform folder the same way as Setup step 1 and adding a build target."
 merge: [.claude/settings.json]
 fragments:
@@ -19,7 +20,7 @@ verify:
   - { name: install, phase: setup, layer: install, run: make install }
   - { name: fmt-check, layer: lint, run: make fmt-check }
   - { name: analyze, layer: typecheck, run: make analyze }
-  - { name: test, layer: test, run: make test }
+  - { name: test, layer: test, run: make coverage }
   - { name: build-ios, layer: build, run: make build-ios, timeout: 20m }
   - { name: test-ios, layer: test, run: make test-ios, timeout: 20m }
   - name: readme-filled
@@ -33,7 +34,7 @@ commands:
   fmt-check: Fail if dart format would change any file
   analyze: flutter analyze with analysis_options.yaml; infos fail too
   test: Unit and widget tests, no device
-  coverage: Unit and widget tests with lcov output in coverage/
+  coverage: Unit and widget tests with lcov output in coverage/, failing below COVERAGE_MIN
   simulator: Print the iPhone simulator the iOS targets use, booting it if needed
   test-ios: Integration tests on an iPhone simulator
   build-ios: Unsigned debug build for the iOS simulator
@@ -49,7 +50,7 @@ One Dart codebase for iPhone and Android phones. Views and `ChangeNotifier` view
 
 ## What stacks wrote
 
-A working slice that passes every check once Setup has generated the platform folders and added the packages. `lib/main.dart` calls `buildRoot`, which reads `AppConfig` from `--dart-define` values (defaults, validation, an `AppError` on a bad value), starts logging (`utils/logging.dart`, `package:logging` into `dart:developer`) and returns `App`, or `StartupErrorApp` when the config is invalid. `app.dart` holds `MaterialApp.router`; `routing/` holds the paths and `createRouter` (go_router, with `NotFoundScreen` as the error page). The payload is the home screen: `HomeScreen` reads `HomeViewModel`'s sealed state (loading, content, failure) and shows a spinner, the greeting, or `ErrorView` with `AppError.userMessage` and "Try again". The view model calls `GreetingRepository`, which decodes JSON from the `GreetingService` interface, implemented by `FakeGreetingService`, and returns `Result<Greeting>`. `utils/` has `AppError`, `Result` and logging. `test/` mirrors `lib/` with unit, view model and widget tests; `integration_test/app_test.dart` runs the app on a simulator; `tool/ios_simulator.dart` picks the simulator. `docs/` has ARCHITECTURE, DEVELOPMENT (commands, simulators, Android, settings) and `guidance/flutter.md`. Read the code before extending it.
+A working slice that passes every check once Setup has generated the platform folders and added the packages. `lib/main.dart` calls `buildRoot`, which reads `AppConfig` from `--dart-define` values (defaults, validation, an `AppError` on a bad value), starts logging (`utils/logging.dart`, `package:logging` into `dart:developer`) and returns `App`, or `StartupErrorApp` when the config is invalid. `app.dart` holds `MaterialApp.router`; `routing/` holds the paths and `createRouter` (go_router, with `NotFoundScreen` as the error page). The payload is the home screen: `HomeScreen` reads `HomeViewModel`'s sealed state (loading, content, failure) and shows a spinner, the greeting, or `ErrorView` with `AppError.userMessage` and "Try again". The view model calls the `GreetingRepository` interface. Its implementation, `GreetingRepositoryRemote`, decodes JSON from the `GreetingService` interface, implemented by `FakeGreetingService`, and returns `Result<Greeting>`. `utils/` has `AppError`, `Result` and logging. `config/defines.example.json` lists every define for `--dart-define-from-file`. `test/` mirrors `lib/` with unit, view model, widget and accessibility tests; `integration_test/app_test.dart` runs the app on a simulator; `tool/ios_simulator.dart` picks the simulator. `docs/` has ARCHITECTURE, DEVELOPMENT (commands, simulators, Android, settings) and `guidance/flutter.md`. Read the code before extending it.
 
 ## Setup
 
@@ -57,7 +58,7 @@ A working slice that passes every check once Setup has generated the platform fo
 
 1. Read `flutter create --help`, then generate into a scratch subdirectory, never the project root: `.flutter-create/`, platforms iOS and Android only, the project name set to the project slug with hyphens turned into underscores, the organization from the decision, and no `pub get`. Copy its `ios/`, `android/` and `.metadata` into the project root, copy the `version:` line and the `environment:` block from its `pubspec.yaml` into the shipped `pubspec.yaml` (iOS reads the build name and number from `version:`), then delete `.flutter-create/` (it's gitignored, so leave it if a command guard refuses). Keep the shipped `lib/`, `test/`, `pubspec.yaml` and `analysis_options.yaml`.
 2. Add the packages so each resolves to its current release: `flutter pub add go_router logging material_ui`, then `flutter pub add dev:flutter_lints`. Never type a version into `pubspec.yaml`.
-3. `make install`, then `make fmt-check analyze test`. Where an installed release rejects shipped code or config (a renamed go_router API, a lint rule renamed or removed), update the code or the rule name and keep every rule and the strict language modes. Run `make fmt` after editing.
+3. `make install`, then `make fmt-check analyze coverage`. Where an installed release rejects shipped code or config (a renamed go_router API, a lint rule renamed or removed), update the code or the rule name and keep every rule, the strict language modes and the coverage floor. Run `make fmt` after editing.
 4. `make build-ios test-ios`. The first iOS build takes several minutes. If no iPhone simulator exists, `make simulator` says how to add one.
 5. Set the name people see: `App.title` in `lib/app.dart`, `CFBundleDisplayName` in `ios/Runner/Info.plist` and `android:label` in `android/app/src/main/AndroidManifest.xml`.
 6. Record the toolchain in `docs/DEVELOPMENT.md` under Toolchain: Flutter and Dart from `flutter --version`, Xcode from `xcodebuild -version`, the iOS deployment target from the generated project, and whether an Android SDK is installed (`flutter doctor`). Commit `pubspec.lock`.
@@ -67,16 +68,16 @@ A working slice that passes every check once Setup has generated the platform fo
 
 `docs/guidance/flutter.md` holds the Dart style, state management and testing rules; the shipped code follows each one. The ones an agent most often breaks:
 
-- **Layers.** Views read one view model; view models call repositories; repositories call services. A view never takes a repository, and nothing but a repository decodes service JSON.
+- **Layers.** Views read one view model; view models call repositories; repositories call services. Each repository is an abstract interface with its implementations beside it (`GreetingRepository`, `GreetingRepositoryRemote`), and view models depend on the interface. A view never takes a repository, and nothing but a repository decodes service JSON.
 - **State.** A view model exposes one sealed state and methods for user actions; the view switches on it exhaustively. The screen creates its view model in `initState` through the factory the router passes and disposes it.
 - **Errors.** `AppError` is the only error that crosses a layer. Repositories catch exceptions, log once and return `Err`; screens show `userMessage` through `ErrorView`, never `detail`.
-- **Config.** A new setting gets a `--dart-define` key read in `AppConfig.fromEnvironment`, a default, a validation rule that throws `AppError.config`, a test, and a row in `docs/DEVELOPMENT.md`. Defines are compiled into the binary, so never pass a secret through one.
+- **Config.** A new setting gets a key constant in `AppConfig` (added to `AppConfig.keys`), a read in `fromEnvironment`, a default, a validation rule that throws `AppError.config`, a test, an entry in `config/defines.example.json` and a row in `docs/DEVELOPMENT.md`. Local values go in the gitignored `config/defines.json`. Defines are compiled into the binary, and anything in the binary can be extracted, so never pass a secret through one; runtime secrets come from the app's backend.
 - **Wiring.** New repositories go in `AppDependencies` and reach screens through `createRouter`. No singletons or service locators.
 - **Packages** come from `flutter pub add`. Material is `package:material_ui/material_ui.dart`.
 
 ## Testing
 
-`make test` runs everything under `test/` on the Dart VM in seconds: `AppConfig` parsing, `AppError` mapping, the repository over `FakeGreetingService` (payload, invalid payload, network failure, unexpected exception and its log level), the view model's state sequence including a load that finishes after dispose, widget tests for each home screen state and the retry, the router's not-found page, `buildRoot` for a good and a bad config, and the simulator picker. `make test-ios` builds the app and runs `integration_test/` on an iPhone simulator through `buildRoot`, so config parsing, logging and the fake service's delay run on iOS. A new screen adds view model tests for each transition, widget tests for loading, content and error, and one main-path case in `integration_test/`.
+`make test` runs everything under `test/` on the Dart VM in seconds: `AppConfig` parsing and the defines example, `AppError` mapping, the repository over `FakeGreetingService` (payload, invalid payload, network failure, unexpected exception and its log level), the view model's state sequence including a load that finishes after dispose, widget tests for each home screen state and the retry, the router's not-found page, `buildRoot` for a good and a bad config, and the simulator picker. `test/ui/accessibility_test.dart` checks Flutter's guidelines (tap targets, labels, text contrast) on the home screen, and the error view at 3x text scale. Verify runs these through `make coverage`, which fails when line coverage of `lib/` drops below 80%. `make test-ios` builds the app and runs `integration_test/` on an iPhone simulator through `buildRoot`, so config parsing, logging and the fake service's delay run on iOS. A new screen adds view model tests for each transition, widget tests for loading, content and error, a guideline case in the accessibility test, and one main-path case in `integration_test/`. Android has no device test: verify proves iOS on a Mac, the widget tests run the same Dart code for both platforms, and an emulator job would add CI minutes for little extra coverage.
 
 ## Commands
 
@@ -101,7 +102,7 @@ The settings allow the make targets and read-only flutter, dart and simctl comma
 <!-- stacks:end -->
 <!-- stacks:when with=ci-github -->
 
-**CI.** Two jobs behind `ci-ok`. Install Flutter with the Flutter setup action on the stable channel at the version recorded in `docs/DEVELOPMENT.md`, with its cache on. `checks` on `ubuntu-latest`: `make install fmt-check analyze coverage build-android` (the Linux image has the Android SDK and a JDK, so this is where Android builds; add a Java setup step if the Gradle build asks for a different JDK), then `make audit` as its own step after installing osv-scanner. `ios` on a macOS runner (`macos-latest`, or the image with the Xcode version recorded at setup, selected with `xcode-select`): `make install build-ios test-ios`. A Linux job can't run anything that needs Xcode, and macOS minutes cost more, so keep the macOS job to the iOS targets.
+**CI.** Two jobs behind `ci-ok`. Install Flutter with the Flutter setup action on the stable channel at the version recorded in `docs/DEVELOPMENT.md`, with its cache on. `checks` on `ubuntu-latest`: `make install fmt-check analyze coverage build-android` (the Linux image has the Android SDK and a JDK, so this is where Android builds; add a Java setup step if the Gradle build asks for a different JDK), then `make audit` as its own step after installing osv-scanner. `ios` on macOS (ci-github's Xcode steps, with the Xcode version recorded at setup): `make install build-ios test-ios`, and nothing else.
 <!-- stacks:end -->
 <!-- stacks:when with=git-hooks -->
 

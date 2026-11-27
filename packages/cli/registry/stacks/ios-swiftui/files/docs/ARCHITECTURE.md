@@ -41,7 +41,7 @@ A screen holds its view model and renders `state`. User actions call view model 
 | `APP_ENVIRONMENT` | `AppEnvironment` | `development` | `development`, `staging`, `production` (Debug sets development, Release production) |
 | `APP_GREETING_SUBJECT` | `AppGreetingSubject` | `world` | up to 40 characters |
 
-Info.plist ships inside the app bundle and anyone can read it, so it never holds secrets.
+Info.plist ships inside the app bundle and anyone can read it, so it never holds secrets. Nor does any other file or build setting: anything compiled into the bundle can be extracted, so a secret the app needs at run time comes from its backend.
 
 ## Logging
 

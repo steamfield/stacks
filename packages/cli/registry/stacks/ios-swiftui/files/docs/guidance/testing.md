@@ -2,10 +2,14 @@
 
 | Layer | Framework | Where | Runs with |
 | --- | --- | --- | --- |
-| Unit | Swift Testing | `AppTests/` | `make test` |
+| Unit | Swift Testing | `AppTests/` | `make test`, or `make coverage` with the floor |
 | UI | XCTest (XCUITest) | `AppUITests/` | `make test-ui` |
 
 Both run on a simulator that `scripts/sim-destination.sh` picks. Unit tests are hosted in the app (they import it with `@testable import App`), so they also launch it once.
+
+## Coverage
+
+`make coverage` runs the unit tests with code coverage and `scripts/coverage-check.sh` fails it when the `App` target's line coverage is below `COVERAGE_MIN` (80 by default, in the Makefile). Files matching `COVERAGE_EXCLUDE` (`*View.swift`, `*Screen.swift`, `MainApp.swift`) don't count: view bodies are covered by the UI tests. So a view lives in a `*View` or `*Screen` file, and logic it needs goes in the view model, where unit tests reach it.
 
 ## Unit tests
 
@@ -40,6 +44,7 @@ XCUITest launches the built app and drives it from outside; Swift Testing has no
 
 - Find elements by accessibility identifier, never by visible text that a translation would change.
 - Wait with `waitForExistence(timeout:)`, never `sleep`.
+- End each test on a new screen with `try app.performAccessibilityAudit()`, which fails on missing labels, text that doesn't scale with Dynamic Type, clipped text and low contrast.
 - Each test launches the app, which takes seconds. Add one only for a flow unit tests can't reach: navigation between screens, system permission prompts, a launch argument the app reads.
 
 ## What a new feature adds

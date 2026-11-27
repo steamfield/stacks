@@ -163,6 +163,11 @@ export const installHint = (tool: string) => {
 
 export const sections = {
   stack: (name: string, id: string) => `## Stack: ${name} (${code(id)})`,
+  index: (commit: string, generatedAt: string) => {
+    const date = new Date(generatedAt);
+    if (Number.isNaN(date.getTime())) return undefined;
+    return `Index ${commit}, generated ${date.toISOString().slice(0, 16).replace("T", " ")} UTC.`;
+  },
   fragment: (name: string, id: string) => `## Fragment: ${name} (${code(id)})`,
   part: (name: string, id: string, dir: string) =>
     `## Part: ${name} (${code(id)}) in ${code(`${dir}/`)}`,

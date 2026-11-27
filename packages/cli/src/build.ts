@@ -3,7 +3,7 @@ import { HOSTED_API_URL, OFFICIAL_INDEX_URL, OFFICIAL_TELEMETRY_URL } from "./co
 
 declare const PACKAGED_ESCAPES: ReadonlyArray<string>;
 declare const STACKS_RELEASE_BUILD: boolean;
-declare const STACKS_PUBLISHED_TELEMETRY: boolean;
+declare const STACKS_PUBLISHED_BUILD: boolean;
 
 export type Build = {
   readonly releaseBuild: boolean;
@@ -22,9 +22,12 @@ export const SOURCE_BUILD: Build = {
 export const CLI_BUILD: Build = {
   releaseBuild: typeof STACKS_RELEASE_BUILD !== "undefined" && STACKS_RELEASE_BUILD,
   officialApiUrl: HOSTED_API_URL,
-  officialIndexUrl: OFFICIAL_INDEX_URL,
+  officialIndexUrl:
+    typeof STACKS_PUBLISHED_BUILD !== "undefined" && STACKS_PUBLISHED_BUILD
+      ? OFFICIAL_INDEX_URL
+      : undefined,
   officialTelemetryUrl:
-    typeof STACKS_PUBLISHED_TELEMETRY !== "undefined" && STACKS_PUBLISHED_TELEMETRY
+    typeof STACKS_PUBLISHED_BUILD !== "undefined" && STACKS_PUBLISHED_BUILD
       ? OFFICIAL_TELEMETRY_URL
       : undefined,
 };

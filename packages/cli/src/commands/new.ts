@@ -1,5 +1,5 @@
 /** Handles `stacks new` and checks template inputs before the picker can ask questions. */
-import { Effect, Layer, Option, Schema } from "effect";
+import { Clock, Effect, Layer, Option, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import { Allowlist } from "../core/allowlist";
 import type { Composition } from "../core/compose/types";
@@ -13,6 +13,7 @@ import {
   printLaunch,
   resolveChoice,
 } from "../core/handoff/run";
+import { indexFallbackWarning, readIndexProvenance } from "../core/project/provenance";
 import { templateOverrides } from "../core/project/template-values";
 import { pickNew, promptingAllowed, runningCommand } from "../core/prompting";
 import { isStack, PAYLOADS } from "../core/registry/entry";
@@ -129,31 +130,36 @@ const newReplayNames = {
 } satisfies Record<keyof NewFlags, string | null>;
 
 /**
- * The scaffold options from the flags, with the stack and directory a person picks when no stack
- * was named. After a pick, prints the equivalent command so it can be rerun without the picker.
+ * Prepares the registry and scaffold options. The picker uses the same refreshed index as the
+ * scaffold and prints the equivalent command for the chosen options.
  */
-const resolveArguments = Effect.fn("new.resolveArguments")(function* (flags: NewFlags) {
+const prepareNew = Effect.fn("new.prepareNew")(function* (flags: NewFlags) {
   const { source: _source, stack, launch: _launch, noLaunch: _noLaunch, ...parsed } = flags;
   if (stack === undefined && !(yield* promptingAllowed)) return yield* new Usage();
   const options = parsed satisfies ExactProjectOptions<
     typeof parsed,
-    Omit<NewOptions, "stack" | "handoff">
+    Omit<NewOptions, "stack" | "handoff" | "provenance">
   >;
   if (options.sandbox && options.preset !== undefined && options.preset !== "sandbox")
     return yield* new Usage({ details: { flags: ["--sandbox", `--preset ${options.preset}`] } });
-  if (stack !== undefined) return { ...options, stack };
   // Checks --name, --author and --scope before the picker, so a bad value fails before any question.
-  yield* templateOverrides(options);
-  const picked = yield* pickNew(options);
-  const resolved = { ...options, ...picked };
-  yield* runningCommand([
-    "new",
-    picked.stack,
-    ...replayProjectFlags(newReplayNames, { ...flags, ...picked }),
-    "--",
-    picked.dir,
-  ]);
-  return resolved;
+  if (stack === undefined) yield* templateOverrides(options);
+  const resolve = Effect.gen(function* () {
+    const provenance = yield* readIndexProvenance;
+    if (stack !== undefined) return { options: { ...options, stack }, provenance };
+    const picked = yield* pickNew(options);
+    yield* runningCommand([
+      "new",
+      picked.stack,
+      ...replayProjectFlags(newReplayNames, { ...flags, ...picked }),
+      "--",
+      picked.dir,
+    ]);
+    return { options: { ...options, ...picked }, provenance };
+  });
+  const { refresh } = yield* Allowlist;
+  const [prepared] = yield* Effect.all([resolve, refresh], { concurrency: 2 });
+  return prepared;
 });
 
 /** The fragment ids telemetry reports as left out: `--without`, plus the stack's defaults under lean. */
@@ -201,15 +207,22 @@ export const newCommand = Command.make("new", newFlags, (flags) =>
     const { json } = yield* root;
     const output = yield* Output;
     const source = yield* sourceValue(flags.source);
-    const options = yield* resolveArguments(flags);
-    yield* (yield* Allowlist).refresh;
+    const { options, provenance } = yield* prepareNew(flags);
     const preferences = yield* prepareHandoff(flags, json);
-    const scaffolded = yield* scaffold({ ...options, handoff: preferences });
-    const { result } = scaffolded;
+    const scaffolded = yield* scaffold({
+      ...options,
+      handoff: preferences,
+      provenance,
+    });
+    const warning = indexFallbackWarning(provenance);
+    const result = warning
+      ? { ...scaffolded.result, warnings: [...scaffolded.result.warnings, warning] }
+      : scaffolded.result;
     const telemetry = yield* Telemetry;
     const registry = yield* Registry;
     const context = yield* handoffContext(result.project, result.agents[0], result.untrusted);
-    const summary = renderNew({ ...result, untrusted: context.untrusted }, context);
+    const now = yield* Clock.currentTimeMillis;
+    const summary = renderNew({ ...result, untrusted: context.untrusted }, { ...context, now });
     const { decision, prefix } = yield* resolveChoice(scaffolded.decision, result.project, summary);
     yield* recordNew({
       telemetry,

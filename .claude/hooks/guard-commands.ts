@@ -22,7 +22,8 @@ const DELEGATE =
   'BLOCKED: Delegates run no full gate or whole suite, locally or on rr: Claude runs the gate once after review (AGENTS.md "Test runs"). Run the test files covering your change (`bun run test:unit tests/<file>.test.ts` in packages/cli, or `rr test-cli tests/<file>.test.ts`), lint and typecheck, and name in the hand-off any test outside your scope your change could affect.';
 const RR_SUITES = new Set(["check", "check-serial", "test", "test-hooks", "e2e"]);
 const SUITES = new Set(["check", "test", "e2e", "coverage"]);
-const SCOPABLE = new Set(["test:hooks", "test:unit"]);
+const SCOPABLE = new Set(["test:hooks", "test:unit", "test:behavior", "test:registry"]);
+const RR_SCOPABLE = new Set(["test-cli", "test-registry"]);
 // Flags whose value is the next word, for bun, rr and vitest (`--project cli` runs a whole project).
 const VALUED = new Set([
   "--cwd",
@@ -68,12 +69,12 @@ function wholeSuite(cmd: Command): boolean {
 const unscopedVitest = (cmd: Command, from: number) =>
   operands(cmd, from).filter((arg) => arg !== "run").length === 0;
 
-/** An rr task that runs a whole suite: `rr check`, or `rr test-cli` without a file. */
+/** An rr task that runs a whole suite: `rr check`, or `rr test-cli` or `rr test-registry` without a file. */
 function wholeRrSuite(cmd: Command): boolean {
   if (basename(cmd.argv[0] ?? "") !== "rr") return false;
   const [task = "", ...files] = operands(cmd, 1);
   const filtered = files.length > 0 || cmd.argv.includes("--");
-  return RR_SUITES.has(task) || (task === "test-cli" && !filtered);
+  return RR_SUITES.has(task) || (RR_SCOPABLE.has(task) && !filtered);
 }
 
 function bunDirectory(argv: readonly string[]): string | undefined {

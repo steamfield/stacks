@@ -10,6 +10,7 @@ import { Host } from "../../services/host";
 import { renderAddBrief } from "../brief/render-add";
 import type { Composition, MissingTool } from "../compose/types";
 import { decideHandoff, type HandoffDecision, settleHandoff } from "../handoff/decide";
+import { encodeSources, updatedSources } from "../project/sources";
 import type { Entry } from "../registry/entry";
 import { mergeAddManifest } from "./manifest";
 import { mergeNeeded } from "./plan";
@@ -131,6 +132,9 @@ export const add = (options: AddOptions) =>
       manifest: { ...manifest, briefWords: brief.briefWords },
       stateManifest: merged.stateManifest,
       brief,
+      sources: encodeSources(
+        yield* updatedSources({ root: options.root, composition, provenance: options.provenance }),
+      ),
     });
     const result = addResult({
       root: options.root,

@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import {
   closeSync,
   cpSync,
-  existsSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -21,29 +20,29 @@ import { quiet, runCli, stopChildren, trackChild } from "./cli";
 import { minimal, writeEntry } from "./registry";
 
 export const cliRoot = join(import.meta.dirname, "../..");
-export const bundled = join(cliRoot, "registry");
-export function copyVocabulary(root: string) {
-  cpSync(join(bundled, "search/vocabulary.json"), join(root, "search/vocabulary.json"));
+export const searchRegistry = join(import.meta.dirname, "../fixtures/registry-search");
+export function copyVocabulary(root: string, source = searchRegistry) {
+  cpSync(join(source, "search/vocabulary.json"), join(root, "search/vocabulary.json"));
 }
 export type Ref = Pick<Entry, "kind" | "id">;
 /** Search and decoration read metadata, cards and root contracts, without composing payloads. */
 export function copySearchRegistry(root: string, refs?: ReadonlyArray<Ref>) {
   for (const dir of ["stacks", "fragments", "search/stacks", "search/fragments"])
     mkdirSync(join(root, dir), { recursive: true });
-  for (const file of readdirSync(bundled, { withFileTypes: true }))
-    if (file.isFile()) cpSync(join(bundled, file.name), join(root, file.name));
+  for (const file of ["registry.json", "runs.json"])
+    cpSync(join(searchRegistry, file), join(root, file));
   copyVocabulary(root);
   const selected =
     refs ??
     (["stack", "fragment"] as const).flatMap((kind) =>
-      readdirSync(join(bundled, `${kind}s`)).map((id) => ({ kind, id })),
+      readdirSync(join(searchRegistry, `${kind}s`)).map((id) => ({ kind, id })),
     );
   for (const ref of selected) {
     const dir = join(`${ref.kind}s`, ref.id);
     const markdown = ref.kind === "stack" ? "STACK.md" : "FRAGMENT.md";
     mkdirSync(join(root, dir), { recursive: true });
-    cpSync(join(bundled, dir, markdown), join(root, dir, markdown));
-    if (existsSync(cardPath(bundled, ref))) cpSync(cardPath(bundled, ref), cardPath(root, ref));
+    cpSync(join(searchRegistry, dir, markdown), join(root, dir, markdown));
+    cpSync(cardPath(searchRegistry, ref), cardPath(root, ref));
   }
   return root;
 }
@@ -138,7 +137,7 @@ export async function validateSearch(
 ) {
   const result = await runCli(["validate", ...(options.bundled ? [] : [root]), "--json"], {
     home: options.home,
-    host: { registry: options.bundled ? root : (options.registry ?? bundled) },
+    host: { registry: options.bundled ? root : (options.registry ?? searchRegistry) },
     env: quiet,
   });
   expect(result.stdout.trim(), result.stderr).not.toBe("");
@@ -175,8 +174,7 @@ export function decorateWorkspace(temporary: string, refs?: ReadonlyArray<Ref>) 
   mkdirSync(join(cli, "node_modules/@steamfield"), { recursive: true });
   symlinkSync(join(root, "packages/format"), join(cli, "node_modules/@steamfield/stacks-format"));
   const registry = join(cli, "registry");
-  if (refs === undefined) cpSync(bundled, registry, { recursive: true });
-  else copySearchRegistry(registry, refs);
+  copySearchRegistry(registry, refs);
   for (const id of ["second", "third"]) seed(registry, { kind: "stack", id });
   return { root, cli, registry };
 }

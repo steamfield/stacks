@@ -94,19 +94,24 @@ function fragmentFirst(result: SearchResult): SearchResult["fragments"][number] 
  * Recommend trusted entries because using an untrusted one needs the user's approval
  * (trust point 3). Ask the user to confirm the fit when `noStrongMatch` is set.
  */
-function next(result: SearchResult, invocation: string): string {
+function next(
+  result: SearchResult,
+  { invocation, needsUpdate }: { invocation: string; needsUpdate?: (hit: SearchHit) => boolean },
+): string {
   const recovery = [
     `Next: ${invocation} list stacks`,
     `Next: ${invocation} search "<fewer, broader words>"`,
   ];
   if (!result.stacks.length && !result.fragments.length) return recovery.join("\n");
   const fragment = fragmentFirst(result);
+  const trusted = result.stacks.find((hit) => hit.trusted);
+  const recommended = fragment ?? trusted;
+  if (recommended && needsUpdate?.(recommended)) return `Next: ${invocation} update`;
   const confirmation = result.noStrongMatch
     ? "confirm with the user before using a weak match; then "
     : "";
   if (fragment)
     return `Next: ${confirmation}${invocation} show ${fragment.id}, then ${invocation} add ${fragment.id}.`;
-  const trusted = result.stacks.find((hit) => hit.trusted);
   return [
     trusted
       ? `Next: ${confirmation}${invocation} show ${trusted.id}, then ${invocation} new ${trusted.id} <dir>.`
@@ -135,7 +140,13 @@ function notices(result: SearchResult, empty: boolean): string[] {
 /** The search report, wrapped to `width` as `measure` counts display columns. */
 export function renderSearch(
   result: SearchResult,
-  options: { invocation: string; human: boolean; width: number; measure: (text: string) => number },
+  options: {
+    invocation: string;
+    human: boolean;
+    width: number;
+    measure: (text: string) => number;
+    needsUpdate?: (hit: SearchHit) => boolean;
+  },
 ): string {
   const empty = !result.stacks.length && !result.fragments.length;
   const hits = [...result.stacks, ...result.fragments]
@@ -144,7 +155,7 @@ export function renderSearch(
   const text = [
     ...notices(result, empty),
     ...(empty ? [] : [hits, ""]),
-    next(result, options.invocation),
+    next(result, options),
   ].join("\n");
   return wrap(text, options.width, options.measure);
 }

@@ -1,0 +1,37 @@
+package cli
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"{{project_slug}}/internal/output"
+)
+
+func newConfigCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "config",
+		Short: "Inspect configuration",
+		Args:  noArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+	cmd.AddCommand(newConfigShowCmd())
+	return cmd
+}
+
+func newConfigShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show",
+		Short: "Show effective configuration",
+		Args:  noArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, logger, err := commandConfig(cmd)
+			if err != nil {
+				return err
+			}
+			logger.DebugContext(cmd.Context(), "configuration loaded")
+			human := fmt.Sprintf("greeting: %q\njson: %t\nverbose: %t\nno-color: %t", cfg.Greeting, cfg.JSON, cfg.Verbose, cfg.NoColor)
+			return output.Render(cmd.OutOrStdout(), output.Options{JSON: cfg.JSON, NoColor: cfg.NoColor}, cfg, human)
+		},
+	}
+}

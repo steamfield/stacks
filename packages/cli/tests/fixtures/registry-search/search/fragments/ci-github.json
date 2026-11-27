@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "fragment",
+  "id": "ci-github",
+  "source": {
+    "digest": "sha256:c3c48273d4c85942ad9ff71eed22b83d744deb5cf7ce0d6feac7f68775bf4ef1",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-26"
+  },
+  "summary": "Run the project's existing checks on GitHub pushes and pull requests, with a single required result and selective jobs for monorepos.",
+  "description": "Run the project's existing checks on GitHub pushes and pull requests. The workflow reads tool versions from project files and gives branch protection one aggregate result; monorepos can filter work by affected area. Default-preset guidance includes SHA-pinned actions and limited permissions. The fragment defines CI configuration, while deployment and release publishing belong to separate fragments.",
+  "seoDescription": "GitHub Actions CI that reuses project commands, filters monorepo jobs and exposes one required check with limited workflow permissions.",
+  "projectExamples": [
+    {
+      "title": "API pull request checks",
+      "description": "A JSON API repository whose pull requests show lint, typecheck, test and build results together in one GitHub check.",
+      "stack": "typescript-api"
+    },
+    {
+      "title": "Split frontend and backend checks",
+      "description": "A Python and React web app whose frontend and backend checks follow changed paths, with API contract changes also triggering frontend checks.",
+      "stack": "python-react"
+    }
+  ],
+  "plain": {
+    "whatItIs": "Runs the project's existing checks on GitHub whenever code is pushed or a pull request, a proposed change, is opened or updated.",
+    "goodAt": [
+      "Giving GitHub's merge rules one combined result to wait for",
+      "Running the same checks you run locally, using the project's own commands",
+      "Running only the checks for the parts of a multi-app repository that changed"
+    ],
+    "notGoodAt": [
+      "Deploying the app or publishing releases; add a deployment or release add-on.",
+      "Projects hosted outside GitHub, such as on GitLab."
+    ]
+  },
+  "capabilities": ["ci"],
+  "requests": [
+    "run our existing checks whenever someone opens a pull request",
+    "check only affected parts of our monorepo in CI",
+    "give branch protection one required check even when jobs are skipped",
+    "check that committed generated files still match their sources"
+  ],
+  "useCases": ["pull request validation", "monorepo checks", "generated-code drift detection"],
+  "synonyms": [
+    "GitHub Actions",
+    "continuous integration",
+    "ci-ok",
+    "required check",
+    "path filters"
+  ],
+  "goodFor": ["reusing Makefile targets or package scripts", "least-privilege workflows"],
+  "notFor": ["deployment pipelines", "local commit hooks", "GitLab CI"]
+}

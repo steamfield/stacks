@@ -5,6 +5,7 @@ import { BRIEF_PATH } from "../project-layout";
 import { NoticeFields } from "./notice";
 import { Origin } from "./origin";
 import { ResultPart } from "./part";
+import { IndexFallbackReason } from "./remote-index";
 
 /** An entry named by kind and id, as `missingTools` lists the entries that need a tool. */
 const EntryRef = Schema.Struct({ kind: Kind, id: Schema.String });
@@ -65,7 +66,9 @@ export const NewResult = Schema.Struct({
    * Composition warnings; `git_init_failed` (`id: "git"`, with git's exit code); and
    * `git_unusable` (`id: "git"`, with `git rev-parse`'s exit code when it ran): git couldn't say
    * whether a repository encloses the target (a `.git` it can't read, an ownership refusal, a
-   * timeout), so `new` used none and initialized nothing.
+   * timeout), so `new` used none and initialized nothing. `index_fallback` (`id: "index"`, with
+   * `reason` and, when a cached index was used, its `cachedAt`): the configured index couldn't be
+   * revalidated, so `new` used the cached index or the bundled registry.
    */
   warnings: Schema.Array(
     Schema.Struct({
@@ -76,9 +79,12 @@ export const NewResult = Schema.Struct({
         "without_not_selected",
         "git_init_failed",
         "git_unusable",
+        "index_fallback",
       ]),
       id: Schema.String,
       exitCode: Schema.optionalKey(Schema.Number),
+      reason: Schema.optionalKey(IndexFallbackReason),
+      cachedAt: Schema.optionalKey(Schema.String),
     }),
   ),
   git: Schema.Literals(["fresh", "parent", "none"]),

@@ -96,6 +96,7 @@ const expectedWritten = [
   ".stacks/BRIEF.md",
   ".stacks/NOTES.md",
   ".stacks/manifest.json",
+  ".stacks/sources.json",
   "README.md",
   "plain.txt",
 ];
@@ -148,6 +149,7 @@ describe("new writes a project", () => {
       ".stacks/BRIEF.md",
       ".stacks/NOTES.md",
       ".stacks/manifest.json",
+      ".stacks/sources.json",
       ".stacks/state",
       "README.md",
       "plain.txt",

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { it } from "@effect/vitest";
 import { Clock, Effect, Fiber, Schema } from "effect";
 import { TestClock } from "effect/testing";
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test } from "vitest";
 import { ndjson, runCli, stopChildren } from "./helpers/cli";
 import { emptyRegistry } from "./helpers/registry";
 import {
@@ -18,23 +18,15 @@ import {
   validResponse,
 } from "./helpers/search-api";
 import { fixtureRecord, hit } from "./helpers/search-command";
-import { bundled, copySearchRegistry, put } from "./helpers/search-metadata";
+import { put, searchRegistry } from "./helpers/search-metadata";
 import { workspace } from "./helpers/verify";
 
 const space = workspace();
-const shared = workspace();
-let searchRegistry: string;
-// Every invocation keeps a fresh runtime; only the immutable catalog files are shared.
-beforeAll(() => {
-  searchRegistry = copySearchRegistry(shared.dir());
-});
-afterAll(() => shared.release());
 let server: SearchServer;
 let opts: ReturnType<typeof apiOptions>;
 beforeEach(async () => {
   server = await searchServer();
   opts = apiOptions(space.dir(), server.url);
-  opts.host = { ...opts.host, registry: searchRegistry };
 });
 afterEach(async () => {
   await stopChildren();
@@ -92,7 +84,7 @@ test("API hits replace official copies while user and project entries keep their
     },
   });
   // A working copy has different guidance/card bytes from the bundled entry it shadows.
-  cpSync(join(bundled, "stacks/go-cli"), join(user, "stacks/go-cli"), { recursive: true });
+  cpSync(join(searchRegistry, "stacks/go-cli"), join(user, "stacks/go-cli"), { recursive: true });
   const body = response([
     officialHit("go-cli"),
     officialHit("typescript-cli", { tier: "partial", score: 0.31 }),
@@ -146,7 +138,7 @@ test("API fragments replace their bundled copies and evidence breaks equal-score
     [],
     [
       officialHit("clerk", { kind: "fragment", score: 0.6, appliesTo: [] }),
-      officialHit("drizzle", {
+      officialHit("drizzle-postgres", {
         kind: "fragment",
         score: 0.6,
         appliesTo: [],
@@ -235,6 +227,23 @@ for (const mode of ["hold", "partial"] as const) {
     }),
   );
 }
+
+test("a fresh search process reads the selected fixture registry", async () => {
+  const result = decoded(
+    await childSearch([...args, "--local"], {
+      ...opts,
+      host: { ...opts.host, registry: emptyRegistry },
+    }),
+  );
+  expect(result).toMatchObject({
+    ranking: "local",
+    remote: "off",
+    remoteReason: "local_flag",
+    stacks: [],
+    fragments: [],
+  });
+  expect(server.requests).toEqual([]);
+}, 10_000);
 
 // Spawns a fresh source CLI; loaded runs of this scenario reached 2.9 s.
 test("a fresh process observes search backoff and the index state stays intact [4.5e#9]", async () => {
@@ -392,12 +401,14 @@ test("query punctuation and Unicode survive URL encoding without injecting param
 
 test("bundled entries absent from an older API remain locally ranked in both lists [4.5e#16]", async () => {
   const local = decoded(await runCli([...args, "--local"], opts));
+  const remainingStacks = local.stacks.filter(({ id }) => id !== "go-cli");
+  expect(remainingStacks.length).toBeGreaterThan(0);
+  expect(local.fragments.length).toBeGreaterThan(0);
   const body = response([officialHit("go-cli")]);
   server.answer(body);
   const value = decoded(await runCli(args, opts));
   expect(value).toMatchObject({ ranking: "api", remote: "used" });
-  for (const row of local.stacks.filter(({ id }) => id !== "go-cli"))
-    expect(hit(value.stacks, row.id)).toEqual(row);
+  for (const row of remainingStacks) expect(hit(value.stacks, row.id)).toEqual(row);
   expect(value.fragments).toEqual(local.fragments);
   expect(hit(value.stacks, "go-cli")).toEqual({
     ...body.stacks[0],

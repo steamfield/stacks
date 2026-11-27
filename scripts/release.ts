@@ -1,19 +1,22 @@
 #!/usr/bin/env bun
-// `bun run release <x.y.z>` prepares a release: it rewrites every place the CLI's version lives so a
-// bump can't miss one, moves the MCP server (which pins the CLI's exact version) up one patch,
-// regenerates the brief digests the version changes, and updates bun.lock. It never commits, tags
-// or pushes. A pushed `v<x.y.z>` tag runs .github/workflows/release.yml, which publishes; an agent
+// `bun run release <x.y.z> [--min-cli]` prepares a release: it rewrites every place the CLI's version
+// lives so a bump can't miss one, moves the MCP server (which pins the CLI's exact version) up one
+// patch, regenerates the brief digests the version changes, and updates bun.lock. `--min-cli` also
+// raises the bundled registry's `minCli` (registry.json) to this version, for a release whose
+// registry older CLIs can't read. It never commits, tags or pushes. A pushed `v<x.y.z>` tag runs .github/workflows/release.yml, which publishes; an agent
 // never publishes. packages/format/README.md, "Publishing", has the whole flow.
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
 process.chdir(root);
 
 const CHANGELOG = "packages/cli/CHANGELOG.md";
-const DIGESTS = "packages/cli/tests/fixtures/bundled-brief-digests.ts";
+const DIGESTS = "packages/cli/tests/registry/fixtures/bundled-brief-digests.ts";
+const REGISTRY_META = "packages/cli/registry/registry.json";
+const USAGE =
+  "usage: bun run release <major.minor.patch> [--min-cli] (no leading v, no prerelease suffix)";
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 class ReleaseFailed extends Error {}
@@ -114,36 +117,7 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** The stack and preset of every digest the fixture pins, read from the fixture itself. */
-function digestKeys(): string[] {
-  return [...readFileSync(DIGESTS, "utf8").matchAll(/"([\w-]+:(?:default|sandbox))": "sha256:/g)]
-    .map((match) => match[1])
-    .filter((key) => key !== undefined);
-}
-
-/** A brief's digest as the fixture defines it: sha256 of the `brief` string from `validate --brief`. */
-function briefDigest(key: string): string {
-  const [stack, preset] = key.split(":");
-  const out = run("bun", [
-    "run",
-    "dev",
-    "validate",
-    "--brief",
-    stack ?? "",
-    ...(preset === "sandbox" ? ["--sandbox"] : []),
-    "--json",
-  ]);
-  const body: unknown = JSON.parse(out);
-  if (
-    typeof body !== "object" ||
-    body === null ||
-    !("brief" in body) ||
-    typeof body.brief !== "string"
-  )
-    return fail(`validate --brief ${key} printed no brief`);
-  return `sha256:${createHash("sha256").update(body.brief, "utf8").digest("hex")}`;
-}
-
+/** Notes the version in the digests' history, then regenerates the digests with `bun run digests`. */
 function rewriteDigests(version: string): void {
   const today = new Date().toISOString().slice(0, 10);
   rewrite(
@@ -151,8 +125,9 @@ function rewriteDigests(version: string): void {
     /^ \* After proving an intentional brief change/m,
     ` * The ${version} version in the brief changed all six again on ${today}.\n * After proving an intentional brief change`,
   );
-  for (const key of digestKeys())
-    rewrite(DIGESTS, new RegExp(`("${key}": )"sha256:[0-9a-f]{64}"`), `$1"${briefDigest(key)}"`);
+  // The digest script rewrites the file on disk, so the history line must land first.
+  flush();
+  run("bun", ["run", "--cwd", "packages/cli", "digests"]);
 }
 
 function rewriteVersions(version: string, previous: string): void {
@@ -185,12 +160,19 @@ function rewriteVersions(version: string, previous: string): void {
   );
 }
 
-function prepare(version: string): string {
+/** Raises the registry's declared minimum CLI to this release, so older CLIs keep their own copy. */
+function raiseMinCli(version: string): void {
+  if (!existsSync(REGISTRY_META)) fail(`--min-cli needs ${REGISTRY_META}, which is missing`);
+  rewrite(REGISTRY_META, /"minCli": "\d+\.\d+\.\d+"/, `"minCli": "${version}"`);
+}
+
+function prepare(version: string, minCli: boolean): string {
   const previous = currentVersion("packages/cli/package.json");
   checkPreconditions(version, previous);
   const mcpPrevious = currentVersion("packages/mcp/package.json");
   const mcpNext = nextPatch(mcpPrevious);
   rewriteVersions(version, previous);
+  if (minCli) raiseMinCli(version);
   rewrite("packages/mcp/package.json", /"version": "\d+\.\d+\.\d+"/, `"version": "${mcpNext}"`);
   flush();
   run("bun", ["install"]);
@@ -206,10 +188,13 @@ Bump packages/format's version in its own commit first when its contract changed
 }
 
 try {
-  const version = process.argv[2];
-  if (process.argv.length !== 3 || version === undefined || !SEMVER.test(version))
-    fail("usage: bun run release <major.minor.patch> (no leading v, no prerelease suffix)");
-  console.log(prepare(version));
+  const args = process.argv.slice(2);
+  const minCli = args.includes("--min-cli");
+  const rest = args.filter((arg) => arg !== "--min-cli");
+  const version = rest[0];
+  const valid = rest.length === 1 && args.length - rest.length <= 1;
+  if (!valid || version === undefined || !SEMVER.test(version)) fail(USAGE);
+  console.log(prepare(version, minCli));
 } catch (error) {
   if (!(error instanceof ReleaseFailed)) throw error;
   console.error(`release: ${error.message}`);

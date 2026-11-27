@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "vitest";
 import { ErrorEnvelope } from "../src/errors";
 import { ListResult } from "../src/schemas/list";
 import { quiet, runCli, terminal } from "./helpers/cli";
-import { adapterWorkspace, bundled } from "./helpers/native-adapters";
+import { adapterRegistry, adapterWorkspace } from "./helpers/native-adapters";
 
 const space = adapterWorkspace();
 afterEach(() => space.cleanup());
@@ -13,8 +13,12 @@ test.each(["json", "agent", "human"])(
   async (audience) => {
     const home = space.temp();
     const result = await runCli(
-      ["new", "react-routr", "app", ...(audience === "json" ? ["--json"] : [])],
-      { home, env: quiet, host: { registry: bundled, ...(audience === "human" ? terminal : {}) } },
+      ["new", "go-cl", "app", ...(audience === "json" ? ["--json"] : [])],
+      {
+        home,
+        env: quiet,
+        host: { registry: adapterRegistry, ...(audience === "human" ? terminal : {}) },
+      },
     );
     expect(result.status).toBe(2);
     expect(result.stdout).toBe("");
@@ -25,21 +29,21 @@ test.each(["json", "agent", "human"])(
         message: "Not found.",
         retryable: false,
         next: "run stacks list to see every stack and fragment id.",
-        details: { suggestions: ["react-router"] },
+        details: { suggestions: ["go-cli"] },
       });
     } else {
-      expect(result.stderr).toContain("Did you mean: react-router?");
+      expect(result.stderr).toContain("Did you mean: go-cli?");
       expect(result.stderr).toContain("Next: run stacks list to see every stack and fragment id.");
     }
     const next = await runCli(["list", "--json"], {
       home,
       env: quiet,
-      host: { registry: bundled },
+      host: { registry: adapterRegistry },
     });
     expect(next.status).toBe(0);
     expect(next.stderr).toBe("");
     expect(Schema.decodeUnknownSync(ListResult)(JSON.parse(next.stdout)).entries).toContainEqual(
-      expect.objectContaining({ id: "react-router" }),
+      expect.objectContaining({ id: "go-cli" }),
     );
   },
 );

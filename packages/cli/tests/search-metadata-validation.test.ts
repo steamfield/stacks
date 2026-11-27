@@ -5,13 +5,13 @@ import { afterEach, expect, test } from "vitest";
 import { ListResult } from "../src/schemas/list";
 import { quiet, runCli } from "./helpers/cli";
 import {
-  bundled,
   card,
   cardPath,
   copyVocabulary,
   put,
   readJson,
   searchFindings,
+  searchRegistry,
   seed,
   stamp,
   validateSearch,
@@ -35,29 +35,6 @@ function rows(report: Awaited<ReturnType<typeof validateSearch>>) {
     entry,
   }));
 }
-
-// That every card is current (no search-stale or other warning) is asserted against the suite's one
-// whole-registry report, in tests/bundled-registry.test.ts.
-test("every bundled entry has a reviewed card [4.5b#1]", async () => {
-  const home = space.dir();
-  const listing = await runCli(["list", "--json"], {
-    home,
-    host: { registry: bundled },
-    env: quiet,
-  });
-  expect(listing.status, listing.stderr).toBe(0);
-  expect(listing.stderr).toBe("");
-  const entries = Schema.decodeUnknownSync(ListResult)(JSON.parse(listing.stdout)).entries;
-  expect(entries.some(({ kind }) => kind === "stack")).toBe(true);
-  expect(entries.some(({ kind }) => kind === "fragment")).toBe(true);
-  const { SearchMetadata } = await import("@steamfield/stacks-format");
-  for (const entry of entries) {
-    const value = Schema.decodeUnknownSync(SearchMetadata)(readJson(cardPath(bundled, entry)));
-    expect(value.source.reviewedAt, `${entry.kind}/${entry.id}`).not.toBeNull();
-    expect(value.kind).toBe(entry.kind);
-    expect(value.id).toBe(entry.id);
-  }
-}, 30_000);
 
 test("unknown values, mismatched paths and orphan cards are actionable errors [4.5b#4]", async () => {
   const f = setup();
@@ -103,7 +80,7 @@ test.each([
   "duplicate aliases within $category are vocabulary-invalid $tag",
   async ({ category, values }) => {
     const f = setup();
-    const vocabulary = readJson(join(bundled, "search/vocabulary.json"));
+    const vocabulary = readJson(join(searchRegistry, "search/vocabulary.json"));
     const { SearchVocabulary } = await import("@steamfield/stacks-format");
     const decoded = Schema.decodeUnknownSync(SearchVocabulary)(vocabulary);
     put(join(f.root, "search/vocabulary.json"), JSON.stringify({ ...decoded, [category]: values }));
@@ -113,22 +90,6 @@ test.each([
   },
 );
 
-test("cross-category aliases are allowed and bare go is absent [4.5b#13e]", async () => {
-  const { SearchVocabulary } = await import("@steamfield/stacks-format");
-  const vocabulary = Schema.decodeUnknownSync(SearchVocabulary)(
-    readJson(join(bundled, "search/vocabulary.json")),
-  );
-  expect(vocabulary.productKinds["ai-app"]).toContain("llm");
-  expect(vocabulary.capabilities.ai).toContain("llm");
-  expect(vocabulary.languages.go).not.toContain("go");
-  expect(vocabulary.languages.go?.length).toBeGreaterThan(0);
-  const f = setup();
-  await stamp(f.root, sample);
-  put(join(f.root, "search/vocabulary.json"), JSON.stringify(vocabulary));
-  expect(searchFindings(await validateSearch(f.root, { ...f, bundled: true }))).toEqual([]);
-});
-
-// Validates against the whole bundled registry; the 5 s default is too tight on a loaded gate host.
 test("180 text words warn without treating long text as invalid [4.5b#7]", {
   timeout: 15_000,
 }, async () => {
@@ -284,7 +245,7 @@ test("repeated text in a project card warns but still decodes [4.5b#16]", async 
   const result = await runCli(["list", "--json"], {
     home,
     env: quiet,
-    host: { cwd: home, registry: bundled },
+    host: { cwd: home, registry: searchRegistry },
   });
   expect(result.status, result.stderr).toBe(0);
   expect(result.stderr).toBe("");

@@ -14,5 +14,7 @@ final class LaunchTests: XCTestCase {
         let message = app.staticTexts["greeting.message"]
         XCTAssertTrue(message.waitForExistence(timeout: 15), "the greeting never appeared")
         XCTAssertEqual(message.label, "Hello, world!")
+        // Labels, Dynamic Type, clipped text, contrast and hit regions on the loaded screen.
+        try app.performAccessibilityAudit()
     }
 }

@@ -13,6 +13,7 @@ import {
   NOTES,
   NOTES_PATH,
   projectFiles,
+  SOURCES_PATH,
   STATE_DIR,
 } from "../../project-layout";
 import type { Settings } from "../../schemas/config";
@@ -37,6 +38,8 @@ import { defined } from "../object";
 import { type GitProbe, gitInit, gitInstalled, probeGit } from "../project/git";
 import { buildManifest, encodeManifest, MANIFEST_PATH } from "../project/manifest";
 import { newPreset } from "../project/preset";
+import type { IndexProvenance } from "../project/provenance";
+import { composedSources, encodeSources } from "../project/sources";
 import { removeProjectState, writeProjectState } from "../project/state";
 import { templateOverrides, templateValues } from "../project/template-values";
 import { openProject, type ProjectWriter } from "../project/writer";
@@ -64,6 +67,8 @@ export type NewOptions = {
   agents: ReadonlyArray<AgentId> | undefined;
   scope: string | undefined;
   handoff: HandoffPreferences;
+  /** The index refresh's outcome, recorded in `.stacks/sources.json` and the warnings. */
+  provenance: IndexProvenance;
 };
 
 export type Scaffolded = {
@@ -136,12 +141,17 @@ function ownRepository(git: GitProbe, ownRepo: boolean | undefined): GitProbe {
 }
 
 /** The fixed `.stacks/` files written after the entry files; the manifest comes last, apart. */
-function plannedFiles(files: ReadonlyArray<PlannedFile>, briefText: string): PlannedFile[] {
+function plannedFiles(
+  files: ReadonlyArray<PlannedFile>,
+  briefText: string,
+  sourcesText: string,
+): PlannedFile[] {
   return [
     ...files,
     { path: IGNORE_PATH, bytes: encoder.encode(IGNORE), executable: false },
     { path: BRIEF_PATH, bytes: encoder.encode(briefText), executable: false },
     { path: NOTES_PATH, bytes: encoder.encode(NOTES), executable: false },
+    { path: SOURCES_PATH, bytes: encoder.encode(sourcesText), executable: false },
   ];
 }
 
@@ -340,6 +350,7 @@ export const scaffold = (options: NewOptions) =>
         missing,
         yes: options.yes || preset === "sandbox",
         invocation: host.invocation,
+        index: options.provenance.index,
       });
     const brief = renderFor(git.state);
     const decision = decideHandoff({
@@ -361,7 +372,11 @@ export const scaffold = (options: NewOptions) =>
       ? { stateRecord: false, gitFailure: undefined }
       : yield* writeProject({
           dir,
-          files: plannedFiles(files, brief.text),
+          files: plannedFiles(
+            files,
+            brief.text,
+            encodeSources(yield* composedSources(composition, options.provenance)),
+          ),
           manifest,
           manifestBytes,
           initGit: git.init,

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint)",
+      "Bash(bun run lint:package)",
+      "Bash(bun run format)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run test)",
+      "Bash(bun run test *)",
+      "Bash(bun run test:consumer)",
+      "Bash(bun run coverage)",
+      "Bash(bunx vitest run)",
+      "Bash(bunx vitest run *)",
+      "Bash(bun run build)",
+      "Bash(bun run gate)",
+      "Bash(bun run check)",
+      "Bash(bun pm pack --dry-run)"
+    ]
+  },
+  "hooks": {}
+}

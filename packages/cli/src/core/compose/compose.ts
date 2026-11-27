@@ -99,6 +99,7 @@ export function compose(
     return {
       stack: resolvedStack,
       fragments,
+      ...appliedInAdd(options.mode, mounted.applied),
       ...(parts.length ? { parts } : {}),
       app,
       addNotes,
@@ -127,6 +128,13 @@ export function compose(
       warnings,
     } satisfies Composition<Entry | null>;
   });
+}
+
+function appliedInAdd(
+  mode: ComposeOptions<"new" | "add">["mode"],
+  applied: Composition["applied"],
+) {
+  return mode === "add" ? { applied } : {};
 }
 
 /**

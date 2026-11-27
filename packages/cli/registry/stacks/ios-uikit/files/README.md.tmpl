@@ -34,7 +34,8 @@ The `.xcodeproj` is generated from `project.yml` and not committed. Change targe
 | `make fmt` | Format Swift sources with swift-format |
 | `make fmt-check` | Fail on any swift-format difference or finding |
 | `make test` | Unit tests |
-| `make test-ui` | UI smoke tests on a simulator |
+| `make coverage` | Unit tests with line coverage; fails below `COVERAGE_MIN` in the Makefile |
+| `make test-ui` | UI smoke tests and accessibility audits on a simulator |
 | `make ci` | Everything CI runs |
 | `make clean` | Remove build output and the generated project |
 

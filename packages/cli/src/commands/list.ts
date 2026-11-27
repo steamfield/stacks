@@ -118,7 +118,6 @@ export const listCommand = Command.make(
   ({ group, dir }) =>
     Effect.gen(function* () {
       const typed = yield* selectedGroup(group);
-      yield* (yield* Allowlist).refresh;
       const host = yield* Host;
       const path = yield* Path.Path;
       const output = yield* Output;
@@ -132,7 +131,10 @@ export const listCommand = Command.make(
       const roots = yield* projectRoots(projectRoot);
       const ledger = yield* bundledLedger(roots);
       const records = ledger?.records ?? [];
-      const { items, authors } = yield* loadRegistry(roots);
+      const { refresh } = yield* Allowlist;
+      const [{ items, authors }] = yield* Effect.all([loadRegistry(roots), refresh], {
+        concurrency: 2,
+      });
       const summary = Option.getOrUndefined(yield* (yield* Stats).summary);
 
       const plain = listResult(items, typed, records, authors);

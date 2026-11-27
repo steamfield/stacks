@@ -1,24 +1,24 @@
-import XCTest
+import Testing
 
 @testable import App
 
-final class AppErrorTests: XCTestCase {
-  func testOnlyTransientFailuresOfferRetry() {
-    XCTAssertFalse(AppError.invalidConfig(key: "k", reason: "r").userMessage.canRetry)
-    XCTAssertFalse(AppError.itemsNotFound(resource: "items").userMessage.canRetry)
-    XCTAssertFalse(AppError.itemsUnreadable.userMessage.canRetry)
-    XCTAssertTrue(AppError.unexpected("URLError").userMessage.canRetry)
+struct AppErrorTests {
+  @Test func onlyTransientFailuresOfferRetry() {
+    #expect(!AppError.invalidConfig(key: "k", reason: "r").userMessage.canRetry)
+    #expect(!AppError.itemsNotFound(resource: "items").userMessage.canRetry)
+    #expect(!AppError.itemsUnreadable.userMessage.canRetry)
+    #expect(AppError.unexpected("URLError").userMessage.canRetry)
   }
 
-  func testUserMessagesHideInternalDetails() {
+  @Test func userMessagesHideInternalDetails() {
     let message = AppError.itemsNotFound(resource: "secret-resource-name").userMessage
-    XCTAssertFalse(message.title.contains("secret-resource-name"))
-    XCTAssertFalse(message.detail.contains("secret-resource-name"))
+    #expect(!message.title.contains("secret-resource-name"))
+    #expect(!message.detail.contains("secret-resource-name"))
   }
 
-  func testWrapsForeignErrorsAsUnexpected() {
+  @Test func wrapsForeignErrorsAsUnexpected() {
     struct Boom: Error {}
-    XCTAssertEqual(AppError(Boom()), .unexpected("Boom"))
-    XCTAssertEqual(AppError(AppError.itemsUnreadable), .itemsUnreadable)
+    #expect(AppError(Boom()) == .unexpected("Boom"))
+    #expect(AppError(AppError.itemsUnreadable) == .itemsUnreadable)
   }
 }

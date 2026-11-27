@@ -33,9 +33,37 @@ jobs:
           path: |
             packages/*/coverage/
             packages/*/logs/
-  # The CLI's Vitest suite is the slowest step and spawns many processes; four shards on separate
+  # A pull request that changes only registry content (packages/cli/registry/** and its checks in
+  # packages/cli/tests/registry/**) skips the CLI's behavior suite, which must pass whatever the
+  # registry holds; registry-tests still runs.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      behavior: ${{ steps.diff.outputs.behavior }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          behavior=true
+          if [ "$EVENT" = pull_request ]; then
+            changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+            if [ -n "$changed" ] && ! grep -qvE '^packages/cli/(registry|tests/registry)/' <<<"$changed"; then
+              behavior=false
+            fi
+          fi
+          echo "behavior=${behavior}" >> "$GITHUB_OUTPUT"
+          echo "CLI behavior suite runs: ${behavior}"
+  # The CLI's behavior suite is the slowest step and spawns many processes; four shards on separate
   # runners keep each one's load and wall time down.
   cli-tests:
+    needs: changes
+    if: needs.changes.outputs.behavior == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -51,7 +79,7 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun run install:ci
-      - run: bun run --cwd packages/cli coverage --shard=${{ matrix.shard }}/4
+      - run: bun run --cwd packages/cli coverage --project behavior --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v6
         if: failure()
         with:
@@ -59,10 +87,63 @@ jobs:
           path: |
             packages/cli/coverage/
             packages/cli/logs/
-  # The one required check: green only when check and every CLI shard passed.
+  # The registry's content checks (search cards, golden queries, brief digests, budgets) run on
+  # every change, content-only ones included.
+  registry-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun run install:ci
+      - run: bun run --cwd packages/cli test:registry
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: diagnostics-registry
+          path: packages/cli/logs/
+  # The registry declares the oldest CLI that can read it (registry/registry.json, minCli). Validate
+  # it with that published CLI, so content that needs a newer CLI can't ship under an older minCli.
+  # Between raising minCli and releasing that version, it isn't on npm yet: skip with a notice.
+  registry-min-cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+      - name: Validate the registry with the CLI at its minCli
+        run: |
+          min_cli="$(jq -er '.minCli' packages/cli/registry/registry.json)"
+          if ! npm view "@steamfield/stacks@${min_cli}" version --fetch-timeout=30000 | grep -qx "${min_cli}"; then
+            echo "::notice title=registry-min-cli::@steamfield/stacks@${min_cli} is not on npm yet; skipped"
+            exit 0
+          fi
+          STACKS_REGISTRY_DIR="$PWD/packages/cli/registry" \
+            npx -y "@steamfield/stacks@${min_cli}" validate --json > validate.json
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: diagnostics-registry-min-cli
+          path: validate.json
+  # The one required check: green only when every job above passed, with cli-tests also allowed
+  # to be skipped when changes found a registry-only pull request.
   ci-ok:
-    needs: [check, cli-tests]
+    needs: [check, changes, cli-tests, registry-tests, registry-min-cli]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: test "${{ needs.check.result }}" = success && test "${{ needs.cli-tests.result }}" = success
+      - run: >-
+          test "${{ needs.check.result }}" = success &&
+          test "${{ needs.changes.result }}" = success &&
+          { test "${{ needs.cli-tests.result }}" = success ||
+            { test "${{ needs.cli-tests.result }}" = skipped &&
+              test "${{ needs.changes.outputs.behavior }}" = false; }; } &&
+          test "${{ needs.registry-tests.result }}" = success &&
+          test "${{ needs.registry-min-cli.result }}" = success

@@ -28,34 +28,40 @@ function dependencyNotices(metafile: Bun.BuildMetafile): string {
     .join("\n\n");
 }
 
-const startedAt = performance.now();
-mkdirSync("dist", { recursive: true });
-// Remove the retired stacks artifacts when rebuilding an existing checkout.
-for (const artifact of ["dist/stacks", "dist/stacks.mjs"]) rmSync(artifact, { force: true });
-const result = await Bun.build({
-  entrypoints: ["src/bin.ts"],
-  outdir: "dist",
-  naming: "cli.mjs",
-  target: "node",
-  format: "esm",
-  packages: "bundle",
-  define: {
+export function buildDefines(env: NodeJS.ProcessEnv) {
+  return {
     STACKS_RELEASE_BUILD: "true",
-    STACKS_PUBLISHED_TELEMETRY: process.env.STACKS_PUBLISH_TELEMETRY === "1" ? "true" : "false",
+    STACKS_PUBLISHED_BUILD: env.STACKS_PUBLISH === "1" ? "true" : "false",
     PACKAGED_ESCAPES: JSON.stringify(escapedRegistryFiles()),
-  },
-  minify: true,
-  sourcemap: "none",
-  metafile: true,
-});
-if (!result.success) throw new AggregateError(result.logs, "Node bundle build failed");
-if (!result.metafile) throw new Error("Node bundle has no dependency manifest");
-appendFileSync(
-  "dist/cli.mjs",
-  `\n/*\nThird-party notices\n\n${dependencyNotices(result.metafile).replaceAll("*/", "* /")}\n*/\n`,
-);
-copyFileSync("scripts/node-entry.mjs", "dist/stacks");
-chmodSync("dist/stacks", 0o755);
-console.log(`Built dist/stacks in ${((performance.now() - startedAt) / 1_000).toFixed(2)}s.`);
-console.log("Run `./dist/stacks` from packages/cli to demo the build.");
-console.log("From the repo root, run `./packages/cli/dist/stacks`.");
+  };
+}
+
+if (import.meta.main) {
+  const startedAt = performance.now();
+  mkdirSync("dist", { recursive: true });
+  // Remove the retired stacks artifacts when rebuilding an existing checkout.
+  for (const artifact of ["dist/stacks", "dist/stacks.mjs"]) rmSync(artifact, { force: true });
+  const result = await Bun.build({
+    entrypoints: ["src/bin.ts"],
+    outdir: "dist",
+    naming: "cli.mjs",
+    target: "node",
+    format: "esm",
+    packages: "bundle",
+    define: buildDefines(process.env),
+    minify: true,
+    sourcemap: "none",
+    metafile: true,
+  });
+  if (!result.success) throw new AggregateError(result.logs, "Node bundle build failed");
+  if (!result.metafile) throw new Error("Node bundle has no dependency manifest");
+  appendFileSync(
+    "dist/cli.mjs",
+    `\n/*\nThird-party notices\n\n${dependencyNotices(result.metafile).replaceAll("*/", "* /")}\n*/\n`,
+  );
+  copyFileSync("scripts/node-entry.mjs", "dist/stacks");
+  chmodSync("dist/stacks", 0o755);
+  console.log(`Built dist/stacks in ${((performance.now() - startedAt) / 1_000).toFixed(2)}s.`);
+  console.log("Run `./dist/stacks` from packages/cli to demo the build.");
+  console.log("From the repo root, run `./packages/cli/dist/stacks`.");
+}

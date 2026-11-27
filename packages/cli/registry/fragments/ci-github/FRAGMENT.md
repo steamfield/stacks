@@ -33,6 +33,9 @@ If the repo already has workflows, fold the checks they run into `ci.yml` rather
 - Triggers: `push` to the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD` minus `origin/`; with no remote, the current branch), `pull_request` and `workflow_dispatch`. Never `pull_request_target`.
 - Permissions: top-level `contents: read`, more only at job level. `actions/checkout` gets `persist-credentials: false`.
 - Steps call the project's commands after a frozen-lockfile install and never reimplement them inline. A CI-only check becomes a command first.
+<!-- stacks:when tag=ios -->
+- A verify step that calls `xcodebuild`, `xcrun` or a simulator runs in a macOS job; steps that don't need Xcode stay on Linux, which costs less. Pin `macos-<N>`, the image whose Xcode matches the version the project records, since `-latest` labels move to a new image over weeks; select that Xcode with `xcode-select`. Name no simulator in the workflow, and upload `.xcresult` bundles when the job fails.
+<!-- stacks:end -->
 - Runtimes come from official setup actions reading the project's version files (`packageManager`, `.node-version`, `go.mod`, `.python-version`, `.java-version`); create a missing one from the installed version.
 - Pass `${{ github.event.* }}` and `${{ github.head_ref }}` to `run:` through `env:`.
 - If generated code is committed, regenerate it and fail on `git diff --exit-code`.

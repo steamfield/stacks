@@ -10,33 +10,40 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { createServer } from "node:http";
-import { join } from "node:path";
+import { createServer, type IncomingHttpHeaders } from "node:http";
+import { dirname, join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import type { IndexEntry, RegistryIndex, SignedIndex } from "@steamfield/stacks-format";
-import { Effect, type FileSystem, Layer, type Path } from "effect";
+import { Clock, Effect, Fiber, type FileSystem, Layer, type Path, Schema } from "effect";
 import { Command } from "effect/cli";
 import { HttpClient, HttpClientRequest } from "effect/http";
+import { TestClock } from "effect/testing";
 import { expect } from "vitest";
 import { SOURCE_BUILD } from "../../src/build";
 import { cli } from "../../src/cli";
 import { AppConfig, type Environment } from "../../src/config";
+import { INDEX_REFRESH_DEADLINE_MS } from "../../src/constants";
 import type { RemoteIndex as RemoteIndexService } from "../../src/core/registry/remote/service";
 import { NetLayer } from "../../src/platform/net";
+import { DoctorReport } from "../../src/schemas/doctor";
+import { ListResult } from "../../src/schemas/list";
 import { VERSION } from "../../src/version";
 import {
   bundleFile,
   compositionFingerprint,
+  digestOf,
   entryPath,
   fixture,
   keyId,
   privateKey,
   proof,
   publicKey,
+  rawBundle,
   readBuild,
 } from "../fixtures/index/harness";
-import { quiet, runCli } from "./cli";
+import { quiet, runCli, tempDir } from "./cli";
 import { writeLedger } from "./ledger";
+import { minimal, writeEntry } from "./registry";
 
 export const keys = [{ keyId, publicKey }];
 const officialIndexUrl = "https://index.example.test/v1/index.json";
@@ -60,19 +67,34 @@ export function execute(command: string, args: string[], cwd: string, env: Envir
 /** A real loopback server. Holding a response open lets TestClock own the client deadline. */
 export async function remoteServer(root: string) {
   const requests: string[] = [];
-  let mode: "files" | "not_found" | "hold" | "partial" | "network" = "files";
+  const headers: IncomingHttpHeaders[] = [];
+  let etag: string | undefined;
+  let mode: RemoteMode | "not_modified" = "files";
   const server = createServer((request, response) => {
     const pathname = new URL(request.url ?? "/", "http://fixture").pathname;
     requests.push(pathname);
-    if (mode === "hold") return;
-    if (mode === "network") {
-      request.socket.destroy();
-      return;
+    headers.push(request.headers);
+    switch (mode) {
+      case "hold":
+        return;
+      case "network":
+        request.socket.destroy();
+        return;
+      case "not_modified":
+        response.writeHead(304).end();
+        return;
     }
     const file = join(root, pathname);
     if (mode === "not_found" || !existsSync(file) || !statSync(file).isFile()) {
       response.writeHead(404).end();
       return;
+    }
+    if (etag !== undefined) {
+      response.setHeader("ETag", etag);
+      if (request.headers["if-none-match"] === etag) {
+        response.writeHead(304).end();
+        return;
+      }
     }
     response.setHeader("Content-Type", "application/json");
     const bytes = readFileSync(file);
@@ -91,6 +113,10 @@ export async function remoteServer(root: string) {
   return {
     url: `http://127.0.0.1:${address.port}`,
     requests,
+    headers,
+    setEtag(value: string) {
+      etag = value;
+    },
     mode(value: typeof mode) {
       mode = value;
     },
@@ -102,7 +128,11 @@ export async function remoteServer(root: string) {
   };
 }
 
-export type RemoteServer = Awaited<ReturnType<typeof remoteServer>>;
+type RemoteMode = "files" | "not_found" | "hold" | "partial" | "network";
+export type RemoteServer = Pick<
+  Awaited<ReturnType<typeof remoteServer>>,
+  "url" | "requests" | "close"
+> & { mode(value: RemoteMode): void };
 
 /** Preserve the configured URL/trust decision; replace only HTTP transport with loopback. */
 export const localHttp = (url: string) =>
@@ -151,12 +181,21 @@ export async function remoteCli(
   args: string[],
   options: Parameters<typeof runCli>[1] & { home: string; server: RemoteServer },
 ) {
+  return runIndexCli(args, options);
+}
+
+async function runIndexCli(
+  args: string[],
+  options: Parameters<typeof runCli>[1] & { home: string; server?: { url: string } },
+) {
   const remote = await indexLayer();
   return runCli(args, {
     ...options,
-    build: { ...options.build, officialIndexUrl },
     env: { ...environment(options.home), ...options.env },
-    http: localHttp(options.server.url),
+    ...(options.server && {
+      build: { ...options.build, officialIndexUrl },
+      http: localHttp(options.server.url),
+    }),
     program: Command.runWith(cli, { version: VERSION, renderErrors: false })(args).pipe(
       Effect.provide(remote),
     ),
@@ -178,6 +217,147 @@ export function publish(root: string, envelope: SignedIndex, payload?: unknown) 
     JSON.stringify({ ...envelope, payload: bytes, signature }),
   );
 }
+
+export const fixtureIndexPath = "/v1/index.json";
+
+export function indexFallbackLines(stdout: string) {
+  return stdout
+    .split("\n")
+    .map((line) => line.trim().replace(/^Warning: /, ""))
+    .filter((line) => /^(?:index\b|index_fallback\b|offline\b)/i.test(line));
+}
+
+export function writeFixtureIndex(
+  root: string,
+  entries: RegistryIndex["entries"],
+  header: Partial<Pick<RegistryIndex, "commit" | "generatedAt" | "minCli">> = {},
+) {
+  const index: RegistryIndex = {
+    formatVersion: 1,
+    minCli: VERSION,
+    generatedAt: "2026-11-17T09:15:00Z",
+    commit: "1".repeat(40),
+    entries,
+    ...header,
+  };
+  mkdirSync(join(root, "v1"), { recursive: true });
+  publish(root, { keyId, signature: "", payload: "" }, index);
+  return index;
+}
+
+/** A tiny registry entry whose installed file identifies the copy that was composed. */
+export function writeFixtureEntry(
+  root: string,
+  { kind, id }: Pick<IndexEntry, "kind" | "id">,
+  content: string,
+  extra?: string,
+) {
+  const dir = writeEntry({ root, kind, dir: id, frontmatter: minimal(kind, id, extra) });
+  mkdirSync(join(dir, "files"), { recursive: true });
+  writeFileSync(join(dir, "files", `${id}.txt`), content);
+}
+
+export async function writeFixtureBundle(
+  root: string,
+  registry: string,
+  { kind, id, composition = {} }: Pick<IndexEntry, "kind" | "id" | "composition">,
+): Promise<IndexEntry> {
+  const bundle = rawBundle(registry, kind, id);
+  const entry = {
+    kind,
+    id,
+    digest: await digestOf(bundle),
+    schemaVersion: 1,
+    name: `${id} name`,
+    description: `${id} description.`,
+    tags: [],
+    ...(kind === "stack" ? { composition } : {}),
+  };
+  const file = bundleFile(root, entry);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(bundle));
+  return entry;
+}
+
+export const indexCommandFixture = Effect.gen(function* () {
+  const temp = yield* Effect.acquireRelease(Effect.sync(tempDir), ({ cleanup }) =>
+    Effect.sync(cleanup),
+  );
+  const home = realpathSync(temp.path);
+  const bundled = join(home, "bundled");
+  const published = join(home, "published");
+  const upstream = join(home, "upstream");
+  yield* TestClock.setTime(Date.parse("2026-11-18T10:23:00Z"));
+  const clock = yield* Clock.Clock;
+  const stackRef = { kind: "stack", id: "sample" } as const;
+  const fragmentRef = { kind: "fragment", id: "tools" } as const;
+  writeFixtureEntry(bundled, stackRef, "bundled sample\n");
+  writeFixtureEntry(bundled, fragmentRef, "bundled tools\n");
+  const stack = yield* Effect.promise(() => writeFixtureBundle(published, bundled, stackRef));
+  const fragment = yield* Effect.promise(() => writeFixtureBundle(published, bundled, fragmentRef));
+  const optionsFor = (options: Parameters<typeof runCli>[1], signal: AbortSignal) => ({
+    ...options,
+    home,
+    env: { ...environment(home), ...options?.env },
+    host: { registry: bundled, ...options?.host },
+    clock,
+    signal,
+  });
+  return {
+    home,
+    bundled,
+    published,
+    upstream,
+    stack,
+    fragment,
+    unconfigured: (args: string[], options?: Parameters<typeof runCli>[1]) =>
+      Effect.promise((signal) => runIndexCli(args, optionsFor(options, signal))),
+    connect:
+      (server: { url: string }) => (args: string[], options?: Parameters<typeof runCli>[1]) =>
+        Effect.promise((signal) => runIndexCli(args, { ...optionsFor(options, signal), server })),
+  };
+});
+
+export const indexRefreshFixture = Effect.gen(function* () {
+  const fixture = yield* indexCommandFixture;
+  const server = yield* Effect.acquireRelease(
+    Effect.promise(() => remoteServer(fixture.published)),
+    (server) => Effect.promise(() => server.close()),
+  );
+  const run = fixture.connect(server);
+  const status = Effect.gen(function* () {
+    const result = yield* run(["doctor", "--json"]);
+    success(result);
+    return Schema.decodeUnknownSync(DoctorReport)(JSON.parse(result.stdout)).remoteIndex;
+  });
+  return {
+    ...fixture,
+    server,
+    run,
+    status,
+    requests: () => server.requests.filter((path) => path === fixtureIndexPath),
+    headers: () => server.headers.filter((_, i) => server.requests[i] === fixtureIndexPath),
+    list: Effect.gen(function* () {
+      const result = yield* run(["list", "--json"]);
+      success(result);
+      return Schema.decodeUnknownSync(ListResult)(JSON.parse(result.stdout));
+    }),
+  };
+});
+
+/** Wait for loopback delivery before moving the clock. A fresh cache can also skip the request. */
+export const runThroughIndexTimeout = Effect.fn("test.runThroughIndexTimeout")(function* (
+  run: Effect.Effect<CommandResult>,
+  requests: () => ReadonlyArray<string>,
+) {
+  const prior = requests().length;
+  const running = yield* run.pipe(Effect.forkChild);
+  yield* Effect.promise(() =>
+    expect.poll(() => requests().length > prior || running.pollUnsafe() !== undefined).toBe(true),
+  );
+  if (requests().length > prior) yield* TestClock.adjust(INDEX_REFRESH_DEADLINE_MS + 1);
+  return yield* Fiber.join(running);
+});
 
 /** Build old and new proven snapshots once, including a stack pinned to the old tools. */
 export async function buildRemoteFixture(temporary: string) {

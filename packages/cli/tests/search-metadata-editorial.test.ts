@@ -85,7 +85,7 @@ async function setup() {
   const root = join(home, "registry");
   seed(root, stack);
   const value = await stamp(root, stack);
-  // These fixtures are self-contained; only the canonical vocabulary comes from bundled data.
+  // The entries are synthetic and validate against the frozen search vocabulary.
   return { home, root, value, registry: emptyRegistry };
 }
 

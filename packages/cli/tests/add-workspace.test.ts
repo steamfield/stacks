@@ -73,6 +73,7 @@ const dbChanges = (dir: string) => [
   ".stacks/incoming/backend/config",
   ".stacks/incoming/backend/config/app.json",
   ".stacks/manifest.json",
+  ".stacks/sources.json",
   `${dir}/src/db.ts`,
 ];
 

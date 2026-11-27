@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "go-cli",
+  "source": {
+    "digest": "sha256:5c99ae3de8f9e12d8e48228a1d8c2b05763ab57c81e63fd2a770aebea6964f55",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "A Go command-line tool with subcommands, configurable settings, actionable errors and human or JSON output.",
+  "description": "Write a Go utility with Cobra subcommands and Viper settings layered from defaults, files, environment and flags. Results have human and JSON forms, while structured failures explain the next action. The first command exercises those boundaries, and the Makefile covers building, tests and checks. Add your utility's behavior; select goreleaser separately for tag-driven distribution.",
+  "seoDescription": "A Go CLI recipe with Cobra subcommands, layered Viper configuration, actionable errors and human or JSON output.",
+  "projectExamples": [
+    {
+      "title": "Configuration inspector",
+      "description": "A command that shows resolved settings after file, environment and flag overrides, with readable output for people and JSON for scripts."
+    },
+    {
+      "title": "Release artifact checker",
+      "description": "A command that checks release archives and their checksums before upload, shipped through tagged GitHub releases with GoReleaser.",
+      "withFragments": ["goreleaser"]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter for a terminal program written in the Go language, with settings and clear error messages.",
+    "goodAt": [
+      "Commands that read settings from files, environment variables and flags",
+      "Output for people to read, or in a structured form scripts can parse",
+      "Error messages that say what went wrong and how to fix it"
+    ],
+    "notGoodAt": ["Graphical apps with windows and buttons; choose a web or desktop stack."]
+  },
+  "platforms": ["cli"],
+  "productKinds": ["cli-tool"],
+  "languages": ["go"],
+  "requests": [
+    "build a terminal utility whose commands also work in scripts",
+    "let users override saved settings with environment variables and flags",
+    "make command failures explain how to fix the problem",
+    "give my Go tool consistent help and version output",
+    "run a Go binary on machines without Node installed"
+  ],
+  "useCases": ["command-line automation", "configurable utilities"],
+  "synonyms": ["cobra", "viper", "single binary", "subcommands"],
+  "goodFor": [
+    "configuration precedence",
+    "structured error responses",
+    "table-driven command tests"
+  ],
+  "notFor": ["graphical interfaces", "a terminal user interface"]
+}

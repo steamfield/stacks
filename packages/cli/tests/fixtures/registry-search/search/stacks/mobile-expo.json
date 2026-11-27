@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "mobile-expo",
+  "source": {
+    "digest": "sha256:ec1f246413bb2d1c56deba6ebb4d05650d008280967e84a9b295ad7ad973159a",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "An iOS and Android app sharing TypeScript schemas with its own API and Postgres database.",
+  "description": "Build an Expo Router phone app and a Bun/Hono API together, sharing Zod schemas across the mobile screens and backend. Postgres and Drizzle are part of the base, with database-backed API tests and hooks that own client data access. The default Clerk fragment adds sign-in when configured. The first screen proves API connectivity; your screens, data model and authorization rules come next.",
+  "seoDescription": "An Expo app for iOS and Android with a Hono API, shared TypeScript schemas and Postgres, plus Clerk sign-in in the default composition.",
+  "projectExamples": [
+    {
+      "title": "Personal reading log",
+      "description": "An iPhone and Android app where readers keep a list of books, record reading progress and revisit notes, with records stored through a shared API and Postgres."
+    },
+    {
+      "title": "Field observation notebook",
+      "description": "A phone notebook where field workers enter observations on iOS or Android and review records stored through the app's API."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter phone app for iPhone and Android, with its own server and database for the data.",
+    "goodAt": [
+      "Phone screens that load and save data through a server",
+      "Sharing one set of data rules between the phone app and the server",
+      "Testing the server against a real database"
+    ],
+    "notGoodAt": ["Apps built in Swift or Kotlin; use Apple's or Google's own tools instead."]
+  },
+  "platforms": ["ios", "android", "mobile", "server"],
+  "productKinds": ["mobile-app", "fullstack", "api"],
+  "languages": ["typescript"],
+  "requests": [
+    "build one phone app for both major mobile platforms",
+    "keep my app screens and backend responses consistent through shared types",
+    "store my mobile app's data behind an API I host",
+    "give screens reusable hooks for loading data and handling failures"
+  ],
+  "useCases": ["mobile apps with a backend", "shared app and API schemas"],
+  "synonyms": ["Expo Router", "React Native", "Hono", "Drizzle", "NativeWind", "Clerk sign-in"],
+  "goodFor": ["typed app-to-API calls", "database-backed API tests", "utility-class styling"],
+  "notFor": ["native Swift or Kotlin projects", "server-side rendering", "server rendered"],
+  "caveats": [
+    "Entitlements such as Apple sign-in can require signing even for simulator builds; gate them to EAS builds.",
+    "Local API development and the API tests need Docker for the Postgres container."
+  ]
+}

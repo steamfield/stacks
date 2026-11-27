@@ -6,7 +6,7 @@ README's "Bundled stacks" table lists the stacks.
 
 Check it with `bun run dev validate` from `packages/cli/`. The bundled registry has to pass with
 zero errors and zero warnings, and every reference in it must resolve inside it;
-`tests/bundled-registry.test.ts` enforces both. `tests/registry.test.ts` runs `new` for every
+`tests/registry/bundled-registry.test.ts` enforces both. `tests/registry/registry.test.ts` runs `new` for every
 stack in both presets (and each app on the stacks it fits) and checks the brief size, the D7
 verify layers and that no rendered template keeps a `{{` token.
 

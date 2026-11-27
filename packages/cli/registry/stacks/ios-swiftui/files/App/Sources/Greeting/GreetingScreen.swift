@@ -24,7 +24,6 @@ struct GreetingScreen: View {
                     .accessibilityIdentifier("greeting.message")
                 Text(greeting.environment.rawValue)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         case .failed(let error):
             ErrorView(error: error) { await model.load() }

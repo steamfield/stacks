@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { NodeServices } from "@effect/platform-node";
 import { DependencyAllowlist } from "@steamfield/stacks-format";
@@ -41,19 +41,6 @@ test("Go v10 module suffix uses the required version", async () => {
   const root = project();
   put(root, "go.mod", "module example.com/app\nrequire example.com/lib/v10 v10.2.3\n");
   expect(await read(root)).toEqual([{ ecosystem: "go", name: "example.com/lib", major: "10" }]);
-});
-
-test("the bundled allowlist reports go-yaml by its module key", async () => {
-  const root = project();
-  put(root, "go.mod", "module example.com/app\nrequire go.yaml.in/yaml/v3 v3.0.4\n");
-  const bundled = Schema.decodeUnknownSync(Schema.fromJsonString(DependencyAllowlist))(
-    readFileSync(join(import.meta.dirname, "../registry/allowlist.json"), "utf8"),
-  );
-  expect(
-    await Effect.runPromise(
-      readDependencies(root, bundled).pipe(Effect.provide(NodeServices.layer)),
-    ),
-  ).toEqual([{ ecosystem: "go", name: "go.yaml.in/yaml", major: "3" }]);
 });
 
 test.each(["tool", "replace", "exclude", "retract", "godebug"])(

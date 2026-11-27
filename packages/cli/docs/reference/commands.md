@@ -42,6 +42,8 @@ stacks search "a static blog" --local     # rank on this machine only
 
 `search` ranks stacks and fragments against a request in plain words (1 to 500 characters) and explains each hit. It asks the hosted API and ranks locally at the same time, falling back to local ranking when the API is unavailable. `--local`, `--offline`, `STACKS_OFFLINE=1` and `DO_NOT_TRACK` keep the request on this machine. `--kind stack|fragment` searches one kind, and `--limit` caps each list (1 to 20, default 5). It exits 0 even when nothing fits strongly. [Search](search.md) covers ranking, the result fields and the API's backoff.
 
+For a recommended hit, the text report's `Next:` line suggests `stacks update` only if a cached index lacks that entry or the index's last recorded outcome was `unsupported`.
+
 ## list
 
 ```sh
@@ -166,12 +168,27 @@ Terminal harnesses receive your environment and terminal in the project director
 ### What `new` checks and writes
 
 - `.stacks/manifest.json` records the stack, fragments, preset, agents and the verify steps with their digest; it is committed with the project. A manifest whose `schemaVersion` is newer than this CLI reads fails `InvalidConfig` (exit 3): upgrade stacks.
+- `.stacks/sources.json` records the index read and the [origin and digest of each composed entry](../concepts.md#the-project-after-new). It appears in `written`, including the planned files on `--dry-run`.
 - The state record is a second copy of the verify digest at `$XDG_STATE_HOME/stacks/projects/<projectId>.json` (`STACKS_STATE_DIR` replaces `$XDG_STATE_HOME/stacks`), so editing the project's files can't hide a changed verify step. When that directory isn't writable, `new` still succeeds with `stateRecord: false`, and verify's tamper check uses the manifest only.
 - The target must not exist, or be empty. A directory holding only `.git` or OS litter (`.DS_Store`, `Thumbs.db`, `desktop.ini`, `._*`) counts as empty; anything else fails `TargetNotEmpty` (exit 2).
 - Inside another repository nothing is initialized, and a fragment with `needs_own_repo` is refused (`ComposeConflict`, with the `--without` flags that would avoid it). A target that is itself a repository's root is that project's own repository, so those fragments are allowed. When git fails for any reason other than "not a git repository" (a broken `.git`, unsafe ownership), nothing is initialized and the result carries a `git_unusable` warning.
 - No entry may write under `.git/` or `.stacks/`, in any letter case (`ComposeConflict`, reason `reserved_path`), and two entry files whose paths differ only in case collide (`file_owner`).
 - Every write is checked against the project's real path, so nothing lands outside it (`PermissionDenied`, reason `escape`). A failure or Ctrl+C removes everything `new` wrote, the state record included.
 - Missing tools never fail `new`: they are listed in the result and the brief, with the `--without` flag that would drop the fragment needing one.
+
+### Index refresh
+
+`new` revalidates the configured index before reading the registry, including for `--dry-run` and the interactive picker. If the refresh fails or the CLI is offline, it continues with the cached index when available or the bundled registry otherwise. The text report describes the fallback on stdout. In JSON, `warnings` includes `{ "code": "index_fallback", "id": "index", "reason": ... }`, with `cachedAt` when the CLI uses a cached index and has its timestamp. With no index URL configured, this warning is omitted.
+
+| `reason` | What happened |
+| --- | --- |
+| `timeout` | The request ran past its deadline |
+| `network` | The request could not run or failed, or the server returned an unusable HTTP response |
+| `not_found` | The index server returned HTTP 404 |
+| `invalid` | The index or its signature data was malformed |
+| `signature` | The official index named an unknown key or its signature failed verification |
+| `unsupported` | The index uses a newer format or declares a `minCli` this CLI cannot satisfy |
+| `offline` | `--offline` or `STACKS_OFFLINE=1` disabled the request |
 
 ## add
 
@@ -182,6 +199,8 @@ stacks add agent-ops --agents claude,codex --json
 ```
 
 `add` applies only the requested fragments and their requirements. Existing live files keep their bytes: conflicting contributions are parked whole under `.stacks/incoming/<path>` for the agent to merge. Identical contributions are skipped; later parked JSON contributions deep-merge with the parked copy, and other contributions get numbered copies. The result and add brief list every pending incoming file, including earlier runs.
+
+`add` revalidates the configured index before reading the registry and reports the same [`index_fallback` warning](#index-refresh) as `new`. It updates `.stacks/sources.json` with the index it read and the fragments it composed, preserving existing rows for entries it leaves in place. A missing, unreadable or unsupported sources file is rebuilt from the entries the CLI can resolve.
 
 An existing manifest keeps its stack, preset, agents, accepted verify steps, and existing env and command values. Without one, `add` creates a manifest with `mode: "add"` and `stack: null`; it infers the project name from package.json, pyproject.toml, go.mod, Cargo.toml, then the directory name. `--sandbox` and `--agents` configure only a newly created manifest; contradictory values on an existing project refuse. `--yes`, `--launch`, `--no-launch` and `--json` follow `new`'s rules. Tools are looked up but never run, and `add` runs no verify steps. A directory without a manifest that a workspace project above it names as one of its parts is refused before anything is written (`BadInput`, `part_dir`, with the `part` and the workspace `root`): run `add` from the workspace root, which places each fragment on the part it fits.
 
@@ -242,6 +261,8 @@ stacks validate ~/my-registry/stacks/web --submission # ready for the public reg
 ```
 
 `validate` reads files only; it runs nothing from an entry. A relative path resolves against the directory you ran it from. Exit 0 when there are no errors; exit 2 (`ValidationFailed`) with the full report still on stdout. [Validation](validation.md) lists every check, the word budgets and `--brief`.
+
+For an official registry root, identified by `allowlist.json`, `validate` reports a `registry-meta` error finding for a missing or unusable `registry.json` or a `minCli` newer than the running CLI.
 
 `--submission` takes one entry directory and adds the checks that keep an entry out of the public registry:
 
@@ -343,6 +364,8 @@ stacks doctor --json
 ```
 
 `doctor` reports version, platform, executable, config, data, cache and working paths, the user entry directory, the bundled registry and skill paths (and whether each exists), safe configuration errors, and `remoteIndex` with its URL, trust mode, offline flag, cache timestamp, last attempt, last outcome and backoff deadline. It never refreshes the index. A missing configuration file is fine. A malformed optional file is reported in `configErrors` while doctor exits successfully; help and version don't open that file.
+
+In `doctor --json`, `remoteIndex` includes `commit` (the registry checkout), `generatedAt` (when the index was built) and `minCli` (the oldest compatible CLI) when a usable index is cached. It also includes `etag` when the cache state has a stored ETag.
 
 ## schema
 

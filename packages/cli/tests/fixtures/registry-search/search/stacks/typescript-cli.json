@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "typescript-cli",
+  "source": {
+    "digest": "sha256:0eb841941c89c898319030a10f1de8332d0a4829945aaf5902228d815885aba2",
+    "by": "drafted",
+    "model": "codex/gpt-6.1-sol",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-16"
+  },
+  "summary": "A compiled command-line tool with subcommands, JSON results, lazy configuration and structured logs.",
+  "description": "Create a TypeScript command-line utility compiled with Bun. Effect owns commands, services, configuration and errors; results stay on stdout while diagnostics use stderr. Help, version and doctor work independently of optional application configuration. Tests exercise the command tree and compiled binary. Add your own commands after the base passes, then select bun-release for distribution or openrouter-chat-cli for the terminal chat application.",
+  "seoDescription": "A Bun-compiled TypeScript CLI with Effect commands, JSON output, lazy configuration and tests of both source commands and the executable.",
+  "projectExamples": [
+    {
+      "title": "Project diagnostics utility",
+      "description": "A command that checks project files and environment settings, reports findings with suggested fixes, and prints JSON for automation."
+    },
+    {
+      "title": "Terminal model notebook",
+      "description": "A terminal notebook for conversations with models through OpenRouter, with saved chats, Markdown export and commands that scripts can call.",
+      "withFragments": ["openrouter-chat-cli"]
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter terminal program written in TypeScript, a typed form of JavaScript, packaged as one file you can run.",
+    "goodAt": [
+      "Commands with predictable output for people and for scripts",
+      "Testing the packaged program as well as its source code",
+      "Keeping help and diagnostic commands working even when settings are broken"
+    ],
+    "notGoodAt": [
+      "Full-screen terminal programs with menus and panels; add a dedicated interface tool.",
+      "Installers or self-updating programs; add those separately."
+    ]
+  },
+  "platforms": ["cli"],
+  "productKinds": ["cli-tool"],
+  "languages": ["typescript"],
+  "requests": [
+    "build a terminal utility I can distribute as an executable",
+    "let scripts consume results while diagnostics go to stderr",
+    "keep help and diagnostics working when configuration is broken"
+  ],
+  "useCases": ["shell automation", "diagnostic utilities"],
+  "synonyms": [
+    "Effect commands",
+    "Bun executable",
+    "subcommands",
+    "doctor",
+    "machine-readable output"
+  ],
+  "goodFor": ["stable exit codes and safe errors", "testing commands before and after compilation"],
+  "notFor": ["a terminal user interface", "built-in installation and update workflows"]
+}

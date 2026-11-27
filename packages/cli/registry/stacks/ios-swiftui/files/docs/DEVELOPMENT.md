@@ -21,7 +21,7 @@ Edits made in Xcode's project editor (build settings, new targets, capabilities)
 
 Every Makefile build targets the simulator with `CODE_SIGNING_ALLOWED=NO`, so no Apple developer account is needed. Running on a device or archiving for the App Store needs a team and signing settings in project.yml, which this slice leaves to the user.
 
-`make typecheck` compiles in Debug for the chosen simulator; `make test` and `make test-ui` reuse that build from `build/DerivedData`. `make build` compiles Release for any simulator, which proves the production configuration builds. Warnings are errors in both.
+`make typecheck` compiles in Debug for the chosen simulator; `make test`, `make coverage` and `make test-ui` reuse that build from `build/DerivedData`. `make coverage` is `make test` with code coverage and the floor from `docs/guidance/testing.md`; verify and CI run it in place of `make test`. `make build` compiles Release for any simulator, which proves the production configuration builds. Warnings are errors in both.
 
 macOS ships GNU Make 3.81, which ignores `.SHELLFLAGS`. Every piped xcodebuild recipe starts with `$(STRICT)` (`set -euo pipefail`), or a failed build piped into xcbeautify would exit 0.
 

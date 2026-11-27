@@ -3,7 +3,7 @@
  * Per-invocation caching keeps catalog reads cheap and deep checks lazy and per-entry.
  */
 import { type AuthorsFile, Ecosystem, type Kind } from "@steamfield/stacks-format";
-import { Context, Effect, FileSystem, Layer, Option, Path } from "effect";
+import { Context, Effect, FileSystem, Layer, Option, Path, Scope } from "effect";
 import { EntryInvalid, NotFound, type PermissionDenied } from "../../errors";
 import { denied } from "../fs/denied";
 import { defined } from "../object";
@@ -174,6 +174,7 @@ export class Registry extends Context.Service<
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
+        const scope = yield* Scope.Scope;
         const io: FileAccess = { fs, path };
         // Filled while `load` runs; read only after it has.
         const state: LoadState = { io, skipped: [], treeChecks: new Map() };
@@ -198,12 +199,10 @@ export class Registry extends Context.Service<
             const { winners, bundledWinners } = yield* local;
             if (Option.isNone(index) || index.value.root === undefined)
               return localRegistry(winners);
-            return yield* remoteRegistry(
-              io,
-              index.value,
-              winners,
-              [...bundledWinners.values()].filter((item) => !isRejected(item)),
-            );
+            return yield* remoteRegistry(io, index.value, winners, {
+              bundledEntries: [...bundledWinners.values()].filter((item) => !isRejected(item)),
+              scope,
+            });
           }),
         );
 

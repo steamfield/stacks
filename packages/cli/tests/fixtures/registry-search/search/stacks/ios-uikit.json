@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "kind": "stack",
+  "id": "ios-uikit",
+  "source": {
+    "digest": "sha256:a0751e6d9745ebbc11bf5c142513c68006fadd1214dc1b90eeebe29b0c328b7a",
+    "by": "drafted",
+    "model": "claude-opus-5-5",
+    "promptVersion": 4,
+    "reviewedAt": "2026-11-26"
+  },
+  "summary": "A native iPhone app in Swift with UIKit screens built in code, a navigation coordinator and tests that run on a simulator.",
+  "description": "Start a native iPhone app in Swift with UIKit screens laid out in code. A scene delegate loads validated settings and hands navigation to a coordinator; each screen is a view controller rendering a main-actor view model, and the list uses a diffable data source with loading, empty and error states. XcodeGen generates the Xcode project, SwiftLint and swift-format check the code, Swift Testing unit tests hold a line-coverage floor, and XCUITest runs the journeys with accessibility audits on a simulator. The list reads a bundled JSON file, so a real data source, more screens and any backend are yours to add.",
+  "seoDescription": "A UIKit iPhone app recipe in Swift: Auto Layout in code, coordinator navigation, strict-concurrency MVVM, a diffable list, XcodeGen, Swift Testing, XCUITest.",
+  "projectExamples": [
+    {
+      "title": "Site inspection checklist",
+      "description": "An iPhone app where inspectors scroll through the sites on their route, open each one for its details, and see a plain message when the list can't load."
+    },
+    {
+      "title": "Recipe browser for a cooking magazine",
+      "description": "An iPhone app that lists the current issue's recipes and opens each one on its own screen with the ingredients and steps."
+    }
+  ],
+  "plain": {
+    "whatItIs": "A starter iPhone app in Swift using UIKit, Apple's view-controller way of building screens, with every screen laid out in code.",
+    "goodAt": [
+      "Teams that already maintain UIKit code and want new apps to match",
+      "Custom scrolling layouts and text editing that need UIKit's control",
+      "Testing each screen's logic without launching the app"
+    ],
+    "notGoodAt": [
+      "New apps SwiftUI can handle; choose the SwiftUI iOS stack.",
+      "Android or both phone platforms; choose React Native, Flutter or Expo.",
+      "Objective-C codebases; choose the Objective-C iOS stack."
+    ]
+  },
+  "platforms": ["ios", "mobile"],
+  "productKinds": ["mobile-app"],
+  "languages": ["swift"],
+  "requests": [
+    "UIKit app with views built in code and no storyboards",
+    "start an iOS app with a coordinator and MVVM view controllers",
+    "Swift UIKit app with a diffable data source list",
+    "new iOS project that matches our existing UIKit codebase"
+  ],
+  "useCases": ["iPhone apps built on UIKit", "new apps joining a UIKit codebase"],
+  "synonyms": [
+    "UIKit",
+    "UIViewController",
+    "programmatic UIKit",
+    "coordinator pattern",
+    "Auto Layout",
+    "Cocoa Touch",
+    "XcodeGen",
+    "XCUITest"
+  ],
+  "goodFor": [
+    "view controllers built in code",
+    "coordinator navigation",
+    "compiler-checked concurrency"
+  ],
+  "notFor": ["React Native", "Objective-C"],
+  "caveats": [
+    "Needs a Mac with Xcode: every build, test and CI job runs on macOS with a simulator.",
+    "No backend: the list reads a JSON file bundled in the app."
+  ]
+}

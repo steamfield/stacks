@@ -4,7 +4,6 @@ import { afterEach, expect, test } from "vitest";
 import { quiet, runCli } from "./helpers/cli";
 import { minimal, writeEntry } from "./helpers/registry";
 import {
-  bundled,
   cardPath,
   closeDecorateFixtures,
   copyVocabulary,
@@ -15,6 +14,7 @@ import {
   put,
   readJson,
   searchFindings,
+  searchRegistry,
   seed,
   stamp,
   validateSearch,
@@ -137,7 +137,7 @@ test("an unreadable search directory cannot silently validate as empty", async (
   const result = await runCli(["validate", root, "--json"], {
     home,
     env: quiet,
-    host: { registry: bundled },
+    host: { registry: searchRegistry },
   });
   expect(result.status).toBe(6);
   expect(JSON.parse(result.stderr)).toMatchObject({ error: { tag: "PermissionDenied" } });
@@ -178,7 +178,7 @@ test("validating one entry does not enumerate another kind's unreadable cards", 
   const result = await runCli(["validate", join(root, "stacks/sample"), "--json"], {
     home,
     env: quiet,
-    host: { registry: bundled },
+    host: { registry: searchRegistry },
   });
   expect(result.status, result.stderr).toBe(0);
   const { ValidateReport } = await import("../src/schemas/validate");
@@ -187,17 +187,4 @@ test("validating one entry does not enumerate another kind's unreadable cards", 
     searchFindings(Schema.decodeUnknownSync(ValidateReport)(JSON.parse(result.stdout))),
   ).toEqual([expect.objectContaining({ check: "vocabulary-ignored" })]);
   expect(readJson(cardPath(root, sample))).toMatchObject({ id: sample.id });
-});
-
-test("every bundled card is byte for byte what decorate writes, so approving changes one line", async () => {
-  const { readdirSync } = await import("node:fs");
-  const { Schema } = await import("effect");
-  const { SearchMetadata } = await import("@steamfield/stacks-format");
-  for (const kind of ["stack", "fragment"] as const) {
-    for (const name of readdirSync(join(bundled, "search", `${kind}s`))) {
-      const text = readFileSync(join(bundled, "search", `${kind}s`, name), "utf8");
-      const decoded = Schema.decodeUnknownSync(SearchMetadata)(JSON.parse(text));
-      expect(text, name).toBe(`${JSON.stringify(decoded, null, 2)}\n`);
-    }
-  }
 });

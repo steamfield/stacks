@@ -3,11 +3,11 @@
   "kind": "stack",
   "id": "ios-swiftui",
   "source": {
-    "digest": "sha256:b9720c29d21825cbce9dc1f546c93556e6aab7f240af3197471d5cab5fc0cf7e",
+    "digest": "sha256:3eaaf814b02f7f3514d8da03c15924bd9823020dd3d4d5469a53d30f3927b2e4",
     "by": "drafted",
     "model": "claude-opus-5-5",
     "promptVersion": 4,
-    "reviewedAt": "2026-11-26"
+    "reviewedAt": "2026-11-27"
   },
   "summary": "A native iPhone app in Swift and SwiftUI with Observation view models, an XcodeGen project and tests on a simulator.",
   "description": "Start a native iPhone app in Swift 6 and SwiftUI, with complete concurrency checking and warnings as errors. XcodeGen builds the Xcode project from a committed spec, so the project file is never hand-edited. The slice has a typed config read from build settings, an error type that keeps details out of the screen, os.Logger logging, and one screen whose Observation view model loads through a service protocol. Swift Testing covers config, errors and the view model; an XCUITest launches the app. Networking, persistence, signing and App Store delivery are left to build.",

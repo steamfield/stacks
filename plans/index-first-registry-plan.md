@@ -48,7 +48,7 @@ In scope (RFC decisions kept, with v0.15.0 corrections):
 
 Out of scope: the registry repository split (G1 to G3, G2a to G2f); signing in CI (phase 5.2); `create --from index` and `create`'s picker (they still use `defaultRoots`); `verify` warning about newer index content; a scheduled canary; any edit to `stacks-api` code from this repo.
 
-Assumptions: the release is 0.16.0. `minCli` starts at 0.16.0. Both the brief digests and the golden set stay as content checks (now under the `registry` project) rather than being deleted.
+Assumptions: the release is 0.17.0 (main released 0.16.0 during this run; see Log). `minCli` starts at 0.17.0. Both the brief digests and the golden set stay as content checks (now under the `registry` project) rather than being deleted.
 
 Error model:
 - Index refresh never fails a command. When an index root is configured, every failure (timeout, network, not_found, invalid, signature, unsupported, offline) becomes `index_fallback` with that reason, and the command continues on the cached index or the bundled one. With no index root configured there's no warning. Exit codes don't change. The warning goes on stdout in the report; agent-mode stderr stays empty.
@@ -254,7 +254,7 @@ A `ci-github` change triggers the canary rule (D42), so the four canaries are re
 1. Maintainer: generate both key pairs (`openssl genpkey -algorithm ed25519`), keep the private halves offline, and hand over the public PEMs (needed before phase 3).
 2. Publish `@steamfield/stacks-format` with the keys (the release workflow's manual run from `main`).
 3. A `stacks-api` session (I start it with a brief) does four things there. It signs with `stacks-index-2026a`, and `signingKeys` fails instead of generating a key. It passes release, backup and legacy keys as `STACKS_INDEX_PUBLIC_KEYS`. It requires `--ref`. It drops `--include-unproven` (user decision). It also adds one `prod:ship --ref <ref>` command covering deploy, Worker build and the live page check.
-4. `bun run release 0.16.0 --min-cli`, commit, push. Then `prod:ship --ref <release commit>`. Check the live `keyId` is `stacks-index-2026a`, and that `/stacks/phaser-game/` (proven 2026-11-25) returns 200. Then tag `v0.16.0`.
+4. `bun run release 0.17.0 --min-cli`, commit, push. Then `prod:ship --ref <release commit>`. Check the live `keyId` is `stacks-index-2026a`, and that `/stacks/phaser-game/` (proven 2026-11-25) returns 200. Then tag `v0.17.0`.
 5. Bench the five unproven stacks (maintainer runs `bun run bench`), so they rejoin the index on the next deploy.
 
 ## Verification
@@ -266,3 +266,4 @@ A `ci-github` change triggers the canary rule (D42), so the four canaries are re
 ## Log
 
 - 2026-11-26 plan critique (devils-advocate, opus): 8 findings, all applied. Signature demos fixed and every failed signature check mapped to `signature`. Metadata-only entries dropped in favor of a non-cached deadline race. Budget scope made per invocation, with a `get`-after-lapse test. No warning without an index root. Refresh memoized, so no second request. Lane ownership fixed (`cliMeetsMinimum` exported, `compose-files.test.ts`, add internals, phase 2 contracts in a scaffold). Phase 4 now depends on phase 2. The proof gate's effect on deploy-shipped content and on the five unproven stacks is stated.
+- 2026-11-27 main released 0.16.0 (the stack audit, which applied the DX baseline to every stack, the five mobile ones included) while this run was in flight. Main is merged into the landing branch (ed33722f), keeping both sides of the mobile stack changes, and this run releases as 0.17.0. Where the Spec says 0.16 for this run's CLI, read 0.17.

@@ -14,7 +14,7 @@ const root = join(import.meta.dirname, "..");
 process.chdir(root);
 
 const CHANGELOG = "packages/cli/CHANGELOG.md";
-const DIGESTS = "packages/cli/tests/fixtures/bundled-brief-digests.ts";
+const DIGESTS = "packages/cli/tests/registry/fixtures/bundled-brief-digests.ts";
 const REGISTRY_META = "packages/cli/registry/registry.json";
 const USAGE =
   "usage: bun run release <major.minor.patch> [--min-cli] (no leading v, no prerelease suffix)";

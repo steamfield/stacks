@@ -35,7 +35,7 @@ const files: Record<string, string> = {
     'expect(a).toBe("0.9.0");\nexpect(b.version).toBe("0.9.0");\n',
   "packages/cli/e2e/artifact.test.ts": 'const x = {\n    version: "0.9.0",\n};\n',
   "packages/cli/tests/fixtures/index/harness.ts": 'export const v = {\n    cli: "0.9.0",\n};\n',
-  "packages/cli/tests/fixtures/bundled-brief-digests.ts": `/**
+  "packages/cli/tests/registry/fixtures/bundled-brief-digests.ts": `/**
  * history
  * After proving an intentional brief change, regenerate each key.
  */
@@ -130,7 +130,7 @@ describe("bun run release", () => {
     expect(read("packages/cli/e2e/artifact.test.ts")).toContain('version: "0.9.1"');
     expect(read("packages/cli/tests/fixtures/index/harness.ts")).toContain('cli: "0.9.1"');
     expect(read("packages/mcp/package.json")).toContain('"version": "0.1.3"');
-    const digests = read("packages/cli/tests/fixtures/bundled-brief-digests.ts");
+    const digests = read("packages/cli/tests/registry/fixtures/bundled-brief-digests.ts");
     for (const key of KEYS) {
       const [stack = "", preset = ""] = key.split(":");
       expect(digests).toContain(`"${key}": "${digestOf(stack, preset)}"`);

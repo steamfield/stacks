@@ -83,7 +83,16 @@ tasks:
     description: The full gate (lint, typecheck, root, CLI and MCP tests, e2e), partitioned across hosts
     setup: bun install --frozen-lockfile
     parallel:
-      [check-bench, check-cli, check-e2e, check-format, check-hooks, check-mcp, check-static]
+      [
+        check-bench,
+        check-cli,
+        check-e2e,
+        check-format,
+        check-hooks,
+        check-mcp,
+        check-registry,
+        check-static,
+      ]
     fail_fast: false
 
   check-bench:
@@ -94,8 +103,11 @@ tasks:
   # so it keeps mbp.
   check-cli:
     hosts: [m4-mini, mbp]
-    run: cd packages/cli && bun run test:unit --exclude tests/bench.test.ts
+    run: cd packages/cli && bun run test:behavior --exclude tests/bench.test.ts
   # The rest go to the m1 hosts, so the fast ones start the two CLI partitions at once.
+  check-registry:
+    hosts: [m1-mini, m1-linux]
+    run: cd packages/cli && bun run test:registry
   check-e2e:
     hosts: [m1-mini, m1-linux]
     run: bun run e2e
@@ -126,6 +138,11 @@ tasks:
     description: CLI Vitest tests (pass files or -- -t "<name>" to narrow)
     hosts: [mbp, m4-mini]
     run: bun install --frozen-lockfile && cd packages/cli && bun run test:unit {args}
+
+  test-registry:
+    description: The registry content checks alone (pass files or -- -t "<name>" to narrow)
+    hosts: [mbp, m4-mini]
+    run: bun install --frozen-lockfile && cd packages/cli && bun run test:registry {args}
 
   test-hooks:
     description: Root tests only (hooks and scripts)

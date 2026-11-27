@@ -17,7 +17,7 @@ test.each(scenarios)(
   async (scenario) => {
     const root = space.dir();
     mkdirSync(join(root, "scripts"));
-    mkdirSync(join(root, "tests/fixtures/search"), { recursive: true });
+    mkdirSync(join(root, "tests/registry/fixtures/search"), { recursive: true });
     copyFileSync(join(cliRoot, "scripts/search-eval.ts"), join(root, "scripts/search-eval.ts"));
     for (const path of ["src", "node_modules", "scripts/decorate", "tests/helpers"])
       symlinkSync(join(cliRoot, path), join(root, path));
@@ -31,7 +31,7 @@ test.each(scenarios)(
         search: { summary: "quasar", requests: ["quasar"] },
       });
     put(
-      join(root, "tests/fixtures/search/golden.json"),
+      join(root, "tests/registry/fixtures/search/golden.json"),
       JSON.stringify({
         schemaVersion: 1,
         gate: { mrr: 0, recallAt3: 0, fragmentRecallAt5: 0 },

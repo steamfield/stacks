@@ -41,7 +41,9 @@ const load = Effect.fn("searchEval.load")(function* () {
   }
   const fs = yield* FileSystem.FileSystem;
   const golden = yield* fs
-    .readFileString(fileURLToPath(new URL("../tests/fixtures/search/golden.json", import.meta.url)))
+    .readFileString(
+      fileURLToPath(new URL("../tests/registry/fixtures/search/golden.json", import.meta.url)),
+    )
     .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(GoldenSet))));
   return { entries, vocabulary, golden };
 });

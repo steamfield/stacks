@@ -91,7 +91,7 @@ Removed content comes from the highest `v*` release tag that shipped the entry, 
 
 ## Search judgments and baseline
 
-`tests/fixtures/search/golden.json` records requests and relevance judgments for the bundled registry. `tests/helpers/search-golden.ts` owns its `GoldenSet` schema; `tests/helpers/search-eval.ts` evaluates any synchronous ranking function without calling a model or shipping code in the CLI.
+`tests/registry/fixtures/search/golden.json` records requests and relevance judgments for the bundled registry. `tests/helpers/search-golden.ts` owns its `GoldenSet` schema; `tests/helpers/search-eval.ts` evaluates any synchronous ranking function without calling a model or shipping code in the CLI.
 
 Read an entry's frontmatter and body before judging it. Add realistic requests from bench notes, issues, the demo, or your own work, never logged user queries. Give each request a unique id, one of the seven existing pools, a `tune` or `holdout` split, and its original text, including casing and punctuation. Keep about a third in holdout (25–40%, at least twelve), with both splits in every pool.
 

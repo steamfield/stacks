@@ -55,7 +55,7 @@ bun run dev search --local --kind fragment --json "gitlab ci"
 
 Try at least five requests the entry should win, three it should lose to a sibling, one near miss its `notFor` should push down, and one request it should win that contains each excluded word. Report them as a table in your hand-back.
 
-Don't read `packages/cli/tests/fixtures/search/golden.json` while writing a card: holdout queries must not leak into `requests`. After the card is written, run from `packages/cli`:
+Don't read `packages/cli/tests/registry/fixtures/search/golden.json` while writing a card: holdout queries must not leak into `requests`. After the card is written, run from `packages/cli`:
 
 ```sh
 bun run test:unit tests/search-golden.test.ts tests/search-metadata-holdout.test.ts tests/search-golden-coverage.test.ts
